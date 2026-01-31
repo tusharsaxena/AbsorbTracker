@@ -47,6 +47,15 @@ local function GetLSM()
     return LSM
 end
 
+-- Debug flag
+local DEBUG = false
+
+local function DebugPrint(...)
+    if DEBUG then
+        print("|cFF00FF00[AbsorbTracker]|r", ...)
+    end
+end
+
 -- Generic setting getter with fallback
 local function GetSetting(key)
     if db and db.profile then
@@ -63,6 +72,11 @@ end
 local function SetSetting(key, value)
     if db and db.profile then
         db.profile[key] = value
+        if key == "updateInterval" then
+            DebugPrint("SetSetting updateInterval =", value, "at time:", format("%.3f", GetTime()))
+        end
+    elseif key == "updateInterval" then
+        DebugPrint("SetSetting FAILED for updateInterval - db or db.profile is nil")
     end
 end
 
@@ -220,30 +234,21 @@ local function UpdateBarAppearance()
         bar:Show()
     end
 end
-
--- Debug flag
-local DEBUG = false
-
-local function DebugPrint(...)
-    if DEBUG then
-        print("|cFF00FF00[AbsorbTracker]|r", ...)
-    end
-end
-
 -- Track last absorb value to avoid redundant updates
 local lastAbsorb = -1  -- Start at -1 to force first update
 
 -- Function to update the absorb bar
 local function UpdateAbsorbBar()
     -- Skip if hidden
-    if GetSetting("hidden") then return end
+    if GetSetting("hidden") then
+        DebugPrint("UpdateAbsorbBar skipped - bar is hidden")
+        return
+    end
 
     local totalAbsorb = UnitGetTotalAbsorbs("player") or 0
     local maxHealth = UnitHealthMax("player") or 1
 
-    if UnitAffectingCombat("player") then
-        DebugPrint("Raw absorb:", AbbreviateNumbers(totalAbsorb), "MaxHP:", AbbreviateNumbers(maxHealth))
-    end
+    DebugPrint("UpdateAbsorbBar - Absorb:", AbbreviateNumbers(totalAbsorb), "MaxHP:", AbbreviateNumbers(maxHealth)," Timestamp:", format("%.3f", GetTime()))
 
     -- Always keep bar visible
     bar:SetAlpha(1)
@@ -264,12 +269,31 @@ local RestartUpdateTicker
 
 -- Update on a timer as backup
 local updateTicker
+local currentTickerInterval = nil
 
-RestartUpdateTicker = function()
+RestartUpdateTicker = function(forceRestart)
+    local newInterval = GetSetting("updateInterval")
+    DebugPrint("RestartUpdateTicker called - forceRestart:", tostring(forceRestart), "currentInterval:", tostring(currentTickerInterval), "newInterval:", tostring(newInterval), "tickerExists:", tostring(updateTicker ~= nil))
+
+    -- Only restart if interval changed or forced
+    if not forceRestart and currentTickerInterval == newInterval and updateTicker then
+        DebugPrint("  Skipped - interval unchanged and ticker exists")
+        return
+    end
+
     if updateTicker then
         updateTicker:Cancel()
+        updateTicker = nil
+        DebugPrint("  Cancelled existing ticker")
     end
-    updateTicker = C_Timer.NewTicker(GetSetting("updateInterval"), UpdateAbsorbBar)
+
+    if newInterval and newInterval > 0 then
+        currentTickerInterval = newInterval
+        updateTicker = C_Timer.NewTicker(newInterval, UpdateAbsorbBar)
+        DebugPrint("  NEW TICKER CREATED with interval:", newInterval, "seconds at time:", format("%.3f", GetTime()))
+    else
+        DebugPrint("  ERROR: Invalid interval:", tostring(newInterval))
+    end
 end
 
 -- Event handling
@@ -284,7 +308,8 @@ local function OnProfileChanged()
     UpdateBarAppearance()
     lastAbsorb = -1
     UpdateAbsorbBar()
-    RestartUpdateTicker()
+    currentTickerInterval = nil  -- Reset to force ticker restart with new profile's interval
+    RestartUpdateTicker(true)
     -- Refresh options panel if it exists
     if AddonTable.RefreshOptionsPanel then
         AddonTable.RefreshOptionsPanel()
@@ -322,13 +347,15 @@ eventFrame:SetScript("OnEvent", function(self, event, unit)
         RestoreBarPosition()
         UpdateBarAppearance()
         UpdateAbsorbBar()
-        RestartUpdateTicker()
+        RestartUpdateTicker(true)  -- Force start on login
         CreateOptionsPanel()
     elseif event == "PLAYER_ENTERING_WORLD" then
         lastAbsorb = -1  -- Reset cache on zone change to force update
         UpdateAbsorbBar()
     elseif event == "UNIT_ABSORB_AMOUNT_CHANGED" and unit == "player" then
-        UpdateAbsorbBar()
+        -- Don't update directly - let the ticker handle updates at the configured interval
+        -- The ticker will read the latest absorb value when it fires
+        DebugPrint("UNIT_ABSORB_AMOUNT_CHANGED - ", AbbreviateNumbers(UnitGetTotalAbsorbs("player") or 0))
     end
 end)
 
@@ -586,6 +613,7 @@ SlashCmdList["ABSORBTRACKER"] = function(msg)
         if arg and arg ~= "" then
             local interval = tonumber(arg)
             if interval and interval >= 0.1 and interval <= 10 then
+                DebugPrint("Slash command setting interval to:", interval)
                 SetSetting("updateInterval", interval)
                 RestartUpdateTicker()
                 print(format("AbsorbTracker: Update interval set to %.1f seconds", interval))
@@ -750,8 +778,6 @@ CreateOptionsPanel = function()
 
     -- Helper: Create a slider with input box
     local function CreateSlider(parent, x, y, label, dbKey, defaultVal, minVal, maxVal, step, decimals, onChangeCallback)
-        DebugPrint("CreateSlider called for:", dbKey, "defaultVal:", defaultVal)
-
         local container = CreateFrame("Frame", nil, parent)
         container:SetPoint("TOPLEFT", x, y)
         container:SetSize(220, 50)
@@ -781,8 +807,6 @@ CreateOptionsPanel = function()
         editBox:SetFontObject(GameFontHighlightSmall)
         editBox:SetJustifyH("CENTER")
 
-        DebugPrint("EditBox created for:", dbKey, "FontObject:", editBox:GetFontObject() and editBox:GetFontObject():GetName() or "nil")
-
         local initialized = false
 
         local function ApplyValue(value, skipCallback)
@@ -805,12 +829,10 @@ CreateOptionsPanel = function()
         end
 
         slider:SetScript("OnValueChanged", function(self, value)
-            DebugPrint("OnValueChanged for:", dbKey, "value:", value, "initialized:", initialized)
             if not initialized then return end
             value = ApplyValue(value)
             editBox:SetText(format(formatStr, value))
             editBox:SetCursorPosition(0)  -- Force visual update
-            DebugPrint("OnValueChanged SetText:", format(formatStr, value), "GetText after:", editBox:GetText())
         end)
 
         editBox:SetScript("OnEnterPressed", function(self)
@@ -833,21 +855,17 @@ CreateOptionsPanel = function()
         -- Register refresh function for panel
         local function refreshEditBox()
             local currentValue = GetSetting(dbKey) or defaultVal
-            DebugPrint("refreshEditBox for:", dbKey, "currentValue:", currentValue, "formatStr:", formatStr)
             slider:SetValue(currentValue)
             editBox:SetText(format(formatStr, currentValue))
             editBox:SetCursorPosition(0)  -- Force visual update
-            DebugPrint("refreshEditBox SetText:", format(formatStr, currentValue), "GetText after:", editBox:GetText())
         end
         table.insert(panelRefreshFuncs, refreshEditBox)
 
         -- Initialize slider value and editBox text after scripts are set
         local currentValue = GetSetting(dbKey) or defaultVal
-        DebugPrint("Initial setup for:", dbKey, "DB value:", GetSetting(dbKey), "currentValue:", currentValue)
         slider:SetValue(currentValue)
         editBox:SetText(format(formatStr, currentValue))
         editBox:SetCursorPosition(0)  -- Force visual update
-        DebugPrint("Initial SetText:", format(formatStr, currentValue), "GetText after:", editBox:GetText())
         initialized = true
 
         return container, y - 55
@@ -1422,9 +1440,7 @@ CreateOptionsPanel = function()
 
     -- Function to refresh all controls in the panel
     local function RefreshOptionsPanel()
-        DebugPrint("RefreshOptionsPanel fired, refreshing", #panelRefreshFuncs, "controls")
-        for i, refreshFunc in ipairs(panelRefreshFuncs) do
-            DebugPrint("Calling refresh function", i)
+        for _, refreshFunc in ipairs(panelRefreshFuncs) do
             refreshFunc()
         end
         -- Refresh profile UI
@@ -1433,7 +1449,6 @@ CreateOptionsPanel = function()
             profileCurrentLabel:SetText(current)
             UIDropDownMenu_SetText(profileDropdown, current)
         end
-        DebugPrint("RefreshOptionsPanel complete")
     end
 
     -- Store refresh function in AddonTable for OnProfileChanged to call
