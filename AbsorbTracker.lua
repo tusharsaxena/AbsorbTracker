@@ -533,6 +533,9 @@ CreateOptionsPanel = function()
     local panel = CreateFrame("Frame")
     panel.name = "AbsorbTracker"
 
+    -- Table to store refresh functions for sliders
+    local sliderRefreshFuncs = {}
+
     local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 16, -16)
     title:SetText("AbsorbTracker Settings")
@@ -556,6 +559,8 @@ CreateOptionsPanel = function()
 
     -- Helper: Create a slider with input box
     local function CreateSlider(parent, x, y, label, dbKey, defaultVal, minVal, maxVal, step, decimals, onChangeCallback)
+        print("[AT-DEBUG] CreateSlider called for:", dbKey, "defaultVal:", defaultVal)
+
         local container = CreateFrame("Frame", nil, parent)
         container:SetPoint("TOPLEFT", x, y)
         container:SetSize(220, 50)
@@ -582,6 +587,10 @@ CreateOptionsPanel = function()
         editBox:SetPoint("LEFT", slider, "RIGHT", 15, 0)
         editBox:SetSize(45, 20)
         editBox:SetAutoFocus(false)
+        editBox:SetFontObject(GameFontHighlightSmall)
+        editBox:SetJustifyH("CENTER")
+
+        print("[AT-DEBUG] EditBox created for:", dbKey, "FontObject:", editBox:GetFontObject() and editBox:GetFontObject():GetName() or "nil")
 
         local initialized = false
 
@@ -605,9 +614,12 @@ CreateOptionsPanel = function()
         end
 
         slider:SetScript("OnValueChanged", function(self, value)
+            print("[AT-DEBUG] OnValueChanged for:", dbKey, "value:", value, "initialized:", initialized)
             if not initialized then return end
             value = ApplyValue(value)
             editBox:SetText(format(formatStr, value))
+            editBox:SetCursorPosition(0)  -- Force visual update
+            print("[AT-DEBUG] OnValueChanged SetText:", format(formatStr, value), "GetText after:", editBox:GetText())
         end)
 
         editBox:SetScript("OnEnterPressed", function(self)
@@ -627,18 +639,24 @@ CreateOptionsPanel = function()
             self:ClearFocus()
         end)
 
-        -- Refresh editBox text when it becomes visible (with slight delay for frame initialization)
-        editBox:SetScript("OnShow", function(self)
-            C_Timer.After(0.01, function()
-                local currentValue = AbsorbTrackerDB[dbKey] or defaultVal
-                editBox:SetText(format(formatStr, currentValue))
-            end)
-        end)
+        -- Register refresh function for panel OnShow
+        local function refreshEditBox()
+            local currentValue = AbsorbTrackerDB[dbKey] or defaultVal
+            print("[AT-DEBUG] refreshEditBox for:", dbKey, "currentValue:", currentValue, "formatStr:", formatStr)
+            slider:SetValue(currentValue)
+            editBox:SetText(format(formatStr, currentValue))
+            editBox:SetCursorPosition(0)  -- Force visual update
+            print("[AT-DEBUG] refreshEditBox SetText:", format(formatStr, currentValue), "GetText after:", editBox:GetText())
+        end
+        table.insert(sliderRefreshFuncs, refreshEditBox)
 
         -- Initialize slider value and editBox text after scripts are set
         local currentValue = AbsorbTrackerDB[dbKey] or defaultVal
+        print("[AT-DEBUG] Initial setup for:", dbKey, "DB value:", AbsorbTrackerDB[dbKey], "currentValue:", currentValue)
         slider:SetValue(currentValue)
         editBox:SetText(format(formatStr, currentValue))
+        editBox:SetCursorPosition(0)  -- Force visual update
+        print("[AT-DEBUG] Initial SetText:", format(formatStr, currentValue), "GetText after:", editBox:GetText())
         initialized = true
 
         return container, y - 55
@@ -858,6 +876,16 @@ CreateOptionsPanel = function()
 
     local borderSizeSlider
     borderSizeSlider, y2 = CreateSlider(panel, col2, y2, "Border Size", "borderSize", defaults.borderSize, 1, 32, 1)
+
+    -- Refresh all slider edit boxes when panel is shown
+    panel:SetScript("OnShow", function()
+        print("[AT-DEBUG] Panel OnShow fired, refreshing", #sliderRefreshFuncs, "sliders")
+        for i, refreshFunc in ipairs(sliderRefreshFuncs) do
+            print("[AT-DEBUG] Calling refresh function", i)
+            refreshFunc()
+        end
+        print("[AT-DEBUG] Panel OnShow complete")
+    end)
 
     -- Register with Settings API (WoW 10.0+)
     if Settings and Settings.RegisterCanvasLayoutCategory then
