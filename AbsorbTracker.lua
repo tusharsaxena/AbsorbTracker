@@ -10,6 +10,7 @@ local UnitHealthMax = UnitHealthMax
 -- Default settings
 local defaults = {
     barTexture = "Blizzard Raid Bar",
+    bgTexture = "Blizzard Raid Bar",
     border = "Blizzard Tooltip",
     borderSize = 12,
     font = "Friz Quadrata TT",
@@ -56,6 +57,15 @@ local function GetBarTexture()
     local lsm = GetLSM()
     if lsm then
         local texture = lsm:Fetch("statusbar", GetSetting("barTexture"))
+        if texture then return texture end
+    end
+    return FALLBACK_TEXTURE
+end
+
+local function GetBgTexture()
+    local lsm = GetLSM()
+    if lsm then
+        local texture = lsm:Fetch("statusbar", GetSetting("bgTexture"))
         if texture then return texture end
     end
     return FALLBACK_TEXTURE
@@ -110,8 +120,22 @@ bar:SetMovable(true)
 bar:EnableMouse(true)
 bar:RegisterForDrag("LeftButton")
 bar:SetScript("OnDragStart", bar.StartMoving)
-bar:SetScript("OnDragStop", bar.StopMovingOrSizing)
+bar:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    -- Save position
+    local point, _, relPoint, x, y = self:GetPoint()
+    AbsorbTrackerDB.position = { point = point, relPoint = relPoint, x = x, y = y }
+end)
 bar:SetClampedToScreen(true)
+
+-- Function to restore bar position from saved variables
+local function RestoreBarPosition()
+    local pos = AbsorbTrackerDB.position
+    if pos then
+        bar:ClearAllPoints()
+        bar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
+    end
+end
 
 -- Status bar for absorb amount
 local statusBar = CreateFrame("StatusBar", nil, bar)
@@ -140,15 +164,17 @@ local function UpdateBarAppearance()
     -- Update bar color
     statusBar:SetStatusBarColor(GetBarColor())
 
-    -- Update border (reuse backdrop table)
+    -- Update border and background texture (reuse backdrop table)
     local borderSize = GetSetting("borderSize")
     local inset = max(1, floor(borderSize / 4))
+    backdropInfo.bgFile = GetBgTexture()
     backdropInfo.edgeFile = GetBorder()
     backdropInfo.edgeSize = borderSize
     backdropInfo.insets.left = inset
     backdropInfo.insets.right = inset
     backdropInfo.insets.top = inset
     backdropInfo.insets.bottom = inset
+    bar:SetBackdrop(nil)  -- Clear first to force refresh
     bar:SetBackdrop(backdropInfo)
     bar:SetBackdropColor(GetBgColor())
     bar:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
@@ -233,6 +259,7 @@ eventFrame:SetScript("OnEvent", function(self, event, unit)
         -- Clear LSM cache in case it loaded after initial fetch
         LSM = nil
         GetLSM()
+        RestoreBarPosition()
         UpdateBarAppearance()
         UpdateAbsorbBar()
         RestartUpdateTicker()
@@ -310,6 +337,17 @@ SlashCmdList["ABSORBTRACKER"] = function(msg)
         else
             if PrintLSMList("statusbar", "barTexture") then
                 print("Usage: /at texture <name>")
+            end
+        end
+
+    elseif cmd == "bgtexture" then
+        if arg and arg ~= "" then
+            AbsorbTrackerDB.bgTexture = arg
+            UpdateBarAppearance()
+            print("AbsorbTracker: Background texture set to '" .. arg .. "'")
+        else
+            if PrintLSMList("statusbar", "bgTexture") then
+                print("Usage: /at bgtexture <name>")
             end
         end
 
@@ -477,6 +515,7 @@ SlashCmdList["ABSORBTRACKER"] = function(msg)
         print("  /at lock - Lock bar position")
         print("  /at unlock - Unlock bar position")
         print("  /at texture [name] - List or set bar texture")
+        print("  /at bgtexture [name] - List or set background texture")
         print("  /at border [name] - List or set border")
         print("  /at bordersize <size> - Set border size (1-32)")
         print("  /at font [name] - List or set font")
@@ -679,11 +718,13 @@ CreateOptionsPanel = function()
 
             for _, name in ipairs(list) do
                 local info = UIDropDownMenu_CreateInfo()
+                local selectedName = name  -- Capture in local for closure
                 info.text = name
                 info.checked = (name == currentVal)
                 info.func = function()
-                    AbsorbTrackerDB[dbKey] = name
-                    UIDropDownMenu_SetText(dropdown, name)
+                    AbsorbTrackerDB[dbKey] = selectedName
+                    UIDropDownMenu_SetText(dropdown, selectedName)
+                    CloseDropDownMenus()
                     UpdateBarAppearance()
                 end
                 UIDropDownMenu_AddButton(info, level)
@@ -796,11 +837,20 @@ CreateOptionsPanel = function()
     local bgColorBtn
     bgColorBtn, y2 = CreateColorButton(panel, col2, y2, "Background Color", "bgColor", defaults.bgColor)
 
+    y2 = y2 - 10
+
+    -- BAR TEXTURES SECTION
+    y2 = CreateSectionHeader(panel, col2, y2, "Bar Textures")
+
     local textureDropdown
     textureDropdown, y2 = CreateMediaDropdown(panel, col2, y2, "Bar Texture", "statusbar", "barTexture", defaults.barTexture)
 
-    -- BORDER SECTION (aligned with Font section)
-    y2 = fontYPos
+    local bgTextureDropdown
+    bgTextureDropdown, y2 = CreateMediaDropdown(panel, col2, y2, "Background Texture", "statusbar", "bgTexture", defaults.bgTexture)
+
+    y2 = y2 - 10
+
+    -- BORDER SECTION
     y2 = CreateSectionHeader(panel, col2, y2, "Border")
 
     local borderDropdown
