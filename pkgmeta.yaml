@@ -1,0 +1,4 @@
+embedded-libraries:
+    - LibSharedMedia-3.0
+    - Ace3
+    - AceDB-3.0
