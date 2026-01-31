@@ -123,8 +123,8 @@ statusBar:SetValue(100)
 statusBar:SetStatusBarColor(0.4, 0.7, 1, 0.8)
 bar.statusBar = statusBar
 
--- Absorb value text
-local valueText = bar:CreateFontString(nil, "OVERLAY")
+-- Absorb value text (on statusBar so it's above the bar texture)
+local valueText = statusBar:CreateFontString(nil, "OVERLAY", nil)
 valueText:SetFont(GetFont(), GetSetting("fontSize"), "OUTLINE")
 valueText:SetPoint("CENTER", bar, "CENTER", 0, 0)
 bar.valueText = valueText
@@ -169,17 +169,6 @@ local function UpdateBarAppearance()
     end
 end
 
--- Function to format large numbers
-local function FormatNumber(num)
-    if num >= 1000000 then
-        return format("%.1fM", num / 1000000)
-    elseif num >= 1000 then
-        return format("%.1fK", num / 1000)
-    else
-        return format("%d", num)
-    end
-end
-
 -- Debug flag
 local DEBUG = false
 
@@ -200,17 +189,17 @@ local function UpdateAbsorbBar()
     local totalAbsorb = UnitGetTotalAbsorbs("player") or 0
     local maxHealth = UnitHealthMax("player") or 1
 
-    DebugPrint("Raw absorb:", totalAbsorb, "MaxHP:", maxHealth)
+    DebugPrint("Raw absorb:", AbbreviateNumbers(totalAbsorb), "MaxHP:", AbbreviateNumbers(maxHealth))
 
     -- Always keep bar visible
     bar:SetAlpha(1)
 
-    -- Try using raw secret value directly in UI functions
+    -- Use raw secret value directly in UI functions for bar display
     statusBar:SetMinMaxValues(0, maxHealth)
     statusBar:SetValue(totalAbsorb)
 
-    -- Use string.format for text display (may handle secret values)
-    local displayText = string.format("%.0f", totalAbsorb)
+    -- Use Blizzard's AbbreviateNumbers for text display
+    local displayText = AbbreviateNumbers(totalAbsorb)
     valueText:SetText(displayText)
 
     DebugPrint("Display text:", displayText)
@@ -306,12 +295,12 @@ SlashCmdList["ABSORBTRACKER"] = function(msg)
     elseif cmd == "test" then
         -- Test display with fake values
         local testVal = tonumber(arg) or 50000
-        print("AbsorbTracker: Testing display with value:", testVal)
-        valueText:SetText(FormatNumber(testVal))
+        print("AbsorbTracker: Testing display with value:", AbbreviateNumbers(testVal))
+        valueText:SetText(AbbreviateNumbers(testVal))
         statusBar:SetMinMaxValues(0, 100000)
         statusBar:SetValue(testVal)
         print("AbsorbTracker: Text set to:", valueText:GetText())
-        print("AbsorbTracker: Bar value:", statusBar:GetValue(), "min/max:", statusBar:GetMinMaxValues())
+        print("AbsorbTracker: Bar value:", AbbreviateNumbers(statusBar:GetValue()), "min/max:", statusBar:GetMinMaxValues())
 
     elseif cmd == "texture" then
         if arg and arg ~= "" then
