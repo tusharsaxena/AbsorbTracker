@@ -105,14 +105,5 @@ If you have LibSharedMedia-3.0 installed, you can use custom textures, fonts, an
 
 ## Version History
 
-**v1.1.0**
-- Added background texture support
-- Added position saving
-- Added settings panel
-- Added LibSharedMedia integration
-- Abbreviated number display
-
-**v1.0.0** - Initial Release
-- Basic absorb tracking
-- Movable frame
-- Real-time updates
+**v1.0.0** 
+- Initial Release ... yay!

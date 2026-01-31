@@ -285,6 +285,10 @@ local function OnProfileChanged()
     lastAbsorb = -1
     UpdateAbsorbBar()
     RestartUpdateTicker()
+    -- Refresh options panel if it exists
+    if AddonTable.RefreshOptionsPanel then
+        AddonTable.RefreshOptionsPanel()
+    end
 end
 
 eventFrame:SetScript("OnEvent", function(self, event, unit)
@@ -705,8 +709,8 @@ CreateOptionsPanel = function()
     local panel = CreateFrame("Frame")
     panel.name = "AbsorbTracker"
 
-    -- Table to store refresh functions for sliders
-    local sliderRefreshFuncs = {}
+    -- Table to store refresh functions for all controls
+    local panelRefreshFuncs = {}
 
     -- Title stays on the main panel (outside scroll area)
     local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
@@ -736,6 +740,10 @@ CreateOptionsPanel = function()
         cb:SetScript("OnClick", function(self)
             SetSetting(dbKey, self:GetChecked())
             UpdateBarAppearance()
+        end)
+        -- Register refresh function
+        table.insert(panelRefreshFuncs, function()
+            cb:SetChecked(GetSetting(dbKey) or defaultVal)
         end)
         return cb, y - 30
     end
@@ -822,7 +830,7 @@ CreateOptionsPanel = function()
             self:ClearFocus()
         end)
 
-        -- Register refresh function for panel OnShow
+        -- Register refresh function for panel
         local function refreshEditBox()
             local currentValue = GetSetting(dbKey) or defaultVal
             DebugPrint("refreshEditBox for:", dbKey, "currentValue:", currentValue, "formatStr:", formatStr)
@@ -831,7 +839,7 @@ CreateOptionsPanel = function()
             editBox:SetCursorPosition(0)  -- Force visual update
             DebugPrint("refreshEditBox SetText:", format(formatStr, currentValue), "GetText after:", editBox:GetText())
         end
-        table.insert(sliderRefreshFuncs, refreshEditBox)
+        table.insert(panelRefreshFuncs, refreshEditBox)
 
         -- Initialize slider value and editBox text after scripts are set
         local currentValue = GetSetting(dbKey) or defaultVal
@@ -896,6 +904,12 @@ CreateOptionsPanel = function()
             ColorPickerFrame:SetupColorPickerAndShow(info)
         end)
 
+        -- Register refresh function
+        table.insert(panelRefreshFuncs, function()
+            local c = GetSetting(dbKey) or defaultColor
+            colorTex:SetColorTexture(c.r, c.g, c.b, c.a or 1)
+        end)
+
         return container, y - 35
     end
 
@@ -949,6 +963,22 @@ CreateOptionsPanel = function()
         UIDropDownMenu_SetText(dropdown, displayText)
         UIDropDownMenu_Initialize(dropdown, Initialize)
 
+        -- Register refresh function
+        table.insert(panelRefreshFuncs, function()
+            local val = GetSetting(dbKey)
+            if val == nil then
+                val = defaultVal
+            end
+            local text = defaultVal
+            for _, opt in ipairs(options) do
+                if opt.value == val then
+                    text = opt.text
+                    break
+                end
+            end
+            UIDropDownMenu_SetText(dropdown, text)
+        end)
+
         return container, y - 55
     end
 
@@ -996,6 +1026,11 @@ CreateOptionsPanel = function()
         UIDropDownMenu_SetWidth(dropdown, 213)
         UIDropDownMenu_SetText(dropdown, GetSetting(dbKey) or defaultVal)
         UIDropDownMenu_Initialize(dropdown, Initialize)
+
+        -- Register refresh function
+        table.insert(panelRefreshFuncs, function()
+            UIDropDownMenu_SetText(dropdown, GetSetting(dbKey) or defaultVal)
+        end)
 
         return container, y - 55
     end
@@ -1238,7 +1273,7 @@ CreateOptionsPanel = function()
         end
     end
 
-    UIDropDownMenu_SetWidth(profileDeleteDropdown, 138)
+    UIDropDownMenu_SetWidth(profileDeleteDropdown, 148)
     UIDropDownMenu_SetText(profileDeleteDropdown, "Select...")
     UIDropDownMenu_Initialize(profileDeleteDropdown, InitializeDeleteDropdown)
 
@@ -1280,6 +1315,10 @@ CreateOptionsPanel = function()
             lastAbsorb = -1  -- Reset cache to force update
             UpdateAbsorbBar()
         end
+    end)
+    -- Register refresh function (inverted logic: checked = not hidden)
+    table.insert(panelRefreshFuncs, function()
+        showCb:SetChecked(not GetSetting("hidden"))
     end)
     y1 = y1 - 30
 
@@ -1381,10 +1420,10 @@ CreateOptionsPanel = function()
     local contentHeight = max(-y1, -y2) + 40  -- Add padding at bottom
     content:SetHeight(contentHeight)
 
-    -- Refresh all slider edit boxes and profile UI when panel is shown
-    panel:SetScript("OnShow", function()
-        DebugPrint("Panel OnShow fired, refreshing", #sliderRefreshFuncs, "sliders")
-        for i, refreshFunc in ipairs(sliderRefreshFuncs) do
+    -- Function to refresh all controls in the panel
+    local function RefreshOptionsPanel()
+        DebugPrint("RefreshOptionsPanel fired, refreshing", #panelRefreshFuncs, "controls")
+        for i, refreshFunc in ipairs(panelRefreshFuncs) do
             DebugPrint("Calling refresh function", i)
             refreshFunc()
         end
@@ -1394,8 +1433,14 @@ CreateOptionsPanel = function()
             profileCurrentLabel:SetText(current)
             UIDropDownMenu_SetText(profileDropdown, current)
         end
-        DebugPrint("Panel OnShow complete")
-    end)
+        DebugPrint("RefreshOptionsPanel complete")
+    end
+
+    -- Store refresh function in AddonTable for OnProfileChanged to call
+    AddonTable.RefreshOptionsPanel = RefreshOptionsPanel
+
+    -- Refresh all controls when panel is shown
+    panel:SetScript("OnShow", RefreshOptionsPanel)
 
     -- Register with Settings API (WoW 10.0+)
     if Settings and Settings.RegisterCanvasLayoutCategory then
@@ -1412,6 +1457,11 @@ end
 
 -- Helper function to open settings panel
 OpenOptionsPanel = function()
+    -- Cannot open settings panel during combat (protected function)
+    if InCombatLockdown() then
+        print("AbsorbTracker: Cannot open settings panel during combat. Try again after combat ends.")
+        return
+    end
     if Settings and Settings.OpenToCategory and AddonTable.settingsCategory then
         Settings.OpenToCategory(AddonTable.settingsCategory:GetID())
     elseif InterfaceOptionsFrame_OpenToCategory then
