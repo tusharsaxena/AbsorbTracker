@@ -5,7 +5,16 @@
 ## Version: 1.0.0
 ## iconTexture: 512902
 ## SavedVariables: AbsorbTrackerDB
-## OptionalDeps: LibSharedMedia-3.0, Ace3, AceDB-3.0
+## OptionalDeps: LibStub, CallbackHandler-1.0, Ace3, LibSharedMedia-3.0
+
+#@no-lib-strip@
+libs\LibStub-1.0\LibStub.lua
+libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
+libs\Ace3\AceAddon-3.0\AceAddon-3.0.xml
+libs\Ace3\AceDB-3.0\AceDB-3.0.xml
+libs\LibSharedMedia-3.0\lib.xml
+#@end-no-lib-strip@
+
 
 Core.lua
 Utils.lua
