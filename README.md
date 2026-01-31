@@ -1,6 +1,6 @@
-# AbsorbTracker - WoW Addon
+# AbsorbTracker
 
-A World of Warcraft addon for patch 12.0.1+ that displays your total absorb shield value in a clean, customizable bar interface.
+A World of Warcraft addon for Midnight that displays your total absorb shield value in a clean, customizable bar interface.
 
 ## Features
 
@@ -8,21 +8,11 @@ A World of Warcraft addon for patch 12.0.1+ that displays your total absorb shie
 - **Abbreviated Numbers**: Large values displayed as K/M/B for readability
 - **Fully Customizable**: Textures, colors, fonts, size, and border all configurable
 - **LibSharedMedia Support**: Use custom textures, fonts, and borders from SharedMedia
+- **Profile System**: Save and switch between multiple configuration profiles (requires AceDB-3.0)
 - **Movable & Lockable**: Drag the bar anywhere and lock it in place
 - **Position Saving**: Bar position persists across sessions
+- **Configurable Update Interval**: Configurable update interval (0.1-10 seconds)
 - **Settings Panel**: Full GUI settings in WoW's Interface Options
-- **Real-time Updates**: Configurable update interval (0.1-10 seconds)
-
-## Installation
-
-1. Download the addon files
-2. Navigate to your WoW installation directory
-3. Go to `_retail_\Interface\AddOns\`
-4. Create a new folder called `AbsorbTracker`
-5. Place all files inside the `AbsorbTracker` folder
-6. Restart WoW or reload UI with `/reload`
-
-Full path example: `C:\Program Files (x86)\World of Warcraft\_retail_\Interface\AddOns\AbsorbTracker\`
 
 ## Usage
 
@@ -42,8 +32,10 @@ Full path example: `C:\Program Files (x86)\World of Warcraft\_retail_\Interface\
 | `/at bgtexture [name]` | List or set background texture |
 | `/at border [name]` | List or set border style |
 | `/at bordersize <1-32>` | Set border size |
+| `/at bordercolor <r> <g> <b> [a]` | Set border color |
 | `/at font [name]` | List or set font |
 | `/at fontsize <6-32>` | Set font size |
+| `/at fontflags <option>` | Set font outline (none, outline, thickoutline, etc.) |
 | `/at width <50-500>` | Set bar width in pixels |
 | `/at height <10-100>` | Set bar height in pixels |
 | `/at color <r> <g> <b> [a]` | Set bar color (0-255 or 0-1) |
@@ -52,6 +44,20 @@ Full path example: `C:\Program Files (x86)\World of Warcraft\_retail_\Interface\
 | `/at debug` | Toggle debug mode |
 | `/at test [value]` | Test display with fake value |
 | `/at update` | Force immediate update |
+
+### Profile Commands
+
+Profiles require AceDB-3.0 (part of Ace3) to be installed.
+
+| Command | Description |
+|---------|-------------|
+| `/at profile list` | List all available profiles |
+| `/at profile current` | Show current profile name |
+| `/at profile use <name>` | Switch to a profile (creates if doesn't exist) |
+| `/at profile new <name>` | Create new profile with default settings |
+| `/at profile copy <name>` | Copy settings from another profile |
+| `/at profile delete <name>` | Delete a profile (cannot delete current) |
+| `/at profile reset` | Reset current profile to defaults |
 
 ### Moving the Bar
 
@@ -64,17 +70,18 @@ Full path example: `C:\Program Files (x86)\World of Warcraft\_retail_\Interface\
 ### Via Settings Panel
 
 Open with `/at` and configure:
+- **Profiles**: Create, switch, copy, and delete profiles
 - **General**: Show/hide bar, lock position
-- **Bar Size**: Width and height
-- **Font**: Font face and size
 - **Performance**: Update interval
+- **Bar Size**: Width and height
 - **Bar Color**: Bar and background colors
 - **Bar Textures**: Bar and background textures
-- **Border**: Border style and size
+- **Border**: Border style, size, and color
+- **Font**: Font face, size, and outline style
 
 ### Via Slash Commands
 
-All settings can also be changed via slash commands (see table above).
+All settings can also be changed via slash commands (see tables above).
 
 ### LibSharedMedia
 
@@ -82,9 +89,9 @@ If you have LibSharedMedia-3.0 installed, you can use custom textures, fonts, an
 
 ## Compatibility
 
-- **WoW Version**: 12.0.1+ (The War Within)
+- **WoW Version**: 12.0.0+ (Midnight)
 - **Game Type**: Retail
-- **Optional Dependencies**: LibSharedMedia-3.0, LibStub
+- **Dependencies**: LibSharedMedia-3.0, AceDB-3.0 (Ace3)
 
 ## Troubleshooting
 
@@ -100,10 +107,14 @@ If you have LibSharedMedia-3.0 installed, you can use custom textures, fonts, an
 - Make sure to properly close the game (don't force-quit)
 - SavedVariables need the game to save on logout
 
+**Profile commands not working:**
+- Install AceDB-3.0 (part of Ace3) for profile support
+- Without AceDB, settings still save but profile management is disabled
+
 **Debug mode:**
 - Use `/at debug` to see detailed information about absorb values
 
 ## Version History
 
-**v1.0.0** 
+**v1.0.0**
 - Initial Release ... yay!
