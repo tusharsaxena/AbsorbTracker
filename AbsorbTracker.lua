@@ -215,7 +215,9 @@ local function UpdateAbsorbBar()
     local totalAbsorb = UnitGetTotalAbsorbs("player") or 0
     local maxHealth = UnitHealthMax("player") or 1
 
-    DebugPrint("Raw absorb:", AbbreviateNumbers(totalAbsorb), "MaxHP:", AbbreviateNumbers(maxHealth))
+    if UnitAffectingCombat("player") then
+        DebugPrint("Raw absorb:", AbbreviateNumbers(totalAbsorb), "MaxHP:", AbbreviateNumbers(maxHealth))
+    end
 
     -- Always keep bar visible
     bar:SetAlpha(1)
@@ -227,8 +229,6 @@ local function UpdateAbsorbBar()
     -- Use Blizzard's AbbreviateNumbers for text display
     local displayText = AbbreviateNumbers(totalAbsorb)
     valueText:SetText(displayText)
-
-    DebugPrint("Display text:", displayText)
 end
 
 -- Forward declarations
@@ -559,7 +559,7 @@ CreateOptionsPanel = function()
 
     -- Helper: Create a slider with input box
     local function CreateSlider(parent, x, y, label, dbKey, defaultVal, minVal, maxVal, step, decimals, onChangeCallback)
-        print("[AT-DEBUG] CreateSlider called for:", dbKey, "defaultVal:", defaultVal)
+        DebugPrint("CreateSlider called for:", dbKey, "defaultVal:", defaultVal)
 
         local container = CreateFrame("Frame", nil, parent)
         container:SetPoint("TOPLEFT", x, y)
@@ -590,7 +590,7 @@ CreateOptionsPanel = function()
         editBox:SetFontObject(GameFontHighlightSmall)
         editBox:SetJustifyH("CENTER")
 
-        print("[AT-DEBUG] EditBox created for:", dbKey, "FontObject:", editBox:GetFontObject() and editBox:GetFontObject():GetName() or "nil")
+        DebugPrint("EditBox created for:", dbKey, "FontObject:", editBox:GetFontObject() and editBox:GetFontObject():GetName() or "nil")
 
         local initialized = false
 
@@ -614,12 +614,12 @@ CreateOptionsPanel = function()
         end
 
         slider:SetScript("OnValueChanged", function(self, value)
-            print("[AT-DEBUG] OnValueChanged for:", dbKey, "value:", value, "initialized:", initialized)
+            DebugPrint("OnValueChanged for:", dbKey, "value:", value, "initialized:", initialized)
             if not initialized then return end
             value = ApplyValue(value)
             editBox:SetText(format(formatStr, value))
             editBox:SetCursorPosition(0)  -- Force visual update
-            print("[AT-DEBUG] OnValueChanged SetText:", format(formatStr, value), "GetText after:", editBox:GetText())
+            DebugPrint("OnValueChanged SetText:", format(formatStr, value), "GetText after:", editBox:GetText())
         end)
 
         editBox:SetScript("OnEnterPressed", function(self)
@@ -642,21 +642,21 @@ CreateOptionsPanel = function()
         -- Register refresh function for panel OnShow
         local function refreshEditBox()
             local currentValue = AbsorbTrackerDB[dbKey] or defaultVal
-            print("[AT-DEBUG] refreshEditBox for:", dbKey, "currentValue:", currentValue, "formatStr:", formatStr)
+            DebugPrint("refreshEditBox for:", dbKey, "currentValue:", currentValue, "formatStr:", formatStr)
             slider:SetValue(currentValue)
             editBox:SetText(format(formatStr, currentValue))
             editBox:SetCursorPosition(0)  -- Force visual update
-            print("[AT-DEBUG] refreshEditBox SetText:", format(formatStr, currentValue), "GetText after:", editBox:GetText())
+            DebugPrint("refreshEditBox SetText:", format(formatStr, currentValue), "GetText after:", editBox:GetText())
         end
         table.insert(sliderRefreshFuncs, refreshEditBox)
 
         -- Initialize slider value and editBox text after scripts are set
         local currentValue = AbsorbTrackerDB[dbKey] or defaultVal
-        print("[AT-DEBUG] Initial setup for:", dbKey, "DB value:", AbsorbTrackerDB[dbKey], "currentValue:", currentValue)
+        DebugPrint("Initial setup for:", dbKey, "DB value:", AbsorbTrackerDB[dbKey], "currentValue:", currentValue)
         slider:SetValue(currentValue)
         editBox:SetText(format(formatStr, currentValue))
         editBox:SetCursorPosition(0)  -- Force visual update
-        print("[AT-DEBUG] Initial SetText:", format(formatStr, currentValue), "GetText after:", editBox:GetText())
+        DebugPrint("Initial SetText:", format(formatStr, currentValue), "GetText after:", editBox:GetText())
         initialized = true
 
         return container, y - 55
@@ -879,12 +879,12 @@ CreateOptionsPanel = function()
 
     -- Refresh all slider edit boxes when panel is shown
     panel:SetScript("OnShow", function()
-        print("[AT-DEBUG] Panel OnShow fired, refreshing", #sliderRefreshFuncs, "sliders")
+        DebugPrint("Panel OnShow fired, refreshing", #sliderRefreshFuncs, "sliders")
         for i, refreshFunc in ipairs(sliderRefreshFuncs) do
-            print("[AT-DEBUG] Calling refresh function", i)
+            DebugPrint("Calling refresh function", i)
             refreshFunc()
         end
-        print("[AT-DEBUG] Panel OnShow complete")
+        DebugPrint("Panel OnShow complete")
     end)
 
     -- Register with Settings API (WoW 10.0+)
