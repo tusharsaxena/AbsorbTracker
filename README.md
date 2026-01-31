@@ -1,4 +1,4 @@
-# AbsorbTracker
+# Ka0s Absorb Tracker
 
 A World of Warcraft addon for Midnight that displays your total absorb shield value in a clean, customizable bar interface.
 
@@ -83,10 +83,6 @@ Open with `/at` and configure:
 
 All settings can also be changed via slash commands (see tables above).
 
-### LibSharedMedia
-
-If you have LibSharedMedia-3.0 installed, you can use custom textures, fonts, and borders from other addons.
-
 ## Compatibility
 
 - **WoW Version**: 12.0.0+ (Midnight)
@@ -116,10 +112,14 @@ If you have LibSharedMedia-3.0 installed, you can use custom textures, fonts, an
 
 ## Version History
 
+**v1.3.0**
+- Updated README.md for initial release
+
+**v1.2.0**
+- Removed pkgmeta and embedded libs directly
+
 **v1.1.0**
 - Added pkgmeta.yaml to install dependencies automatically
 
 **v1.0.0**
 - Initial Release ... yay!
-
-
