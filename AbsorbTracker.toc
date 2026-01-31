@@ -1,9 +1,18 @@
 ## Interface: 120000
 ## Title: Absorb Tracker
 ## Notes: Displays all absorb effects on your character with their values
-## Author: Tushar Saxena
+## Author: add1kted2ka0s
 ## Version: 1.0.0
+## iconTexture: 512902
 ## SavedVariables: AbsorbTrackerDB
 ## OptionalDeps: LibSharedMedia-3.0, Ace3, AceDB-3.0
 
-AbsorbTracker.lua
+Core.lua
+Utils.lua
+Settings.lua
+UI.lua
+Display.lua
+Timer.lua
+Events.lua
+SlashCommands.lua
+OptionsPanel.lua
