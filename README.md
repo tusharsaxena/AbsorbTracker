@@ -116,5 +116,10 @@ If you have LibSharedMedia-3.0 installed, you can use custom textures, fonts, an
 
 ## Version History
 
+**v1.1.0**
+- Added pkgmeta.yaml to install dependencies automatically
+
 **v1.0.0**
 - Initial Release ... yay!
+
+
