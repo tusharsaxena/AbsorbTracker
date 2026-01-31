@@ -1,110 +1,118 @@
-# Absorb Tracker - WoW Addon
+# AbsorbTracker - WoW Addon
 
-A World of Warcraft addon for patch 12.0.1 that displays all absorb effects on your character with their values in a clean, movable bar interface.
+A World of Warcraft addon for patch 12.0.1+ that displays your total absorb shield value in a clean, customizable bar interface.
 
 ## Features
 
-- **Visual Absorb Bars**: Shows each absorb effect as a separate bar
-- **Absorb Values**: Displays the exact amount of absorb for each effect
-- **Spell Names**: Shows which spell/ability is providing the absorb
-- **Auto-Hiding**: The frame becomes semi-transparent when you have no absorbs
-- **Movable**: Drag the frame anywhere on your screen
-- **Real-time Updates**: Updates automatically when absorbs change
+- **Visual Absorb Bar**: Shows your total absorb amount as a status bar
+- **Abbreviated Numbers**: Large values displayed as K/M/B for readability
+- **Fully Customizable**: Textures, colors, fonts, size, and border all configurable
+- **LibSharedMedia Support**: Use custom textures, fonts, and borders from SharedMedia
+- **Movable & Lockable**: Drag the bar anywhere and lock it in place
+- **Position Saving**: Bar position persists across sessions
+- **Settings Panel**: Full GUI settings in WoW's Interface Options
+- **Real-time Updates**: Configurable update interval (0.1-10 seconds)
 
 ## Installation
 
-1. Download the addon files (AbsorbTracker.toc and AbsorbTracker.lua)
+1. Download the addon files
 2. Navigate to your WoW installation directory
 3. Go to `_retail_\Interface\AddOns\`
 4. Create a new folder called `AbsorbTracker`
-5. Place both files inside the `AbsorbTracker` folder
+5. Place all files inside the `AbsorbTracker` folder
 6. Restart WoW or reload UI with `/reload`
 
 Full path example: `C:\Program Files (x86)\World of Warcraft\_retail_\Interface\AddOns\AbsorbTracker\`
 
 ## Usage
 
+### Opening Settings
+
+- `/at` or `/absorbtracker` - Opens the settings panel
+
 ### Slash Commands
 
-- `/absorbtracker` or `/at` - Toggle the addon frame on/off
-- `/at debug` - Toggle debug output on/off
-- `/at update` - Force an immediate update of absorb bars
-- `/at test` - Run API test to check if absorbs are being detected
+| Command | Description |
+|---------|-------------|
+| `/at` | Open settings panel |
+| `/at toggle` | Toggle bar visibility |
+| `/at lock` | Lock bar position |
+| `/at unlock` | Unlock bar position |
+| `/at texture [name]` | List or set bar texture |
+| `/at bgtexture [name]` | List or set background texture |
+| `/at border [name]` | List or set border style |
+| `/at bordersize <1-32>` | Set border size |
+| `/at font [name]` | List or set font |
+| `/at fontsize <6-32>` | Set font size |
+| `/at width <50-500>` | Set bar width in pixels |
+| `/at height <10-100>` | Set bar height in pixels |
+| `/at color <r> <g> <b> [a]` | Set bar color (0-255 or 0-1) |
+| `/at bgcolor <r> <g> <b> [a]` | Set background color |
+| `/at interval <0.1-10>` | Set update interval in seconds |
+| `/at debug` | Toggle debug mode |
+| `/at test [value]` | Test display with fake value |
+| `/at update` | Force immediate update |
 
-### Moving the Frame
+### Moving the Bar
 
-- Click and drag the frame to reposition it anywhere on your screen
-- The position will persist across sessions
-
-### Visual Elements
-
-Each absorb effect is shown as a bar with:
-- **Left side**: Name of the spell/effect providing the absorb
-- **Right side**: Numeric value of the absorb (formatted as K for thousands, M for millions)
-- **Bar fill**: Visual representation of absorb amount relative to your max health
+1. Use `/at unlock` to unlock the bar
+2. Click and drag the bar to reposition
+3. Use `/at lock` to lock in place
 
 ## Customization
 
-You can modify the addon by editing `AbsorbTracker.lua`:
+### Via Settings Panel
 
-- **Frame Position**: Change the initial position by modifying the `SetPoint` call (line 11)
-- **Bar Colors**: Change the blue color by modifying `SetStatusBarColor` (line 69)
-- **Frame Size**: Adjust the width by changing `SetSize` (line 9)
-- **Update Frequency**: Change the ticker interval (line 213) - currently 0.5 seconds
+Open with `/at` and configure:
+- **General**: Show/hide bar, lock position
+- **Bar Size**: Width and height
+- **Font**: Font face and size
+- **Performance**: Update interval
+- **Bar Color**: Bar and background colors
+- **Bar Textures**: Bar and background textures
+- **Border**: Border style and size
+
+### Via Slash Commands
+
+All settings can also be changed via slash commands (see table above).
+
+### LibSharedMedia
+
+If you have LibSharedMedia-3.0 installed, you can use custom textures, fonts, and borders from other addons.
 
 ## Compatibility
 
-- **WoW Version**: 12.0.1 (The War Within)
-- **Interface Version**: 120001
-- **Game Type**: Retail only
+- **WoW Version**: 12.0.1+ (The War Within)
+- **Game Type**: Retail
+- **Optional Dependencies**: LibSharedMedia-3.0, LibStub
 
 ## Troubleshooting
 
-**Addon doesn't show up:**
-- Make sure both files are in the correct folder
-- Check that the folder name is exactly `AbsorbTracker` (case-sensitive on some systems)
-- Type `/reload` in-game to reload the UI
+**Bar doesn't show up:**
+- Check if hidden with `/at toggle`
+- Ensure addon is enabled in character select
 
-**Bars not showing:**
-- The frame automatically hides when you have no absorb effects
-- Use `/at` to check if the frame is enabled
-- Try getting an absorb effect (like Power Word: Shield) to test
-- **Use `/at debug` to enable debug mode** - this will show detailed information in chat
-- Use `/at test` to verify the API is detecting absorbs
-- Use `/at update` to force a manual update
+**Textures/fonts not working:**
+- Install LibSharedMedia-3.0 for custom media support
+- Without LSM, only default Blizzard textures are available
 
-**Debug Mode:**
-When debug mode is enabled (`/at debug`), you'll see detailed output including:
-- Total absorb amount from the WoW API
-- Each aura being scanned on your character
-- Tooltip text from each aura
-- Which absorbs are detected and their values
-- Frame update information
+**Position resets:**
+- Make sure to properly close the game (don't force-quit)
+- SavedVariables need the game to save on logout
 
-If debug shows "Total Absorb from API: nil" or "0", the game isn't detecting any absorbs. If it shows a value but no bars appear, there may be a parsing issue.
-
-**Not all absorbs showing:**
-- Some absorb effects may not be properly detected due to WoW API limitations
-- The addon will show "Total Absorb" if it can detect the total but not individual effects
-
-## Known Limitations
-
-- Some absorb effects may be grouped as "Total Absorb" if individual effects cannot be parsed
-- The tooltip-based detection may not capture all absorb types
-- Very rapid absorb changes might have a slight delay (0.5 second update interval)
-
-## Credits
-
-Created for WoW patch 12.0.1 (The War Within)
-
-## Support
-
-For issues or feature requests, you can modify the code directly or seek help in WoW addon communities.
+**Debug mode:**
+- Use `/at debug` to see detailed information about absorb values
 
 ## Version History
+
+**v1.1.0**
+- Added background texture support
+- Added position saving
+- Added settings panel
+- Added LibSharedMedia integration
+- Abbreviated number display
 
 **v1.0.0** - Initial Release
 - Basic absorb tracking
 - Movable frame
-- Multiple absorb effect support
 - Real-time updates
