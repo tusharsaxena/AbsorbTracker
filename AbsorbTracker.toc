@@ -1,0 +1,9 @@
+## Interface: 120001, 120000, 50503, 38000, 20505, 11508
+## Title: Absorb Tracker
+## Notes: Displays all absorb effects on your character with their values
+## Author: YourName
+## Version: 1.0.1
+## SavedVariables: AbsorbTrackerDB
+## OptionalDeps: LibSharedMedia-3.0
+
+AbsorbTracker.lua
