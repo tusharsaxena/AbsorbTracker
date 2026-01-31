@@ -1,3 +1,5 @@
+![Alt text](https://i.ibb.co/sJQRbTC3/logo-absorbtracker.png "Logo")
+
 # Ka0s Absorb Tracker
 
 A World of Warcraft addon for Midnight that displays your total absorb shield value in a clean, customizable bar interface.
@@ -13,6 +15,16 @@ A World of Warcraft addon for Midnight that displays your total absorb shield va
 - **Position Saving**: Bar position persists across sessions
 - **Configurable Update Interval**: Configurable update interval (0.1-10 seconds)
 - **Settings Panel**: Full GUI settings in WoW's Interface Options
+
+## Screenshots
+
+_**Absorb tracker bar in action - see the bar above the unit frame**_
+
+![Alt text](https://i.ibb.co/RTZzvrpc/absorbtracker-schreenshot-1.png "Screenshot #1")
+
+_**Settings panel - invoked by /at**_
+
+![Alt text](https://i.ibb.co/GZj9vjt/absorbtracker-schreenshot-2.png "Screenshot #2")
 
 ## Usage
 
