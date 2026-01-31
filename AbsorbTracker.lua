@@ -15,6 +15,7 @@ local defaults = {
     borderSize = 12,
     font = "Friz Quadrata TT",
     fontSize = 12,
+    fontFlags = "OUTLINE",
     barWidth = 200,
     barHeight = 20,
     barColor = { r = 0.4, g = 0.7, b = 1.0, a = 0.8 },
@@ -149,7 +150,7 @@ bar.statusBar = statusBar
 
 -- Absorb value text (on statusBar so it's above the bar texture)
 local valueText = statusBar:CreateFontString(nil, "OVERLAY", nil)
-valueText:SetFont(GetFont(), GetSetting("fontSize"), "OUTLINE")
+valueText:SetFont(GetFont(), GetSetting("fontSize"), GetSetting("fontFlags") or "")
 valueText:SetPoint("CENTER", bar, "CENTER", 0, 0)
 bar.valueText = valueText
 
@@ -180,7 +181,7 @@ local function UpdateBarAppearance()
     bar:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
 
     -- Update font
-    valueText:SetFont(GetFont(), GetSetting("fontSize"), "OUTLINE")
+    valueText:SetFont(GetFont(), GetSetting("fontSize"), GetSetting("fontFlags") or "")
 
     -- Update lock state
     local locked = GetSetting("locked")
@@ -388,6 +389,34 @@ SlashCmdList["ABSORBTRACKER"] = function(msg)
             print("Usage: /at fontsize <size>  (6-32)")
         end
 
+    elseif cmd == "fontflags" or cmd == "outline" then
+        local validFlags = {
+            ["none"] = "",
+            ["outline"] = "OUTLINE",
+            ["thickoutline"] = "THICKOUTLINE",
+            ["monochrome"] = "MONOCHROME",
+            ["monochrome, outline"] = "MONOCHROME, OUTLINE",
+            ["monochrome, thickoutline"] = "MONOCHROME, THICKOUTLINE",
+        }
+        if arg and arg ~= "" then
+            local lowerArg = arg:lower()
+            if validFlags[lowerArg] ~= nil then
+                AbsorbTrackerDB.fontFlags = validFlags[lowerArg]
+                UpdateBarAppearance()
+                local displayName = lowerArg == "none" and "None" or validFlags[lowerArg]
+                print("AbsorbTracker: Font flags set to '" .. displayName .. "'")
+            else
+                print("AbsorbTracker: Invalid font flags.")
+                print("Valid options: none, outline, thickoutline, monochrome, monochrome, outline, monochrome, thickoutline")
+            end
+        else
+            local current = GetSetting("fontFlags")
+            local displayCurrent = (current == "" or current == nil) and "None" or current
+            print("AbsorbTracker: Current font flags: " .. displayCurrent)
+            print("Usage: /at fontflags <option>")
+            print("Options: none, outline, thickoutline, monochrome, monochrome, outline, monochrome, thickoutline")
+        end
+
     elseif cmd == "width" then
         if arg and arg ~= "" then
             local width = tonumber(arg)
@@ -520,6 +549,7 @@ SlashCmdList["ABSORBTRACKER"] = function(msg)
         print("  /at bordersize <size> - Set border size (1-32)")
         print("  /at font [name] - List or set font")
         print("  /at fontsize <size> - Set font size (6-32)")
+        print("  /at fontflags <option> - Set font outline (none, outline, thickoutline, etc.)")
         print("  /at width <pixels> - Set bar width (50-500)")
         print("  /at height <pixels> - Set bar height (10-100)")
         print("  /at color <r> <g> <b> [a] - Set bar color")
@@ -716,6 +746,59 @@ CreateOptionsPanel = function()
         return container, y - 35
     end
 
+    -- Helper: Create a simple dropdown (non-LSM)
+    local function CreateSimpleDropdown(parent, x, y, label, dbKey, defaultVal, options)
+        local container = CreateFrame("Frame", nil, parent)
+        container:SetPoint("TOPLEFT", x, y)
+        container:SetSize(220, 50)
+
+        local dropLabel = container:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        dropLabel:SetPoint("TOPLEFT", 0, 0)
+        dropLabel:SetText(label)
+
+        local dropdown = CreateFrame("Frame", nil, container, "UIDropDownMenuTemplate")
+        dropdown:SetPoint("TOPLEFT", -16, -15)
+
+        local function Initialize(self, level)
+            local currentVal = AbsorbTrackerDB[dbKey]
+            if currentVal == nil then
+                currentVal = defaultVal
+            end
+
+            for _, opt in ipairs(options) do
+                local info = UIDropDownMenu_CreateInfo()
+                info.text = opt.text
+                info.checked = (opt.value == currentVal)
+                info.func = function()
+                    AbsorbTrackerDB[dbKey] = opt.value
+                    UIDropDownMenu_SetText(dropdown, opt.text)
+                    CloseDropDownMenus()
+                    UpdateBarAppearance()
+                end
+                UIDropDownMenu_AddButton(info, level)
+            end
+        end
+
+        -- Find display text for current value
+        local currentVal = AbsorbTrackerDB[dbKey]
+        if currentVal == nil then
+            currentVal = defaultVal
+        end
+        local displayText = defaultVal
+        for _, opt in ipairs(options) do
+            if opt.value == currentVal then
+                displayText = opt.text
+                break
+            end
+        end
+
+        UIDropDownMenu_SetWidth(dropdown, 160)
+        UIDropDownMenu_SetText(dropdown, displayText)
+        UIDropDownMenu_Initialize(dropdown, Initialize)
+
+        return container, y - 55
+    end
+
     -- Helper: Create a dropdown for LSM media
     local function CreateMediaDropdown(parent, x, y, label, mediaType, dbKey, defaultVal)
         local container = CreateFrame("Frame", nil, parent)
@@ -832,6 +915,17 @@ CreateOptionsPanel = function()
 
     local fontSizeSlider
     fontSizeSlider, y1 = CreateSlider(panel, col1, y1, "Font Size", "fontSize", defaults.fontSize, 6, 32, 1)
+
+    local fontFlagsOptions = {
+        { text = "None", value = "" },
+        { text = "Outline", value = "OUTLINE" },
+        { text = "Thick Outline", value = "THICKOUTLINE" },
+        { text = "Monochrome", value = "MONOCHROME" },
+        { text = "Monochrome, Outline", value = "MONOCHROME, OUTLINE" },
+        { text = "Monochrome, Thick Outline", value = "MONOCHROME, THICKOUTLINE" },
+    }
+    local fontFlagsDropdown
+    fontFlagsDropdown, y1 = CreateSimpleDropdown(panel, col1, y1, "Font Outline", "fontFlags", defaults.fontFlags, fontFlagsOptions)
 
     -- =====================
     -- RIGHT COLUMN
