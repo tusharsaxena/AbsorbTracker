@@ -14,6 +14,7 @@ local defaults = {
         bgTexture = "Blizzard Raid Bar",
         border = "Blizzard Tooltip",
         borderSize = 12,
+        borderColor = { r = 0.5, g = 0.5, b = 0.5, a = 1.0 },
         font = "Friz Quadrata TT",
         fontSize = 12,
         fontFlags = "OUTLINE",
@@ -116,6 +117,11 @@ local function GetBgColor()
     return c.r, c.g, c.b, c.a
 end
 
+local function GetBorderColor()
+    local c = GetSetting("borderColor")
+    return c.r, c.g, c.b, c.a
+end
+
 -- Reusable backdrop table to avoid garbage
 local backdropInfo = {
     bgFile = FALLBACK_TEXTURE,
@@ -128,11 +134,11 @@ local backdropInfo = {
 -- Create the absorb bar directly (no container frame)
 local bar = CreateFrame("Frame", "AbsorbTrackerFrame", UIParent, "BackdropTemplate")
 bar:SetSize(flatDefaults.barWidth, flatDefaults.barHeight)
-bar:SetPoint("CENTER", UIParent, "CENTER", 0, -200)
+bar:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 backdropInfo.edgeFile = GetBorder()
 bar:SetBackdrop(backdropInfo)
 bar:SetBackdropColor(0.2, 0.2, 0.2, 0.8)
-bar:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+bar:SetBackdropBorderColor(flatDefaults.borderColor.r, flatDefaults.borderColor.g, flatDefaults.borderColor.b, flatDefaults.borderColor.a)
 bar:SetMovable(true)
 bar:EnableMouse(true)
 bar:RegisterForDrag("LeftButton")
@@ -148,9 +154,12 @@ bar:SetClampedToScreen(true)
 -- Function to restore bar position from saved variables
 local function RestoreBarPosition()
     local pos = GetSetting("position")
+    bar:ClearAllPoints()
     if pos then
-        bar:ClearAllPoints()
         bar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
+    else
+        -- Default to center of screen
+        bar:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     end
 end
 
@@ -194,7 +203,7 @@ local function UpdateBarAppearance()
     bar:SetBackdrop(nil)  -- Clear first to force refresh
     bar:SetBackdrop(backdropInfo)
     bar:SetBackdropColor(GetBgColor())
-    bar:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+    bar:SetBackdropBorderColor(GetBorderColor())
 
     -- Update font
     valueText:SetFont(GetFont(), GetSetting("fontSize"), GetSetting("fontFlags") or "")
@@ -508,6 +517,23 @@ SlashCmdList["ABSORBTRACKER"] = function(msg)
             print("Usage: /at bordersize <size>  (1-32)")
         end
 
+    elseif cmd == "bordercolor" then
+        if arg and arg ~= "" then
+            local color = ParseColor(arg)
+            if color then
+                SetSetting("borderColor", color)
+                UpdateBarAppearance()
+                print(format("AbsorbTracker: Border color set to %.2f %.2f %.2f %.2f", color.r, color.g, color.b, color.a))
+            else
+                print("AbsorbTracker: Invalid color format.")
+                print("Usage: /at bordercolor <r> <g> <b> [a]  (0-255 or 0-1)")
+            end
+        else
+            local r, g, b, a = GetBorderColor()
+            print(format("AbsorbTracker: Current border color: %.2f %.2f %.2f %.2f", r, g, b, a))
+            print("Usage: /at bordercolor <r> <g> <b> [a]  (0-255 or 0-1)")
+        end
+
     elseif cmd == "color" then
         if arg and arg ~= "" then
             local color = ParseColor(arg)
@@ -661,6 +687,7 @@ SlashCmdList["ABSORBTRACKER"] = function(msg)
         print("  /at bgtexture [name] - List or set background texture")
         print("  /at border [name] - List or set border")
         print("  /at bordersize <size> - Set border size (1-32)")
+        print("  /at bordercolor <r> <g> <b> [a] - Set border color")
         print("  /at font [name] - List or set font")
         print("  /at fontsize <size> - Set font size (6-32)")
         print("  /at fontflags <option> - Set font outline (none, outline, thickoutline, etc.)")
@@ -987,7 +1014,7 @@ CreateOptionsPanel = function()
         line:SetSize(230, 1)
         line:SetColorTexture(0.6, 0.6, 0.6, 0.8)
 
-        return y - 35
+        return y - 30
     end
 
     -- Layout columns
@@ -1149,14 +1176,10 @@ CreateOptionsPanel = function()
 
     yProfile = yProfile - 55
 
-    -- Reset and Delete buttons (centered across both columns)
-    local buttonContainer = CreateFrame("Frame", nil, content)
-    buttonContainer:SetPoint("TOPLEFT", col1, yProfile)
-    buttonContainer:SetSize(490, 25)
-
-    local resetBtn = CreateFrame("Button", nil, buttonContainer, "UIPanelButtonTemplate")
-    resetBtn:SetPoint("LEFT", 0, 0)
-    resetBtn:SetSize(111, 22)
+    -- LEFT SIDE: Reset to Defaults button
+    local resetBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+    resetBtn:SetPoint("TOPLEFT", col1, yProfile + 5)
+    resetBtn:SetSize(230, 22)
     resetBtn:SetText("Reset to Defaults")
     resetBtn:SetScript("OnClick", function()
         if db and db.ResetProfile then
@@ -1165,22 +1188,79 @@ CreateOptionsPanel = function()
         end
     end)
 
-    local deleteBtn = CreateFrame("Button", nil, buttonContainer, "UIPanelButtonTemplate")
-    deleteBtn:SetPoint("LEFT", resetBtn, "RIGHT", 10, 0)
-    deleteBtn:SetSize(111, 22)
-    deleteBtn:SetText("Delete Profile")
+    -- RIGHT SIDE: Delete Profile dropdown and button
+    local deleteContainer = CreateFrame("Frame", nil, content)
+    deleteContainer:SetPoint("TOPLEFT", col2, yProfile)
+    deleteContainer:SetSize(220, 50)
+
+    local deleteDropLabel = deleteContainer:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    deleteDropLabel:SetPoint("TOPLEFT", 0, 0)
+    deleteDropLabel:SetText("Delete Profile")
+
+    local profileDeleteDropdown = CreateFrame("Frame", nil, deleteContainer, "UIDropDownMenuTemplate")
+    profileDeleteDropdown:SetPoint("TOPLEFT", -16, -15)
+
+    local selectedDeleteProfile = nil
+
+    local function InitializeDeleteDropdown(self, level)
+        if not db or not db.GetProfiles then
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = "AceDB not available"
+            info.disabled = true
+            UIDropDownMenu_AddButton(info, level)
+            return
+        end
+
+        local profiles = db:GetProfiles()
+        local current = db:GetCurrentProfile()
+        local hasOtherProfiles = false
+
+        for _, name in ipairs(profiles) do
+            if name ~= current then
+                hasOtherProfiles = true
+                local info = UIDropDownMenu_CreateInfo()
+                info.text = name
+                info.checked = (name == selectedDeleteProfile)
+                info.func = function()
+                    selectedDeleteProfile = name
+                    UIDropDownMenu_SetText(profileDeleteDropdown, name)
+                    CloseDropDownMenus()
+                end
+                UIDropDownMenu_AddButton(info, level)
+            end
+        end
+
+        if not hasOtherProfiles then
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = "No other profiles"
+            info.disabled = true
+            UIDropDownMenu_AddButton(info, level)
+        end
+    end
+
+    UIDropDownMenu_SetWidth(profileDeleteDropdown, 138)
+    UIDropDownMenu_SetText(profileDeleteDropdown, "Select...")
+    UIDropDownMenu_Initialize(profileDeleteDropdown, InitializeDeleteDropdown)
+
+    local deleteBtn = CreateFrame("Button", nil, deleteContainer, "UIPanelButtonTemplate")
+    deleteBtn:SetPoint("LEFT", profileDeleteDropdown, "RIGHT", -10, 2)
+    deleteBtn:SetSize(60, 22)
+    deleteBtn:SetText("Delete")
     deleteBtn:SetScript("OnClick", function()
-        if db and db.DeleteProfile and db.GetCurrentProfile then
-            local current = db:GetCurrentProfile()
-            print("AbsorbTracker: Use '/at profile delete <name>' to delete profiles.")
-            print("AbsorbTracker: Current profile '" .. current .. "' cannot be deleted while active.")
+        if selectedDeleteProfile and db and db.DeleteProfile then
+            db:DeleteProfile(selectedDeleteProfile, true)
+            print("AbsorbTracker: Deleted profile '" .. selectedDeleteProfile .. "'")
+            selectedDeleteProfile = nil
+            UIDropDownMenu_SetText(profileDeleteDropdown, "Select...")
+        else
+            print("AbsorbTracker: Select a profile to delete.")
         end
     end)
 
     -- =====================
     -- LEFT COLUMN (below profiles)
     -- =====================
-    local y1 = yProfile - 40
+    local y1 = yProfile - 60
 
     -- Save Y position for aligning Performance with General
     local generalY = y1
@@ -1269,8 +1349,13 @@ CreateOptionsPanel = function()
     local borderSizeSlider
     borderSizeSlider, y2 = CreateSlider(content, col2, y2, "Border Size", "borderSize", flatDefaults.borderSize, 1, 32, 1)
 
-    -- Align Font with Bar Color section
-    y2 = barColorY
+    local borderColorBtn
+    borderColorBtn, y2 = CreateColorButton(content, col2, y2, "Border Color", "borderColor", flatDefaults.borderColor)
+
+    y2 = y2 - 10
+
+    -- Align Font with Bar Color section (use lower position to ensure spacing after Border)
+    y2 = min(y2, barColorY)
 
     -- FONT SECTION (right column, under Border)
     y2 = CreateSectionHeader(content, col2, y2, "Font")
