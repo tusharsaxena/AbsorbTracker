@@ -1,5 +1,5 @@
 ## Interface: 120000
-## Title: Absorb Tracker
+## Title: Ka0s Absorb Tracker
 ## Notes: Displays all absorb effects on your character with their values
 ## Author: add1kted2ka0s
 ## Version: 1.0.0
