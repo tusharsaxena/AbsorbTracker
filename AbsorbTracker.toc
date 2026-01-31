@@ -2,8 +2,8 @@
 ## Title: Absorb Tracker
 ## Notes: Displays all absorb effects on your character with their values
 ## Author: YourName
-## Version: 1.0.1
+## Version: 1.1.0
 ## SavedVariables: AbsorbTrackerDB
-## OptionalDeps: LibSharedMedia-3.0
+## OptionalDeps: LibSharedMedia-3.0, Ace3, AceDB-3.0
 
 AbsorbTracker.lua
