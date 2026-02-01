@@ -1,4 +1,4 @@
-![Alt text](https://i.ibb.co/sJQRbTC3/logo-absorbtracker.png "Logo")
+![Alt text](https://media.forgecdn.net/attachments/1506/196/logo-absorbtracker-png.png "Logo")
 
 # Ka0s Absorb Tracker
 
@@ -20,11 +20,11 @@ A World of Warcraft addon for Midnight that displays your total absorb shield va
 
 _**Absorb tracker bar in action - see the bar above the unit frame**_
 
-![Alt text](https://i.ibb.co/RTZzvrpc/absorbtracker-schreenshot-1.png "Screenshot #1")
+![Alt text](https://media.forgecdn.net/attachments/1506/197/absorbtracker-schreenshot-1-png.png "Screenshot #1")
 
 _**Settings panel - invoked by /at**_
 
-![Alt text](https://i.ibb.co/GZj9vjt/absorbtracker-schreenshot-2.png "Screenshot #2")
+![Alt text](https://media.forgecdn.net/attachments/1506/198/absorbtracker-schreenshot-2-png.png "Screenshot #2")
 
 ## Usage
 
@@ -43,16 +43,16 @@ _**Settings panel - invoked by /at**_
 | `/at texture [name]` | List or set bar texture |
 | `/at bgtexture [name]` | List or set background texture |
 | `/at border [name]` | List or set border style |
-| `/at bordersize <1-32>` | Set border size |
-| `/at bordercolor <r> <g> <b> [a]` | Set border color |
+| `/at bordersize [1-32]` | Set border size |
+| `/at bordercolor [r] [g] [b] [a]` | Set border color |
 | `/at font [name]` | List or set font |
-| `/at fontsize <6-32>` | Set font size |
-| `/at fontflags <option>` | Set font outline (none, outline, thickoutline, etc.) |
-| `/at width <50-500>` | Set bar width in pixels |
-| `/at height <10-100>` | Set bar height in pixels |
-| `/at color <r> <g> <b> [a]` | Set bar color (0-255 or 0-1) |
-| `/at bgcolor <r> <g> <b> [a]` | Set background color |
-| `/at interval <0.1-10>` | Set update interval in seconds |
+| `/at fontsize [6-32]` | Set font size |
+| `/at fontflags [option]` | Set font outline (none, outline, thickoutline, etc.) |
+| `/at width [50-500]` | Set bar width in pixels |
+| `/at height [10-100]` | Set bar height in pixels |
+| `/at color [r] [g] [b] [a]` | Set bar color (0-255 or 0-1) |
+| `/at bgcolor [r] [g] [b] [a]` | Set background color |
+| `/at interval [0.1-10]` | Set update interval in seconds |
 | `/at debug` | Toggle debug mode |
 | `/at test [value]` | Test display with fake value |
 | `/at update` | Force immediate update |
@@ -65,10 +65,10 @@ Profiles require AceDB-3.0 (part of Ace3) to be installed.
 |---------|-------------|
 | `/at profile list` | List all available profiles |
 | `/at profile current` | Show current profile name |
-| `/at profile use <name>` | Switch to a profile (creates if doesn't exist) |
-| `/at profile new <name>` | Create new profile with default settings |
-| `/at profile copy <name>` | Copy settings from another profile |
-| `/at profile delete <name>` | Delete a profile (cannot delete current) |
+| `/at profile use [name]` | Switch to a profile (creates if doesn't exist) |
+| `/at profile new [name]` | Create new profile with default settings |
+| `/at profile copy [name]` | Copy settings from another profile |
+| `/at profile delete [name]` | Delete a profile (cannot delete current) |
 | `/at profile reset` | Reset current profile to defaults |
 
 ### Moving the Bar
