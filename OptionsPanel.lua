@@ -38,6 +38,248 @@ function AddonTable.CreateOptionsPanel()
     local leftColumn = 20
     local rightColumn = 280
 
+    -- Shared state for custom scrollable media dropdowns
+    local activeDropdownCloseFunc = nil
+
+    local dropdownClickCatcher = CreateFrame("Button", nil, UIParent)
+    dropdownClickCatcher:SetAllPoints(UIParent)
+    dropdownClickCatcher:SetFrameStrata("FULLSCREEN")
+    dropdownClickCatcher:SetFrameLevel(0)
+    dropdownClickCatcher:Hide()
+    dropdownClickCatcher:SetScript("OnClick", function()
+        if activeDropdownCloseFunc then
+            activeDropdownCloseFunc()
+        end
+    end)
+
+    -- Helper: Create a custom scrollable dropdown
+    -- getItems: function() returning array of {text=string, checked=bool, disabled=bool}
+    -- onSelect: function(text) called when an item is clicked
+    -- Returns: container, setTextFunc, newY
+    local function CreateCustomDropdown(parent, x, y, label, dropWidth, initialText, getItems, onSelect)
+        local container = CreateFrame("Frame", nil, parent)
+        container:SetPoint("TOPLEFT", x, y)
+        container:SetSize(dropWidth, 50)
+
+        local dropLabel = container:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        dropLabel:SetPoint("TOPLEFT", 0, 0)
+        dropLabel:SetText(label)
+
+        local btnFrame = CreateFrame("Button", nil, container, "BackdropTemplate")
+        btnFrame:SetPoint("TOPLEFT", 0, -18)
+        btnFrame:SetSize(dropWidth, 24)
+        btnFrame:SetBackdrop({
+            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 14,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 },
+        })
+        btnFrame:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
+        btnFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.8)
+
+        local selectedText = btnFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        selectedText:SetPoint("LEFT", 8, 0)
+        selectedText:SetPoint("RIGHT", -24, 0)
+        selectedText:SetJustifyH("LEFT")
+        selectedText:SetText(initialText)
+
+        local arrow = btnFrame:CreateTexture(nil, "ARTWORK")
+        arrow:SetPoint("RIGHT", -5, 0)
+        arrow:SetSize(16, 16)
+        arrow:SetTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
+
+        local ITEM_HEIGHT = 18
+        local MAX_VISIBLE = 10
+        local SCROLLBAR_WIDTH = 16
+
+        local listFrame = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+        listFrame:SetFrameStrata("FULLSCREEN")
+        listFrame:SetFrameLevel(1)
+        listFrame:SetClampedToScreen(true)
+        listFrame:EnableMouse(true)
+        listFrame:SetBackdrop({
+            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 14,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 },
+        })
+        listFrame:SetBackdropColor(0.15, 0.15, 0.15, 0.95)
+        listFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.8)
+        listFrame:Hide()
+
+        local ddScrollFrame = CreateFrame("ScrollFrame", nil, listFrame)
+        ddScrollFrame:SetPoint("TOPLEFT", 6, -6)
+
+        local scrollChild = CreateFrame("Frame", nil, ddScrollFrame)
+        ddScrollFrame:SetScrollChild(scrollChild)
+
+        local scrollBar = CreateFrame("Slider", nil, listFrame, "BackdropTemplate")
+        scrollBar:SetPoint("TOPRIGHT", -6, -6)
+        scrollBar:SetPoint("BOTTOMRIGHT", -6, 6)
+        scrollBar:SetWidth(SCROLLBAR_WIDTH)
+        scrollBar:SetBackdrop({
+            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+            insets = { left = 4, right = 4, top = 4, bottom = 4 },
+        })
+        scrollBar:SetBackdropColor(0, 0, 0, 0.4)
+        scrollBar:SetValueStep(ITEM_HEIGHT)
+        scrollBar:SetObeyStepOnDrag(true)
+
+        local thumb = scrollBar:CreateTexture(nil, "OVERLAY")
+        thumb:SetSize(SCROLLBAR_WIDTH - 4, 24)
+        thumb:SetColorTexture(0.5, 0.5, 0.5, 0.7)
+        scrollBar:SetThumbTexture(thumb)
+
+        scrollBar:SetScript("OnValueChanged", function(self, value)
+            ddScrollFrame:SetVerticalScroll(value)
+        end)
+
+        local itemButtons = {}
+
+        local function CloseList()
+            listFrame:Hide()
+            dropdownClickCatcher:Hide()
+            activeDropdownCloseFunc = nil
+        end
+
+        local function OpenList()
+            if activeDropdownCloseFunc then
+                activeDropdownCloseFunc()
+            end
+            CloseDropDownMenus()
+
+            local items = getItems()
+            local numItems = #items
+            if numItems == 0 then return end
+
+            local needsScroll = numItems > MAX_VISIBLE
+            local visibleItems = min(numItems, MAX_VISIBLE)
+            local listHeight = visibleItems * ITEM_HEIGHT + 12
+
+            listFrame:SetSize(dropWidth, listHeight)
+            listFrame:ClearAllPoints()
+            listFrame:SetPoint("TOPLEFT", btnFrame, "BOTTOMLEFT", 0, -2)
+
+            local scrollRightOffset = needsScroll and -(SCROLLBAR_WIDTH + 8) or -6
+            ddScrollFrame:SetPoint("BOTTOMRIGHT", listFrame, "BOTTOMRIGHT", scrollRightOffset, 6)
+
+            local contentWidth = needsScroll and (dropWidth - SCROLLBAR_WIDTH - 14) or (dropWidth - 12)
+            scrollChild:SetSize(contentWidth, numItems * ITEM_HEIGHT)
+
+            for i, item in ipairs(items) do
+                local itemBtn = itemButtons[i]
+                if not itemBtn then
+                    itemBtn = CreateFrame("Button", nil, scrollChild)
+                    itemBtn:SetHeight(ITEM_HEIGHT)
+
+                    local hl = itemBtn:CreateTexture(nil, "HIGHLIGHT")
+                    hl:SetAllPoints()
+                    hl:SetColorTexture(0.3, 0.3, 0.7, 0.4)
+
+                    local checkMark = itemBtn:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+                    checkMark:SetPoint("LEFT", 2, 0)
+                    checkMark:SetWidth(14)
+                    itemBtn.checkMark = checkMark
+
+                    local text = itemBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                    text:SetPoint("LEFT", 16, 0)
+                    text:SetPoint("RIGHT", -4, 0)
+                    text:SetJustifyH("LEFT")
+                    itemBtn.text = text
+
+                    itemButtons[i] = itemBtn
+                end
+
+                itemBtn:SetParent(scrollChild)
+                itemBtn:ClearAllPoints()
+                itemBtn:SetPoint("TOPLEFT", 0, -(i - 1) * ITEM_HEIGHT)
+                itemBtn:SetPoint("RIGHT", scrollChild, "RIGHT", 0, 0)
+
+                itemBtn.text:SetText(item.text)
+                itemBtn.checkMark:SetText(item.checked and "|cFF00FF00>|r" or "")
+
+                if item.disabled then
+                    itemBtn.text:SetTextColor(0.5, 0.5, 0.5)
+                    itemBtn:SetScript("OnClick", nil)
+                else
+                    itemBtn.text:SetTextColor(1, 0.82, 0)
+                    local itemText = item.text
+                    itemBtn:SetScript("OnClick", function()
+                        onSelect(itemText)
+                        CloseList()
+                    end)
+                end
+
+                itemBtn:Show()
+            end
+
+            for i = numItems + 1, #itemButtons do
+                itemButtons[i]:Hide()
+            end
+
+            if needsScroll then
+                local maxScroll = (numItems - visibleItems) * ITEM_HEIGHT
+                scrollBar:SetMinMaxValues(0, maxScroll)
+
+                -- Scroll to show the checked (selected) item
+                local scrollTo = 0
+                for i, item in ipairs(items) do
+                    if item.checked then
+                        -- Position the selected item in the middle of the visible area
+                        local itemTop = (i - 1) * ITEM_HEIGHT
+                        local centerOffset = floor((visibleItems - 1) / 2) * ITEM_HEIGHT
+                        scrollTo = max(0, min(maxScroll, itemTop - centerOffset))
+                        break
+                    end
+                end
+                scrollBar:SetValue(scrollTo)
+                ddScrollFrame:SetVerticalScroll(scrollTo)
+                scrollBar:Show()
+            else
+                scrollBar:Hide()
+                ddScrollFrame:SetVerticalScroll(0)
+            end
+
+            activeDropdownCloseFunc = CloseList
+            dropdownClickCatcher:Show()
+            listFrame:Show()
+        end
+
+        btnFrame:SetScript("OnClick", function()
+            if listFrame:IsShown() then
+                CloseList()
+            else
+                OpenList()
+            end
+        end)
+
+        listFrame:EnableMouseWheel(true)
+        listFrame:SetScript("OnMouseWheel", function(self, delta)
+            if scrollBar:IsShown() then
+                local current = scrollBar:GetValue()
+                local _, maxVal = scrollBar:GetMinMaxValues()
+                local step = ITEM_HEIGHT * 2
+                if delta > 0 then
+                    scrollBar:SetValue(max(0, current - step))
+                else
+                    scrollBar:SetValue(min(maxVal, current + step))
+                end
+            end
+        end)
+
+        container:SetScript("OnHide", function()
+            if listFrame:IsShown() then
+                CloseList()
+            end
+        end)
+
+        local function setText(text)
+            selectedText:SetText(text)
+        end
+
+        return container, setText, y - 55
+    end
+
     -- Helper: Create a checkbox
     local function CreateCheckbox(parent, x, y, label, dbKey, defaultVal)
         local cb = CreateFrame("CheckButton", nil, parent, "InterfaceOptionsCheckButtonTemplate")
@@ -212,124 +454,78 @@ function AddonTable.CreateOptionsPanel()
 
     -- Helper: Create a simple dropdown (non-LSM)
     local function CreateSimpleDropdown(parent, x, y, label, dbKey, defaultVal, options)
-        local container = CreateFrame("Frame", nil, parent)
-        container:SetPoint("TOPLEFT", x, y)
-        container:SetSize(220, 50)
-
-        local dropLabel = container:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-        dropLabel:SetPoint("TOPLEFT", 0, 0)
-        dropLabel:SetText(label)
-
-        local dropdown = CreateFrame("Frame", nil, container, "UIDropDownMenuTemplate")
-        dropdown:SetPoint("TOPLEFT", -16, -15)
-
-        local function Initialize(self, level)
-            local currentVal = GetSetting(dbKey)
-            if currentVal == nil then
-                currentVal = defaultVal
-            end
-
+        local function getDisplayText(val)
             for _, opt in ipairs(options) do
-                local info = UIDropDownMenu_CreateInfo()
-                info.text = opt.text
-                info.checked = (opt.value == currentVal)
-                info.func = function()
-                    SetSetting(dbKey, opt.value)
-                    UIDropDownMenu_SetText(dropdown, opt.text)
-                    CloseDropDownMenus()
-                    UpdateBarAppearance()
-                end
-                UIDropDownMenu_AddButton(info, level)
+                if opt.value == val then return opt.text end
             end
+            return defaultVal
         end
 
-        -- Find display text for current value
         local currentVal = GetSetting(dbKey)
-        if currentVal == nil then
-            currentVal = defaultVal
-        end
-        local displayText = defaultVal
-        for _, opt in ipairs(options) do
-            if opt.value == currentVal then
-                displayText = opt.text
-                break
+        if currentVal == nil then currentVal = defaultVal end
+
+        local container, setText
+        container, setText, y = CreateCustomDropdown(parent, x, y, label, 220, getDisplayText(currentVal),
+            function()
+                local cv = GetSetting(dbKey)
+                if cv == nil then cv = defaultVal end
+                local items = {}
+                for _, opt in ipairs(options) do
+                    table.insert(items, { text = opt.text, checked = (opt.value == cv) })
+                end
+                return items
+            end,
+            function(text)
+                for _, opt in ipairs(options) do
+                    if opt.text == text then
+                        SetSetting(dbKey, opt.value)
+                        setText(text)
+                        UpdateBarAppearance()
+                        break
+                    end
+                end
             end
-        end
+        )
 
-        UIDropDownMenu_SetWidth(dropdown, 213)
-        UIDropDownMenu_SetText(dropdown, displayText)
-        UIDropDownMenu_Initialize(dropdown, Initialize)
-
-        -- Register refresh function
         table.insert(panelRefreshFuncs, function()
             local val = GetSetting(dbKey)
-            if val == nil then
-                val = defaultVal
-            end
-            local text = defaultVal
-            for _, opt in ipairs(options) do
-                if opt.value == val then
-                    text = opt.text
-                    break
-                end
-            end
-            UIDropDownMenu_SetText(dropdown, text)
+            if val == nil then val = defaultVal end
+            setText(getDisplayText(val))
         end)
 
-        return container, y - 55
+        return container, y
     end
 
-    -- Helper: Create a dropdown for LSM media
+    -- Helper: Create a scrollable dropdown for LSM media
     local function CreateMediaDropdown(parent, x, y, label, mediaType, dbKey, defaultVal)
-        local container = CreateFrame("Frame", nil, parent)
-        container:SetPoint("TOPLEFT", x, y)
-        container:SetSize(220, 50)
-
-        local dropLabel = container:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-        dropLabel:SetPoint("TOPLEFT", 0, 0)
-        dropLabel:SetText(label)
-
-        local dropdown = CreateFrame("Frame", nil, container, "UIDropDownMenuTemplate")
-        dropdown:SetPoint("TOPLEFT", -16, -15)
-
-        local function Initialize(self, level)
-            local LSM = GetLSM()
-            local list = LSM and LSM:List(mediaType) or {}
-            local currentVal = GetSetting(dbKey) or defaultVal
-
-            for _, name in ipairs(list) do
-                local info = UIDropDownMenu_CreateInfo()
-                local selectedName = name  -- Capture in local for closure
-                info.text = name
-                info.checked = (name == currentVal)
-                info.func = function()
-                    SetSetting(dbKey, selectedName)
-                    UIDropDownMenu_SetText(dropdown, selectedName)
-                    CloseDropDownMenus()
-                    UpdateBarAppearance()
+        local container, setText
+        container, setText, y = CreateCustomDropdown(parent, x, y, label, 220, GetSetting(dbKey) or defaultVal,
+            function()
+                local LSM = GetLSM()
+                local list = LSM and LSM:List(mediaType) or {}
+                local currentVal = GetSetting(dbKey) or defaultVal
+                local items = {}
+                if #list == 0 then
+                    table.insert(items, { text = defaultVal, checked = true })
+                else
+                    for _, name in ipairs(list) do
+                        table.insert(items, { text = name, checked = (name == currentVal) })
+                    end
                 end
-                UIDropDownMenu_AddButton(info, level)
+                return items
+            end,
+            function(name)
+                SetSetting(dbKey, name)
+                setText(name)
+                UpdateBarAppearance()
             end
+        )
 
-            if #list == 0 then
-                local info = UIDropDownMenu_CreateInfo()
-                info.text = defaultVal
-                info.checked = true
-                info.disabled = true
-                UIDropDownMenu_AddButton(info, level)
-            end
-        end
-
-        UIDropDownMenu_SetWidth(dropdown, 213)
-        UIDropDownMenu_SetText(dropdown, GetSetting(dbKey) or defaultVal)
-        UIDropDownMenu_Initialize(dropdown, Initialize)
-
-        -- Register refresh function
         table.insert(panelRefreshFuncs, function()
-            UIDropDownMenu_SetText(dropdown, GetSetting(dbKey) or defaultVal)
+            setText(GetSetting(dbKey) or defaultVal)
         end)
 
-        return container, y - 55
+        return container, y
     end
 
     -- Helper: Create a section header
@@ -357,7 +553,7 @@ function AddonTable.CreateOptionsPanel()
     -- PROFILES SECTION (spans both columns at top)
     -- =====================
     local yProfile = -10
-    local profileDropdown, profileCopyDropdown
+    local profileSetText
     local profileCurrentLabel
 
     -- Create wide section header for profiles
@@ -413,7 +609,7 @@ function AddonTable.CreateOptionsPanel()
             db:SetProfile(name)
             db:ResetProfile()
             newProfileEditBox:SetText("")
-            UIDropDownMenu_SetText(profileDropdown, name)
+            profileSetText(name)
             profileCurrentLabel:SetText(name)
             print("AbsorbTracker: Created profile '" .. name .. "'")
         end
@@ -422,89 +618,58 @@ function AddonTable.CreateOptionsPanel()
     yProfile = yProfile - 30
 
     -- LEFT SIDE: Switch Profile dropdown
-    local profileContainer = CreateFrame("Frame", nil, content)
-    profileContainer:SetPoint("TOPLEFT", col1, yProfile)
-    profileContainer:SetSize(220, 50)
-
-    local profileDropLabel = profileContainer:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    profileDropLabel:SetPoint("TOPLEFT", 0, 0)
-    profileDropLabel:SetText("Switch Profile")
-
-    profileDropdown = CreateFrame("Frame", nil, profileContainer, "UIDropDownMenuTemplate")
-    profileDropdown:SetPoint("TOPLEFT", -16, -15)
-
-    local function InitializeProfileDropdown(self, level)
-        if not db or not db.GetProfiles then
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = "AceDB not available"
-            info.disabled = true
-            UIDropDownMenu_AddButton(info, level)
-            return
-        end
-
-        local profiles = db:GetProfiles()
-        local current = db:GetCurrentProfile()
-
-        for _, name in ipairs(profiles) do
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = name
-            info.checked = (name == current)
-            info.func = function()
-                db:SetProfile(name)
-                UIDropDownMenu_SetText(profileDropdown, name)
-                profileCurrentLabel:SetText(name)
-                CloseDropDownMenus()
+    local switchY = yProfile
+    local profileDropContainer
+    profileDropContainer, profileSetText = CreateCustomDropdown(content, col1, switchY, "Switch Profile", 220,
+        db and db.GetCurrentProfile and db:GetCurrentProfile() or "Default",
+        function()
+            if not db or not db.GetProfiles then
+                return { { text = "AceDB not available", disabled = true } }
             end
-            UIDropDownMenu_AddButton(info, level)
+            local profiles = db:GetProfiles()
+            local current = db:GetCurrentProfile()
+            local items = {}
+            for _, name in ipairs(profiles) do
+                table.insert(items, { text = name, checked = (name == current) })
+            end
+            return items
+        end,
+        function(name)
+            if db and db.SetProfile then
+                db:SetProfile(name)
+                profileSetText(name)
+                profileCurrentLabel:SetText(name)
+            end
         end
-    end
-
-    UIDropDownMenu_SetWidth(profileDropdown, 213)
-    UIDropDownMenu_SetText(profileDropdown, db and db.GetCurrentProfile and db:GetCurrentProfile() or "Default")
-    UIDropDownMenu_Initialize(profileDropdown, InitializeProfileDropdown)
+    )
 
     -- RIGHT SIDE: Copy From dropdown
-    local copyContainer = CreateFrame("Frame", nil, content)
-    copyContainer:SetPoint("TOPLEFT", col2, yProfile)
-    copyContainer:SetSize(220, 50)
-
-    local copyDropLabel = copyContainer:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    copyDropLabel:SetPoint("TOPLEFT", 0, 0)
-    copyDropLabel:SetText("Copy From Profile")
-
-    profileCopyDropdown = CreateFrame("Frame", nil, copyContainer, "UIDropDownMenuTemplate")
-    profileCopyDropdown:SetPoint("TOPLEFT", -16, -15)
-
-    local function InitializeCopyDropdown(self, level)
-        if not db or not db.GetProfiles then
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = "AceDB not available"
-            info.disabled = true
-            UIDropDownMenu_AddButton(info, level)
-            return
-        end
-
-        local profiles = db:GetProfiles()
-        local current = db:GetCurrentProfile()
-
-        for _, name in ipairs(profiles) do
-            if name ~= current then
-                local info = UIDropDownMenu_CreateInfo()
-                info.text = name
-                info.func = function()
-                    db:CopyProfile(name)
-                    UIDropDownMenu_SetText(profileCopyDropdown, "Select...")
-                    CloseDropDownMenus()
-                    print("AbsorbTracker: Copied settings from '" .. name .. "'")
+    local copySetText
+    local copyDropContainer
+    copyDropContainer, copySetText = CreateCustomDropdown(content, col2, switchY, "Copy From Profile", 220,
+        "Select...",
+        function()
+            if not db or not db.GetProfiles then
+                return { { text = "AceDB not available", disabled = true } }
+            end
+            local profiles = db:GetProfiles()
+            local current = db:GetCurrentProfile()
+            local items = {}
+            for _, name in ipairs(profiles) do
+                if name ~= current then
+                    table.insert(items, { text = name })
                 end
-                UIDropDownMenu_AddButton(info, level)
+            end
+            return items
+        end,
+        function(name)
+            if db and db.CopyProfile then
+                db:CopyProfile(name)
+                copySetText("Select...")
+                print("AbsorbTracker: Copied settings from '" .. name .. "'")
             end
         end
-    end
-
-    UIDropDownMenu_SetWidth(profileCopyDropdown, 213)
-    UIDropDownMenu_SetText(profileCopyDropdown, "Select...")
-    UIDropDownMenu_Initialize(profileCopyDropdown, InitializeCopyDropdown)
+    )
 
     yProfile = yProfile - 55
 
@@ -521,61 +686,36 @@ function AddonTable.CreateOptionsPanel()
     end)
 
     -- RIGHT SIDE: Delete Profile dropdown and button
-    local deleteContainer = CreateFrame("Frame", nil, content)
-    deleteContainer:SetPoint("TOPLEFT", col2, yProfile)
-    deleteContainer:SetSize(220, 50)
-
-    local deleteDropLabel = deleteContainer:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    deleteDropLabel:SetPoint("TOPLEFT", 0, 0)
-    deleteDropLabel:SetText("Delete Profile")
-
-    local profileDeleteDropdown = CreateFrame("Frame", nil, deleteContainer, "UIDropDownMenuTemplate")
-    profileDeleteDropdown:SetPoint("TOPLEFT", -16, -15)
-
     local selectedDeleteProfile = nil
-
-    local function InitializeDeleteDropdown(self, level)
-        if not db or not db.GetProfiles then
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = "AceDB not available"
-            info.disabled = true
-            UIDropDownMenu_AddButton(info, level)
-            return
-        end
-
-        local profiles = db:GetProfiles()
-        local current = db:GetCurrentProfile()
-        local hasOtherProfiles = false
-
-        for _, name in ipairs(profiles) do
-            if name ~= current then
-                hasOtherProfiles = true
-                local info = UIDropDownMenu_CreateInfo()
-                info.text = name
-                info.checked = (name == selectedDeleteProfile)
-                info.func = function()
-                    selectedDeleteProfile = name
-                    UIDropDownMenu_SetText(profileDeleteDropdown, name)
-                    CloseDropDownMenus()
-                end
-                UIDropDownMenu_AddButton(info, level)
+    local deleteSetText
+    local deleteDropContainer
+    deleteDropContainer, deleteSetText = CreateCustomDropdown(content, col2, yProfile, "Delete Profile", 150,
+        "Select...",
+        function()
+            if not db or not db.GetProfiles then
+                return { { text = "AceDB not available", disabled = true } }
             end
+            local profiles = db:GetProfiles()
+            local current = db:GetCurrentProfile()
+            local items = {}
+            for _, name in ipairs(profiles) do
+                if name ~= current then
+                    table.insert(items, { text = name, checked = (name == selectedDeleteProfile) })
+                end
+            end
+            if #items == 0 then
+                table.insert(items, { text = "No other profiles", disabled = true })
+            end
+            return items
+        end,
+        function(name)
+            selectedDeleteProfile = name
+            deleteSetText(name)
         end
+    )
 
-        if not hasOtherProfiles then
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = "No other profiles"
-            info.disabled = true
-            UIDropDownMenu_AddButton(info, level)
-        end
-    end
-
-    UIDropDownMenu_SetWidth(profileDeleteDropdown, 148)
-    UIDropDownMenu_SetText(profileDeleteDropdown, "Select...")
-    UIDropDownMenu_Initialize(profileDeleteDropdown, InitializeDeleteDropdown)
-
-    local deleteBtn = CreateFrame("Button", nil, deleteContainer, "UIPanelButtonTemplate")
-    deleteBtn:SetPoint("LEFT", profileDeleteDropdown, "RIGHT", -10, 2)
+    local deleteBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+    deleteBtn:SetPoint("TOPLEFT", deleteDropContainer, "TOPRIGHT", 5, -18)
     deleteBtn:SetSize(60, 22)
     deleteBtn:SetText("Delete")
     deleteBtn:SetScript("OnClick", function()
@@ -583,7 +723,7 @@ function AddonTable.CreateOptionsPanel()
             db:DeleteProfile(selectedDeleteProfile, true)
             print("AbsorbTracker: Deleted profile '" .. selectedDeleteProfile .. "'")
             selectedDeleteProfile = nil
-            UIDropDownMenu_SetText(profileDeleteDropdown, "Select...")
+            deleteSetText("Select...")
         else
             print("AbsorbTracker: Select a profile to delete.")
         end
@@ -726,7 +866,7 @@ function AddonTable.CreateOptionsPanel()
         if db and db.GetCurrentProfile then
             local current = db:GetCurrentProfile()
             profileCurrentLabel:SetText(current)
-            UIDropDownMenu_SetText(profileDropdown, current)
+            profileSetText(current)
         end
     end
 

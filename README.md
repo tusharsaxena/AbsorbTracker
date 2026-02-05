@@ -124,6 +124,11 @@ All settings can also be changed via slash commands (see tables above).
 
 ## Version History
 
+**v1.4.0**
+- Replaced all dropdown selectors in the Settings panel with custom scrollable dropdowns
+- Dropdowns with 10 or more items now display a scrollbar
+- Opening a dropdown auto-scrolls to the currently selected value
+
 **v1.3.0**
 - Updated README.md for initial release
 
