@@ -171,7 +171,20 @@ SlashCmdList["ABSORBTRACKER"] = function(msg)
         end
 
     elseif cmd == "bordercolor" then
-        if arg and arg ~= "" then
+        if arg:lower():match("^classcolor") then
+            local toggle = arg:lower():match("^classcolor%s+(.+)")
+            local new
+            if toggle == "on" then
+                new = true
+            elseif toggle == "off" then
+                new = false
+            else
+                new = not GetSetting("useClassColorBorder")
+            end
+            SetSetting("useClassColorBorder", new)
+            UpdateBarAppearance()
+            print("AbsorbTracker: Border class color " .. (new and "enabled" or "disabled"))
+        elseif arg ~= "" then
             local color = ParseColor(arg)
             if color then
                 SetSetting("borderColor", color)
@@ -184,11 +197,26 @@ SlashCmdList["ABSORBTRACKER"] = function(msg)
         else
             local r, g, b, a = GetBorderColor()
             print(format("AbsorbTracker: Current border color: %.2f %.2f %.2f %.2f", r, g, b, a))
+            print("AbsorbTracker: Class color: " .. (GetSetting("useClassColorBorder") and "enabled" or "disabled"))
             print("Usage: /at bordercolor <r> <g> <b> [a]  (0-255 or 0-1)")
+            print("Usage: /at bordercolor classcolor [on|off]")
         end
 
     elseif cmd == "color" then
-        if arg and arg ~= "" then
+        if arg:lower():match("^classcolor") then
+            local toggle = arg:lower():match("^classcolor%s+(.+)")
+            local new
+            if toggle == "on" then
+                new = true
+            elseif toggle == "off" then
+                new = false
+            else
+                new = not GetSetting("useClassColorBar")
+            end
+            SetSetting("useClassColorBar", new)
+            UpdateBarAppearance()
+            print("AbsorbTracker: Bar class color " .. (new and "enabled" or "disabled"))
+        elseif arg ~= "" then
             local color = ParseColor(arg)
             if color then
                 SetSetting("barColor", color)
@@ -201,11 +229,26 @@ SlashCmdList["ABSORBTRACKER"] = function(msg)
         else
             local r, g, b, a = GetBarColor()
             print(format("AbsorbTracker: Current bar color: %.2f %.2f %.2f %.2f", r, g, b, a))
+            print("AbsorbTracker: Class color: " .. (GetSetting("useClassColorBar") and "enabled" or "disabled"))
             print("Usage: /at color <r> <g> <b> [a]  (0-255 or 0-1)")
+            print("Usage: /at color classcolor [on|off]")
         end
 
     elseif cmd == "bgcolor" then
-        if arg and arg ~= "" then
+        if arg:lower():match("^classcolor") then
+            local toggle = arg:lower():match("^classcolor%s+(.+)")
+            local new
+            if toggle == "on" then
+                new = true
+            elseif toggle == "off" then
+                new = false
+            else
+                new = not GetSetting("useClassColorBg")
+            end
+            SetSetting("useClassColorBg", new)
+            UpdateBarAppearance()
+            print("AbsorbTracker: Background class color " .. (new and "enabled" or "disabled"))
+        elseif arg ~= "" then
             local color = ParseColor(arg)
             if color then
                 SetSetting("bgColor", color)
@@ -218,7 +261,9 @@ SlashCmdList["ABSORBTRACKER"] = function(msg)
         else
             local r, g, b, a = GetBgColor()
             print(format("AbsorbTracker: Current background color: %.2f %.2f %.2f %.2f", r, g, b, a))
+            print("AbsorbTracker: Class color: " .. (GetSetting("useClassColorBg") and "enabled" or "disabled"))
             print("Usage: /at bgcolor <r> <g> <b> [a]  (0-255 or 0-1)")
+            print("Usage: /at bgcolor classcolor [on|off]")
         end
 
     elseif cmd == "lock" then
@@ -343,13 +388,16 @@ SlashCmdList["ABSORBTRACKER"] = function(msg)
         print("  /at border [name] - List or set border")
         print("  /at bordersize <size> - Set border size (1-32)")
         print("  /at bordercolor <r> <g> <b> [a] - Set border color")
+        print("  /at bordercolor classcolor [on|off] - Toggle border class color")
         print("  /at font [name] - List or set font")
         print("  /at fontsize <size> - Set font size (6-32)")
         print("  /at fontflags <option> - Set font outline (none, outline, thickoutline, etc.)")
         print("  /at width <pixels> - Set bar width (50-500)")
         print("  /at height <pixels> - Set bar height (10-100)")
         print("  /at color <r> <g> <b> [a] - Set bar color")
+        print("  /at color classcolor [on|off] - Toggle bar class color")
         print("  /at bgcolor <r> <g> <b> [a] - Set background color")
+        print("  /at bgcolor classcolor [on|off] - Toggle background class color")
         print("  /at interval <seconds> - Set update interval (0.1-10)")
         print("  /at profile - Profile management commands")
     end
