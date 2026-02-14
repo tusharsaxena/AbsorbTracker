@@ -9,12 +9,14 @@ A World of Warcraft addon for Midnight that displays your total absorb shield va
 - **Visual Absorb Bar**: Shows your total absorb amount as a status bar
 - **Abbreviated Numbers**: Large values displayed as K/M/B for readability
 - **Fully Customizable**: Textures, colors, fonts, size, and border all configurable
+- **Class Color Override**: Use your class color for bar fill, background, or border
 - **LibSharedMedia Support**: Use custom textures, fonts, and borders from SharedMedia
 - **Profile System**: Save and switch between multiple configuration profiles (requires AceDB-3.0)
 - **Movable & Lockable**: Drag the bar anywhere and lock it in place
 - **Position Saving**: Bar position persists across sessions
-- **Configurable Update Interval**: Configurable update interval (0.1-10 seconds)
+- **Configurable Update Interval**: Adjust how often the bar refreshes (0.1–10 seconds)
 - **Settings Panel**: Full GUI settings in WoW's Interface Options
+- **Slash Commands**: Every setting can also be changed from the chat line via `/at`
 
 ## Screenshots
 
@@ -44,14 +46,17 @@ _**Settings panel - invoked by /at**_
 | `/at bgtexture [name]` | List or set background texture |
 | `/at border [name]` | List or set border style |
 | `/at bordersize [1-32]` | Set border size |
-| `/at bordercolor [r] [g] [b] [a]` | Set border color |
+| `/at bordercolor [r] [g] [b] [a]` | Set border color (0-255 or 0-1) |
+| `/at bordercolor classcolor [on\|off]` | Toggle border class color |
 | `/at font [name]` | List or set font |
 | `/at fontsize [6-32]` | Set font size |
 | `/at fontflags [option]` | Set font outline (none, outline, thickoutline, etc.) |
 | `/at width [50-500]` | Set bar width in pixels |
 | `/at height [10-100]` | Set bar height in pixels |
 | `/at color [r] [g] [b] [a]` | Set bar color (0-255 or 0-1) |
-| `/at bgcolor [r] [g] [b] [a]` | Set background color |
+| `/at color classcolor [on\|off]` | Toggle bar class color |
+| `/at bgcolor [r] [g] [b] [a]` | Set background color (0-255 or 0-1) |
+| `/at bgcolor classcolor [on\|off]` | Toggle background class color |
 | `/at interval [0.1-10]` | Set update interval in seconds |
 | `/at debug` | Toggle debug mode |
 | `/at test [value]` | Test display with fake value |
@@ -82,14 +87,14 @@ Profiles require AceDB-3.0 (part of Ace3) to be installed.
 ### Via Settings Panel
 
 Open with `/at` and configure:
-- **Profiles**: Create, switch, copy, and delete profiles
+- **Profiles**: Switch, create, copy, delete, and reset profiles
 - **General**: Show/hide bar, lock position
-- **Performance**: Update interval
-- **Bar Size**: Width and height
-- **Bar Color**: Bar and background colors
-- **Bar Textures**: Bar and background textures
-- **Border**: Border style, size, and color
-- **Font**: Font face, size, and outline style
+- **Performance**: Update interval (0.1-10 seconds)
+- **Bar Size**: Width (50-500) and height (10-100)
+- **Bar Color**: Bar color and background color, each with optional class color override
+- **Bar Textures**: Bar texture and background texture (LibSharedMedia)
+- **Border**: Border style (LibSharedMedia), size (1-32), and color with optional class color override
+- **Font**: Font face (LibSharedMedia), size (6-32), and outline style (none, outline, thick outline, monochrome, etc.)
 
 ### Via Slash Commands
 
@@ -99,28 +104,36 @@ All settings can also be changed via slash commands (see tables above).
 
 - **WoW Version**: 12.0.0+ (Midnight)
 - **Game Type**: Retail
-- **Dependencies**: LibSharedMedia-3.0, AceDB-3.0 (Ace3)
+- **Optional Dependencies**: LibSharedMedia-3.0, AceDB-3.0 (Ace3) — the addon works without them, but custom textures/fonts and profile management require them
 
 ## Troubleshooting
 
 **Bar doesn't show up:**
 - Check if hidden with `/at toggle`
-- Ensure addon is enabled in character select
+- Ensure the addon is enabled in the character select screen
+- You need an active absorb effect (e.g., Power Word: Shield) for the bar to fill
+
+**Class color not applying:**
+- The bar must be visible with an active absorb effect to see the color change
+- Verify the setting is enabled: `/at color classcolor on`, `/at bgcolor classcolor on`, or `/at bordercolor classcolor on`
 
 **Textures/fonts not working:**
 - Install LibSharedMedia-3.0 for custom media support
-- Without LSM, only default Blizzard textures are available
+- Without LSM, only default Blizzard textures and fonts are available
 
 **Position resets:**
-- Make sure to properly close the game (don't force-quit)
-- SavedVariables need the game to save on logout
+- Make sure to log out or exit the game normally (don't force-quit)
+- WoW saves addon data (SavedVariables) only during a proper logout
 
 **Profile commands not working:**
 - Install AceDB-3.0 (part of Ace3) for profile support
 - Without AceDB, settings still save but profile management is disabled
 
 **Debug mode:**
-- Use `/at debug` to see detailed information about absorb values
+- Use `/at debug` to see detailed information about absorb values and updates
+
+**Reporting issues:**
+- If these troubleshooting steps don't help, please file a bug report [here](https://github.com/tusharsaxena/absorbtracker/issues)
 
 ## Version History
 
