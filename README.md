@@ -124,6 +124,9 @@ All settings can also be changed via slash commands (see tables above).
 
 ## Version History
 
+**v1.6.0**
+- Updated slash commands for class color options added in v1.5.0
+
 **v1.5.0**
 - Added a "class color" option for bar color, bckground color and border color
 - Updated libs
