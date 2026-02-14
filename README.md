@@ -124,7 +124,11 @@ All settings can also be changed via slash commands (see tables above).
 
 ## Version History
 
+<<<<<<< HEAD
 **v1.6.0**
+=======
+**v1.5.1**
+>>>>>>> origin/main
 - Updated slash commands for class color options added in v1.5.0
 
 **v1.5.0**
