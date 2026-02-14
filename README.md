@@ -124,6 +124,10 @@ All settings can also be changed via slash commands (see tables above).
 
 ## Version History
 
+**v1.5.0**
+- Added a "class color" option for bar color, bckground color and border color
+- Updated libs
+
 **v1.4.0**
 - Replaced all dropdown selectors in the Settings panel with custom scrollable dropdowns
 - Dropdowns with 10 or more items now display a scrollbar

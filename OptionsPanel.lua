@@ -393,10 +393,10 @@ function AddonTable.CreateOptionsPanel()
     end
 
     -- Helper: Create a color picker button
-    local function CreateColorButton(parent, x, y, label, dbKey, defaultColor)
+    local function CreateColorButton(parent, x, y, label, dbKey, defaultColor, classColorKey, classColorGetter)
         local container = CreateFrame("Frame", nil, parent)
         container:SetPoint("TOPLEFT", x, y)
-        container:SetSize(220, 30)
+        container:SetSize(250, 30)
 
         local colorLabel = container:CreateFontString(nil, "ARTWORK", "GameFontNormal")
         colorLabel:SetPoint("LEFT", 0, 0)
@@ -408,8 +408,30 @@ function AddonTable.CreateOptionsPanel()
 
         local colorTex = colorBtn:CreateTexture(nil, "BACKGROUND")
         colorTex:SetAllPoints()
-        local c = GetSetting(dbKey) or defaultColor
-        colorTex:SetColorTexture(c.r, c.g, c.b, c.a or 1)
+
+        local function UpdateSwatchColor()
+            if classColorKey and GetSetting(classColorKey) then
+                local cc = classColorGetter()
+                local c = GetSetting(dbKey) or defaultColor
+                colorTex:SetColorTexture(cc.r, cc.g, cc.b, c.a or 1)
+            else
+                local c = GetSetting(dbKey) or defaultColor
+                colorTex:SetColorTexture(c.r, c.g, c.b, c.a or 1)
+            end
+        end
+
+        local function UpdateColorBtnState()
+            if classColorKey and GetSetting(classColorKey) then
+                colorBtn:Disable()
+                colorBtn:SetAlpha(0.5)
+            else
+                colorBtn:Enable()
+                colorBtn:SetAlpha(1.0)
+            end
+        end
+
+        UpdateSwatchColor()
+        UpdateColorBtnState()
 
         colorBtn:SetScript("OnClick", function()
             local currentColor = GetSetting(dbKey) or defaultColor
@@ -418,19 +440,19 @@ function AddonTable.CreateOptionsPanel()
                     local r, g, b = ColorPickerFrame:GetColorRGB()
                     local a = ColorPickerFrame:GetColorAlpha()
                     SetSetting(dbKey, { r = r, g = g, b = b, a = a })
-                    colorTex:SetColorTexture(r, g, b, a)
+                    UpdateSwatchColor()
                     UpdateBarAppearance()
                 end,
                 opacityFunc = function()
                     local r, g, b = ColorPickerFrame:GetColorRGB()
                     local a = ColorPickerFrame:GetColorAlpha()
                     SetSetting(dbKey, { r = r, g = g, b = b, a = a })
-                    colorTex:SetColorTexture(r, g, b, a)
+                    UpdateSwatchColor()
                     UpdateBarAppearance()
                 end,
                 cancelFunc = function(prev)
                     SetSetting(dbKey, { r = prev.r, g = prev.g, b = prev.b, a = prev.a })
-                    colorTex:SetColorTexture(prev.r, prev.g, prev.b, prev.a)
+                    UpdateSwatchColor()
                     UpdateBarAppearance()
                 end,
                 hasOpacity = true,
@@ -443,10 +465,28 @@ function AddonTable.CreateOptionsPanel()
             ColorPickerFrame:SetupColorPickerAndShow(info)
         end)
 
+        -- Class Color checkbox (optional)
+        local classColorCb
+        if classColorKey then
+            classColorCb = CreateFrame("CheckButton", nil, container, "InterfaceOptionsCheckButtonTemplate")
+            classColorCb:SetPoint("LEFT", colorBtn, "RIGHT", 4, 0)
+            classColorCb.Text:SetText("Class Color")
+            classColorCb:SetChecked(GetSetting(classColorKey))
+            classColorCb:SetScript("OnClick", function(self)
+                SetSetting(classColorKey, self:GetChecked())
+                UpdateSwatchColor()
+                UpdateColorBtnState()
+                UpdateBarAppearance()
+            end)
+        end
+
         -- Register refresh function
         table.insert(panelRefreshFuncs, function()
-            local c = GetSetting(dbKey) or defaultColor
-            colorTex:SetColorTexture(c.r, c.g, c.b, c.a or 1)
+            UpdateSwatchColor()
+            UpdateColorBtnState()
+            if classColorCb then
+                classColorCb:SetChecked(GetSetting(classColorKey))
+            end
         end)
 
         return container, y - 35
@@ -786,10 +826,10 @@ function AddonTable.CreateOptionsPanel()
     y1 = CreateSectionHeader(content, col1, y1, "Bar Color")
 
     local barColorBtn
-    barColorBtn, y1 = CreateColorButton(content, col1, y1, "Bar Color", "barColor", flatDefaults.barColor)
+    barColorBtn, y1 = CreateColorButton(content, col1, y1, "Bar Color", "barColor", flatDefaults.barColor, "useClassColorBar", AddonTable.GetPlayerClassColor)
 
     local bgColorBtn
-    bgColorBtn, y1 = CreateColorButton(content, col1, y1, "Background Color", "bgColor", flatDefaults.bgColor)
+    bgColorBtn, y1 = CreateColorButton(content, col1, y1, "Background Color", "bgColor", flatDefaults.bgColor, "useClassColorBg", AddonTable.GetBgClassColor)
 
     y1 = y1 - 20
 
@@ -826,7 +866,7 @@ function AddonTable.CreateOptionsPanel()
     borderSizeSlider, y2 = CreateSlider(content, col2, y2, "Border Size", "borderSize", flatDefaults.borderSize, 1, 32, 1)
 
     local borderColorBtn
-    borderColorBtn, y2 = CreateColorButton(content, col2, y2, "Border Color", "borderColor", flatDefaults.borderColor)
+    borderColorBtn, y2 = CreateColorButton(content, col2, y2, "Border Color", "borderColor", flatDefaults.borderColor, "useClassColorBorder", AddonTable.GetPlayerClassColor)
 
     y2 = y2 - 10
 
