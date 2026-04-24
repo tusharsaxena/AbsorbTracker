@@ -1,4 +1,4 @@
-## Interface: 120000
+## Interface: 120000,120001,120005
 ## Title: Ka0s Absorb Tracker
 ## Notes: Displays all absorb effects on your character with their values
 ## Author: add1kted2ka0s

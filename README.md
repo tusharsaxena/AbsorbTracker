@@ -100,12 +100,6 @@ Open with `/at` and configure:
 
 All settings can also be changed via slash commands (see tables above).
 
-## Compatibility
-
-- **WoW Version**: 12.0.0+ (Midnight)
-- **Game Type**: Retail
-- **Optional Dependencies**: LibSharedMedia-3.0, AceDB-3.0 (Ace3) — the addon works without them, but custom textures/fonts and profile management require them
-
 ## Troubleshooting
 
 **Bar doesn't show up:**
@@ -132,31 +126,36 @@ All settings can also be changed via slash commands (see tables above).
 **Debug mode:**
 - Use `/at debug` to see detailed information about absorb values and updates
 
-**Reporting issues:**
-- If these troubleshooting steps don't help, please file a bug report [here](https://github.com/tusharsaxena/absorbtracker/issues)
+## Bug Reports
+
+Please report any issues in the [Issues](https://github.com/tusharsaxena/absorbtracker/issues) tab, not as a comment!
+
 
 ## Version History
 
-**v1.6.0**
+**1.7.0**
+- TOC version bump
+
+**1.6.0**
 - Updated slash commands for class color options added in v1.5.0
 
-**v1.5.0**
+**1.5.0**
 - Added a "class color" option for bar color, bckground color and border color
 - Updated libs
 
-**v1.4.0**
+**1.4.0**
 - Replaced all dropdown selectors in the Settings panel with custom scrollable dropdowns
 - Dropdowns with 10 or more items now display a scrollbar
 - Opening a dropdown auto-scrolls to the currently selected value
 
-**v1.3.0**
+**1.3.0**
 - Updated README.md for initial release
 
-**v1.2.0**
+**1.2.0**
 - Removed pkgmeta and embedded libs directly
 
-**v1.1.0**
+**1.1.0**
 - Added pkgmeta.yaml to install dependencies automatically
 
-**v1.0.0**
+**1.0.0**
 - Initial Release ... yay!
