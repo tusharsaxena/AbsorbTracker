@@ -20,7 +20,7 @@ Display your total absorb shield value in a clean, customizable bar interface.
 *   **Position Saving**: Bar position persists across sessions
 *   **Configurable Update Interval**: Adjust how often the bar refreshes (0.1–10 seconds)
 *   **Settings Panel**: Full GUI settings in WoW's Interface Options
-*   **Slash Commands**: Every setting can also be changed from the chat line via `/at`
+*   **Slash Commands**: Every setting can also be changed from the chat line via `/at` (or the long form `/absorbtracker`)
 
 ## Screenshots
 
@@ -28,7 +28,7 @@ _**Absorb tracker bar in action - see the bar above the unit frame**_
 
 ![Alt text](https://media.forgecdn.net/attachments/1506/197/absorbtracker-schreenshot-1-png.png)
 
-_**Settings panel - invoked by /at**_
+_**Settings panel - invoked by /at config**_
 
 ![Alt text](https://media.forgecdn.net/attachments/1506/198/absorbtracker-schreenshot-2-png.png)
 
@@ -36,13 +36,19 @@ _**Settings panel - invoked by /at**_
 
 ### Opening Settings
 
-*   `/at` or `/absorbtracker` - Opens the settings panel
+*   `/at config` or `/absorbtracker config` - Opens the settings panel
+*   `/at` (no args) - Prints the slash-command help in chat
 
 ### Slash Commands
 
+Both the short form `/at` and the long form `/absorbtracker` work for every command below.
+All chat output from the addon is prefixed with a cyan `[AT]`; in the help dump,
+each command is shown in yellow and its description in white.
+
 | Command                             |Description                                          |
 | ----------------------------------- |---------------------------------------------------- |
-| <code>/at</code>                    |Open settings panel                                  |
+| <code>/at</code>                    |Show this help                                       |
+| <code>/at config</code>             |Open settings panel                                  |
 | <code>/at toggle</code>             |Toggle bar visibility                                |
 | <code>/at lock</code>               |Lock bar position                                    |
 | <code>/at unlock</code>             |Unlock bar position                                  |
@@ -90,7 +96,7 @@ Profiles require AceDB-3.0 (part of Ace3) to be installed.
 
 ### Via Settings Panel
 
-Open with `/at` and configure:
+Open with `/at config` and configure:
 
 *   **Profiles**: Switch, create, copy, delete, and reset profiles
 *   **General**: Show/hide bar, lock position

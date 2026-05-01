@@ -8,19 +8,20 @@ AbsorbTracker is a World of Warcraft addon that displays absorb shield values on
 
 ## Architecture
 
-The addon is split into 9 modular files, loaded in order via the TOC file:
+The addon is split into 9 modular files, loaded in order via the TOC file. See
+`ARCHITECTURE.md` for a deeper system-design walkthrough.
 
 | File | Lines | Purpose |
 |------|-------|---------|
 | `Core.lua` | ~36 | AddonTable setup, defaults table, cached math functions |
-| `Utils.lua` | ~43 | DebugPrint, ParseColor, PrintLSMList helper functions |
+| `Utils.lua` | ~52 | Print (cyan [AT] prefix), DebugPrint, PrintLSMList, ParseColor |
 | `Settings.lua` | ~173 | GetSetting/SetSetting, LSM wrappers, fallback constants, class color helpers |
 | `UI.lua` | ~60 | Bar frame creation (BackdropTemplate, StatusBar, FontString) |
 | `Display.lua` | ~107 | UpdateBarAppearance, UpdateAbsorbBar, RestoreBarPosition |
 | `Timer.lua` | ~40 | C_Timer.NewTicker management for periodic updates |
 | `Events.lua` | ~80 | Event handlers (PLAYER_LOGIN, UNIT_ABSORB_AMOUNT_CHANGED), OnProfileChanged |
-| `SlashCommands.lua` | ~404 | All `/at` slash command handlers (including class color toggles) |
-| `OptionsPanel.lua` | ~947 | Settings UI panel with all controls |
+| `SlashCommands.lua` | ~413 | `/at` and `/absorbtracker` slash dispatch and subcommand handlers |
+| `OptionsPanel.lua` | ~950 | Settings UI panel with all controls |
 
 ### Module Communication
 
@@ -29,13 +30,14 @@ All modules share state through the `AddonTable` (second return value from `...`
 - `AddonTable.defaults` / `AddonTable.flatDefaults` - Default settings
 - `AddonTable.db` - AceDB database reference (set in Events.lua on PLAYER_LOGIN)
 - `AddonTable.bar` / `AddonTable.statusBar` / `AddonTable.valueText` - UI elements
+- `AddonTable.Print()` / `AddonTable.DebugPrint()` - Cyan-`[AT]`-prefixed chat output
 - `AddonTable.GetSetting()` / `AddonTable.SetSetting()` - Settings access
 - `AddonTable.GetBarColor()` / `AddonTable.GetBgColor()` / `AddonTable.GetBorderColor()` - Color getters (resolve class color at call time)
 - `AddonTable.GetPlayerClassColor()` / `AddonTable.GetBgClassColor()` - Class color helpers
 - `AddonTable.ClearLSMCache()` - Reset cached LSM reference (called after PLAYER_LOGIN)
 - `AddonTable.UpdateBarAppearance()` / `AddonTable.UpdateAbsorbBar()` - Display updates
 - `AddonTable.RestartUpdateTicker()` - Timer control
-- `AddonTable.CreateOptionsPanel()` / `AddonTable.RefreshOptionsPanel()` - Options panel
+- `AddonTable.CreateOptionsPanel()` / `AddonTable.RefreshOptionsPanel()` / `AddonTable.OpenOptionsPanel()` - Options panel
 
 ### Forward References
 
@@ -106,6 +108,8 @@ If AceDB-3.0 is not installed, the addon falls back to a simple db-like structur
 - **Secret values** from `UnitGetTotalAbsorbs()` must use `AbbreviateNumbers()` directly (no tonumber conversion)
 - **Class color** - Bar, background, and border each have an independent `useClassColor*` toggle. Colors are resolved at call time via `GetBarColor()`/`GetBgColor()`/`GetBorderColor()` in Settings.lua. Background class color uses a darkened variant (×0.2 multiplier) from a per-class lookup table.
 - **Custom dropdowns** - All dropdowns in OptionsPanel use `CreateCustomDropdown()`, a shared scrollable dropdown builder (no `UIDropDownMenuTemplate`). Scrollbar appears at 10+ items, auto-scrolls to selected value on open. A shared `dropdownClickCatcher` frame closes any open dropdown when clicking outside.
+- **Chat output** - All addon chat messages go through `AddonTable.Print()` which prepends a cyan `|cFF00FFFF[AT]|r` prefix. `Utils.lua`, `SlashCommands.lua`, and `OptionsPanel.lua` shadow the global `print` with `local print = AddonTable.Print` so existing `print(...)` call sites stay unchanged.
+- **Slash dispatch** - `/at` and `/absorbtracker` both bind to `SlashCmdList["ABSORBTRACKER"]`. `/at` with no args (and any unknown command) prints help via the `else` branch; `/at config` opens the options panel. Help rows use `PrintCmd(cmd, desc)` to format yellow command + white explanation.
 
 ## Testing
 
@@ -132,14 +136,15 @@ No automated tests. Test by:
 AbsorbTracker/
 ├── AbsorbTracker.toc    # Table of contents - defines load order
 ├── Core.lua             # AddonTable setup, defaults
-├── Utils.lua            # Debug and helper functions
-├── Settings.lua         # Database and LSM access
+├── Utils.lua            # Print pipeline, debug, ParseColor
+├── Settings.lua         # Database, LSM, color resolution
 ├── UI.lua               # Bar frame creation
 ├── Display.lua          # Bar update functions
 ├── Timer.lua            # Update ticker management
-├── Events.lua           # Event handlers
-├── SlashCommands.lua    # Slash command handlers
+├── Events.lua           # Event handlers and login bootstrap
+├── SlashCommands.lua    # Slash command dispatcher
 ├── OptionsPanel.lua     # Settings UI panel
 ├── README.md            # User documentation
+├── ARCHITECTURE.md      # System-design walkthrough
 └── CLAUDE.md            # Developer guidance (this file)
 ```
