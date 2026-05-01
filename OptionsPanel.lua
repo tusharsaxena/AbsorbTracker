@@ -14,7 +14,7 @@ local RestartUpdateTicker = AddonTable.RestartUpdateTicker
 function AddonTable.CreateOptionsPanel()
     local db = AddonTable.db
     local panel = CreateFrame("Frame")
-    panel.name = "AbsorbTracker"
+    panel.name = "Ka0s Absorb Tracker"
 
     -- Table to store refresh functions for all controls
     local panelRefreshFuncs = {}
@@ -22,7 +22,7 @@ function AddonTable.CreateOptionsPanel()
     -- Title stays on the main panel (outside scroll area)
     local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 16, -16)
-    title:SetText("AbsorbTracker Settings")
+    title:SetText("Ka0s Absorb Tracker Settings")
 
     -- Create scroll frame
     local scrollFrame = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
