@@ -4,10 +4,19 @@ local AddonName, AddonTable = ...
 -- Debug flag
 AddonTable.DEBUG = false
 
+-- Every chat message from the addon goes through this helper so it gets the cyan [AT] prefix.
+local PREFIX = "|cFF00FFFF[AT]|r"
+function AddonTable.Print(...)
+    print(PREFIX, ...)
+end
+
+-- Shadow the global `print` for this file so naked print(...) calls below get the prefix too.
+local print = AddonTable.Print
+
 -- Debug print function
 function AddonTable.DebugPrint(...)
     if AddonTable.DEBUG then
-        print("|cFF00FF00[AbsorbTracker]|r", ...)
+        print(...)
     end
 end
 
@@ -15,10 +24,10 @@ end
 function AddonTable.PrintLSMList(mediaType, dbKey)
     local lsm = AddonTable.GetLSM()
     if not lsm then
-        print("AbsorbTracker: LibSharedMedia not found. Install LibSharedMedia-3.0 to use custom " .. mediaType .. ".")
+        print("LibSharedMedia not found. Install LibSharedMedia-3.0 to use custom " .. mediaType .. ".")
         return false
     end
-    print("AbsorbTracker: Available " .. mediaType .. "s:")
+    print("Available " .. mediaType .. "s:")
     local list = lsm:List(mediaType)
     local current = AddonTable.GetSetting(dbKey)
     for _, name in ipairs(list) do

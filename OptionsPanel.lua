@@ -10,6 +10,9 @@ local UpdateBarAppearance = AddonTable.UpdateBarAppearance
 local UpdateAbsorbBar = AddonTable.UpdateAbsorbBar
 local RestartUpdateTicker = AddonTable.RestartUpdateTicker
 
+-- Route all chat output through the cyan-[AT] helper.
+local print = AddonTable.Print
+
 -- Options Panel (Settings API for WoW 10.0+)
 function AddonTable.CreateOptionsPanel()
     local db = AddonTable.db
@@ -651,7 +654,7 @@ function AddonTable.CreateOptionsPanel()
             newProfileEditBox:SetText("")
             profileSetText(name)
             profileCurrentLabel:SetText(name)
-            print("AbsorbTracker: Created profile '" .. name .. "'")
+            print("Created profile '" .. name .. "'")
         end
     end)
 
@@ -706,7 +709,7 @@ function AddonTable.CreateOptionsPanel()
             if db and db.CopyProfile then
                 db:CopyProfile(name)
                 copySetText("Select...")
-                print("AbsorbTracker: Copied settings from '" .. name .. "'")
+                print("Copied settings from '" .. name .. "'")
             end
         end
     )
@@ -721,7 +724,7 @@ function AddonTable.CreateOptionsPanel()
     resetBtn:SetScript("OnClick", function()
         if db and db.ResetProfile then
             db:ResetProfile()
-            print("AbsorbTracker: Profile reset to defaults")
+            print("Profile reset to defaults")
         end
     end)
 
@@ -761,11 +764,11 @@ function AddonTable.CreateOptionsPanel()
     deleteBtn:SetScript("OnClick", function()
         if selectedDeleteProfile and db and db.DeleteProfile then
             db:DeleteProfile(selectedDeleteProfile, true)
-            print("AbsorbTracker: Deleted profile '" .. selectedDeleteProfile .. "'")
+            print("Deleted profile '" .. selectedDeleteProfile .. "'")
             selectedDeleteProfile = nil
             deleteSetText("Select...")
         else
-            print("AbsorbTracker: Select a profile to delete.")
+            print("Select a profile to delete.")
         end
     end)
 
@@ -933,7 +936,7 @@ end
 function AddonTable.OpenOptionsPanel()
     -- Cannot open settings panel during combat (protected function)
     if InCombatLockdown() then
-        print("AbsorbTracker: Cannot open settings panel during combat. Try again after combat ends.")
+        print("Cannot open settings panel during combat. Try again after combat ends.")
         return
     end
     if Settings and Settings.OpenToCategory and AddonTable.settingsCategory then
