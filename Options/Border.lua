@@ -29,10 +29,7 @@ AddonTable.RegisterSchemaRows({
         label   = "Border Style",
         desc    = "LibSharedMedia border texture (edge style) used to draw the bar's border.",
         default = flatDefaults.border,
-        -- No dialogControl: borders render as a plain AceGUI Dropdown
-        -- (no swatch). Border previews like ElvUI GlowBorder bleed glow
-        -- well outside the swatch frame, and the style name in the
-        -- dropdown text already tells you which one is selected.
+        dialogControl = "LSM30_Border",
         values = lsmValues("border"),
     },
     {
