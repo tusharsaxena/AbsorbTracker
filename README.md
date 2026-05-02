@@ -95,10 +95,6 @@ Both libs ship in-tree under `libs/`, so the addon is fully self-contained.
 | `/at profile` errors or the Profiles sub-page is missing | AceDB-3.0 isn't loaded. The addon ships its own copy under `libs/Ace3/AceDB-3.0/`, so this should only happen if `libs/` was tampered with. Reinstall or restore. |
 | Want verbose logging? | `/at debug` toggles a `[AT]` chat dump on every absorb-amount update. |
 
-## Contributing
-
-Architecture reference for contributors: [ARCHITECTURE.md](ARCHITECTURE.md). Covers the module map, the absorb update pipeline (event → ticker → render), the schema-driven settings system, saved-variables shape, and the project's chat-prefix / AceConfig / class-color conventions.
-
 ## Issues and feature requests
 
 All bugs, feature requests, and outstanding work are tracked at [https://github.com/tusharsaxena/absorbtracker/issues](https://github.com/tusharsaxena/absorbtracker/issues). Please file new reports there rather than as comments — the issue tracker is the single source of truth for the project's backlog.

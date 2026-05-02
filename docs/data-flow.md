@@ -54,8 +54,6 @@ UNIT_ABSORB_AMOUNT_CHANGED ─────► DebugPrint only (no visual update)
 
 **The decoupling between event and visual update is intentional.** Events can fire many times per second during heavy combat, but the user-configurable `updateInterval` controls actual draw rate. `UNIT_ABSORB_AMOUNT_CHANGED` is registered only so debug logs can capture the exact moment the engine reports a change; the visual update is the ticker's job.
 
-`AddonTable.lastAbsorb` short-circuits redundant ticker fires — when the new value matches the cached one, the function returns early without touching frames. Resetting `lastAbsorb = -1` (done by the `hidden` toggle's `onChange` and by `PLAYER_ENTERING_WORLD`) forces the next call to repaint.
-
 ## Settings-write path
 
 ```
@@ -75,7 +73,6 @@ ParseSchemaValue(row, text)            AceConfigDialog → row.set
        = v                  default: UpdateBarAppearance()
                             interval: RestartUpdateTicker()
                             hidden:   UpdateBarAppearance()
-                                      + lastAbsorb=-1
                                       + UpdateAbsorbBar()
                              │
                              ▼
@@ -97,7 +94,7 @@ AddonTable.OnProfileChanged()
     │
     ├─▶ AddonTable.RestoreBarPosition()     -- new profile may have a different saved position
     ├─▶ AddonTable.UpdateBarAppearance()    -- size, textures, colors, border, font
-    ├─▶ AddonTable.UpdateAbsorbBar()        -- repaint with cleared lastAbsorb
+    ├─▶ AddonTable.UpdateAbsorbBar()        -- repaint absorb value against new profile
     │
     ├─▶ AddonTable.ResetTickerInterval()    -- clear tracked interval so the next
     ├─▶ AddonTable.RestartUpdateTicker(true)--   call rebuilds with the new value
@@ -113,8 +110,8 @@ AddonTable.OnProfileChanged()
 
 | Event | Handler | What it does |
 |-------|---------|--------------|
-| `PLAYER_ENTERING_WORLD` | `OnPlayerEnteringWorld` | Reset `lastAbsorb = -1` and force `UpdateAbsorbBar`. Handles zone transitions where the engine may have stale state. |
-| `UNIT_ABSORB_AMOUNT_CHANGED` (player only) | `OnUnitAbsorbChanged` | `DebugPrint` only. The ticker is the source of truth for visual updates — this prevents per-tick spam from over-driving frame updates. |
+| `PLAYER_ENTERING_WORLD` | inline handler | Force `UpdateAbsorbBar`. Handles zone transitions where the engine may have stale state. |
+| `UNIT_ABSORB_AMOUNT_CHANGED` (player only) | inline handler | `DebugPrint` only. The ticker is the source of truth for visual updates — this prevents per-tick spam from over-driving frame updates. |
 
 ## Performance budget
 
@@ -122,7 +119,7 @@ The hot path is one `C_Timer.NewTicker` callback firing every `updateInterval` s
 
 1. `UnitGetTotalAbsorbs("player")` + `UnitHealthMax("player")` — engine reads, microseconds each.
 2. `AbbreviateNumbers(value)` — string format.
-3. `statusBar:SetValue` + `valueText:SetText` — frame updates only when value changes (the `lastAbsorb` short-circuit elides frame mutation when the value is unchanged).
+3. `statusBar:SetValue` + `valueText:SetText` — both fire on every ticker tick. Frame updates with unchanged values are cheap (Blizzard-side no-op for matching state), so the addon doesn't try to dedupe in Lua.
 
 `UpdateBarAppearance` is heavier (calls `SetBackdrop(nil)` + `SetBackdrop(info)` + texture / font sets) but only runs on settings change or profile change — never per ticker fire.
 

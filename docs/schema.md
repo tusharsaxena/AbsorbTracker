@@ -96,7 +96,7 @@ Greys out the picker when the named sibling toggle is on. Used by the class-colo
 Defaults to `AddonTable.UpdateBarAppearance`. Override when the row's side effect differs:
 
 - `updateInterval` → `AddonTable.RestartUpdateTicker`.
-- `hidden` → `UpdateBarAppearance` plus reset `lastAbsorb` and re-run `UpdateAbsorbBar` so the bar's first frame after un-hide reflects current state.
+- `hidden` → `UpdateBarAppearance` plus a follow-up `UpdateAbsorbBar` so the bar's first frame after un-hide reflects current state.
 
 ### `fmt = "%.1f sec"` (number only)
 
@@ -112,8 +112,7 @@ AddonTable.RegisterSchemaRows(rows)             -- append rows to AddonTable.Sch
 AddonTable.FindSchemaRow(path)                  -> row | nil
 AddonTable.SchemaForPage(pageKey)               -> { rows }
 
--- Read / write / reset (fires row.onChange)
-AddonTable.GetByPath(path)                      -> value
+-- Write / reset (fires row.onChange; reads go through GetSetting)
 AddonTable.SetByPath(path, value)               -- write + onChange
 AddonTable.ApplyDefault(row)                    -- reset to row.default + onChange
 

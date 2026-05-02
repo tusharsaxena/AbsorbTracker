@@ -96,8 +96,7 @@ AddonTable.RegisterSchemaRows(rows)        -- append rows to AddonTable.Schema
 AddonTable.FindSchemaRow(path)             -> row | nil
 AddonTable.SchemaForPage(pageKey)          -> { rows }
 
--- Read / write / reset
-AddonTable.GetByPath(path)                 -> value
+-- Write / reset (reads go through GetSetting directly)
 AddonTable.SetByPath(path, value)          -- writes via SetSetting + fires row.onChange
 AddonTable.ApplyDefault(row)               -- resets row to row.default + fires onChange
 
@@ -128,8 +127,6 @@ AddonTable.backdropInfo  -- reusable backdrop info table; mutated in place by Up
 AddonTable.UpdateBarAppearance()    -- re-applies size, textures, colors, border, font, lock, visibility
 AddonTable.UpdateAbsorbBar()         -- reads UnitGetTotalAbsorbs + UnitHealthMax, pushes into statusBar/valueText
 AddonTable.RestoreBarPosition()      -- re-applies saved position table or centers the bar
-
-AddonTable.lastAbsorb                -- cached value for short-circuit; reset to -1 to force next paint
 ```
 
 ### Timer (`Timer.lua`)

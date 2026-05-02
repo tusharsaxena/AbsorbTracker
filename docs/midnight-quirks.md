@@ -4,12 +4,10 @@ Catalog of WoW Midnight (Interface 12.0.x) behaviors and Blizzard-API convention
 
 ## Secret values from `UnitGetTotalAbsorbs`
 
-`UnitGetTotalAbsorbs("player")` may return WoW's opaque-token "secret" value for very large absorb amounts. Lua cannot compare a secret value with a number (`tonumber()` returns nil; `>` / `<` against a number errors). Two consequences:
+`UnitGetTotalAbsorbs("player")` may return WoW's opaque-token "secret" value for very large absorb amounts. Lua cannot compare a secret value with a number (`tonumber()` returns nil; `>` / `<` against a number errors).
 
 - **Use `AbbreviateNumbers()` for display.** It accepts secret values directly and returns a formatted string (`"123K"`, `"1.2M"`). Never run the result of `UnitGetTotalAbsorbs` through `tonumber` before display — you'll lose the value.
-- **The `lastAbsorb` short-circuit uses raw equality.** `Display.lua` compares the new value to `AddonTable.lastAbsorb` with `==`. Secret-value equality works for the short-circuit purpose because WoW keeps secret-token identity stable for the same numeric value within a session.
-
-If a future patch tightens secret-value handling so even `==` errors, the short-circuit needs to be replaced with a Blizzard-side helper (probably something in the `C_CurveUtil` family that the engine adds for similar opaque-comparison cases in other addons).
+- **Pass the raw value into `statusBar:SetValue` and `statusBar:SetMinMaxValues`.** Engine-side widget APIs accept secret values directly. This is what `Display.UpdateAbsorbBar` does: it reads the absorb amount, formats the text via `AbbreviateNumbers`, and pushes the raw value into the StatusBar without any Lua-side comparison.
 
 ## `SetBackdrop` is a no-op when the table identity is unchanged
 

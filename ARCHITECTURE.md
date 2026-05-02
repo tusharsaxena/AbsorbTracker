@@ -22,7 +22,7 @@ WoW events ─▶ Events.lua  ─▶ C_Timer.NewTicker  ─▶ Display.UpdateAbs
 
   AceDB profile  ──  AddonTable.Schema  ──  Settings panel  +  /at slash CLI
        │                    │                      │                  │
-       └────────────────────┴──── SetByPath / GetByPath ───────────────┘
+       └────────────────────┴──── SetByPath / GetSetting ───────────────┘
                                        │
                                        ▼
                              onChange (default: UpdateBarAppearance)

@@ -57,7 +57,7 @@ local function build()
 end
 ```
 
-`Schema.BuildPageOptions` walks `AddonTable.Schema`, filters to rows where `row.page == pageKey`, groups rows by `row.group` (rows with the same `group` cluster into an inline AceConfig group), sorts within each group by `row.order`, and returns a ready-to-register AceConfig options table. The widget's `get` / `set` callbacks route through `AddonTable.GetByPath` / `SetByPath` which in turn fire the row's `onChange`.
+`Schema.BuildPageOptions` walks `AddonTable.Schema`, filters to rows where `row.page == pageKey`, groups rows by `row.group` (rows with the same `group` cluster into an inline AceConfig group), sorts within each group by `row.order`, and returns a ready-to-register AceConfig options table. The widget's `get` callback reads via `AddonTable.GetSetting`; the `set` callback writes via `SetSetting` and then fires the row's `onChange`. Slash `/at set` follows the same write path through `AddonTable.SetByPath`, so panel-driven and slash-driven writes converge.
 
 For pages that need a non-schema element (e.g. Reset Position is an action button, not a schema row), the builder closure can append it manually:
 

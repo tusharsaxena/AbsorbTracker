@@ -29,7 +29,7 @@ AddonTable.OnProfileChanged()
     │
     ├─▶ RestoreBarPosition()              -- new profile may have a different saved position
     ├─▶ UpdateBarAppearance()             -- size, textures, colors, border, font
-    ├─▶ UpdateAbsorbBar()                 -- repaint with cleared lastAbsorb
+    ├─▶ UpdateAbsorbBar()                 -- repaint absorb value against new profile
     │
     ├─▶ ResetTickerInterval()             -- force the next call to rebuild
     ├─▶ RestartUpdateTicker(true)         -- new profile's interval takes effect
