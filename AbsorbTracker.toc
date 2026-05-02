@@ -15,7 +15,11 @@ libs\LibStub-1.0\LibStub.lua
 libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
 libs\Ace3\AceAddon-3.0\AceAddon-3.0.xml
 libs\Ace3\AceDB-3.0\AceDB-3.0.xml
+libs\Ace3\AceGUI-3.0\AceGUI-3.0.xml
+libs\Ace3\AceConfig-3.0\AceConfig-3.0.xml
+libs\Ace3\AceDBOptions-3.0\AceDBOptions-3.0.xml
 libs\LibSharedMedia-3.0\lib.xml
+libs\Ace3\AceGUI-3.0-SharedMediaWidgets\widget.lua
 #@end-no-lib-strip@
 
 
@@ -28,3 +32,8 @@ Timer.lua
 Events.lua
 SlashCommands.lua
 OptionsPanel.lua
+Options\General.lua
+Options\Bar.lua
+Options\Border.lua
+Options\Font.lua
+Options\Profiles.lua

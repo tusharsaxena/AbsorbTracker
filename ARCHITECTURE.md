@@ -5,15 +5,21 @@ documentation see `README.md`; for AI-assistant quick-reference see `CLAUDE.md`.
 
 ## High-level design
 
-AbsorbTracker is a small, modular WoW addon (~1,900 lines of Lua across 9 files).
-It follows the standard WoW pattern of TOC-driven file loading and a shared module
-table, with a few deliberate choices:
+AbsorbTracker is a small, modular WoW addon. The runtime is split between a
+core set of plain-Lua modules (bar frame, timer, events, slash commands) and
+a declarative settings layer driven by AceConfig.
 
-- **No OO framework.** Modules are plain Lua files; functions are attached to a
-  shared `AddonTable`. There is no Ace3 `:NewModule()` or class hierarchy.
-- **Optional dependencies.** AceDB-3.0 (profiles) and LibSharedMedia-3.0 (custom
-  textures/fonts) are detected at runtime via `LibStub`. The addon degrades
-  gracefully when either is missing.
+- **No OO framework for the runtime.** Modules are plain Lua files; functions
+  are attached to a shared `AddonTable`. There is no Ace3 `:NewModule()` or
+  class hierarchy on the runtime side.
+- **Settings are declarative.** Each sub-page in `Options/` is an AceConfig
+  options table. AceConfigDialog renders the widgets, AceConfigRegistry
+  dispatches change notifications, AceDBOptions builds the Profiles page.
+- **Optional dependencies.** AceDB-3.0 (profiles) and LibSharedMedia-3.0
+  (custom textures/fonts) are detected at runtime via `LibStub`. AceConfig +
+  AceGUI + AceDBOptions are bundled and required for the multi-page settings
+  UI; if they go missing the addon emits a chat warning and continues to
+  function via slash commands.
 - **State lives in `AddonTable`.** Cross-module state (the bar frame, the database
   reference, helper functions) is exported as fields on `AddonTable`, not as
   globals. A few WoW-required globals (`AbsorbTrackerDB`, `SLASH_ABSORBTRACKER*`,
@@ -36,10 +42,22 @@ read from `AddonTable` only what earlier files have already written.
 | 6 | `Timer.lua` | 40 | `RestartUpdateTicker`, `ResetTickerInterval` |
 | 7 | `Events.lua` | 80 | Event frame, `OnProfileChanged`, login bootstrap |
 | 8 | `SlashCommands.lua` | 413 | `/at` dispatcher and all subcommand handlers |
-| 9 | `OptionsPanel.lua` | 950 | `CreateOptionsPanel`, `RefreshOptionsPanel`, `OpenOptionsPanel` |
+| 9 | `OptionsPanel.lua` | ~140 | `RegisterOptionsPage`, `CreateOptionsPanel`, `RefreshOptionsPanel`, `OpenOptionsPanel` |
+| 10 | `Options/General.lua` | ~105 | Parent sub-page schema |
+| 11 | `Options/Bar.lua` | ~140 | Bar sub-page schema |
+| 12 | `Options/Border.lua` | ~90 | Border sub-page schema |
+| 13 | `Options/Font.lua` | ~70 | Font sub-page schema |
+| 14 | `Options/Profiles.lua` | ~20 | Profiles sub-page (AceDBOptions wrapper) |
 
-Optional libs (`LibStub`, `CallbackHandler`, `Ace3`, `LibSharedMedia`) load before
-the addon's own files via `#@no-lib-strip@` blocks at the top of the TOC.
+Libraries load before the addon's own files via the `#@no-lib-strip@` block at
+the top of the TOC. Bundled libraries:
+
+- `LibStub-1.0`, `CallbackHandler-1.0` (transport)
+- `Ace3/AceAddon-3.0`, `Ace3/AceDB-3.0` (state + profiles)
+- `Ace3/AceGUI-3.0`, `Ace3/AceConfig-3.0`, `Ace3/AceDBOptions-3.0` (settings UI)
+- `LibSharedMedia-3.0` (texture/font/border registry)
+- `Ace3/AceGUI-3.0-SharedMediaWidgets` (in-tree minimal LSM30_* widgets — name
+  matches upstream so dropping in the real lib later is a clean swap)
 
 ## The `AddonTable` bus
 
@@ -210,34 +228,85 @@ end
 This produces a yellow command and a white explanation, with the cyan `[AT]`
 prefix supplied by the shadowed `print`.
 
-### OptionsPanel.lua — settings UI
-Built on raw frame APIs (`BackdropTemplate`, `OptionsSliderTemplate`,
-`InputBoxTemplate`, etc.) rather than `UIDropDownMenuTemplate`. Sections (in
-panel order):
+### OptionsPanel.lua — settings registration shell
+A thin coordination layer (~145 lines). It does not build widgets or hold
+schema; each sub-page's options table is declared in its own file under
+`Options/`. The shell exposes three things to `AddonTable`:
 
-1. **Profiles** — current-profile dropdown + new/copy/reset/delete buttons.
-2. **General** — show/hide, lock.
-3. **Performance** — update interval slider.
-4. **Bar Size** — width and height sliders.
-5. **Bar Color** — bar color, background color, each with a class-color toggle.
-6. **Bar Textures** — bar texture and background texture (LSM dropdowns).
-7. **Border** — border style, size, color, class-color toggle.
-8. **Font** — font face, size, outline style.
+- `RegisterOptionsPage(key, name, builder, opts)` — called once per page at
+  file-load time. The page is queued, not registered yet (db isn't ready).
+  `opts.isDefault = true` flags the page that `/at config` should open
+  (typically General).
+- `CreateOptionsPanel()` — invoked from `Events.lua` on `PLAYER_LOGIN` once
+  AceDB has set up `AddonTable.db`. It first registers an empty
+  title-only top-level "Ka0s Absorb Tracker" category (so the parent
+  exists for sub-pages to attach to), then walks the queue and for each
+  page calls `AceConfig:RegisterOptionsTable("AbsorbTracker-<key>",
+  builder())` and
+  `AceConfigDialog:AddToBlizOptions("AbsorbTracker-<key>", name,
+  "Ka0s Absorb Tracker")`.
+- `RefreshOptionsPanel()` — invoked from `OnProfileChanged`. Calls
+  `AceConfigRegistry:NotifyChange(appName)` for every registered page so
+  AceConfigDialog re-renders the active page's widgets against the new
+  profile's values. Closure-based `get`/`set` callbacks already read live
+  from `db.profile`, so the underlying values are correct as soon as
+  `db.profile` flips — `NotifyChange` just makes the on-screen widgets
+  re-pull.
 
-All dropdowns go through one shared `CreateCustomDropdown(parent, items,
-onSelect, ...)` builder that creates a button with a custom popout list. A
-single shared `dropdownClickCatcher` frame closes any open dropdown on outside
-clicks. Lists with 10+ items grow a scrollbar and auto-scroll to the currently
-selected entry on open.
-
-Registration uses `Settings.RegisterCanvasLayoutCategory` (WoW 10.0+) and falls
-back to `InterfaceOptions_AddCategory` on older clients.
 `OpenOptionsPanel` refuses to run during combat (`InCombatLockdown()` — the
-Settings API is protected).
+Settings API is protected) and prefers
+`Settings.OpenToCategory(defaultCategoryID)` (the page flagged
+`isDefault`), falling back to the empty parent category if no default was
+registered.
 
-`RefreshOptionsPanel` is called by `OnShow` and by `OnProfileChanged` so every
-slider, color swatch, and dropdown reflects current settings without per-control
-hooking.
+The empty parent uses appName `AbsorbTracker` and is registered against an
+options table with `args = {}` — AceConfigDialog still needs *some* table
+to attach the canvas frame to, but a zero-args group renders as just the
+title bar with an empty body, which is the desired look. Every Options/
+file becomes a sub-page; the parent never holds settings of its own.
+
+### Options/*.lua — sub-page schemas
+Each file under `Options/` declares one AceConfig options table and registers
+it through `AddonTable.RegisterOptionsPage`. The pages share three
+conventions:
+
+1. **Builder closures.** Each file exports a `local function build()` that
+   returns the options table. Build is deferred to PLAYER_LOGIN (via the
+   queue in OptionsPanel.lua) so any `AddonTable.db`-dependent reads in
+   `get`/`set` callbacks are safe.
+2. **Live get/set.** Every widget's `get` and `set` callback hits
+   `AddonTable.GetSetting`/`AddonTable.SetSetting` directly. There's no
+   intermediate cache, so a slash-command write becomes visible to an open
+   page on its next refresh, and a profile switch needs only a
+   `NotifyChange`.
+3. **Inline groups for layout.** `type = "group", inline = true` produces
+   AceConfigDialog's bordered inline section. Each page splits its rows
+   into 1–3 inline groups (e.g. Bar → Size / Bar Fill / Background) so the
+   visual rhythm matches what users expect from other AceConfig-based
+   addons.
+
+The five pages:
+
+1. **General** (`isDefault = true`) — Show Bar, Lock Position, Update
+   Interval slider, Reset Position button. `/at config` opens this.
+2. **Bar** — Width, Height, fill texture (LSM30_Statusbar), fill color (with
+   class-color toggle), background texture, background color (with class
+   color toggle).
+3. **Border** — Border style (LSM30_Border), size, color (with class-color
+   toggle).
+4. **Font** — Font face (LSM30_Font), size, outline.
+5. **Profiles** — `AceDBOptions:GetOptionsTable(AddonTable.db)`. The build
+   function returns nil if AceDBOptions is missing, which causes
+   OptionsPanel.lua's `registerPage` to skip the page silently.
+
+LSM dropdown swatches come from a custom in-tree widget at
+`libs/Ace3/AceGUI-3.0-SharedMediaWidgets/widget.lua`, registered as widget
+types `LSM30_Statusbar` / `LSM30_Border` / `LSM30_Font`. AceConfigDialog
+routes to them via `dialogControl = "LSM30_Statusbar"` (etc.) on the
+relevant `select` rows. The widget builds a Blizzard-frame button + popup
+list and renders a preview swatch beside each entry; the names match the
+upstream `AceGUI-3.0-SharedMediaWidgets` lib so dropping in the real lib
+later is a clean replacement.
 
 ## Data flow: an absorb update
 

@@ -8,8 +8,9 @@ AbsorbTracker is a World of Warcraft addon that displays absorb shield values on
 
 ## Architecture
 
-The addon is split into 9 modular files, loaded in order via the TOC file. See
-`ARCHITECTURE.md` for a deeper system-design walkthrough.
+The addon is split into a core set of modules plus a per-page options
+directory. All files are loaded in order via the TOC. See `ARCHITECTURE.md`
+for a deeper system-design walkthrough.
 
 | File | Lines | Purpose |
 |------|-------|---------|
@@ -21,7 +22,12 @@ The addon is split into 9 modular files, loaded in order via the TOC file. See
 | `Timer.lua` | ~40 | C_Timer.NewTicker management for periodic updates |
 | `Events.lua` | ~80 | Event handlers (PLAYER_LOGIN, UNIT_ABSORB_AMOUNT_CHANGED), OnProfileChanged |
 | `SlashCommands.lua` | ~413 | `/at` and `/absorbtracker` slash dispatch and subcommand handlers |
-| `OptionsPanel.lua` | ~950 | Settings UI panel with all controls |
+| `OptionsPanel.lua` | ~145 | Registration shell: queues page builders, registers an empty top-level "Ka0s Absorb Tracker" category and each Options/*.lua under it |
+| `Options/General.lua` | ~105 | General sub-page (default) — Show Bar, Lock Position, Update Interval, Reset Position. `/at config` opens this. |
+| `Options/Bar.lua` | ~140 | Bar sub-page — width, height, fill texture+color, background texture+color |
+| `Options/Border.lua` | ~90 | Border sub-page — style, size, color |
+| `Options/Font.lua` | ~70 | Font sub-page — face, size, outline |
+| `Options/Profiles.lua` | ~20 | Profiles sub-page — wraps `AceDBOptions:GetOptionsTable(db)` |
 
 ### Module Communication
 
@@ -37,7 +43,8 @@ All modules share state through the `AddonTable` (second return value from `...`
 - `AddonTable.ClearLSMCache()` - Reset cached LSM reference (called after PLAYER_LOGIN)
 - `AddonTable.UpdateBarAppearance()` / `AddonTable.UpdateAbsorbBar()` - Display updates
 - `AddonTable.RestartUpdateTicker()` - Timer control
-- `AddonTable.CreateOptionsPanel()` / `AddonTable.RefreshOptionsPanel()` / `AddonTable.OpenOptionsPanel()` - Options panel
+- `AddonTable.RegisterOptionsPage(key, name, builder, opts)` - Each `Options/*.lua` calls this at file-load time to queue itself. `builder()` runs at PLAYER_LOGIN and returns an AceConfig options table. `opts.isDefault = true` flags the page that `/at config` opens (General).
+- `AddonTable.CreateOptionsPanel()` / `AddonTable.RefreshOptionsPanel()` / `AddonTable.OpenOptionsPanel()` - Options panel registration / re-render / open
 
 ### Forward References
 
@@ -103,13 +110,14 @@ If AceDB-3.0 is not installed, the addon falls back to a simple db-like structur
 - **LibSharedMedia-3.0** integration is optional - addon works without it using fallback textures/fonts
 - **Settings access** uses `AddonTable.GetSetting(key)` and `AddonTable.SetSetting(key, value)` which abstract db.profile access
 - **Settings changes** call `AddonTable.UpdateBarAppearance()` to apply immediately
-- **Profile changes** trigger `AddonTable.OnProfileChanged()` callback to refresh all UI
+- **Profile changes** trigger `AddonTable.OnProfileChanged()` callback to refresh all UI; `RefreshOptionsPanel` calls `AceConfigRegistry:NotifyChange` on every registered page so AceConfigDialog re-reads from `db.profile` on the active page
 - **Backdrop refresh** requires `SetBackdrop(nil)` before `SetBackdrop(info)` to force visual update
 - **Secret values** from `UnitGetTotalAbsorbs()` must use `AbbreviateNumbers()` directly (no tonumber conversion)
-- **Class color** - Bar, background, and border each have an independent `useClassColor*` toggle. Colors are resolved at call time via `GetBarColor()`/`GetBgColor()`/`GetBorderColor()` in Settings.lua. Background class color uses a darkened variant (×0.2 multiplier) from a per-class lookup table.
-- **Custom dropdowns** - All dropdowns in OptionsPanel use `CreateCustomDropdown()`, a shared scrollable dropdown builder (no `UIDropDownMenuTemplate`). Scrollbar appears at 10+ items, auto-scrolls to selected value on open. A shared `dropdownClickCatcher` frame closes any open dropdown when clicking outside.
+- **Class color** - Bar, background, and border each have an independent `useClassColor*` toggle. Colors are resolved at call time via `GetBarColor()`/`GetBgColor()`/`GetBorderColor()` in Settings.lua. Background class color uses a darkened variant (×0.2 multiplier) from a per-class lookup table. Each color picker has `disabled = function() return getSetting("useClassColor*") end` so it greys out when the matching class-color toggle is on.
+- **Multi-page settings** - `OptionsPanel.lua` is a thin shell. At PLAYER_LOGIN it registers an empty title-only top-level "Ka0s Absorb Tracker" category, then registers each `Options/*.lua` page underneath it via `AceConfigDialog:AddToBlizOptions(appName, name, "Ka0s Absorb Tracker")`. Each `Options/*.lua` calls `AddonTable.RegisterOptionsPage(key, name, builder, opts)` at load time to queue itself; `opts.isDefault = true` flags the page that `/at config` should open (typically General). `appName` is `AbsorbTracker-<key>` so each page has its own AceConfig namespace; the parent uses `AbsorbTracker`.
+- **LSM swatch dropdowns** - Texture/border/font select fields use `dialogControl = "LSM30_Statusbar"` (or `_Border` / `_Font`). Custom AceGUI widgets at `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/widget.lua` render each item with an inline preview swatch. Names match the upstream `AceGUI-3.0-SharedMediaWidgets` lib so dropping in the real lib later is a clean swap.
 - **Chat output** - All addon chat messages go through `AddonTable.Print()` which prepends a cyan `|cFF00FFFF[AT]|r` prefix. `Utils.lua`, `SlashCommands.lua`, and `OptionsPanel.lua` shadow the global `print` with `local print = AddonTable.Print` so existing `print(...)` call sites stay unchanged.
-- **Slash dispatch** - `/at` and `/absorbtracker` both bind to `SlashCmdList["ABSORBTRACKER"]`. `/at` with no args (and any unknown command) prints help via the `else` branch; `/at config` opens the options panel. Help rows use `PrintCmd(cmd, desc)` to format yellow command + white explanation.
+- **Slash dispatch** - `/at` and `/absorbtracker` both bind to `SlashCmdList["ABSORBTRACKER"]`. `/at` with no args (and any unknown command) prints help via the `else` branch; `/at config` opens the options panel (lands on the General sub-page). Help rows use `PrintCmd(cmd, desc)` to format yellow command + white explanation.
 
 ## Testing
 
@@ -126,25 +134,43 @@ No automated tests. Test by:
 - Uses `UnitGetTotalAbsorbs("player")` for absorb amount (returns "secret" value)
 - Uses `UnitHealthMax("player")` for bar scaling
 - Uses `AbbreviateNumbers()` for display formatting (handles secret values)
-- Settings panel uses `Settings.RegisterCanvasLayoutCategory()` (WoW 10.0+) or `InterfaceOptions_AddCategory()` (legacy)
-- Frame templates: `BackdropTemplate`, `InterfaceOptionsCheckButtonTemplate`, `OptionsSliderTemplate`, `InputBoxTemplate`, `UIPanelButtonTemplate`
+- Settings panel registration goes through `AceConfigDialog:AddToBlizOptions(appName, name, parentName?)`, which internally calls `Settings.RegisterCanvasLayoutCategory` (parent) or `Settings.RegisterCanvasLayoutSubcategory` (child) on WoW 10.0+
+- `Settings.OpenToCategory(categoryID)` opens the panel; the parent's category ID is the second return value of `AceConfigDialog:AddToBlizOptions`
+- Frame templates: `BackdropTemplate` (used by the bar frame and the LSM dropdown widget)
 - Backdrop changes require clearing first: `SetBackdrop(nil)` then `SetBackdrop(info)`
 
 ## File Structure
 
 ```
 AbsorbTracker/
-├── AbsorbTracker.toc    # Table of contents - defines load order
-├── Core.lua             # AddonTable setup, defaults
-├── Utils.lua            # Print pipeline, debug, ParseColor
-├── Settings.lua         # Database, LSM, color resolution
-├── UI.lua               # Bar frame creation
-├── Display.lua          # Bar update functions
-├── Timer.lua            # Update ticker management
-├── Events.lua           # Event handlers and login bootstrap
-├── SlashCommands.lua    # Slash command dispatcher
-├── OptionsPanel.lua     # Settings UI panel
-├── README.md            # User documentation
-├── ARCHITECTURE.md      # System-design walkthrough
-└── CLAUDE.md            # Developer guidance (this file)
+├── AbsorbTracker.toc          # Table of contents - defines load order
+├── Core.lua                   # AddonTable setup, defaults
+├── Utils.lua                  # Print pipeline, debug, ParseColor
+├── Settings.lua               # Database, LSM, color resolution
+├── UI.lua                     # Bar frame creation
+├── Display.lua                # Bar update functions
+├── Timer.lua                  # Update ticker management
+├── Events.lua                 # Event handlers and login bootstrap
+├── SlashCommands.lua          # Slash command dispatcher
+├── OptionsPanel.lua           # Settings registration shell
+├── Options/
+│   ├── General.lua            # Default sub-page: visibility, lock, interval, reset
+│   ├── Bar.lua                # Sub-page: dimensions, fill, background
+│   ├── Border.lua             # Sub-page: style, size, color
+│   ├── Font.lua               # Sub-page: face, size, outline
+│   └── Profiles.lua           # Sub-page: AceDBOptions wrapper
+├── libs/
+│   ├── LibStub-1.0/
+│   ├── CallbackHandler-1.0/
+│   ├── LibSharedMedia-3.0/
+│   └── Ace3/
+│       ├── AceAddon-3.0/
+│       ├── AceDB-3.0/
+│       ├── AceGUI-3.0/
+│       ├── AceConfig-3.0/
+│       ├── AceDBOptions-3.0/
+│       └── AceGUI-3.0-SharedMediaWidgets/   # In-tree LSM30_* widgets
+├── README.md                  # User documentation
+├── ARCHITECTURE.md            # System-design walkthrough
+└── CLAUDE.md                  # Developer guidance (this file)
 ```
