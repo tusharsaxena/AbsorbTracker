@@ -1,7 +1,7 @@
 # Ka0s Absorb Tracker
 
 ![version](https://img.shields.io/badge/version-1.7.0-blue)
-![wow](https://img.shields.io/badge/WoW-Midnight%2012.0.5-orange)
+![wow](https://img.shields.io/badge/WoW-Midnight_12.0.5-orange)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
 ![Alt text](https://media.forgecdn.net/attachments/1659/653/absorbracker-logo-v2-jpg.jpg)
@@ -189,4 +189,4 @@ Please report any issues in the [Issues](https://github.com/tusharsaxena/absorbt
 
 **1.0.0**
 
-*   Initial Release … yay!
+*   Initial Release … yay!
