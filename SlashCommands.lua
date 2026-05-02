@@ -5,9 +5,11 @@
 -- (in some Options/<page>.lua) and the slash surface picks it up
 -- automatically.
 --
--- Pattern lifted from Ka0s KickCD: a COMMANDS table maps name -> desc +
+-- Pattern lifted from Ka0s KickCD: a commands table maps name -> desc +
 -- handler, printHelp iterates it for the help block, and the dispatcher
--- looks up by lowercased command name.
+-- looks up by lowercased command name. The table is exposed on
+-- AddonTable so the top-level Settings page can render the same list
+-- without duplicating it.
 
 local AddonName, AddonTable = ...
 
@@ -18,13 +20,13 @@ local function PrintCmd(cmd, desc)
     print(("  |cFFFFFF00%s|r — |cFFFFFFFF%s|r"):format(cmd, desc))
 end
 
--- Forward declarations so the COMMANDS table can reference handlers
+-- Forward declarations so the commands table can reference handlers
 -- defined further down.
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
 local runDebug, runUpdate, runTest, runProfile
 
-local COMMANDS = {
+AddonTable.SlashCommands = {
     {"help",          "List available commands",
         function() printHelp() end},
     {"config",        "Open the settings panel",
@@ -74,7 +76,7 @@ local COMMANDS = {
 }
 
 local function findCommand(name)
-    for _, entry in ipairs(COMMANDS) do
+    for _, entry in ipairs(AddonTable.SlashCommands) do
         if entry[1] == name then return entry end
     end
 end
@@ -96,7 +98,7 @@ end
 function printHelp()
     print(("v%s — slash commands (|cFFFFFF00/absorbtracker|r is an alias for |cFFFFFF00/at|r):")
         :format(getVersion()))
-    for _, entry in ipairs(COMMANDS) do
+    for _, entry in ipairs(AddonTable.SlashCommands) do
         PrintCmd("/at " .. entry[1], entry[2])
     end
 end

@@ -8,10 +8,12 @@
 -- AceConfigDialog:AddToBlizOptions so the pages appear as Blizzard
 -- subcategories under "Ka0s Absorb Tracker".
 --
--- The top-level "Ka0s Absorb Tracker" category is rendered as an empty
--- title-only page (no options live there). Every Options/*.lua file
--- registers as a sub-page under that parent. The page flagged
--- `isDefault = true` is the one `/at config` opens — typically General.
+-- The top-level "Ka0s Absorb Tracker" category is rendered as an
+-- "about" page: addon title (auto-rendered from the group's `name`),
+-- separator, logo, the TOC `Notes` blurb, and the slash-command list.
+-- It holds no settings of its own — every Options/*.lua file registers
+-- as a sub-page under it. The sub-page flagged `isDefault = true` is
+-- the one `/at config` opens — typically General.
 
 local AddonName, AddonTable = ...
 
@@ -59,17 +61,158 @@ end
 -- PLAYER_LOGIN-time registration
 -- ---------------------------------------------------------------------
 
--- Empty options table for the top-level category. AceConfigDialog needs
--- *some* table registered against the parent appName so the canvas frame
--- exists; an args-less group renders just the title and an empty body.
-local emptyParentOpts = {
-    name = PARENT_NAME,
-    type = "group",
-    args = {},
-}
+-- Logo lives in media/screenshots/. Path uses the WoW texture
+-- convention (Interface\AddOns\<addon>\...). The .tga is 300×300 and
+-- is rendered native — no resize.
+local LOGO_PATH   = [[Interface\AddOns\AbsorbTracker\media\screenshots\absorbracker.logo.v2.tga]]
+local LOGO_WIDTH  = 300
+local LOGO_HEIGHT = 300
+
+-- Custom AceGUI widget: image-only label that always anchors at
+-- TOPLEFT. AceGUI's stock Label centers an image when the label text
+-- is empty OR when (panel_width − image_width) < 200; on a ~530px
+-- Blizzard settings canvas the empty-name branch still triggers
+-- regardless of image size, so the image would render dead center
+-- regardless of `width = "full"`. This widget renders only the
+-- texture, anchored TOPLEFT.
+local LEFT_IMAGE_WIDGET = "AbsorbTrackerLeftImage"
+
+local function ensureLeftImageWidget()
+    if not LibStub then return end
+    local AceGUI = LibStub("AceGUI-3.0", true)
+    if not AceGUI then return end
+    if AceGUI:GetWidgetVersion(LEFT_IMAGE_WIDGET) then return end
+
+    local function Constructor()
+        local frame = CreateFrame("Frame", nil, UIParent)
+        frame:Hide()
+        local image = frame:CreateTexture(nil, "BACKGROUND")
+        image:SetPoint("TOPLEFT")
+
+        local widget = {
+            image = image,
+            frame = frame,
+            type  = LEFT_IMAGE_WIDGET,
+        }
+
+        function widget:OnAcquire()
+            self:SetWidth(200)
+            self:SetImage(nil)
+            self:SetImageSize(16, 16)
+        end
+
+        -- AceConfigDialog calls these on description controls; ignored
+        -- because this widget is image-only.
+        function widget:SetText() end
+        function widget:SetFontObject() end
+        function widget:SetColor() end
+
+        function widget:SetImage(path, ...)
+            self.image:SetTexture(path)
+            local n = select("#", ...)
+            if n == 4 or n == 8 then
+                self.image:SetTexCoord(...)
+            else
+                self.image:SetTexCoord(0, 1, 0, 1)
+            end
+        end
+
+        function widget:SetImageSize(w, h)
+            self.image:SetWidth(w)
+            self.image:SetHeight(h)
+            self.frame:SetHeight(h)
+            self.frame.height = h
+        end
+
+        function widget:OnWidthSet() end
+
+        return AceGUI:RegisterAsWidget(widget)
+    end
+
+    AceGUI:RegisterWidgetType(LEFT_IMAGE_WIDGET, Constructor, 1)
+end
+
+local function getMetadata(field)
+    if C_AddOns and C_AddOns.GetAddOnMetadata then
+        return C_AddOns.GetAddOnMetadata(AddonName, field)
+    end
+    if GetAddOnMetadata then
+        return GetAddOnMetadata(AddonName, field)
+    end
+end
+
+local function buildSlashCommandList()
+    local list = AddonTable.SlashCommands
+    if not list or #list == 0 then return "" end
+    local lines = {}
+    for _, entry in ipairs(list) do
+        lines[#lines + 1] = ("|cFFFFFF00/at %s|r — %s"):format(entry[1], entry[2])
+    end
+    return table.concat(lines, "\n")
+end
+
+-- Built lazily at registerParent() time so AddonTable.SlashCommands
+-- (defined in SlashCommands.lua) and GetAddOnMetadata are both
+-- available — OptionsPanel.lua loads before SlashCommands.lua per TOC,
+-- but registerParent runs at PLAYER_LOGIN.
+local function buildParentOptions()
+    local notes = getMetadata("Notes") or ""
+    return {
+        name = PARENT_NAME,
+        type = "group",
+        args = {
+            separator = {
+                order = 10,
+                type  = "header",
+                name  = "",
+            },
+            -- width = "full" forces a full-row widget so the image and
+            -- text anchor to the panel's left edge rather than centering
+            -- in a half-row column. The logo also overrides
+            -- dialogControl to bypass AceGUI Label's centered-image
+            -- branch (see ensureLeftImageWidget above).
+            logo = {
+                order         = 20,
+                type          = "description",
+                dialogControl = LEFT_IMAGE_WIDGET,
+                name          = "",
+                image         = LOGO_PATH,
+                imageWidth    = LOGO_WIDTH,
+                imageHeight   = LOGO_HEIGHT,
+                width         = "full",
+            },
+            notes = {
+                order    = 30,
+                type     = "description",
+                name     = "\n" .. notes .. "\n",
+                fontSize = "medium",
+                width    = "full",
+            },
+            commandsSeparator = {
+                order = 40,
+                type  = "description",
+                name  = " ",
+                width = "full",
+            },
+            commandsHeader = {
+                order = 50,
+                type  = "header",
+                name  = "Slash Commands",
+            },
+            commands = {
+                order    = 60,
+                type     = "description",
+                name     = buildSlashCommandList(),
+                fontSize = "medium",
+                width    = "full",
+            },
+        },
+    }
+end
 
 local function registerParent(AceConfig, AceConfigDialog)
-    AceConfig:RegisterOptionsTable(PARENT_APPNAME, emptyParentOpts)
+    ensureLeftImageWidget()
+    AceConfig:RegisterOptionsTable(PARENT_APPNAME, buildParentOptions())
     local _, categoryID = AceConfigDialog:AddToBlizOptions(PARENT_APPNAME, PARENT_NAME)
     parentCategoryID = categoryID
 end
