@@ -34,12 +34,12 @@ AddonTable.OnProfileChanged()
     ├─▶ ResetTickerInterval()             -- force the next call to rebuild
     ├─▶ RestartUpdateTicker(true)         -- new profile's interval takes effect
     │
-    └─▶ RefreshOptionsPanel()             -- AceConfigRegistry:NotifyChange per page
+    └─▶ RefreshOptionsPanel()             -- routes to Helpers.RefreshAllPanels
 ```
 
 `ResetTickerInterval` matters because `RestartUpdateTicker` short-circuits when the tracked interval is unchanged — without the reset, switching from `1.0s` → `0.5s` and back to `1.0s` in one session wouldn't trigger a real ticker rebuild on the second switch. Clearing the tracked interval forces the next call to start from scratch.
 
-`RefreshOptionsPanel` calls `AceConfigRegistry:NotifyChange("AbsorbTracker-<key>")` for each registered sub-page. Closure-based widget `get` / `set` callbacks already read live from `db.profile`, so values are already correct as soon as `db.profile` flips — `NotifyChange` just makes the on-screen widgets re-pull. See [settings-panel.md](./settings-panel.md#profile-change-refresh).
+`RefreshOptionsPanel` routes to `Helpers.RefreshAllPanels`, which walks every panel ctx and runs every refresher closure registered by the widget makers. Each refresher re-reads its row's value from the (newly active) `db.profile` and pushes it into its AceGUI widget. The Profiles sub-page itself uses `AceConfigDialog:Open(...)` and re-pulls on its own next show. See [settings-panel.md](./settings-panel.md#profile-change-refresh).
 
 ## `/at profile` subcommands
 

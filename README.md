@@ -47,7 +47,7 @@ Both `/at` and the long form `/absorbtracker` work for every command below. All 
 
 Five subcategories under **Ka0s Absorb Tracker**:
 
-*   **General** — Show Bar, drag lock, update interval (0.1–10s), Reset Position button.
+*   **General** — Show Bar, drag lock, update interval (0.1–10s), Reset Position + Reset All Settings buttons.
 *   **Bar** — width (50–500), height (10–100), fill texture and color, background texture and color (each color has a class-color override).
 *   **Border** — border style, thickness (1–32), color (with class-color override).
 *   **Font** — face, size (6–32), outline style.

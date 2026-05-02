@@ -56,13 +56,39 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
    local flatDefaults = AddonTable.flatDefaults
 
    AddonTable.RegisterSchemaRows({
-       { path = "newKnob1", page = "newpage", order = 10, type = "bool",
-         label = "New Knob 1", default = flatDefaults.newKnob1 },
+       { path = "newKnob1", page = "newpage", group = "Section",
+         order = 10, type = "bool",
+         label = "New Knob 1", desc = "...",
+         default = flatDefaults.newKnob1 },
        -- ...
    })
 
-   local function build()
-       return AddonTable.BuildPageOptions("newpage", "New Page")
+   local function build(mainCategory)
+       if not (Settings and Settings.RegisterCanvasLayoutSubcategory) then
+           return nil
+       end
+
+       local H   = AddonTable.Helpers
+       local ctx = H.CreatePanel("AbsorbTrackerNewPagePanel", "New Page", {
+           pageKey         = "newpage",
+           defaultsButton  = true,
+           defaultsTooltip = "Restore every New Page setting on this profile to its addon default.",
+       })
+       if ctx.panel.defaultsBtn then
+           ctx.panel.defaultsBtn:SetCallback("OnClick", function()
+               H.RestoreDefaults("newpage", ctx)
+           end)
+       end
+
+       local rendered = false
+       ctx.panel:SetScript("OnShow", function()
+           if rendered then return end
+           rendered = true
+           H.RenderSchema(ctx, "newpage")
+       end)
+
+       return Settings.RegisterCanvasLayoutSubcategory(
+           mainCategory, ctx.panel, "New Page")
    end
 
    if AddonTable.RegisterOptionsPage then
@@ -70,7 +96,7 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
    end
    ```
 
-2. **Add the file to `AbsorbTracker.toc`** in dependency order — after `OptionsPanel.lua`, before existing `Options/*.lua` files don't matter (registration order in the queue determines tree order):
+2. **Add the file to `AbsorbTracker.toc`** after `OptionsPanel.lua`. Registration order in the queue determines tree order, so place the line where the page should appear in the Settings tree:
 
    ```
    Options/General.lua
@@ -83,7 +109,7 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
 
 3. **Add the corresponding defaults** to `Core.lua`'s `defaults.profile`.
 
-4. **Update `/at reset` to accept the new page key.** The reset verb is in `SlashCommands.lua`'s `COMMANDS` table; it currently allows `general / bar / border / font`. Add `newpage` to the allowed values list.
+4. **Update `/at reset` to accept the new page key.** The allowed-pages set is `RESET_PAGES` in `SlashCommands.lua` (currently `general / bar / border / font`). Add `newpage`. The schema's `ValidateSchema` allowed-pages set in `Schema.lua` also needs the new key.
 
 The Blizzard Settings tree shows the new sub-page under "Ka0s Absorb Tracker" on next `/reload`.
 
@@ -93,8 +119,8 @@ If the texture / border / font dropdowns only show Blizzard's built-in fallback 
 
 1. **Confirm LSM is loaded** in-game with `/dump LibStub("LibSharedMedia-3.0", true)`. A non-nil result means the lib is present.
 2. **Confirm `ClearLSMCache` ran.** It should fire once at PLAYER_LOGIN; if the addon loaded before another addon registered fresh LSM entries, the cache stays warm with the pre-registration view. Force a re-cache with `/reload`.
-3. **Confirm `dialogControl` is set on the schema row.** Without `dialogControl = "LSM30_Statusbar"` (or `_Border` / `_Font`), AceConfigDialog renders a plain text input, not the swatch dropdown.
-4. **Confirm the in-tree widget is loaded.** `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/widget.lua` registers the `LSM30_Statusbar` / `LSM30_Border` / `LSM30_Font` widget types via `AceGUI:RegisterWidgetType`. If the file got skipped (TOC drift), the dropdown falls back to a plain select.
+3. **Confirm `dialogControl` is set on the schema row.** Without `dialogControl = "LSM30_Statusbar"` (or `_Border` / `_Font`), `Helpers.RenderField` creates a plain AceGUI `Dropdown` instead of the swatch widget.
+4. **Confirm the in-tree widget is loaded.** `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/widget.lua` registers the `LSM30_Statusbar` / `LSM30_Border` / `LSM30_Font` widget types via `AceGUI:RegisterWidgetType`. If the file got skipped (TOC drift), `makeDropdown` detects the missing version via `AceGUI:GetWidgetVersion(...)` and falls back to plain `Dropdown` — the option still renders, just without the swatch.
 
 If the dropdowns show *some* entries but not all, check that the contributing addon registers its assets with `LibStub("LibSharedMedia-3.0"):Register("statusbar", "name", path)` — some addons declare assets differently and the registration call gets missed.
 

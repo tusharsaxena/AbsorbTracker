@@ -21,6 +21,8 @@ State that lives on `AddonTable` (rather than as a global):
 - Defaults (`defaults`, `flatDefaults`).
 - Helper functions (`Print`, `GetSetting`, `SetSetting`, `GetBarColor`, ...).
 - The schema registry (`Schema`).
+- The settings-panel helpers table (`Helpers` — `CreatePanel`, `RenderSchema`, `RefreshAllPanels`, etc.).
+- The slash command list (`SlashCommands`) — also rendered on the about page.
 
 The only WoW-required globals are `AbsorbTrackerDB`, `SLASH_ABSORBTRACKER1` / `SLASH_ABSORBTRACKER2`, and `AbsorbTrackerFrame` (the frame's name).
 
@@ -80,9 +82,9 @@ AddonTable.ClearLSMCache()            -- reset cached LSM ref; called once at PL
 AddonTable.GetBarColor()              -> r, g, b, a
 AddonTable.GetBgColor()               -> r, g, b, a
 AddonTable.GetBorderColor()           -> r, g, b, a
-AddonTable.GetPlayerClassColor()      -> r, g, b, a
-AddonTable.GetBgClassColor()          -> r, g, b, a    -- darkened bg variant
 ```
+
+`GetPlayerClassColor` / `GetBgClassColor` are private upvalues used internally by the color getters. They're not exposed on `AddonTable`.
 
 ### Schema (`Schema.lua`)
 
@@ -94,18 +96,20 @@ AddonTable.RegisterSchemaRows(rows)        -- append rows to AddonTable.Schema
 
 -- Lookup
 AddonTable.FindSchemaRow(path)             -> row | nil
-AddonTable.SchemaForPage(pageKey)          -> { rows }
+AddonTable.SchemaForPage(pageKey)          -> { rows }   -- sorted by row.order
 
 -- Write / reset (reads go through GetSetting directly)
 AddonTable.SetByPath(path, value)          -- writes via SetSetting + fires row.onChange
 AddonTable.ApplyDefault(row)               -- resets row to row.default + fires onChange
+AddonTable.FireSchemaOnChange(row, value)  -- the onChange dispatcher (default: UpdateBarAppearance);
+                                           -- exported for the panel widget makers
 
 -- Slash IO
 AddonTable.FormatSchemaValue(row, value)   -> string
 AddonTable.ParseSchemaValue(row, text)     -> value | nil, errMsg
 
--- AceConfig table builder
-AddonTable.BuildPageOptions(pageKey, pageName) -> AceConfig options table
+-- Validation (called once at PLAYER_LOGIN by CreateOptionsPanel)
+AddonTable.ValidateSchema()                -> errorCount   -- chat-prints any malformed rows
 ```
 
 Detail in [schema.md](./schema.md).
@@ -149,20 +153,37 @@ The login bootstrap and event handlers are local to `Events.lua`; nothing about 
 
 ### SlashCommands (`SlashCommands.lua`)
 
-No public exports — registers `SLASH_ABSORBTRACKER1 = "/at"`, `SLASH_ABSORBTRACKER2 = "/absorbtracker"`, and `SlashCmdList["ABSORBTRACKER"]` at file-load time. The handler walks an internal `COMMANDS` array.
+```lua
+AddonTable.SlashCommands           -- ordered { name, desc, handler } array;
+                                   -- /at help and the about page both walk this list
+```
+
+Also registers `SLASH_ABSORBTRACKER1 = "/at"`, `SLASH_ABSORBTRACKER2 = "/absorbtracker"`, and `SlashCmdList["ABSORBTRACKER"]` at file-load time.
 
 ### OptionsPanel (`OptionsPanel.lua`)
 
 ```lua
 AddonTable.RegisterOptionsPage(key, name, builder, opts)
     -- key:     "general" / "bar" / "border" / "font" / "profiles"
-    -- name:    display name shown in the Blizzard Settings tree
-    -- builder: () -> AceConfig options table (called at PLAYER_LOGIN)
+    -- name:    display name shown in the Blizzard Settings tree (and breadcrumb header)
+    -- builder: function(mainCategory) -> sub-category | nil    (called at PLAYER_LOGIN)
     -- opts.isDefault = true flags the page that /at config opens (typically General)
 
 AddonTable.CreateOptionsPanel()    -- called from Events.lua on PLAYER_LOGIN once db is ready
-AddonTable.RefreshOptionsPanel()   -- AceConfigRegistry:NotifyChange per registered page
+AddonTable.RefreshOptionsPanel()   -- routes to Helpers.RefreshAllPanels (re-runs every refresher)
 AddonTable.OpenOptionsPanel()      -- Settings.OpenToCategory(defaultCategoryID); combat-lockdown gated
+
+AddonTable.Helpers                 -- panel-builder toolkit shared by every Options/<page>.lua:
+    Helpers.CreatePanel(name, title, opts)        -- canvas frame + header + Defaults button
+    Helpers.Section(ctx, label)                   -- AceGUI Heading row
+    Helpers.RenderField(ctx, row, parent, w)      -- dispatches by row.type
+    Helpers.RenderSchema(ctx, pageKey, afterGroup?) -- two-column layout from schema rows
+    Helpers.InlineButtonPair(ctx, leftSpec, rightSpec)
+    Helpers.AttachTooltip(widget, label, tooltip)
+    Helpers.PatchAlwaysShowScrollbar(scroll)
+    Helpers.RestoreDefaults(pageKey, ctx)
+    Helpers.RestoreAllDefaults()                  -- every schema-driven page; skips profiles
+    Helpers.RefreshAllPanels()                    -- run every panel ctx's refresher closures
 ```
 
 Detail in [settings-panel.md](./settings-panel.md).

@@ -106,7 +106,6 @@ local function GetPlayerClassColor()
     end
     return playerClassColor
 end
-AddonTable.GetPlayerClassColor = GetPlayerClassColor
 
 local backgroundMultiplier = 0.2
 
@@ -143,7 +142,6 @@ local function GetBgClassColor()
     end
     return playerBgClassColor
 end
-AddonTable.GetBgClassColor = GetBgClassColor
 
 function AddonTable.GetBarColor()
     local c = AddonTable.GetSetting("barColor")

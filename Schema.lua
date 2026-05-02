@@ -83,10 +83,6 @@ local function fireOnChange(row, value)
 end
 AddonTable.FireSchemaOnChange = fireOnChange
 
-function AddonTable.GetByPath(path)
-    return AddonTable.GetSetting(path)
-end
-
 --- Write a value for `path`, fire its onChange. Used by /at set, by
 --- /at reset, and by every panel widget — single dispatch path so no
 --- code duplication between UI and CLI.

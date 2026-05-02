@@ -42,7 +42,7 @@ Decisions made during requirements review and earlier releases — these are set
 - **Combat lockdown gate on `/at config`.** `Settings.OpenToCategory` is protected; opening any settings subcategory during combat would taint the panel. `OpenOptionsPanel` early-returns with a chat notice while `InCombatLockdown()` is true.
 - **Schema is the single source of truth.** Adding a new option = one row in some `Options/<page>.lua` via `RegisterSchemaRows`. The widget AND the `/at set <path>` CLI are wired automatically. Per-setting subcommands like `/at width 250` were removed in favor of `/at set barWidth 250`.
 - **Cyan `[AT]` chat prefix.** All addon chat output goes through `AddonTable.Print` (which prepends `|cFF00FFFF[AT]|r`). Files that emit chat shadow the global `print` with `local print = AddonTable.Print` so existing call sites stay unchanged. No raw `print(...)` calls.
-- **Title-only parent + sub-pages.** The Blizzard Settings tree shows an empty "Ka0s Absorb Tracker" parent category whose only purpose is to host the five sub-pages. The parent never holds settings of its own.
+- **Parent canvas hosts an about page; sub-pages hold every setting.** The "Ka0s Absorb Tracker" parent renders a logo + the TOC `Notes` blurb + the slash-command list. The five sub-pages (General / Bar / Border / Font / Profiles) hold every user setting; the parent never holds settings of its own.
 
 ## Where the contract lives
 

@@ -2,123 +2,157 @@
 
 How the addon registers its multi-page Blizzard Settings UI. The schema-driven content of each page is documented in [schema.md](./schema.md); this doc is about the *registration shell* — `OptionsPanel.lua` plus the per-page `Options/<page>.lua` declarations.
 
-## Five pages under one parent
+## Five pages plus an about page
 
 ```
-┌─ Ka0s Absorb Tracker (empty title-only parent) ┐
-│   ├─ General  (default — /at config opens here)│
-│   ├─ Bar                                       │
-│   ├─ Border                                    │
-│   ├─ Font                                      │
-│   └─ Profiles  (only if AceDBOptions is present)│
-└────────────────────────────────────────────────┘
+┌─ Ka0s Absorb Tracker (about page: logo + Notes + slash command list) ┐
+│   ├─ General  (default — /at config opens here)                      │
+│   ├─ Bar                                                             │
+│   ├─ Border                                                          │
+│   ├─ Font                                                            │
+│   └─ Profiles  (only if AceDBOptions is present)                     │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-The parent uses `appName = "AbsorbTracker"` and is registered against an options table with `args = {}` — AceConfigDialog still needs *some* table to attach the canvas frame to, but a zero-args group renders as just the title bar with an empty body, which is the desired look. Every `Options/*.lua` file becomes a sub-page; **the parent never holds settings of its own.**
+The parent and every sub-page register as **canvas-layout categories**: a custom Blizzard `Frame` is registered with `Settings.RegisterCanvasLayoutCategory` (parent) / `Settings.RegisterCanvasLayoutSubcategory` (each sub-page) and Blizzard renders it in its own settings panel slot. The schema-driven sub-pages (General / Bar / Border / Font) lay out their schema rows as **AceGUI widgets** (`CheckBox` / `Slider` / `Dropdown` / `ColorPicker`) inside an AceGUI `ScrollFrame` parented to the page's `body` frame.
 
-Each sub-page uses `appName = "AbsorbTracker-<key>"` so each page has its own AceConfig namespace. This matters for `AceConfigRegistry:NotifyChange` — see [profile change refresh](#profile-change-refresh) below.
+Profiles is the only page that still uses AceConfig — it routes `AceConfigDialog:Open("AbsorbTracker-Profiles", container)` into an AceGUI `SimpleGroup` parented to the canvas body, so the AceDBOptions UI lands inside our shell with the same header.
+
+## Unified header
+
+Every page (about + sub-pages) builds the same header via `Helpers.CreatePanel(name, title, opts)`:
+
+- `GameFontNormalHuge` title in **breadcrumb** form: `"Ka0s Absorb Tracker  |  <Page>"` for sub-pages; the about page passes `opts.isMain = true` to render the unprefixed `"Ka0s Absorb Tracker"`. The Blizzard left-tree label (driven by `panel.name`) stays unprefixed so the tree indents under the parent without visual repetition.
+- `Options_HorizontalDivider` atlas underneath the title, tinted to the title's font color.
+- Optional **Defaults** button (width `PANEL_DEFAULTS_W = 110`) at TOPRIGHT — General / Bar / Border / Font opt in via `opts.defaultsButton = true`. About page and Profiles deliberately omit it (about page has no settings; Profiles has its own destructive controls inside the AceDBOptions UI).
+- Layout constants: `PADDING_X = 16`, `HEADER_TOP = 20`, `HEADER_HEIGHT = 54`. The body frame anchors `(0, -(HEADER_HEIGHT + 8))` below TOPLEFT.
+
+`CreatePanel` returns a `ctx` table threaded through the rest of the helpers: `{ panel, body, scroll = nil, refreshers = {}, lastGroup = nil, pageKey }`.
 
 ## File-load registration vs. PLAYER_LOGIN registration
 
 `OptionsPanel.lua` runs at file-load time (early), but `AddonTable.db` doesn't exist until PLAYER_LOGIN. The shell separates the two phases:
 
-1. **File-load.** Each `Options/<page>.lua` calls `RegisterOptionsPage(key, name, builder, opts?)` to enqueue itself. The builder is a closure that will run later. The page is *queued*, not registered.
+1. **File-load.** Each `Options/<page>.lua` calls `AddonTable.RegisterOptionsPage(key, name, builder, opts?)` to enqueue itself. The builder is a closure that will run later.
 2. **PLAYER_LOGIN.** `Events.lua` calls `AddonTable.CreateOptionsPanel()`, which:
-   - Registers the empty title-only "Ka0s Absorb Tracker" parent category.
-   - Walks the queue, calling `builder()` on each entry (which now sees a live `db` because PLAYER_LOGIN has run).
-   - For each page: `AceConfig:RegisterOptionsTable("AbsorbTracker-<key>", optionsTable)` followed by `AceConfigDialog:AddToBlizOptions("AbsorbTracker-<key>", name, "Ka0s Absorb Tracker")`.
-   - Captures the parent's category ID (the second return value of the parent's `AddToBlizOptions`) and each sub-page's category ID for `OpenOptionsPanel`.
-
-If a builder returns `nil` (e.g. `Options/Profiles.lua` when AceDBOptions is missing), `registerPage` skips that page silently.
+   - Validates the assembled schema via `AddonTable.ValidateSchema()` (chat-prints any malformed rows; never blocks).
+   - Builds the about-page canvas (`Helpers.CreatePanel(..., { isMain = true })`) and registers it via `Settings.RegisterCanvasLayoutCategory` + `Settings.RegisterAddOnCategory`.
+   - Walks the queue, calling `builder(mainCategory)` on each entry. Each builder constructs its own canvas via `Helpers.CreatePanel`, defers the AceGUI render to the panel's first `OnShow` (the body has 0 width at PLAYER_LOGIN; AceGUI lays out against current width), and returns the result of `Settings.RegisterCanvasLayoutSubcategory(mainCategory, panel, name)`.
+   - If the builder returns `nil` (e.g. `Options/Profiles.lua` when AceDBOptions is missing), the page is silently skipped.
+   - Captures the sub-category flagged `isDefault = true` (typically General) into `defaultCategoryID` for `OpenOptionsPanel`.
 
 ## `RegisterOptionsPage(key, name, builder, opts)`
 
 ```lua
-AddonTable.RegisterOptionsPage("bar", "Bar", function()
-    return AddonTable.BuildPageOptions("bar", "Bar")
+AddonTable.RegisterOptionsPage("bar", "Bar", function(mainCategory)
+    local H   = AddonTable.Helpers
+    local ctx = H.CreatePanel("AbsorbTrackerBarPanel", "Bar", {
+        pageKey         = "bar",
+        defaultsButton  = true,
+        defaultsTooltip = "Restore every Bar setting on this profile to its addon default.",
+    })
+    if ctx.panel.defaultsBtn then
+        ctx.panel.defaultsBtn:SetCallback("OnClick", function()
+            H.RestoreDefaults("bar", ctx)
+        end)
+    end
+
+    local rendered = false
+    ctx.panel:SetScript("OnShow", function()
+        if rendered then return end
+        rendered = true
+        H.RenderSchema(ctx, "bar")
+    end)
+
+    return Settings.RegisterCanvasLayoutSubcategory(mainCategory, ctx.panel, "Bar")
 end)
 
--- or, with an isDefault flag
+-- General opts in to isDefault so /at config opens it:
 AddonTable.RegisterOptionsPage("general", "General", buildGeneral, { isDefault = true })
 ```
 
-- `key` — short identifier used in the per-page `appName` (`"AbsorbTracker-<key>"`) and in error logging.
-- `name` — display name shown in the Blizzard Settings tree.
-- `builder` — `() -> AceConfig options table`. Called once at PLAYER_LOGIN. Must return `nil` to skip registration.
-- `opts.isDefault = true` — flags the page that `/at config` should open. Typically `General`. If no page is flagged, `OpenOptionsPanel` falls back to the empty parent.
+- `key` — short identifier used in `pageKey` (the schema's `page` filter) and in the panel frame's global name.
+- `name` — display name shown in the Blizzard Settings tree AND used as the `<Page>` half of the breadcrumb header.
+- `builder(mainCategory)` — must return the sub-category from `Settings.RegisterCanvasLayoutSubcategory`, or `nil` to skip registration.
+- `opts.isDefault = true` — flags the page that `/at config` should open. Typically `General`. If no page is flagged, `OpenOptionsPanel` falls back to the parent (about page).
 
-## `BuildPageOptions(pageKey, pageName)`
+## `Helpers.RenderSchema(ctx, pageKey, afterGroup?)`
 
-Each page's typical builder is one line:
+The two-column layout engine. Walks `AddonTable.SchemaForPage(pageKey)` and emits each row as an AceGUI widget through `Helpers.RenderField`, packing pairs of rows into 50%-width Flow rows. Section breaks (whenever `row.group` changes) emit a full-width `Heading` widget (`GameFontNormalLarge`) flanked by side dividers, with `SECTION_TOP_SPACER = 10` / `SECTION_BOTTOM_SPACER = 6` around it. Every two-column row is followed by a `ROW_VSPACER = 8` spacer for breathing room.
 
-```lua
-local function build()
-    return AddonTable.BuildPageOptions("bar", "Bar")
-end
-```
+A row marked `solo = true` flushes any in-progress two-column row first, then renders alone (left half of its own row, right half empty). Used for visually-grouping pivots like a texture row that sits above its color-picker pair.
 
-`Schema.BuildPageOptions` walks `AddonTable.Schema`, filters to rows where `row.page == pageKey`, groups rows by `row.group` (rows with the same `group` cluster into an inline AceConfig group), sorts within each group by `row.order`, and returns a ready-to-register AceConfig options table. The widget's `get` callback reads via `AddonTable.GetSetting`; the `set` callback writes via `SetSetting` and then fires the row's `onChange`. Slash `/at set` follows the same write path through `AddonTable.SetByPath`, so panel-driven and slash-driven writes converge.
+The optional `afterGroup` map is `{ [groupName] = function(ctx) ... end }`. Each callback fires once, immediately after the group's last schema row is rendered (and before the next group's heading). General uses this to inject `Helpers.InlineButtonPair` ("Reset Position" + "Reset All Settings") under the **Master controls** group.
 
-For pages that need a non-schema element (e.g. Reset Position is an action button, not a schema row), the builder closure can append it manually:
+## Widget makers and refresher closures
 
-```lua
-local function build()
-    local opts = AddonTable.BuildPageOptions("general", "General")
-    opts.args.position = {
-        type = "group", inline = true, name = "Position", order = 99,
-        args = {
-            reset = { type = "execute", name = "Reset Position",
-                      func = AddonTable.RestoreBarPosition },
-        },
-    }
-    return opts
-end
-```
+Each row dispatches to a maker by `row.type`:
+
+| Type | Widget | Notes |
+|------|--------|-------|
+| `bool` | `CheckBox` | Honors `inverse = true` (widget shows `not value`). |
+| `number` | `Slider` | Snaps to `step` on `OnMouseUp`. |
+| `string` | `Dropdown` (or `LSM30_Statusbar` / `_Border` / `_Font` when `dialogControl` is set and the LSM widget is loaded) | Falls back to plain `Dropdown` if the LSM widget didn't load. |
+| `color` | `ColorPicker` | Honors `hasAlpha`; greys out when `disabledIf`'s sibling toggle is on. |
+
+Every maker registers a **refresher closure** in `ctx.refreshers`. The closure re-reads from `db.profile` and pushes the value back into the widget (via `widget:SetValue` / `SetColor`, which AceGUI does NOT fire `OnValueChanged` for — so no recursion). After every widget write, `Helpers.RefreshAllPanels()` runs every refresher on every panel ctx, so paired controls re-sync immediately (e.g. flipping `useClassColorBar` greys the `barColor` picker on the same frame).
+
+Tooltips on every widget go through `Helpers.AttachTooltip`, which `SetCallback`s `OnEnter` / `OnLeave` to drive `GameTooltip` anchored on `widget.frame`. Label = `row.label`, body = `row.desc`.
+
+### Live color preview
+
+The `ColorPicker` maker treats `OnValueChanged` (fires during drag) as the primary write. Each fire goes through a 50ms throttle so a sustained drag doesn't repaint the bar 60×/s. `OnValueConfirmed` (fires only on cancel, with the original color) commits immediately so the bar snaps back to the pre-drag color without waiting on the throttle window.
+
+## Always-visible scrollbar
+
+`Helpers.PatchAlwaysShowScrollbar(scroll)` rebinds the AceGUI `ScrollFrame`'s `FixScroll`/`MoveScroll`/`OnRelease` so the scrollbar never auto-hides. Short pages (General) keep the same right-edge gutter as long pages (Bar) — the thumb just greys out and locks at value 0 when content fits the viewport. The patch restores stock behavior on widget release so the AceGUI pool returns to a clean state for the next acquirer.
 
 ## Profile change refresh
 
-When AceDB fires `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset`, the active profile flips. Closure-based widget `get` / `set` callbacks already read live from `db.profile`, so the underlying values are correct as soon as `db.profile` flips — but the on-screen widgets show stale values until `AceConfigDialog` is told to re-pull.
+When AceDB fires `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset`, the active profile flips. `AddonTable.RefreshOptionsPanel()` (called from `OnProfileChanged` after the bar repaint chain) routes to `Helpers.RefreshAllPanels()`, which walks every panel ctx and runs every registered refresher closure. Each refresher re-reads its row's value from `db.profile` and pushes it into the widget — values that didn't survive the profile flip update; values that did are no-ops.
 
-`RefreshOptionsPanel` does that:
-
-```lua
-function AddonTable.RefreshOptionsPanel()
-    for _, key in ipairs(REGISTERED_KEYS) do
-        AceConfigRegistry:NotifyChange("AbsorbTracker-" .. key)
-    end
-end
-```
-
-This is called from `OnProfileChanged` (after `RestoreBarPosition` + `UpdateBarAppearance` + `UpdateAbsorbBar` + `ResetTickerInterval` + `RestartUpdateTicker(true)`). Per-page `appName` matters: `NotifyChange` is per-namespace, so calling it on the parent appName wouldn't refresh sub-pages.
+The same `RefreshAllPanels` runs after every `/at set` write (via `SlashCommands.lua`) and after every panel widget's `set()` (via the local `set()` in `OptionsPanel.lua` — see [Widget makers](#widget-makers-and-refresher-closures) above), so panel-driven and slash-driven mutations both keep open panels in sync.
 
 ## `OpenOptionsPanel` and the combat-lockdown gate
 
 ```lua
 function AddonTable.OpenOptionsPanel()
     if InCombatLockdown() then
-        AddonTable.Print("settings panel is unavailable during combat")
+        AddonTable.Print("Cannot open settings panel during combat. Try again after combat ends.")
         return
     end
-    Settings.OpenToCategory(defaultCategoryID or parentCategoryID)
+    Settings.OpenToCategory(defaultCategoryID or mainCategoryID)
 end
 ```
 
 `Settings.OpenToCategory` is part of Blizzard's protected Settings API. Calling it during combat would taint the panel — even after combat ends, the tainted panel can refuse to open or break unrelated UI. The combat-lockdown early-return is mandatory; don't try to clever-defer the call.
 
-`defaultCategoryID` is the sub-page flagged `isDefault = true` (typically General). If no default was registered, falls back to `parentCategoryID` — but that's the empty title-only parent, so the user lands on a blank canvas. Always flag *some* page as the default.
+`defaultCategoryID` is the sub-category flagged `isDefault = true` (General). If no default was registered, falls back to `mainCategoryID` — the about page. Always flag *some* page as the default.
 
 ## LSM swatch dropdowns
 
-Texture / border / font select fields use `dialogControl = "LSM30_Statusbar"` (or `_Border` / `_Font`) on their schema row. AceConfigDialog routes those to a custom in-tree AceGUI widget at `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/widget.lua`, which renders each entry with an inline preview swatch:
+Texture / border / font select fields use `dialogControl = "LSM30_Statusbar"` (or `_Border` / `_Font`) on their schema row. `Helpers.RenderField` → `makeDropdown` reads `dialogControl` and creates the matching AceGUI widget directly:
 
-- `LSM30_Statusbar` — fill texture preview.
-- `LSM30_Border` — border style preview.
-- `LSM30_Font` — font face preview.
+```lua
+local widgetType = row.dialogControl or "Dropdown"
+if widgetType ~= "Dropdown" and not AceGUI:GetWidgetVersion(widgetType) then
+    widgetType = "Dropdown"   -- LSM widget didn't load; fall back to plain dropdown
+end
+local dd = AceGUI:Create(widgetType)
+```
 
-The widget builds a Blizzard-frame button + popup list and renders the swatch beside each entry. The widget type names match the upstream `AceGUI-3.0-SharedMediaWidgets` lib so dropping in the real lib later is a clean swap. Dropdowns with 10 or more items show a scrollbar; opening a dropdown auto-scrolls to the currently selected value.
+The LSM30_* widgets live at `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/widget.lua`. Each renders entries with an inline preview swatch (statusbar / border / font face). The widget type names match the upstream `AceGUI-3.0-SharedMediaWidgets` lib so dropping in the real lib later is a clean swap.
+
+## About page (top-level "Ka0s Absorb Tracker")
+
+`buildMainContent(ctx)` (called from the parent panel's first `OnShow`) renders three blocks into the AceGUI scroll:
+
+1. **Logo.** `media/screenshots/absorbracker.logo.v2.tga` at native 300×300, anchored TOPLEFT inside a full-width SimpleGroup.
+2. **TOC `Notes` blurb** — full-width `Label` with `GameFontHighlight`, left-justified.
+3. **Slash Commands section** — a full-width `Heading` widget (`GameFontNormalLarge`) followed by one `Label` row per entry in `AddonTable.SlashCommands`, formatted `|cffffff00/at <cmd>|r  |cffffffff—|r  <desc>`. The list stays in lockstep with `/at help` because both walk the same `AddonTable.SlashCommands` array.
 
 ## See also
 
-- [schema.md](./schema.md) — what the per-page builders return.
+- [schema.md](./schema.md) — what a row in `AddonTable.Schema` looks like and how it drives both the panel and the slash CLI.
 - [profiles.md](./profiles.md) — how profile changes drive `RefreshOptionsPanel`.
-- [midnight-quirks.md](./midnight-quirks.md#aceconfigdialogaddtoblizoptions-returns-frame-categoryid) — the two-return-value contract on `AceConfigDialog:AddToBlizOptions`.
+- [midnight-quirks.md](./midnight-quirks.md) — patch-day breakage catalog.

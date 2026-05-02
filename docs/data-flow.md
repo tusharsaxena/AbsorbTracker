@@ -66,18 +66,20 @@ ParseSchemaValue(row, text)            AceConfigDialog → row.set
                              ▼
                   AddonTable.SetByPath(path, value)
                              │
-                  ┌──────────┼─────────────┐
-                  ▼          ▼             ▼
-       SetSetting(path,v)  fire row.onChange
-       db.profile[path]
-       = v                  default: UpdateBarAppearance()
-                            interval: RestartUpdateTicker()
-                            hidden:   UpdateBarAppearance()
-                                      + UpdateAbsorbBar()
-                             │
-                             ▼
-                   GetBarColor / GetBgColor / GetBorderColor
-                   re-read live values, push to frames
+                  ┌──────────┼─────────────────────────┐
+                  ▼          ▼                         ▼
+       SetSetting(path,v)  fire row.onChange   panel widget set() also runs
+       db.profile[path]                        Helpers.RefreshAllPanels
+       = v                  default: UpdateBarAppearance()        │
+                            interval: RestartUpdateTicker()       │
+                            hidden:   UpdateBarAppearance()       │
+                                      + UpdateAbsorbBar()         │
+                             │                                    │
+                             ▼                                    ▼
+                   GetBarColor / GetBgColor / GetBorderColor   refreshers re-pull
+                   re-read live values, push to frames         every widget value
+                                                               (paired disabledIf
+                                                                state re-syncs)
 ```
 
 The slash and panel paths converge on `SetByPath`. Color getters resolve `useClassColor*` at call time, so no explicit "switch class color on" wiring is needed — the next paint reads the current toggle state and produces the right color.
@@ -100,11 +102,11 @@ AddonTable.OnProfileChanged()
     ├─▶ AddonTable.RestartUpdateTicker(true)--   call rebuilds with the new value
     │
     └─▶ if AddonTable.RefreshOptionsPanel then
-            AddonTable.RefreshOptionsPanel()  -- AceConfigRegistry:NotifyChange per page
+            AddonTable.RefreshOptionsPanel()  -- routes to Helpers.RefreshAllPanels
         end
 ```
 
-`AceConfigRegistry:NotifyChange` is per-namespace, so it's called once per registered sub-page (`AbsorbTracker-general`, `AbsorbTracker-bar`, ...). Closure-based widget callbacks already read live from `db.profile`, so the underlying values are already correct as soon as `db.profile` flips — `NotifyChange` just makes the on-screen widgets re-pull.
+`Helpers.RefreshAllPanels` walks every registered panel ctx and runs every refresher closure each widget maker registered. Each refresher re-reads its row's value from `db.profile` and pushes it back into the AceGUI widget via `SetValue` / `SetColor` (which AceGUI does NOT fire `OnValueChanged` for — so no recursion). The Profiles sub-page is driven by `AceConfigDialog:Open(...)` and re-pulls its own state on the next show.
 
 ## Other events
 

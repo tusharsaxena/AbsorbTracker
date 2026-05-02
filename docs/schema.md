@@ -1,6 +1,6 @@
 # Schema
 
-The schema-driven settings system. One flat array, walked by both the AceConfig sub-pages and the `/at` slash dispatcher. Adding a new user-facing setting is one row in some `Options/<page>.lua` — the panel widget and the `/at set <path>` CLI are wired automatically.
+The schema-driven settings system. One flat array, walked by both the canvas-layout sub-pages (rendered as AceGUI widgets) and the `/at` slash dispatcher. Adding a new user-facing setting is one row in some `Options/<page>.lua` — the panel widget and the `/at set <path>` CLI are wired automatically.
 
 ## Why one schema
 
@@ -17,13 +17,14 @@ Two parallel surfaces — the Blizzard Settings panel and the `/at` slash CLI �
 
     type    = "bool" | "number" | "string" | "color",
     label   = "Bar Width",       -- widget label + `/at list`/`get` display
-    desc    = "...",             -- AceConfig tooltip
+    desc    = "...",             -- tooltip text (rendered via Helpers.AttachTooltip)
     default = 200,               -- used by `/at reset` and `/at resetall`
 
     -- type-specific:
     min, max, step,                                  -- number
     values        = function() return {...} end,    -- string (select); k=v map
     dialogControl = "LSM30_Statusbar",              -- string (LSM swatch dropdown)
+    sorting       = { "", "OUTLINE", ... },         -- string: explicit option order
     hasAlpha      = true,                           -- color
 
     -- behavior:
@@ -31,6 +32,7 @@ Two parallel surfaces — the Blizzard Settings panel and the `/at` slash CLI �
     inverse    = true,                   -- bool only: widget shows !value
     disabledIf = "useClassColorBar",     -- color only: greys out when sibling toggle is on
     fmt        = "%.1f sec",             -- /at list/get formatting hint
+    solo       = true,                   -- panel only: render alone in its own row
 }
 ```
 
@@ -59,16 +61,24 @@ AddonTable.RegisterSchemaRows({
                           │
             ┌─────────────┴──────────────┐
             ▼                            ▼
-   BuildPageOptions(page)        SlashCommands.lua
+   Helpers.RenderSchema(page)    SlashCommands.lua
             │                            │
-            │ groups by row.group        │ walks the array
-            │ sorts by row.order         │ for /at list / get / set / reset
+            │ section break on           │ walks the array
+            │   row.group change         │ for /at list / get / set / reset
+            │ pairs adjacent rows        │
+            │   into 50/50 Flow rows     │
+            │ honors `solo = true`       │
             ▼                            ▼
-   AceConfig options table       Type-validated CLI write through SetByPath
-            │
+   AceGUI widgets                Type-validated CLI write through SetByPath
+   (CheckBox / Slider /                  │
+    Dropdown / ColorPicker)              ▼
+            │                  fires row.onChange
+            │                  (default: UpdateBarAppearance)
             ▼
-   AceConfigDialog renders
-   widget with get/set callbacks
+   widget callback → SetSetting → fires row.onChange
+                                  → Helpers.RefreshAllPanels
+                                    (re-syncs paired controls
+                                     like disabledIf greying)
 ```
 
 ## Behavior knobs
@@ -89,7 +99,7 @@ Greys out the picker when the named sibling toggle is on. Used by the class-colo
   disabledIf = "useClassColorBar" },
 ```
 
-`Schema.BuildPageOptions` translates `disabledIf` into an AceConfig `disabled = function() return GetSetting(sibling) end` callback so the disabled state re-evaluates on every panel draw without explicit refresh wiring.
+The ColorPicker maker (`OptionsPanel.lua`) reads `disabledIf` inside its refresher closure and calls `cp:SetDisabled(GetSetting(sibling))`. The refresh runs at file-load (initial state), after any panel widget write (every `set()` ends with `Helpers.RefreshAllPanels`), and on profile change — so flipping `useClassColorBar` greys / un-greys the matching color picker on the same frame.
 
 ### `onChange` (any type)
 
@@ -102,6 +112,10 @@ Defaults to `AddonTable.UpdateBarAppearance`. Override when the row's side effec
 
 Formatting hint for `/at list` / `/at get` output. Without `fmt`, integers render as `%d` and floats as `%g`.
 
+### `solo = true` (panel layout, any type)
+
+Tells `Helpers.RenderSchema` to render this row alone on its own line instead of pairing it with the next row in the 50/50 grid. Used as a visual pivot above grouped pairs (e.g. `barTexture` is solo, then `useClassColorBar` + `barColor` pair on the row below it). Has no effect on the slash CLI.
+
 ## Public API
 
 ```lua
@@ -110,18 +124,20 @@ AddonTable.RegisterSchemaRows(rows)             -- append rows to AddonTable.Sch
 
 -- Lookup
 AddonTable.FindSchemaRow(path)                  -> row | nil
-AddonTable.SchemaForPage(pageKey)               -> { rows }
+AddonTable.SchemaForPage(pageKey)               -> { rows }   -- sorted by row.order
 
 -- Write / reset (fires row.onChange; reads go through GetSetting)
 AddonTable.SetByPath(path, value)               -- write + onChange
 AddonTable.ApplyDefault(row)                    -- reset to row.default + onChange
+AddonTable.FireSchemaOnChange(row, value)       -- onChange dispatcher (default: UpdateBarAppearance);
+                                                -- exported for the panel widget makers
 
 -- Slash IO
 AddonTable.FormatSchemaValue(row, value)        -> string    -- display formatting
 AddonTable.ParseSchemaValue(row, text)          -> value | nil, errMsg
 
--- AceConfig table builder
-AddonTable.BuildPageOptions(pageKey, pageName)  -> AceConfig options table
+-- Validation (called once at PLAYER_LOGIN by CreateOptionsPanel)
+AddonTable.ValidateSchema()                     -> errorCount   -- chat-prints malformed rows
 ```
 
 ## Slash CLI mapping

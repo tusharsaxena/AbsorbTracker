@@ -10,7 +10,7 @@ User-facing reference: [README.md](./README.md). Subsystems + invariants: [ARCHI
 
 ## Hard rules
 
-- **Schema is the single source of truth for settings.** `AddonTable.Schema` is a flat array; each `Options/<page>.lua` calls `AddonTable.RegisterSchemaRows({ ... })` at file-load time. The same array drives both the AceConfig panel widgets AND the `/at list/get/set/reset/resetall` slash CLI. Adding a new option = one schema row in some `Options/<page>.lua`. Don't add per-setting code in `SlashCommands.lua` or in a per-page builder; the row-grammar covers it.
+- **Schema is the single source of truth for settings.** `AddonTable.Schema` is a flat array; each `Options/<page>.lua` calls `AddonTable.RegisterSchemaRows({ ... })` at file-load time. The same array drives both the canvas-layout AceGUI panel widgets (via `Helpers.RenderSchema`) AND the `/at list/get/set/reset/resetall` slash CLI. Adding a new option = one schema row in some `Options/<page>.lua`. Don't add per-setting code in `SlashCommands.lua` or in a per-page builder; the row-grammar covers it.
 - **Color getters resolve at call time.** `GetBarColor` / `GetBgColor` / `GetBorderColor` re-read `useClassColor*` on every paint. Class change / respec / profile switch all "just work" without explicit refresh wiring. Don't cache the resolved color on a frame.
 - **`SetBackdrop(nil)` before `SetBackdrop(info)`.** WoW's backdrop API is a no-op when the table identity is unchanged, even if its fields changed. `UpdateBarAppearance` clears first, then re-applies. Don't optimize this away.
 - **Combat-lockdown gate on `/at config`.** `Settings.OpenToCategory` is protected; calling it during combat taints the panel for the rest of the session. `OpenOptionsPanel` early-returns with a chat notice while `InCombatLockdown()` is true. Don't try to clever-defer.
@@ -57,7 +57,7 @@ Topic-specific detail lives in `docs/`. Read on demand — these are not auto-lo
 | Per-file responsibility map | [docs/file-index.md](./docs/file-index.md) | "Which file owns X?" |
 | `AddonTable` bus + public APIs + load order | [docs/module-map.md](./docs/module-map.md) | Designing a cross-module change. |
 | Schema-driven settings (registry, row knobs, `/at` mapping, settings reference) | [docs/schema.md](./docs/schema.md) | Adding a setting; debugging the slash CLI. |
-| Multi-page Settings panel (registration shell, LSM widgets, `OpenOptionsPanel`) | [docs/settings-panel.md](./docs/settings-panel.md) | Touching `OptionsPanel.lua` or any `Options/<page>.lua`. |
+| Multi-page Settings panel (canvas-layout shell, `Helpers` toolkit, AceGUI widgets, LSM swatch dropdowns, `OpenOptionsPanel`) | [docs/settings-panel.md](./docs/settings-panel.md) | Touching `OptionsPanel.lua` or any `Options/<page>.lua`. |
 | Data flow (bootstrap, absorb update, settings write, profile change) | [docs/data-flow.md](./docs/data-flow.md) | Touching event handling, the ticker, or `OnProfileChanged`. |
 | Profiles (AceDB integration, `/at profile`, fallback shim) | [docs/profiles.md](./docs/profiles.md) | Touching profile callbacks or the `/at profile` subcommands. |
 | Midnight quirks (secret values, backdrop refresh, combat lockdown, Interface line) | [docs/midnight-quirks.md](./docs/midnight-quirks.md) | Patch-day breakage; protected-API gotchas. |

@@ -36,15 +36,11 @@ Settings.OpenToCategory(categoryID)
 
 Don't try to clever-defer the call into a `PLAYER_REGEN_ENABLED` queue. A user who clicks `/at config` mid-pull and then tabs to another addon's UI mid-call would see weird state. The straight-up refusal with a chat notice is the right call.
 
-## `AceConfigDialog:AddToBlizOptions` returns `(frame, categoryID)`
+## `Settings.OpenToCategory` wants a numeric ID, not a category object
 
-On modern clients this returns two values: the frame object and the numeric category ID. `Settings.OpenToCategory` wants the **numeric ID**; passing the frame produces a range error. Always capture both return values:
+`Settings.RegisterCanvasLayoutCategory(panel, name)` returns a category *object* with a `:GetID()` method; `Settings.RegisterCanvasLayoutSubcategory(parent, panel, name)` returns the same shape. `Settings.OpenToCategory` accepts the numeric ID directly — passing the object produces a range error.
 
-```lua
-local frame, categoryID = AceConfigDialog:AddToBlizOptions("AbsorbTracker", "Ka0s Absorb Tracker")
-```
-
-`OptionsPanel.lua` captures the parent's category ID and each sub-page's category ID at registration time. `OpenOptionsPanel` uses the page-flagged `isDefault = true` (typically General) so `/at config` lands directly on a populated page instead of the empty parent shell.
+`OptionsPanel.lua` captures `mainCategory:GetID()` at parent registration and `subCategory:GetID()` for the page flagged `isDefault = true` (typically General), and `OpenOptionsPanel` calls `Settings.OpenToCategory(defaultCategoryID or mainCategoryID)`. So `/at config` lands directly on General; if no page is flagged, it falls back to the about page.
 
 ## Interface line — three patches, one TOC
 

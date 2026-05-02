@@ -34,7 +34,7 @@ WoW events ─▶ Events.lua  ─▶ C_Timer.NewTicker  ─▶ Display.UpdateAbs
 | Per-file responsibility map | — | [docs/file-index.md](./docs/file-index.md) |
 | Bootstrap + absorb update + settings write + profile-change refresh | `Events.lua`, `Display.lua`, `Timer.lua` | [docs/data-flow.md](./docs/data-flow.md) |
 | Schema-driven settings (registry, row knobs, `/at` mapping, settings reference) | `Schema.lua`, `Options/*.lua` | [docs/schema.md](./docs/schema.md) |
-| Multi-page Settings panel + LSM swatch widgets | `OptionsPanel.lua`, `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/` | [docs/settings-panel.md](./docs/settings-panel.md) |
+| Multi-page Settings panel (canvas-layout shell, `Helpers` toolkit, two-column AceGUI render, LSM swatch widgets, about page) | `OptionsPanel.lua`, `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/` | [docs/settings-panel.md](./docs/settings-panel.md) |
 | Profiles (AceDB integration + `/at profile` + fallback shim) | `Events.lua`, `Options/Profiles.lua`, `SlashCommands.lua` | [docs/profiles.md](./docs/profiles.md) |
 | WoW retail API gotchas (secret values, backdrop refresh, combat lockdown, Interface line) | — | [docs/midnight-quirks.md](./docs/midnight-quirks.md) |
 | In/out scope + resolved design decisions | — | [docs/scope.md](./docs/scope.md) |
@@ -43,13 +43,13 @@ WoW events ─▶ Events.lua  ─▶ C_Timer.NewTicker  ─▶ Display.UpdateAbs
 ## Invariants worth not breaking
 
 - **`AddonTable` is the bus.** Every file does `local AddonName, AddonTable = ...` and reads/writes shared state through `AddonTable`. Never shadow it locally (`local AddonTable = {}` would break everything downstream). The only WoW-required globals are `AbsorbTrackerDB`, `SLASH_ABSORBTRACKER1` / `SLASH_ABSORBTRACKER2`, and `AbsorbTrackerFrame`.
-- **Schema is the single source of truth for settings.** `AddonTable.Schema` is a flat array; both the AceConfig sub-pages (via `BuildPageOptions`) and the slash dispatcher (via `/at list/get/set/reset/resetall`) walk it. Adding a new option = one schema row; the widget AND the CLI surface are wired automatically. No per-setting code in `SlashCommands.lua`. See [docs/schema.md](./docs/schema.md).
+- **Schema is the single source of truth for settings.** `AddonTable.Schema` is a flat array; both the canvas-layout sub-pages (via `Helpers.RenderSchema`, which lays rows out as AceGUI widgets) and the slash dispatcher (via `/at list/get/set/reset/resetall`) walk it. Adding a new option = one schema row; the widget AND the CLI surface are wired automatically. No per-setting code in `SlashCommands.lua`. See [docs/schema.md](./docs/schema.md).
 - **Color getters resolve at call time.** `GetBarColor` / `GetBgColor` / `GetBorderColor` re-read `useClassColor*` on every paint. Class change / respec / profile switch all work without explicit refresh wiring. Don't cache the resolved color.
 - **`SetBackdrop(nil)` before `SetBackdrop(info)`.** WoW's backdrop API is a no-op when the table identity is unchanged, even if its fields changed. `UpdateBarAppearance` clears first, then re-applies. See [docs/midnight-quirks.md](./docs/midnight-quirks.md#setbackdrop-is-a-no-op-when-the-table-identity-is-unchanged).
 - **`OpenOptionsPanel` early-returns on `InCombatLockdown()`.** `Settings.OpenToCategory` is protected; calling it during combat taints the panel. The combat-lockdown gate is mandatory.
 - **Cyan `[AT]` prefix on all addon chat output.** Routes through `AddonTable.Print` → `|cFF00FFFF[AT]|r`. Files that emit chat shadow the global `print`. No raw `print(...)` calls.
 - **Ticker drives visual updates, not events.** `UNIT_ABSORB_AMOUNT_CHANGED` is registered for `DebugPrint` only; the periodic `C_Timer.NewTicker` is the source of truth for `UpdateAbsorbBar` calls. `updateInterval` is user-configurable.
-- **Title-only parent + sub-pages.** `OptionsPanel.lua` registers an empty title-only "Ka0s Absorb Tracker" parent category; the five Settings sub-pages (General, Bar, Border, Font, Profiles) attach beneath it. The parent never holds settings of its own. Each sub-page uses its own `appName = "AbsorbTracker-<key>"` so `AceConfigRegistry:NotifyChange` works per-page.
+- **Canvas-layout parent + sub-pages, unified breadcrumb header.** `OptionsPanel.lua` registers a custom canvas frame for the "Ka0s Absorb Tracker" parent (rendering an about page: logo + TOC `Notes` + slash-command list) and one canvas frame per sub-page. Every page wears the same header (`GameFontNormalHuge` title in `"Ka0s Absorb Tracker | <Page>"` breadcrumb form + `Options_HorizontalDivider` atlas + optional Defaults button). The five sub-pages (General, Bar, Border, Font, Profiles) hold every setting; the parent never holds settings of its own. Profile / `/at set` refresh runs `Helpers.RefreshAllPanels`, which walks per-widget refresher closures rather than per-page namespaces.
 
 ## External dependencies
 
