@@ -37,17 +37,18 @@ read from `AddonTable` only what earlier files have already written.
 | 1 | `Core.lua` | 36 | `AddonTable.defaults`, `flatDefaults`, cached math/format |
 | 2 | `Utils.lua` | 52 | `Print`, `DebugPrint`, `PrintLSMList`, `ParseColor` |
 | 3 | `Settings.lua` | 173 | `db` ref, `GetSetting`/`SetSetting`, LSM wrappers, color getters |
-| 4 | `UI.lua` | 60 | Bar frame creation (`bar`, `statusBar`, `valueText`) |
-| 5 | `Display.lua` | 107 | `UpdateBarAppearance`, `UpdateAbsorbBar`, `RestoreBarPosition` |
-| 6 | `Timer.lua` | 40 | `RestartUpdateTicker`, `ResetTickerInterval` |
-| 7 | `Events.lua` | 80 | Event frame, `OnProfileChanged`, login bootstrap |
-| 8 | `SlashCommands.lua` | 413 | `/at` dispatcher and all subcommand handlers |
-| 9 | `OptionsPanel.lua` | ~140 | `RegisterOptionsPage`, `CreateOptionsPanel`, `RefreshOptionsPanel`, `OpenOptionsPanel` |
-| 10 | `Options/General.lua` | ~105 | Parent sub-page schema |
-| 11 | `Options/Bar.lua` | ~140 | Bar sub-page schema |
-| 12 | `Options/Border.lua` | ~90 | Border sub-page schema |
-| 13 | `Options/Font.lua` | ~70 | Font sub-page schema |
-| 14 | `Options/Profiles.lua` | ~20 | Profiles sub-page (AceDBOptions wrapper) |
+| 4 | `Schema.lua` | ~330 | Schema registry, `BuildPageOptions`, `FormatSchemaValue`/`ParseSchemaValue` |
+| 5 | `UI.lua` | 60 | Bar frame creation (`bar`, `statusBar`, `valueText`) |
+| 6 | `Display.lua` | 107 | `UpdateBarAppearance`, `UpdateAbsorbBar`, `RestoreBarPosition` |
+| 7 | `Timer.lua` | 40 | `RestartUpdateTicker`, `ResetTickerInterval` |
+| 8 | `Events.lua` | 80 | Event frame, `OnProfileChanged`, login bootstrap |
+| 9 | `SlashCommands.lua` | ~345 | KickCD-style COMMANDS table; schema-driven list/get/set/reset |
+| 10 | `OptionsPanel.lua` | ~145 | `RegisterOptionsPage`, `CreateOptionsPanel`, `RefreshOptionsPanel`, `OpenOptionsPanel` |
+| 11 | `Options/General.lua` | ~85 | General schema rows + Reset Position execute |
+| 12 | `Options/Bar.lua` | ~115 | Bar schema rows |
+| 13 | `Options/Border.lua` | ~70 | Border schema rows |
+| 14 | `Options/Font.lua` | ~70 | Font schema rows |
+| 15 | `Options/Profiles.lua` | ~20 | Profiles sub-page (AceDBOptions wrapper) |
 
 Libraries load before the addon's own files via the `#@no-lib-strip@` block at
 the top of the TOC. Bundled libraries:
@@ -121,6 +122,43 @@ through the same shadow, so debug output and LSM listings share the prefix.
 
 `ParseColor` is the slash-command color parser; it accepts `r g b [a]` in
 either 0–1 or 0–255 ranges and normalizes to 0–1.
+
+### Schema.lua — single source of truth for settings
+A flat array `AddonTable.Schema` holds one row per user-facing setting.
+Each `Options/<page>.lua` (except `Profiles`) populates the array via
+`AddonTable.RegisterSchemaRows({...})` at file-load time. The schema feeds
+two consumers:
+
+1. **Sub-page rendering.** Each `Options/<page>.lua` calls
+   `AddonTable.BuildPageOptions(pageKey, pageName)`, which walks the rows
+   for that page and returns a ready-to-register AceConfig options table.
+   Rows with the same `group` cluster into an inline AceConfig group;
+   `order` controls in-group sequence. The widget's `get`/`set` callbacks
+   route through `AddonTable.GetSetting` / `SetSetting` with the row's
+   `onChange` fired afterwards.
+2. **Slash commands.** `SlashCommands.lua` walks the same array for
+   `/at list`, `/at get`, `/at set`, `/at reset` and `/at resetall`.
+   `AddonTable.ParseSchemaValue(row, text)` converts the slash-command tail
+   into a typed value matching `row.type` (bool / number / string / color);
+   `AddonTable.FormatSchemaValue(row, value)` formats it for chat output
+   (with `row.fmt` honoured for numbers).
+
+Behaviour knobs on a row:
+
+- `inverse = true` (bool only) — flips the widget value vs. the db value.
+  Used so `path = "hidden"` shows up as a positive "Show Bar" toggle.
+- `disabledIf = "<sibling-path>"` (color only) — greys out the picker
+  when the named sibling toggle is on. Used by the class-color overrides
+  on `barColor` / `bgColor` / `borderColor`.
+- `onChange` — defaults to `UpdateBarAppearance`. Rows whose side effect
+  differs (e.g. `updateInterval` calls `RestartUpdateTicker`; `hidden`
+  also resets `lastAbsorb` and re-runs `UpdateAbsorbBar`) override
+  explicitly.
+
+Adding a new option = one schema row in some `Options/<page>.lua`. The
+sub-page widget and the `/at <path>` surface for the new path are wired
+automatically; no additional code in SlashCommands.lua or any per-page
+builder.
 
 ### Settings.lua — database, LSM, and color resolution
 Three concerns:
@@ -206,27 +244,40 @@ WoW slash commands are registered by setting `SLASH_<UPPERTAG>1`,
 addon registers `/absorbtracker` and `/at` to a single
 `SlashCmdList["ABSORBTRACKER"]` handler.
 
-Dispatch is a single `if/elseif` chain on the lowercased first word:
+The dispatcher follows the Ka0s KickCD pattern: a `COMMANDS` array maps
+`{ name, description, handler(rest) }`. The handler lowercases the first
+token, looks it up in `COMMANDS`, and calls the matching entry's handler
+with the unmodified tail. Unknown commands fall through to `printHelp`,
+which iterates `COMMANDS` to render the help block (yellow command
+em-dash white description, KickCD-style).
 
-- `/at` (no args) and unknown commands fall into the `else` branch and print
-  the help block.
-- `/at config` opens the options panel.
-- `/at profile` re-splits the remaining arg on whitespace and runs a nested
-  `if/elseif` for `list`, `current`, `use`/`set`, `new`/`create`, `copy`,
-  `delete`/`remove`, `reset`.
-- All other branches mutate one setting and call `UpdateBarAppearance` (or
-  `RestartUpdateTicker` for the interval).
+The schema-driven core handles the bulk of user-visible options:
 
-The help output is rendered by a small `PrintCmd(cmd, desc)` helper:
+- `/at list` walks `AddonTable.Schema`, groups rows by `page`
+  (general / bar / border / font), and prints each row's path with the
+  current value rendered through `AddonTable.FormatSchemaValue`.
+- `/at get <path>` looks up one row via `AddonTable.FindSchemaRow` and
+  prints the same formatted value.
+- `/at set <path> <value>` looks up the row, calls
+  `AddonTable.ParseSchemaValue(row, value)` to coerce the tail into the
+  typed value, then `AddonTable.SetByPath` to write + fire `onChange`.
+  Invalid input prints a type-specific error
+  (`expected true/false/on/off`, `allowed values: A, B, C`,
+  `expected: r g b [a] (each 0-1 or 0-255)`).
+- `/at reset <page>` walks the schema rows for that page and calls
+  `AddonTable.ApplyDefault(row)` on each.
+- `/at resetall` does the same for every row plus clears the saved
+  bar position.
 
-```lua
-local function PrintCmd(cmd, desc)
-    print(format("  |cFFFFFF00%s|r - |cFFFFFFFF%s|r", cmd, desc))
-end
-```
+Per-setting subcommands like `/at width 250` or `/at color classcolor on`
+are gone — `/at set barWidth 250` and `/at set useClassColorBar true`
+replace them. The schema's `inverse` flag means `/at set hidden true` and
+the panel's "Show Bar" checkbox both write the same db slot from opposite
+ends, so the slash and panel paths remain truly equivalent.
 
-This produces a yellow command and a white explanation, with the cyan `[AT]`
-prefix supplied by the shadowed `print`.
+Non-schema commands are kept for actions that don't fit a key/value
+shape: `/at config`, `/at lock`/`unlock`/`toggle`, `/at debug`, `/at
+update`, `/at test [value]`, `/at resetposition`, `/at profile <sub>`.
 
 ### OptionsPanel.lua — settings registration shell
 A thin coordination layer (~145 lines). It does not build widgets or hold
@@ -266,36 +317,58 @@ title bar with an empty body, which is the desired look. Every Options/
 file becomes a sub-page; the parent never holds settings of its own.
 
 ### Options/*.lua — sub-page schemas
-Each file under `Options/` declares one AceConfig options table and registers
-it through `AddonTable.RegisterOptionsPage`. The pages share three
-conventions:
+Each file under `Options/` is now a thin schema declaration. The shape:
 
-1. **Builder closures.** Each file exports a `local function build()` that
-   returns the options table. Build is deferred to PLAYER_LOGIN (via the
-   queue in OptionsPanel.lua) so any `AddonTable.db`-dependent reads in
-   `get`/`set` callbacks are safe.
-2. **Live get/set.** Every widget's `get` and `set` callback hits
-   `AddonTable.GetSetting`/`AddonTable.SetSetting` directly. There's no
-   intermediate cache, so a slash-command write becomes visible to an open
-   page on its next refresh, and a profile switch needs only a
-   `NotifyChange`.
-3. **Inline groups for layout.** `type = "group", inline = true` produces
-   AceConfigDialog's bordered inline section. Each page splits its rows
-   into 1–3 inline groups (e.g. Bar → Size / Bar Fill / Background) so the
-   visual rhythm matches what users expect from other AceConfig-based
-   addons.
+```lua
+local AddonName, AddonTable = ...
+local flatDefaults = AddonTable.flatDefaults
+
+AddonTable.RegisterSchemaRows({
+    { path = "barWidth", page = "bar", group = "Size", order = 10,
+      type = "number", label = "Bar Width", default = flatDefaults.barWidth,
+      min = 50, max = 500, step = 1 },
+    -- ...
+})
+
+local function build()
+    return AddonTable.BuildPageOptions("bar", "Bar")
+end
+
+if AddonTable.RegisterOptionsPage then
+    AddonTable.RegisterOptionsPage("bar", "Bar", build)
+end
+```
+
+Conventions:
+
+1. **Defaults reference `flatDefaults`.** The default value for each row
+   reads from `AddonTable.flatDefaults` (which is the alias to
+   `AddonTable.defaults.profile`), so Core.lua remains the single place
+   to change a default. Schema rows just point at it.
+2. **Build closures.** `build()` is the lazy options-table builder
+   `OptionsPanel.lua` invokes at PLAYER_LOGIN. Most pages just return
+   `AddonTable.BuildPageOptions(pageKey, pageName)`. General also
+   appends an inline `position` group with the Reset Position execute
+   button — that's an action, not a schema row.
+3. **No widget code in the page file.** All widget rendering happens
+   inside `BuildPageOptions` (and the LSM swatch widgets in
+   `libs/Ace3/AceGUI-3.0-SharedMediaWidgets`). A typical Options/<page>.lua
+   is now ~70–115 lines vs. the ~70–140 of the inline-AceConfig version.
 
 The five pages:
 
-1. **General** (`isDefault = true`) — Show Bar, Lock Position, Update
-   Interval slider, Reset Position button. `/at config` opens this.
-2. **Bar** — Width, Height, fill texture (LSM30_Statusbar), fill color (with
-   class-color toggle), background texture, background color (with class
-   color toggle).
-3. **Border** — Border style (LSM30_Border), size, color (with class-color
-   toggle).
-4. **Font** — Font face (LSM30_Font), size, outline.
-5. **Profiles** — `AceDBOptions:GetOptionsTable(AddonTable.db)`. The build
+1. **General** (`isDefault = true`) — schema rows for `hidden` (rendered
+   inverse as "Show Bar"), `locked`, `updateInterval`. Build appends an
+   inline Position group with a Reset Position execute button. `/at
+   config` opens this.
+2. **Bar** — schema rows for `barWidth`, `barHeight`, `barTexture` /
+   `useClassColorBar` / `barColor` (with `disabledIf =
+   "useClassColorBar"`), and the same trio for the background.
+3. **Border** — schema rows for `border`, `borderSize`,
+   `useClassColorBorder`, `borderColor`.
+4. **Font** — schema rows for `font`, `fontSize`, `fontFlags`.
+5. **Profiles** — `AceDBOptions:GetOptionsTable(AddonTable.db)`. Not
+   schema-driven; AceDBOptions builds its own options table. The build
    function returns nil if AceDBOptions is missing, which causes
    OptionsPanel.lua's `registerPage` to skip the page silently.
 

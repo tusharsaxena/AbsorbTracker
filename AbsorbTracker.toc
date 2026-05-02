@@ -26,6 +26,7 @@ libs\Ace3\AceGUI-3.0-SharedMediaWidgets\widget.lua
 Core.lua
 Utils.lua
 Settings.lua
+Schema.lua
 UI.lua
 Display.lua
 Timer.lua

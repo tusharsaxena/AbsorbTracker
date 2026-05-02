@@ -4,8 +4,16 @@
 
 local AddonName, AddonTable = ...
 
-local function getSetting(key)         return AddonTable.GetSetting(key) end
-local function setSetting(key, value)  AddonTable.SetSetting(key, value) end
+local flatDefaults = AddonTable.flatDefaults
+
+local function lsmValues(mediaType)
+    return function()
+        local LSM = AddonTable.GetLSM()
+        local list, out = LSM and LSM:HashTable(mediaType) or {}, {}
+        for k in pairs(list) do out[k] = k end
+        return out
+    end
+end
 
 local fontFlagOptions = {
     [""]                          = "None",
@@ -16,52 +24,45 @@ local fontFlagOptions = {
     ["MONOCHROME, THICKOUTLINE"]  = "Monochrome, Thick Outline",
 }
 
-local fontFlagOrder = {
+local fontFlagSorting = {
     "", "OUTLINE", "THICKOUTLINE",
     "MONOCHROME", "MONOCHROME, OUTLINE", "MONOCHROME, THICKOUTLINE",
 }
 
+AddonTable.RegisterSchemaRows({
+    {
+        path    = "font",
+        page    = "font",
+        order   = 10,
+        type    = "string",
+        label   = "Font Face",
+        default = flatDefaults.font,
+        dialogControl = "LSM30_Font",
+        values = lsmValues("font"),
+    },
+    {
+        path    = "fontSize",
+        page    = "font",
+        order   = 20,
+        type    = "number",
+        label   = "Font Size",
+        default = flatDefaults.fontSize,
+        min = 6, max = 32, step = 1,
+    },
+    {
+        path    = "fontFlags",
+        page    = "font",
+        order   = 30,
+        type    = "string",
+        label   = "Font Outline",
+        default = flatDefaults.fontFlags,
+        values  = fontFlagOptions,
+        sorting = fontFlagSorting,
+    },
+})
+
 local function build()
-    return {
-        name = "Font",
-        type = "group",
-        args = {
-            font = {
-                order = 10,
-                type  = "select",
-                name  = "Font Face",
-                dialogControl = "LSM30_Font",
-                values = function()
-                    local LSM = AddonTable.GetLSM()
-                    local list, out = LSM and LSM:HashTable("font") or {}, {}
-                    for k in pairs(list) do out[k] = k end
-                    return out
-                end,
-                width = "full",
-                get   = function() return getSetting("font") end,
-                set   = function(_, v) setSetting("font", v); AddonTable.UpdateBarAppearance() end,
-            },
-            fontSize = {
-                order = 20,
-                type  = "range",
-                name  = "Font Size",
-                min   = 6, max = 32, step = 1,
-                width = "full",
-                get   = function() return getSetting("fontSize") end,
-                set   = function(_, v) setSetting("fontSize", v); AddonTable.UpdateBarAppearance() end,
-            },
-            fontFlags = {
-                order = 30,
-                type  = "select",
-                name  = "Font Outline",
-                values = fontFlagOptions,
-                sorting = fontFlagOrder,
-                width = "full",
-                get   = function() return getSetting("fontFlags") end,
-                set   = function(_, v) setSetting("fontFlags", v); AddonTable.UpdateBarAppearance() end,
-            },
-        },
-    }
+    return AddonTable.BuildPageOptions("font", "Font")
 end
 
 if AddonTable.RegisterOptionsPage then

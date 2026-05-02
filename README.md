@@ -45,32 +45,38 @@ Both the short form `/at` and the long form `/absorbtracker` work for every comm
 All chat output from the addon is prefixed with a cyan `[AT]`; in the help dump,
 each command is shown in yellow and its description in white.
 
+Most settings are reached through three schema-driven commands — `/at list`,
+`/at get <path>`, `/at set <path> <value>` — so a single mental model covers
+every setting on every sub-page.
+
 | Command                             |Description                                          |
 | ----------------------------------- |---------------------------------------------------- |
-| <code>/at</code>                    |Show this help                                       |
-| <code>/at config</code>             |Open settings panel                                  |
+| <code>/at</code> or <code>/at help</code> |Show this help                                 |
+| <code>/at config</code>             |Open the settings panel (lands on General)           |
+| <code>/at list</code>               |List every setting and its current value             |
+| <code>/at get &lt;path&gt;</code>         |Print one setting's current value                    |
+| <code>/at set &lt;path&gt; &lt;value&gt;</code> |Set one setting (typed: bool/number/string/color) |
+| <code>/at reset &lt;page&gt;</code>       |Reset one page to defaults (general, bar, border, font) |
+| <code>/at resetall</code>           |Reset every setting to defaults                      |
+| <code>/at resetposition</code>      |Move the bar back to the screen center               |
+| <code>/at lock</code>               |Lock the bar in place                                |
+| <code>/at unlock</code>             |Unlock the bar so it can be dragged                  |
 | <code>/at toggle</code>             |Toggle bar visibility                                |
-| <code>/at lock</code>               |Lock bar position                                    |
-| <code>/at unlock</code>             |Unlock bar position                                  |
-| <code>/at texture [name]</code>     |List or set bar texture                              |
-| <code>/at bgtexture [name]</code>   |List or set background texture                       |
-| <code>/at border [name]</code>      |List or set border style                             |
-| <code>/at bordersize [1-32]</code>  |Set border size                                      |
-| <code>/at bordercolor [r] [g] [b] [a]</code> |Set border color (0-255 or 0-1)                      |
-| <code>/at bordercolor classcolor [on|off]</code> |Toggle border class color                            |
-| <code>/at font [name]</code>        |List or set font                                     |
-| <code>/at fontsize [6-32]</code>    |Set font size                                        |
-| <code>/at fontflags [option]</code> |Set font outline (none, outline, thickoutline, etc.) |
-| <code>/at width [50-500]</code>     |Set bar width in pixels                              |
-| <code>/at height [10-100]</code>    |Set bar height in pixels                             |
-| <code>/at color [r] [g] [b] [a]</code> |Set bar color (0-255 or 0-1)                         |
-| <code>/at color classcolor [on|off]</code> |Toggle bar class color                               |
-| <code>/at bgcolor [r] [g] [b] [a]</code> |Set background color (0-255 or 0-1)                  |
-| <code>/at bgcolor classcolor [on|off]</code> |Toggle background class color                        |
-| <code>/at interval [0.1-10]</code>  |Set update interval in seconds                       |
 | <code>/at debug</code>              |Toggle debug mode                                    |
-| <code>/at test [value]</code>       |Test display with fake value                         |
-| <code>/at update</code>             |Force immediate update                               |
+| <code>/at update</code>             |Force a bar refresh                                  |
+| <code>/at test [value]</code>       |Test display with a fake absorb value                |
+
+#### Examples
+
+```
+/at list                              # see every setting and current value
+/at set barWidth 250                  # number
+/at set barColor 0.4 0.7 1.0 0.8      # color (RGBA, 0-1 or 0-255)
+/at set barTexture "Blizzard Raid Bar"# string (LSM media name)
+/at set useClassColorBar true         # bool
+/at set updateInterval 0.5            # number
+/at reset bar                         # restore the Bar page defaults
+```
 
 ### Profile Commands
 
@@ -109,7 +115,8 @@ Open with `/at config` and configure:
 
 ### Via Slash Commands
 
-All settings can also be changed via slash commands (see tables above).
+Every setting in the panel is also reachable via `/at set <path> <value>`.
+Run `/at list` to discover the available paths and their current values.
 
 ## Troubleshooting
 

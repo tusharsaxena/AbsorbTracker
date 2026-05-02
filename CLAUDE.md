@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Git Workflow
+
+- **Never auto-commit.** Wait for an explicit instruction from the user (e.g. "commit this", "commit and push") before running `git commit` or `git push`. This applies even after long multi-file changes that look obviously commit-ready — the user chooses when to commit.
+- Same rule for pushing: never push without an explicit instruction.
+- **Never bump the version without an explicit instruction.** The version lives in `AbsorbTracker.toc` (`## Version:`) and in `README.md` (badge + changelog header). Don't increment either, and don't add a new changelog entry, just because a refactor or feature looks "done" — the user decides when to cut a release.
+
 ## Project Overview
 
 AbsorbTracker is a World of Warcraft addon that displays absorb shield values on the player's character. It's a modular Lua addon targeting WoW retail (12.0.0+).
@@ -17,16 +23,17 @@ for a deeper system-design walkthrough.
 | `Core.lua` | ~36 | AddonTable setup, defaults table, cached math functions |
 | `Utils.lua` | ~52 | Print (cyan [AT] prefix), DebugPrint, PrintLSMList, ParseColor |
 | `Settings.lua` | ~173 | GetSetting/SetSetting, LSM wrappers, fallback constants, class color helpers |
+| `Schema.lua` | ~330 | Schema registry: RegisterSchemaRows, FindSchemaRow, SchemaForPage, GetByPath/SetByPath/ApplyDefault, FormatSchemaValue, ParseSchemaValue, BuildPageOptions(pageKey) |
 | `UI.lua` | ~60 | Bar frame creation (BackdropTemplate, StatusBar, FontString) |
 | `Display.lua` | ~107 | UpdateBarAppearance, UpdateAbsorbBar, RestoreBarPosition |
 | `Timer.lua` | ~40 | C_Timer.NewTicker management for periodic updates |
 | `Events.lua` | ~80 | Event handlers (PLAYER_LOGIN, UNIT_ABSORB_AMOUNT_CHANGED), OnProfileChanged |
-| `SlashCommands.lua` | ~413 | `/at` and `/absorbtracker` slash dispatch and subcommand handlers |
+| `SlashCommands.lua` | ~345 | `/at` dispatcher: COMMANDS table + schema-driven list/get/set/reset |
 | `OptionsPanel.lua` | ~145 | Registration shell: queues page builders, registers an empty top-level "Ka0s Absorb Tracker" category and each Options/*.lua under it |
-| `Options/General.lua` | ~105 | General sub-page (default) — Show Bar, Lock Position, Update Interval, Reset Position. `/at config` opens this. |
-| `Options/Bar.lua` | ~140 | Bar sub-page — width, height, fill texture+color, background texture+color |
-| `Options/Border.lua` | ~90 | Border sub-page — style, size, color |
-| `Options/Font.lua` | ~70 | Font sub-page — face, size, outline |
+| `Options/General.lua` | ~85 | General sub-page (default) — schema rows for Show Bar, Lock, Update Interval; injects Reset Position execute. `/at config` opens this. |
+| `Options/Bar.lua` | ~115 | Bar sub-page — schema rows for width, height, fill texture+color, background texture+color |
+| `Options/Border.lua` | ~70 | Border sub-page — schema rows for style, size, color |
+| `Options/Font.lua` | ~70 | Font sub-page — schema rows for face, size, outline |
 | `Options/Profiles.lua` | ~20 | Profiles sub-page — wraps `AceDBOptions:GetOptionsTable(db)` |
 
 ### Module Communication
@@ -43,7 +50,14 @@ All modules share state through the `AddonTable` (second return value from `...`
 - `AddonTable.ClearLSMCache()` - Reset cached LSM reference (called after PLAYER_LOGIN)
 - `AddonTable.UpdateBarAppearance()` / `AddonTable.UpdateAbsorbBar()` - Display updates
 - `AddonTable.RestartUpdateTicker()` - Timer control
-- `AddonTable.RegisterOptionsPage(key, name, builder, opts)` - Each `Options/*.lua` calls this at file-load time to queue itself. `builder()` runs at PLAYER_LOGIN and returns an AceConfig options table. `opts.isDefault = true` flags the page that `/at config` opens (General).
+- `AddonTable.Schema` - Flat array of schema rows. Single source of truth for every user-facing setting; both the AceConfig sub-pages and the slash dispatcher walk it.
+- `AddonTable.RegisterSchemaRows(rows)` - Each `Options/*.lua` calls this at file-load time to append its rows. Row shape: `{ path, page, group?, order, type, label, desc?, default, ... }` — see Schema.lua header for the full grammar.
+- `AddonTable.FindSchemaRow(path)` / `AddonTable.SchemaForPage(pageKey)` - Schema lookup helpers used by slash and panel layers.
+- `AddonTable.GetByPath(path)` / `AddonTable.SetByPath(path, value)` - Schema-aware read/write (fires the row's onChange). `/at set` and the panel widgets both go through SetByPath.
+- `AddonTable.ApplyDefault(row)` - Reset one schema row to `row.default`. Used by `/at reset` and `/at resetall`.
+- `AddonTable.FormatSchemaValue(row, value)` / `AddonTable.ParseSchemaValue(row, text)` - Render a value for `/at list/get` output / parse a slash-command tail into a typed value for `/at set`.
+- `AddonTable.BuildPageOptions(pageKey, pageName)` - Assemble an AceConfig options table from the schema rows for one page (groups by `row.group`, sorts by `row.order`).
+- `AddonTable.RegisterOptionsPage(key, name, builder, opts)` - Each `Options/*.lua` calls this at file-load time to queue itself. `builder()` runs at PLAYER_LOGIN and returns an AceConfig options table (typically `BuildPageOptions(key, name)`). `opts.isDefault = true` flags the page that `/at config` opens (General).
 - `AddonTable.CreateOptionsPanel()` / `AddonTable.RefreshOptionsPanel()` / `AddonTable.OpenOptionsPanel()` - Options panel registration / re-render / open
 
 ### Forward References
@@ -115,9 +129,11 @@ If AceDB-3.0 is not installed, the addon falls back to a simple db-like structur
 - **Secret values** from `UnitGetTotalAbsorbs()` must use `AbbreviateNumbers()` directly (no tonumber conversion)
 - **Class color** - Bar, background, and border each have an independent `useClassColor*` toggle. Colors are resolved at call time via `GetBarColor()`/`GetBgColor()`/`GetBorderColor()` in Settings.lua. Background class color uses a darkened variant (×0.2 multiplier) from a per-class lookup table. Each color picker has `disabled = function() return getSetting("useClassColor*") end` so it greys out when the matching class-color toggle is on.
 - **Multi-page settings** - `OptionsPanel.lua` is a thin shell. At PLAYER_LOGIN it registers an empty title-only top-level "Ka0s Absorb Tracker" category, then registers each `Options/*.lua` page underneath it via `AceConfigDialog:AddToBlizOptions(appName, name, "Ka0s Absorb Tracker")`. Each `Options/*.lua` calls `AddonTable.RegisterOptionsPage(key, name, builder, opts)` at load time to queue itself; `opts.isDefault = true` flags the page that `/at config` should open (typically General). `appName` is `AbsorbTracker-<key>` so each page has its own AceConfig namespace; the parent uses `AbsorbTracker`.
+- **Schema-driven settings** - `AddonTable.Schema` is a flat array; each `Options/<page>.lua` (except Profiles) calls `AddonTable.RegisterSchemaRows({ ... })` at file-load time to append its rows. The page's `build()` then returns `AddonTable.BuildPageOptions(pageKey, pageName)` — an AceConfig options table assembled from the schema (rows with the same `group` cluster into an inline AceConfig group; `order` sets the rendering sequence). The same schema feeds `/at list`, `/at get`, `/at set`, `/at reset` and `/at resetall`. Adding a new option = one schema row. The panel widgets and slash command surface for that path are wired automatically.
+- **Schema row behavior knobs** - `inverse = true` on a bool flips the widget value vs. the db value (used for `hidden` rendered as "Show Bar"). `disabledIf = "<sibling-path>"` on a color greys out the picker when the named sibling toggle is on (used for class-color overrides). `onChange` defaults to `UpdateBarAppearance`; rows with different reactions (e.g. `updateInterval` calls `RestartUpdateTicker`) override explicitly.
 - **LSM swatch dropdowns** - Texture/border/font select fields use `dialogControl = "LSM30_Statusbar"` (or `_Border` / `_Font`). Custom AceGUI widgets at `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/widget.lua` render each item with an inline preview swatch. Names match the upstream `AceGUI-3.0-SharedMediaWidgets` lib so dropping in the real lib later is a clean swap.
 - **Chat output** - All addon chat messages go through `AddonTable.Print()` which prepends a cyan `|cFF00FFFF[AT]|r` prefix. `Utils.lua`, `SlashCommands.lua`, and `OptionsPanel.lua` shadow the global `print` with `local print = AddonTable.Print` so existing `print(...)` call sites stay unchanged.
-- **Slash dispatch** - `/at` and `/absorbtracker` both bind to `SlashCmdList["ABSORBTRACKER"]`. `/at` with no args (and any unknown command) prints help via the `else` branch; `/at config` opens the options panel (lands on the General sub-page). Help rows use `PrintCmd(cmd, desc)` to format yellow command + white explanation.
+- **Slash dispatch** - `/at` and `/absorbtracker` both bind to `SlashCmdList["ABSORBTRACKER"]`. The handler walks a `COMMANDS` table mapping `name -> { desc, handler }`. `/at` with no args prints help (header + each COMMANDS row formatted as yellow `/at <cmd>` em-dash white description, KickCD-style). `/at config` opens the options panel on the General sub-page. The schema-aware `/at list`, `/at get <path>`, `/at set <path> <value>`, `/at reset <page>`, `/at resetall` cover every schema row without per-setting code; per-setting subcommands like `/at width` / `/at color` were removed in favor of `/at set <path>`.
 
 ## Testing
 
@@ -147,6 +163,7 @@ AbsorbTracker/
 ├── Core.lua                   # AddonTable setup, defaults
 ├── Utils.lua                  # Print pipeline, debug, ParseColor
 ├── Settings.lua               # Database, LSM, color resolution
+├── Schema.lua                 # Schema registry + AceConfig options builder + value parser
 ├── UI.lua                     # Bar frame creation
 ├── Display.lua                # Bar update functions
 ├── Timer.lua                  # Update ticker management

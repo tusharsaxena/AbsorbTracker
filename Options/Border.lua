@@ -4,83 +4,64 @@
 
 local AddonName, AddonTable = ...
 
-local function getSetting(key)         return AddonTable.GetSetting(key) end
-local function setSetting(key, value)  AddonTable.SetSetting(key, value) end
+local flatDefaults = AddonTable.flatDefaults
 
-local function getColor(key)
-    local c = getSetting(key) or {}
-    return c.r or 1, c.g or 1, c.b or 1, c.a or 1
+local function lsmValues(mediaType)
+    return function()
+        local LSM = AddonTable.GetLSM()
+        local list, out = LSM and LSM:HashTable(mediaType) or {}, {}
+        for k in pairs(list) do out[k] = k end
+        return out
+    end
 end
 
-local function setColor(key, r, g, b, a)
-    setSetting(key, { r = r, g = g, b = b, a = a })
-    AddonTable.UpdateBarAppearance()
-end
+AddonTable.RegisterSchemaRows({
+    {
+        path    = "border",
+        page    = "border",
+        group   = "Border Style",
+        order   = 10,
+        type    = "string",
+        label   = "Border Style",
+        default = flatDefaults.border,
+        dialogControl = "LSM30_Border",
+        values = lsmValues("border"),
+    },
+    {
+        path    = "borderSize",
+        page    = "border",
+        group   = "Border Style",
+        order   = 20,
+        type    = "number",
+        label   = "Border Size",
+        default = flatDefaults.borderSize,
+        min = 1, max = 32, step = 1,
+    },
+    {
+        path    = "useClassColorBorder",
+        page    = "border",
+        group   = "Border Color",
+        order   = 10,
+        type    = "bool",
+        label   = "Use Class Color",
+        desc    = "Use your class color for the border.",
+        default = flatDefaults.useClassColorBorder,
+    },
+    {
+        path     = "borderColor",
+        page     = "border",
+        group    = "Border Color",
+        order    = 20,
+        type     = "color",
+        label    = "Border Color",
+        default  = flatDefaults.borderColor,
+        hasAlpha = true,
+        disabledIf = "useClassColorBorder",
+    },
+})
 
 local function build()
-    return {
-        name = "Border",
-        type = "group",
-        args = {
-            style = {
-                order = 10,
-                type  = "group",
-                name  = "Border Style",
-                inline = true,
-                args = {
-                    border = {
-                        order = 10,
-                        type  = "select",
-                        name  = "Border Style",
-                        dialogControl = "LSM30_Border",
-                        values = function()
-                            local LSM = AddonTable.GetLSM()
-                            local list, out = LSM and LSM:HashTable("border") or {}, {}
-                            for k in pairs(list) do out[k] = k end
-                            return out
-                        end,
-                        width = "full",
-                        get   = function() return getSetting("border") end,
-                        set   = function(_, v) setSetting("border", v); AddonTable.UpdateBarAppearance() end,
-                    },
-                    borderSize = {
-                        order = 20,
-                        type  = "range",
-                        name  = "Border Size",
-                        min   = 1, max = 32, step = 1,
-                        width = "full",
-                        get   = function() return getSetting("borderSize") end,
-                        set   = function(_, v) setSetting("borderSize", v); AddonTable.UpdateBarAppearance() end,
-                    },
-                },
-            },
-            color = {
-                order = 20,
-                type  = "group",
-                name  = "Border Color",
-                inline = true,
-                args = {
-                    useClassColorBorder = {
-                        order = 10,
-                        type  = "toggle",
-                        name  = "Use Class Color",
-                        desc  = "Use your class color for the border.",
-                        get   = function() return getSetting("useClassColorBorder") end,
-                        set   = function(_, v) setSetting("useClassColorBorder", v); AddonTable.UpdateBarAppearance() end,
-                    },
-                    borderColor = {
-                        order = 20,
-                        type  = "color",
-                        name  = "Border Color",
-                        hasAlpha = true,
-                        disabled = function() return getSetting("useClassColorBorder") end,
-                        get   = function() return getColor("borderColor") end,
-                        set   = function(_, r, g, b, a) setColor("borderColor", r, g, b, a) end,
-                    },
-                },
-            },
-        },
-    }
+    return AddonTable.BuildPageOptions("border", "Border")
 end
 
 if AddonTable.RegisterOptionsPage then
