@@ -68,7 +68,6 @@ local pendingPages = {}
 -- Post-registration tracking.
 local mainCategory             -- Settings.RegisterCanvasLayoutCategory return
 local mainCategoryID           -- numeric ID for OpenToCategory
-local defaultCategoryID        -- the page flagged isDefault (what /at config opens)
 local subCategoriesByKey = {}  -- key → subcategory return from RegisterCanvasLayoutSubcategory
 local renderedPanels = {}      -- list of ctx tables for refresh / reset
 
@@ -857,14 +856,11 @@ end
 -- @param builder   function(mainCategory) -> sub-category | nil. Called
 --                  at PLAYER_LOGIN once db is ready. Return nil to skip
 --                  the page (e.g. AceDBOptions missing → no Profiles).
--- @param opts      Optional { isDefault = true } to mark this page as
---                  the one `/at config` opens.
-function AddonTable.RegisterOptionsPage(key, name, builder, opts)
+function AddonTable.RegisterOptionsPage(key, name, builder)
     pendingPages[#pendingPages + 1] = {
-        key       = key,
-        name      = name,
-        builder   = builder,
-        isDefault = opts and opts.isDefault,
+        key     = key,
+        name    = name,
+        builder = builder,
     }
 end
 
@@ -914,9 +910,6 @@ function AddonTable.CreateOptionsPanel()
         local sub = page.builder(mainCategory)
         if sub then
             subCategoriesByKey[page.key] = sub
-            if page.isDefault and sub.GetID then
-                defaultCategoryID = sub:GetID()
-            end
         end
     end
 end
@@ -925,6 +918,25 @@ end
 -- Open / refresh
 -- ---------------------------------------------------------------------
 
+-- Expand the parent category in the Blizzard Settings left tree so
+-- every sub-page is visible. Wrapped in pcall: SettingsPanel internals
+-- (CategoryList, GetCategoryEntry, SetExpanded) are private API and
+-- could shift between patches; if any call goes missing we just open
+-- the panel without forcing expansion rather than erroring out.
+local function expandMainCategory()
+    if not (mainCategory and SettingsPanel) then return end
+    pcall(function()
+        local list = SettingsPanel.GetCategoryList
+            and SettingsPanel:GetCategoryList()
+            or SettingsPanel.CategoryList
+        if not (list and list.GetCategoryEntry) then return end
+        local entry = list:GetCategoryEntry(mainCategory)
+        if entry and entry.SetExpanded then
+            entry:SetExpanded(true)
+        end
+    end)
+end
+
 function AddonTable.OpenOptionsPanel()
     -- Settings UI is protected during combat.
     if InCombatLockdown() then
@@ -932,10 +944,9 @@ function AddonTable.OpenOptionsPanel()
         return
     end
     if not (Settings and Settings.OpenToCategory) then return end
-    -- Prefer the page flagged isDefault (General); fall back to the
-    -- main category if no default was registered.
-    local target = defaultCategoryID or mainCategoryID
-    if target then Settings.OpenToCategory(target) end
+    if not mainCategoryID then return end
+    Settings.OpenToCategory(mainCategoryID)
+    expandMainCategory()
 end
 
 -- AceDB profile changes (OnProfileChanged callback in Events.lua) call

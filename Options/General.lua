@@ -134,5 +134,5 @@ local function build(mainCategory)
 end
 
 if AddonTable.RegisterOptionsPage then
-    AddonTable.RegisterOptionsPage("general", "General", build, { isDefault = true })
+    AddonTable.RegisterOptionsPage("general", "General", build)
 end

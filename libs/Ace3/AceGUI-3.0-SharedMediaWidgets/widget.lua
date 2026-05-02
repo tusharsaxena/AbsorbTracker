@@ -54,8 +54,10 @@ local function renderBorderSwatch(swatch, name)
     swatch.text:Hide()
     swatch.tex:SetTexture(LSM:Fetch("border", name) or "")
     swatch.tex:SetVertexColor(0.85, 0.85, 0.85, 1)
-    -- Borders are tile sheets — show the top-left corner as the preview.
-    swatch.tex:SetTexCoord(0, 0.25, 0, 0.25)
+    -- Borders are tile sheets — show the very top-left corner. Borders
+    -- like ElvUI GlowBorder pack a glow halo into the top-left tile that
+    -- would visually dominate the dropdown if shown at the full quadrant.
+    swatch.tex:SetTexCoord(0, 0.125, 0, 0.125)
 end
 
 local function renderFontSwatch(swatch, name)
@@ -76,9 +78,25 @@ local ITEM_HEIGHT = 22
 local SWATCH_W    = 80
 local SWATCH_H    = 14
 
-local function createItemButton(parent, renderSwatch)
+-- Per-mediatype swatch dimensions. Statusbar previews want a wide strip
+-- (the texture is rendered as a horizontal fill); border previews are
+-- corner-tile crops that look distorted stretched 80×14, so we render
+-- them as a square. Font previews keep the wide form to fit "Aa".
+local SWATCH_SIZES = {
+    statusbar = { w = SWATCH_W, h = SWATCH_H },
+    border    = { w = 16,       h = 16       },
+    font      = { w = SWATCH_W, h = SWATCH_H },
+}
+
+local function swatchSize(mediaType)
+    local s = SWATCH_SIZES[mediaType] or SWATCH_SIZES.statusbar
+    return s.w, s.h
+end
+
+local function createItemButton(parent, renderSwatch, mediaType)
     local btn = CreateFrame("Button", nil, parent)
     btn:SetHeight(ITEM_HEIGHT)
+    if btn.SetClipsChildren then btn:SetClipsChildren(true) end
 
     local hl = btn:CreateTexture(nil, "HIGHLIGHT")
     hl:SetAllPoints()
@@ -89,15 +107,17 @@ local function createItemButton(parent, renderSwatch)
     check:SetWidth(10)
     btn.check = check
 
+    local sw, sh = swatchSize(mediaType)
     local label = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     label:SetPoint("LEFT", 16, 0)
-    label:SetPoint("RIGHT", btn, "RIGHT", -(SWATCH_W + 8), 0)
+    label:SetPoint("RIGHT", btn, "RIGHT", -(sw + 8), 0)
     label:SetJustifyH("LEFT")
     btn.label = label
 
     local swatch = CreateFrame("Frame", nil, btn)
-    swatch:SetSize(SWATCH_W, SWATCH_H)
-    swatch:SetPoint("RIGHT", -4, 0)
+    swatch:SetSize(sw, sh)
+    swatch:ClearAllPoints()
+    swatch:SetPoint("RIGHT", btn, "RIGHT", -4, 0)
 
     local swatchTex = swatch:CreateTexture(nil, "OVERLAY")
     swatchTex:SetAllPoints()
@@ -123,6 +143,8 @@ local function buildConstructor(widgetType, mediaType, renderSwatch)
         local self = {}
         self.type = widgetType
 
+        local sw, sh = swatchSize(mediaType)
+
         -- Container frame the widget anchors against. AceGUI expects
         -- self.frame at a minimum, plus self.alignoffset for label-aware
         -- positioning. The frame is a sized Blizzard frame; AceGUI sizes
@@ -141,11 +163,14 @@ local function buildConstructor(widgetType, mediaType, renderSwatch)
         label:SetHeight(16)
         self.label = label
 
-        -- Closed-state button
+        -- Closed-state button. SetClipsChildren keeps any oversize media
+        -- preview (e.g. ElvUI GlowBorder's halo, which bleeds well beyond
+        -- the swatch frame) from spilling out into the label above.
         local btn = CreateFrame("Button", nil, frame, "BackdropTemplate")
         btn:SetPoint("TOPLEFT", frame, "TOPLEFT", 4, -16)
         btn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -16)
         btn:SetHeight(24)
+        if btn.SetClipsChildren then btn:SetClipsChildren(true) end
         btn:SetBackdrop({
             bgFile   = "Interface\\ChatFrame\\ChatFrameBackground",
             edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -158,14 +183,18 @@ local function buildConstructor(widgetType, mediaType, renderSwatch)
 
         local btnText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         btnText:SetPoint("LEFT", 8, 0)
-        btnText:SetPoint("RIGHT", btn, "RIGHT", -(SWATCH_W + 24), 0)
+        btnText:SetPoint("RIGHT", btn, "RIGHT", -(sw + 24), 0)
         btnText:SetJustifyH("LEFT")
         self.buttonText = btnText
 
-        -- Closed-state swatch (mirrors the item-row swatch design)
+        -- Closed-state swatch (mirrors the item-row swatch design).
+        -- Anchored explicitly to btn.RIGHT (with width set via SetSize)
+        -- so it can't drift off the right edge regardless of how AceGUI
+        -- resizes the parent button during its layout pass.
         local btnSwatch = CreateFrame("Frame", nil, btn)
-        btnSwatch:SetSize(SWATCH_W, SWATCH_H)
-        btnSwatch:SetPoint("RIGHT", -22, 0)
+        btnSwatch:ClearAllPoints()
+        btnSwatch:SetPoint("RIGHT", btn, "RIGHT", -22, 0)
+        btnSwatch:SetSize(sw, sh)
         local btnSwatchTex = btnSwatch:CreateTexture(nil, "OVERLAY")
         btnSwatchTex:SetAllPoints()
         btnSwatch.tex = btnSwatchTex
@@ -269,7 +298,7 @@ local function buildConstructor(widgetType, mediaType, renderSwatch)
             for i, key in ipairs(order) do
                 local item = itemPool[i]
                 if not item then
-                    item = createItemButton(content, renderSwatch)
+                    item = createItemButton(content, renderSwatch, mediaType)
                     itemPool[i] = item
                 end
                 item:SetParent(content)

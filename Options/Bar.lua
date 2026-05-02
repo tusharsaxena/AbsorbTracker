@@ -6,10 +6,10 @@
 --
 -- Layout produces:
 --     [Bar Width]          | [Bar Height]
---     [Bar Texture]                                (solo)
---     [Use Class Color]    | [Bar Color]
---     [Background Texture]                         (solo)
---     [Use Class Color]    | [Background Color]
+--     [Bar Texture]        | [Bar Color]
+--     [Use Class Color]
+--     [Background Texture] | [Background Color]
+--     [Use Class Color]
 
 local AddonName, AddonTable = ...
 
@@ -59,29 +59,29 @@ AddonTable.RegisterSchemaRows({
         default = flatDefaults.barTexture,
         dialogControl = "LSM30_Statusbar",
         values = lsmValues("statusbar"),
-        solo   = true,
-    },
-    {
-        path    = "useClassColorBar",
-        page    = "bar",
-        group   = "Bar Fill",
-        order   = 20,
-        type    = "bool",
-        label   = "Use Class Color",
-        desc    = "Use your class color for the bar fill. Greys out the Bar Color picker.",
-        default = flatDefaults.useClassColorBar,
     },
     {
         path     = "barColor",
         page     = "bar",
         group    = "Bar Fill",
-        order    = 30,
+        order    = 20,
         type     = "color",
         label    = "Bar Color",
         desc     = "RGBA fill color for the bar (only used when Use Class Color is off).",
         default  = flatDefaults.barColor,
         hasAlpha = true,
         disabledIf = "useClassColorBar",
+    },
+    {
+        path    = "useClassColorBar",
+        page    = "bar",
+        group   = "Bar Fill",
+        order   = 30,
+        type    = "bool",
+        label   = "Use Class Color",
+        desc    = "Use your class color for the bar fill. Greys out the Bar Color picker.",
+        default = flatDefaults.useClassColorBar,
+        solo   = true,
     },
 
     {
@@ -95,29 +95,29 @@ AddonTable.RegisterSchemaRows({
         default = flatDefaults.bgTexture,
         dialogControl = "LSM30_Statusbar",
         values = lsmValues("statusbar"),
-        solo   = true,
-    },
-    {
-        path    = "useClassColorBg",
-        page    = "bar",
-        group   = "Background",
-        order   = 20,
-        type    = "bool",
-        label   = "Use Class Color",
-        desc    = "Use a darkened class color for the background. Greys out the Background Color picker.",
-        default = flatDefaults.useClassColorBg,
     },
     {
         path     = "bgColor",
         page     = "bar",
         group    = "Background",
-        order    = 30,
+        order    = 20,
         type     = "color",
         label    = "Background Color",
         desc     = "RGBA color drawn behind the bar (only used when Use Class Color is off).",
         default  = flatDefaults.bgColor,
         hasAlpha = true,
         disabledIf = "useClassColorBg",
+    },
+    {
+        path    = "useClassColorBg",
+        page    = "bar",
+        group   = "Background",
+        order   = 30,
+        type    = "bool",
+        label   = "Use Class Color",
+        desc    = "Use a darkened class color for the background. Greys out the Background Color picker.",
+        default = flatDefaults.useClassColorBg,
+        solo   = true,
     },
 })
 
