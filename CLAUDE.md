@@ -5,8 +5,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Git Workflow
 
 - **Never auto-stage.** Don't run `git add` (or any equivalent that moves files into the index) without an explicit instruction from the user. The user reviews the working-tree diff before staging is part of the loop they want to keep.
-- **Never auto-commit.** Wait for an explicit instruction (e.g. "commit this", "commit and push") before running `git commit` or `git push`. This applies even after long multi-file changes that look obviously commit-ready — the user chooses when to commit.
-- Same rule for pushing: never push without an explicit instruction.
+- **Never auto-commit.** Wait for an explicit instruction before running `git commit`. This applies even after long multi-file changes that look obviously commit-ready — the user chooses when to commit.
+- **What counts as explicit instruction to commit:**
+  - A direct request in chat: "commit this", "commit and push", "commit the docs", etc.
+  - The user invoking the **`/wow-addon:commit`** slash command. The skill's own confirmation prompt is the user's deliberate gate; answering `y` to it is the explicit instruction. No additional "yes go ahead" message is needed. Same applies to any other user-invoked slash command whose stated purpose is to commit.
+  - **Does not count**: a generic "looks good", "ship it", "yep", or the assistant's own end-of-task summary.
+- **Never auto-push.** Pushing is gated separately and is **not** covered by `/wow-addon:commit`. After a commit lands, stop and let the user push themselves (or ask for an explicit "push this").
 - **Never bump the version without an explicit instruction.** The version lives in `AbsorbTracker.toc` (`## Version:`) and in `README.md` (badge + changelog header). Don't increment either, and don't add a new changelog entry, just because a refactor or feature looks "done" — the user decides when to cut a release.
 
 ## Project Overview
