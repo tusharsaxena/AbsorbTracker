@@ -38,7 +38,8 @@ WoW events ─▶ Events.lua  ─▶ C_Timer.NewTicker  ─▶ Display.UpdateAbs
 | Profiles (AceDB integration + `/at profile` + fallback shim) | `Events.lua`, `Options/Profiles.lua`, `SlashCommands.lua` | [docs/profiles.md](./docs/profiles.md) |
 | WoW retail API gotchas (secret values, backdrop refresh, combat lockdown, Interface line) | — | [docs/midnight-quirks.md](./docs/midnight-quirks.md) |
 | In/out scope + resolved design decisions | — | [docs/scope.md](./docs/scope.md) |
-| Routine recipes (add a setting, add a sub-page, smoke test, troubleshoot LSM) | — | [docs/common-tasks.md](./docs/common-tasks.md) |
+| Routine recipes (add a setting, add a sub-page, troubleshoot LSM, bump Interface) | — | [docs/common-tasks.md](./docs/common-tasks.md) |
+| Manual QA / smoke-test recipe (release checklist) | — | [docs/smoke-tests.md](./docs/smoke-tests.md) |
 
 ## Invariants worth not breaking
 

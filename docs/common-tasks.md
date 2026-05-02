@@ -124,31 +124,13 @@ If the texture / border / font dropdowns only show Blizzard's built-in fallback 
 
 If the dropdowns show *some* entries but not all, check that the contributing addon registers its assets with `LibStub("LibSharedMedia-3.0"):Register("statusbar", "name", path)` — some addons declare assets differently and the registration call gets missed.
 
-## Smoke-test recipe
-
-There are no automated tests. Validation is manual, in-game:
-
-1. **Copy the addon** to your WoW AddOns folder and `/reload` in-game.
-2. **Check the bar paints.** With no active absorb, the bar reads 0. Pick up an active absorb (cast Power Word: Shield, equip a trinket with an absorb proc) — the bar should fill, and the value should match WoW's default unit-frame absorb overlay.
-3. **Test slash commands.**
-   - `/at` — help text appears with the cyan `[AT]` prefix.
-   - `/at config` — Settings panel opens on General.
-   - `/at list` — every schema row prints, grouped by page, with current values.
-   - `/at set barWidth 250` then `/at get barWidth` — round-trips to `250`.
-   - `/at set useClassColorBar true` — bar fill flips to class color; `/at set useClassColorBar false` reverts.
-4. **Test the Settings panel.** Open via `/at config`, change values on each sub-page, verify the bar updates immediately.
-5. **Test profiles.** Settings → Profiles → New → enter a name → switch to it. Verify the bar position resets to center (new profile has no saved position) and existing settings carry over.
-6. **Test `/at debug`.** Toggle on, trigger an absorb (cast Power Word: Shield), verify the cyan `[AT]` debug log appears in chat.
-
-If you can only reason about the change from code and cannot test it in WoW, **say so explicitly** — don't claim it works.
-
 ## Bump the Interface line
 
 When a new compatible patch ships:
 
 1. Open `AbsorbTracker.toc`.
 2. Append the new patch number to the `## Interface:` line: `120000, 120001, 120005, 120006`.
-3. Test in-game on the new patch (smoke-test recipe above).
+3. Test in-game on the new patch — see [smoke-tests.md](./smoke-tests.md) for the full manual QA recipe.
 4. Commit. **Don't bump the addon version** — Interface compatibility is independent of addon version. The user decides when to cut a release.
 
 If the new patch *breaks* the addon, drop the broken patch number from the line and note the regression in README's troubleshooting section.

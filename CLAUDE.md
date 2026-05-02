@@ -34,7 +34,7 @@ For functions defined in later-loaded modules, callers reference them through `A
 - **Dual-path WSL.** The repo is mirrored at `/mnt/d/Profile/Users/Tushar/Documents/GIT/AbsorbTracker/` and `/home/tushar/GIT/AbsorbTracker/`. Either path works for git and file tools.
 - **CRLF line endings on disk.** Enforced via `.gitattributes` (`* text=auto eol=crlf` plus explicit `*.lua/*.toc/*.xml/*.md text eol=crlf`). After any direct disk write of a text file, convert with `sed -i 's/$/\r/'` if the tool wrote LF.
 - **Bundled libs in `libs/`.** LibStub, CallbackHandler-1.0, LibSharedMedia-3.0, the Ace3 stack (AceAddon / AceDB / AceGUI / AceConfig / AceDBOptions), and the in-tree `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets). All tracked in git (standard WoW addon practice).
-- **No automated tests.** Validation is manual, in-game. See [docs/common-tasks.md](./docs/common-tasks.md#smoke-test-recipe) for the smoke-test recipe.
+- **No automated tests.** Validation is manual, in-game. See [docs/smoke-tests.md](./docs/smoke-tests.md) for the full manual QA recipe.
 
 ## Response style for this repo
 
@@ -61,4 +61,5 @@ Topic-specific detail lives in `docs/`. Read on demand — these are not auto-lo
 | Data flow (bootstrap, absorb update, settings write, profile change) | [docs/data-flow.md](./docs/data-flow.md) | Touching event handling, the ticker, or `OnProfileChanged`. |
 | Profiles (AceDB integration, `/at profile`, fallback shim) | [docs/profiles.md](./docs/profiles.md) | Touching profile callbacks or the `/at profile` subcommands. |
 | Midnight quirks (secret values, backdrop refresh, combat lockdown, Interface line) | [docs/midnight-quirks.md](./docs/midnight-quirks.md) | Patch-day breakage; protected-API gotchas. |
-| Recipes (add a setting, add a sub-page, smoke test, troubleshoot LSM) | [docs/common-tasks.md](./docs/common-tasks.md) | Routine modifications. |
+| Recipes (add a setting, add a sub-page, troubleshoot LSM, bump Interface) | [docs/common-tasks.md](./docs/common-tasks.md) | Routine modifications. |
+| Manual QA / smoke-test recipe | [docs/smoke-tests.md](./docs/smoke-tests.md) | Before a release; spot-check after non-trivial changes. |

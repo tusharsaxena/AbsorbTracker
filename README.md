@@ -99,6 +99,8 @@ Both libs ship in-tree under `libs/`, so the addon is fully self-contained.
 
 All bugs, feature requests, and outstanding work are tracked at [https://github.com/tusharsaxena/absorbtracker/issues](https://github.com/tusharsaxena/absorbtracker/issues). Please file new reports there rather than as comments — the issue tracker is the single source of truth for the project's backlog.
 
+If you're filing a regression, the manual QA recipe at [docs/smoke-tests.md](./docs/smoke-tests.md) is the same checklist used before each release — its "Failure-mode quick reference" table maps symptoms to the likely subsystem.
+
 ## Version History
 
 | Version | Changes |
