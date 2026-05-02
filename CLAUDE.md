@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Git Workflow
 
-- **Never auto-commit.** Wait for an explicit instruction from the user (e.g. "commit this", "commit and push") before running `git commit` or `git push`. This applies even after long multi-file changes that look obviously commit-ready — the user chooses when to commit.
+- **Never auto-stage.** Don't run `git add` (or any equivalent that moves files into the index) without an explicit instruction from the user. The user reviews the working-tree diff before staging is part of the loop they want to keep.
+- **Never auto-commit.** Wait for an explicit instruction (e.g. "commit this", "commit and push") before running `git commit` or `git push`. This applies even after long multi-file changes that look obviously commit-ready — the user chooses when to commit.
 - Same rule for pushing: never push without an explicit instruction.
 - **Never bump the version without an explicit instruction.** The version lives in `AbsorbTracker.toc` (`## Version:`) and in `README.md` (badge + changelog header). Don't increment either, and don't add a new changelog entry, just because a refactor or feature looks "done" — the user decides when to cut a release.
 

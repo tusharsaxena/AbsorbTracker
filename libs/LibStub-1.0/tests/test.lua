@@ -38,4 +38,4 @@ assert(newOldMinor == 3) -- previous version was 3 (even though it gave a string
 
 local newLib, newOldMinor = LibStub:NewLibrary("Pants", 5) -- register a new library, using a normal number instead of a string
 assert(newLib)
-assert(newOldMinor == 4) -- previous version was 4 (even though it gave a string)
+assert(newOldMinor == 4) -- previous version was 4 (even though it gave a string)
