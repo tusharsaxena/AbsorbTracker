@@ -21,21 +21,21 @@ for a deeper system-design walkthrough.
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `Core.lua` | ~36 | AddonTable setup, defaults table, cached math functions |
-| `Utils.lua` | ~52 | Print (cyan [AT] prefix), DebugPrint, PrintLSMList, ParseColor |
-| `Settings.lua` | ~173 | GetSetting/SetSetting, LSM wrappers, fallback constants, class color helpers |
-| `Schema.lua` | ~330 | Schema registry: RegisterSchemaRows, FindSchemaRow, SchemaForPage, GetByPath/SetByPath/ApplyDefault, FormatSchemaValue, ParseSchemaValue, BuildPageOptions(pageKey) |
-| `UI.lua` | ~60 | Bar frame creation (BackdropTemplate, StatusBar, FontString) |
-| `Display.lua` | ~107 | UpdateBarAppearance, UpdateAbsorbBar, RestoreBarPosition |
-| `Timer.lua` | ~40 | C_Timer.NewTicker management for periodic updates |
-| `Events.lua` | ~80 | Event handlers (PLAYER_LOGIN, UNIT_ABSORB_AMOUNT_CHANGED), OnProfileChanged |
-| `SlashCommands.lua` | ~345 | `/at` dispatcher: COMMANDS table + schema-driven list/get/set/reset |
-| `OptionsPanel.lua` | ~145 | Registration shell: queues page builders, registers an empty top-level "Ka0s Absorb Tracker" category and each Options/*.lua under it |
-| `Options/General.lua` | ~85 | General sub-page (default) — schema rows for Show Bar, Lock, Update Interval; injects Reset Position execute. `/at config` opens this. |
-| `Options/Bar.lua` | ~115 | Bar sub-page — schema rows for width, height, fill texture+color, background texture+color |
-| `Options/Border.lua` | ~70 | Border sub-page — schema rows for style, size, color |
-| `Options/Font.lua` | ~70 | Font sub-page — schema rows for face, size, outline |
-| `Options/Profiles.lua` | ~20 | Profiles sub-page — wraps `AceDBOptions:GetOptionsTable(db)` |
+| `Core.lua` | 36 | AddonTable setup, defaults table, cached math functions |
+| `Utils.lua` | 21 | Print (cyan [AT] prefix), DebugPrint |
+| `Settings.lua` | 173 | GetSetting/SetSetting, LSM wrappers, fallback constants, class color helpers |
+| `Schema.lua` | 332 | Schema registry: RegisterSchemaRows, FindSchemaRow, SchemaForPage, GetByPath/SetByPath/ApplyDefault, FormatSchemaValue, ParseSchemaValue, BuildPageOptions(pageKey) |
+| `UI.lua` | 60 | Bar frame creation (BackdropTemplate, StatusBar, FontString) |
+| `Display.lua` | 107 | UpdateBarAppearance, UpdateAbsorbBar, RestoreBarPosition |
+| `Timer.lua` | 40 | C_Timer.NewTicker management for periodic updates |
+| `Events.lua` | 80 | Event handlers (PLAYER_LOGIN, PLAYER_ENTERING_WORLD, UNIT_ABSORB_AMOUNT_CHANGED), OnProfileChanged |
+| `SlashCommands.lua` | 345 | `/at` dispatcher: COMMANDS table + schema-driven list/get/set/reset |
+| `OptionsPanel.lua` | 141 | Registration shell: queues page builders, registers an empty top-level "Ka0s Absorb Tracker" category and each Options/*.lua under it |
+| `Options/General.lua` | 87 | General sub-page (default) — schema rows for Show Bar, Lock, Update Interval; injects Reset Position execute. `/at config` opens this. |
+| `Options/Bar.lua` | 113 | Bar sub-page — schema rows for width, height, fill texture+color, background texture+color |
+| `Options/Border.lua` | 69 | Border sub-page — schema rows for style, size, color |
+| `Options/Font.lua` | 70 | Font sub-page — schema rows for face, size, outline |
+| `Options/Profiles.lua` | 20 | Profiles sub-page — wraps `AceDBOptions:GetOptionsTable(db)` |
 
 ### Module Communication
 
@@ -50,7 +50,10 @@ All modules share state through the `AddonTable` (second return value from `...`
 - `AddonTable.GetPlayerClassColor()` / `AddonTable.GetBgClassColor()` - Class color helpers
 - `AddonTable.ClearLSMCache()` - Reset cached LSM reference (called after PLAYER_LOGIN)
 - `AddonTable.UpdateBarAppearance()` / `AddonTable.UpdateAbsorbBar()` - Display updates
-- `AddonTable.RestartUpdateTicker()` - Timer control
+- `AddonTable.RestoreBarPosition()` - Re-apply the saved `position` table (or center if absent). Called on PLAYER_LOGIN and OnProfileChanged.
+- `AddonTable.RestartUpdateTicker(forceRestart?)` / `AddonTable.ResetTickerInterval()` - Timer control. RestartUpdateTicker short-circuits when the interval is unchanged; ResetTickerInterval clears the tracked interval so the next call always rebuilds the ticker (used on profile change).
+- `AddonTable.OnProfileChanged()` - Registered for AceDB's OnProfileChanged / OnProfileCopied / OnProfileReset callbacks. Runs RestoreBarPosition + UpdateBarAppearance + UpdateAbsorbBar + ResetTickerInterval + RestartUpdateTicker(true) + RefreshOptionsPanel.
+- `AddonTable.lastAbsorb` - Cached absorb value used to short-circuit redundant updates; reset to -1 to force the next UpdateAbsorbBar to repaint.
 - `AddonTable.Schema` - Flat array of schema rows. Single source of truth for every user-facing setting; both the AceConfig sub-pages and the slash dispatcher walk it.
 - `AddonTable.RegisterSchemaRows(rows)` - Each `Options/*.lua` calls this at file-load time to append its rows. Row shape: `{ path, page, group?, order, type, label, desc?, default, ... }` — see Schema.lua header for the full grammar.
 - `AddonTable.FindSchemaRow(path)` / `AddonTable.SchemaForPage(pageKey)` - Schema lookup helpers used by slash and panel layers.
@@ -128,7 +131,7 @@ If AceDB-3.0 is not installed, the addon falls back to a simple db-like structur
 - **Profile changes** trigger `AddonTable.OnProfileChanged()` callback to refresh all UI; `RefreshOptionsPanel` calls `AceConfigRegistry:NotifyChange` on every registered page so AceConfigDialog re-reads from `db.profile` on the active page
 - **Backdrop refresh** requires `SetBackdrop(nil)` before `SetBackdrop(info)` to force visual update
 - **Secret values** from `UnitGetTotalAbsorbs()` must use `AbbreviateNumbers()` directly (no tonumber conversion)
-- **Class color** - Bar, background, and border each have an independent `useClassColor*` toggle. Colors are resolved at call time via `GetBarColor()`/`GetBgColor()`/`GetBorderColor()` in Settings.lua. Background class color uses a darkened variant (×0.2 multiplier) from a per-class lookup table. Each color picker has `disabled = function() return getSetting("useClassColor*") end` so it greys out when the matching class-color toggle is on.
+- **Class color** - Bar, background, and border each have an independent `useClassColor*` toggle. Colors are resolved at call time via `GetBarColor()`/`GetBgColor()`/`GetBorderColor()` in Settings.lua. Bar and border use `C_ClassColor.GetClassColor()`; background uses a hard-coded per-class table multiplied by `0.2` to produce a darkened variant (cached in `playerBgClassColor` since the player class doesn't change at runtime). Each color row carries `disabledIf = "useClassColor*"`; `Schema.BuildPageOptions` translates that into an AceConfig `disabled` callback so the picker greys out when the matching toggle is on.
 - **Multi-page settings** - `OptionsPanel.lua` is a thin shell. At PLAYER_LOGIN it registers an empty title-only top-level "Ka0s Absorb Tracker" category, then registers each `Options/*.lua` page underneath it via `AceConfigDialog:AddToBlizOptions(appName, name, "Ka0s Absorb Tracker")`. Each `Options/*.lua` calls `AddonTable.RegisterOptionsPage(key, name, builder, opts)` at load time to queue itself; `opts.isDefault = true` flags the page that `/at config` should open (typically General). `appName` is `AbsorbTracker-<key>` so each page has its own AceConfig namespace; the parent uses `AbsorbTracker`.
 - **Schema-driven settings** - `AddonTable.Schema` is a flat array; each `Options/<page>.lua` (except Profiles) calls `AddonTable.RegisterSchemaRows({ ... })` at file-load time to append its rows. The page's `build()` then returns `AddonTable.BuildPageOptions(pageKey, pageName)` — an AceConfig options table assembled from the schema (rows with the same `group` cluster into an inline AceConfig group; `order` sets the rendering sequence). The same schema feeds `/at list`, `/at get`, `/at set`, `/at reset` and `/at resetall`. Adding a new option = one schema row. The panel widgets and slash command surface for that path are wired automatically.
 - **Schema row behavior knobs** - `inverse = true` on a bool flips the widget value vs. the db value (used for `hidden` rendered as "Show Bar"). `disabledIf = "<sibling-path>"` on a color greys out the picker when the named sibling toggle is on (used for class-color overrides). `onChange` defaults to `UpdateBarAppearance`; rows with different reactions (e.g. `updateInterval` calls `RestartUpdateTicker`) override explicitly.
@@ -148,11 +151,12 @@ No automated tests. Test by:
 
 ## WoW API Notes
 
+- TOC `## Interface:` declares 120000, 120001, 120005 — patches Midnight 12.0.0, 12.0.1, and 12.0.5. Update this list when a new compatible patch ships.
 - Uses `UnitGetTotalAbsorbs("player")` for absorb amount (returns "secret" value)
 - Uses `UnitHealthMax("player")` for bar scaling
 - Uses `AbbreviateNumbers()` for display formatting (handles secret values)
 - Settings panel registration goes through `AceConfigDialog:AddToBlizOptions(appName, name, parentName?)`, which internally calls `Settings.RegisterCanvasLayoutCategory` (parent) or `Settings.RegisterCanvasLayoutSubcategory` (child) on WoW 10.0+
-- `Settings.OpenToCategory(categoryID)` opens the panel; the parent's category ID is the second return value of `AceConfigDialog:AddToBlizOptions`
+- `Settings.OpenToCategory(categoryID)` opens the panel; the parent's category ID is the second return value of `AceConfigDialog:AddToBlizOptions`. `OpenOptionsPanel` refuses to call this during combat (`InCombatLockdown()`) because the Settings category-switch is protected.
 - Frame templates: `BackdropTemplate` (used by the bar frame and the LSM dropdown widget)
 - Backdrop changes require clearing first: `SetBackdrop(nil)` then `SetBackdrop(info)`
 
@@ -162,7 +166,7 @@ No automated tests. Test by:
 AbsorbTracker/
 ├── AbsorbTracker.toc          # Table of contents - defines load order
 ├── Core.lua                   # AddonTable setup, defaults
-├── Utils.lua                  # Print pipeline, debug, ParseColor
+├── Utils.lua                  # Print pipeline, debug
 ├── Settings.lua               # Database, LSM, color resolution
 ├── Schema.lua                 # Schema registry + AceConfig options builder + value parser
 ├── UI.lua                     # Bar frame creation

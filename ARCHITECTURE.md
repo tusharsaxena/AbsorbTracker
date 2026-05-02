@@ -35,20 +35,20 @@ read from `AddonTable` only what earlier files have already written.
 | # | File | Lines | Provides |
 |---|------|-------|----------|
 | 1 | `Core.lua` | 36 | `AddonTable.defaults`, `flatDefaults`, cached math/format |
-| 2 | `Utils.lua` | 52 | `Print`, `DebugPrint`, `PrintLSMList`, `ParseColor` |
+| 2 | `Utils.lua` | 21 | `Print`, `DebugPrint` |
 | 3 | `Settings.lua` | 173 | `db` ref, `GetSetting`/`SetSetting`, LSM wrappers, color getters |
-| 4 | `Schema.lua` | ~330 | Schema registry, `BuildPageOptions`, `FormatSchemaValue`/`ParseSchemaValue` |
+| 4 | `Schema.lua` | 332 | Schema registry, `BuildPageOptions`, `FormatSchemaValue`/`ParseSchemaValue` |
 | 5 | `UI.lua` | 60 | Bar frame creation (`bar`, `statusBar`, `valueText`) |
 | 6 | `Display.lua` | 107 | `UpdateBarAppearance`, `UpdateAbsorbBar`, `RestoreBarPosition` |
 | 7 | `Timer.lua` | 40 | `RestartUpdateTicker`, `ResetTickerInterval` |
 | 8 | `Events.lua` | 80 | Event frame, `OnProfileChanged`, login bootstrap |
-| 9 | `SlashCommands.lua` | ~345 | KickCD-style COMMANDS table; schema-driven list/get/set/reset |
-| 10 | `OptionsPanel.lua` | ~145 | `RegisterOptionsPage`, `CreateOptionsPanel`, `RefreshOptionsPanel`, `OpenOptionsPanel` |
-| 11 | `Options/General.lua` | ~85 | General schema rows + Reset Position execute |
-| 12 | `Options/Bar.lua` | ~115 | Bar schema rows |
-| 13 | `Options/Border.lua` | ~70 | Border schema rows |
-| 14 | `Options/Font.lua` | ~70 | Font schema rows |
-| 15 | `Options/Profiles.lua` | ~20 | Profiles sub-page (AceDBOptions wrapper) |
+| 9 | `SlashCommands.lua` | 345 | KickCD-style COMMANDS table; schema-driven list/get/set/reset |
+| 10 | `OptionsPanel.lua` | 141 | `RegisterOptionsPage`, `CreateOptionsPanel`, `RefreshOptionsPanel`, `OpenOptionsPanel` |
+| 11 | `Options/General.lua` | 87 | General schema rows + Reset Position execute |
+| 12 | `Options/Bar.lua` | 113 | Bar schema rows |
+| 13 | `Options/Border.lua` | 69 | Border schema rows |
+| 14 | `Options/Font.lua` | 70 | Font schema rows |
+| 15 | `Options/Profiles.lua` | 20 | Profiles sub-page (AceDBOptions wrapper) |
 
 Libraries load before the addon's own files via the `#@no-lib-strip@` block at
 the top of the TOC. Bundled libraries:
@@ -117,11 +117,8 @@ local print = AddonTable.Print
 ```
 
 This means every existing `print(...)` call site automatically gets the cyan
-`[AT]` prefix without per-call changes. `DebugPrint` and `PrintLSMList` route
-through the same shadow, so debug output and LSM listings share the prefix.
-
-`ParseColor` is the slash-command color parser; it accepts `r g b [a]` in
-either 0–1 or 0–255 ranges and normalizes to 0–1.
+`[AT]` prefix without per-call changes. `DebugPrint` routes through the same
+shadow, so debug output shares the prefix.
 
 ### Schema.lua — single source of truth for settings
 A flat array `AddonTable.Schema` holds one row per user-facing setting.
