@@ -40,7 +40,7 @@ Don't try to clever-defer the call into a `PLAYER_REGEN_ENABLED` queue. A user w
 
 `Settings.RegisterCanvasLayoutCategory(panel, name)` returns a category *object* with a `:GetID()` method; `Settings.RegisterCanvasLayoutSubcategory(parent, panel, name)` returns the same shape. `Settings.OpenToCategory` accepts the numeric ID directly — passing the object produces a range error.
 
-`OptionsPanel.lua` captures `mainCategory:GetID()` at parent registration and `subCategory:GetID()` for the page flagged `isDefault = true` (typically General), and `OpenOptionsPanel` calls `Settings.OpenToCategory(defaultCategoryID or mainCategoryID)`. So `/at config` lands directly on General; if no page is flagged, it falls back to the about page.
+`OptionsPanel.lua` captures `mainCategory:GetID()` at parent registration into `mainCategoryID`; `OpenOptionsPanel` calls `Settings.OpenToCategory(mainCategoryID)` so `/at config` always lands on the parent (about page) and then calls `expandMainCategory()` to expand the sub-page tree so every sub-page is visible at once. `expandMainCategory` reaches into `SettingsPanel:GetCategoryList()` private API; the whole call is wrapped in `pcall` so a future Blizzard refactor that renames or removes those internals degrades gracefully (the panel still opens, the tree just doesn't auto-expand).
 
 ## Interface line — three patches, one TOC
 
@@ -62,7 +62,7 @@ WoW retail (10.0+) split backdrop functionality off the base Frame and into the 
 CreateFrame("Frame", "AbsorbTrackerFrame", UIParent, "BackdropTemplate")
 ```
 
-`UI.lua` does this for the bar; the in-tree LSM dropdown widget at `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/widget.lua` does the same for its popup frame. If a future widget needs a backdrop and forgets the template, the addon will error on `SetBackdrop`.
+`UI.lua` does this for the bar; the canonical upstream `AceGUI-3.0-SharedMediaWidgets` lib at `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/` does the same for the LSM dropdown widgets. If a future custom widget needs a backdrop and forgets the template, the addon will error on `SetBackdrop`.
 
 ## Class color sources
 

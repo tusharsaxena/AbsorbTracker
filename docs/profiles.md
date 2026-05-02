@@ -48,7 +48,7 @@ AddonTable.OnProfileChanged()
 | `/at profile list` | List all profiles in `AbsorbTrackerDB.profiles`, marking the active one. |
 | `/at profile current` | Print the active profile name. |
 | `/at profile use <name>` | Switch to `<name>`. Creates it (with default settings) if it doesn't exist. Fires `OnProfileChanged`. |
-| `/at profile new <name>` | Create `<name>` with default settings without switching to it. |
+| `/at profile new <name>` | Create `<name>` with default settings AND switch to it. (`db:SetProfile(name)` then `db:ResetProfile()`.) |
 | `/at profile copy <name>` | Copy `<name>`'s settings into the active profile. Fires `OnProfileCopied`. |
 | `/at profile delete <name>` | Delete `<name>`. Refuses if `<name>` is the active profile. |
 | `/at profile reset` | Reset the active profile to defaults. Fires `OnProfileReset`. |

@@ -8,7 +8,7 @@ What's in scope, what's out, and the resolved decisions that shaped the contract
 - **LibSharedMedia-backed media** for fill texture, background texture, border style, and font. Each is independently configurable.
 - **Independent class-color overrides** on bar fill, background, and border via three separate `useClassColor*` toggles.
 - **AceDB-3.0 profile management** with a Profiles sub-page exposed under Blizzard Settings.
-- **Per-profile saved bar position** (the bar is locked by default; `/at unlock` to drag, `/at lock` to fix).
+- **Per-profile saved bar position** (the bar is unlocked by default — `flatDefaults.locked = false`; drag to position, `/at lock` to fix once placed).
 - **Five-page Blizzard Settings panel** (General, Bar, Border, Font, Profiles) plus a matching `/at` slash CLI for every panel-shaped operation via `/at list / get / set / reset / resetall`.
 - **Cyan `[AT]` chat prefix** on all addon output.
 - **Retail Midnight only** (Interface 120000, 120001, 120005). English only.

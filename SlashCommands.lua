@@ -60,7 +60,6 @@ AddonTable.SlashCommands = {
             if hidden then
                 print("Hidden")
             else
-                AddonTable.lastAbsorb = -1
                 if AddonTable.UpdateAbsorbBar then AddonTable.UpdateAbsorbBar() end
                 print("Shown")
             end
@@ -228,7 +227,6 @@ function runDebug()
 end
 
 function runUpdate()
-    AddonTable.lastAbsorb = -1
     if AddonTable.UpdateAbsorbBar then AddonTable.UpdateAbsorbBar() end
     print("Forced refresh")
 end

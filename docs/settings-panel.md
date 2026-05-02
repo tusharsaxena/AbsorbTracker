@@ -6,13 +6,15 @@ How the addon registers its multi-page Blizzard Settings UI. The schema-driven c
 
 ```
 ┌─ Ka0s Absorb Tracker (about page: logo + Notes + slash command list) ┐
-│   ├─ General  (default — /at config opens here)                      │
+│   ├─ General                                                         │
 │   ├─ Bar                                                             │
 │   ├─ Border                                                          │
 │   ├─ Font                                                            │
 │   └─ Profiles  (only if AceDBOptions is present)                     │
 └──────────────────────────────────────────────────────────────────────┘
 ```
+
+`/at config` opens the parent page and expands the sub-page tree so every sub-page is visible at once. The user clicks the page they want from the tree.
 
 The parent and every sub-page register as **canvas-layout categories**: a custom Blizzard `Frame` is registered with `Settings.RegisterCanvasLayoutCategory` (parent) / `Settings.RegisterCanvasLayoutSubcategory` (each sub-page) and Blizzard renders it in its own settings panel slot. The schema-driven sub-pages (General / Bar / Border / Font) lay out their schema rows as **AceGUI widgets** (`CheckBox` / `Slider` / `Dropdown` / `ColorPicker`) inside an AceGUI `ScrollFrame` parented to the page's `body` frame.
 
@@ -33,15 +35,14 @@ Every page (about + sub-pages) builds the same header via `Helpers.CreatePanel(n
 
 `OptionsPanel.lua` runs at file-load time (early), but `AddonTable.db` doesn't exist until PLAYER_LOGIN. The shell separates the two phases:
 
-1. **File-load.** Each `Options/<page>.lua` calls `AddonTable.RegisterOptionsPage(key, name, builder, opts?)` to enqueue itself. The builder is a closure that will run later.
+1. **File-load.** Each `Options/<page>.lua` calls `AddonTable.RegisterOptionsPage(key, name, builder)` to enqueue itself. The builder is a closure that will run later.
 2. **PLAYER_LOGIN.** `Events.lua` calls `AddonTable.CreateOptionsPanel()`, which:
    - Validates the assembled schema via `AddonTable.ValidateSchema()` (chat-prints any malformed rows; never blocks).
    - Builds the about-page canvas (`Helpers.CreatePanel(..., { isMain = true })`) and registers it via `Settings.RegisterCanvasLayoutCategory` + `Settings.RegisterAddOnCategory`.
    - Walks the queue, calling `builder(mainCategory)` on each entry. Each builder constructs its own canvas via `Helpers.CreatePanel`, defers the AceGUI render to the panel's first `OnShow` (the body has 0 width at PLAYER_LOGIN; AceGUI lays out against current width), and returns the result of `Settings.RegisterCanvasLayoutSubcategory(mainCategory, panel, name)`.
    - If the builder returns `nil` (e.g. `Options/Profiles.lua` when AceDBOptions is missing), the page is silently skipped.
-   - Captures the sub-category flagged `isDefault = true` (typically General) into `defaultCategoryID` for `OpenOptionsPanel`.
 
-## `RegisterOptionsPage(key, name, builder, opts)`
+## `RegisterOptionsPage(key, name, builder)`
 
 ```lua
 AddonTable.RegisterOptionsPage("bar", "Bar", function(mainCategory)
@@ -66,15 +67,11 @@ AddonTable.RegisterOptionsPage("bar", "Bar", function(mainCategory)
 
     return Settings.RegisterCanvasLayoutSubcategory(mainCategory, ctx.panel, "Bar")
 end)
-
--- General opts in to isDefault so /at config opens it:
-AddonTable.RegisterOptionsPage("general", "General", buildGeneral, { isDefault = true })
 ```
 
 - `key` — short identifier used in `pageKey` (the schema's `page` filter) and in the panel frame's global name.
 - `name` — display name shown in the Blizzard Settings tree AND used as the `<Page>` half of the breadcrumb header.
 - `builder(mainCategory)` — must return the sub-category from `Settings.RegisterCanvasLayoutSubcategory`, or `nil` to skip registration.
-- `opts.isDefault = true` — flags the page that `/at config` should open. Typically `General`. If no page is flagged, `OpenOptionsPanel` falls back to the parent (about page).
 
 ## `Helpers.RenderSchema(ctx, pageKey, afterGroup?)`
 
@@ -121,13 +118,18 @@ function AddonTable.OpenOptionsPanel()
         AddonTable.Print("Cannot open settings panel during combat. Try again after combat ends.")
         return
     end
-    Settings.OpenToCategory(defaultCategoryID or mainCategoryID)
+    if not (Settings and Settings.OpenToCategory) then return end
+    if not mainCategoryID then return end
+    Settings.OpenToCategory(mainCategoryID)
+    expandMainCategory()
 end
 ```
 
 `Settings.OpenToCategory` is part of Blizzard's protected Settings API. Calling it during combat would taint the panel — even after combat ends, the tainted panel can refuse to open or break unrelated UI. The combat-lockdown early-return is mandatory; don't try to clever-defer the call.
 
-`defaultCategoryID` is the sub-category flagged `isDefault = true` (General). If no default was registered, falls back to `mainCategoryID` — the about page. Always flag *some* page as the default.
+`/at config` always opens the **parent** category (the about page) and then calls `expandMainCategory()` to expand the Blizzard Settings left-tree entry so every sub-page is visible. `expandMainCategory` walks `SettingsPanel.GetCategoryList():GetCategoryEntry(mainCategory):SetExpanded(true)` — `SettingsPanel` internals are private API, so the call is wrapped in `pcall`; if any of those calls disappears in a future patch, the panel still opens, just without the tree-expansion side effect.
+
+The user picks the sub-page they want from the expanded tree. There is no "default sub-page" mechanism — the parent always opens, the tree always expands.
 
 ## LSM swatch dropdowns
 
@@ -141,7 +143,7 @@ end
 local dd = AceGUI:Create(widgetType)
 ```
 
-The LSM30_* widgets live at `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/widget.lua`. Each renders entries with an inline preview swatch (statusbar / border / font face). The widget type names match the upstream `AceGUI-3.0-SharedMediaWidgets` lib so dropping in the real lib later is a clean swap.
+The LSM30_* widgets are the canonical upstream `AceGUI-3.0-SharedMediaWidgets` r65 lib (widgetVersion 13), vendored at `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/` and loaded via `widget.xml`. `LSM30_Statusbar` / `LSM30_Font` use upstream's basic frame; `LSM30_Border` uses `GetBaseFrameWithWindow` which adds a 42×42 `displayButton` border-preview tile pinned to the widget's TOPLEFT. That tile clashes with our canvas-layout panel — `LSMPatch.lua` registers a one-shot `PLAYER_LOGIN` hook that wraps the registered `LSM30_Border` constructor, hides `displayButton`, and re-anchors the dropdown chrome to the frame's left edge. The hook lives in addon code rather than as an edit to the vendored lib so future r66+ refreshes are a clean drop-in.
 
 ## About page (top-level "Ka0s Absorb Tracker")
 

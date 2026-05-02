@@ -33,7 +33,7 @@ For functions defined in later-loaded modules, callers reference them through `A
 
 - **Dual-path WSL.** The repo is mirrored at `/mnt/d/Profile/Users/Tushar/Documents/GIT/AbsorbTracker/` and `/home/tushar/GIT/AbsorbTracker/`. Either path works for git and file tools.
 - **CRLF line endings on disk.** Enforced via `.gitattributes` (`* text=auto eol=crlf` plus explicit `*.lua/*.toc/*.xml/*.md text eol=crlf`). After any direct disk write of a text file, convert with `sed -i 's/$/\r/'` if the tool wrote LF.
-- **Bundled libs in `libs/`.** LibStub, CallbackHandler-1.0, LibSharedMedia-3.0, the Ace3 stack (AceAddon / AceDB / AceGUI / AceConfig / AceDBOptions), and the in-tree `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets). All tracked in git (standard WoW addon practice).
+- **Bundled libs in `libs/`.** LibStub, CallbackHandler-1.0, LibSharedMedia-3.0, the Ace3 stack (AceAddon / AceDB / AceGUI / AceConfig / AceDBOptions), and the canonical upstream `AceGUI-3.0-SharedMediaWidgets` r65 (LSM30_* swatch widgets) loaded via `widget.xml`. All tracked in git (standard WoW addon practice). The displayButton tile that upstream's `LSM30_Border` pins to TOPLEFT is suppressed by `LSMPatch.lua` — addon-side code, not a lib edit, so future `r66+` refreshes are a clean drop-in.
 - **No automated tests.** Validation is manual, in-game. See [docs/smoke-tests.md](./docs/smoke-tests.md) for the full manual QA recipe.
 
 ## Response style for this repo

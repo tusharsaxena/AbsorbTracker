@@ -64,6 +64,19 @@ AddonTable.Print(...)          -- prepends cyan |cFF00FFFF[AT]|r and prints
 AddonTable.DebugPrint(...)     -- conditional on AddonTable.DEBUG; same prefix
 ```
 
+### LSMPatch (`LSMPatch.lua`)
+
+No public API. The whole file is one `CreateFrame("Frame")` registered for `PLAYER_LOGIN`. On fire, it looks up whatever constructor `AceGUI.WidgetRegistry["LSM30_Border"]` currently holds, and if a constructor is registered (i.e. the upstream `AceGUI-3.0-SharedMediaWidgets` ran), registers a wrapper at `currentVer + 1` that:
+
+1. Calls the original constructor.
+2. `frame.displayButton:Hide()` on the returned widget — kills the 42×42 border-preview tile pinned to the widget's TOPLEFT by `AGSMW:GetBaseFrameWithWindow`.
+3. Re-anchors `frame.label` to the frame's TOPLEFT/TOPRIGHT (was anchored to `displayButton.TOPRIGHT` by upstream).
+4. Re-anchors `frame.DLeft` (the dropdown bar's left cap) to the frame's BOTTOMLEFT (was anchored to `displayButton.BOTTOMRIGHT` by upstream).
+
+If `AceGUI` isn't loaded, or no `LSM30_Border` is registered, the hook no-ops cleanly.
+
+The displayButton suppressor lives in addon code rather than as an edit to the vendored lib so future `AceGUI-3.0-SharedMediaWidgets` refreshes are a clean drop-in.
+
 ### Settings (`Settings.lua`)
 
 ```lua
@@ -163,15 +176,16 @@ Also registers `SLASH_ABSORBTRACKER1 = "/at"`, `SLASH_ABSORBTRACKER2 = "/absorbt
 ### OptionsPanel (`OptionsPanel.lua`)
 
 ```lua
-AddonTable.RegisterOptionsPage(key, name, builder, opts)
+AddonTable.RegisterOptionsPage(key, name, builder)
     -- key:     "general" / "bar" / "border" / "font" / "profiles"
     -- name:    display name shown in the Blizzard Settings tree (and breadcrumb header)
     -- builder: function(mainCategory) -> sub-category | nil    (called at PLAYER_LOGIN)
-    -- opts.isDefault = true flags the page that /at config opens (typically General)
 
 AddonTable.CreateOptionsPanel()    -- called from Events.lua on PLAYER_LOGIN once db is ready
 AddonTable.RefreshOptionsPanel()   -- routes to Helpers.RefreshAllPanels (re-runs every refresher)
-AddonTable.OpenOptionsPanel()      -- Settings.OpenToCategory(defaultCategoryID); combat-lockdown gated
+AddonTable.OpenOptionsPanel()      -- Settings.OpenToCategory(mainCategoryID) + expandMainCategory();
+                                   -- combat-lockdown gated. Always opens the parent (about page) and
+                                   -- expands the sub-page tree so every page is visible at once.
 
 AddonTable.Helpers                 -- panel-builder toolkit shared by every Options/<page>.lua:
     Helpers.CreatePanel(name, title, opts)        -- canvas frame + header + Defaults button
@@ -209,18 +223,19 @@ In practice the calls always succeed because all files are loaded synchronously 
 
 `AbsorbTracker.toc` is the source of truth. Order is dependency order, not alphabetical:
 
-1. `libs/` — LibStub + CallbackHandler + LibSharedMedia + the Ace3 stack + the in-tree LSM widgets (via the `#@no-lib-strip@` block).
+1. `libs/` — LibStub + CallbackHandler + LibSharedMedia + the Ace3 stack + the canonical upstream `AceGUI-3.0-SharedMediaWidgets` r65 LSM widgets (via the `#@no-lib-strip@` block).
 2. `Core.lua` — defaults + cached globals on `AddonTable`.
 3. `Utils.lua` — `Print` / `DebugPrint`.
-4. `Settings.lua` — db access + LSM wrappers + color getters.
-5. `Schema.lua` — schema registry + builders.
-6. `UI.lua` — bar frame creation (runs at file-load time).
-7. `Display.lua` — render functions.
-8. `Timer.lua` — ticker management.
-9. `Events.lua` — event frame + login bootstrap (registered, fires later).
-10. `SlashCommands.lua` — `/at` dispatcher (registered at load).
-11. `OptionsPanel.lua` — registration shell (queues are empty at load; pages drain at PLAYER_LOGIN).
-12. `Options/General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` — each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load time.
+4. `LSMPatch.lua` — registers `PLAYER_LOGIN` hook for upstream `LSM30_Border` displayButton suppression.
+5. `Settings.lua` — db access + LSM wrappers + color getters.
+6. `Schema.lua` — schema registry + builders.
+7. `UI.lua` — bar frame creation (runs at file-load time).
+8. `Display.lua` — render functions.
+9. `Timer.lua` — ticker management.
+10. `Events.lua` — event frame + login bootstrap (registered, fires later).
+11. `SlashCommands.lua` — `/at` dispatcher (registered at load).
+12. `OptionsPanel.lua` — registration shell (queues are empty at load; pages drain at PLAYER_LOGIN).
+13. `Options/General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` — each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load time.
 
 If you add a new runtime file, put it in the right place in `AbsorbTracker.toc`.
 

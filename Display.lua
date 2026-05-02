@@ -12,9 +12,6 @@ local GetBgColor = AddonTable.GetBgColor
 local GetBorderColor = AddonTable.GetBorderColor
 local DebugPrint = AddonTable.DebugPrint
 
--- Track last absorb value to avoid redundant updates
-AddonTable.lastAbsorb = -1  -- Start at -1 to force first update
-
 -- Function to restore bar position from saved variables
 function AddonTable.RestoreBarPosition()
     local bar = AddonTable.bar

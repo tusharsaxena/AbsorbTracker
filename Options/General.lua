@@ -33,7 +33,6 @@ AddonTable.RegisterSchemaRows({
         onChange = function()
             AddonTable.UpdateBarAppearance()
             if not AddonTable.GetSetting("hidden") then
-                AddonTable.lastAbsorb = -1
                 AddonTable.UpdateAbsorbBar()
             end
         end,

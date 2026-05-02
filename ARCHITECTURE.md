@@ -30,7 +30,7 @@ WoW events ─▶ Events.lua  ─▶ C_Timer.NewTicker  ─▶ Display.UpdateAbs
 
 | Subsystem | Lives in | Read |
 |-----------|----------|------|
-| Per-module APIs + `AddonTable` bus + load order | `Core.lua`, `Utils.lua`, `Settings.lua`, `Schema.lua`, `UI.lua`, `Display.lua`, `Timer.lua`, `Events.lua`, `SlashCommands.lua`, `OptionsPanel.lua` | [docs/module-map.md](./docs/module-map.md) |
+| Per-module APIs + `AddonTable` bus + load order | `Core.lua`, `Utils.lua`, `LSMPatch.lua`, `Settings.lua`, `Schema.lua`, `UI.lua`, `Display.lua`, `Timer.lua`, `Events.lua`, `SlashCommands.lua`, `OptionsPanel.lua` | [docs/module-map.md](./docs/module-map.md) |
 | Per-file responsibility map | — | [docs/file-index.md](./docs/file-index.md) |
 | Bootstrap + absorb update + settings write + profile-change refresh | `Events.lua`, `Display.lua`, `Timer.lua` | [docs/data-flow.md](./docs/data-flow.md) |
 | Schema-driven settings (registry, row knobs, `/at` mapping, settings reference) | `Schema.lua`, `Options/*.lua` | [docs/schema.md](./docs/schema.md) |
@@ -64,7 +64,7 @@ All vendored under `libs/`:
 - AceGUI-3.0
 - AceConfig-3.0 (pulls in AceConfigRegistry / AceConfigCmd / AceConfigDialog)
 - AceDBOptions-3.0
-- AceGUI-3.0-SharedMediaWidgets (in-tree minimal `LSM30_Statusbar` / `LSM30_Border` / `LSM30_Font` swatch widgets — names match the upstream lib so dropping in the real lib later is a clean swap)
+- AceGUI-3.0-SharedMediaWidgets r65 (canonical upstream multi-file lib loaded via `widget.xml`; ships `LSM30_Statusbar` / `LSM30_Border` / `LSM30_Background` / `LSM30_Font` / `LSM30_Sound` widgets — only the first three media types are referenced from the addon). The `LSM30_Border` displayButton 42×42 preview tile is suppressed at PLAYER_LOGIN by addon-side `LSMPatch.lua`, so future `r66+` lib refreshes are a clean drop-in
 
 `AbsorbTracker.toc`'s `## Interface:` line is `120000, 120001, 120005`.
 
@@ -72,14 +72,15 @@ All vendored under `libs/`:
 
 `AbsorbTracker.toc` is the source of truth. Order is dependency, not alphabetical:
 
-1. `libs/` (via the `#@no-lib-strip@` block) — LibStub + CallbackHandler + LSM + Ace3 stack + LSM widgets.
+1. `libs/` (via the `#@no-lib-strip@` block) — LibStub + CallbackHandler + LSM + Ace3 stack + AceGUI-3.0-SharedMediaWidgets r65.
 2. `Core.lua` — defaults + cached globals on `AddonTable`.
 3. `Utils.lua` — `Print` / `DebugPrint`.
-4. `Settings.lua` — db access + LSM wrappers + color getters.
-5. `Schema.lua` — schema registry + builders.
-6. `UI.lua` — bar frame creation (runs at file-load time; frames exist before later modules need them).
-7. `Display.lua` → `Timer.lua` → `Events.lua` → `SlashCommands.lua` → `OptionsPanel.lua`.
-8. `Options/General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` — each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load time.
+4. `LSMPatch.lua` — registers a `PLAYER_LOGIN` hook that wraps `LSM30_Border`'s registered constructor and hides upstream's displayButton preview tile.
+5. `Settings.lua` — db access + LSM wrappers + color getters.
+6. `Schema.lua` — schema registry + builders.
+7. `UI.lua` — bar frame creation (runs at file-load time; frames exist before later modules need them).
+8. `Display.lua` → `Timer.lua` → `Events.lua` → `SlashCommands.lua` → `OptionsPanel.lua`.
+9. `Options/General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` — each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load time.
 
 Event handlers and `OnProfileChanged` are *defined* during file load but only *called* from event dispatch and AceDB callbacks, which run after every file has loaded — so the bodies can freely reference modules that load later, guarded by the [forward-reference nil check](./docs/module-map.md#forward-references).
 

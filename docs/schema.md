@@ -114,7 +114,7 @@ Formatting hint for `/at list` / `/at get` output. Without `fmt`, integers rende
 
 ### `solo = true` (panel layout, any type)
 
-Tells `Helpers.RenderSchema` to render this row alone on its own line instead of pairing it with the next row in the 50/50 grid. Used as a visual pivot above grouped pairs (e.g. `barTexture` is solo, then `useClassColorBar` + `barColor` pair on the row below it). Has no effect on the slash CLI.
+Tells `Helpers.RenderSchema` to render this row alone on its own line instead of pairing it with the next row in the 50/50 grid. Used as a visual pivot below grouped pairs — e.g. on the Bar page `barTexture` and `barColor` pair on one row, then `useClassColorBar` (solo) sits alone underneath, separating the Bar Fill block from the Background block. Has no effect on the slash CLI.
 
 ## Public API
 

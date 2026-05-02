@@ -29,7 +29,7 @@ Both `/at` and the long form `/absorbtracker` work for every command below. All 
 | Command | Description |
 |---------|-------------|
 | `/at` or `/at help` | Print the help index |
-| `/at config` | Open the settings panel (lands on **General**). Also routed by `/at options` |
+| `/at config` | Open the settings panel (lands on the parent **Ka0s Absorb Tracker** about page with the sub-page tree expanded). Also routed by `/at options` |
 | `/at list` | List every schema-driven setting grouped by panel, with current values |
 | `/at get <path>` | Print one setting's current value |
 | `/at set <path> <value>` | Set one setting (typed: bool / number / string / color). Examples: `/at set barWidth 250`, `/at set barColor 0.4 0.7 1.0 0.8`, `/at set useClassColorBar true` |

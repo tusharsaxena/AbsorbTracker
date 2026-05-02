@@ -16,7 +16,6 @@ local ResetTickerInterval = AddonTable.ResetTickerInterval
 function AddonTable.OnProfileChanged()
     RestoreBarPosition()
     UpdateBarAppearance()
-    AddonTable.lastAbsorb = -1
     UpdateAbsorbBar()
     ResetTickerInterval()  -- Reset to force ticker restart with new profile's interval
     RestartUpdateTicker(true)
@@ -68,7 +67,6 @@ eventFrame:SetScript("OnEvent", function(self, event, unit)
             AddonTable.CreateOptionsPanel()
         end
     elseif event == "PLAYER_ENTERING_WORLD" then
-        AddonTable.lastAbsorb = -1  -- Reset cache on zone change to force update
         UpdateAbsorbBar()
     elseif event == "UNIT_ABSORB_AMOUNT_CHANGED" and unit == "player" then
         -- Don't update directly - let the ticker handle updates at the configured interval
@@ -76,5 +74,3 @@ eventFrame:SetScript("OnEvent", function(self, event, unit)
         DebugPrint("UNIT_ABSORB_AMOUNT_CHANGED - ", AbbreviateNumbers(UnitGetTotalAbsorbs("player") or 0))
     end
 end)
-
-AddonTable.eventFrame = eventFrame
