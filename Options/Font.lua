@@ -1,6 +1,10 @@
 -- AbsorbTracker: Options/Font.lua
 --
 -- Font sub-page: face, size, outline.
+--
+-- Layout produces:
+--     [Font Face]    | [Font Size]
+--     [Font Outline]                              (solo: 3rd row)
 
 local AddonName, AddonTable = ...
 
@@ -33,9 +37,11 @@ AddonTable.RegisterSchemaRows({
     {
         path    = "font",
         page    = "font",
+        group   = "Typography",
         order   = 10,
         type    = "string",
         label   = "Font Face",
+        desc    = "LibSharedMedia font used for the absorb amount text.",
         default = flatDefaults.font,
         dialogControl = "LSM30_Font",
         values = lsmValues("font"),
@@ -43,26 +49,55 @@ AddonTable.RegisterSchemaRows({
     {
         path    = "fontSize",
         page    = "font",
+        group   = "Typography",
         order   = 20,
         type    = "number",
         label   = "Font Size",
+        desc    = "Absorb-amount text size in pixels.",
         default = flatDefaults.fontSize,
         min = 6, max = 32, step = 1,
     },
     {
         path    = "fontFlags",
         page    = "font",
+        group   = "Typography",
         order   = 30,
         type    = "string",
         label   = "Font Outline",
+        desc    = "Outline / monochrome flags applied to the absorb-amount text.",
         default = flatDefaults.fontFlags,
         values  = fontFlagOptions,
         sorting = fontFlagSorting,
+        solo    = true,
     },
 })
 
-local function build()
-    return AddonTable.BuildPageOptions("font", "Font")
+local function build(mainCategory)
+    if not (Settings and Settings.RegisterCanvasLayoutSubcategory) then
+        return nil
+    end
+
+    local H   = AddonTable.Helpers
+    local ctx = H.CreatePanel("AbsorbTrackerFontPanel", "Font", {
+        pageKey         = "font",
+        defaultsButton  = true,
+        defaultsTooltip = "Restore every Font setting on this profile to its addon default.",
+    })
+    if ctx.panel.defaultsBtn then
+        ctx.panel.defaultsBtn:SetCallback("OnClick", function()
+            H.RestoreDefaults("font", ctx)
+        end)
+    end
+
+    local rendered = false
+    ctx.panel:SetScript("OnShow", function()
+        if rendered then return end
+        rendered = true
+        H.RenderSchema(ctx, "font")
+    end)
+
+    return Settings.RegisterCanvasLayoutSubcategory(
+        mainCategory, ctx.panel, "Font")
 end
 
 if AddonTable.RegisterOptionsPage then

@@ -2,10 +2,10 @@
 --
 -- Single source of truth for every user-facing setting. Each Options/*.lua
 -- file populates this array via AddonTable.RegisterSchemaRows({...}); the
--- panel renderer (BuildPageOptions) and the slash dispatcher
--- (/at list, /at get, /at set, /at reset) both walk it.
+-- panel renderer (OptionsPanel.lua: Helpers.RenderSchema) and the slash
+-- dispatcher (/at list, /at get, /at set, /at reset) both walk it.
 --
--- Adding a new option is one schema row — the AceConfig widget on the
+-- Adding a new option is one schema row — the AceGUI widget on the
 -- relevant sub-page and the slash-command surface for that path are
 -- wired automatically.
 --
@@ -13,10 +13,10 @@
 --   {
 --     path    = "barWidth",        -- key in db.profile (also /at set path)
 --     page    = "bar",             -- which Options/<page>.lua renders it
---     group   = "Size",            -- inline group label within the page (optional)
+--     group   = "Size",            -- section heading on the page (optional)
 --     order   = 10,                -- render order within the group
 --     type    = "bool"|"number"|"string"|"color",
---     label   = "Bar Width",       -- widget label and /at list/get display
+--     label   = "Bar width",       -- widget label and /at list/get display
 --     desc    = "...",             -- tooltip
 --     default = 200,               -- used by /at reset and /at resetall
 --     -- type-specific:
@@ -29,6 +29,7 @@
 --     inverse    = true,                              -- bool only: widget shows !value
 --     disabledIf = "useClassColorBar",                -- color only: greys out when sibling toggle is on
 --     fmt        = "%.1f sec",                        -- /at list/get formatting hint
+--     solo       = true,                              -- panel only: render alone in a row
 --   }
 
 local AddonName, AddonTable = ...
@@ -62,6 +63,9 @@ function AddonTable.SchemaForPage(pageKey)
     for _, row in ipairs(AddonTable.Schema) do
         if row.page == pageKey then out[#out + 1] = row end
     end
+    table.sort(out, function(a, b)
+        return (a.order or 100) < (b.order or 100)
+    end)
     return out
 end
 
@@ -77,15 +81,15 @@ local function fireOnChange(row, value)
     local fn = row.onChange or defaultOnChange
     fn(value)
 end
+AddonTable.FireSchemaOnChange = fireOnChange
 
 function AddonTable.GetByPath(path)
     return AddonTable.GetSetting(path)
 end
 
---- Write a value for `path`, fire its onChange. Used by /at set and by
---- /at reset; the panel widgets go through their own AceConfig set
---- callback (which calls SetByPath internally so behaviour stays
---- consistent).
+--- Write a value for `path`, fire its onChange. Used by /at set, by
+--- /at reset, and by every panel widget — single dispatch path so no
+--- code duplication between UI and CLI.
 function AddonTable.SetByPath(path, value)
     AddonTable.SetSetting(path, value)
     local row = AddonTable.FindSchemaRow(path)
@@ -93,11 +97,11 @@ function AddonTable.SetByPath(path, value)
 end
 
 --- Reset one row to its default. Used by /at reset <page> and
---- /at resetall.
+--- /at resetall, plus the per-panel Defaults button.
 function AddonTable.ApplyDefault(row)
     if row.default == nil then return end
     -- DeepCopy color tables so two profiles can't end up sharing the
-    -- same nested table (RGBA arrays are the only nested defaults today
+    -- same nested table (RGBA tables are the only nested defaults today
     -- but anything deeper would silently leak).
     local v = row.default
     if type(v) == "table" then
@@ -133,137 +137,65 @@ function AddonTable.FormatSchemaValue(row, v)
 end
 
 -- ---------------------------------------------------------------------
--- AceConfig options-table builder
+-- Schema-shape validation
 -- ---------------------------------------------------------------------
 --
--- BuildPageOptions assembles a full AceConfig options table for one page
--- from its schema rows. Inline groups are created on demand for each
--- distinct row.group; rows without a group land directly under the page
--- root. Within a group, rows render in row.order then registration order.
+-- Run once at panel-registration time after every Options/*.lua file
+-- has finished loading. Catches misspelled `page` / `type` enum values,
+-- missing `path`, and other schema-row typos that would otherwise
+-- silently fail to render or fail to wire into the slash command.
+--
+-- The validator only PRINTS errors — it never refuses to register.
+-- A broken row is an addon-author bug; the right user-visible behaviour
+-- is "the option you wanted is missing AND a chat error tells you why,"
+-- not "the entire settings panel refuses to register."
 
-local function getColor(path)
-    local c = AddonTable.GetSetting(path) or {}
-    return c.r or 1, c.g or 1, c.b or 1, c.a or 1
+local _validPages = {
+    general = true, bar = true, border = true, font = true, profiles = true,
+}
+local _validTypes = {
+    bool = true, number = true, string = true, color = true,
+}
+
+local function _printSchemaError(prefix, msg)
+    local print = AddonTable.Print
+    if print then
+        print("|cffff0000schema error|r: " .. prefix .. ": " .. msg)
+    elseif DEFAULT_CHAT_FRAME then
+        DEFAULT_CHAT_FRAME:AddMessage(
+            "|cFF00FFFF[AT]|r |cffff0000schema error|r: " .. prefix .. ": " .. msg)
+    end
 end
 
-local function setColor(row, r, g, b, a)
-    AddonTable.SetSetting(row.path, { r = r, g = g, b = b, a = a })
-    fireOnChange(row, AddonTable.GetSetting(row.path))
-end
-
-local function buildEntry(row)
-    local entry = {
-        order = row.order or 100,
-        name  = row.label or row.path,
-        desc  = row.desc,
-        width = row.width or "full",
-    }
-
-    if row.type == "bool" then
-        entry.type = "toggle"
-        if row.inverse then
-            entry.get = function() return not AddonTable.GetSetting(row.path) end
-            entry.set = function(_, v)
-                AddonTable.SetSetting(row.path, not v)
-                fireOnChange(row, AddonTable.GetSetting(row.path))
-            end
+--- Walk the assembled schema and surface any malformed row. Called from
+--- CreateOptionsPanel after all Options/*.lua files have loaded their
+--- rows. Returns the count of errors found (always called for side
+--- effects; the count is exposed for future debug use).
+function AddonTable.ValidateSchema()
+    local errors = 0
+    for i, row in ipairs(AddonTable.Schema or {}) do
+        local where = "row #" .. i .. " (" .. tostring(row.path or "<no path>") .. ")"
+        if type(row) ~= "table" then
+            _printSchemaError(where, "row is not a table")
+            errors = errors + 1
         else
-            entry.get = function() return AddonTable.GetSetting(row.path) and true or false end
-            entry.set = function(_, v)
-                AddonTable.SetSetting(row.path, v and true or false)
-                fireOnChange(row, v)
+            if type(row.path) ~= "string" or row.path == "" then
+                _printSchemaError(where, "missing or empty `path`")
+                errors = errors + 1
+            end
+            if not _validPages[row.page] then
+                _printSchemaError(where, "invalid `page` = " .. tostring(row.page)
+                    .. " (expected one of: general, bar, border, font, profiles)")
+                errors = errors + 1
+            end
+            if not _validTypes[row.type] then
+                _printSchemaError(where, "invalid `type` = " .. tostring(row.type)
+                    .. " (expected one of: bool, number, string, color)")
+                errors = errors + 1
             end
         end
-
-    elseif row.type == "number" then
-        entry.type    = "range"
-        entry.min     = row.min
-        entry.max     = row.max
-        entry.step    = row.step
-        entry.bigStep = row.step
-        entry.get = function() return AddonTable.GetSetting(row.path) end
-        entry.set = function(_, v)
-            AddonTable.SetSetting(row.path, v)
-            fireOnChange(row, v)
-        end
-
-    elseif row.type == "string" then
-        entry.type   = "select"
-        entry.values = row.values or {}
-        if row.dialogControl then entry.dialogControl = row.dialogControl end
-        if row.sorting then entry.sorting = row.sorting end
-        entry.get = function() return AddonTable.GetSetting(row.path) end
-        entry.set = function(_, v)
-            AddonTable.SetSetting(row.path, v)
-            fireOnChange(row, v)
-        end
-
-    elseif row.type == "color" then
-        entry.type     = "color"
-        entry.hasAlpha = row.hasAlpha and true or false
-        entry.get = function() return getColor(row.path) end
-        entry.set = function(_, r, g, b, a) setColor(row, r, g, b, a) end
-        if row.disabledIf then
-            entry.disabled = function() return AddonTable.GetSetting(row.disabledIf) end
-        end
     end
-
-    if row.disabled then
-        -- Caller-provided disabled callback (rare). We OR with disabledIf
-        -- so both can apply; in practice only one is used.
-        local existing = entry.disabled
-        entry.disabled = function()
-            return (existing and existing()) or row.disabled()
-        end
-    end
-
-    return entry
-end
-
---- Assemble an AceConfig options table for one page. Returned table is
---- ready to hand to AceConfig:RegisterOptionsTable.
-function AddonTable.BuildPageOptions(pageKey, pageName)
-    local rows = AddonTable.SchemaForPage(pageKey)
-
-    local args  = {}
-    local groupOrder = {}
-    local groups = {}
-    local nextStandaloneOrder = 1
-    local nextGroupOrder      = 1
-
-    for _, row in ipairs(rows) do
-        if row.group then
-            local g = groups[row.group]
-            if not g then
-                g = {
-                    type   = "group",
-                    inline = true,
-                    name   = row.group,
-                    order  = nextGroupOrder,
-                    args   = {},
-                }
-                nextGroupOrder = nextGroupOrder + 10
-                groups[row.group] = g
-                groupOrder[#groupOrder + 1] = row.group
-            end
-            g.args[row.path] = buildEntry(row)
-        else
-            local entry = buildEntry(row)
-            entry.order = entry.order or nextStandaloneOrder
-            nextStandaloneOrder = nextStandaloneOrder + 10
-            args[row.path] = entry
-        end
-    end
-
-    for _, name in ipairs(groupOrder) do
-        args[name] = groups[name]
-    end
-
-    return {
-        name = pageName or pageKey,
-        type = "group",
-        args = args,
-    }
+    return errors
 end
 
 -- ---------------------------------------------------------------------
