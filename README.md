@@ -105,6 +105,7 @@ If you're filing a regression, the manual QA recipe at [docs/smoke-tests.md](./d
 
 | Version | Changes |
 |---------|---------|
+| 1.8.0 | Added `[hold-secs]` argument to `/at test`<br>Reshaped Bar settings panel (Bar Fill renamed to Bar; texture sits solo above Color and Use Class Color)<br>Swapped order of Border Color and Use Class Color on the Border panel<br>Settings-panel breadcrumb separator now renders as an atlas chevron (font- and locale-safe)<br>Fixed multi-group panel layout so section headers no longer cluster at the top<br>Refactored OptionsPanel.lua into a Panel/ toolkit (Helpers, ScrollPatch, Widgets, About) and routed all writes through a single `SetByPath` seam<br>Several correctness fixes (API order, fallback default deep-copy, color-picker drag throttle) and dead-code cleanup |
 | 1.7.0 | TOC version bump |
 | 1.6.0 | Updated slash commands for class color options added in v1.5.0 |
 | 1.5.0 | Added a "class color" option for bar color, bckground color and border color<br>Updated libs |
