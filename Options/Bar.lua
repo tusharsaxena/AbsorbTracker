@@ -15,15 +15,6 @@ local AddonName, AddonTable = ...
 
 local flatDefaults = AddonTable.flatDefaults
 
-local function lsmValues(mediaType)
-    return function()
-        local LSM = AddonTable.GetLSM()
-        local list, out = LSM and LSM:HashTable(mediaType) or {}, {}
-        for k in pairs(list) do out[k] = k end
-        return out
-    end
-end
-
 AddonTable.RegisterSchemaRows({
     {
         path    = "barWidth",
@@ -58,7 +49,7 @@ AddonTable.RegisterSchemaRows({
         desc    = "LibSharedMedia statusbar texture used for the bar fill.",
         default = flatDefaults.barTexture,
         dialogControl = "LSM30_Statusbar",
-        values = lsmValues("statusbar"),
+        values = AddonTable.Helpers.LSMValues("statusbar"),
     },
     {
         path     = "barColor",
@@ -94,7 +85,7 @@ AddonTable.RegisterSchemaRows({
         desc    = "LibSharedMedia statusbar texture drawn behind the bar fill.",
         default = flatDefaults.bgTexture,
         dialogControl = "LSM30_Statusbar",
-        values = lsmValues("statusbar"),
+        values = AddonTable.Helpers.LSMValues("statusbar"),
     },
     {
         path     = "bgColor",

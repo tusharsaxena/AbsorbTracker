@@ -10,15 +10,6 @@ local AddonName, AddonTable = ...
 
 local flatDefaults = AddonTable.flatDefaults
 
-local function lsmValues(mediaType)
-    return function()
-        local LSM = AddonTable.GetLSM()
-        local list, out = LSM and LSM:HashTable(mediaType) or {}, {}
-        for k in pairs(list) do out[k] = k end
-        return out
-    end
-end
-
 local fontFlagOptions = {
     [""]                          = "None",
     ["OUTLINE"]                   = "Outline",
@@ -44,7 +35,7 @@ AddonTable.RegisterSchemaRows({
         desc    = "LibSharedMedia font used for the absorb amount text.",
         default = flatDefaults.font,
         dialogControl = "LSM30_Font",
-        values = lsmValues("font"),
+        values = AddonTable.Helpers.LSMValues("font"),
     },
     {
         path    = "fontSize",

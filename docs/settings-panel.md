@@ -1,6 +1,20 @@
 # Settings panel
 
-How the addon registers its multi-page Blizzard Settings UI. The schema-driven content of each page is documented in [schema.md](./schema.md); this doc is about the *registration shell* — `OptionsPanel.lua` plus the per-page `Options/<page>.lua` declarations.
+How the addon registers its multi-page Blizzard Settings UI. The schema-driven content of each page is documented in [schema.md](./schema.md); this doc is about the *registration shell* — `OptionsPanel.lua` + the four `Panel/*.lua` toolkit slices, plus the per-page `Options/<page>.lua` declarations.
+
+## Source layout
+
+The settings UI is split across five files:
+
+| File | Role |
+|------|------|
+| `OptionsPanel.lua` | Registration shell. Publishes empty `AddonTable.Helpers = {}` and `AddonTable.PARENT_TITLE`; owns `pendingPages`, `RegisterOptionsPage`, `CreateOptionsPanel`, `OpenOptionsPanel`, `RefreshOptionsPanel`. |
+| `Panel/Helpers.lua` | Toolkit core. `CreatePanel` / `Section` / `InlineButtonPair` / `EnsureScroll` / `AttachTooltip` / `AddSpacer` / `LSMValues` / `RestoreDefaults` / `RestoreAllDefaults` / `RefreshAllPanels`, plus the layout constants (`PADDING_X` / `HEADER_HEIGHT` / `ROW_VSPACER` / `SECTION_HEADING_H`) and the panel registry. |
+| `Panel/ScrollPatch.lua` | `Helpers.PatchAlwaysShowScrollbar` — the always-visible scrollbar override. |
+| `Panel/Widgets.lua` | `Helpers.RenderField` (dispatches by `row.type`) + `Helpers.RenderSchema` (two-column layout) + the four widget makers (CheckBox / Slider / Dropdown / ColorPicker). |
+| `Panel/About.lua` | `Helpers.BuildMainContent` — top-level "Ka0s Absorb Tracker" page (logo + Notes + slash command list). |
+
+Each `Panel/*.lua` slice begins with `local Helpers = AddonTable.Helpers` and decorates that shared table. The TOC loads them in order immediately after `OptionsPanel.lua`, before any `Options/<page>.lua` consumes the toolkit.
 
 ## Five pages plus an about page
 
@@ -108,7 +122,7 @@ The `ColorPicker` maker treats `OnValueChanged` (fires during drag) as the prima
 
 When AceDB fires `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset`, the active profile flips. `AddonTable.RefreshOptionsPanel()` (called from `OnProfileChanged` after the bar repaint chain) routes to `Helpers.RefreshAllPanels()`, which walks every panel ctx and runs every registered refresher closure. Each refresher re-reads its row's value from `db.profile` and pushes it into the widget — values that didn't survive the profile flip update; values that did are no-ops.
 
-The same `RefreshAllPanels` runs after every `/at set` write (via `SlashCommands.lua`) and after every panel widget's `set()` (via the local `set()` in `OptionsPanel.lua` — see [Widget makers](#widget-makers-and-refresher-closures) above), so panel-driven and slash-driven mutations both keep open panels in sync.
+The same `RefreshAllPanels` runs after every `/at set` write (via `SlashCommands.lua`) and after every panel widget's `set()` (via the local `set()` in `Panel/Widgets.lua` — see [Widget makers](#widget-makers-and-refresher-closures) above), so panel-driven and slash-driven mutations both keep open panels in sync.
 
 ## `OpenOptionsPanel` and the combat-lockdown gate
 
@@ -145,9 +159,11 @@ local dd = AceGUI:Create(widgetType)
 
 The LSM30_* widgets are the canonical upstream `AceGUI-3.0-SharedMediaWidgets` r65 lib (widgetVersion 13), vendored at `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/` and loaded via `widget.xml`. `LSM30_Statusbar` / `LSM30_Font` use upstream's basic frame; `LSM30_Border` uses `GetBaseFrameWithWindow` which adds a 42×42 `displayButton` border-preview tile pinned to the widget's TOPLEFT. That tile clashes with our canvas-layout panel — `LSMPatch.lua` registers a one-shot `PLAYER_LOGIN` hook that wraps the registered `LSM30_Border` constructor, hides `displayButton`, and re-anchors the dropdown chrome to the frame's left edge. The hook lives in addon code rather than as an edit to the vendored lib so future r66+ refreshes are a clean drop-in.
 
+The dropdown's `values` table is supplied by `AddonTable.Helpers.LSMValues(mediaType)`, which returns a deferred closure that pulls the live `LibSharedMedia:HashTable(mediaType)` at dropdown-render time. Schema rows in `Options/Bar.lua` / `Border.lua` / `Font.lua` set `values = AddonTable.Helpers.LSMValues("statusbar")` (etc.) at file-load — the closure is then invoked by `makeDropdown`'s `valuesHash()` every time the dropdown re-renders, so newly-registered LSM media show up without an addon reload.
+
 ## About page (top-level "Ka0s Absorb Tracker")
 
-`buildMainContent(ctx)` (called from the parent panel's first `OnShow`) renders three blocks into the AceGUI scroll:
+`Helpers.BuildMainContent(ctx)` (defined in `Panel/About.lua`, called from the parent panel's first `OnShow` in `OptionsPanel.lua`'s `registerMain`) renders three blocks into the AceGUI scroll:
 
 1. **Logo.** `media/screenshots/absorbracker.logo.v2.tga` at native 300×300, anchored TOPLEFT inside a full-width SimpleGroup.
 2. **TOC `Notes` blurb** — full-width `Label` with `GameFontHighlight`, left-justified.

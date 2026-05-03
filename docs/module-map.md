@@ -175,7 +175,12 @@ Also registers `SLASH_ABSORBTRACKER1 = "/at"`, `SLASH_ABSORBTRACKER2 = "/absorbt
 
 ### OptionsPanel (`OptionsPanel.lua`)
 
+The settings UI is split across `OptionsPanel.lua` (registration shell) and four `Panel/*.lua` slices that decorate the same shared `AddonTable.Helpers` table. `OptionsPanel.lua` publishes the empty table; each `Panel/*.lua` file extends it with its own surface; `Options/<page>.lua` consume the toolkit at PLAYER_LOGIN.
+
 ```lua
+-- Registration shell (OptionsPanel.lua)
+AddonTable.PARENT_TITLE            -- "Ka0s Absorb Tracker" — single source of truth for the
+                                   -- top-level canvas title and the buildHeader breadcrumb prefix
 AddonTable.RegisterOptionsPage(key, name, builder)
     -- key:     "general" / "bar" / "border" / "font" / "profiles"
     -- name:    display name shown in the Blizzard Settings tree (and breadcrumb header)
@@ -186,18 +191,36 @@ AddonTable.RefreshOptionsPanel()   -- routes to Helpers.RefreshAllPanels (re-run
 AddonTable.OpenOptionsPanel()      -- Settings.OpenToCategory(mainCategoryID) + expandMainCategory();
                                    -- combat-lockdown gated. Always opens the parent (about page) and
                                    -- expands the sub-page tree so every page is visible at once.
+```
 
-AddonTable.Helpers                 -- panel-builder toolkit shared by every Options/<page>.lua:
-    Helpers.CreatePanel(name, title, opts)        -- canvas frame + header + Defaults button
-    Helpers.Section(ctx, label)                   -- AceGUI Heading row
-    Helpers.RenderField(ctx, row, parent, w)      -- dispatches by row.type
-    Helpers.RenderSchema(ctx, pageKey, afterGroup?) -- two-column layout from schema rows
+```lua
+-- Panel toolkit, decorated across Panel/*.lua and exposed as AddonTable.Helpers:
+AddonTable.Helpers
+    -- Panel/Helpers.lua
+    Helpers.CreatePanel(name, title, opts)         -- canvas frame + header + Defaults button
+    Helpers.EnsureScroll(ctx)                      -- lazy AceGUI ScrollFrame; calls PatchAlwaysShowScrollbar
+    Helpers.Section(ctx, label)                    -- AceGUI Heading row
     Helpers.InlineButtonPair(ctx, leftSpec, rightSpec)
     Helpers.AttachTooltip(widget, label, tooltip)
-    Helpers.PatchAlwaysShowScrollbar(scroll)
+    Helpers.AddSpacer(scroll, height)              -- invisible full-width SimpleGroup
+    Helpers.LSMValues(mediaType)                   -- deferred LSM hash factory for schema rows
     Helpers.RestoreDefaults(pageKey, ctx)
-    Helpers.RestoreAllDefaults()                  -- every schema-driven page; skips profiles
-    Helpers.RefreshAllPanels()                    -- run every panel ctx's refresher closures
+    Helpers.RestoreAllDefaults()                   -- every schema-driven page; skips profiles
+    Helpers.RefreshAllPanels()                     -- run every panel ctx's refresher closures
+    Helpers.PADDING_X                              -- layout constants exposed for cross-slice use
+    Helpers.HEADER_HEIGHT
+    Helpers.ROW_VSPACER
+    Helpers.SECTION_HEADING_H
+
+    -- Panel/ScrollPatch.lua
+    Helpers.PatchAlwaysShowScrollbar(scroll)       -- always-visible scrollbar override
+
+    -- Panel/Widgets.lua
+    Helpers.RenderField(ctx, row, parent, w)       -- dispatches by row.type
+    Helpers.RenderSchema(ctx, pageKey, afterGroup?) -- two-column layout from schema rows
+
+    -- Panel/About.lua
+    Helpers.BuildMainContent(ctx)                  -- top-level "Ka0s Absorb Tracker" page builder
 ```
 
 Detail in [settings-panel.md](./settings-panel.md).
@@ -234,8 +257,9 @@ In practice the calls always succeed because all files are loaded synchronously 
 9. `Timer.lua` — ticker management.
 10. `Events.lua` — event frame + login bootstrap (registered, fires later).
 11. `SlashCommands.lua` — `/at` dispatcher (registered at load).
-12. `OptionsPanel.lua` — registration shell (queues are empty at load; pages drain at PLAYER_LOGIN).
-13. `Options/General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` — each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load time.
+12. `OptionsPanel.lua` — registration shell. Publishes empty `AddonTable.Helpers = {}` and `AddonTable.PARENT_TITLE`; queues are empty at load; pages drain at PLAYER_LOGIN.
+13. `Panel/Helpers.lua` → `Panel/ScrollPatch.lua` → `Panel/Widgets.lua` → `Panel/About.lua` — each decorates `AddonTable.Helpers` with its own surface. Order matters only between Helpers (defines `EnsureScroll`) and ScrollPatch (defines `PatchAlwaysShowScrollbar` that `EnsureScroll` references at panel-creation time).
+14. `Options/General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` — each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load time. LSM-backed schema rows in `Bar.lua` / `Border.lua` / `Font.lua` call `AddonTable.Helpers.LSMValues(mediaType)` at file-load to get a deferred values closure.
 
 If you add a new runtime file, put it in the right place in `AbsorbTracker.toc`.
 

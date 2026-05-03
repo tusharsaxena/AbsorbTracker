@@ -99,7 +99,7 @@ Greys out the picker when the named sibling toggle is on. Used by the class-colo
   disabledIf = "useClassColorBar" },
 ```
 
-The ColorPicker maker (`OptionsPanel.lua`) reads `disabledIf` inside its refresher closure and calls `cp:SetDisabled(GetSetting(sibling))`. The refresh runs at file-load (initial state), after any panel widget write (every `set()` ends with `Helpers.RefreshAllPanels`), and on profile change — so flipping `useClassColorBar` greys / un-greys the matching color picker on the same frame.
+The ColorPicker maker (`Panel/Widgets.lua`) reads `disabledIf` inside its refresher closure and calls `cp:SetDisabled(GetSetting(sibling))`. The refresh runs at file-load (initial state), after any panel widget write (every `set()` ends with `Helpers.RefreshAllPanels`), and on profile change — so flipping `useClassColorBar` greys / un-greys the matching color picker on the same frame.
 
 ### `onChange` (any type)
 

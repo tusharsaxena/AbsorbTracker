@@ -57,7 +57,7 @@ Topic-specific detail lives in `docs/`. Read on demand — these are not auto-lo
 | Per-file responsibility map | [docs/file-index.md](./docs/file-index.md) | "Which file owns X?" |
 | `AddonTable` bus + public APIs + load order | [docs/module-map.md](./docs/module-map.md) | Designing a cross-module change. |
 | Schema-driven settings (registry, row knobs, `/at` mapping, settings reference) | [docs/schema.md](./docs/schema.md) | Adding a setting; debugging the slash CLI. |
-| Multi-page Settings panel (canvas-layout shell, `Helpers` toolkit, AceGUI widgets, LSM swatch dropdowns, `OpenOptionsPanel`) | [docs/settings-panel.md](./docs/settings-panel.md) | Touching `OptionsPanel.lua` or any `Options/<page>.lua`. |
+| Multi-page Settings panel (canvas-layout shell, `Helpers` toolkit, AceGUI widgets, LSM swatch dropdowns, `OpenOptionsPanel`) | [docs/settings-panel.md](./docs/settings-panel.md) | Touching `OptionsPanel.lua`, any `Panel/<slice>.lua`, or any `Options/<page>.lua`. |
 | Data flow (bootstrap, absorb update, settings write, profile change) | [docs/data-flow.md](./docs/data-flow.md) | Touching event handling, the ticker, or `OnProfileChanged`. |
 | Profiles (AceDB integration, `/at profile`, fallback shim) | [docs/profiles.md](./docs/profiles.md) | Touching profile callbacks or the `/at profile` subcommands. |
 | Midnight quirks (secret values, backdrop refresh, combat lockdown, Interface line) | [docs/midnight-quirks.md](./docs/midnight-quirks.md) | Patch-day breakage; protected-API gotchas. |

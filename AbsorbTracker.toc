@@ -34,6 +34,10 @@ Timer.lua
 Events.lua
 SlashCommands.lua
 OptionsPanel.lua
+Panel\Helpers.lua
+Panel\ScrollPatch.lua
+Panel\Widgets.lua
+Panel\About.lua
 Options\General.lua
 Options\Bar.lua
 Options\Border.lua

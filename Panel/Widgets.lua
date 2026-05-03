@@ -1,0 +1,296 @@
+-- AbsorbTracker: Panel/Widgets.lua
+--
+-- Schema-row → AceGUI widget translation. Each widget maker reads via
+-- AddonTable.GetSetting, writes via AddonTable.SetByPath (the
+-- documented single-write seam), registers a refresher closure for
+-- /at set + profile-change re-sync, and adds itself to the panel's
+-- AceGUI scroll. Helpers.RenderField dispatches by row.type;
+-- Helpers.RenderSchema lays a page's rows into 50/50 flow rows with
+-- section headings and inter-row spacers.
+--
+-- Decorates AddonTable.Helpers (created by OptionsPanel.lua, decorated
+-- by Panel/Helpers.lua before this file loads).
+
+local AddonName, AddonTable = ...
+
+local Helpers = AddonTable.Helpers
+
+local function applyWidth(widget, relativeWidth)
+    if relativeWidth then
+        widget:SetRelativeWidth(relativeWidth)
+    else
+        widget:SetFullWidth(true)
+    end
+end
+
+local function get(path) return AddonTable.GetSetting(path) end
+
+-- Write a row's value via the documented SetByPath seam (SetSetting +
+-- fireOnChange in one call), then refresh every widget on every panel.
+-- The refresh is what makes paired controls Just Work — a "Use Class
+-- Color" toggle flips and the matching color picker greys out (or
+-- un-greys) on the same frame. AceGUI SetValue doesn't fire
+-- OnValueChanged, so this can't recurse.
+local function set(row, value)
+    AddonTable.SetByPath(row.path, value)
+    Helpers.RefreshAllPanels()
+end
+
+local function makeCheckbox(ctx, row, parent, relativeWidth)
+    local AceGUI = LibStub("AceGUI-3.0")
+    parent = parent or Helpers.EnsureScroll(ctx)
+    local cb = AceGUI:Create("CheckBox")
+    cb:SetLabel(row.label or row.path)
+    applyWidth(cb, relativeWidth)
+
+    local function readValue()
+        local v = get(row.path) and true or false
+        if row.inverse then v = not v end
+        return v
+    end
+
+    cb:SetValue(readValue())
+
+    local function refresh() cb:SetValue(readValue()) end
+
+    cb:SetCallback("OnValueChanged", function(_, _, value)
+        local v = value and true or false
+        if row.inverse then v = not v end
+        set(row, v)
+    end)
+
+    Helpers.AttachTooltip(cb, row.label, row.desc)
+    parent:AddChild(cb)
+    ctx.refreshers[#ctx.refreshers + 1] = refresh
+    return cb
+end
+
+local function snapToStep(value, mn, step)
+    if not (step and step > 0) then return value end
+    return math.floor((value - mn) / step + 0.5) * step + mn
+end
+
+local function makeSlider(ctx, row, parent, relativeWidth)
+    local AceGUI = LibStub("AceGUI-3.0")
+    parent = parent or Helpers.EnsureScroll(ctx)
+    local s = AceGUI:Create("Slider")
+    s:SetLabel(row.label or row.path)
+    s:SetSliderValues(row.min or 0, row.max or 1, row.step or 1)
+    s:SetIsPercent(false)
+    applyWidth(s, relativeWidth)
+
+    local function refresh()
+        local v = get(row.path)
+        if type(v) ~= "number" then v = row.default or row.min or 0 end
+        s:SetValue(v)
+    end
+
+    s:SetCallback("OnMouseUp", function(_, _, value)
+        local snapped = snapToStep(value, row.min or 0, row.step or 0)
+        set(row, snapped)
+    end)
+
+    Helpers.AttachTooltip(s, row.label, row.desc)
+    parent:AddChild(s)
+    refresh()
+    ctx.refreshers[#ctx.refreshers + 1] = refresh
+    return s
+end
+
+local function makeDropdown(ctx, row, parent, relativeWidth)
+    local AceGUI = LibStub("AceGUI-3.0")
+    parent = parent or Helpers.EnsureScroll(ctx)
+    -- LSM dropdowns get the in-tree LSM30_* widget so each row renders
+    -- with a swatch / font preview. Everything else uses the stock
+    -- AceGUI Dropdown — both share enough of an interface
+    -- (SetLabel/SetList/SetValue/OnValueChanged) that the rest of this
+    -- function is unchanged either way. Fall back to plain Dropdown if
+    -- AceGUI-3.0-SharedMediaWidgets failed to load (no swatch, but the
+    -- option still renders).
+    local widgetType = row.dialogControl or "Dropdown"
+    if widgetType ~= "Dropdown" and not AceGUI:GetWidgetVersion(widgetType) then
+        widgetType = "Dropdown"
+    end
+    local dd = AceGUI:Create(widgetType)
+    dd:SetLabel(row.label or row.path)
+    applyWidth(dd, relativeWidth)
+
+    local function valuesHash()
+        if type(row.values) == "function" then return row.values() or {} end
+        return row.values or {}
+    end
+
+    local function applyList()
+        local items = valuesHash()
+        local order
+        if row.sorting then
+            order = {}
+            for i, k in ipairs(row.sorting) do order[i] = k end
+        else
+            order = {}
+            for k in pairs(items) do order[#order + 1] = k end
+            table.sort(order)
+        end
+        dd:SetList(items, order)
+    end
+    applyList()
+    dd:SetValue(get(row.path))
+
+    local function refresh()
+        applyList()                            -- LSM lists may grow over time
+        dd:SetValue(get(row.path))
+    end
+
+    dd:SetCallback("OnValueChanged", function(_, _, value)
+        set(row, value)
+    end)
+
+    Helpers.AttachTooltip(dd, row.label, row.desc)
+    parent:AddChild(dd)
+    ctx.refreshers[#ctx.refreshers + 1] = refresh
+    return dd
+end
+
+-- AT colors are stored as {r=, g=, b=, a=} named keys (see Settings.lua's
+-- GetBarColor / GetBgColor / GetBorderColor). Read/write that shape here
+-- so the rest of the addon doesn't have to translate.
+local function makeColorPicker(ctx, row, parent, relativeWidth)
+    local AceGUI = LibStub("AceGUI-3.0")
+    parent = parent or Helpers.EnsureScroll(ctx)
+    local cp = AceGUI:Create("ColorPicker")
+    cp:SetLabel(row.label or row.path)
+    cp:SetHasAlpha(row.hasAlpha and true or false)
+    applyWidth(cp, relativeWidth)
+
+    local function readColor()
+        local c = get(row.path)
+        if type(c) ~= "table" then c = {} end
+        return c.r or 1, c.g or 1, c.b or 1, c.a or 1
+    end
+
+    cp:SetColor(readColor())
+
+    local function applyDisabled()
+        if row.disabledIf then
+            cp:SetDisabled(get(row.disabledIf) and true or false)
+        end
+    end
+    applyDisabled()
+
+    local function refresh()
+        cp:SetColor(readColor())
+        applyDisabled()
+    end
+
+    -- AceGUI's ColorPicker fires OnValueChanged during drag (live
+    -- preview) and OnValueConfirmed on cancel (with the original color).
+    -- Throttle the live-preview commits at 50ms so a sustained drag
+    -- doesn't repaint the bar 60×/s; cancel commits immediately so the
+    -- bar snaps back to the pre-drag color without waiting on the
+    -- throttle window. Intentionally does NOT call RefreshAllPanels — a
+    -- sustained drag would re-traverse every panel widget every 50 ms.
+    local function commit(r, g, b, a)
+        AddonTable.SetByPath(row.path, { r = r, g = g, b = b, a = a or 1 })
+    end
+
+    local lastCommit = 0
+    local pendingArgs
+    local function throttledCommit(r, g, b, a)
+        local now = GetTime() and GetTime() or 0
+        if now - lastCommit >= 0.05 then
+            lastCommit = now
+            pendingArgs = nil
+            commit(r, g, b, a)
+        else
+            pendingArgs = { r, g, b, a }
+            C_Timer.After(0.05, function()
+                if pendingArgs then
+                    local p = pendingArgs
+                    pendingArgs = nil
+                    lastCommit = GetTime() and GetTime() or 0
+                    commit(p[1], p[2], p[3], p[4])
+                end
+            end)
+        end
+    end
+
+    cp:SetCallback("OnValueChanged",   function(_, _, r, g, b, a) throttledCommit(r, g, b, a) end)
+    cp:SetCallback("OnValueConfirmed", function(_, _, r, g, b, a) commit(r, g, b, a) end)
+
+    Helpers.AttachTooltip(cp, row.label, row.desc)
+    parent:AddChild(cp)
+    ctx.refreshers[#ctx.refreshers + 1] = refresh
+    return cp
+end
+
+-- Generic field renderer — dispatches by row.type.
+function Helpers.RenderField(ctx, row, parent, relativeWidth)
+    if row.type == "bool"   then return makeCheckbox(ctx, row, parent, relativeWidth)    end
+    if row.type == "number" then return makeSlider(ctx, row, parent, relativeWidth)      end
+    if row.type == "string" then return makeDropdown(ctx, row, parent, relativeWidth)    end
+    if row.type == "color"  then return makeColorPicker(ctx, row, parent, relativeWidth) end
+end
+
+-- ---------------------------------------------------------------------
+-- Schema-driven render
+-- ---------------------------------------------------------------------
+--
+-- Schema widgets are paired into 50%/50% Flow rows, each row wrapped in
+-- a full-width SimpleGroup so AceGUI's layout pass gives both children
+-- exactly half the panel width and breaks them onto the same line.
+-- Section headings span the full width (one per row), and every row is
+-- followed by a small vertical spacer for breathing room. afterGroup
+-- callbacks (e.g. inline action buttons) fire after the in-progress row
+-- is flushed, so they always start on a fresh line.
+function Helpers.RenderSchema(ctx, pageKey, afterGroup)
+    local AceGUI = LibStub("AceGUI-3.0")
+    local rows   = AddonTable.SchemaForPage(pageKey)
+    local scroll = Helpers.EnsureScroll(ctx)
+    local pendingRow, pendingCount = nil, 0
+
+    local function flushRow()
+        if pendingRow then
+            scroll:AddChild(pendingRow)
+            Helpers.AddSpacer(scroll, Helpers.ROW_VSPACER)
+            pendingRow, pendingCount = nil, 0
+        end
+    end
+
+    local function startRow()
+        local r = AceGUI:Create("SimpleGroup")
+        r:SetLayout("Flow")
+        r:SetFullWidth(true)
+        return r
+    end
+
+    for i, row in ipairs(rows) do
+        if row.group and row.group ~= ctx.lastGroup then
+            flushRow()                 -- previous group's tail row
+            Helpers.Section(ctx, row.group)
+            ctx.lastGroup = row.group
+        end
+
+        -- row.solo = true means "render this widget alone in the left
+        -- half of its own row, leaving the right half empty." Used for
+        -- visually-grouping pivots.
+        if row.solo and pendingCount > 0 then
+            flushRow()
+        end
+
+        if not pendingRow then pendingRow = startRow() end
+        Helpers.RenderField(ctx, row, pendingRow, 0.5)
+        pendingCount = pendingCount + 1
+        if row.solo or pendingCount >= 2 then flushRow() end
+
+        local nextRow = rows[i + 1]
+        if afterGroup and row.group
+           and (not nextRow or nextRow.group ~= row.group)
+           and afterGroup[row.group] then
+            flushRow()                 -- afterGroup buttons start fresh
+            afterGroup[row.group](ctx)
+            afterGroup[row.group] = nil  -- one-shot
+        end
+    end
+    flushRow()
+    if scroll.DoLayout then scroll:DoLayout() end
+end

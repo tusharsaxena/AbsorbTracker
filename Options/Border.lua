@@ -10,15 +10,6 @@ local AddonName, AddonTable = ...
 
 local flatDefaults = AddonTable.flatDefaults
 
-local function lsmValues(mediaType)
-    return function()
-        local LSM = AddonTable.GetLSM()
-        local list, out = LSM and LSM:HashTable(mediaType) or {}, {}
-        for k in pairs(list) do out[k] = k end
-        return out
-    end
-end
-
 AddonTable.RegisterSchemaRows({
     {
         path    = "border",
@@ -30,7 +21,7 @@ AddonTable.RegisterSchemaRows({
         desc    = "LibSharedMedia border texture (edge style) used to draw the bar's border.",
         default = flatDefaults.border,
         dialogControl = "LSM30_Border",
-        values = lsmValues("border"),
+        values = AddonTable.Helpers.LSMValues("border"),
     },
     {
         path    = "borderSize",
