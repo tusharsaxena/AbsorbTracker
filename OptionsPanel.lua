@@ -404,16 +404,14 @@ end
 
 local function get(path) return AddonTable.GetSetting(path) end
 
--- Write a row's value, fire its onChange, then refresh every widget on
--- every panel. The refresh is what makes paired controls Just Work — a
--- "Use Class Color" toggle flips and the matching color picker greys
--- out (or un-greys) on the same frame. AceGUI SetValue doesn't fire
+-- Write a row's value via the documented SetByPath seam (SetSetting +
+-- fireOnChange in one call), then refresh every widget on every panel.
+-- The refresh is what makes paired controls Just Work — a "Use Class
+-- Color" toggle flips and the matching color picker greys out (or
+-- un-greys) on the same frame. AceGUI SetValue doesn't fire
 -- OnValueChanged, so this can't recurse.
 local function set(row, value)
-    AddonTable.SetSetting(row.path, value)
-    if AddonTable.FireSchemaOnChange then
-        AddonTable.FireSchemaOnChange(row, value)
-    end
+    AddonTable.SetByPath(row.path, value)
     Helpers.RefreshAllPanels()
 end
 
@@ -568,12 +566,10 @@ local function makeColorPicker(ctx, row, parent, relativeWidth)
     -- Throttle the live-preview commits at 50ms so a sustained drag
     -- doesn't repaint the bar 60×/s; cancel commits immediately so the
     -- bar snaps back to the pre-drag color without waiting on the
-    -- throttle window.
+    -- throttle window. Intentionally does NOT call RefreshAllPanels — a
+    -- sustained drag would re-traverse every panel widget every 50 ms.
     local function commit(r, g, b, a)
-        AddonTable.SetSetting(row.path, { r = r, g = g, b = b, a = a or 1 })
-        if AddonTable.FireSchemaOnChange then
-            AddonTable.FireSchemaOnChange(row, AddonTable.GetSetting(row.path))
-        end
+        AddonTable.SetByPath(row.path, { r = r, g = g, b = b, a = a or 1 })
     end
 
     local lastCommit = 0

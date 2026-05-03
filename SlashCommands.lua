@@ -68,7 +68,7 @@ AddonTable.SlashCommands = {
         function() runDebug() end},
     {"update",        "Force a bar refresh",
         function() runUpdate() end},
-    {"test",          "Test display with a fake value — `/at test [value]`",
+    {"test",          "Test display with a fake value — `/at test [value] [hold-secs]`",
         function(rest) runTest(rest) end},
     {"profile",       "Profile management — try `/at profile` for the list",
         function(rest) runProfile(rest) end},
@@ -85,11 +85,11 @@ end
 -- ---------------------------------------------------------------------
 
 local function getVersion()
-    if GetAddOnMetadata then
-        return GetAddOnMetadata(AddonName, "Version") or "?"
-    end
     if C_AddOns and C_AddOns.GetAddOnMetadata then
         return C_AddOns.GetAddOnMetadata(AddonName, "Version") or "?"
+    end
+    if GetAddOnMetadata then
+        return GetAddOnMetadata(AddonName, "Version") or "?"
     end
     return "?"
 end
@@ -232,13 +232,23 @@ function runUpdate()
 end
 
 function runTest(rest)
-    local n = tonumber((rest or ""):match("^(%S*)")) or 50000
-    print("Testing display with value: " .. AbbreviateNumbers(n))
+    local args = {}
+    for w in (rest or ""):gmatch("%S+") do args[#args + 1] = w end
+    local n    = tonumber(args[1]) or 50000
+    local hold = tonumber(args[2]) or 5
+
+    if AddonTable.GetSetting("hidden") then
+        print("Bar is hidden; run /at toggle to show it before testing.")
+        return
+    end
+
+    print(("Testing display with value: %s for %d s"):format(AbbreviateNumbers(n), hold))
     if AddonTable.valueText and AddonTable.statusBar then
         AddonTable.valueText:SetText(AbbreviateNumbers(n))
         AddonTable.statusBar:SetMinMaxValues(0, math.max(n, 100000))
         AddonTable.statusBar:SetValue(n)
     end
+    AddonTable.testHoldUntil = GetTime() + hold
 end
 
 -- ---------------------------------------------------------------------

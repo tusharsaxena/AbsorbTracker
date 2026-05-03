@@ -86,6 +86,12 @@ function AddonTable.UpdateAbsorbBar()
         return
     end
 
+    -- /at test paints a fake value and sets testHoldUntil so this ticker
+    -- doesn't immediately overwrite it on the next tick.
+    if (AddonTable.testHoldUntil or 0) > GetTime() then
+        return
+    end
+
     local totalAbsorb = UnitGetTotalAbsorbs("player") or 0
     local maxHealth = UnitHealthMax("player") or 1
 

@@ -48,10 +48,18 @@ eventFrame:SetScript("OnEvent", function(self, event, unit)
             AbsorbTrackerDB = AbsorbTrackerDB or {}
             -- Create a minimal db-like structure for compatibility
             AddonTable.db = { profile = AbsorbTrackerDB }
-            -- Migrate old flat settings to profile if needed
+            -- Migrate old flat settings to profile if needed.
+            -- Deep-copy table defaults so an in-place mutation of a saved
+            -- variable can't reach back and corrupt flatDefaults.
             for key, defaultVal in pairs(flatDefaults) do
                 if AddonTable.db.profile[key] == nil then
-                    AddonTable.db.profile[key] = defaultVal
+                    if type(defaultVal) == "table" then
+                        local copy = {}
+                        for k, v in pairs(defaultVal) do copy[k] = v end
+                        AddonTable.db.profile[key] = copy
+                    else
+                        AddonTable.db.profile[key] = defaultVal
+                    end
                 end
             end
         end
