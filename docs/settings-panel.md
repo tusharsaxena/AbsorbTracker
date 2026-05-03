@@ -38,7 +38,7 @@ Profiles is the only page that still uses AceConfig — it routes `AceConfigDial
 
 Every page (about + sub-pages) builds the same header via `Helpers.CreatePanel(name, title, opts)`:
 
-- `GameFontNormalHuge` title in **breadcrumb** form: `"Ka0s Absorb Tracker  |  <Page>"` for sub-pages; the about page passes `opts.isMain = true` to render the unprefixed `"Ka0s Absorb Tracker"`. The Blizzard left-tree label (driven by `panel.name`) stays unprefixed so the tree indents under the parent without visual repetition.
+- `GameFontNormalHuge` title in **breadcrumb** form: `"Ka0s Absorb Tracker ▸ <Page>"` for sub-pages, where the separator is the inline-atlas escape `|A:common-icon-forwardarrow:16:16|a` (a real texture, not a font glyph — font-agnostic and locale-safe). The about page passes `opts.isMain = true` to render the unprefixed `"Ka0s Absorb Tracker"`. The Blizzard left-tree label (driven by `panel.name`) stays unprefixed so the tree indents under the parent without visual repetition.
 - `Options_HorizontalDivider` atlas underneath the title, tinted to the title's font color.
 - Optional **Defaults** button (width `PANEL_DEFAULTS_W = 110`) at TOPRIGHT — General / Bar / Border / Font opt in via `opts.defaultsButton = true`. About page and Profiles deliberately omit it (about page has no settings; Profiles has its own destructive controls inside the AceDBOptions UI).
 - Layout constants: `PADDING_X = 16`, `HEADER_TOP = 20`, `HEADER_HEIGHT = 54`. The body frame anchors `(0, -(HEADER_HEIGHT + 8))` below TOPLEFT.

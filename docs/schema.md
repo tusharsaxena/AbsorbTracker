@@ -114,7 +114,7 @@ Formatting hint for `/at list` / `/at get` output. Without `fmt`, integers rende
 
 ### `solo = true` (panel layout, any type)
 
-Tells `Helpers.RenderSchema` to render this row alone on its own line instead of pairing it with the next row in the 50/50 grid. Used as a visual pivot below grouped pairs — e.g. on the Bar page `barTexture` and `barColor` pair on one row, then `useClassColorBar` (solo) sits alone underneath, separating the Bar Fill block from the Background block. Has no effect on the slash CLI.
+Tells `Helpers.RenderSchema` to render this row alone on its own line instead of pairing it with the next row in the 50/50 grid. Used as a header above a paired row — e.g. on the Bar page `barTexture` (solo) sits on its own row, then `barColor` and `useClassColorBar` pair on the row beneath it, giving the texture dropdown its own line above the color/class-color pair. Has no effect on the slash CLI.
 
 ## Public API
 
@@ -124,7 +124,9 @@ AddonTable.RegisterSchemaRows(rows)             -- append rows to AddonTable.Sch
 
 -- Lookup
 AddonTable.FindSchemaRow(path)                  -> row | nil
-AddonTable.SchemaForPage(pageKey)               -> { rows }   -- sorted by row.order
+AddonTable.SchemaForPage(pageKey)               -> { rows }   -- sorted by group's first-seen
+                                                              -- registration order, then row.order
+                                                              -- within each group
 
 -- Write / reset (fires row.onChange; reads go through GetSetting)
 AddonTable.SetByPath(path, value)               -- write + onChange (the documented single seam

@@ -108,7 +108,9 @@ AddonTable.RegisterSchemaRows(rows)        -- append rows to AddonTable.Schema
 
 -- Lookup
 AddonTable.FindSchemaRow(path)             -> row | nil
-AddonTable.SchemaForPage(pageKey)          -> { rows }   -- sorted by row.order
+AddonTable.SchemaForPage(pageKey)          -> { rows }   -- sorted group-stably (each group's
+                                                         -- first-seen registration index, then
+                                                         -- row.order within the group)
 
 -- Write / reset (reads go through GetSetting directly)
 AddonTable.SetByPath(path, value)          -- writes via SetSetting + fires row.onChange
