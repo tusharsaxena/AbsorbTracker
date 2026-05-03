@@ -47,8 +47,6 @@ local SECTION_HEADING_H    = 26
 -- Cross-slice constants that Panel/Widgets.lua and Panel/About.lua need
 -- to read. Exposed on Helpers rather than copied into each file so the
 -- spacing stays in lockstep across the whole panel.
-Helpers.PADDING_X         = PADDING_X
-Helpers.HEADER_HEIGHT     = HEADER_HEIGHT
 Helpers.ROW_VSPACER       = ROW_VSPACER
 Helpers.SECTION_HEADING_H = SECTION_HEADING_H
 

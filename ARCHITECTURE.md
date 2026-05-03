@@ -30,11 +30,11 @@ WoW events ─▶ Events.lua  ─▶ C_Timer.NewTicker  ─▶ Display.UpdateAbs
 
 | Subsystem | Lives in | Read |
 |-----------|----------|------|
-| Per-module APIs + `AddonTable` bus + load order | `Core.lua`, `Utils.lua`, `LSMPatch.lua`, `Settings.lua`, `Schema.lua`, `UI.lua`, `Display.lua`, `Timer.lua`, `Events.lua`, `SlashCommands.lua`, `OptionsPanel.lua` | [docs/module-map.md](./docs/module-map.md) |
+| Per-module APIs + `AddonTable` bus + load order | `Core.lua`, `Utils.lua`, `LSMPatch.lua`, `Settings.lua`, `Schema.lua`, `UI.lua`, `Display.lua`, `Timer.lua`, `Events.lua`, `SlashCommands.lua`, `OptionsPanel.lua`, `Panel/*.lua` | [docs/module-map.md](./docs/module-map.md) |
 | Per-file responsibility map | — | [docs/file-index.md](./docs/file-index.md) |
 | Bootstrap + absorb update + settings write + profile-change refresh | `Events.lua`, `Display.lua`, `Timer.lua` | [docs/data-flow.md](./docs/data-flow.md) |
 | Schema-driven settings (registry, row knobs, `/at` mapping, settings reference) | `Schema.lua`, `Options/*.lua` | [docs/schema.md](./docs/schema.md) |
-| Multi-page Settings panel (canvas-layout shell, `Helpers` toolkit, two-column AceGUI render, LSM swatch widgets, about page) | `OptionsPanel.lua`, `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/` | [docs/settings-panel.md](./docs/settings-panel.md) |
+| Multi-page Settings panel (canvas-layout shell, `Helpers` toolkit, two-column AceGUI render, LSM swatch widgets, about page) | `OptionsPanel.lua`, `Panel/Helpers.lua`, `Panel/ScrollPatch.lua`, `Panel/Widgets.lua`, `Panel/About.lua`, `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/` | [docs/settings-panel.md](./docs/settings-panel.md) |
 | Profiles (AceDB integration + `/at profile` + fallback shim) | `Events.lua`, `Options/Profiles.lua`, `SlashCommands.lua` | [docs/profiles.md](./docs/profiles.md) |
 | WoW retail API gotchas (secret values, backdrop refresh, combat lockdown, Interface line) | — | [docs/midnight-quirks.md](./docs/midnight-quirks.md) |
 | In/out scope + resolved design decisions | — | [docs/scope.md](./docs/scope.md) |
@@ -80,7 +80,8 @@ All vendored under `libs/`:
 6. `Schema.lua` — schema registry + builders.
 7. `UI.lua` — bar frame creation (runs at file-load time; frames exist before later modules need them).
 8. `Display.lua` → `Timer.lua` → `Events.lua` → `SlashCommands.lua` → `OptionsPanel.lua`.
-9. `Options/General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` — each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load time.
+9. `Panel/Helpers.lua` → `Panel/ScrollPatch.lua` → `Panel/Widgets.lua` → `Panel/About.lua` — each decorates the empty `AddonTable.Helpers` table that `OptionsPanel.lua` published.
+10. `Options/General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` — each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load time.
 
 Event handlers and `OnProfileChanged` are *defined* during file load but only *called* from event dispatch and AceDB callbacks, which run after every file has loaded — so the bodies can freely reference modules that load later, guarded by the [forward-reference nil check](./docs/module-map.md#forward-references).
 

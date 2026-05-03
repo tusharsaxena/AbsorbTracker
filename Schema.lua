@@ -81,7 +81,6 @@ local function fireOnChange(row, value)
     local fn = row.onChange or defaultOnChange
     fn(value)
 end
-AddonTable.FireSchemaOnChange = fireOnChange
 
 --- Write a value for `path`, fire its onChange. Used by /at set, by
 --- /at reset, and by every panel widget — single dispatch path so no

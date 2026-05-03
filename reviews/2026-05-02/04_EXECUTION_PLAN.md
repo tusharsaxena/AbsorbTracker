@@ -1,6 +1,6 @@
-# REVIEW_EXECUTION_PLAN — Ka0s Absorb Tracker
+# Execution Plan — Ka0s Absorb Tracker
 
-Companion to `REVIEW_FINDINGS.md` (the requirements) and `REVIEW_PROPOSED_CHANGES.md` (the design). This is the agent-team execution plan: ordered milestones, tasks per milestone, parallelization map, and human-coordinator checkpoints.
+Companion to [`01_FINDINGS.md`](./01_FINDINGS.md) (the requirements) and [`02_PROPOSED_CHANGES.md`](./02_PROPOSED_CHANGES.md) (the design). This is the agent-team execution plan: ordered milestones, tasks per milestone, parallelization map, and human-coordinator checkpoints.
 
 Tasks reference theme IDs (`T1…T7`) and finding IDs (`F-001…F-017`) from the companion docs.
 

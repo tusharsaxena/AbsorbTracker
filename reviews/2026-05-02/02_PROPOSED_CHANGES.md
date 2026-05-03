@@ -1,6 +1,6 @@
-# REVIEW_PROPOSED_CHANGES — Ka0s Absorb Tracker
+# Proposed Changes — Ka0s Absorb Tracker
 
-Companion to `REVIEW_FINDINGS.md`. This doc is the design — high-level themes plus per-finding LLD sketches.
+Companion to [`01_FINDINGS.md`](./01_FINDINGS.md). This doc is the design — high-level themes plus per-finding LLD sketches.
 
 ## HLD — themes
 

@@ -1,4 +1,4 @@
-# REVIEW_SMOKE_TESTS — Ka0s Absorb Tracker (2026-05-02 review)
+# Smoke Tests — Ka0s Absorb Tracker (2026-05-02 review)
 
 Manual QA recipe to validate the three milestones (M1 / M2 / M3) shipped from this review. Pair this with the general manual recipe in [`docs/smoke-tests.md`](../../docs/smoke-tests.md) — that doc covers normal user-facing functionality; this one walks the *specific* findings the review identified, so a regression in any item maps directly back to a finding ID and the commit that introduced the change.
 

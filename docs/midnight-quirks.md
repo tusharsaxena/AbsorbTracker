@@ -28,11 +28,13 @@ Don't try to "optimize" by skipping the `SetBackdrop(nil)`. The backdrop will lo
 
 ```lua
 if InCombatLockdown() then
-    AddonTable.Print("settings panel is unavailable during combat")
+    print("Cannot open settings panel during combat. Try again after combat ends.")
     return
 end
-Settings.OpenToCategory(categoryID)
+Settings.OpenToCategory(mainCategoryID)
 ```
+
+(The `print` is the `local print = AddonTable.Print` shadow at the top of `OptionsPanel.lua`, so the chat output gets the cyan `[AT]` prefix.)
 
 Don't try to clever-defer the call into a `PLAYER_REGEN_ENABLED` queue. A user who clicks `/at config` mid-pull and then tabs to another addon's UI mid-call would see weird state. The straight-up refusal with a chat notice is the right call.
 

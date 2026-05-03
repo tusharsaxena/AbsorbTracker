@@ -57,32 +57,39 @@ UNIT_ABSORB_AMOUNT_CHANGED ─────► DebugPrint only (no visual update)
 ## Settings-write path
 
 ```
-Slash:  /at set <path> <value>             Panel widget set callback
+Slash:  /at set <path> <value>             Panel widget OnValueChanged
             │                                          │
             ▼                                          ▼
-ParseSchemaValue(row, text)            AceConfigDialog → row.set
+ParseSchemaValue(row, text)            local set(row, value)
+            │                          (Panel/Widgets.lua — file-local)
             │                                          │
             └────────────────┬─────────────────────────┘
                              ▼
                   AddonTable.SetByPath(path, value)
                              │
-                  ┌──────────┼─────────────────────────┐
-                  ▼          ▼                         ▼
-       SetSetting(path,v)  fire row.onChange   panel widget set() also runs
-       db.profile[path]                        Helpers.RefreshAllPanels
-       = v                  default: UpdateBarAppearance()        │
-                            interval: RestartUpdateTicker()       │
-                            hidden:   UpdateBarAppearance()       │
-                                      + UpdateAbsorbBar()         │
-                             │                                    │
-                             ▼                                    ▼
-                   GetBarColor / GetBgColor / GetBorderColor   refreshers re-pull
-                   re-read live values, push to frames         every widget value
-                                                               (paired disabledIf
-                                                                state re-syncs)
+                  ┌──────────┴───────────┐
+                  ▼                      ▼
+       SetSetting(path, v)      fire row.onChange
+       db.profile[path] = v     default: UpdateBarAppearance()
+                                interval: RestartUpdateTicker()
+                                hidden:   UpdateBarAppearance()
+                                          + UpdateAbsorbBar()
+                             │
+                             ▼
+                   (slash path returns to caller; panel widget's
+                    local set() then runs Helpers.RefreshAllPanels
+                    so paired controls re-sync — paired disabledIf
+                    state, refreshers re-pull every widget value)
+                             │
+                             ▼
+                   GetBarColor / GetBgColor / GetBorderColor
+                   re-read live values on the next paint
+                   (no caching — class color toggles "just work")
 ```
 
-The slash and panel paths converge on `SetByPath`. Color getters resolve `useClassColor*` at call time, so no explicit "switch class color on" wiring is needed — the next paint reads the current toggle state and produces the right color.
+The slash and panel paths converge on `SetByPath`. The panel's local `set(row, value)` (in `Panel/Widgets.lua`) calls `SetByPath` then `Helpers.RefreshAllPanels`; the slash dispatcher (`SlashCommands.lua`) calls `SetByPath` then `RefreshOptionsPanel` (which itself routes to `Helpers.RefreshAllPanels`). Color getters resolve `useClassColor*` at call time, so no explicit "switch class color on" wiring is needed — the next paint reads the current toggle state and produces the right color.
+
+(`AceConfigDialog` is **not** in this path. It's used only inside the Profiles sub-page, where `Options/Profiles.lua` opens the AceDBOptions UI; for every other sub-page the AceGUI widget callbacks call directly into the local `set()` defined in `Panel/Widgets.lua`.)
 
 ## Profile-change refresh
 

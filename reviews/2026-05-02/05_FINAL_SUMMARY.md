@@ -1,6 +1,6 @@
-# REVIEW_FINAL_SUMMARY — Ka0s Absorb Tracker (2026-05-02 review)
+# Final Summary — Ka0s Absorb Tracker (2026-05-02 review)
 
-Outcome of the review captured on 2026-05-02 in [`REVIEW_FINDINGS.md`](./REVIEW_FINDINGS.md), designed in [`REVIEW_PROPOSED_CHANGES.md`](./REVIEW_PROPOSED_CHANGES.md), and executed via the milestones in [`REVIEW_EXECUTION_PLAN.md`](./REVIEW_EXECUTION_PLAN.md). Manual QA recipe lives in [`REVIEW_SMOKE_TESTS.md`](./REVIEW_SMOKE_TESTS.md).
+Outcome of the review captured on 2026-05-02 in [`01_FINDINGS.md`](./01_FINDINGS.md), designed in [`02_PROPOSED_CHANGES.md`](./02_PROPOSED_CHANGES.md), and executed via the milestones in [`04_EXECUTION_PLAN.md`](./04_EXECUTION_PLAN.md). Manual QA recipe lives in [`03_SMOKE_TESTS.md`](./03_SMOKE_TESTS.md).
 
 > **Status:** All in-scope findings are shipped on `main`. Five commits ahead of `origin/main`, awaiting manual smoke-test sign-off and `git push`.
 
@@ -160,8 +160,8 @@ Each command-list row is `{name, desc, handler}`; readers index by slot. Keeping
 
 ## What's next (for you)
 
-1. **Run the smoke-test recipe** in [`REVIEW_SMOKE_TESTS.md`](./REVIEW_SMOKE_TESTS.md) — C-A (~5 min), C-B (~15 min), C-C (~3 min). Total ~25 min if everything passes.
-2. **If anything fails**, the triage matrix at the end of `REVIEW_SMOKE_TESTS.md` maps symptoms back to the milestone commit so you can `git revert` cleanly without unwinding unrelated work.
+1. **Run the smoke-test recipe** in [`03_SMOKE_TESTS.md`](./03_SMOKE_TESTS.md) — C-A (~5 min), C-B (~15 min), C-C (~3 min). Total ~25 min if everything passes.
+2. **If anything fails**, the triage matrix at the end of `03_SMOKE_TESTS.md` maps symptoms back to the milestone commit so you can `git revert` cleanly without unwinding unrelated work.
 3. **`git push origin main`** when smoke tests pass.
 4. **Bump version + tag** when you're ready to release. `1.7.0 → 1.7.1` is the conservative bump (the patch surface is bug fixes + internal refactor, no user-facing API change beyond the `/at test [hold-secs]` argument that's strictly additive).
 

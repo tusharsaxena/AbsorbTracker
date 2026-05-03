@@ -112,9 +112,9 @@ AddonTable.SchemaForPage(pageKey)          -> { rows }   -- sorted by row.order
 
 -- Write / reset (reads go through GetSetting directly)
 AddonTable.SetByPath(path, value)          -- writes via SetSetting + fires row.onChange
+                                           -- (the single seam both /at set and the panel widget
+                                           -- set() use; pre-M1.3 the panel open-coded this two-step)
 AddonTable.ApplyDefault(row)               -- resets row to row.default + fires onChange
-AddonTable.FireSchemaOnChange(row, value)  -- the onChange dispatcher (default: UpdateBarAppearance);
-                                           -- exported for the panel widget makers
 
 -- Slash IO
 AddonTable.FormatSchemaValue(row, value)   -> string
@@ -206,10 +206,8 @@ AddonTable.Helpers
     Helpers.RestoreDefaults(pageKey, ctx)
     Helpers.RestoreAllDefaults()                   -- every schema-driven page; skips profiles
     Helpers.RefreshAllPanels()                     -- run every panel ctx's refresher closures
-    Helpers.PADDING_X                              -- layout constants exposed for cross-slice use
-    Helpers.HEADER_HEIGHT
-    Helpers.ROW_VSPACER
-    Helpers.SECTION_HEADING_H
+    Helpers.ROW_VSPACER                            -- layout constants exposed for cross-slice use
+    Helpers.SECTION_HEADING_H                      -- (read by Panel/Widgets.lua and Panel/About.lua)
 
     -- Panel/ScrollPatch.lua
     Helpers.PatchAlwaysShowScrollbar(scroll)       -- always-visible scrollbar override

@@ -127,10 +127,10 @@ AddonTable.FindSchemaRow(path)                  -> row | nil
 AddonTable.SchemaForPage(pageKey)               -> { rows }   -- sorted by row.order
 
 -- Write / reset (fires row.onChange; reads go through GetSetting)
-AddonTable.SetByPath(path, value)               -- write + onChange
-AddonTable.ApplyDefault(row)                    -- reset to row.default + onChange
-AddonTable.FireSchemaOnChange(row, value)       -- onChange dispatcher (default: UpdateBarAppearance);
-                                                -- exported for the panel widget makers
+AddonTable.SetByPath(path, value)               -- write + onChange (the documented single seam
+                                                -- both /at set and the panel widget set() use)
+AddonTable.ApplyDefault(row)                    -- reset to row.default + onChange (used by
+                                                -- /at reset, /at resetall, and per-page Defaults)
 
 -- Slash IO
 AddonTable.FormatSchemaValue(row, value)        -> string    -- display formatting
@@ -154,8 +154,8 @@ Per-setting subcommands like `/at width 250` or `/at color classcolor on` are go
 
 ## What's *not* schema-driven
 
-- **Action buttons** like Reset Position. They're inline `execute`-type AceConfig args appended by `Options/General.lua`'s build closure, not schema rows.
-- **`/at config` / `/at lock` / `/at toggle` / `/at debug` / `/at update` / `/at test` / `/at resetposition` / `/at profile`.** Verbs that don't fit a key/value shape live as dedicated entries in `COMMANDS` in `SlashCommands.lua`.
+- **Action buttons** like Reset Position. They're rendered via `Helpers.InlineButtonPair`, attached to a sub-page through `Helpers.RenderSchema`'s `afterGroup` callback. `Options/General.lua` wires the **Reset Position** + **Reset All Settings** pair under the **Master controls** group via `RenderSchema(ctx, "general", { ["Master controls"] = function(ctxRef) H.InlineButtonPair(ctxRef, ...) end })`.
+- **`/at config` / `/at lock` / `/at toggle` / `/at debug` / `/at update` / `/at test` / `/at resetposition` / `/at profile`.** Verbs that don't fit a key/value shape live as dedicated entries in the `AddonTable.SlashCommands` array in `SlashCommands.lua`.
 - **The Profiles sub-page.** `AceDBOptions:GetOptionsTable(db)` builds its own options table; no schema rows.
 
 ## Settings reference (every schema row)

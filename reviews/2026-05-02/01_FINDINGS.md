@@ -1,8 +1,8 @@
-# REVIEW_FINDINGS — Ka0s Absorb Tracker
+# Findings — Ka0s Absorb Tracker
 
 **Verdict:** Ship-ready with minor issues. No blocking taint, no data-loss bugs, no broken core flow. The cluster of findings below is convention drift, dead/duplicated code, two latent correctness bugs in lesser-trodden paths (AceDB-missing fallback, `/at test`), and one near-future-deprecated-API ordering hazard.
 
-Findings are grouped by severity. IDs are stable; later artifacts (`REVIEW_PROPOSED_CHANGES.md`, `REVIEW_EXECUTION_PLAN.md`) reference them.
+Findings are grouped by severity. IDs are stable; later artifacts ([`02_PROPOSED_CHANGES.md`](./02_PROPOSED_CHANGES.md), [`04_EXECUTION_PLAN.md`](./04_EXECUTION_PLAN.md)) reference them.
 
 ---
 
