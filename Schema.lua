@@ -60,10 +60,23 @@ end
 
 function AddonTable.SchemaForPage(pageKey)
     local out = {}
+    -- Track each group's first-seen registration index so groups stay in
+    -- the order their rows were registered. Sorting purely on row.order
+    -- would interleave groups (every group's order=10 row clustering
+    -- before any order=20 row), which breaks the section-header layout.
+    local groupIndex = {}
     for _, row in ipairs(AddonTable.Schema) do
-        if row.page == pageKey then out[#out + 1] = row end
+        if row.page == pageKey then
+            out[#out + 1] = row
+            local g = row.group or ""
+            if groupIndex[g] == nil then
+                groupIndex[g] = #out
+            end
+        end
     end
     table.sort(out, function(a, b)
+        local ga, gb = groupIndex[a.group or ""], groupIndex[b.group or ""]
+        if ga ~= gb then return ga < gb end
         return (a.order or 100) < (b.order or 100)
     end)
     return out

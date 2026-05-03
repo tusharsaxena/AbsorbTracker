@@ -6,10 +6,10 @@
 --
 -- Layout produces:
 --     [Bar Width]          | [Bar Height]
---     [Bar Texture]        | [Bar Color]
---     [Use Class Color]
---     [Background Texture] | [Background Color]
---     [Use Class Color]
+--     [Bar Texture]
+--     [Bar Color]          | [Use Class Color]
+--     [Background Texture]
+--     [Background Color]   | [Use Class Color]
 
 local AddonName, AddonTable = ...
 
@@ -42,7 +42,7 @@ AddonTable.RegisterSchemaRows({
     {
         path    = "barTexture",
         page    = "bar",
-        group   = "Bar Fill",
+        group   = "Bar",
         order   = 10,
         type    = "string",
         label   = "Bar Texture",
@@ -50,11 +50,12 @@ AddonTable.RegisterSchemaRows({
         default = flatDefaults.barTexture,
         dialogControl = "LSM30_Statusbar",
         values = AddonTable.Helpers.LSMValues("statusbar"),
+        solo   = true,
     },
     {
         path     = "barColor",
         page     = "bar",
-        group    = "Bar Fill",
+        group    = "Bar",
         order    = 20,
         type     = "color",
         label    = "Bar Color",
@@ -66,13 +67,12 @@ AddonTable.RegisterSchemaRows({
     {
         path    = "useClassColorBar",
         page    = "bar",
-        group   = "Bar Fill",
+        group   = "Bar",
         order   = 30,
         type    = "bool",
         label   = "Use Class Color",
         desc    = "Use your class color for the bar fill. Greys out the Bar Color picker.",
         default = flatDefaults.useClassColorBar,
-        solo   = true,
     },
 
     {
@@ -86,6 +86,7 @@ AddonTable.RegisterSchemaRows({
         default = flatDefaults.bgTexture,
         dialogControl = "LSM30_Statusbar",
         values = AddonTable.Helpers.LSMValues("statusbar"),
+        solo   = true,
     },
     {
         path     = "bgColor",
@@ -108,7 +109,6 @@ AddonTable.RegisterSchemaRows({
         label   = "Use Class Color",
         desc    = "Use a darkened class color for the background. Greys out the Background Color picker.",
         default = flatDefaults.useClassColorBg,
-        solo   = true,
     },
 })
 

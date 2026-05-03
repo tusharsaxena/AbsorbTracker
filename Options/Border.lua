@@ -3,8 +3,8 @@
 -- Border sub-page: style, thickness, color (with class-color toggle).
 --
 -- Layout produces:
---     [Border Style]    | [Border Thickness (in px)]
---     [Use Class Color] | [Border Color]
+--     [Border Style]  | [Border Thickness (in px)]
+--     [Border Color]  | [Use Class Color]
 
 local AddonName, AddonTable = ...
 
@@ -38,7 +38,7 @@ AddonTable.RegisterSchemaRows({
         path    = "useClassColorBorder",
         page    = "border",
         group   = "Border",
-        order   = 30,
+        order   = 40,
         type    = "bool",
         label   = "Use Class Color",
         desc    = "Use your class color for the border. Greys out the Border Color picker.",
@@ -48,7 +48,7 @@ AddonTable.RegisterSchemaRows({
         path     = "borderColor",
         page     = "border",
         group    = "Border",
-        order    = 40,
+        order    = 30,
         type     = "color",
         label    = "Border Color",
         desc     = "RGBA border color (only used when Use Class Color is off).",
