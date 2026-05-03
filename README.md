@@ -103,14 +103,13 @@ If you're filing a regression, the manual QA recipe at [docs/smoke-tests.md](./d
 
 ## Version History
 
-| Version | Changes |
-|---------|---------|
-| 1.8.0 | Added `[hold-secs]` argument to `/at test`<br>Reshaped Bar settings panel (Bar Fill renamed to Bar; texture sits solo above Color and Use Class Color)<br>Swapped order of Border Color and Use Class Color on the Border panel<br>Settings-panel breadcrumb separator now renders as an atlas chevron (font- and locale-safe)<br>Fixed multi-group panel layout so section headers no longer cluster at the top<br>Refactored OptionsPanel.lua into a Panel/ toolkit (Helpers, ScrollPatch, Widgets, About) and routed all writes through a single `SetByPath` seam<br>Several correctness fixes (API order, fallback default deep-copy, color-picker drag throttle) and dead-code cleanup |
-| 1.7.0 | TOC version bump |
-| 1.6.0 | Updated slash commands for class color options added in v1.5.0 |
-| 1.5.0 | Added a "class color" option for bar color, bckground color and border color<br>Updated libs |
-| 1.4.0 | Replaced all dropdown selectors in the Settings panel with custom scrollable dropdowns<br>Dropdowns with 10 or more items now display a scrollbar<br>Opening a dropdown auto-scrolls to the currently selected value |
-| 1.3.0 | Updated README.md for initial release |
-| 1.2.0 | Removed pkgmeta and embedded libs directly |
-| 1.1.0 | Added pkgmeta.yaml to install dependencies automatically |
-| 1.0.0 | Initial Release … yay! |
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.8.0 | 2026-05-03 | Overhauled the Settings panel onto a canvas + AceGUI stack with breadcrumb headers and an About page<br>Refactored `OptionsPanel.lua` into a `Panel/` toolkit and routed all writes through a single `SetByPath` seam<br>Vendored upstream `AceGUI-3.0-SharedMediaWidgets`; `/at config` now opens the parent unfolded<br>Added a `[hold-secs]` argument to `/at test`; reshaped the Bar and Border panels; breadcrumb separator switched to an atlas chevron<br>Correctness fixes (API order, fallback deep-copy, color-picker throttle) and dead-code cleanup |
+| 1.7.0 | 2026-04-24 | Rebranded to **Ka0s Absorb Tracker** with new LICENSE and media assets<br>Made the settings schema-driven and split into multi-page Blizzard subcategories; rewrote the slash dispatcher around the schema<br>Centralized chat output through a cyan `[AT]` prefix helper<br>Normalized on-disk line endings to CRLF; added `ARCHITECTURE.md` |
+| 1.6.0 | 2026-02-14 | Added `/at` slash-command coverage for the class-color options |
+| 1.5.0 | 2026-02-14 | Added class-color overrides for bar fill, background, and border<br>Updated bundled libs |
+| 1.4.0 | 2026-02-05 | Replaced Settings-panel dropdowns with scrollable variants<br>Dropdowns with 10+ items get a scrollbar and auto-scroll to the current selection |
+| 1.3.0 | 2026-01-31 | Embedded libs directly in-tree (dropped `pkgmeta`)<br>Rewrote `README.md` with screenshots for the public release |
+| 1.1.0 | 2026-01-31 | Added `pkgmeta.yaml` to install dependencies automatically |
+| 1.0.0 | 2026-01-31 | Initial release: movable absorb bar, configurable size / textures / colors / border / font, AceDB profile support, in-combat settings-panel guard |
