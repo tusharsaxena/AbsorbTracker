@@ -112,17 +112,20 @@ Helpers.AddSpacer = addSpacer
 -- ---------------------------------------------------------------------
 
 local function buildHeader(panel, title, opts)
-    -- Sub-pages render with an "Ka0s Absorb Tracker | <Page>" prefix so
-    -- the in-page header reads as a breadcrumb. The parent/main page
+    -- Sub-pages render with a "Ka0s Absorb Tracker ▸ <Page>" breadcrumb
+    -- prefix. The separator is an inline atlas escape (|A:atlas:h:w|a),
+    -- not a font glyph, so it renders the same regardless of the
+    -- FontString's font or any locale fallback. The parent/main page
     -- opts in to the unprefixed form via opts.isMain (otherwise it
-    -- would read "Ka0s Absorb Tracker | Ka0s Absorb Tracker"). The
+    -- would read "Ka0s Absorb Tracker ▸ Ka0s Absorb Tracker"). The
     -- Blizzard left-tree label is driven by panel.name in CreatePanel
     -- and stays unprefixed so the tree indents under the parent without
     -- visual repetition.
     local PARENT_TITLE = AddonTable.PARENT_TITLE or ""
     local displayTitle = title
     if not opts.isMain then
-        displayTitle = PARENT_TITLE .. "  |  " .. title
+        local sep = " |A:common-icon-forwardarrow:16:16|a "
+        displayTitle = PARENT_TITLE .. sep .. title
     end
 
     local titleFS = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
