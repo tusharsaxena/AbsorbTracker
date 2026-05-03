@@ -32,8 +32,10 @@ The bar reads `UnitGetTotalAbsorbs("player")` against `UnitHealthMax("player")` 
 - [ ] With no active absorb, the bar is empty (or shows `0`).
 - [ ] Cast Power Word: Shield (or proc your trinket). The bar fills, and the value displayed matches the absorb overlay on the default Blizzard unit frame.
 - [ ] Let the absorb expire or break. The bar drains back to `0` within one ticker tick.
-- [ ] `/at test 50000` paints the bar with `50K` (formatted by `AbbreviateNumbers`).
+- [ ] `/at test 50000` paints the bar with `50K` (formatted by `AbbreviateNumbers`); the paint persists for ~5 s (the default hold), then live updates resume on the next ticker tick.
 - [ ] `/at test 1234567` displays as `1.2M` (or whatever Blizzard's `AbbreviateNumbers` produces — but it's not a raw 7-digit string).
+- [ ] `/at test 999999 2` holds the fake value for ~2 s instead of the default 5 s, demonstrating the `[hold-secs]` argument.
+- [ ] `/at toggle` (bar hides), then `/at test 50000` — chat prints `Bar is hidden; run /at toggle to show it before testing` and the bar stays hidden. `/at toggle` again to restore.
 - [ ] `/at update` triggers an immediate repaint with no error.
 
 ---
