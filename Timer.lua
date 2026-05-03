@@ -3,7 +3,6 @@ local AddonName, AddonTable = ...
 
 local GetSetting = AddonTable.GetSetting
 local DebugPrint = AddonTable.DebugPrint
-local UpdateAbsorbBar = AddonTable.UpdateAbsorbBar
 
 -- Update on a timer as backup
 local updateTicker

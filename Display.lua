@@ -77,8 +77,6 @@ function AddonTable.UpdateAbsorbBar()
     local bar = AddonTable.bar
     local statusBar = AddonTable.statusBar
     local valueText = AddonTable.valueText
-    local GetSetting = AddonTable.GetSetting
-    local DebugPrint = AddonTable.DebugPrint
 
     -- Skip if hidden
     if GetSetting("hidden") then
@@ -95,7 +93,11 @@ function AddonTable.UpdateAbsorbBar()
     local totalAbsorb = UnitGetTotalAbsorbs("player") or 0
     local maxHealth = UnitHealthMax("player") or 1
 
-    DebugPrint("UpdateAbsorbBar - Absorb:", AbbreviateNumbers(totalAbsorb), "MaxHP:", AbbreviateNumbers(maxHealth)," Timestamp:", AddonTable.format("%.3f", GetTime()))
+    -- Hot-path DebugPrint: gate the AbbreviateNumbers + format calls so
+    -- they don't allocate every tick when DEBUG is off.
+    if AddonTable.DEBUG then
+        DebugPrint("UpdateAbsorbBar - Absorb:", AbbreviateNumbers(totalAbsorb), "MaxHP:", AbbreviateNumbers(maxHealth)," Timestamp:", AddonTable.format("%.3f", GetTime()))
+    end
 
     -- Always keep bar visible
     bar:SetAlpha(1)

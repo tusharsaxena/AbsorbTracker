@@ -51,7 +51,6 @@ AddonTable.flatDefaults  -- alias to defaults.profile (direct-lookup convenience
 -- Cached math/format on AddonTable to avoid global lookups in hot paths
 AddonTable.floor   = math.floor
 AddonTable.max     = math.max
-AddonTable.min     = math.min
 AddonTable.format  = format
 ```
 

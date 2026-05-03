@@ -4,7 +4,6 @@ local AddonName, AddonTable = ...
 -- Cache frequently used functions
 AddonTable.floor = math.floor
 AddonTable.max = math.max
-AddonTable.min = math.min
 AddonTable.format = format
 
 -- Default settings (AceDB format)

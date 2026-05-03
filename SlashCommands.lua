@@ -112,7 +112,7 @@ local PAGE_ORDER = { "general", "bar", "border", "font" }
 
 function listSettings()
     if not AddonTable.Schema or #AddonTable.Schema == 0 then
-        return print("No settings registered yet.")
+        return print("No settings registered yet")
     end
     print("Available settings:")
 
@@ -238,7 +238,7 @@ function runTest(rest)
     local hold = tonumber(args[2]) or 5
 
     if AddonTable.GetSetting("hidden") then
-        print("Bar is hidden; run /at toggle to show it before testing.")
+        print("Bar is hidden; run /at toggle to show it before testing")
         return
     end
 
@@ -258,7 +258,7 @@ end
 function runProfile(rest)
     local db = AddonTable.db
     if not db or not db.SetProfile then
-        return print("Profile system requires AceDB-3.0.")
+        return print("Profile system requires AceDB-3.0")
     end
 
     local sub, subarg = (rest or ""):match("^(%S*)%s*(.*)$")
@@ -285,14 +285,14 @@ function runProfile(rest)
         end
     elseif sub == "current" then
         print("Current profile: " .. db:GetCurrentProfile())
-    elseif sub == "use" or sub == "set" then
+    elseif sub == "use" then
         if subarg ~= "" then
             db:SetProfile(subarg)
             print("Switched to profile '" .. subarg .. "'")
         else
             print("Usage: /at profile use <name>")
         end
-    elseif sub == "new" or sub == "create" then
+    elseif sub == "new" then
         if subarg ~= "" then
             db:SetProfile(subarg)
             db:ResetProfile()
@@ -307,10 +307,10 @@ function runProfile(rest)
         else
             print("Usage: /at profile copy <name>")
         end
-    elseif sub == "delete" or sub == "remove" then
+    elseif sub == "delete" then
         if subarg ~= "" then
             if subarg == db:GetCurrentProfile() then
-                print("Cannot delete the current profile.")
+                print("Cannot delete the current profile")
             else
                 db:DeleteProfile(subarg, true)
                 print("Deleted profile '" .. subarg .. "'")

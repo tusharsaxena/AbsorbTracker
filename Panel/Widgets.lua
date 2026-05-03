@@ -184,7 +184,7 @@ local function makeColorPicker(ctx, row, parent, relativeWidth)
 
     -- AceGUI's ColorPicker fires OnValueChanged during drag (live
     -- preview) and OnValueConfirmed on cancel (with the original color).
-    -- Throttle the live-preview commits at 50ms so a sustained drag
+    -- Throttle the live-preview commits at 50 ms so a sustained drag
     -- doesn't repaint the bar 60×/s; cancel commits immediately so the
     -- bar snaps back to the pre-drag color without waiting on the
     -- throttle window. Intentionally does NOT call RefreshAllPanels — a
@@ -193,25 +193,21 @@ local function makeColorPicker(ctx, row, parent, relativeWidth)
         AddonTable.SetByPath(row.path, { r = r, g = g, b = b, a = a or 1 })
     end
 
-    local lastCommit = 0
+    -- Single re-armed C_Timer + reused pendingArgs table — a sustained
+    -- drag at 60 Hz produces O(1) garbage instead of 60 closures + 60
+    -- pendingArgs allocations per second.
     local pendingArgs
+    local timer
     local function throttledCommit(r, g, b, a)
-        local now = GetTime() and GetTime() or 0
-        if now - lastCommit >= 0.05 then
-            lastCommit = now
+        pendingArgs = pendingArgs or {}
+        pendingArgs[1], pendingArgs[2], pendingArgs[3], pendingArgs[4] = r, g, b, a
+        if timer then return end
+        timer = C_Timer.NewTimer(0.05, function()
+            timer = nil
+            local p = pendingArgs
             pendingArgs = nil
-            commit(r, g, b, a)
-        else
-            pendingArgs = { r, g, b, a }
-            C_Timer.After(0.05, function()
-                if pendingArgs then
-                    local p = pendingArgs
-                    pendingArgs = nil
-                    lastCommit = GetTime() and GetTime() or 0
-                    commit(p[1], p[2], p[3], p[4])
-                end
-            end)
-        end
+            if p then commit(p[1], p[2], p[3], p[4]) end
+        end)
     end
 
     cp:SetCallback("OnValueChanged",   function(_, _, r, g, b, a) throttledCommit(r, g, b, a) end)
