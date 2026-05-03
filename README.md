@@ -39,7 +39,7 @@ Both `/at` and the long form `/absorbtracker` work for every command below. All 
 | `/at lock` / `/at unlock` | Flip the drag lock |
 | `/at toggle` | Flip bar visibility |
 | `/at update` | Force a bar refresh |
-| `/at test [value]` | Paint the bar with a fake value (default 50000) for visual tweaking |
+| `/at test [value] [hold-secs]` | Paint the bar with a fake value (default 50000) for the given duration (default 5 s) for visual tweaking |
 | `/at debug` | Toggle verbose `[AT]` chat output |
 | `/at profile <subcmd>` | Profile management. Subcommands: `list`, `current`, `use <name>`, `new <name>`, `copy <name>`, `delete <name>`, `reset`. Requires AceDB-3.0 |
 
