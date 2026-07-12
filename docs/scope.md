@@ -11,7 +11,7 @@ What's in scope, what's out, and the resolved decisions that shaped the contract
 - **Per-profile saved bar position** (the bar is unlocked by default — `flatDefaults.locked = false`; drag to position, `/at lock` to fix once placed).
 - **Five-page Blizzard Settings panel** (General, Bar, Border, Font, Profiles) plus a matching `/at` slash CLI for every panel-shaped operation via `/at list / get / set / reset / resetall`.
 - **Cyan `[AT]` chat prefix** on all addon output.
-- **Retail Midnight only** (Interface 120000, 120001, 120005). English only.
+- **Retail Midnight only** (Interface 120007). English only.
 
 ## Out of scope
 

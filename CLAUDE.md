@@ -4,7 +4,7 @@ Guidance for Claude Code (and other LLM-assisted editors) working on **Ka0s Abso
 
 ## What this addon is
 
-A single movable absorb status bar for the player. Bar size, fill texture and color, background texture and color, border style / size / color, and font face / size / outline are all independently configurable through LibSharedMedia-backed pickers. Bar fill, background, and border each have an opt-in class-color override. Position is saved per-profile. Retail Midnight only (Interface 120000, 120001, 120005). English only.
+A single movable absorb status bar for the player. Bar size, fill texture and color, background texture and color, border style / size / color, and font face / size / outline are all independently configurable through LibSharedMedia-backed pickers. Bar fill, background, and border each have an opt-in class-color override. Position is saved per-profile. Retail Midnight only (Interface 120007). English only.
 
 User-facing reference: [README.md](./README.md). Subsystems + invariants: [ARCHITECTURE.md](./ARCHITECTURE.md).
 

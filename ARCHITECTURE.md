@@ -66,7 +66,7 @@ All vendored under `libs/`:
 - AceDBOptions-3.0
 - AceGUI-3.0-SharedMediaWidgets r65 (canonical upstream multi-file lib loaded via `widget.xml`; ships `LSM30_Statusbar` / `LSM30_Border` / `LSM30_Background` / `LSM30_Font` / `LSM30_Sound` widgets — only the first three media types are referenced from the addon). The `LSM30_Border` displayButton 42×42 preview tile is suppressed at PLAYER_LOGIN by addon-side `LSMPatch.lua`, so future `r66+` lib refreshes are a clean drop-in
 
-`AbsorbTracker.toc`'s `## Interface:` line is `120000, 120001, 120005`.
+`AbsorbTracker.toc`'s `## Interface:` line is `120007`.
 
 ## Load order
 

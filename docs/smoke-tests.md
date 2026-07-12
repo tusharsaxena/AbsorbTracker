@@ -201,12 +201,12 @@ Five LSM-backed widgets: `barTexture` / `bgTexture` (Statusbar), `border` (Borde
 
 ---
 
-## 10. Multi-patch compatibility (post-patch only)
+## 10. Interface / patch compatibility (post-patch only)
 
-`AbsorbTracker.toc:1` lists supported retail patch numbers (`120000, 120001, 120005`). When a new compatible patch ships:
+`AbsorbTracker.toc:1` declares the current retail build (`120007`). When a new patch ships:
 
-- [ ] On every supported patch number listed in the TOC, `/reload` produces no errors. Bar paints. `/at config` opens the panel.
-- [ ] Before adding a new patch number, run §1–§9 on that patch first.
+- [ ] On the new patch, `/reload` produces no errors. Bar paints. `/at config` opens the panel.
+- [ ] Run §1–§9 on the new patch before updating the `## Interface:` number to it.
 
 ---
 

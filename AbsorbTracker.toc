@@ -1,4 +1,4 @@
-## Interface: 120000,120001,120005
+## Interface: 120007
 ## Title: Ka0s Absorb Tracker
 ## Notes: Display your total absorb shield value in a clean, customizable bar interface.
 ## Author: add1kted2ka0s

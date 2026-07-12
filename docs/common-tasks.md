@@ -127,14 +127,14 @@ If the dropdowns show *some* entries but not all, check that the contributing ad
 
 ## Bump the Interface line
 
-When a new compatible patch ships:
+When a new retail patch ships:
 
 1. Open `AbsorbTracker.toc`.
-2. Append the new patch number to the `## Interface:` line: `120000, 120001, 120005, 120006`.
+2. Replace the number on the `## Interface:` line with the new build (e.g. `120007` → `120008`). The value is `(major * 10000) + (minor * 100) + patch` for the current Live Servers patch.
 3. Test in-game on the new patch — see [smoke-tests.md](./smoke-tests.md) for the full manual QA recipe.
 4. Commit. **Don't bump the addon version** — Interface compatibility is independent of addon version. The user decides when to cut a release.
 
-If the new patch *breaks* the addon, drop the broken patch number from the line and note the regression in README's troubleshooting section.
+If the new patch *breaks* the addon, note the regression in README's troubleshooting section.
 
 See also: [`/wow-addon:bump-interface` skill](../../.claude/skills/) for the automated version of this.
 

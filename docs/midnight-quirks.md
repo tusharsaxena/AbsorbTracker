@@ -44,17 +44,17 @@ Don't try to clever-defer the call into a `PLAYER_REGEN_ENABLED` queue. A user w
 
 `OptionsPanel.lua` captures `mainCategory:GetID()` at parent registration into `mainCategoryID`; `OpenOptionsPanel` calls `Settings.OpenToCategory(mainCategoryID)` so `/at config` always lands on the parent (about page) and then calls `expandMainCategory()` to expand the sub-page tree so every sub-page is visible at once. `expandMainCategory` reaches into `SettingsPanel:GetCategoryList()` private API; the whole call is wrapped in `pcall` so a future Blizzard refactor that renames or removes those internals degrades gracefully (the panel still opens, the tree just doesn't auto-expand).
 
-## Interface line — three patches, one TOC
+## Interface line — track the current retail build
 
-`AbsorbTracker.toc` declares:
+`AbsorbTracker.toc` declares a single retail build number:
 
 ```
-## Interface: 120000, 120001, 120005
+## Interface: 120007
 ```
 
-Comma-separated multi-version lines are supported on retail clients 10.0+; each entry is a patch number. AbsorbTracker is currently compatible with Midnight 12.0.0, 12.0.1, and 12.0.5. **When a new compatible patch ships, append the patch number to this line** — don't replace existing entries; addon authors are expected to keep the list growing as long as the addon is still compatible with each listed patch.
+The value is `(major * 10000) + (minor * 100) + patch` for the current Live Servers (Retail) patch. AbsorbTracker targets the current Midnight build. **When a new patch ships, replace the number with the new build** so the addon reads as up-to-date in the AddOn list. The `## Interface:` line accepts a comma-separated list on retail clients 10.0+ if you ever need to declare compatibility with several builds at once, but the addon tracks a single current build.
 
-If a patch breaks the addon, drop the broken patch number from the line *and* note the regression in the README's troubleshooting section.
+If a patch breaks the addon, note the regression in the README's troubleshooting section.
 
 ## `BackdropTemplate` is mandatory for backdrop frames
 
