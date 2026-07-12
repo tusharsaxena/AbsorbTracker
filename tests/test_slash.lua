@@ -1,0 +1,56 @@
+local T = _G.AT_TEST
+local NS = T.NS
+local test, assertEqual, assertTrue = T.test, T.assertEqual, T.assertTrue
+
+-- settings/Slash.lua captured `local print = NS.Print` at load, so the chat output can't be
+-- intercepted by swapping NS.Print. Instead capture at the sink: NS.Print writes to
+-- DEFAULT_CHAT_FRAME:AddMessage, so overriding that method on the mock frame records every line.
+local function capture(fn)
+  local out = {}
+  local cf = T.mocks.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function(_, msg) out[#out + 1] = msg end
+  local ok, err = pcall(fn)
+  cf.AddMessage = old  -- nil restores the metatable no-op
+  if not ok then error(err) end
+  return out
+end
+
+test("bare /at prints the help index: header + one row per command", function()
+  local out = capture(function() NS.Slash:OnSlash("") end)
+  assertEqual(#out, #NS.COMMANDS + 1)
+  assertTrue(out[1]:find("slash commands") ~= nil, "first line is the header")
+end)
+
+test("unknown verb prints 'unknown command' then the help index", function()
+  local out = capture(function() NS.Slash:OnSlash("bogus") end)
+  assertTrue(out[1]:find("unknown command 'bogus'") ~= nil, out[1])
+  assertEqual(#out, #NS.COMMANDS + 2)  -- error line + header + one row per command
+end)
+
+test("/at get <path> dispatches to the schema read", function()
+  local out = capture(function() NS.Slash:OnSlash("get barWidth") end)
+  assertTrue(out[1]:find("barWidth = 200 px") ~= nil, out[1])
+end)
+
+test("/at set <path> <value> writes through the schema and preserves path case", function()
+  capture(function() NS.Slash:OnSlash("set barWidth 250") end)
+  assertEqual(NS.GetSetting("barWidth"), 250)
+  capture(function() NS.Slash:OnSlash("set barWidth 200") end)  -- restore
+  assertEqual(NS.GetSetting("barWidth"), 200)
+end)
+
+test("/at set clamps out-of-range numbers to the row max", function()
+  capture(function() NS.Slash:OnSlash("set barWidth 99999") end)
+  assertEqual(NS.GetSetting("barWidth"), 500)  -- barWidth max
+  capture(function() NS.Slash:OnSlash("set barWidth 200") end)
+end)
+
+test("/at options is aliased to /at config (no unknown-command error)", function()
+  -- config calls NS.OpenOptionsPanel, which is a no-op headlessly (no Settings category); the
+  -- point is that 'options' resolves to a known verb rather than the unknown-command path.
+  local out = capture(function() NS.Slash:OnSlash("options") end)
+  for _, line in ipairs(out) do
+    assertTrue(line:find("unknown command") == nil, "options must not be unknown")
+  end
+end)

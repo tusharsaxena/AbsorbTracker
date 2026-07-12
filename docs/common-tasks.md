@@ -10,7 +10,7 @@ The schema-driven design makes this a one-row change. The widget on the relevant
 
    ```lua
    -- Core.lua
-   AddonTable.defaults = {
+   NS.defaults = {
        profile = {
            -- ...
            myNewKnob = 42,
@@ -18,14 +18,14 @@ The schema-driven design makes this a one-row change. The widget on the relevant
    }
    ```
 
-2. **Append a schema row** in the `Options/<page>.lua` file for the page where the widget should appear:
+2. **Append a schema row** in the `settings/<page>.lua` file for the page where the widget should appear:
 
    ```lua
-   -- Options/Bar.lua (for example)
-   local AddonName, AddonTable = ...
-   local flatDefaults = AddonTable.flatDefaults
+   -- settings/Bar.lua (for example)
+   local AddonName, NS = ...
+   local flatDefaults = NS.flatDefaults
 
-   AddonTable.RegisterSchemaRows({
+   NS.RegisterSchemaRows({
        -- ... existing rows ...
        { path = "myNewKnob", page = "bar", group = "Size", order = 50,
          type = "number", label = "My New Knob", default = flatDefaults.myNewKnob,
@@ -38,7 +38,7 @@ The schema-driven design makes this a one-row change. The widget on the relevant
 3. **Override `onChange` if the side effect isn't `UpdateBarAppearance`.** Most settings just need to repaint, which is the default. For settings that need different reactions:
 
    ```lua
-   onChange = function(v) AddonTable.RestartUpdateTicker() end,
+   onChange = function(v) NS.RestartUpdateTicker() end,
    ```
 
 That's it. The widget renders on the Bar sub-page on the next `/reload`; `/at set myNewKnob 75` works immediately; `/at get myNewKnob` and `/at list` show the new row; `/at reset bar` and `/at resetall` reset it via `ApplyDefault`.
@@ -47,15 +47,15 @@ See [schema.md](./schema.md) for the full row grammar (knobs like `inverse`, `di
 
 ## Add a new sub-page
 
-When a logical group of settings outgrows an existing page (or doesn't fit any of General / Bar / Border / Font), add a new `Options/<NewPage>.lua`.
+When a logical group of settings outgrows an existing page (or doesn't fit any of General / Bar / Border / Font), add a new `settings/<NewPage>.lua`.
 
-1. **Create `Options/<NewPage>.lua`** with the standard shape:
+1. **Create `settings/<NewPage>.lua`** with the standard shape:
 
    ```lua
-   local AddonName, AddonTable = ...
-   local flatDefaults = AddonTable.flatDefaults
+   local AddonName, NS = ...
+   local flatDefaults = NS.flatDefaults
 
-   AddonTable.RegisterSchemaRows({
+   NS.RegisterSchemaRows({
        { path = "newKnob1", page = "newpage", group = "Section",
          order = 10, type = "bool",
          label = "New Knob 1", desc = "...",
@@ -68,7 +68,7 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
            return nil
        end
 
-       local H   = AddonTable.Helpers
+       local H   = NS.Helpers
        local ctx = H.CreatePanel("AbsorbTrackerNewPagePanel", "New Page", {
            pageKey         = "newpage",
            defaultsButton  = true,
@@ -91,20 +91,20 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
            mainCategory, ctx.panel, "New Page")
    end
 
-   if AddonTable.RegisterOptionsPage then
-       AddonTable.RegisterOptionsPage("newpage", "New Page", build)
+   if NS.RegisterOptionsPage then
+       NS.RegisterOptionsPage("newpage", "New Page", build)
    end
    ```
 
 2. **Add the file to `AbsorbTracker.toc`** after `OptionsPanel.lua`. Registration order in the queue determines tree order, so place the line where the page should appear in the Settings tree:
 
    ```
-   Options/General.lua
-   Options/Bar.lua
-   Options/Border.lua
-   Options/Font.lua
-   Options/NewPage.lua
-   Options/Profiles.lua
+   settings/General.lua
+   settings/Bar.lua
+   settings/Border.lua
+   settings/Font.lua
+   settings/NewPage.lua
+   settings/Profiles.lua
    ```
 
 3. **Add the corresponding defaults** to `Core.lua`'s `defaults.profile`.

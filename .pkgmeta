@@ -1,0 +1,14 @@
+package-as: AbsorbTracker
+
+enable-nolib-creation: no
+
+ignore:
+  - audit
+  - docs
+  - reviews
+  - tests
+  - _dev
+  - .luacheckrc
+  - .gitattributes
+  - .gitignore
+  - "*.bak"

@@ -9,10 +9,10 @@ AceDB is an optional dependency; the lib ships in-tree under `libs/Ace3/AceDB-3.
 ```lua
 local AceDB = LibStub("AceDB-3.0", true)
 if AceDB then
-    AddonTable.db = AceDB:New("AbsorbTrackerDB", AddonTable.defaults, true)
-    AddonTable.db.RegisterCallback(AddonTable, "OnProfileChanged", AddonTable.OnProfileChanged)
-    AddonTable.db.RegisterCallback(AddonTable, "OnProfileCopied",  AddonTable.OnProfileChanged)
-    AddonTable.db.RegisterCallback(AddonTable, "OnProfileReset",   AddonTable.OnProfileChanged)
+    NS.db = AceDB:New("AbsorbTrackerDB", NS.defaults, true)
+    NS.db.RegisterCallback(NS, "OnProfileChanged", NS.OnProfileChanged)
+    NS.db.RegisterCallback(NS, "OnProfileCopied",  NS.OnProfileChanged)
+    NS.db.RegisterCallback(NS, "OnProfileReset",   NS.OnProfileChanged)
 else
     -- fallback shim (see below)
 end
@@ -25,7 +25,7 @@ The third arg to `AceDB:New` is `defaultProfile` — `true` means use the WoW-su
 All three AceDB callbacks (`OnProfileChanged`, `OnProfileCopied`, `OnProfileReset`) wire into the same handler:
 
 ```
-AddonTable.OnProfileChanged()
+NS.OnProfileChanged()
     │
     ├─▶ RestoreBarPosition()              -- new profile may have a different saved position
     ├─▶ UpdateBarAppearance()             -- size, textures, colors, border, font
@@ -53,20 +53,20 @@ AddonTable.OnProfileChanged()
 | `/at profile delete <name>` | Delete `<name>`. Refuses if `<name>` is the active profile. |
 | `/at profile reset` | Reset the active profile to defaults. Fires `OnProfileReset`. |
 
-All seven verbs delegate to AceDB's `AddonTable.db:SetProfile / CopyProfile / DeleteProfile / ResetProfile / GetProfiles / GetCurrentProfile`. The Profiles sub-page (`Options/Profiles.lua`) wraps `AceDBOptions:GetOptionsTable(AddonTable.db)`, which presents the same operations as a UI.
+All seven verbs delegate to AceDB's `NS.db:SetProfile / CopyProfile / DeleteProfile / ResetProfile / GetProfiles / GetCurrentProfile`. The Profiles sub-page (`settings/Profiles.lua`) wraps `AceDBOptions:GetOptionsTable(NS.db)`, which presents the same operations as a UI.
 
 ## Fallback shim (no AceDB)
 
 If `LibStub("AceDB-3.0", true)` returns nil — only possible if `libs/Ace3/AceDB-3.0/` was tampered with — `Events.lua` builds a minimal stand-in:
 
 ```lua
-AddonTable.db = { profile = AbsorbTrackerDB or {} }
-AbsorbTrackerDB = AddonTable.db.profile
+NS.db = { profile = AbsorbTrackerDB or {} }
+AbsorbTrackerDB = NS.db.profile
 
 -- Seed missing keys from flatDefaults so GetSetting reads succeed.
-for k, v in pairs(AddonTable.flatDefaults) do
-    if AddonTable.db.profile[k] == nil then
-        AddonTable.db.profile[k] = v
+for k, v in pairs(NS.flatDefaults) do
+    if NS.db.profile[k] == nil then
+        NS.db.profile[k] = v
     end
 end
 ```
@@ -74,7 +74,7 @@ end
 In this mode:
 
 - `GetSetting` / `SetSetting` work normally — they read / write `db.profile` like in the AceDB case.
-- **Profile management is disabled.** `/at profile` subcommands print an error; `Options/Profiles.lua`'s builder returns `nil` so the Profiles sub-page is skipped at registration.
+- **Profile management is disabled.** `/at profile` subcommands print an error; `settings/Profiles.lua`'s builder returns `nil` so the Profiles sub-page is skipped at registration.
 - `OnProfileChanged` is never fired (no callbacks registered, no profile switching path).
 - The single profile lives directly in `AbsorbTrackerDB`; the AceDB-shaped `profiles` / `profileKeys` / `char` keys don't exist.
 

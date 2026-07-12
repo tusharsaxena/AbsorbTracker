@@ -1,0 +1,108 @@
+# Agent context — Ka0s Absorb Tracker
+
+Full working brief for Claude Code (and other LLM-assisted editors). Read this before touching
+code. The root [CLAUDE.md](../CLAUDE.md) is only a stub that points here.
+
+## What this addon is
+
+A single movable absorb status bar for the player. Bar size, fill texture and color, background
+texture and color, border style / size / color, and font face / size / outline are all
+independently configurable through LibSharedMedia-backed pickers. Bar fill, background, and border
+each have an opt-in class-color override. Position is saved per-profile. **Tier 2 (modular)**;
+Retail Midnight only (Interface 120007); English only.
+
+User-facing reference: [../README.md](../README.md). Subsystems + invariants:
+[ARCHITECTURE.md](./ARCHITECTURE.md).
+
+## Hard rules
+
+- **Schema is the single source of truth for settings.** `NS.Schema` is a flat array; each
+  `settings/<page>.lua` calls `NS.RegisterSchemaRows({ ... })` at file-load time. The same array
+  drives both the AceGUI panel widgets (via `Helpers.RenderSchema` / `Widgets.RenderField`) AND
+  the `/at list/get/set/reset/resetall` CLI. Adding a new option = one schema row in some
+  `settings/<page>.lua`. Don't add per-setting code in `settings/Slash.lua`; the row grammar
+  covers it.
+- **Color getters resolve at call time.** `NS.GetBarColor` / `GetBgColor` / `GetBorderColor`
+  (`core/Data.lua`) re-read `useClassColor*` on every paint. Class change / respec / profile switch
+  all "just work" without explicit refresh wiring. Don't cache the resolved color on a frame.
+- **`SetBackdrop(nil)` before `SetBackdrop(info)`.** WoW's backdrop API is a no-op when the table
+  identity is unchanged, even if its fields changed. `UpdateBarAppearance` (`modules/Display.lua`)
+  clears first, then re-applies. Don't optimize this away.
+- **Combat-lockdown gate on `/at config`.** `Settings.OpenToCategory` is protected; calling it
+  during combat taints the panel for the rest of the session. `NS.OpenOptionsPanel`
+  (`settings/Panel.lua`) early-returns with a chat notice while `InCombatLockdown()` is true.
+- **Cyan `[AT]` chat prefix on all addon output.** Routes through `NS.Print(...)` which prepends
+  `NS.PREFIX` (`|cFF00FFFF[AT]|r`, defined in `core/Namespace.lua`). Files that emit chat shadow
+  the global `print` with `local print = NS.Print`. Debug output does NOT go to chat — it routes
+  to the on-screen console via `NS.Debug` / `core/DebugLog.lua`.
+- **`UnitGetTotalAbsorbs` may return a "secret" value.** Use `AbbreviateNumbers` directly — never
+  run the value through `tonumber` before display. Detail in
+  [midnight-quirks.md](./midnight-quirks.md).
+- **Deprecated APIs go through `core/Compat.lua`.** `Compat.GetAddOnMetadata` is the only metadata
+  accessor. Never call `GetAddOnMetadata` / `C_AddOns.GetAddOnMetadata` inline.
+
+## The `NS` bus
+
+Every Lua file begins with:
+
+```lua
+local addonName, NS = ...
+```
+
+`NS` is the single shared private table for the addon (Ka0s standard §4.1); there is no
+`_G[addonName]`. `core/AbsorbTracker.lua` promotes it to an AceAddon via
+`AceAddon:NewAddon(NS, addonName, "AceEvent-3.0", "AceTimer-3.0", "AceConsole-3.0")` — so the
+bootstrap table and the AceAddon object (`NS.addon`) are the same object.
+
+There is no `:NewModule()` hierarchy — modules are plain files hanging functions on `NS`. Callers
+reference functions defined in later-loaded modules through `NS.X` directly (looked up at call
+time), guarding with `if NS.X then ... end` for the soft load-order coupling.
+
+## Working environment
+
+- **Dual-path WSL.** Mirrored at `/mnt/d/Profile/Users/Tushar/Documents/GIT/AbsorbTracker/` and
+  `/home/tushar/GIT/AbsorbTracker/`.
+- **CRLF line endings on disk.** Enforced via `.gitattributes`. After any direct disk write of a
+  text file, convert with `sed -i 's/\r$//; s/$/\r/'` if the tool wrote LF.
+- **Libs vendored folder-per-lib in `libs/`** (`libs/LibStub/`, `libs/AceAddon-3.0/`, …): LibStub,
+  CallbackHandler-1.0, the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB /
+  AceGUI / AceConfig / AceDBOptions), LibSharedMedia-3.0, and the upstream
+  `AceGUI-3.0-SharedMediaWidgets` r65. The displayButton tile is suppressed by
+  `core/LSMPatch.lua` (addon-side, not a lib edit), so `r66+` refreshes are a clean drop-in.
+- **Headless tests (`tests/`) + lint gate.** `lua tests/run.lua` (36 tests: schema parse/format/
+  validate, DB migrations, Compat, DebugLog, slash dispatch) must be green and `luacheck .` clean
+  (0/0) before every commit. Syntax-check one file with `luac -p <file>`. Toolchain: Lua 5.1 +
+  luacheck. See [smoke-tests.md](./smoke-tests.md) for the in-game QA recipe.
+
+## Response style for this repo
+
+- **Terse.** State the change, not the deliberation.
+- **Use `file_path:line_number` references** when pointing at code.
+- **Don't write summaries** the user can read from the diff.
+- **Ship functional, defer polish.**
+- **No comments explaining *what* well-named code does.** Comment only when the *why* is
+  non-obvious (invariant, Blizzard quirk, hidden constraint).
+- **Don't create docs or planning files unless asked.**
+- **Never auto-stage, auto-commit, or auto-push.** The user chooses when to touch the git index.
+  Editing files on disk is fine; touching the index is not. **Exception**: a commit-purpose slash
+  command (e.g. `/wow-addon:commit`) IS the explicit instruction.
+- **Never bump the version without an explicit instruction** (TOC `## Version:`, code constants,
+  README badge / Version History).
+
+## Doc index
+
+Topic-specific detail lives in `docs/`. Read on demand.
+
+| Topic | File |
+|-------|------|
+| Subsystems + invariants (module map, schema, bus, slash, events, taint) | [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| Scope boundaries (in / out / resolved decisions) | [scope.md](./scope.md) |
+| Per-file responsibility map | [file-index.md](./file-index.md) |
+| `NS` bus + public APIs + load order | [module-map.md](./module-map.md) |
+| Schema-driven settings (registry, row knobs, `/at` mapping) | [schema.md](./schema.md) |
+| Multi-page Settings panel toolkit | [settings-panel.md](./settings-panel.md) |
+| Data flow (bootstrap, absorb update, settings write, profile change) | [data-flow.md](./data-flow.md) |
+| Profiles (AceDB, `/at profile`, fallback shim) | [profiles.md](./profiles.md) |
+| Midnight quirks (secret values, backdrop refresh, combat lockdown) | [midnight-quirks.md](./midnight-quirks.md) |
+| Recipes (add a setting, add a sub-page, bump Interface) | [common-tasks.md](./common-tasks.md) |
+| Manual QA / smoke-test recipe | [smoke-tests.md](./smoke-tests.md) |

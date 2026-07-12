@@ -1,6 +1,6 @@
 # Settings panel
 
-How the addon registers its multi-page Blizzard Settings UI. The schema-driven content of each page is documented in [schema.md](./schema.md); this doc is about the *registration shell* — `OptionsPanel.lua` + the four `Panel/*.lua` toolkit slices, plus the per-page `Options/<page>.lua` declarations.
+How the addon registers its multi-page Blizzard Settings UI. The schema-driven content of each page is documented in [schema.md](./schema.md); this doc is about the *registration shell* — `OptionsPanel.lua` + the four `settings/*.lua` toolkit slices, plus the per-page `settings/<page>.lua` declarations.
 
 ## Source layout
 
@@ -8,13 +8,13 @@ The settings UI is split across five files:
 
 | File | Role |
 |------|------|
-| `OptionsPanel.lua` | Registration shell. Publishes empty `AddonTable.Helpers = {}` and `AddonTable.PARENT_TITLE`; owns `pendingPages`, `RegisterOptionsPage`, `CreateOptionsPanel`, `OpenOptionsPanel`, `RefreshOptionsPanel`. |
-| `Panel/Helpers.lua` | Toolkit core. `CreatePanel` / `Section` / `InlineButtonPair` / `EnsureScroll` / `AttachTooltip` / `AddSpacer` / `LSMValues` / `RestoreDefaults` / `RestoreAllDefaults` / `RefreshAllPanels`, plus the layout constants (`PADDING_X` / `HEADER_HEIGHT` / `ROW_VSPACER` / `SECTION_HEADING_H`) and the panel registry. |
-| `Panel/ScrollPatch.lua` | `Helpers.PatchAlwaysShowScrollbar` — the always-visible scrollbar override. |
-| `Panel/Widgets.lua` | `Helpers.RenderField` (dispatches by `row.type`) + `Helpers.RenderSchema` (two-column layout) + the four widget makers (CheckBox / Slider / Dropdown / ColorPicker). |
-| `Panel/About.lua` | `Helpers.BuildMainContent` — top-level "Ka0s Absorb Tracker" page (logo + Notes + slash command list). |
+| `OptionsPanel.lua` | Registration shell. Publishes empty `NS.Helpers = {}` and `NS.PARENT_TITLE`; owns `pendingPages`, `RegisterOptionsPage`, `CreateOptionsPanel`, `OpenOptionsPanel`, `RefreshOptionsPanel`. |
+| `settings/Helpers.lua` | Toolkit core. `CreatePanel` / `Section` / `InlineButtonPair` / `EnsureScroll` / `AttachTooltip` / `AddSpacer` / `LSMValues` / `RestoreDefaults` / `RestoreAllDefaults` / `RefreshAllPanels`, plus the layout constants (`PADDING_X` / `HEADER_HEIGHT` / `ROW_VSPACER` / `SECTION_HEADING_H`) and the panel registry. |
+| `settings/ScrollPatch.lua` | `Helpers.PatchAlwaysShowScrollbar` — the always-visible scrollbar override. |
+| `settings/Widgets.lua` | `Helpers.RenderField` (dispatches by `row.type`) + `Helpers.RenderSchema` (two-column layout) + the four widget makers (CheckBox / Slider / Dropdown / ColorPicker). |
+| `settings/About.lua` | `Helpers.BuildMainContent` — top-level "Ka0s Absorb Tracker" page (logo + Notes + slash command list). |
 
-Each `Panel/*.lua` slice begins with `local Helpers = AddonTable.Helpers` and decorates that shared table. The TOC loads them in order immediately after `OptionsPanel.lua`, before any `Options/<page>.lua` consumes the toolkit.
+Each `settings/*.lua` slice begins with `local Helpers = NS.Helpers` and decorates that shared table. The TOC loads them in order immediately after `OptionsPanel.lua`, before any `settings/<page>.lua` consumes the toolkit.
 
 ## Five pages plus an about page
 
@@ -47,20 +47,20 @@ Every page (about + sub-pages) builds the same header via `Helpers.CreatePanel(n
 
 ## File-load registration vs. PLAYER_LOGIN registration
 
-`OptionsPanel.lua` runs at file-load time (early), but `AddonTable.db` doesn't exist until PLAYER_LOGIN. The shell separates the two phases:
+`OptionsPanel.lua` runs at file-load time (early), but `NS.db` doesn't exist until PLAYER_LOGIN. The shell separates the two phases:
 
-1. **File-load.** Each `Options/<page>.lua` calls `AddonTable.RegisterOptionsPage(key, name, builder)` to enqueue itself. The builder is a closure that will run later.
-2. **PLAYER_LOGIN.** `Events.lua` calls `AddonTable.CreateOptionsPanel()`, which:
-   - Validates the assembled schema via `AddonTable.ValidateSchema()` (chat-prints any malformed rows; never blocks).
+1. **File-load.** Each `settings/<page>.lua` calls `NS.RegisterOptionsPage(key, name, builder)` to enqueue itself. The builder is a closure that will run later.
+2. **PLAYER_LOGIN.** `Events.lua` calls `NS.CreateOptionsPanel()`, which:
+   - Validates the assembled schema via `NS.ValidateSchema()` (chat-prints any malformed rows; never blocks).
    - Builds the about-page canvas (`Helpers.CreatePanel(..., { isMain = true })`) and registers it via `Settings.RegisterCanvasLayoutCategory` + `Settings.RegisterAddOnCategory`.
    - Walks the queue, calling `builder(mainCategory)` on each entry. Each builder constructs its own canvas via `Helpers.CreatePanel`, defers the AceGUI render to the panel's first `OnShow` (the body has 0 width at PLAYER_LOGIN; AceGUI lays out against current width), and returns the result of `Settings.RegisterCanvasLayoutSubcategory(mainCategory, panel, name)`.
-   - If the builder returns `nil` (e.g. `Options/Profiles.lua` when AceDBOptions is missing), the page is silently skipped.
+   - If the builder returns `nil` (e.g. `settings/Profiles.lua` when AceDBOptions is missing), the page is silently skipped.
 
 ## `RegisterOptionsPage(key, name, builder)`
 
 ```lua
-AddonTable.RegisterOptionsPage("bar", "Bar", function(mainCategory)
-    local H   = AddonTable.Helpers
+NS.RegisterOptionsPage("bar", "Bar", function(mainCategory)
+    local H   = NS.Helpers
     local ctx = H.CreatePanel("AbsorbTrackerBarPanel", "Bar", {
         pageKey         = "bar",
         defaultsButton  = true,
@@ -89,7 +89,7 @@ end)
 
 ## `Helpers.RenderSchema(ctx, pageKey, afterGroup?)`
 
-The two-column layout engine. Walks `AddonTable.SchemaForPage(pageKey)` and emits each row as an AceGUI widget through `Helpers.RenderField`, packing pairs of rows into 50%-width Flow rows. Section breaks (whenever `row.group` changes) emit a full-width `Heading` widget (`GameFontNormalLarge`) flanked by side dividers, with `SECTION_TOP_SPACER = 10` / `SECTION_BOTTOM_SPACER = 6` around it. Every two-column row is followed by a `ROW_VSPACER = 8` spacer for breathing room.
+The two-column layout engine. Walks `NS.SchemaForPage(pageKey)` and emits each row as an AceGUI widget through `Helpers.RenderField`, packing pairs of rows into 50%-width Flow rows. Section breaks (whenever `row.group` changes) emit a full-width `Heading` widget (`GameFontNormalLarge`) flanked by side dividers, with `SECTION_TOP_SPACER = 10` / `SECTION_BOTTOM_SPACER = 6` around it. Every two-column row is followed by a `ROW_VSPACER = 8` spacer for breathing room.
 
 A row marked `solo = true` flushes any in-progress two-column row first, then renders alone (left half of its own row, right half empty). Used for visually-grouping pivots like a texture row that sits above its color-picker pair.
 
@@ -120,16 +120,16 @@ The `ColorPicker` maker treats `OnValueChanged` (fires during drag) as the prima
 
 ## Profile change refresh
 
-When AceDB fires `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset`, the active profile flips. `AddonTable.RefreshOptionsPanel()` (called from `OnProfileChanged` after the bar repaint chain) routes to `Helpers.RefreshAllPanels()`, which walks every panel ctx and runs every registered refresher closure. Each refresher re-reads its row's value from `db.profile` and pushes it into the widget — values that didn't survive the profile flip update; values that did are no-ops.
+When AceDB fires `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset`, the active profile flips. `NS.RefreshOptionsPanel()` (called from `OnProfileChanged` after the bar repaint chain) routes to `Helpers.RefreshAllPanels()`, which walks every panel ctx and runs every registered refresher closure. Each refresher re-reads its row's value from `db.profile` and pushes it into the widget — values that didn't survive the profile flip update; values that did are no-ops.
 
-The same `RefreshAllPanels` runs after every `/at set` write (via `SlashCommands.lua`) and after every panel widget's `set()` (via the local `set()` in `Panel/Widgets.lua` — see [Widget makers](#widget-makers-and-refresher-closures) above), so panel-driven and slash-driven mutations both keep open panels in sync.
+The same `RefreshAllPanels` runs after every `/at set` write (via `SlashCommands.lua`) and after every panel widget's `set()` (via the local `set()` in `settings/Widgets.lua` — see [Widget makers](#widget-makers-and-refresher-closures) above), so panel-driven and slash-driven mutations both keep open panels in sync.
 
 ## `OpenOptionsPanel` and the combat-lockdown gate
 
 ```lua
-function AddonTable.OpenOptionsPanel()
+function NS.OpenOptionsPanel()
     if InCombatLockdown() then
-        AddonTable.Print("Cannot open settings panel during combat. Try again after combat ends.")
+        NS.Print("Cannot open settings panel during combat. Try again after combat ends.")
         return
     end
     if not (Settings and Settings.OpenToCategory) then return end
@@ -159,18 +159,18 @@ local dd = AceGUI:Create(widgetType)
 
 The LSM30_* widgets are the canonical upstream `AceGUI-3.0-SharedMediaWidgets` r65 lib (widgetVersion 13), vendored at `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/` and loaded via `widget.xml`. `LSM30_Statusbar` / `LSM30_Font` use upstream's basic frame; `LSM30_Border` uses `GetBaseFrameWithWindow` which adds a 42×42 `displayButton` border-preview tile pinned to the widget's TOPLEFT. That tile clashes with our canvas-layout panel — `LSMPatch.lua` registers a one-shot `PLAYER_LOGIN` hook that wraps the registered `LSM30_Border` constructor, hides `displayButton`, and re-anchors the dropdown chrome to the frame's left edge. The hook lives in addon code rather than as an edit to the vendored lib so future r66+ refreshes are a clean drop-in.
 
-The dropdown's `values` table is supplied by `AddonTable.Helpers.LSMValues(mediaType)`, which returns a deferred closure that pulls the live `LibSharedMedia:HashTable(mediaType)` at dropdown-render time. Schema rows in `Options/Bar.lua` / `Border.lua` / `Font.lua` set `values = AddonTable.Helpers.LSMValues("statusbar")` (etc.) at file-load — the closure is then invoked by `makeDropdown`'s `valuesHash()` every time the dropdown re-renders, so newly-registered LSM media show up without an addon reload.
+The dropdown's `values` table is supplied by `NS.Helpers.LSMValues(mediaType)`, which returns a deferred closure that pulls the live `LibSharedMedia:HashTable(mediaType)` at dropdown-render time. Schema rows in `settings/Bar.lua` / `Border.lua` / `Font.lua` set `values = NS.Helpers.LSMValues("statusbar")` (etc.) at file-load — the closure is then invoked by `makeDropdown`'s `valuesHash()` every time the dropdown re-renders, so newly-registered LSM media show up without an addon reload.
 
 ## About page (top-level "Ka0s Absorb Tracker")
 
-`Helpers.BuildMainContent(ctx)` (defined in `Panel/About.lua`, called from the parent panel's first `OnShow` in `OptionsPanel.lua`'s `registerMain`) renders three blocks into the AceGUI scroll:
+`Helpers.BuildMainContent(ctx)` (defined in `settings/About.lua`, called from the parent panel's first `OnShow` in `OptionsPanel.lua`'s `registerMain`) renders three blocks into the AceGUI scroll:
 
 1. **Logo.** `media/screenshots/absorbracker.logo.v2.tga` at native 300×300, anchored TOPLEFT inside a full-width SimpleGroup.
 2. **TOC `Notes` blurb** — full-width `Label` with `GameFontHighlight`, left-justified.
-3. **Slash Commands section** — a full-width `Heading` widget (`GameFontNormalLarge`) followed by one `Label` row per entry in `AddonTable.SlashCommands`, formatted `|cffffff00/at <cmd>|r  |cffffffff—|r  <desc>`. The list stays in lockstep with `/at help` because both walk the same `AddonTable.SlashCommands` array.
+3. **Slash Commands section** — a full-width `Heading` widget (`GameFontNormalLarge`) followed by one `Label` row per entry in `NS.SlashCommands`, formatted `|cffffff00/at <cmd>|r  |cffffffff—|r  <desc>`. The list stays in lockstep with `/at help` because both walk the same `NS.SlashCommands` array.
 
 ## See also
 
-- [schema.md](./schema.md) — what a row in `AddonTable.Schema` looks like and how it drives both the panel and the slash CLI.
+- [schema.md](./schema.md) — what a row in `NS.Schema` looks like and how it drives both the panel and the slash CLI.
 - [profiles.md](./profiles.md) — how profile changes drive `RefreshOptionsPanel`.
 - [midnight-quirks.md](./midnight-quirks.md) — patch-day breakage catalog.

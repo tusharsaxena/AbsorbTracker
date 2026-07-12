@@ -9,26 +9,26 @@ How values move through the addon at runtime: the bootstrap on PLAYER_LOGIN, the
 ```
 PLAYER_LOGIN
     │
-    ├─▶ Try LibStub("AceDB-3.0"):New("AbsorbTrackerDB", AddonTable.defaults, true)
-    │     ├─ success → AddonTable.db = the AceDB instance
+    ├─▶ Try LibStub("AceDB-3.0"):New("AbsorbTrackerDB", NS.defaults, true)
+    │     ├─ success → NS.db = the AceDB instance
     │     └─ failure → fallback shim:
-    │                  AddonTable.db = { profile = AbsorbTrackerDB }
+    │                  NS.db = { profile = AbsorbTrackerDB }
     │                  seed missing keys from flatDefaults
     │
-    ├─▶ AddonTable.ClearLSMCache()             -- handle late-loading LSM
+    ├─▶ NS.ClearLSMCache()             -- handle late-loading LSM
     │
-    ├─▶ AddonTable.RestoreBarPosition()        -- re-apply saved position or center
-    ├─▶ AddonTable.UpdateBarAppearance()       -- size, textures, colors, border, font
-    ├─▶ AddonTable.UpdateAbsorbBar()           -- initial value paint
+    ├─▶ NS.RestoreBarPosition()        -- re-apply saved position or center
+    ├─▶ NS.UpdateBarAppearance()       -- size, textures, colors, border, font
+    ├─▶ NS.UpdateAbsorbBar()           -- initial value paint
     │
-    ├─▶ AddonTable.RestartUpdateTicker()       -- start the periodic ticker
+    ├─▶ NS.RestartUpdateTicker()       -- start the periodic ticker
     │
-    └─▶ if AddonTable.CreateOptionsPanel then
-            AddonTable.CreateOptionsPanel()    -- registers parent + 5 sub-pages
+    └─▶ if NS.CreateOptionsPanel then
+            NS.CreateOptionsPanel()    -- registers parent + 5 sub-pages
         end
 ```
 
-The `if AddonTable.CreateOptionsPanel then ... end` guard is the [forward-reference pattern](./module-map.md#forward-references). In practice the call always succeeds because all files load synchronously before any event fires, but the nil-check keeps the load-order coupling soft.
+The `if NS.CreateOptionsPanel then ... end` guard is the [forward-reference pattern](./module-map.md#forward-references). In practice the call always succeeds because all files load synchronously before any event fires, but the nil-check keeps the load-order coupling soft.
 
 ## Absorb-update path
 
@@ -43,7 +43,7 @@ UNIT_ABSORB_AMOUNT_CHANGED ─────► DebugPrint only (no visual update)
                                   every updateInterval seconds
                                                    │
                                                    ▼
-                                AddonTable.UpdateAbsorbBar()
+                                NS.UpdateAbsorbBar()
                                                    │
                                 ┌──────────────────┼──────────────────┐
                                 ▼                  ▼                  ▼
@@ -61,11 +61,11 @@ Slash:  /at set <path> <value>             Panel widget OnValueChanged
             │                                          │
             ▼                                          ▼
 ParseSchemaValue(row, text)            local set(row, value)
-            │                          (Panel/Widgets.lua — file-local)
+            │                          (settings/Widgets.lua — file-local)
             │                                          │
             └────────────────┬─────────────────────────┘
                              ▼
-                  AddonTable.SetByPath(path, value)
+                  NS.SetByPath(path, value)
                              │
                   ┌──────────┴───────────┐
                   ▼                      ▼
@@ -87,9 +87,9 @@ ParseSchemaValue(row, text)            local set(row, value)
                    (no caching — class color toggles "just work")
 ```
 
-The slash and panel paths converge on `SetByPath`. The panel's local `set(row, value)` (in `Panel/Widgets.lua`) calls `SetByPath` then `Helpers.RefreshAllPanels`; the slash dispatcher (`SlashCommands.lua`) calls `SetByPath` then `RefreshOptionsPanel` (which itself routes to `Helpers.RefreshAllPanels`). Color getters resolve `useClassColor*` at call time, so no explicit "switch class color on" wiring is needed — the next paint reads the current toggle state and produces the right color.
+The slash and panel paths converge on `SetByPath`. The panel's local `set(row, value)` (in `settings/Widgets.lua`) calls `SetByPath` then `Helpers.RefreshAllPanels`; the slash dispatcher (`SlashCommands.lua`) calls `SetByPath` then `RefreshOptionsPanel` (which itself routes to `Helpers.RefreshAllPanels`). Color getters resolve `useClassColor*` at call time, so no explicit "switch class color on" wiring is needed — the next paint reads the current toggle state and produces the right color.
 
-(`AceConfigDialog` is **not** in this path. It's used only inside the Profiles sub-page, where `Options/Profiles.lua` opens the AceDBOptions UI; for every other sub-page the AceGUI widget callbacks call directly into the local `set()` defined in `Panel/Widgets.lua`.)
+(`AceConfigDialog` is **not** in this path. It's used only inside the Profiles sub-page, where `settings/Profiles.lua` opens the AceDBOptions UI; for every other sub-page the AceGUI widget callbacks call directly into the local `set()` defined in `settings/Widgets.lua`.)
 
 ## Profile-change refresh
 
@@ -99,17 +99,17 @@ When AceDB fires one of its profile callbacks, the active `db.profile` flips. Th
 OnProfileChanged / OnProfileCopied / OnProfileReset
     │
     ▼
-AddonTable.OnProfileChanged()
+NS.OnProfileChanged()
     │
-    ├─▶ AddonTable.RestoreBarPosition()     -- new profile may have a different saved position
-    ├─▶ AddonTable.UpdateBarAppearance()    -- size, textures, colors, border, font
-    ├─▶ AddonTable.UpdateAbsorbBar()        -- repaint absorb value against new profile
+    ├─▶ NS.RestoreBarPosition()     -- new profile may have a different saved position
+    ├─▶ NS.UpdateBarAppearance()    -- size, textures, colors, border, font
+    ├─▶ NS.UpdateAbsorbBar()        -- repaint absorb value against new profile
     │
-    ├─▶ AddonTable.ResetTickerInterval()    -- clear tracked interval so the next
-    ├─▶ AddonTable.RestartUpdateTicker(true)--   call rebuilds with the new value
+    ├─▶ NS.ResetTickerInterval()    -- clear tracked interval so the next
+    ├─▶ NS.RestartUpdateTicker(true)--   call rebuilds with the new value
     │
-    └─▶ if AddonTable.RefreshOptionsPanel then
-            AddonTable.RefreshOptionsPanel()  -- routes to Helpers.RefreshAllPanels
+    └─▶ if NS.RefreshOptionsPanel then
+            NS.RefreshOptionsPanel()  -- routes to Helpers.RefreshAllPanels
         end
 ```
 

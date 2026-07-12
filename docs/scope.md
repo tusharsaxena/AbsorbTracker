@@ -26,7 +26,7 @@ These have been considered and explicitly declined. A change of heart needs an i
 - **Drag-and-drop reorderable settings panel.** Page order is fixed.
 - **Profile import / export.** AceDB profiles persist in `AbsorbTrackerDB`; no serialization layer.
 - **Auto-detect class color.** Class-color overrides are explicit opt-in toggles per surface (bar / bg / border). No "always use class color" master switch.
-- **OO framework / `:NewModule()` runtime.** Plain-Lua modules attached to a shared `AddonTable`. AceAddon is bundled but only used as the AceDB carrier.
+- **OO framework / `:NewModule()` runtime.** Plain-Lua modules attached to a shared `NS`. AceAddon is bundled but only used as the AceDB carrier.
 
 ## Resolved decisions
 
@@ -40,13 +40,13 @@ Decisions made during requirements review and earlier releases — these are set
 - **Ticker drives visual updates, not events.** `UNIT_ABSORB_AMOUNT_CHANGED` only logs at debug level; the periodic `C_Timer.NewTicker` is the source of truth for `UpdateAbsorbBar` calls. Decouples the ~Hz event flow from the user-configurable update interval.
 - **Backdrop refresh requires double-set.** `SetBackdrop(nil)` before `SetBackdrop(info)` to force a visual update — passing the same table identity is a Blizzard no-op even if its fields changed.
 - **Combat lockdown gate on `/at config`.** `Settings.OpenToCategory` is protected; opening any settings subcategory during combat would taint the panel. `OpenOptionsPanel` early-returns with a chat notice while `InCombatLockdown()` is true.
-- **Schema is the single source of truth.** Adding a new option = one row in some `Options/<page>.lua` via `RegisterSchemaRows`. The widget AND the `/at set <path>` CLI are wired automatically. Per-setting subcommands like `/at width 250` were removed in favor of `/at set barWidth 250`.
-- **Cyan `[AT]` chat prefix.** All addon chat output goes through `AddonTable.Print` (which prepends `|cFF00FFFF[AT]|r`). Files that emit chat shadow the global `print` with `local print = AddonTable.Print` so existing call sites stay unchanged. No raw `print(...)` calls.
+- **Schema is the single source of truth.** Adding a new option = one row in some `settings/<page>.lua` via `RegisterSchemaRows`. The widget AND the `/at set <path>` CLI are wired automatically. Per-setting subcommands like `/at width 250` were removed in favor of `/at set barWidth 250`.
+- **Cyan `[AT]` chat prefix.** All addon chat output goes through `NS.Print` (which prepends `|cFF00FFFF[AT]|r`). Files that emit chat shadow the global `print` with `local print = NS.Print` so existing call sites stay unchanged. No raw `print(...)` calls.
 - **Parent canvas hosts an about page; sub-pages hold every setting.** The "Ka0s Absorb Tracker" parent renders a logo + the TOC `Notes` blurb + the slash-command list. The five sub-pages (General / Bar / Border / Font / Profiles) hold every user setting; the parent never holds settings of its own.
 
 ## Where the contract lives
 
 - User-facing behavior: [README.md](../README.md) — slash commands, settings panel, FAQ, troubleshooting.
 - Engineer working notes: [../CLAUDE.md](../CLAUDE.md) — hard rules + response style + doc index.
-- Big-picture map: [../ARCHITECTURE.md](../ARCHITECTURE.md) — subsystems + invariants + doc index.
+- Big-picture map: [./ARCHITECTURE.md](./ARCHITECTURE.md) — subsystems + invariants + doc index.
 - Topic chunks: `docs/*.md` (this file is one of them).

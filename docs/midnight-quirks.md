@@ -11,7 +11,7 @@ Catalog of WoW Midnight (Interface 12.0.x) behaviors and Blizzard-API convention
 
 ## `SetBackdrop` is a no-op when the table identity is unchanged
 
-WoW's `Frame:SetBackdrop(info)` ignores the call when `info` is the same table identity as the previously-set backdrop, *even if its fields changed*. AbsorbTracker reuses one `AddonTable.backdropInfo` table to avoid GC, mutates its fields in `UpdateBarAppearance`, and then calls:
+WoW's `Frame:SetBackdrop(info)` ignores the call when `info` is the same table identity as the previously-set backdrop, *even if its fields changed*. AbsorbTracker reuses one `NS.backdropInfo` table to avoid GC, mutates its fields in `UpdateBarAppearance`, and then calls:
 
 ```lua
 bar:SetBackdrop(nil)            -- force-clear
@@ -24,7 +24,7 @@ Don't try to "optimize" by skipping the `SetBackdrop(nil)`. The backdrop will lo
 
 `Settings.OpenToCategory(categoryID)` is part of the protected Settings API. Calling it during combat would taint the panel — even after combat ends, the tainted panel can refuse to open or break unrelated UI behavior.
 
-`AddonTable.OpenOptionsPanel` always early-returns when `InCombatLockdown()` is true:
+`NS.OpenOptionsPanel` always early-returns when `InCombatLockdown()` is true:
 
 ```lua
 if InCombatLockdown() then
@@ -34,7 +34,7 @@ end
 Settings.OpenToCategory(mainCategoryID)
 ```
 
-(The `print` is the `local print = AddonTable.Print` shadow at the top of `OptionsPanel.lua`, so the chat output gets the cyan `[AT]` prefix.)
+(The `print` is the `local print = NS.Print` shadow at the top of `OptionsPanel.lua`, so the chat output gets the cyan `[AT]` prefix.)
 
 Don't try to clever-defer the call into a `PLAYER_REGEN_ENABLED` queue. A user who clicks `/at config` mid-pull and then tabs to another addon's UI mid-call would see weird state. The straight-up refusal with a chat notice is the right call.
 

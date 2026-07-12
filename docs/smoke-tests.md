@@ -1,238 +1,99 @@
-# Smoke tests
-
-Manual QA recipe for **Ka0s Absorb Tracker**. There are no automated tests — every code path runs against the WoW client, the Blizzard Settings panel, AceDB, or LibSharedMedia, none of which run outside the game. Walk this end-to-end before any release; spot-check the affected sections after every non-trivial code change.
-
-If you can only reason about a change from code and cannot run it in WoW, **say so explicitly**. Don't claim it works.
-
-> Times below are wall-clock for a familiar tester on a logged-in character. First run is slower.
-
----
-
-## 0. Setup (one-time)
-
-1. Copy or symlink the addon folder into `<WoW>\_retail_\Interface\AddOns\AbsorbTracker\`.
-2. Pick a character whose class can self-cast an absorb shield: **Priest** (Power Word: Shield), **Discipline / Holy Paladin** (Word of Glory + talents), **Death Knight** (Blood Shield), or any class wearing a trinket with an active absorb proc. Priest is easiest.
-3. Launch WoW. Verify the addon is enabled in the AddOn list.
-4. `/reload`. There should be no Lua errors. The bar paints at screen center on first load.
-
----
-
-## 1. Boot smoke (~1 minute)
-
-- [ ] `/reload` produces no Lua errors.
-- [ ] The bar appears centered on the screen with the default appearance.
-- [ ] `/at` and `/at help` print every command, each line prefixed with cyan `[AT]`, with the command name in yellow and the description in white.
-
----
-
-## 2. Bar paint (~2 minutes)
-
-The bar reads `UnitGetTotalAbsorbs("player")` against `UnitHealthMax("player")` on a periodic ticker (`Timer.lua` → `Display.UpdateAbsorbBar`).
-
-- [ ] With no active absorb, the bar is empty (or shows `0`).
-- [ ] Cast Power Word: Shield (or proc your trinket). The bar fills, and the value displayed matches the absorb overlay on the default Blizzard unit frame.
-- [ ] Let the absorb expire or break. The bar drains back to `0` within one ticker tick.
-- [ ] `/at test 50000` paints the bar with `50K` (formatted by `AbbreviateNumbers`); the paint persists for ~5 s (the default hold), then live updates resume on the next ticker tick.
-- [ ] `/at test 1234567` displays as `1.2M` (or whatever Blizzard's `AbbreviateNumbers` produces — but it's not a raw 7-digit string).
-- [ ] `/at test 999999 2` holds the fake value for ~2 s instead of the default 5 s, demonstrating the `[hold-secs]` argument.
-- [ ] `/at toggle` (bar hides), then `/at test 50000` — chat prints `Bar is hidden; run /at toggle to show it before testing` and the bar stays hidden. `/at toggle` again to restore.
-- [ ] `/at update` triggers an immediate repaint with no error.
-
----
-
-## 3. Bar interaction (~2 minutes)
-
-The bar is created with `SetMovable(true) + EnableMouse(true)` (`UI.lua`). Drag is gated by the `locked` setting (`Display.lua`).
-
-- [ ] `/at unlock` — drag the bar with left-click; it moves freely.
-- [ ] `/reload` — bar position persists across reload.
-- [ ] `/at lock` — left-click-drag is now ignored.
-- [ ] `/at toggle` once — bar hides. `/at toggle` again — bar reappears.
-- [ ] `/at resetposition` — bar snaps back to screen center.
-
----
-
-## 4. Slash CLI surface (~5 minutes)
-
-Every `/at` subcommand defined in `SlashCommands.lua` (the `AddonTable.SlashCommands` registry).
-
-### Read / list
-- [ ] `/at list` prints every schema row, grouped by panel (general / bar / border / font), with the current value next to each path.
-- [ ] `/at get barWidth` — prints the numeric value.
-- [ ] `/at get borderColor` — prints the `r,g,b,a` color tuple.
-- [ ] `/at get bogusPath` — prints an "unknown setting" error and does not crash.
-
-### Write
-- [ ] `/at set barWidth 250` then `/at get barWidth` round-trips to `250`. Bar visibly widens.
-- [ ] `/at set barColor 0.4 0.7 1.0 0.8` — bar fill turns light blue. `/at get barColor` echoes the tuple.
-- [ ] `/at set useClassColorBar true` — bar fill switches to your class color. If the Settings panel is open, the **Bar Color** picker greys out.
-- [ ] `/at set useClassColorBar false` — bar fill reverts to the configured RGB; **Bar Color** picker re-enables.
-- [ ] `/at set barWidth abc` — error message ("expected a number" or similar), value unchanged.
-- [ ] `/at set bogusPath 1` — unknown-setting error, no crash.
-
-### Reset
-- [ ] `/at reset bar` — every Bar setting back to defaults; non-Bar pages untouched.
-- [ ] `/at resetall` — every setting back to defaults; saved bar position is cleared (bar centers).
-
-### Visibility / lock helpers
-- [ ] `/at lock` / `/at unlock` flip drag state (covered in §3).
-- [ ] `/at toggle` flips visibility (covered in §3).
-- [ ] `/at resetposition` centers the bar (covered in §3).
-- [ ] `/at update` forces a repaint (covered in §2).
-
-### Debug
-- [ ] `/at debug` → cyan `[AT] Debug enabled` line. Cast PW:S — `[AT]` debug entries log to chat for the absorb update. `/at debug` again → debug off, no more lines.
-
-### Aliases
-- [ ] `/at options` opens the Settings panel (alias for `/at config`).
-- [ ] `/absorbtracker config` works the same as `/at config`.
-
-### Profile
-Covered in §6.
-
----
-
-## 5. Settings panel (~10 minutes)
-
-Open via `/at config`. Tree shows **Ka0s Absorb Tracker** parent with five sub-pages (General, Bar, Border, Font, Profiles).
-
-### 5a. Combat-lockdown gate
-- [ ] Engage in combat (target dummy or any mob). With combat active, `/at config` prints a chat warning and does **not** open the panel. (`OptionsPanel.lua:OpenOptionsPanel` early-returns when `InCombatLockdown()`.)
-- [ ] Drop combat, retry — panel opens normally.
-
-### 5b. About page (parent)
-- [ ] Click the **Ka0s Absorb Tracker** parent in the left tree. The page renders:
-  - the addon logo (`Media\logo.tga` or equivalent),
-  - the addon `Notes` text from the TOC,
-  - a "Slash Commands" heading with every entry from `AddonTable.SlashCommands` rendered in the same yellow-name / white-description style as `/at help`.
-- [ ] No settings widgets on this page.
-
-### 5c. General sub-page
-- [ ] **Show Bar** checkbox toggles bar visibility (matches `/at toggle`).
-- [ ] **Lock Bar** checkbox toggles drag (matches `/at lock` / `/at unlock`).
-- [ ] **Update Interval** slider (range 0.1–10s, step 0.1) — drop to `0.5`; the bar refreshes more often visibly. Restart the ticker test: trigger an absorb, watch the value update at the new cadence.
-- [ ] **Reset Position** button — bar centers.
-- [ ] **Reset All Settings** button — confirmation popup appears. Cancel: nothing changes. Confirm: every setting back to defaults, bar position cleared.
-- [ ] Page-level **Defaults** button (header, top-right) — restores **only** General settings to defaults; other pages untouched.
-
-### 5d. Bar sub-page
-- [ ] **Bar Width** (50–500) and **Bar Height** (10–100) sliders — bar resizes live as you drag.
-- [ ] **Bar Texture** LSM30_Statusbar dropdown — opens with the full LSM `statusbar` catalog. Each row has an inline preview swatch. Closed state shows the selected texture as a swatch on the right of the dropdown.
-- [ ] **Bar Color** picker — open, drag inside the wheel, watch the bar repaint live. Click X / press Esc to cancel — bar reverts.
-- [ ] **Use Class Color (Bar)** checkbox — toggling on greys out the **Bar Color** picker AND switches the bar fill to your class color.
-- [ ] **Background Texture** / **Background Color** / **Use Class Color (BG)** — same three behaviors for the background layer.
-- [ ] Page-level **Defaults** button — restores **only** Bar settings.
-
-### 5e. Border sub-page
-- [ ] **Border Style** LSM30_Border dropdown — opens. **There is NO 42×42 preview tile** to the left of the dropdown's text. The label and dropdown chrome should sit flush against the page's left edge. *(This is the regression guarded by `LSMPatch.lua` — if the tile reappears, the fix has broken.)*
-- [ ] Hovering each row in the open list — the popup's outer border (its `edgeFile`) updates to preview that border style.
-- [ ] **Border Thickness** (1–32 px) — border edge size changes live.
-- [ ] **Use Class Color (Border)** — greys **Border Color** picker, border switches to class color.
-- [ ] Page-level **Defaults** button — restores **only** Border settings.
-
-### 5f. Font sub-page
-- [ ] **Font Face** LSM30_Font dropdown — opens with full LSM `font` catalog; each row's swatch shows `Aa` rendered in that font. Closed state shows `Aa` in the selected font.
-- [ ] **Font Size** slider (6–32) — value text on the bar resizes live.
-- [ ] **Font Flags** dropdown (plain Dropdown, not LSM) — cycle through `None` / `OUTLINE` / `THICKOUTLINE` / `MONOCHROME`. Outline state on the value text updates live.
-- [ ] Page-level **Defaults** button — restores **only** Font settings.
-
-### 5g. Profiles sub-page
-- [ ] AceDBOptions UI renders: **Choose Set**, **Copy From**, **Reset Profile**, **New** input + button, **Delete Profile**.
-- [ ] **No** page-level Defaults button (Profiles is the one sub-page without one — AceDBOptions owns its own UI).
-
----
-
-## 6. Profiles & profile callbacks (~3 minutes)
-
-Profile management is wired via AceDB callbacks in `Events.lua` (`OnProfileChanged`, `OnProfileCopied`, `OnProfileReset` → `AddonTable.OnProfileChanged`).
-
-### Via the Profiles sub-page
-- [ ] Click **New**, enter `SmokeTest`, confirm. New profile is created and made active.
-- [ ] Bar position resets to screen center (new profile has no saved position).
-- [ ] All other settings carry over to the same starting defaults.
-- [ ] Drag the bar to a new position. Switch back to **Default** via **Choose Set**. Bar snaps back to wherever Default's saved position was (or center if Default has none).
-- [ ] Switch back to **SmokeTest** — bar position you set there is restored.
-- [ ] **Copy From: Default** — Default's settings overwrite SmokeTest's. Bar position included.
-- [ ] **Reset Profile** — every setting in the active profile back to defaults, position cleared.
-- [ ] **Delete Profile: SmokeTest** — confirmation popup, then profile is gone. Active profile falls back to Default.
-
-### Via `/at profile`
-- [ ] `/at profile list` — every existing profile, current marked with a `*` or similar.
-- [ ] `/at profile current` — prints the active profile name.
-- [ ] `/at profile new SmokeCLI` — creates and switches.
-- [ ] `/at profile use Default` — switches back.
-- [ ] `/at profile copy SmokeCLI` — overlays SmokeCLI's settings onto the current profile.
-- [ ] `/at profile reset` — resets the active profile.
-- [ ] `/at profile delete SmokeCLI` — removes that profile.
-- [ ] `/at profile use NonexistentName` — friendly error, no crash.
-
-After every switch / copy / reset: the bar position and appearance immediately reflect the new state (no `/reload` required).
-
----
-
-## 7. Class-color resolution (~2 minutes)
-
-Class colors are resolved at every paint call (`GetBarColor` / `GetBgColor` / `GetBorderColor` in `Settings.lua` re-read `useClassColor*` per call — they never cache).
-
-- [ ] On the test character, set `useClassColorBar true`. Bar matches your class color.
-- [ ] Switch to a different character of a different class (or use `/run RAID_CLASS_COLORS` to confirm the color you expect). Reload. Bar fill matches the **new** class.
-- [ ] In the Settings panel, with the picker open: toggling the matching `Use Class Color` checkbox should grey/un-grey the picker live without reopening it.
-
----
-
-## 8. LSM dropdowns (~2 minutes)
-
-Five LSM-backed widgets: `barTexture` / `bgTexture` (Statusbar), `border` (Border), `font` (Font). The `fontFlags` dropdown is plain.
-
-- [ ] Each LSM dropdown shows the **full** SharedMedia catalog — many entries, not just Blizzard fallback constants like `Blizzard Raid Bar`, `Blizzard Tooltip`, `Friz Quadrata TT`.
-- [ ] If only fallbacks appear, see [common-tasks.md → Troubleshoot the LSM dropdowns](./common-tasks.md#troubleshoot-the-lsm-dropdowns).
-- [ ] Border specifically: confirm the displayButton suppression from `LSMPatch.lua` (covered in §5e).
-
----
-
-## 9. Backdrop / appearance refresh (~1 minute)
-
-`UpdateBarAppearance` (in `Settings.lua` / `Display.lua`) clears the backdrop with `SetBackdrop(nil)` before applying the new info table — Blizzard's API is a no-op when the table identity is unchanged, so changing edgeFile or bgFile silently fails without the clear.
-
-- [ ] Change **Bar Texture** to a different LSM entry — bar repaints to the new texture immediately.
-- [ ] Change **Border Style** to a different LSM entry — border repaints. If the previous border tile still shows, the clear-first pattern was bypassed somewhere upstream of `UpdateBarAppearance`.
-- [ ] Change **Border Color** — border tints to the new color without reload.
-- [ ] Change **Background Texture** — background fill repaints.
-
----
-
-## 10. Interface / patch compatibility (post-patch only)
-
-`AbsorbTracker.toc:1` declares the current retail build (`120007`). When a new patch ships:
-
-- [ ] On the new patch, `/reload` produces no errors. Bar paints. `/at config` opens the panel.
-- [ ] Run §1–§9 on the new patch before updating the `## Interface:` number to it.
-
----
-
-## 11. Failure-mode quick reference
-
-When something is broken, this is the fastest path to a hypothesis:
-
-| Symptom | Probable cause | Where to look |
-|---------|---------------|---------------|
-| Bar never paints | Events not wired | `Events.lua` — `PLAYER_LOGIN`, `PLAYER_ENTERING_WORLD`, ticker setup |
-| Bar paints once then freezes | Ticker not restarted | `Timer.lua`, `RestartUpdateTicker`, `OnProfileChanged` flow |
-| `/at config` does nothing | Combat lockdown gate | `OptionsPanel.lua:OpenOptionsPanel`, `InCombatLockdown()` check |
-| `/at config` taints the panel | Combat-lockdown gate was removed or skipped | Same — must early-return during combat |
-| LSM dropdowns show only Blizzard fallbacks | LSM not loaded, or `dialogControl` missing on the schema row | [common-tasks.md → Troubleshoot the LSM dropdowns](./common-tasks.md#troubleshoot-the-lsm-dropdowns) |
-| Border dropdown shows a 42×42 tile to the left of the text | `LSMPatch.lua` PLAYER_LOGIN hook didn't fire | `LSMPatch.lua`, [midnight-quirks.md](./midnight-quirks.md) |
-| Texture / border change is ignored visually | `SetBackdrop(nil)`-before-`SetBackdrop(info)` pattern was optimized away | `UpdateBarAppearance` |
-| Class-color toggle has no visible effect | Color was cached on a frame | Color getters must re-read `useClassColor*` per paint |
-| Profile switch doesn't update the bar | AceDB callbacks not registered | `Events.lua` — `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset` |
-| `/at profile` errors / Profiles tab missing | AceDB-3.0 not loaded | `libs/Ace3/AceDB-3.0/` and TOC |
-| Display value is a giant stale number | `UnitGetTotalAbsorbs` "secret value" run through `tonumber` | Pass the raw value to `AbbreviateNumbers` directly. See [midnight-quirks.md](./midnight-quirks.md#secret-values-from-unitgettotalabsorbs) |
-
----
-
-## See also
-
-- [common-tasks.md](./common-tasks.md) — recipes for routine modifications (add a setting, add a sub-page, troubleshoot LSM, bump the Interface line).
-- [midnight-quirks.md](./midnight-quirks.md) — Midnight-era WoW gotchas this smoke is designed to catch.
-- [data-flow.md](./data-flow.md) — bootstrap + event flow that §1–§3 walk through.
-- [profiles.md](./profiles.md) — AceDB integration detail referenced by §6.
+# Ka0s Absorb Tracker — Manual In-Game Smoke-Test Suite
+
+Run on a **live Retail (Midnight, 12.0.7 / Interface 120007) English client** in order — later
+tests assume the addon loaded cleanly. Enable Lua errors first (`/console scriptErrors 1`, or
+BugSack/BugGrabber). Watch chat for the cyan `[AT]` prefix and for any red error frame. The addon
+also ships a headless gate (`lua tests/run.lua` → 36 passed, `luacheck .` → 0/0, `luac -p <file>`)
+that covers the pure logic; this suite covers everything that only runs against the live client.
+
+### A. Load & bootstrap
+1. **Fresh login.** Delete `WTF/.../SavedVariables/AbsorbTrackerDB.lua`, log in → world reached, **zero Lua errors**.
+2. **Bar appears.** A single absorb bar is visible at screen center (default look); shows the value / `0`.
+3. **/reload clean.** `/reload` → no errors; bar reappears in the same spot.
+4. **Value tracks reality.** Gain an absorb (e.g. Power Word: Shield) → fill + text update to the abbreviated amount; consume it → drops toward `0`.
+5. **Secret-value safety.** With a big absorb, the number shows an abbreviated string (e.g. `1.2M`), never `nil`/error.
+
+### B. Slash surface
+6. `/at` alone → help block (version line + command list).
+7. `/absorbtracker` → identical help block.
+8. `/at help` → gold command + em-dash + white desc for all 15 verbs: help, config, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, update, test, profile.
+9. `/at wibble` → `unknown command 'wibble'` then help.
+10. `/at options` → opens the panel (back-compat alias for `config`).
+
+### C. Settings panel & combat gate
+11. `/at config` (out of combat) → Blizzard Settings opens to **Ka0s Absorb Tracker**, tree expanded to General/Bar/Border/Font/Profiles.
+12. **Combat gate.** In combat, `/at config` → panel does **not** open; chat shows `[AT] Cannot open settings panel during combat…`.
+13. Drop combat, `/at config` → opens normally, no taint warning.
+
+### D. Sub-pages render & edit live
+14. **General** — Show Bar / Lock Position, Reset Position + Reset All buttons, Update Interval slider. Toggle Show Bar → bar hides/shows; Lock Position → drag disabled; drag Update Interval → ticker cadence changes.
+15. **Bar** — Width/Height, Bar Texture (LSM), Bar Color, Use Class Color; Background Texture/Color/Use Class Color. Drag Width → widens live; change Texture/Color → live.
+16. **Border** — Style (LSM), Thickness, Use Class Color, Color. Change Style → edge changes; drag Thickness → grows/shrinks (inset recomputes, no glitch).
+17. **Font** — Face (LSM), Size, Outline (solo dropdown, 6 flags). Change Face/Outline → text updates live.
+18. **Profiles** — AceDBOptions UI renders **inside** the canvas panel (Current/New/Copy/Reset/Delete + scopes), no error.
+19. **Page Defaults button** — change Bar values, click Defaults → only Bar reverts; panel refreshes.
+20. **Reset All popup** — General → Reset All Settings → confirm popup → Yes → General/Bar/Border/Font revert, `[AT] All settings reset to defaults.`, Profiles untouched.
+
+### E. LSM border-widget alignment fix
+21. Border page, **Border Style** dropdown closed → left edge flush with neighbors, **no ~42px gap** (LSMPatch suppresses the displayButton tile).
+22. Open the dropdown → per-row hover border previews still render; selecting applies.
+
+### F. Slash verbs — read/write/reset
+23. `/at list` → grouped `[general]/[bar]/[border]/[font]`, each `path = value` formatted.
+24. `/at get barWidth` → `barWidth = <n> px`; `/at get bogus` → not found; `/at get` → usage.
+25. `/at set barWidth 260` → `barWidth = 260 px`, bar widens, open panel refreshes; path case preserved.
+26. `/at set barWidth abc` → `Invalid value for barWidth`; bar unchanged.
+27. `/at reset bar` → `bar page reset to defaults`, reverts + repaints; `/at reset bogus` → unknown page.
+28. `/at resetall` → all pages revert **and** bar returns to center (position cleared).
+29. `/at resetposition` → bar snaps to center; other settings unchanged.
+30. `/at lock` / `/at unlock` → locks/unlocks dragging; dragged position persists across `/reload`.
+31. `/at toggle` → hides/shows the bar.
+32. `/at update` → `Forced refresh`; repaints from live absorb.
+33. `/at test` → shows `50K` for 5s then reverts; `/at test 250000 3` → `250K` for 3s.
+34. `/at test` while hidden → `Bar is hidden; run /at toggle to show it…`.
+
+### G. Profiles — switch repaints the bar
+35. `/at profile list` / `current` → lists / prints current.
+36. `/at profile new SmokeTest` → switches to a defaults profile; bar repaints to default, ticker restarts.
+37. On SmokeTest `/at set barWidth 400`, then `/at profile use Default` → bar repaints to the original width (validates `OnProfileChanged`).
+38. `/at profile copy SmokeTest` → copies + repaints.
+39. `/at profile delete <current>` → refused; switch away, delete SmokeTest → deleted.
+40. **Panel-driven switch** — Profiles page dropdown switch → bar repaints live.
+
+### H. Debug console (§12)
+41. `/at debug` → **Absorb Tracker — Debug** window appears (dark, draggable); `/at debug` again → hides.
+42. Log lines render in a **monospace** font (JetBrains Mono).
+43. `/at debug on` → `[AT] debug on`, header **Debug: ON** (green); trigger an absorb change → timestamped `[tag] msg` lines (steel-blue ts, tan tag).
+44. `/at debug off` → `[AT] debug off`, header **Debug: OFF** (red); new changes no longer append.
+45. Header **Debug** toggle button → flips state exactly like the slash verb.
+46. **Copy** → opens a monospace EditBox with the plain-text log highlighted (Ctrl+C, then Esc).
+47. **Clear** → empties the log view and the copy buffer.
+48. **Esc** → closes the debug window (and the Copy window); both in `UISpecialFrames`.
+49. `/at debug on`, then `/reload` → console hidden and logging OFF (session-only state resets).
+
+### I. SavedVariables migration — no-op on existing profile
+50. Customize a profile (e.g. `barWidth=260`, custom texture), `/reload` → all customized values **survive** (backfill only fills missing keys).
+51. Logout to flush, inspect `AbsorbTrackerDB.lua` → `global.schemaVersion = 1`; `/reload` again → stays `1`, values unchanged.
+52. *(Optional)* Hand-delete one profile key from the SV file, log in → that key restored to default, others untouched, no error.
+
+### J. Class-color overrides
+53. Bar page → Use Class Color (Bar) on → fill recolors to class color; Bar Color picker greys out.
+54. Use Class Color (Background) on → background = darkened class color; picker greys out.
+55. Border page → Use Class Color on → border = class color; picker greys out.
+56. With all three on, `/reload` or profile switch → colors re-resolve with no manual refresh (getters read class color per-paint).
+57. Turn each Use Class Color off → manual RGBA picker re-enables; bar reverts to the stored manual color.
+
+**Pass criteria:** all 57 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
+and no combat-taint warning after step 12. On any failure, record the step number, observed vs.
+expected, and any error text.
+
+### Triage references (if a step fails)
+- Bootstrap / events / profile repaint — `core/AbsorbTracker.lua` (`OnEnable`, `OnProfileChanged`)
+- Slash dispatch + `NS.COMMANDS` — `settings/Slash.lua`
+- Combat gate — `settings/Panel.lua` (`OpenOptionsPanel`)
+- Bar paint / secret value / test-hold — `modules/Display.lua`
+- Ticker interval guard — `modules/Timer.lua`
+- DB init + idempotent migration — `core/Database.lua`
+- Debug console — `core/DebugLog.lua`
+- LSM border alignment fix — `core/LSMPatch.lua`
+- Class-color-aware getters — `core/Data.lua` (`GetBarColor`/`GetBgColor`/`GetBorderColor`)

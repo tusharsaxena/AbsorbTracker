@@ -1,6 +1,6 @@
 # Schema
 
-The schema-driven settings system. One flat array, walked by both the canvas-layout sub-pages (rendered as AceGUI widgets) and the `/at` slash dispatcher. Adding a new user-facing setting is one row in some `Options/<page>.lua` — the panel widget and the `/at set <path>` CLI are wired automatically.
+The schema-driven settings system. One flat array, walked by both the canvas-layout sub-pages (rendered as AceGUI widgets) and the `/at` slash dispatcher. Adding a new user-facing setting is one row in some `settings/<page>.lua` — the panel widget and the `/at set <path>` CLI are wired automatically.
 
 ## Why one schema
 
@@ -11,7 +11,7 @@ Two parallel surfaces — the Blizzard Settings panel and the `/at` slash CLI �
 ```lua
 {
     path    = "barWidth",        -- key in db.profile (also `/at set <path>`)
-    page    = "bar",             -- which Options/<page>.lua renders it
+    page    = "bar",             -- which settings/<page>.lua renders it
     group   = "Size",            -- optional inline group label within the page
     order   = 10,                -- render order within the group
 
@@ -38,13 +38,13 @@ Two parallel surfaces — the Blizzard Settings panel and the `/at` slash CLI �
 
 ## Registration
 
-Each `Options/<page>.lua` (except `Profiles`) calls `AddonTable.RegisterSchemaRows({ ... })` at file-load time:
+Each `settings/<page>.lua` (except `Profiles`) calls `NS.RegisterSchemaRows({ ... })` at file-load time:
 
 ```lua
-local AddonName, AddonTable = ...
-local flatDefaults = AddonTable.flatDefaults
+local AddonName, NS = ...
+local flatDefaults = NS.flatDefaults
 
-AddonTable.RegisterSchemaRows({
+NS.RegisterSchemaRows({
     { path = "barWidth", page = "bar", group = "Size", order = 10,
       type = "number", label = "Bar Width", default = flatDefaults.barWidth,
       min = 50, max = 500, step = 1 },
@@ -57,7 +57,7 @@ AddonTable.RegisterSchemaRows({
 ## How the row drives both surfaces
 
 ```
-                  AddonTable.Schema (flat array)
+                  NS.Schema (flat array)
                           │
             ┌─────────────┴──────────────┐
             ▼                            ▼
@@ -99,13 +99,13 @@ Greys out the picker when the named sibling toggle is on. Used by the class-colo
   disabledIf = "useClassColorBar" },
 ```
 
-The ColorPicker maker (`Panel/Widgets.lua`) reads `disabledIf` inside its refresher closure and calls `cp:SetDisabled(GetSetting(sibling))`. The refresh runs at file-load (initial state), after any panel widget write (every `set()` ends with `Helpers.RefreshAllPanels`), and on profile change — so flipping `useClassColorBar` greys / un-greys the matching color picker on the same frame.
+The ColorPicker maker (`settings/Widgets.lua`) reads `disabledIf` inside its refresher closure and calls `cp:SetDisabled(GetSetting(sibling))`. The refresh runs at file-load (initial state), after any panel widget write (every `set()` ends with `Helpers.RefreshAllPanels`), and on profile change — so flipping `useClassColorBar` greys / un-greys the matching color picker on the same frame.
 
 ### `onChange` (any type)
 
-Defaults to `AddonTable.UpdateBarAppearance`. Override when the row's side effect differs:
+Defaults to `NS.UpdateBarAppearance`. Override when the row's side effect differs:
 
-- `updateInterval` → `AddonTable.RestartUpdateTicker`.
+- `updateInterval` → `NS.RestartUpdateTicker`.
 - `hidden` → `UpdateBarAppearance` plus a follow-up `UpdateAbsorbBar` so the bar's first frame after un-hide reflects current state.
 
 ### `fmt = "%.1f sec"` (number only)
@@ -119,34 +119,34 @@ Tells `Helpers.RenderSchema` to render this row alone on its own line instead of
 ## Public API
 
 ```lua
--- Registration (Options/*.lua)
-AddonTable.RegisterSchemaRows(rows)             -- append rows to AddonTable.Schema
+-- Registration (settings/*.lua)
+NS.RegisterSchemaRows(rows)             -- append rows to NS.Schema
 
 -- Lookup
-AddonTable.FindSchemaRow(path)                  -> row | nil
-AddonTable.SchemaForPage(pageKey)               -> { rows }   -- sorted by group's first-seen
+NS.FindSchemaRow(path)                  -> row | nil
+NS.SchemaForPage(pageKey)               -> { rows }   -- sorted by group's first-seen
                                                               -- registration order, then row.order
                                                               -- within each group
 
 -- Write / reset (fires row.onChange; reads go through GetSetting)
-AddonTable.SetByPath(path, value)               -- write + onChange (the documented single seam
+NS.SetByPath(path, value)               -- write + onChange (the documented single seam
                                                 -- both /at set and the panel widget set() use)
-AddonTable.ApplyDefault(row)                    -- reset to row.default + onChange (used by
+NS.ApplyDefault(row)                    -- reset to row.default + onChange (used by
                                                 -- /at reset, /at resetall, and per-page Defaults)
 
 -- Slash IO
-AddonTable.FormatSchemaValue(row, value)        -> string    -- display formatting
-AddonTable.ParseSchemaValue(row, text)          -> value | nil, errMsg
+NS.FormatSchemaValue(row, value)        -> string    -- display formatting
+NS.ParseSchemaValue(row, text)          -> value | nil, errMsg
 
 -- Validation (called once at PLAYER_LOGIN by CreateOptionsPanel)
-AddonTable.ValidateSchema()                     -> errorCount   -- chat-prints malformed rows
+NS.ValidateSchema()                     -> errorCount   -- chat-prints malformed rows
 ```
 
 ## Slash CLI mapping
 
 | Command | What it does |
 |---------|--------------|
-| `/at list` | Walks `AddonTable.Schema`, groups rows by `page`, prints each row's path with the current value rendered through `FormatSchemaValue`. |
+| `/at list` | Walks `NS.Schema`, groups rows by `page`, prints each row's path with the current value rendered through `FormatSchemaValue`. |
 | `/at get <path>` | Looks up one row via `FindSchemaRow` and prints the same formatted value. |
 | `/at set <path> <value>` | Calls `ParseSchemaValue(row, text)` to coerce the tail into the typed value, then `SetByPath` to write + fire `onChange`. Invalid input prints a type-specific error (`expected true/false/on/off`, `allowed values: A, B, C`, `expected: r g b [a] (each 0-1 or 0-255)`). |
 | `/at reset <page>` | Walks the schema rows for `<page>` (general / bar / border / font) and calls `ApplyDefault(row)` on each. |
@@ -156,8 +156,8 @@ Per-setting subcommands like `/at width 250` or `/at color classcolor on` are go
 
 ## What's *not* schema-driven
 
-- **Action buttons** like Reset Position. They're rendered via `Helpers.InlineButtonPair`, attached to a sub-page through `Helpers.RenderSchema`'s `afterGroup` callback. `Options/General.lua` wires the **Reset Position** + **Reset All Settings** pair under the **Master controls** group via `RenderSchema(ctx, "general", { ["Master controls"] = function(ctxRef) H.InlineButtonPair(ctxRef, ...) end })`.
-- **`/at config` / `/at lock` / `/at toggle` / `/at debug` / `/at update` / `/at test` / `/at resetposition` / `/at profile`.** Verbs that don't fit a key/value shape live as dedicated entries in the `AddonTable.SlashCommands` array in `SlashCommands.lua`.
+- **Action buttons** like Reset Position. They're rendered via `Helpers.InlineButtonPair`, attached to a sub-page through `Helpers.RenderSchema`'s `afterGroup` callback. `settings/General.lua` wires the **Reset Position** + **Reset All Settings** pair under the **Master controls** group via `RenderSchema(ctx, "general", { ["Master controls"] = function(ctxRef) H.InlineButtonPair(ctxRef, ...) end })`.
+- **`/at config` / `/at lock` / `/at toggle` / `/at debug` / `/at update` / `/at test` / `/at resetposition` / `/at profile`.** Verbs that don't fit a key/value shape live as dedicated entries in the `NS.SlashCommands` array in `SlashCommands.lua`.
 - **The Profiles sub-page.** `AceDBOptions:GetOptionsTable(db)` builds its own options table; no schema rows.
 
 ## Settings reference (every schema row)
