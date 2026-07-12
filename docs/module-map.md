@@ -7,32 +7,41 @@ The `NS` bus, the public APIs each module publishes, and the load-order rules. P
 Every Lua file begins with:
 
 ```lua
-local AddonName, NS = ...
+local addonName, NS = ...
 ```
 
-`...` is the WoW-supplied vararg pair. **`NS` is the same table for every file in this addon**, so writing `NS.foo = ...` in one file makes it readable from any other file loaded afterward.
+`...` is the WoW-supplied vararg pair. **`NS` is the same table for every file in this addon**, so writing `NS.foo = ...` in one file makes it readable from any other file loaded afterward. `NS` is the addon's single private table — there is no `_G[addonName]`.
 
-There is no Ace3 `:NewModule()` or class hierarchy on the runtime side — modules are plain Lua files; functions are attached to `NS`. AceAddon is bundled but only used as the carrier for AceDB.
+`NS` is also the AceAddon object. `core/AbsorbTracker.lua` promotes the bootstrap table:
+
+```lua
+local addon = AceAddon:NewAddon(NS, addonName, "AceEvent-3.0", "AceTimer-3.0", "AceConsole-3.0")
+NS.addon = addon
+```
+
+Passing `NS` as the first argument to `:NewAddon` makes the bootstrap table and the AceAddon object one and the same, so `NS:OnInitialize` / `NS:OnEnable` are the lifecycle methods and the AceEvent / AceTimer / AceConsole mixins are stamped onto `NS.addon`. **AceAddon is a full participant now** — the ticker (`NS.addon:ScheduleRepeatingTimer`), the events (`self:RegisterEvent`), and the slash registration (`NS.addon:RegisterChatCommand`) all flow through it. There is still no `:NewModule()` hierarchy; the runtime modules are plain Lua files that attach functions to `NS`.
 
 State that lives on `NS` (rather than as a global):
 
-- The bar frame and its children (`bar`, `statusBar`, `valueText`).
-- The database reference (`db`).
+- The bar frame and its children (`bar`, `statusBar`, `valueText`, `backdropInfo`).
+- The AceAddon object (`addon`) and the database reference (`db`).
 - Defaults (`defaults`, `flatDefaults`).
-- Helper functions (`Print`, `GetSetting`, `SetSetting`, `GetBarColor`, ...).
-- The schema registry (`Schema`).
-- The settings-panel helpers table (`Helpers` — `CreatePanel`, `RenderSchema`, `RefreshAllPanels`, etc.).
-- The slash command list (`SlashCommands`) — also rendered on the about page.
+- Session state (`State` — `State.debug`, never persisted).
+- Sub-tables that namespace a module's surface (`Constants`, `Compat`, `Util`, `Slash`, `DebugLog`, `Helpers`).
+- Helper functions attached directly (`Print`, `DebugPrint`, `Debug`, `GetSetting`, `SetSetting`, `GetBarColor`, ...).
+- The schema registry (`Schema`) and the localized-string table (`L`).
+- The slash command list (`COMMANDS`, aliased `SlashCommands`) — also rendered on the about page.
+- The stashed AceGUI reference (`AceGUI`), set once in `CreateOptionsPanel`.
 
-The only WoW-required globals are `AbsorbTrackerDB`, `SLASH_ABSORBTRACKER1` / `SLASH_ABSORBTRACKER2`, and `AbsorbTrackerFrame` (the frame's name).
+The only WoW-required global is the SavedVariables table `AbsorbTrackerDB`. The bar frame is named `AbsorbTrackerFrame`; the debug console frames are `AbsorbTrackerDebugWindow` / `AbsorbTrackerDebugCopyWindow`. There are **no** `SLASH_*` / `SlashCmdList` globals — slash registration is AceConsole (`RegisterChatCommand`).
 
 ### Imports as locals
 
 Each file pulls its imports as locals at the top of the chunk:
 
 ```lua
-local GetSetting = NS.GetSetting
-local SetSetting = NS.SetSetting
+local C = NS.Constants
+local print = NS.Print
 ```
 
 Two consequences:
@@ -42,55 +51,73 @@ Two consequences:
 
 ## Public APIs per module
 
-### Core (`Core.lua`)
+### Namespace (`core/Namespace.lua`)
 
 ```lua
-NS.defaults      -- AceDB-shaped { profile = { ... } }
-NS.flatDefaults  -- alias to defaults.profile (direct-lookup convenience)
+NS.name    -- addonName
+NS.version -- "1.8.0" string constant
+NS.PREFIX  -- "|cFF00FFFF[AT]|r" — the one shared cyan [AT] chat tag
 
--- Cached math/format on NS to avoid global lookups in hot paths
-NS.floor   = math.floor
-NS.max     = math.max
-NS.format  = format
+-- Cached math/string on NS to avoid global lookups in the bar paint path
+NS.floor  = math.floor
+NS.max    = math.max
+NS.format = format or string.format
 ```
 
-### Utils (`Utils.lua`)
+### Constants (`core/Constants.lua`)
 
 ```lua
-NS.DEBUG               -- bool flag, toggled by /at debug
-
-NS.Print(...)          -- prepends cyan |cFF00FFFF[AT]|r and prints
-NS.DebugPrint(...)     -- conditional on NS.DEBUG; same prefix
+NS.Constants.FALLBACK_TEXTURE  -- Blizzard statusbar path (bar / bg fallback)
+NS.Constants.FALLBACK_BORDER   -- Blizzard tooltip-border fallback
+NS.Constants.FALLBACK_FONT     -- FRIZQT__ fallback
+NS.Constants.FONT_MONO         -- addon-relative path to the vendored JetBrains Mono TTF
+NS.Constants.LOGO_PATH         -- media/logos/ about-page logo TGA
 ```
 
-### LSMPatch (`LSMPatch.lua`)
+### Compat (`core/Compat.lua`)
 
-No public API. The whole file is one `CreateFrame("Frame")` registered for `PLAYER_LOGIN`. On fire, it looks up whatever constructor `AceGUI.WidgetRegistry["LSM30_Border"]` currently holds, and if a constructor is registered (i.e. the upstream `AceGUI-3.0-SharedMediaWidgets` ran), registers a wrapper at `currentVer + 1` that:
+The **only** file that calls a deprecated/varying WoW API. Every other module routes metadata reads through it.
 
-1. Calls the original constructor.
-2. `frame.displayButton:Hide()` on the returned widget — kills the 42×42 border-preview tile pinned to the widget's TOPLEFT by `AGSMW:GetBaseFrameWithWindow`.
-3. Re-anchors `frame.label` to the frame's TOPLEFT/TOPRIGHT (was anchored to `displayButton.TOPRIGHT` by upstream).
-4. Re-anchors `frame.DLeft` (the dropdown bar's left cap) to the frame's BOTTOMLEFT (was anchored to `displayButton.BOTTOMRIGHT` by upstream).
+```lua
+NS.Compat.GetAddOnMetadata(name, field)  -- C_AddOns.GetAddOnMetadata with a
+                                          -- _G.GetAddOnMetadata pre-11.0 fallback; nil if absent
+```
 
-If `AceGUI` isn't loaded, or no `LSM30_Border` is registered, the hook no-ops cleanly.
+### State (`core/State.lua`)
 
-The displayButton suppressor lives in addon code rather than as an edit to the vendored lib so future `AceGUI-3.0-SharedMediaWidgets` refreshes are a clean drop-in.
+```lua
+NS.State        -- session-only runtime table; nothing here is persisted
+NS.State.debug  -- bool, defaults nil/off, reset on every reload/login;
+                -- flipped by /at debug on|off and the console header toggle
+```
 
-### Settings (`Settings.lua`)
+### Util (`core/Util.lua`)
+
+```lua
+NS.Print(...)       -- prepends NS.PREFIX and prints via DEFAULT_CHAT_FRAME
+NS.DebugPrint(...)  -- routes to the on-screen console (NS.Debug) when State.debug is on;
+                    -- zero-cost when off. No longer prints to chat.
+NS.Util.print       -- alias of NS.Print
+```
+
+### Data (`core/Data.lua`)
+
+The AceDB read/write seam plus the LSM fetchers and the class-color-aware color resolvers. `NS.db` is declared here (nil until `InitDB`).
 
 ```lua
 -- Database access
-NS.GetSetting(key)            -> value
-NS.SetSetting(key, value)     -- writes to db.profile, falls back to flatDefaults if db is nil
+NS.GetSetting(key)            -> value        -- reads db.profile, falls back to flatDefaults
+NS.SetSetting(key, value)     -- writes to db.profile (no-op if db unset)
 
--- LibSharedMedia wrappers (return path; fall back to FALLBACK_* Blizzard constants when LSM missing)
-NS.GetBarTexture()            -> texturePath
+-- LibSharedMedia
+NS.GetLSM()                   -> LSM | nil     -- cached LibStub lookup
+NS.ClearLSMCache()            -- reset the cached LSM ref; called on enable
+NS.GetBarTexture()            -> texturePath   -- falls back to FALLBACK_TEXTURE
 NS.GetBgTexture()             -> texturePath
-NS.GetBorder()                -> texturePath
-NS.GetFont()                  -> fontPath
-NS.ClearLSMCache()            -- reset cached LSM ref; called once at PLAYER_LOGIN
+NS.GetBorder()                -> borderPath    -- falls back to FALLBACK_BORDER
+NS.GetFont()                  -> fontPath      -- falls back to FALLBACK_FONT
 
--- Color resolution (resolves useClassColor* at call time)
+-- Color resolution (re-reads useClassColor* at call time)
 NS.GetBarColor()              -> r, g, b, a
 NS.GetBgColor()               -> r, g, b, a
 NS.GetBorderColor()           -> r, g, b, a
@@ -98,107 +125,207 @@ NS.GetBorderColor()           -> r, g, b, a
 
 `GetPlayerClassColor` / `GetBgClassColor` are private upvalues used internally by the color getters. They're not exposed on `NS`.
 
-### Schema (`Schema.lua`)
+### Database (`core/Database.lua`)
+
+AceDB init + the idempotent migration seam. Available headlessly for the test harness.
+
+```lua
+NS:InitDB()         -- AceDB:New("AbsorbTrackerDB", NS.defaults, true); registers
+                    -- OnProfileChanged/OnProfileCopied/OnProfileReset -> NS.OnProfileChanged
+                    -- (RegisterCallback guarded for the headless mock); falls back to a
+                    -- raw-SV table when AceDB is absent; then calls RunMigrations.
+NS:RunMigrations()  -- reads/writes db.global.schemaVersion (v1); backfills missing profile
+                    -- keys from flatDefaults, deep-copying table defaults. Idempotent.
+```
+
+### LSMPatch (`core/LSMPatch.lua`)
+
+```lua
+NS.ApplyLSMBorderPatch()  -- called once on enable
+```
+
+Wraps whatever constructor `AceGUI.WidgetRegistry["LSM30_Border"]` currently holds and registers the wrapper at `currentVersion + 1`. Per instance it:
+
+1. Calls the original constructor.
+2. `frame.displayButton:Hide()` — kills the 42×42 border-preview tile pinned to the widget's TOPLEFT by `AGSMW:GetBaseFrameWithWindow`.
+3. Re-anchors `frame.label` to the frame's TOPLEFT/TOPRIGHT (was anchored to `displayButton`).
+4. Re-anchors `frame.DLeft` (the dropdown bar's left cap) to the frame's BOTTOMLEFT.
+
+No-ops cleanly if AceGUI isn't loaded or no `LSM30_Border` is registered. `LSM30_Font` / `LSM30_Statusbar` use `AGSMW:GetBaseFrame` (no displayButton), so this is Border-specific. The suppressor lives in addon code rather than a lib edit so future `AceGUI-3.0-SharedMediaWidgets` refreshes are a clean drop-in.
+
+### DebugLog (`core/DebugLog.lua`)
+
+The on-screen debug console (a `ScrollingMessageFrame` in the vendored monospace font), replacing chat-based debug spam. Session-only.
+
+```lua
+NS.Debug(tag, fmt, ...)   -- the global debug sink; no-op (zero alloc) when State.debug is off,
+                          -- otherwise appends a formatted line to the console.
+
+NS.DebugLog.Show() / Hide() / Toggle()   -- the console window
+NS.DebugLog:Add(tag, msg)                -- append one line + mirror to the plain-text buffer
+NS.DebugLog:Clear()                      -- clear the log + buffer
+NS.DebugLog:ShowCopy()                   -- read-through EditBox with the whole log as plain text
+NS.DebugLog:SetEnabled(on)               -- single seam for flipping State.debug (chat ack + header)
+NS.DebugLog:RefreshHeader()              -- resync the ON/OFF toggle label + colour
+NS.DebugLog.FormatPlain(ts, tag, msg)    -- pure formatter: "<ts> | [<tag>] <msg>" (Copy buffer)
+NS.DebugLog.FormatColored(ts, tag, msg)  -- pure colour-coded formatter (console view)
+NS.DebugLog.buffer                       -- capped plain-text mirror of the log
+```
+
+Both console + copy frames register in `UISpecialFrames` (Esc-closable). Detail in [midnight-quirks.md](./midnight-quirks.md).
+
+### AbsorbTracker (`core/AbsorbTracker.lua`)
+
+The AceAddon lifecycle. Promotes `NS` (see [The `NS` bus](#the-ns-bus)) and defines the handlers.
+
+```lua
+NS.addon               -- the AceAddon object (== NS via NewAddon(NS, ...))
+
+addon:OnInitialize()   -- ADDON_LOADED timing: register the LSM monospace font, NS:InitDB(),
+                       -- NS.Slash:Register().
+addon:OnEnable()       -- PLAYER_LOGIN timing: ClearLSMCache -> GetLSM -> ApplyLSMBorderPatch ->
+                       -- RestoreBarPosition -> UpdateBarAppearance -> UpdateAbsorbBar ->
+                       -- RestartUpdateTicker(true); RegisterEvent UNIT_ABSORB_AMOUNT_CHANGED /
+                       -- PLAYER_ENTERING_WORLD; CreateOptionsPanel.
+addon:OnAbsorbChanged(_, unit)  -- UNIT_ABSORB_AMOUNT_CHANGED; only records a debug line (the
+                                -- ticker drives the paint, so a burst can't outpace the interval).
+addon:OnEnterWorld()   -- PLAYER_ENTERING_WORLD; repaints via UpdateAbsorbBar.
+
+NS.OnProfileChanged()  -- registered as the AceDB profile callback inside InitDB; runs
+                       -- RestoreBarPosition + UpdateBarAppearance + UpdateAbsorbBar +
+                       -- ResetTickerInterval + RestartUpdateTicker(true) + RefreshOptionsPanel.
+```
+
+Events are AceEvent (`self:RegisterEvent`), not raw `CreateFrame` frames. Detail in [data-flow.md](./data-flow.md).
+
+### Defaults (`defaults/Profile.lua`)
+
+Runs at file-load time; publishes the AceDB-shaped defaults.
+
+```lua
+NS.defaults          -- { profile = { ... }, global = { schemaVersion = 1 } }
+NS.flatDefaults      -- alias to defaults.profile (GetSetting fallback + per-key panel defaults)
+```
+
+### Locale (`locales/enUS.lua`)
+
+```lua
+NS.L  -- setmetatable({}, { __index = function(_, k) return k end })
+```
+
+English-only in v1.8.0 — the metatable returns the key itself, so untranslated strings work and a missing key never errors. Nothing is wrapped in `NS.L[...]` yet; the seam is in place for a future localization pass.
+
+### Bar (`modules/Bar.lua`)
+
+Runs at file-load time, not as a function. Builds the frame from flat defaults and exports the handles for the paint path (`modules/Display.lua`):
+
+```lua
+NS.bar           -- the outer movable BackdropTemplate frame (named AbsorbTrackerFrame)
+NS.statusBar     -- child StatusBar (also bar.statusBar)
+NS.valueText     -- FontString child of statusBar (also bar.valueText)
+NS.backdropInfo  -- reusable backdrop info table; mutated in place by UpdateBarAppearance
+```
+
+The `OnDragStop` handler persists the new position via `NS.SetSetting("position", ...)`.
+
+### Display (`modules/Display.lua`)
+
+```lua
+NS.RestoreBarPosition()      -- re-applies the saved position table or centers the bar
+NS.UpdateBarAppearance()     -- re-applies size, textures, colors, border, font, lock, visibility
+NS.UpdateAbsorbBar()         -- reads UnitGetTotalAbsorbs + UnitHealthMax, pushes into
+                             -- statusBar/valueText; honors the /at test hold window
+```
+
+`UpdateBarAppearance` does the `SetBackdrop(nil)` → `SetBackdrop(info)` clear-then-reapply dance (WoW's backdrop API no-ops on unchanged table identity). `UpdateAbsorbBar` hands the raw (possibly "secret") absorb value straight to `AbbreviateNumbers` — never through `tonumber`. Detail in [midnight-quirks.md](./midnight-quirks.md).
+
+### Timer (`modules/Timer.lua`)
+
+The backup repaint ticker, driven by AceTimer (not `C_Timer.NewTicker`).
+
+```lua
+NS.RestartUpdateTicker(forceRestart?)  -- ScheduleRepeatingTimer(NS.UpdateAbsorbBar, interval)
+                                       -- via NS.addon; short-circuits when interval unchanged
+                                       -- unless forced; CancelTimer's the old handle first
+NS.ResetTickerInterval()               -- clears the tracked interval; next call rebuilds the ticker
+```
+
+### Schema (`settings/Schema.lua`)
 
 ```lua
 NS.Schema                          -- flat array of rows; the source of truth
 
--- Registration (called from settings/*.lua at file-load time)
+-- Registration (called from settings/<page>.lua at file-load time)
 NS.RegisterSchemaRows(rows)        -- append rows to NS.Schema
 
 -- Lookup
 NS.FindSchemaRow(path)             -> row | nil
 NS.SchemaForPage(pageKey)          -> { rows }   -- sorted group-stably (each group's
-                                                         -- first-seen registration index, then
-                                                         -- row.order within the group)
+                                                 -- first-seen registration index, then
+                                                 -- row.order within the group)
 
 -- Write / reset (reads go through GetSetting directly)
-NS.SetByPath(path, value)          -- writes via SetSetting + fires row.onChange
-                                           -- (the single seam both /at set and the panel widget
-                                           -- set() use; pre-M1.3 the panel open-coded this two-step)
-NS.ApplyDefault(row)               -- resets row to row.default + fires onChange
+NS.SetByPath(path, value)          -- SetSetting + fires row.onChange — the single write seam
+                                   -- shared by /at set and every panel widget
+NS.ApplyDefault(row)               -- resets row to row.default (deep-copying color tables) + onChange
 
 -- Slash IO
 NS.FormatSchemaValue(row, value)   -> string
-NS.ParseSchemaValue(row, text)     -> value | nil, errMsg
+NS.ParseSchemaValue(row, text)     -> value | nil, errMsg   -- type-aware parser (bool/number/
+                                                            -- string/color)
 
--- Validation (called once at PLAYER_LOGIN by CreateOptionsPanel)
-NS.ValidateSchema()                -> errorCount   -- chat-prints any malformed rows
+-- Validation (called once from CreateOptionsPanel)
+NS.ValidateSchema()                -> errors, resolved, missing
 ```
 
-Detail in [schema.md](./schema.md).
+`ValidateSchema` now returns **three** values. Beyond checking row shape (path present, valid `page`, valid `type`), it verifies every non-profiles row's `path` resolves against `NS.defaults.profile` and warns on a miss — a typo'd path would otherwise silently read/write nothing. It only prints; it never refuses to register. Detail in [schema.md](./schema.md).
 
-### UI (`UI.lua`)
+### Slash (`settings/Slash.lua`)
 
-Runs at file-load time, not as a function. Exports the frame handles for everyone else to push into:
+The AceConsole-registered `/at` dispatcher. `/at list` / `get` / `set` walk `NS.Schema` directly.
 
 ```lua
-NS.bar           -- the outer movable BackdropTemplate frame (also registered as AbsorbTrackerFrame globally)
-NS.statusBar     -- child StatusBar
-NS.valueText     -- FontString child of statusBar
-NS.backdropInfo  -- reusable backdrop info table; mutated in place by UpdateBarAppearance
+NS.COMMANDS         -- ordered { name, desc, fn } array of 15 verbs: help, config, list, get,
+                    -- set, reset, resetall, resetposition, lock, unlock, toggle, debug, update,
+                    -- test, profile. printHelp and the about page both iterate it.
+NS.SlashCommands    -- alias of NS.COMMANDS (kept for settings/About.lua)
+
+NS.Slash:OnSlash(msg)  -- parse + dispatch; unknown verb prints "unknown command '<verb>'" then help
+NS.Slash:Register()    -- NS.addon:RegisterChatCommand("at", ...) + ("absorbtracker", ...)
 ```
 
-### Display (`Display.lua`)
+No `SLASH_*` globals, no `SlashCmdList`. `/at options` is a back-compat alias for `/at config`. Profile subcommands are handled inline in `runProfile`. Detail in [profiles.md](./profiles.md).
+
+### OptionsPanel (`settings/Panel.lua`)
+
+The settings UI is split across `settings/Panel.lua` (registration shell) and the toolkit/widget/about slices (`settings/Helpers.lua`, `settings/ScrollPatch.lua`, `settings/Widgets.lua`, `settings/About.lua`) that decorate the same shared `NS.Helpers` table, plus the five `settings/<page>.lua` builders. `Panel.lua` publishes the empty `NS.Helpers` before those slices load; each slice extends it; the page files consume the toolkit at enable time.
 
 ```lua
-NS.UpdateBarAppearance()    -- re-applies size, textures, colors, border, font, lock, visibility
-NS.UpdateAbsorbBar()         -- reads UnitGetTotalAbsorbs + UnitHealthMax, pushes into statusBar/valueText
-NS.RestoreBarPosition()      -- re-applies saved position table or centers the bar
-```
-
-### Timer (`Timer.lua`)
-
-```lua
-NS.RestartUpdateTicker(forceRestart?)   -- short-circuits when interval unchanged unless forced
-NS.ResetTickerInterval()                -- clears tracked interval; next call rebuilds the ticker
-```
-
-### Events (`Events.lua`)
-
-```lua
-NS.OnProfileChanged()    -- registered for AceDB OnProfileChanged / OnProfileCopied / OnProfileReset
-                                 -- runs RestoreBarPosition + UpdateBarAppearance + UpdateAbsorbBar
-                                 --     + ResetTickerInterval + RestartUpdateTicker(true)
-                                 --     + RefreshOptionsPanel
-```
-
-The login bootstrap and event handlers are local to `Events.lua`; nothing about them is exposed on `NS`. Detail in [data-flow.md](./data-flow.md).
-
-### SlashCommands (`SlashCommands.lua`)
-
-```lua
-NS.SlashCommands           -- ordered { name, desc, handler } array;
-                                   -- /at help and the about page both walk this list
-```
-
-Also registers `SLASH_ABSORBTRACKER1 = "/at"`, `SLASH_ABSORBTRACKER2 = "/absorbtracker"`, and `SlashCmdList["ABSORBTRACKER"]` at file-load time.
-
-### OptionsPanel (`OptionsPanel.lua`)
-
-The settings UI is split across `OptionsPanel.lua` (registration shell) and four `settings/*.lua` slices that decorate the same shared `NS.Helpers` table. `OptionsPanel.lua` publishes the empty table; each `settings/*.lua` file extends it with its own surface; `settings/<page>.lua` consume the toolkit at PLAYER_LOGIN.
-
-```lua
--- Registration shell (OptionsPanel.lua)
-NS.PARENT_TITLE            -- "Ka0s Absorb Tracker" — single source of truth for the
-                                   -- top-level canvas title and the buildHeader breadcrumb prefix
+-- Registration shell (settings/Panel.lua)
+NS.PARENT_TITLE            -- "Ka0s Absorb Tracker" — single source of truth for the top-level
+                           -- canvas title and the buildHeader breadcrumb prefix
 NS.RegisterOptionsPage(key, name, builder)
     -- key:     "general" / "bar" / "border" / "font" / "profiles"
     -- name:    display name shown in the Blizzard Settings tree (and breadcrumb header)
-    -- builder: function(mainCategory) -> sub-category | nil    (called at PLAYER_LOGIN)
+    -- builder: function(mainCategory) -> sub-category | nil   (called at enable time)
 
-NS.CreateOptionsPanel()    -- called from Events.lua on PLAYER_LOGIN once db is ready
+NS.CreateOptionsPanel()    -- called from OnEnable once db is ready. Stashes NS.AceGUI once,
+                           -- runs ValidateSchema, registers the main canvas category, then drains
+                           -- the pending page builders.
 NS.RefreshOptionsPanel()   -- routes to Helpers.RefreshAllPanels (re-runs every refresher)
 NS.OpenOptionsPanel()      -- Settings.OpenToCategory(mainCategoryID) + expandMainCategory();
-                                   -- combat-lockdown gated. Always opens the parent (about page) and
-                                   -- expands the sub-page tree so every page is visible at once.
+                           -- combat-lockdown gated (early-returns with a chat notice in combat).
+
+NS.AceGUI                  -- the AceGUI-3.0 handle, stashed once in CreateOptionsPanel; the
+                           -- toolkit / widget / about builders read this upvalue instead of
+                           -- re-LibStub-ing.
 ```
 
 ```lua
 -- Panel toolkit, decorated across settings/*.lua and exposed as NS.Helpers:
 NS.Helpers
     -- settings/Helpers.lua
-    Helpers.CreatePanel(name, title, opts)         -- canvas frame + header + Defaults button
+    Helpers.CreatePanel(name, title, opts)         -- canvas frame + header + optional Defaults btn
     Helpers.EnsureScroll(ctx)                      -- lazy AceGUI ScrollFrame; calls PatchAlwaysShowScrollbar
     Helpers.Section(ctx, label)                    -- AceGUI Heading row
     Helpers.InlineButtonPair(ctx, leftSpec, rightSpec)
@@ -222,46 +349,46 @@ NS.Helpers
     Helpers.BuildMainContent(ctx)                  -- top-level "Ka0s Absorb Tracker" page builder
 ```
 
-Detail in [settings-panel.md](./settings-panel.md).
+The color-picker drag throttle in `settings/Widgets.lua` uses `NS.addon:ScheduleTimer` (AceTimer one-shot), not `C_Timer.NewTimer`. Detail in [settings-panel.md](./settings-panel.md).
+
+### Options pages (`settings/General|Bar|Border|Font|Profiles.lua`)
+
+Each runs at file-load time: it calls `NS.RegisterSchemaRows({...})` (except Profiles, whose UI is AceDBOptions-supplied) and `NS.RegisterOptionsPage(key, name, build)`. The `build` closure calls `Helpers.RenderSchema(ctx, pageKey)` (General/Bar/Border/Font) at enable time. The LSM-backed rows in Bar/Border/Font set `dialogControl = "LSM30_Statusbar" | "LSM30_Border" | "LSM30_Font"` and `values = NS.Helpers.LSMValues(mediaType)`. `Profiles.build` returns nil (opting the page out) when AceDBOptions / AceConfigDialog / AceConfig / AceGUI aren't all present.
 
 ## Forward references
 
-A small number of call sites reach across load order:
+A small number of call sites reach across load order — the runtime modules (Core / Modules) load before the Settings tier:
 
-- `Events.lua` calls `NS.CreateOptionsPanel()` (defined in `OptionsPanel.lua`, loaded later).
-- `Events.lua` calls `NS.RefreshOptionsPanel()` inside `OnProfileChanged` (same).
+- `core/AbsorbTracker.lua` (`OnEnable`) calls `NS.CreateOptionsPanel()` (defined in `settings/Panel.lua`, loaded later).
+- `core/AbsorbTracker.lua` (`OnEnable`) calls `NS.ApplyLSMBorderPatch()` (defined in `core/LSMPatch.lua`).
+- `NS.OnProfileChanged` calls `NS.RefreshOptionsPanel()` (defined in `settings/Panel.lua`).
+- `settings/Slash.lua` handlers call `NS.RefreshOptionsPanel` / `NS.RestoreBarPosition` / `NS.UpdateAbsorbBar`.
 
 These are guarded with runtime nil checks:
 
 ```lua
-if NS.RefreshOptionsPanel then
-    NS.RefreshOptionsPanel()
-end
+if NS.CreateOptionsPanel then NS.CreateOptionsPanel() end
 ```
 
-In practice the calls always succeed because all files are loaded synchronously before any event fires — but the nil-check keeps the load-order coupling soft, so a future refactor that splits the options panel into a separately-loaded file won't error.
+In practice the calls always succeed because all files are loaded synchronously before `OnEnable` fires — but the nil-check keeps the load-order coupling soft, so a future refactor that moves a file won't error.
 
 ## Load order
 
-`AbsorbTracker.toc` is the source of truth. Order is dependency order, not alphabetical:
+`AbsorbTracker.toc` is the source of truth. Order is dependency order, not alphabetical. The tiers are **Libraries → Core → Defaults → Locales → Modules → Settings**:
 
-1. `libs/` — LibStub + CallbackHandler + LibSharedMedia + the Ace3 stack + the canonical upstream `AceGUI-3.0-SharedMediaWidgets` r65 LSM widgets (via the `#@no-lib-strip@` block).
-2. `Core.lua` — defaults + cached globals on `NS`.
-3. `Utils.lua` — `Print` / `DebugPrint`.
-4. `LSMPatch.lua` — registers `PLAYER_LOGIN` hook for upstream `LSM30_Border` displayButton suppression.
-5. `Settings.lua` — db access + LSM wrappers + color getters.
-6. `Schema.lua` — schema registry + builders.
-7. `UI.lua` — bar frame creation (runs at file-load time).
-8. `Display.lua` — render functions.
-9. `Timer.lua` — ticker management.
-10. `Events.lua` — event frame + login bootstrap (registered, fires later).
-11. `SlashCommands.lua` — `/at` dispatcher (registered at load).
-12. `OptionsPanel.lua` — registration shell. Publishes empty `NS.Helpers = {}` and `NS.PARENT_TITLE`; queues are empty at load; pages drain at PLAYER_LOGIN.
-13. `settings/Helpers.lua` → `settings/ScrollPatch.lua` → `settings/Widgets.lua` → `settings/About.lua` — each decorates `NS.Helpers` with its own surface. Order matters only between Helpers (defines `EnsureScroll`) and ScrollPatch (defines `PatchAlwaysShowScrollbar` that `EnsureScroll` references at panel-creation time).
-14. `settings/General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` — each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load time. LSM-backed schema rows in `Bar.lua` / `Border.lua` / `Font.lua` call `NS.Helpers.LSMValues(mediaType)` at file-load to get a deferred values closure.
+1. `libs/` — LibStub, CallbackHandler-1.0, then the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB / AceGUI / AceConfig / AceDBOptions), LibSharedMedia-3.0, and the vendored upstream `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets) — all inside the `#@no-lib-strip@` block. Vendored **folder-per-lib** at `libs/` root (not `libs/Ace3/…`).
+2. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Util.lua`, `Data.lua`, `Database.lua`, `LSMPatch.lua`, `DebugLog.lua`, `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
+3. **Defaults** — `defaults/Profile.lua` (AceDB defaults; runs at file-load).
+4. **Locales** — `locales/enUS.lua` (`NS.L` metatable seam).
+5. **Modules** — `modules/Bar.lua` (bar frame creation at file-load), `Display.lua` (render functions), `Timer.lua` (AceTimer ticker).
+6. **Settings** (last — depend on everything else being initialized) — `settings/Schema.lua` (registry), `Slash.lua` (`/at` dispatcher), `Panel.lua` (registration shell; publishes empty `NS.Helpers` + `NS.PARENT_TITLE`), then the toolkit slices `Helpers.lua` → `ScrollPatch.lua` → `Widgets.lua` → `About.lua` (each decorates `NS.Helpers`; order matters only between `Helpers` (defines `EnsureScroll`) and `ScrollPatch` (defines `PatchAlwaysShowScrollbar` that `EnsureScroll` references)), then the page builders `General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` (each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load; LSM-backed rows call `NS.Helpers.LSMValues(mediaType)`).
 
-If you add a new runtime file, put it in the right place in `AbsorbTracker.toc`.
+If you add a new runtime file, put it in the right tier in `AbsorbTracker.toc`.
 
 ## Module publishing pattern (idiom)
 
-Modules don't follow a `KCM = KCM or {}` style guard because there's only one shared `NS` rather than a global registry. The closest equivalent is the import-as-locals pattern at the top of each file plus the `if NS.X then ... end` nil check around forward references.
+Modules that own a sub-surface publish it with the `NS.X = NS.X or {}` guard (`NS.Constants`, `NS.Compat`, `NS.Util`, `NS.State`, `NS.Slash`, `NS.DebugLog`, `NS.Helpers`, `NS.Schema`), then alias it to a file-local upvalue (`local C = NS.Constants`). Modules that only attach top-level functions (`Data`, `Display`, `Timer`) write straight to `NS`. The closest thing to a load-order guard is the import-as-locals pattern at the top of each file plus the `if NS.X then ... end` nil check around forward references.
+
+## Test harness
+
+There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` loads the runtime files in TOC order through `tests/loader.lua` against `tests/wow_mock.lua`, then runs `test_schema.lua`, `test_database.lua`, `test_compat.lua`, `test_debuglog.lua`, and `test_slash.lua` (36 tests total). The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.

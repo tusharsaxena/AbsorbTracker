@@ -6,23 +6,23 @@ Recipes for the routine modifications. For deeper context on any module, see [mo
 
 The schema-driven design makes this a one-row change. The widget on the relevant Settings sub-page AND the `/at set <path>` CLI come for free.
 
-1. **Pick a `path` and a default.** The `path` is the `db.profile` key (and the `/at set <path>` argument). The default goes in `Core.lua`'s `defaults.profile`:
+1. **Pick a `path` and a default.** The `path` is the `db.profile` key (and the `/at set <path>` argument). The default goes in `defaults/Profile.lua`'s `NS.defaults.profile`:
 
    ```lua
-   -- Core.lua
-   NS.defaults = {
-       profile = {
-           -- ...
-           myNewKnob = 42,
-       },
+   -- defaults/Profile.lua
+   NS.defaults.profile = {
+       -- ...
+       myNewKnob = 42,
    }
    ```
+
+   `NS.flatDefaults` is an alias for `NS.defaults.profile`, so every settings page can read per-key defaults from it. `NS:RunMigrations` (core/Database.lua) backfills any missing profile key from `flatDefaults` on load, so existing profiles pick up the new key automatically.
 
 2. **Append a schema row** in the `settings/<page>.lua` file for the page where the widget should appear:
 
    ```lua
    -- settings/Bar.lua (for example)
-   local AddonName, NS = ...
+   local addonName, NS = ...
    local flatDefaults = NS.flatDefaults
 
    NS.RegisterSchemaRows({
@@ -33,17 +33,19 @@ The schema-driven design makes this a one-row change. The widget on the relevant
    })
    ```
 
-   Use `flatDefaults.myNewKnob` for the `default` field — `Core.lua` is the single source of truth for default values.
+   Use `flatDefaults.myNewKnob` for the `default` field — `defaults/Profile.lua` is the single source of truth for default values.
 
-3. **Override `onChange` if the side effect isn't `UpdateBarAppearance`.** Most settings just need to repaint, which is the default. For settings that need different reactions:
+3. **Override `onChange` if the side effect isn't `UpdateBarAppearance`.** Most settings just need to repaint, which is the default. For settings that need a different reaction:
 
    ```lua
    onChange = function(v) NS.RestartUpdateTicker() end,
    ```
 
-That's it. The widget renders on the Bar sub-page on the next `/reload`; `/at set myNewKnob 75` works immediately; `/at get myNewKnob` and `/at list` show the new row; `/at reset bar` and `/at resetall` reset it via `ApplyDefault`.
+That's it. The widget renders on the Bar sub-page on the next `/reload`; `/at set myNewKnob 75` works immediately; `/at get myNewKnob` and `/at list` show the new row; `/at reset bar` and `/at resetall` reset it via `ApplyDefault`. Every write — panel widget, `/at set`, and `/at reset` — funnels through `NS.SetByPath`, which calls `SetSetting` then fires the row's `onChange`.
 
-See [schema.md](./schema.md) for the full row grammar (knobs like `inverse`, `disabledIf`, `dialogControl`, `fmt`).
+`NS.ValidateSchema` (run once at panel-registration time) will warn in chat if the new row's `path` doesn't resolve against `NS.defaults.profile` — a cheap guard against typos between step 1 and step 2.
+
+See [schema.md](./schema.md) for the full row grammar (knobs like `inverse`, `disabledIf`, `dialogControl`, `fmt`, `solo`).
 
 ## Add a new sub-page
 
@@ -52,7 +54,7 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
 1. **Create `settings/<NewPage>.lua`** with the standard shape:
 
    ```lua
-   local AddonName, NS = ...
+   local addonName, NS = ...
    local flatDefaults = NS.flatDefaults
 
    NS.RegisterSchemaRows({
@@ -80,6 +82,9 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
            end)
        end
 
+       -- Defer the AceGUI render until the panel is visible: build runs at
+       -- PLAYER_LOGIN when ctx.body has 0 width, and AceGUI lays children out
+       -- against the container's current width.
        local rendered = false
        ctx.panel:SetScript("OnShow", function()
            if rendered then return end
@@ -96,20 +101,22 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
    end
    ```
 
-2. **Add the file to `AbsorbTracker.toc`** after `OptionsPanel.lua`. Registration order in the queue determines tree order, so place the line where the page should appear in the Settings tree:
+2. **Add the file to `AbsorbTracker.toc`** in the `# Settings` block, after `settings/Panel.lua` and the toolkit files it depends on (`Helpers`, `ScrollPatch`, `Widgets`). Registration order in the queue determines tree order, so place the line where the page should appear in the Settings tree:
 
    ```
-   settings/General.lua
-   settings/Bar.lua
-   settings/Border.lua
-   settings/Font.lua
-   settings/NewPage.lua
-   settings/Profiles.lua
+   settings\General.lua
+   settings\Bar.lua
+   settings\Border.lua
+   settings\Font.lua
+   settings\NewPage.lua
+   settings\Profiles.lua
    ```
 
-3. **Add the corresponding defaults** to `Core.lua`'s `defaults.profile`.
+3. **Add the corresponding defaults** to `defaults/Profile.lua`'s `NS.defaults.profile`.
 
-4. **Update `/at reset` to accept the new page key.** The allowed-pages set is `RESET_PAGES` in `SlashCommands.lua` (currently `general / bar / border / font`). Add `newpage`. The schema's `ValidateSchema` allowed-pages set in `Schema.lua` also needs the new key.
+4. **Update the two allowed-page sets so the new key is valid.**
+   - `RESET_PAGES` in `settings/Slash.lua` (currently `general / bar / border / font`) — add `newpage` so `/at reset newpage` works. Also add it to the `PAGE_ORDER` list there if you want `/at list` to group its rows.
+   - `_validPages` in `settings/Schema.lua` — add `newpage`, otherwise `ValidateSchema` warns that every row on the page has an "invalid `page`".
 
 The Blizzard Settings tree shows the new sub-page under "Ka0s Absorb Tracker" on next `/reload`.
 
@@ -118,10 +125,10 @@ The Blizzard Settings tree shows the new sub-page under "Ka0s Absorb Tracker" on
 If the texture / border / font dropdowns only show Blizzard's built-in fallback constants (`Blizzard Raid Bar`, `Blizzard Tooltip`, `Friz Quadrata TT`) and not the full SharedMedia catalog:
 
 1. **Confirm LSM is loaded** in-game with `/dump LibStub("LibSharedMedia-3.0", true)`. A non-nil result means the lib is present.
-2. **Confirm `ClearLSMCache` ran.** It should fire once at PLAYER_LOGIN; if the addon loaded before another addon registered fresh LSM entries, the cache stays warm with the pre-registration view. Force a re-cache with `/reload`.
-3. **Confirm `dialogControl` is set on the schema row.** Without `dialogControl = "LSM30_Statusbar"` (or `_Border` / `_Font`), `Helpers.RenderField` creates a plain AceGUI `Dropdown` instead of the swatch widget.
-4. **Confirm the upstream widget lib is loaded.** `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/widget.xml` includes `prototypes.lua` (`AceGUISharedMediaWidgets-1.0` LibStub library) plus per-widget files that register `LSM30_Statusbar` / `LSM30_Border` / `LSM30_Font` via `AceGUI:RegisterWidgetType`. If the xml or any included file got skipped (TOC drift), `makeDropdown` detects the missing version via `AceGUI:GetWidgetVersion(...)` and falls back to plain `Dropdown` — the option still renders, just without the swatch.
-5. **If the Border dropdown shows a 42×42 preview tile to the left of the text**, the `LSMPatch.lua` `PLAYER_LOGIN` hook didn't fire. Check that `LSMPatch.lua` is listed in `AbsorbTracker.toc` after `Utils.lua`, and that `LibStub("AceGUI-3.0", true)` returns non-nil at PLAYER_LOGIN.
+2. **Confirm `NS.ClearLSMCache` ran.** It fires once in `OnEnable` (core/AbsorbTracker.lua, PLAYER_LOGIN timing); if the addon loaded before another addon registered fresh LSM entries, the cache stays warm with the pre-registration view. Force a re-cache with `/reload`. `NS.GetLSM` / `NS.ClearLSMCache` live in `core/Data.lua`.
+3. **Confirm `dialogControl` is set on the schema row.** Without `dialogControl = "LSM30_Statusbar"` (or `_Border` / `_Font`), the panel renderer creates a plain AceGUI `Dropdown` instead of the swatch widget. LSM-backed rows also set `values = NS.Helpers.LSMValues("statusbar")` (or `"border"` / `"font"`).
+4. **Confirm the upstream widget lib is loaded.** `libs/AceGUI-3.0-SharedMediaWidgets/widget.xml` includes `prototypes.lua` (`AceGUISharedMediaWidgets-1.0` LibStub library) plus per-widget files that register `LSM30_Statusbar` / `LSM30_Border` / `LSM30_Font` via `AceGUI:RegisterWidgetType`. If the xml or any included file got skipped (TOC drift), the dropdown builder detects the missing version via `AceGUI:GetWidgetVersion(...)` and falls back to a plain `Dropdown` — the option still renders, just without the swatch.
+5. **If the Border dropdown shows a 42×42 preview tile to the left of the text**, `NS.ApplyLSMBorderPatch` (core/LSMPatch.lua) didn't run. It's called in `OnEnable` after `NS.ClearLSMCache` / `NS.GetLSM`. Check that `core/LSMPatch.lua` is listed in `AbsorbTracker.toc`, and that `LibStub("AceGUI-3.0", true)` returns non-nil by the time `OnEnable` fires.
 
 If the dropdowns show *some* entries but not all, check that the contributing addon registers its assets with `LibStub("LibSharedMedia-3.0"):Register("statusbar", "name", path)` — some addons declare assets differently and the registration call gets missed.
 
@@ -136,7 +143,31 @@ When a new retail patch ships:
 
 If the new patch *breaks* the addon, note the regression in README's troubleshooting section.
 
-See also: [`/wow-addon:bump-interface` skill](../../.claude/skills/) for the automated version of this.
+See also: the [`/wow-addon:bump-interface` skill](../../.claude/skills/) for the automated version of this.
+
+## Run the test gate
+
+This addon has a headless test harness under `tests/` — any doc claiming "no automated tests" is stale. Run the green gate before you consider a change done:
+
+```sh
+lua tests/run.lua      # 36 tests: schema / database / compat / debuglog / slash
+luacheck .             # must be 0 warnings / 0 errors
+luac -p <changed.lua>  # bytecode-parse each file you touched
+```
+
+`tests/run.lua` loads every source file in TOC order through `tests/loader.lua` against the `tests/wow_mock.lua` WoW stub, runs `NS:InitDB()`, then executes the `test_*.lua` suites.
+
+**When behavior changes, extend the suite.** The existing suites are:
+
+| Suite | Covers |
+|-------|--------|
+| `tests/test_schema.lua` | schema shape, `ValidateSchema` (errors / resolved / missing), `SetByPath`, `ApplyDefault`, formatters/parsers |
+| `tests/test_database.lua` | `InitDB`, `RunMigrations` idempotency, `flatDefaults` backfill |
+| `tests/test_compat.lua` | `Compat.GetAddOnMetadata` wrapper + fallback |
+| `tests/test_debuglog.lua` | `NS.Debug` sink, `FormatPlain` / `FormatColored`, on/off state |
+| `tests/test_slash.lua` | `NS.COMMANDS` dispatch, unknown-verb path, `/at` verbs |
+
+Add a new setting or page? Assert its default resolves in `test_schema.lua`. New slash verb? Add a `test_slash.lua` case. New core behavior? Prefer a new `tests/test_<area>.lua` wired into `tests/run.lua`.
 
 ## See also
 

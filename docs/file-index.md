@@ -2,71 +2,116 @@
 
 Where each responsibility lives in the source tree. Match this map to the actual files before editing — `AbsorbTracker.toc` is the source of truth for load order.
 
-## Top-level Lua
+The tree is tiered (Ka0s standard): `core/` (bootstrap + data + infrastructure), `defaults/` (AceDB defaults), `locales/` (strings), `modules/` (the bar runtime), `settings/` (schema + slash CLI + the multi-page panel), `tests/` (headless harness). Every file opens with `local addonName, NS = ...`; `NS` is the single shared private table, promoted to an AceAddon object in `core/AbsorbTracker.lua`.
+
+## core/ — bootstrap, data, infrastructure
+
+Loaded first among addon source (after libs). `Compat` leads so its shim exists before anything calls it; `AbsorbTracker` (the AceAddon lifecycle) loads last in the tier so `InitDB` / the enable sequence can reference everything else.
 
 | # | File | Lines | Responsibility |
 |---|------|-------|----------------|
-| 1 | `Core.lua` | 35 | `NS.defaults` (AceDB-shaped) + `flatDefaults` alias to `defaults.profile`. Caches `math.floor` / `math.max` / `format` on `NS` to avoid repeated global lookups in hot paths. |
-| 2 | `Utils.lua` | 21 | `NS.Print(...)` — the cyan-`[AT]` chat-prefix pipeline. `NS.DebugPrint(...)` — gated on `NS.DEBUG`, routes through the same prefix. Shadows the global `print` for its own file so naked `print(...)` calls inside Utils get the prefix too. |
-| 3 | `LSMPatch.lua` | 61 | Third-party-lib polyfill. Registers a one-shot `PLAYER_LOGIN` `CreateFrame` hook that wraps the currently-registered `LSM30_Border` constructor at `currentVer + 1`, hides upstream's 42×42 `displayButton` preview tile, and re-anchors `frame.label` and `frame.DLeft` to the frame's left edge so the closed dropdown's chrome sits flush with neighbouring sliders/checkboxes. No-ops cleanly when the upstream lib isn't loaded. |
-| 4 | `Settings.lua` | 171 | `db` ref, `GetSetting(key)` / `SetSetting(key, value)` over `db.profile`, LSM wrappers (`GetBarTexture` / `GetBgTexture` / `GetBorder` / `GetFont`) with `FALLBACK_*` constants, color getters that resolve `useClassColor*` at call time (`GetBarColor` / `GetBgColor` / `GetBorderColor`), `ClearLSMCache` (called once at PLAYER_LOGIN). The internal class-color resolvers (`GetPlayerClassColor` / `GetBgClassColor`) are upvalues used by the color getters. |
-| 5 | `Schema.lua` | 272 | The schema registry. `RegisterSchemaRows(rows)` (append), `FindSchemaRow(path)` / `SchemaForPage(pageKey)` (lookup; sorts by each group's first-seen registration index, then `row.order` within the group, so groups stay contiguous in the rendered panel), `SetByPath(path, value)` / `ApplyDefault(row)` (write/reset; both fire the row's `onChange` via the file-local `fireOnChange`), `FormatSchemaValue(row, value)` / `ParseSchemaValue(row, text)` (slash IO), `ValidateSchema()` (registration-time row-shape sanity check; chat-prints malformed rows). See [schema.md](./schema.md). |
-| 6 | `UI.lua` | 60 | Bar-frame creation at file-load time. Creates `AbsorbTrackerFrame` (outer movable `BackdropTemplate` frame, exported as `NS.bar`), `statusBar` (child `StatusBar`), `valueText` (`FontString` child of `statusBar`). Also creates the reusable `NS.backdropInfo` table. |
-| 7 | `Display.lua` | 112 | `UpdateBarAppearance` (re-applies *every* visual setting; calls `SetBackdrop(nil)` first to force refresh), `UpdateAbsorbBar` (reads `UnitGetTotalAbsorbs` / `UnitHealthMax`, formats with `AbbreviateNumbers`; early-outs while `NS.testHoldUntil` is in the future so a `/at test` paint survives the next tick; gates the per-tick DebugPrint behind `NS.DEBUG` so AbbreviateNumbers + format don't run when debug is off), `RestoreBarPosition` (re-applies the saved `position` table or centers if absent). |
-| 8 | `Timer.lua` | 39 | Single `C_Timer.NewTicker` runs `UpdateAbsorbBar` at `updateInterval` seconds. `RestartUpdateTicker(forceRestart?)` short-circuits when interval is unchanged; `ResetTickerInterval()` clears tracked interval to force a rebuild on profile change. |
-| 9 | `Events.lua` | 84 | Hidden frame registered for `PLAYER_LOGIN` (bootstrap), `PLAYER_ENTERING_WORLD` (zone reset), `UNIT_ABSORB_AMOUNT_CHANGED` (debug log only). `OnProfileChanged` registered for AceDB's three profile callbacks. The AceDB-missing fallback shim deep-copies table-typed defaults so an in-place mutation of a saved variable can't corrupt `flatDefaults`. See [data-flow.md](./data-flow.md). |
-| 10 | `SlashCommands.lua` | 355 | `/at` and `/absorbtracker` dispatcher (both bind to `SlashCmdList["ABSORBTRACKER"]`). The exported `NS.SlashCommands = { {name, desc, handler}, ... }` array — the about page renders the same list via `Helpers.BuildMainContent` in `settings/About.lua`. The schema-aware `/at list / get / set / reset / resetall` walk `NS.Schema`. Non-schema verbs: `config`, `lock` / `unlock` / `toggle`, `debug`, `update`, `test [value] [hold-secs]`, `resetposition`, `profile <sub>`. |
-| 11 | `OptionsPanel.lua` | 167 | Settings UI registration shell. Publishes empty `NS.Helpers` for the `settings/*.lua` slices to decorate, sets `NS.PARENT_TITLE`, owns the `pendingPages` queue. `RegisterOptionsPage(key, name, builder)` appends to that queue; `CreateOptionsPanel()` (PLAYER_LOGIN drain) runs `ValidateSchema`, registers the top-level canvas via `Helpers.CreatePanel`, defers `Helpers.BuildMainContent` to first OnShow, then registers each queued sub-page; `OpenOptionsPanel()` is combat-lockdown gated and expands the parent category in the Settings left tree; `RefreshOptionsPanel()` routes to `Helpers.RefreshAllPanels`. See [settings-panel.md](./settings-panel.md). |
+| 1 | `core/Compat.lua` | 20 | The ONLY file that calls deprecated / flavor-varying APIs. `Compat.GetAddOnMetadata(name, field)` wraps `C_AddOns.GetAddOnMetadata` with a `_G.GetAddOnMetadata` pre-11.0 fallback, degrading to `nil` when neither exists. `settings/About.lua` and `settings/Slash.lua` route through it. |
+| 2 | `core/Constants.lua` | 16 | `NS.Constants`: the `FALLBACK_TEXTURE` / `FALLBACK_BORDER` / `FALLBACK_FONT` Blizzard paths returned when LSM is absent or a key doesn't resolve, `FONT_MONO` (the vendored JetBrains Mono path used by the debug console), and `LOGO_PATH` (the About-page TGA). |
+| 3 | `core/Namespace.lua` | 15 | Shared-namespace bootstrap. `NS.name` / `NS.version`, the cyan `NS.PREFIX` (`|cFF00FFFF[AT]|r`), and the hot-path `NS.floor` / `NS.max` / `NS.format` caches used by the bar paint path. Runs early so metadata + caches exist regardless of load order. |
+| 4 | `core/State.lua` | 5 | `NS.State` — session-only runtime state, never persisted. Holds `NS.State.debug` (the debug flag, defaults off, resets on every `/reload` and login). |
+| 5 | `core/Util.lua` | 27 | `NS.Print(...)` — the cyan-`[AT]` chat-prefix pipeline. `NS.DebugPrint(...)` — routes through the on-screen debug console (`NS.Debug`, `core/DebugLog.lua`) when `NS.State.debug` is on; zero-alloc no-op when off (it no longer touches the chat frame). Files that emit chat do `local print = NS.Print`. |
+| 6 | `core/Data.lua` | 167 | Bar data + media access layer. `NS.db` ref, `GetSetting(key)` / `SetSetting(key, value)` over `db.profile` (falling back to `flatDefaults`), the cached LSM fetchers (`GetBarTexture` / `GetBgTexture` / `GetBorder` / `GetFont` with `FALLBACK_*`), `GetLSM` / `ClearLSMCache`, and the class-color-aware color getters (`GetBarColor` / `GetBgColor` / `GetBorderColor`) that re-read `useClassColor*` at call time. `GetPlayerClassColor` / `GetBgClassColor` are the upvalue resolvers. |
+| 7 | `core/Database.lua` | 54 | `NS:InitDB()` — creates the AceDB `"AbsorbTrackerDB"` from `NS.defaults`, registers `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset` → `NS.OnProfileChanged` (guarded for the headless AceDB mock), and installs the no-AceDB fallback shim. `NS:RunMigrations()` — idempotent, reads/writes `db.global.schemaVersion`; its v1 step backfills any missing profile key from `flatDefaults` (deep-copying table defaults), absorbing the old inline flat→profile migration. See [data-flow.md](./data-flow.md). |
+| 8 | `core/LSMPatch.lua` | 50 | Third-party-lib fixup. `NS.ApplyLSMBorderPatch()` (called once on enable) wraps the currently-registered `LSM30_Border` constructor at `currentVer + 1` via `AceGUI:RegisterWidgetType`, hides upstream's 42×42 `displayButton` preview tile, and re-anchors `frame.label` and `frame.DLeft` to the frame's left edge so the closed dropdown sits flush with neighbouring sliders/checkboxes. No-ops cleanly when AceGUI / the widget isn't loaded. |
+| 9 | `core/DebugLog.lua` | 254 | The on-screen debug console (Ka0s §12). Builds a movable `ScrollingMessageFrame` window (`AbsorbTrackerDebugWindow`, registered with `UISpecialFrames`) rendered in the vendored monospace font, plus a Copy window (read-through `EditBox`) and Clear. Pure `FormatPlain` / `FormatColored` line formatters; `D:SetEnabled` is the single seam the slash command and the header toggle share. `NS.Debug(tag, fmt, ...)` is the global sink — zero-alloc no-op when `NS.State.debug` is off. |
+| 10 | `core/AbsorbTracker.lua` | 61 | AceAddon lifecycle. Promotes `NS` via `AceAddon:NewAddon(NS, addonName, "AceEvent-3.0", "AceTimer-3.0", "AceConsole-3.0")` and stashes the object as `NS.addon`. `OnInitialize` (ADDON_LOADED) registers the LSM monospace font, calls `NS:InitDB()`, and `NS.Slash:Register()`. `OnEnable` (PLAYER_LOGIN timing) reproduces the old bootstrap in order (ClearLSMCache → GetLSM → ApplyLSMBorderPatch → RestoreBarPosition → UpdateBarAppearance → UpdateAbsorbBar → RestartUpdateTicker(true)), registers `UNIT_ABSORB_AMOUNT_CHANGED`/`PLAYER_ENTERING_WORLD` via AceEvent, then `NS.CreateOptionsPanel()`. `OnAbsorbChanged` only records a debug line (the ticker drives the paint); `OnEnterWorld` repaints; `NS.OnProfileChanged` repaints + restarts the ticker + refreshes an open panel. |
+
+## defaults/
+
+| # | File | Lines | Responsibility |
+|---|------|-------|----------------|
+| 11 | `defaults/Profile.lua` | 38 | AceDB-shaped defaults. `NS.defaults.profile` (all per-bar appearance/position keys), `NS.defaults.global` (`schemaVersion = 1`, the migration stamp), and `NS.flatDefaults` — a flat alias to `defaults.profile` read by `GetSetting` on the no-AceDB path and by the Options pages for per-key defaults. |
+
+## locales/
+
+| # | File | Lines | Responsibility |
+|---|------|-------|----------------|
+| 12 | `locales/enUS.lua` | 12 | Canonical locale. Sets `NS.L = setmetatable({}, { __index = function(_, k) return k end })` so a missing key returns itself and never errors. English-only in v1.8.0 — the seam is in place, but no user-facing string is wrapped yet. |
+
+## modules/ — the bar runtime
+
+| # | File | Lines | Responsibility |
+|---|------|-------|----------------|
+| 13 | `modules/Bar.lua` | 55 | Bar-frame creation at file-load time (from `flatDefaults`, before the DB is ready). Creates `AbsorbTrackerFrame` (outer movable `BackdropTemplate`, exported as `NS.bar`), the child `statusBar` (`NS.statusBar`), and `valueText` (`NS.valueText`), plus the reusable `NS.backdropInfo` table. The drag handler writes the new `position` via `NS.SetSetting`. |
+| 14 | `modules/Display.lua` | 89 | `RestoreBarPosition` (re-applies the saved `position` or centers), `UpdateBarAppearance` (re-applies *every* visual setting; `SetBackdrop(nil)` first to force refresh), `UpdateAbsorbBar` (reads `UnitGetTotalAbsorbs` / `UnitHealthMax`, formats with `AbbreviateNumbers` — never through `tonumber`; early-outs while `NS.testHoldUntil` is in the future so a `/at test` paint survives the next tick; gates the per-tick debug line behind `NS.State.debug`). |
+| 15 | `modules/Timer.lua` | 33 | Backup repaint ticker via AceTimer. `RestartUpdateTicker(forceRestart?)` schedules `NS.addon:ScheduleRepeatingTimer(NS.UpdateAbsorbBar, interval)` and cancels the old handle with `NS.addon:CancelTimer`; the interval-change guard short-circuits an unchanged interval. `ResetTickerInterval()` clears the tracked interval to force a rebuild on profile change. |
 
 ## settings/ — settings-panel toolkit
 
-The `settings/` slices decorate the same `NS.Helpers` table that `OptionsPanel.lua` publishes empty. Loaded immediately after `OptionsPanel.lua` (before any `settings/<page>.lua` that consumes the toolkit).
+The `settings/` slices decorate the same `NS.Helpers` table that `settings/Panel.lua` publishes empty. `Schema` / `Slash` / `Panel` load first, then the toolkit slices (`Helpers` / `ScrollPatch` / `Widgets` / `About`) before any `settings/<page>.lua` that consumes them.
 
 | # | File | Lines | Responsibility |
 |---|------|-------|----------------|
-| 12 | `settings/Helpers.lua` | 355 | Layout constants (`PADDING_X` / `HEADER_HEIGHT` / `ROW_VSPACER` / `SECTION_HEADING_H`) plus the canvas + AceGUI scroll machinery: `Helpers.CreatePanel` (frame factory + unified header + Defaults button), `Helpers.EnsureScroll` (lazy AceGUI ScrollFrame parented to `ctx.body`; calls `Helpers.PatchAlwaysShowScrollbar` once), `Helpers.Section` (AceGUI Heading), `Helpers.InlineButtonPair` (50/50 button row), `Helpers.AttachTooltip`, `Helpers.AddSpacer`, `Helpers.RestoreDefaults` / `Helpers.RestoreAllDefaults` / `Helpers.RefreshAllPanels` (panel registry + reset/refresh wiring), `Helpers.LSMValues(mediaType)` (deferred LSM hash factory used by every LSM-backed schema row). |
-| 13 | `settings/ScrollPatch.lua` | 127 | `Helpers.PatchAlwaysShowScrollbar(scroll)` — rebinds `FixScroll` / `MoveScroll` / `OnRelease` on a single AceGUI ScrollFrame so the scrollbar (and its 20 px gutter) stays visible across every panel; parks the thumb at the top when there's nothing to scroll, restores originals on `OnRelease`. Called by `Helpers.EnsureScroll`. |
-| 14 | `settings/Widgets.lua` | 292 | Schema-row → AceGUI widget translation. `Helpers.RenderField(ctx, row, parent, relativeWidth)` dispatches by `row.type`; the four widget makers (`makeCheckbox` / `makeSlider` / `makeDropdown` / `makeColorPicker`) bind to `db.profile` via `NS.SetByPath` (with `Helpers.RefreshAllPanels` for non-color rows) and register a refresher closure on `ctx.refreshers`. The ColorPicker's drag throttle uses a single re-armed `C_Timer.NewTimer` + reused `pendingArgs` table so a sustained drag produces O(1) garbage. `Helpers.RenderSchema(ctx, pageKey, afterGroup?)` lays a page's rows into 50/50 flow rows with `Helpers.Section` headings and `Helpers.AddSpacer` gutters; `afterGroup` callbacks (e.g. inline button pairs) fire on the next fresh row when their group ends. |
-| 15 | `settings/About.lua` | 108 | `Helpers.BuildMainContent(ctx)` — top-level "Ka0s Absorb Tracker" page builder. Renders the logo TGA, the addon `Notes` one-liner, a "Slash Commands" Heading, and one row per `NS.SlashCommands` entry so the page stays in lockstep with `/at help`. |
+| 16 | `settings/Schema.lua` | 263 | The schema registry. `RegisterSchemaRows(rows)` (append), `FindSchemaRow(path)` / `SchemaForPage(pageKey)` (lookup; group-stable sort by first-seen registration index, then `row.order`), `SetByPath(path, value)` — the single write seam (`SetSetting` + `fireOnChange`) — and `ApplyDefault(row)` (deep-copies table defaults). `FormatSchemaValue` / `ParseSchemaValue` (slash IO). `ValidateSchema()` returns THREE values (`errors, resolved, missing`) and additionally checks that every non-Profiles `row.path` resolves against `NS.defaults.profile`, printing on a miss. See [schema.md](./schema.md). |
+| 17 | `settings/Slash.lua` | 364 | AceConsole slash dispatcher (no `SLASH_*` globals). `NS.COMMANDS` is the ordered `{name, desc, fn}` table of 15 verbs (`help`, `config`, `list`, `get`, `set`, `reset`, `resetall`, `resetposition`, `lock`, `unlock`, `toggle`, `debug`, `update`, `test`, `profile`); `NS.SlashCommands` is an alias the About page renders. `Sl:Register()` binds `/at` and `/absorbtracker` via `NS.addon:RegisterChatCommand`. `list`/`get`/`set`/`reset` walk `NS.Schema`; an unknown verb prints `unknown command '<verb>'` then help. |
+| 18 | `settings/Panel.lua` | 124 | Settings UI registration shell. Publishes empty `NS.Helpers` for the toolkit slices to decorate, sets `NS.PARENT_TITLE`, owns the `pendingPages` queue. `RegisterOptionsPage(key, name, builder)` appends to it; `CreateOptionsPanel()` (enable-time drain) stashes `NS.AceGUI` once, runs `ValidateSchema`, registers the top-level canvas via `Helpers.CreatePanel`, defers `Helpers.BuildMainContent` to first OnShow, then runs each queued page builder; `OpenOptionsPanel()` is combat-lockdown gated; `RefreshOptionsPanel()` routes to `Helpers.RefreshAllPanels`. See [settings-panel.md](./settings-panel.md). |
+| 19 | `settings/Helpers.lua` | 355 | Layout constants (`PADDING_X` / `HEADER_HEIGHT` / `SECTION_HEADING_H` …) plus the canvas + AceGUI scroll machinery: `Helpers.CreatePanel` (frame factory + unified header + Defaults button), `Helpers.EnsureScroll` (lazy AceGUI ScrollFrame; calls `PatchAlwaysShowScrollbar` once), `Helpers.Section` (Heading), `Helpers.InlineButtonPair`, `Helpers.AttachTooltip`, `Helpers.AddSpacer`, `Helpers.RestoreDefaults` / `RestoreAllDefaults` / `RefreshAllPanels` (panel registry + reset/refresh wiring), `Helpers.LSMValues(mediaType)` (deferred LSM hash factory). |
+| 20 | `settings/ScrollPatch.lua` | 127 | `Helpers.PatchAlwaysShowScrollbar(scroll)` — rebinds `FixScroll` / `MoveScroll` / `OnRelease` on a single AceGUI ScrollFrame so the scrollbar (and its 20 px gutter) stays visible across every panel; parks the thumb at the top when there's nothing to scroll, restores originals on `OnRelease`. Called by `Helpers.EnsureScroll`. |
+| 21 | `settings/Widgets.lua` | 292 | Schema-row → AceGUI widget translation. `Helpers.RenderField(ctx, row, parent, relativeWidth)` dispatches by `row.type`; the four widget makers (`makeCheckbox` / `makeSlider` / `makeDropdown` / `makeColorPicker`) write via `NS.SetByPath` and register a refresher closure on `ctx.refreshers`. The ColorPicker's drag throttle uses a single re-armed `NS.addon:ScheduleTimer` (AceTimer one-shot) + reused `pendingArgs` table so a sustained drag is O(1) garbage. `Helpers.RenderSchema(ctx, pageKey, afterGroup?)` lays a page's rows into 50/50 flow rows with `Section` headings and `AddSpacer` gutters. |
+| 22 | `settings/About.lua` | 104 | `Helpers.BuildMainContent(ctx)` — top-level "Ka0s Absorb Tracker" page builder. Renders the logo TGA, the addon `Notes` one-liner, a "Slash Commands" Heading, and one row per `NS.SlashCommands` entry so the page stays in lockstep with `/at help`. Metadata reads route through `NS.Compat.GetAddOnMetadata`. |
 
 ## settings/ — sub-page schemas
 
-Each file under `settings/` registers schema rows for the page (except `Profiles.lua`), declares a `build(mainCategory)` closure that creates a canvas via `Helpers.CreatePanel`, defers `Helpers.RenderSchema(ctx, pageKey)` to first `OnShow`, and returns the result of `Settings.RegisterCanvasLayoutSubcategory`. Then `RegisterOptionsPage(key, name, build, opts?)`.
+Each file (except `Profiles.lua`) registers schema rows for the page, declares a `build(mainCategory)` closure that creates a canvas via `Helpers.CreatePanel`, defers `Helpers.RenderSchema(ctx, pageKey)` to first `OnShow`, and returns `Settings.RegisterCanvasLayoutSubcategory`. Then `RegisterOptionsPage(key, name, build)`.
 
 | # | File | Lines | Schema rows |
 |---|------|-------|-------------|
-| 16 | `settings/General.lua` | 137 | `hidden` (rendered inverse as "Show Bar"), `locked`, `updateInterval` (solo). Build closure injects an `InlineButtonPair` ("Reset Position" + "Reset All Settings") under the **Master controls** group via the `afterGroup` callback; defines the `ABSORBTRACKER_RESET_ALL` `StaticPopupDialog` for the destructive confirm. |
-| 17 | `settings/Bar.lua` | 145 | `barWidth` / `barHeight` (Size pair). Then the **Bar** section: `barTexture` (solo) on its own row above `barColor` paired with `useClassColorBar`. Then the **Background** section with the same shape: `bgTexture` (solo) above `bgColor` paired with `useClassColorBg`. The two color rows carry `disabledIf = "useClassColorBar"` / `"useClassColorBg"` so the picker greys out when the matching toggle is on. LSM dropdowns call `NS.Helpers.LSMValues("statusbar")`. |
-| 18 | `settings/Border.lua` | 91 | One section "Border" laid out as 2×2: `border` (LSM border style) / `borderSize`; `borderColor` / `useClassColorBorder`. LSM dropdown calls `NS.Helpers.LSMValues("border")`. |
-| 19 | `settings/Font.lua` | 96 | One section "Typography": `font` / `fontSize`; `fontFlags` (solo). LSM dropdown calls `NS.Helpers.LSMValues("font")`. |
-| 20 | `settings/Profiles.lua` | 70 | Custom canvas with the unified header (no Defaults button), an AceGUI `SimpleGroup` parented to `ctx.body`, and `AceConfigDialog:Open("AbsorbTracker-Profiles", container)` on first `OnShow`. Not schema-driven; AceDBOptions supplies its own options table. The build function returns `nil` if AceDBOptions / AceConfigDialog / AceGUI is missing, which silently skips the page. |
+| 23 | `settings/General.lua` | 137 | `hidden` (rendered inverse as "Show Bar"), `locked`, `updateInterval` (solo). Build closure injects an `InlineButtonPair` ("Reset Position" + "Reset All Settings") under the **Master controls** group via the `afterGroup` callback; defines the `ABSORBTRACKER_RESET_ALL` `StaticPopupDialog` for the destructive confirm. |
+| 24 | `settings/Bar.lua` | 145 | `barWidth` / `barHeight` (**Size** pair). The **Bar** section: `barTexture` (solo) above `barColor` paired with `useClassColorBar`. The **Background** section: `bgTexture` (solo) above `bgColor` paired with `useClassColorBg`. The color rows carry `disabledIf = "useClassColorBar"` / `"useClassColorBg"`. LSM dropdowns call `NS.Helpers.LSMValues("statusbar")`. |
+| 25 | `settings/Border.lua` | 91 | One section "Border" laid out 2×2: `border` (LSM border style) / `borderSize`; `borderColor` / `useClassColorBorder`. LSM dropdown calls `NS.Helpers.LSMValues("border")`. |
+| 26 | `settings/Font.lua` | 96 | One section "Typography": `font` / `fontSize`; `fontFlags` (solo). LSM dropdown calls `NS.Helpers.LSMValues("font")`. |
+| 27 | `settings/Profiles.lua` | 70 | Custom canvas with the unified header (no Defaults button), an AceGUI `SimpleGroup` parented to `ctx.body`, and `AceConfigDialog:Open("AbsorbTracker-Profiles", container)` on first `OnShow`. Not schema-driven; AceDBOptions supplies its own options table. `build` returns `nil` (silently skips the page) if AceDBOptions / AceConfigDialog / AceGUI is missing. |
+
+## tests/ — headless harness
+
+Run from the repo root with `lua tests/run.lua`. Loads every addon source file with the `("AbsorbTracker", NS)` calling convention against a WoW-API mock, runs `NS:InitDB()`, then executes the suites. 36 tests total.
+
+| # | File | Lines | Responsibility |
+|---|------|-------|----------------|
+| 28 | `tests/run.lua` | 82 | The runner. Builds mocks, loads all source files in TOC order via `loader.lua`, calls `NS:InitDB()`, exposes the tiny `AT_TEST` framework (`test` / `assertEqual` / `assertTrue` / `assertFalse`), `dofile`s the five suites, and exits non-zero on any failure. |
+| 29 | `tests/loader.lua` | 33 | Headless file loader. `loadfile` + `setfenv` each chunk into an environment where WoW globals resolve to the mock set (falling back to `_G`); writes land in `_G` so `AbsorbTrackerDB` and `StaticPopupDialogs` behave like the real client. |
+| 30 | `tests/wow_mock.lua` | 94 | Minimal WoW-API mock builder — a fresh, isolated environment per run. Universal frame stub (any PascalCase method is a self-returning no-op) plus the specific globals the addon touches at load/test time. |
+| 31 | `tests/test_schema.lua` | 91 | 9 tests — schema registry, group-stable sort, `SetByPath`, `ValidateSchema` three-value return / path resolution, format/parse. |
+| 32 | `tests/test_database.lua` | 59 | 8 tests — `InitDB`, `RunMigrations` idempotency + `flatDefaults` backfill, deep-copy isolation, `schemaVersion` stamp. |
+| 33 | `tests/test_compat.lua` | 33 | 4 tests — `Compat.GetAddOnMetadata` C_AddOns path, `_G` fallback, and `nil` degradation. |
+| 34 | `tests/test_debuglog.lua` | 67 | 9 tests — `FormatPlain` / `FormatColored` formatters, `NS.Debug` gating, buffer cap, `SetEnabled` seam. |
+| 35 | `tests/test_slash.lua` | 56 | 6 tests — `NS.COMMANDS` verb table, dispatch, unknown-verb handling. |
 
 ## Bundled libraries (libs/)
 
-Loaded before any addon source via the `#@no-lib-strip@` block at the top of the TOC.
+Folder-per-lib, loaded before any addon source via the `#@no-lib-strip@` block at the top of the TOC.
 
 | Path | Purpose |
 |------|---------|
-| `libs/LibStub-1.0/` | Library loader. |
+| `libs/LibStub/` | Library loader. |
 | `libs/CallbackHandler-1.0/` | Event callback transport for the Ace3 stack. |
-| `libs/LibSharedMedia-3.0/` | Texture / font / border registry. Optional dep — addon falls back to `FALLBACK_*` Blizzard constants in `Settings.lua` when missing. |
-| `libs/Ace3/AceAddon-3.0/` | AceDB carrier (no `:NewModule` runtime; modules are plain `NS` files). |
-| `libs/Ace3/AceDB-3.0/` | Profile management. Optional dep — addon falls back to a flat `AbsorbTrackerDB` shim when missing. |
-| `libs/Ace3/AceGUI-3.0/` | Widget framework used by AceConfigDialog. |
-| `libs/Ace3/AceConfig-3.0/` | Pulls in AceConfigRegistry / AceConfigCmd / AceConfigDialog. Required for the multi-page settings UI. |
-| `libs/Ace3/AceDBOptions-3.0/` | Builds the Profiles sub-page options table. |
-| `libs/Ace3/AceGUI-3.0-SharedMediaWidgets/` | Canonical upstream `AceGUI-3.0-SharedMediaWidgets` r65 (widgetVersion 13, DataVersion 9004). Multi-file lib loaded via `widget.xml` — `prototypes.lua` (the `AceGUISharedMediaWidgets-1.0` LibStub library + base-frame helpers) plus per-mediatype widget files for `LSM30_Statusbar` / `LSM30_Border` / `LSM30_Background` / `LSM30_Font` / `LSM30_Sound`. The addon only references the first three (statusbar / border / font); background and sound are bundled because the lib is monolithic. The 42×42 displayButton tile that upstream's `LSM30_Border` pins to TOPLEFT is suppressed by addon-side `LSMPatch.lua`. |
+| `libs/AceAddon-3.0/` | Addon lifecycle carrier. `NewAddon(NS, …)` promotes `NS` and stamps the AceEvent / AceTimer / AceConsole mixins onto `NS.addon`. |
+| `libs/AceEvent-3.0/` | `self:RegisterEvent` event handling (replaces the old raw `CreateFrame` event frames). |
+| `libs/AceTimer-3.0/` | `ScheduleRepeatingTimer` / `ScheduleTimer` / `CancelTimer` — drives the repaint ticker and the color-picker drag throttle (replaces `C_Timer`). |
+| `libs/AceConsole-3.0/` | `RegisterChatCommand` for `/at` and `/absorbtracker` (replaces hand-rolled `SLASH_*` globals). |
+| `libs/AceDB-3.0/` | Profile management. Optional dep — addon falls back to a flat `AbsorbTrackerDB` shim when missing. |
+| `libs/AceGUI-3.0/` | Widget framework used by the canvas-layout panel and AceConfigDialog. |
+| `libs/AceConfig-3.0/` | Pulls in AceConfigRegistry / AceConfigCmd / AceConfigDialog. Required by the Profiles sub-page. |
+| `libs/AceDBOptions-3.0/` | Builds the Profiles sub-page options table. |
+| `libs/LibSharedMedia-3.0/` | Texture / font / border registry. Optional dep — addon falls back to `FALLBACK_*` Blizzard constants in `core/Data.lua` / `core/Constants.lua` when missing. |
+| `libs/AceGUI-3.0-SharedMediaWidgets/` | Canonical upstream `AceGUI-3.0-SharedMediaWidgets` r65. Multi-file lib loaded via `widget.xml` — `prototypes.lua` (base-frame helpers) plus per-mediatype widget files for `LSM30_Statusbar` / `LSM30_Border` / `LSM30_Background` / `LSM30_Font` / `LSM30_Sound`. The addon references statusbar / border / font; the rest ship because the lib is monolithic. The 42×42 displayButton tile on `LSM30_Border` is suppressed by addon-side `core/LSMPatch.lua`. |
 
 ## Shared infrastructure
 
-- `AbsorbTracker.toc` — Interface line (`120007`), `## Version:`, SavedVariables (`AbsorbTrackerDB`), file load order. Order is dependency order, not alphabetical.
-- `media/` — bundled images / textures referenced by README screenshots and any addon-shipped media.
+- `AbsorbTracker.toc` — Interface line (`120007`), `## Version:`, SavedVariables (`AbsorbTrackerDB`), tiered file load order (Libraries → Core → Defaults → Locales → Modules → Settings). Order is dependency order, not alphabetical.
+- `media/` — bundled assets in typed subfolders: `media/logos/absorbracker.logo.v2.tga` (`NS.Constants.LOGO_PATH`) and `media/fonts/JetBrainsMono-Regular.ttf` (+ `OFL.txt`, `NS.Constants.FONT_MONO`).
 - `.gitattributes` — enforces CRLF on `*.lua` / `*.toc` / `*.xml` / `*.md` (`* text=auto eol=crlf` plus explicit per-extension lines).
 - `LICENSE` — MIT.
 
 ## Top-level docs
 
 - `README.md` — user-facing.
-- `CLAUDE.md` — engineer working notes (hard rules + response style + doc index).
-- `ARCHITECTURE.md` — subsystems-at-a-glance + invariants + doc index.
+- `CLAUDE.md` — engineer working-notes stub (hard rules + response style + doc index); the full agent brief is `docs/agent-context.md`.
+- `docs/ARCHITECTURE.md` — subsystems-at-a-glance + invariants + doc index.
+- `docs/agent-context.md` — the full agent brief.
 - `docs/*.md` — topic chunks (this file is one of them).
