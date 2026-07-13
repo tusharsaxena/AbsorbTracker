@@ -55,7 +55,7 @@ description in white.
 
 Five subcategories under **Ka0s Absorb Tracker**:
 
-*   **General** — Show Bar, drag lock, update throttle (0.05–1s), Reset Position + Reset All Settings buttons.
+*   **General** — Show Bar, **show only in combat**, drag lock, update throttle (0.05–1s), Reset Position + Reset All Settings buttons.
 *   **Bar** — width (50–500), height (10–100), fill texture and color, background texture and color (each color has a class-color override).
 *   **Border** — border style, thickness (1–32), color (with class-color override).
 *   **Font** — face, size (6–32), outline style.
@@ -85,6 +85,7 @@ re-enable manual color editing.
 | Problem | Resolution |
 |---------|------------|
 | The bar never appears | Check that `/at get hidden` is `false`, the addon is enabled at character-select, and you have an active absorb effect (without one the bar reads 0 and is effectively invisible). |
+| Why does my bar disappear out of combat? | You have **Show only in combat** enabled (General panel, or `/at set showOnlyInCombat false`). The master **Show Bar** toggle still hides it entirely. |
 | Class color isn't applying | The bar must be visible *and* have an active absorb effect for the color to be observed. Confirm the toggle is on: `/at set useClassColorBar true` (or `useClassColorBg true` / `useClassColorBorder true`). The matching RGB picker greys out when the toggle is on — that's intentional, not a bug. |
 | Custom textures or fonts don't show in the dropdowns | Install LibSharedMedia-3.0 (or any addon that bundles it). Without LSM, the dropdowns fall back to a short list of Blizzard constants. |
 | Bar position resets after logout | WoW only writes `SavedVariables` on a clean logout — force-quitting the client (Alt-F4 mid-fight, crash, etc.) drops anything that hadn't been flushed. Log out via the menu and the position will persist. |
@@ -108,7 +109,7 @@ commit and before tagging a release.
 
 | Check | Command | Expected |
 |-------|---------|----------|
-| Unit tests | `lua tests/run.lua` | `53 passed, 0 failed` (schema parse/format/validate, DB migrations, Compat, secret-safe Util, DebugLog, slash dispatch, repaint timer/throttle) |
+| Unit tests | `lua tests/run.lua` | `60 passed, 0 failed` (schema parse/format/validate, DB migrations, Compat, secret-safe Util, DebugLog, slash dispatch, repaint timer/throttle, combat-visibility) |
 | Lint | `luacheck .` | `0 warnings / 0 errors` |
 | Syntax-check one file | `luac -p <path/to/file.lua>` | no output (clean parse) |
 | In-game smoke tests | manual | see [docs/smoke-tests.md](./docs/smoke-tests.md) |
