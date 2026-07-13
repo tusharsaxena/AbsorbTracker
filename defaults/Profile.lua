@@ -24,6 +24,7 @@ NS.defaults.profile = {
     locked = false,
     hidden = false,
     throttleWindow = 0.1,
+    showOnlyInCombat = false,
     position = nil,
 }
 

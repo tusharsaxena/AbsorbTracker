@@ -38,6 +38,20 @@ NS.RegisterSchemaRows({
         end,
     },
     {
+        path    = "showOnlyInCombat",
+        page    = "general",
+        group   = "Master controls",
+        order   = 15,
+        type    = "bool",
+        label   = "Show only in combat",
+        desc    = "When on, the bar is hidden except while you're in combat.",
+        default = flatDefaults.showOnlyInCombat,
+        onChange = function()
+            NS.ApplyVisibility()
+            if NS.ShouldShowBar() then NS.UpdateAbsorbBar() end
+        end,
+    },
+    {
         path    = "locked",
         page    = "general",
         group   = "Master controls",
