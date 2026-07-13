@@ -50,5 +50,11 @@ function NS:RunMigrations()
             end
         end
     end
-    -- future: if g.schemaVersion < 2 then ...upgrade...; g.schemaVersion = 2 end
+    -- v2 (§2.2/§5.1): the poll ticker became event-driven; the old poll-interval key is dead.
+    -- throttleWindow is seeded by the flatDefaults backfill above, so this step only deletes the
+    -- orphan. Operates on the active profile, matching the backfill's scope.
+    if g.schemaVersion < 2 then
+        if profile then profile.updateInterval = nil end
+        g.schemaVersion = 2
+    end
 end

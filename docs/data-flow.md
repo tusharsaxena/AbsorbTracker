@@ -1,6 +1,6 @@
 # Data flow
 
-How values move through the addon at runtime: the two-phase bootstrap (`OnInitialize` → `OnEnable`), the absorb-update path (event → ticker → render), the settings-write path, and the profile-change refresh chain.
+How values move through the addon at runtime: the two-phase bootstrap (`OnInitialize` → `OnEnable`), the absorb-update path (event → coalescing repaint scheduler → render), the settings-write path, and the profile-change refresh chain.
 
 ## Bootstrap (AceAddon lifecycle)
 
@@ -42,10 +42,10 @@ OnEnable (PLAYER_LOGIN timing)
     │
     ├─▶ NS.RestoreBarPosition()        -- re-apply saved position or center
     ├─▶ NS.UpdateBarAppearance()       -- size, textures, colors, border, font
-    ├─▶ NS.UpdateAbsorbBar()           -- initial value paint
-    ├─▶ NS.RestartUpdateTicker(true)   -- force-start the AceTimer ticker
+    ├─▶ NS.UpdateAbsorbBar()           -- initial value paint (direct, not via RequestRepaint)
     │
     ├─▶ self:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED", "OnAbsorbChanged")
+    ├─▶ self:RegisterEvent("UNIT_MAXHEALTH", "OnMaxHealthChanged")
     ├─▶ self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
     │
     └─▶ if NS.CreateOptionsPanel then
@@ -58,28 +58,35 @@ Events are AceEvent registrations (`self:RegisterEvent`), not a hidden `CreateFr
 ## Absorb-update path
 
 ```
-[player gets a shield]
-        │
-        ▼
-UNIT_ABSORB_AMOUNT_CHANGED ─────► OnAbsorbChanged: debug line only
-   (AceEvent → addon:OnAbsorbChanged)   (gated on NS.State.debug; no paint)
-                                                   │
-                                                   ▼
-                        AceTimer repeating callback fires
-                          every updateInterval seconds
-                       (NS.addon:ScheduleRepeatingTimer)
-                                                   │
-                                                   ▼
-                                NS.UpdateAbsorbBar()
-                                                   │
-                                ┌──────────────────┼──────────────────┐
-                                ▼                  ▼                  ▼
-                  UnitGetTotalAbsorbs    UnitHealthMax       statusBar:SetValue
-                                                              valueText:SetText
-                                                              (AbbreviateNumbers)
+[player gets a shield]                [max health changes]         [zone transition]
+        │                                     │                            │
+        ▼                                     ▼                            ▼
+UNIT_ABSORB_AMOUNT_CHANGED           UNIT_MAXHEALTH                PLAYER_ENTERING_WORLD
+(player only; AceEvent →             (player only; AceEvent →      (AceEvent →
+ addon:OnAbsorbChanged)               addon:OnMaxHealthChanged)     addon:OnEnterWorld)
+        │  (also a debug line,               │                            │
+        │   gated on NS.State.debug)         │                            │
+        └─────────────────┬───────────────────────────────────────────────┘
+                           ▼
+                  NS.RequestRepaint()
+                           │
+                           ▼
+        pending? ──yes──► coalesce (no-op; a repaint is already queued)
+           │no
+           ▼
+   NS.addon:ScheduleTimer(fn, throttleWindow)   -- trailing-edge one-shot AceTimer
+                           │
+                           ▼ (fires once, ~throttleWindow seconds later)
+                NS.UpdateAbsorbBar()
+                           │
+        ┌──────────────────┼──────────────────┐
+        ▼                  ▼                  ▼
+  UnitGetTotalAbsorbs    UnitHealthMax       statusBar:SetValue
+                                              valueText:SetText
+                                              (AbbreviateNumbers)
 ```
 
-**The decoupling between event and visual update is intentional.** Events can fire many times per second during heavy combat, but the user-configurable `updateInterval` controls actual draw rate. `UNIT_ABSORB_AMOUNT_CHANGED` is registered only so the debug console can capture the exact moment the engine reports a change — and even that read is gated behind `NS.State.debug`, so it costs nothing when debug is off. The visual update is the ticker's job.
+**Repaints are purely event-driven — there is no polling ticker.** `NS.RequestRepaint()` (`modules/Timer.lua`) is a coalescing scheduler: if a repaint is already queued, a burst of events (heavy combat stacking absorbs) collapses into that single pending repaint instead of scheduling another. The one-shot AceTimer fires once per `throttleWindow` (default 0.1s) and calls `NS.UpdateAbsorbBar()`, then clears itself so the next event starts a fresh cycle. Idle = zero repaints. Login (`OnEnable`) and profile change (`NS.OnProfileChanged`) call `NS.UpdateAbsorbBar()` directly for an immediate paint, bypassing the throttle.
 
 ## Settings-write path
 
@@ -98,7 +105,6 @@ setSetting(rest) → ParseSchemaValue      local set(row, value)
                   ▼                      ▼
        SetSetting(path, v)      fireOnChange(row, v)
        db.profile[path] = v     default:  UpdateBarAppearance()
-                                interval:  RestartUpdateTicker()
                                 hidden:    UpdateBarAppearance()
                                            + UpdateAbsorbBar()
                              │
@@ -132,10 +138,7 @@ NS.OnProfileChanged()
     │
     ├─▶ NS.RestoreBarPosition()     -- new profile may have a different saved position
     ├─▶ NS.UpdateBarAppearance()    -- size, textures, colors, border, font
-    ├─▶ NS.UpdateAbsorbBar()        -- repaint absorb value against new profile
-    │
-    ├─▶ NS.ResetTickerInterval()    -- clear tracked interval so the next
-    ├─▶ NS.RestartUpdateTicker(true)--   call rebuilds with the new value
+    ├─▶ NS.UpdateAbsorbBar()        -- repaint absorb value against new profile (direct paint)
     │
     └─▶ if NS.RefreshOptionsPanel then
             NS.RefreshOptionsPanel()  -- routes to Helpers.RefreshAllPanels
@@ -148,20 +151,21 @@ NS.OnProfileChanged()
 
 | Event | Handler | What it does |
 |-------|---------|--------------|
-| `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | Force `UpdateAbsorbBar`. Handles zone transitions where the engine may have stale state. |
-| `UNIT_ABSORB_AMOUNT_CHANGED` (player only) | `addon:OnAbsorbChanged` | Debug line only, and only when `NS.State.debug` is on. The ticker is the source of truth for visual updates — this prevents per-tick spam from over-driving frame updates. |
+| `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | `NS.RequestRepaint()`. Handles zone transitions where the engine may have stale state. |
+| `UNIT_ABSORB_AMOUNT_CHANGED` (player only) | `addon:OnAbsorbChanged` | Debug line (gated on `NS.State.debug`) then `NS.RequestRepaint()`. |
+| `UNIT_MAXHEALTH` (player only) | `addon:OnMaxHealthChanged` | `NS.RequestRepaint()`. The bar shows absorb as a fraction of max health, so a max-health change (buffs, stamina, level) must repaint even when the absorb value itself is unchanged. |
 
 ## Performance budget
 
-The hot path is one AceTimer repeating callback (`NS.addon:ScheduleRepeatingTimer(NS.UpdateAbsorbBar, interval)`) firing every `updateInterval` seconds (default 1.0s, range 0.1 – 10s). Per fire:
+The hot path is `NS.RequestRepaint()` (`modules/Timer.lua`) — a coalescing repaint scheduler, not a polling loop. A burst of `UNIT_ABSORB_AMOUNT_CHANGED` events during combat collapses into a single pending one-shot AceTimer (`NS.addon:ScheduleTimer(fn, throttleWindow)`, default 0.1s, range 0.05 – 1s); repeat calls while one is already pending are a no-op. Idle = zero repaints. Per fire of the resulting `NS.UpdateAbsorbBar()`:
 
 1. `UnitGetTotalAbsorbs("player")` + `UnitHealthMax("player")` — engine reads, microseconds each.
 2. `AbbreviateNumbers(value)` — string format. (The extra `DebugPrint` allocations are gated behind `NS.State.debug`, so they cost nothing when debug is off.)
-3. `statusBar:SetValue` + `valueText:SetText` — both fire on every ticker tick. Frame updates with unchanged values are cheap (Blizzard-side no-op for matching state), so the addon doesn't try to dedupe in Lua.
+3. `statusBar:SetValue` + `valueText:SetText` — both fire on every repaint. Frame updates with unchanged values are cheap (Blizzard-side no-op for matching state), so the addon doesn't try to dedupe in Lua.
 
-The ticker itself is guarded: `RestartUpdateTicker` cancels via `NS.addon:CancelTimer` and only rebuilds when the interval actually changed (or the caller passes `forceRestart`), so a steady-state `/at set updateInterval` of the same value doesn't churn the timer.
+There is no repeating ticker to guard: the one-shot timer self-clears (`pending = nil`) inside its own callback, so there's nothing to cancel between repaints.
 
-`UpdateBarAppearance` is heavier (calls `SetBackdrop(nil)` + `SetBackdrop(info)` + texture / font sets) but only runs on settings change or profile change — never per ticker fire.
+`UpdateBarAppearance` is heavier (calls `SetBackdrop(nil)` + `SetBackdrop(info)` + texture / font sets) but only runs on settings change or profile change — never per repaint.
 
 ## Saved variables
 

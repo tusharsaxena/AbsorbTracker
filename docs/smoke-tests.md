@@ -3,7 +3,7 @@
 Run on a **live Retail (Midnight, 12.0.7 / Interface 120007) English client** in order — later
 tests assume the addon loaded cleanly. Enable Lua errors first (`/console scriptErrors 1`, or
 BugSack/BugGrabber). Watch chat for the cyan `[AT]` prefix and for any red error frame. The addon
-also ships a headless gate (`lua tests/run.lua` → 43 passed, `luacheck .` → 0/0, `luac -p <file>`)
+also ships a headless gate (`lua tests/run.lua` → 53 passed, `luacheck .` → 0/0, `luac -p <file>`)
 that covers the pure logic; this suite covers everything that only runs against the live client.
 
 ### A. Load & bootstrap
@@ -27,7 +27,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 13. **Deferred replay.** Leave combat → the panel **opens automatically** (tree expanded), **no taint warning**. Then out of combat, `/at config` → opens immediately as normal. *(Edge: `/reload` while a deferred open is pending → nothing opens after the reload, no error — the session flag cleared.)*
 
 ### D. Sub-pages render & edit live
-14. **General** — Show Bar / Lock Position, Reset Position + Reset All buttons, Update Interval slider. Toggle Show Bar → bar hides/shows; Lock Position → drag disabled; drag Update Interval → ticker cadence changes.
+14. **General** — Show Bar / Lock Position, Reset Position + Reset All buttons, Update throttle slider (Performance group). Toggle Show Bar → bar hides/shows; Lock Position → drag disabled; shield gain/loss repaints the bar within ~0.1s; sitting idle with no shield produces no repaints.
 15. **Bar** — Width/Height, Bar Texture (LSM), Bar Color, Use Class Color; Background Texture/Color/Use Class Color. Drag Width → widens live; change Texture/Color → live.
 16. **Border** — Style (LSM), Thickness, Use Class Color, Color. Change Style → edge changes; drag Thickness → grows/shrinks (inset recomputes, no glitch).
 17. **Font** — Face (LSM), Size, Outline (solo dropdown, 6 flags). Change Face/Outline → text updates live.
@@ -55,7 +55,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### G. Profiles — switch repaints the bar
 35. `/at profile list` / `current` → lists / prints current.
-36. `/at profile new SmokeTest` → switches to a defaults profile; bar repaints to default, ticker restarts.
+36. `/at profile new SmokeTest` → switches to a defaults profile; bar repaints to default immediately.
 37. On SmokeTest `/at set barWidth 400`, then `/at profile use Default` → bar repaints to the original width (validates `OnProfileChanged`).
 38. `/at profile copy SmokeTest` → copies + repaints.
 39. `/at profile delete <current>` → refused; switch away, delete SmokeTest → deleted.
@@ -93,7 +93,7 @@ expected, and any error text.
 - Slash dispatch + `NS.COMMANDS` — `settings/Slash.lua`
 - Combat gate — `settings/Panel.lua` (`OpenOptionsPanel`)
 - Bar paint / secret value / test-hold — `modules/Display.lua`
-- Ticker interval guard — `modules/Timer.lua`
+- Repaint throttle / coalescing — `modules/Timer.lua`
 - DB init + idempotent migration — `core/Database.lua`
 - Debug console — `core/DebugLog.lua`
 - LSM border alignment fix — `core/LSMPatch.lua`
