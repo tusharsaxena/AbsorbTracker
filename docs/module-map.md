@@ -95,8 +95,9 @@ NS.State.debug  -- bool, defaults nil/off, reset on every reload/login;
 
 ```lua
 NS.Print(...)       -- prepends NS.PREFIX and prints via DEFAULT_CHAT_FRAME
-NS.DebugPrint(...)  -- routes to the on-screen console (NS.Debug) when State.debug is on;
-                    -- zero-cost when off. No longer prints to chat.
+NS.DebugPrint(tag, ...)  -- routes to the on-screen console (NS.Debug) when State.debug is on;
+                         -- first arg is the [tag] (source event/fn name), rest is the message;
+                         -- zero-cost when off. No longer prints to chat.
 NS.Util.print       -- alias of NS.Print
 ```
 

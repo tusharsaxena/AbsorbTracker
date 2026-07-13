@@ -62,7 +62,7 @@ function NS.UpdateAbsorbBar()
     local valueText = NS.valueText
 
     if NS.GetSetting("hidden") then
-        NS.DebugPrint("UpdateAbsorbBar skipped - bar is hidden")
+        NS.DebugPrint("UpdateAbsorbBar", "Skipped: bar is hidden")
         return
     end
 
@@ -78,8 +78,8 @@ function NS.UpdateAbsorbBar()
     -- Hot-path debug: gate the AbbreviateNumbers + format allocations so they don't fire every
     -- tick when debug is off.
     if NS.State and NS.State.debug then
-        NS.DebugPrint("UpdateAbsorbBar - Absorb:", AbbreviateNumbers(totalAbsorb),
-            "MaxHP:", AbbreviateNumbers(maxHealth), "Timestamp:", NS.format("%.3f", GetTime()))
+        NS.DebugPrint("UpdateAbsorbBar", "Absorb:", AbbreviateNumbers(totalAbsorb),
+            "| MaxHP:", AbbreviateNumbers(maxHealth), "| Timestamp:", NS.format("%.3f", GetTime()))
     end
 
     bar:SetAlpha(1)

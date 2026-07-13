@@ -40,7 +40,7 @@ end
 function addon:OnAbsorbChanged(_, unit)
     if unit ~= "player" then return end
     if NS.State and NS.State.debug then
-        NS.DebugPrint("UNIT_ABSORB_AMOUNT_CHANGED -",
+        NS.DebugPrint("UNIT_ABSORB_AMOUNT_CHANGED", "Value:",
             AbbreviateNumbers(UnitGetTotalAbsorbs("player") or 0))
     end
     NS.RequestRepaint()

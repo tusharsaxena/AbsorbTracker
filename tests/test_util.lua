@@ -30,15 +30,18 @@ test("SafeToString: renders a secret value as <secret> instead of raising", func
   assertEqual(NS.SafeToString(secretMock), "<secret>")
 end)
 
-test("DebugPrint tolerates a secret arg (no concat crash, renders <secret>)", function()
+test("DebugPrint routes the first arg as the [tag] and tolerates a secret message arg", function()
   NS.State.debug = true
   local before = #NS.DebugLog.buffer
-  local ok = pcall(NS.DebugPrint, "UNIT_ABSORB_AMOUNT_CHANGED -", secretMock)
+  local ok = pcall(NS.DebugPrint, "UNIT_ABSORB_AMOUNT_CHANGED", "Value:", secretMock)
   NS.State.debug = false
   assertTrue(ok, "DebugPrint must not raise on a secret arg")
   assertTrue(#NS.DebugLog.buffer > before, "a console line should still be appended")
   local last = NS.DebugLog.buffer[#NS.DebugLog.buffer]
-  assertTrue(last:find("<secret>", 1, true) ~= nil, "the secret arg should render as <secret>")
+  assertTrue(last:find("[UNIT_ABSORB_AMOUNT_CHANGED]", 1, true) ~= nil,
+    "the first arg should render as the console [tag]")
+  assertTrue(last:find("Value: <secret>", 1, true) ~= nil,
+    "the secret message arg should render as <secret> after its label")
 end)
 
 test("Print tolerates a secret arg (no concat crash)", function()

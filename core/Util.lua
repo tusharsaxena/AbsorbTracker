@@ -14,7 +14,8 @@ local Util = NS.Util
 -- `pcall(function() return v .. "" end)` reports a secret as *safe* (the operator doesn't raise),
 -- which is the bug that let a secret slip through. Concat a one-element table — exactly what
 -- NS.Print / NS.DebugPrint do downstream — so the probe fails on precisely what the real call
--- fails on. There is no public issecret() API, so this pcall probe is the detection.
+-- fails on. A public `issecretvalue()` exists as of 12.0, but this pcall probe is kept as a
+-- version-agnostic detector that tests the exact operation (`table.concat`) that rejects a secret.
 local function probeConcat(v) return table.concat({ v }) end
 function NS.IsConcatSafe(v)
   return (pcall(probeConcat, v))
@@ -48,12 +49,14 @@ Util.print = NS.Print
 
 -- Debug helper. Routes through the on-screen debug console (NS.Debug, core/DebugLog.lua) when
 -- session debug is on; zero-cost (no allocation, no formatting) when off. Replaces the old
--- chat-based DebugPrint so debug spam never lands in the player's chat frame (§12). Args pass
--- through NS.SafeToString so a combat secret logs as "<secret>" instead of erroring the concat.
-function NS.DebugPrint(...)
+-- chat-based DebugPrint so debug spam never lands in the player's chat frame (§12). The first arg
+-- is the console [tag] — the source event/function name, a trusted literal — and the remaining
+-- message args pass through NS.SafeToString so a combat secret logs as "<secret>" instead of
+-- erroring the concat.
+function NS.DebugPrint(tag, ...)
   if not (NS.State and NS.State.debug and NS.Debug) then return end
   local n = select("#", ...)
   local parts = {}
   for i = 1, n do parts[i] = NS.SafeToString((select(i, ...))) end
-  NS.Debug("AT", table.concat(parts, " "))
+  NS.Debug(tag, table.concat(parts, " "))
 end
