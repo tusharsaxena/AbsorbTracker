@@ -38,7 +38,7 @@ The schema-driven design makes this a one-row change. The widget on the relevant
 3. **Override `onChange` if the side effect isn't `UpdateBarAppearance`.** Most settings just need to repaint, which is the default. For settings that need a different reaction:
 
    ```lua
-   onChange = function(v) NS.RestartUpdateTicker() end,
+   onChange = function(v) NS.SomeOtherReaction(v) end,
    ```
 
 That's it. The widget renders on the Bar sub-page on the next `/reload`; `/at set myNewKnob 75` works immediately; `/at get myNewKnob` and `/at list` show the new row; `/at reset bar` and `/at resetall` reset it via `ApplyDefault`. Every write — panel widget, `/at set`, and `/at reset` — funnels through `NS.SetByPath`, which calls `SetSetting` then fires the row's `onChange`.
@@ -150,7 +150,7 @@ See also: the [`/wow-addon:bump-interface` skill](../../.claude/skills/) for the
 This addon has a headless test harness under `tests/` — any doc claiming "no automated tests" is stale. Run the green gate before you consider a change done:
 
 ```sh
-lua tests/run.lua      # 43 tests: schema / database / compat / util / debuglog / slash
+lua tests/run.lua      # 52 tests: schema / database / compat / util / debuglog / slash / timer
 luacheck .             # must be 0 warnings / 0 errors
 luac -p <changed.lua>  # bytecode-parse each file you touched
 ```
@@ -162,10 +162,12 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 | Suite | Covers |
 |-------|--------|
 | `tests/test_schema.lua` | schema shape, `ValidateSchema` (errors / resolved / missing), `SetByPath`, `ApplyDefault`, formatters/parsers |
-| `tests/test_database.lua` | `InitDB`, `RunMigrations` idempotency, `flatDefaults` backfill |
+| `tests/test_database.lua` | `InitDB`, `RunMigrations` idempotency, `flatDefaults` backfill, schemaVersion v1→v2 migration |
 | `tests/test_compat.lua` | `Compat.GetAddOnMetadata` wrapper + fallback |
+| `tests/test_util.lua` | `NS.Print` / `NS.DebugPrint` prefixing and gating, `NS.SafeToString` secret-value handling |
 | `tests/test_debuglog.lua` | `NS.Debug` sink, `FormatPlain` / `FormatColored`, on/off state |
 | `tests/test_slash.lua` | `NS.COMMANDS` dispatch, unknown-verb path, `/at` verbs |
+| `tests/test_timer.lua` | `NS.RequestRepaint` coalescing + `throttleWindow` delay, event-handler repaint wiring |
 
 Add a new setting or page? Assert its default resolves in `test_schema.lua`. New slash verb? Add a `test_slash.lua` case. New core behavior? Prefer a new `tests/test_<area>.lua` wired into `tests/run.lua`.
 

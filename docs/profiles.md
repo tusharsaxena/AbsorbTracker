@@ -40,15 +40,12 @@ NS.OnProfileChanged()
     │
     ├─▶ RestoreBarPosition()       -- new profile may have a different saved position
     ├─▶ UpdateBarAppearance()      -- size, textures, colors, border, font
-    ├─▶ UpdateAbsorbBar()          -- repaint absorb value against new profile
-    │
-    ├─▶ ResetTickerInterval()      -- force the next call to rebuild
-    ├─▶ RestartUpdateTicker(true)  -- new profile's interval takes effect
+    ├─▶ UpdateAbsorbBar()          -- repaint absorb value against new profile (direct paint)
     │
     └─▶ RefreshOptionsPanel()      -- push new values into an open settings panel
 ```
 
-`ResetTickerInterval` matters because `RestartUpdateTicker` short-circuits when the tracked interval is unchanged — without the reset, switching from `1.0s` → `0.5s` and back to `1.0s` in one session wouldn't trigger a real ticker rebuild on the second switch. Clearing the tracked interval forces the next call to start from scratch. (The ticker is an AceTimer repeating timer; see [data-flow.md](./data-flow.md).)
+`UpdateAbsorbBar()` is called directly (not via `NS.RequestRepaint()`) so the profile switch paints immediately rather than waiting on the throttle window. There is no ticker to restart — repaints are event-driven; see [data-flow.md](./data-flow.md).
 
 `RefreshOptionsPanel` re-reads each row's value from the newly active `db.profile` and pushes it into its AceGUI widget. The Profiles sub-page itself re-`Open()`s its AceConfigDialog tree on next show, so it reflects the current profile after a switch. See [settings-panel.md](./settings-panel.md).
 

@@ -8,7 +8,7 @@ topic detail lives alongside this file in `docs/`.
 
 A single movable absorb status bar for the player, displaying the total of all active absorb
 shields as one combined value. Reads `UnitGetTotalAbsorbs("player")` against
-`UnitHealthMax("player")` on a periodic AceTimer ticker, paints a `BackdropTemplate` + `StatusBar`
+`UnitHealthMax("player")` on every event-driven, throttled repaint, paints a `BackdropTemplate` + `StatusBar`
 + `FontString` stack, and exposes every visual knob through both a five-page Blizzard Settings
 panel and the `/at` slash CLI. Bar fill, background, and border each support an opt-in class-color
 override; position is saved per-profile via AceDB. Retail Midnight only (Interface 120007),
@@ -39,7 +39,7 @@ Modules → Settings.
 | `locales/enUS.lua` | `NS.L` metatable-fallback locale (English source keys; nothing wrapped yet). |
 | `modules/Bar.lua` | Builds the bar frame (`NS.bar`/`statusBar`/`valueText`/`backdropInfo`) at file load. |
 | `modules/Display.lua` | `RestoreBarPosition`, `UpdateBarAppearance`, `UpdateAbsorbBar` (the paint path). |
-| `modules/Timer.lua` | AceTimer ticker (`RestartUpdateTicker`/`ResetTickerInterval`) with the interval-change guard. |
+| `modules/Timer.lua` | Coalescing repaint scheduler (`NS.RequestRepaint`) — a trailing-edge one-shot AceTimer throttle. |
 | `settings/Schema.lua` | The schema registry + read/write seam (`SetByPath`), parse/format, and `ValidateSchema`. |
 | `settings/Slash.lua` | AceConsole registration + the schema-driven `/at` dispatcher (`NS.COMMANDS`). |
 | `settings/Panel.lua` | Settings-category registration shell; publishes `NS.Helpers`; combat-gated `OpenOptionsPanel`. |
@@ -102,11 +102,14 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   (AceDB + `RunMigrations` + profile callbacks), `NS.Slash:Register()`.
 - **`OnEnable`** (PLAYER_LOGIN timing): reproduces the old login sequence in order —
   `ClearLSMCache` → `GetLSM` → `ApplyLSMBorderPatch` → `RestoreBarPosition` →
-  `UpdateBarAppearance` → `UpdateAbsorbBar` → `RestartUpdateTicker(true)` → register events →
+  `UpdateBarAppearance` → `UpdateAbsorbBar` (direct paint) → register events →
   `CreateOptionsPanel`.
-- **AceEvent** subscriptions (registered in `OnEnable`): `UNIT_ABSORB_AMOUNT_CHANGED` (records the
-  change; the AceTimer ticker drives the actual repaint at `updateInterval`) and
-  `PLAYER_ENTERING_WORLD` (repaint).
+- **AceEvent** subscriptions (registered in `OnEnable`): `UNIT_ABSORB_AMOUNT_CHANGED` (records a
+  debug line, then `NS.RequestRepaint()`), `UNIT_MAXHEALTH` (`OnMaxHealthChanged` →
+  `NS.RequestRepaint()` — the bar shows absorb as a fraction of max health), and
+  `PLAYER_ENTERING_WORLD` (`OnEnterWorld` → `NS.RequestRepaint()`). `NS.RequestRepaint` is a
+  coalescing one-shot AceTimer throttle (`throttleWindow`, default 0.1s) — idle = zero repaints,
+  no polling ticker.
 
 ## Taint Notes
 

@@ -31,6 +31,6 @@ Start here, then read the docs:
   `midnight-quirks.md`, `common-tasks.md`, `scope.md`, `file-index.md`, `module-map.md`,
   `smoke-tests.md`.
 
-Green gate before every commit: `lua tests/run.lua` (43 tests) and `luacheck .` (0/0). Syntax-check
+Green gate before every commit: `lua tests/run.lua` (52 tests) and `luacheck .` (0/0). Syntax-check
 one file with `luac -p <file>`. Never auto-stage/commit/push and never bump the version without an
 explicit instruction — see `docs/agent-context.md`.

@@ -19,7 +19,7 @@ local addon = AceAddon:NewAddon(NS, addonName, "AceEvent-3.0", "AceTimer-3.0", "
 NS.addon = addon
 ```
 
-Passing `NS` as the first argument to `:NewAddon` makes the bootstrap table and the AceAddon object one and the same, so `NS:OnInitialize` / `NS:OnEnable` are the lifecycle methods and the AceEvent / AceTimer / AceConsole mixins are stamped onto `NS.addon`. **AceAddon is a full participant now** — the ticker (`NS.addon:ScheduleRepeatingTimer`), the events (`self:RegisterEvent`), and the slash registration (`NS.addon:RegisterChatCommand`) all flow through it. There is still no `:NewModule()` hierarchy; the runtime modules are plain Lua files that attach functions to `NS`.
+Passing `NS` as the first argument to `:NewAddon` makes the bootstrap table and the AceAddon object one and the same, so `NS:OnInitialize` / `NS:OnEnable` are the lifecycle methods and the AceEvent / AceTimer / AceConsole mixins are stamped onto `NS.addon`. **AceAddon is a full participant now** — the repaint throttle (`NS.addon:ScheduleTimer`), the events (`self:RegisterEvent`), and the slash registration (`NS.addon:RegisterChatCommand`) all flow through it. There is still no `:NewModule()` hierarchy; the runtime modules are plain Lua files that attach functions to `NS`.
 
 State that lives on `NS` (rather than as a global):
 
@@ -184,16 +184,18 @@ NS.addon               -- the AceAddon object (== NS via NewAddon(NS, ...))
 addon:OnInitialize()   -- ADDON_LOADED timing: register the LSM monospace font, NS:InitDB(),
                        -- NS.Slash:Register().
 addon:OnEnable()       -- PLAYER_LOGIN timing: ClearLSMCache -> GetLSM -> ApplyLSMBorderPatch ->
-                       -- RestoreBarPosition -> UpdateBarAppearance -> UpdateAbsorbBar ->
-                       -- RestartUpdateTicker(true); RegisterEvent UNIT_ABSORB_AMOUNT_CHANGED /
+                       -- RestoreBarPosition -> UpdateBarAppearance -> UpdateAbsorbBar (direct
+                       -- paint); RegisterEvent UNIT_ABSORB_AMOUNT_CHANGED / UNIT_MAXHEALTH /
                        -- PLAYER_ENTERING_WORLD; CreateOptionsPanel.
-addon:OnAbsorbChanged(_, unit)  -- UNIT_ABSORB_AMOUNT_CHANGED; only records a debug line (the
-                                -- ticker drives the paint, so a burst can't outpace the interval).
-addon:OnEnterWorld()   -- PLAYER_ENTERING_WORLD; repaints via UpdateAbsorbBar.
+addon:OnAbsorbChanged(_, unit)  -- UNIT_ABSORB_AMOUNT_CHANGED; records a debug line, then calls
+                                -- NS.RequestRepaint() (a burst coalesces into one repaint).
+addon:OnMaxHealthChanged(_, unit)  -- UNIT_MAXHEALTH; NS.RequestRepaint() (absorb is shown as a
+                                    -- fraction of max health, so it must repaint too).
+addon:OnEnterWorld()   -- PLAYER_ENTERING_WORLD; NS.RequestRepaint().
 
 NS.OnProfileChanged()  -- registered as the AceDB profile callback inside InitDB; runs
-                       -- RestoreBarPosition + UpdateBarAppearance + UpdateAbsorbBar +
-                       -- ResetTickerInterval + RestartUpdateTicker(true) + RefreshOptionsPanel.
+                       -- RestoreBarPosition + UpdateBarAppearance + UpdateAbsorbBar (direct
+                       -- paint) + RefreshOptionsPanel.
 ```
 
 Events are AceEvent (`self:RegisterEvent`), not raw `CreateFrame` frames. Detail in [data-flow.md](./data-flow.md).
@@ -241,13 +243,13 @@ NS.UpdateAbsorbBar()         -- reads UnitGetTotalAbsorbs + UnitHealthMax, pushe
 
 ### Timer (`modules/Timer.lua`)
 
-The backup repaint ticker, driven by AceTimer (not `C_Timer.NewTicker`).
+The coalescing repaint scheduler, driven by AceTimer (not `C_Timer`). No polling — repaints are
+event-driven (see AbsorbTracker above).
 
 ```lua
-NS.RestartUpdateTicker(forceRestart?)  -- ScheduleRepeatingTimer(NS.UpdateAbsorbBar, interval)
-                                       -- via NS.addon; short-circuits when interval unchanged
-                                       -- unless forced; CancelTimer's the old handle first
-NS.ResetTickerInterval()               -- clears the tracked interval; next call rebuilds the ticker
+NS.RequestRepaint()   -- trailing-edge one-shot: NS.addon:ScheduleTimer(fn, throttleWindow).
+                       -- A repaint already pending coalesces (no-op); the timer self-clears
+                       -- (pending = nil) inside its own callback before calling UpdateAbsorbBar.
 ```
 
 ### Schema (`settings/Schema.lua`)
@@ -380,7 +382,7 @@ In practice the calls always succeed because all files are loaded synchronously 
 2. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Util.lua`, `Data.lua`, `Database.lua`, `LSMPatch.lua`, `DebugLog.lua`, `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
 3. **Defaults** — `defaults/Profile.lua` (AceDB defaults; runs at file-load).
 4. **Locales** — `locales/enUS.lua` (`NS.L` metatable seam).
-5. **Modules** — `modules/Bar.lua` (bar frame creation at file-load), `Display.lua` (render functions), `Timer.lua` (AceTimer ticker).
+5. **Modules** — `modules/Bar.lua` (bar frame creation at file-load), `Display.lua` (render functions), `Timer.lua` (coalescing repaint scheduler).
 6. **Settings** (last — depend on everything else being initialized) — `settings/Schema.lua` (registry), `Slash.lua` (`/at` dispatcher), `Panel.lua` (registration shell; publishes empty `NS.Helpers` + `NS.PARENT_TITLE`), then the toolkit slices `Helpers.lua` → `ScrollPatch.lua` → `Widgets.lua` → `About.lua` (each decorates `NS.Helpers`; order matters only between `Helpers` (defines `EnsureScroll`) and `ScrollPatch` (defines `PatchAlwaysShowScrollbar` that `EnsureScroll` references)), then the page builders `General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` (each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load; LSM-backed rows call `NS.Helpers.LSMValues(mediaType)`).
 
 If you add a new runtime file, put it in the right tier in `AbsorbTracker.toc`.
@@ -391,4 +393,4 @@ Modules that own a sub-surface publish it with the `NS.X = NS.X or {}` guard (`N
 
 ## Test harness
 
-There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` loads the runtime files in TOC order through `tests/loader.lua` against `tests/wow_mock.lua`, then runs `test_schema.lua`, `test_database.lua`, `test_compat.lua`, `test_util.lua`, `test_debuglog.lua`, and `test_slash.lua` (43 tests total). The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.
+There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` loads the runtime files in TOC order through `tests/loader.lua` against `tests/wow_mock.lua`, then runs `test_schema.lua`, `test_database.lua`, `test_compat.lua`, `test_util.lua`, `test_debuglog.lua`, and `test_slash.lua` (52 tests total). The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.

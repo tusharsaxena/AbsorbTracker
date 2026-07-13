@@ -110,7 +110,7 @@ The ColorPicker maker (`settings/Widgets.lua`) reads `disabledIf` inside its ref
 
 Defaults to `NS.UpdateBarAppearance`. Override when the row's side effect differs:
 
-- `updateInterval` → `NS.RestartUpdateTicker`.
+- `throttleWindow` — no override; uses the default `UpdateBarAppearance` (the throttle window itself is read live by `NS.RequestRepaint`, not applied via `onChange`).
 - `hidden` → `UpdateBarAppearance` plus a follow-up `UpdateAbsorbBar` (only when re-showing) so the bar's first frame after un-hide reflects current state.
 
 ### `fmt = "%.1f sec"` (number only)
@@ -195,7 +195,7 @@ The exhaustive table of every setting the schema exposes. Defaults live in `defa
 |------|------|---------|----------------|-------------|
 | `hidden` | bool | `false` | — | If true, the bar is hidden. Rendered in the panel as an `inverse` "Show Bar" toggle. General page. |
 | `locked` | bool | `false` | — | If true, the bar is unmovable. `/at lock` / `/at unlock` flip this. General page. |
-| `updateInterval` | number | `1.0` | 0.1 – 10 s | Ticker interval. `onChange` calls `RestartUpdateTicker`. Display hint `"%.1f sec"`. General page, `solo`. |
+| `throttleWindow` | number | `0.1` | 0.05 – 1 s (step 0.05) | Fastest the bar repaints during a burst of changes, via `NS.RequestRepaint`'s trailing-edge one-shot AceTimer. Label "Update throttle (in sec)". Display hint `"%.2f sec"`. General page, Performance group, `solo`. |
 | `barWidth` | number | `200` | 50 – 500 px | Bar width. Hint `"%d px"`. Bar page, Size. |
 | `barHeight` | number | `20` | 10 – 100 px | Bar height. Hint `"%d px"`. Bar page, Size. |
 | `barTexture` | string | `"Blizzard Raid Bar"` | LSM `statusbar` catalog | Status-bar fill texture. `dialogControl = "LSM30_Statusbar"`, `solo`. Bar page, Bar. |
