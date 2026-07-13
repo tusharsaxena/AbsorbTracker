@@ -15,7 +15,7 @@ silently deviate and do not silently "fix" to match. Surface it and let the user
 two things it is:
 
 1. **An accepted deviation** — this addon intentionally differs; record it as a documented
-   deviation (e.g. in the TOC/README/`docs/` and in the audit bundle), with the reason.
+   deviation (e.g. in the TOC/README/`docs/` and in the `docs/audits/` bundle), with the reason.
 2. **A change to the standard itself** — the standard's definition should evolve; the update
    belongs upstream in the WowAddonStandards repo, after which this addon conforms to the new rule.
 

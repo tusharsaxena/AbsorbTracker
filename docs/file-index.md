@@ -31,7 +31,7 @@ Loaded first among addon source (after libs). `Compat` leads so its shim exists 
 
 | # | File | Lines | Responsibility |
 |---|------|-------|----------------|
-| 12 | `locales/enUS.lua` | 12 | Canonical locale. Sets `NS.L = setmetatable({}, { __index = function(_, k) return k end })` so a missing key returns itself and never errors. English-only in v1.8.0 — the seam is in place, but no user-facing string is wrapped yet. |
+| 12 | `locales/enUS.lua` | 12 | Canonical locale. Sets `NS.L = setmetatable({}, { __index = function(_, k) return k end })` so a missing key returns itself and never errors. English-only in v1.9.0 — the seam is in place, but no user-facing string is wrapped yet. |
 
 ## modules/ — the bar runtime
 

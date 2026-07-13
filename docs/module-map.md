@@ -55,7 +55,7 @@ Two consequences:
 
 ```lua
 NS.name    -- addonName
-NS.version -- "1.8.0" string constant
+NS.version -- "1.9.0" string constant
 NS.PREFIX  -- "|cFF00FFFF[AT]|r" — the one shared cyan [AT] chat tag
 
 -- Cached math/string on NS to avoid global lookups in the bar paint path
@@ -213,7 +213,7 @@ NS.flatDefaults      -- alias to defaults.profile (GetSetting fallback + per-key
 NS.L  -- setmetatable({}, { __index = function(_, k) return k end })
 ```
 
-English-only in v1.8.0 — the metatable returns the key itself, so untranslated strings work and a missing key never errors. Nothing is wrapped in `NS.L[...]` yet; the seam is in place for a future localization pass.
+English-only in v1.9.0 — the metatable returns the key itself, so untranslated strings work and a missing key never errors. Nothing is wrapped in `NS.L[...]` yet; the seam is in place for a future localization pass.
 
 ### Bar (`modules/Bar.lua`)
 
