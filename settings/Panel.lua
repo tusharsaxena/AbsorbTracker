@@ -105,18 +105,13 @@ local function expandMainCategory()
 end
 
 function NS.OpenOptionsPanel()
-    -- Settings UI is protected during combat; opening it in combat taints the panel for the rest
-    -- of the session. Per Ka0s standard §6.2, defer the open to combat end via a one-shot
-    -- PLAYER_REGEN_ENABLED replay rather than refusing outright. The session flag makes it
-    -- idempotent — hammering /at config mid-pull queues exactly one open.
     if InCombatLockdown() then
+        -- Settings UI is protected during combat; opening it taints the panel for the session.
+        -- Per Ka0s standard §6.2, queue the open and let core/AbsorbTracker.lua's OnLeaveCombat
+        -- (the single owner of PLAYER_REGEN_ENABLED) replay it. The flag makes it idempotent —
+        -- hammering /at config mid-pull queues exactly one open.
         if not NS.State.panelOpenPending then
             NS.State.panelOpenPending = true
-            NS.addon:RegisterEvent("PLAYER_REGEN_ENABLED", function()
-                NS.addon:UnregisterEvent("PLAYER_REGEN_ENABLED")
-                NS.State.panelOpenPending = nil
-                NS.OpenOptionsPanel()
-            end)
             print("In combat \226\128\148 settings will open when you leave combat.")
         end
         return
