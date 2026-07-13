@@ -55,7 +55,7 @@ description in white.
 
 Five subcategories under **Ka0s Absorb Tracker**:
 
-*   **General** — Show Bar, drag lock, update interval (0.1–10s), Reset Position + Reset All Settings buttons.
+*   **General** — Show Bar, drag lock, update throttle (0.05–1s), Reset Position + Reset All Settings buttons.
 *   **Bar** — width (50–500), height (10–100), fill texture and color, background texture and color (each color has a class-color override).
 *   **Border** — border style, thickness (1–32), color (with class-color override).
 *   **Font** — face, size (6–32), outline style.
@@ -108,7 +108,7 @@ commit and before tagging a release.
 
 | Check | Command | Expected |
 |-------|---------|----------|
-| Unit tests | `lua tests/run.lua` | `43 passed, 0 failed` (schema parse/format/validate, DB migrations, Compat, secret-safe Util, DebugLog, slash dispatch) |
+| Unit tests | `lua tests/run.lua` | `53 passed, 0 failed` (schema parse/format/validate, DB migrations, Compat, secret-safe Util, DebugLog, slash dispatch, repaint timer/throttle) |
 | Lint | `luacheck .` | `0 warnings / 0 errors` |
 | Syntax-check one file | `luac -p <path/to/file.lua>` | no output (clean parse) |
 | In-game smoke tests | manual | see [docs/smoke-tests.md](./docs/smoke-tests.md) |
