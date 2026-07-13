@@ -7,6 +7,15 @@ local AceAddon = LibStub("AceAddon-3.0")
 local addon = AceAddon:NewAddon(NS, addonName, "AceEvent-3.0", "AceTimer-3.0", "AceConsole-3.0")
 NS.addon = addon
 
+-- Reclaim NS.Print from AceConsole. NewAddon(NS, …) embeds the AceConsole-3.0 mixins directly onto
+-- NS, and its :Print method OVERWRITES the secret-safe, cyan-[AT]-prefixed NS.Print that
+-- core/Util.lua defined earlier (Util loads before this file). Left clobbered, every
+-- `local print = NS.Print` call site would render AceConsole's "|cff33ff99<msg>|r:" form — green
+-- text, a trailing colon, and NO [AT] tag — violating slash-commands-§4. core/Util.lua stashed the
+-- real printer at NS.Util.print (which the embed does not touch), so restore NS.Print from it.
+-- (KickCD sidesteps this entirely by only ever calling NS.Util.print; we keep the NS.Print name.)
+if NS.Util and NS.Util.print then NS.Print = NS.Util.print end
+
 function addon:OnInitialize()
     -- Register the vendored monospace font with LSM for the debug console (§12.2).
     local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)

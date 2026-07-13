@@ -16,10 +16,32 @@ local function capture(fn)
   return out
 end
 
+-- Strip WoW colour escapes (`|cAARRGGBB` … `|r`) so assertions match the plain text regardless
+-- of the schema-output colour scheme (slash-commands-§5): gold key + white value, etc.
+local function stripColor(s)
+  return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+
+test("NS.Print survives AceConsole's embed and stays the [AT]-prefixed printer", function()
+  -- Regression (real in-game bug): NewAddon(NS, …, "AceConsole-3.0") embeds AceConsole's :Print
+  -- mixin onto NS, clobbering the custom NS.Print from core/Util.lua. core/AbsorbTracker.lua must
+  -- reclaim it from the pristine NS.Util.print. Without that, every /at line loses the [AT] tag and
+  -- gains a trailing colon (AceConsole renders the message as "|cff33ff99<msg>|r:").
+  assertTrue(NS.Print == NS.Util.print,
+    "NS.Print must be the custom Util.print, not AceConsole's embedded mixin")
+  local out = capture(function() NS.Print("regression check") end)
+  assertTrue(out[1]:find("[AT]", 1, true) ~= nil, "carries the [AT] tag: " .. tostring(out[1]))
+  assertTrue(stripColor(out[1]):find(":%s*$") == nil, "no trailing colon: " .. tostring(out[1]))
+end)
+
 test("bare /at prints the help index: header + one row per command", function()
   local out = capture(function() NS.Slash:OnSlash("") end)
   assertEqual(#out, #NS.COMMANDS + 1)
   assertTrue(out[1]:find("slash commands") ~= nil, "first line is the header")
+  -- No chat line the addon prints ends in a trailing colon (slash-commands-§4 house style).
+  for _, line in ipairs(out) do
+    assertTrue(stripColor(line):find(":%s*$") == nil, "no trailing colon: " .. line)
+  end
 end)
 
 test("unknown verb prints 'unknown command' then the help index", function()
@@ -30,7 +52,21 @@ end)
 
 test("/at get <path> dispatches to the schema read", function()
   local out = capture(function() NS.Slash:OnSlash("get barWidth") end)
-  assertTrue(out[1]:find("barWidth = 200 px") ~= nil, out[1])
+  assertTrue(stripColor(out[1]):find("barWidth = 200 px") ~= nil, out[1])
+end)
+
+test("/at list uses the mandated colour scheme (slash-commands-§5)", function()
+  local out = capture(function() NS.Slash:OnSlash("list") end)
+  -- Header: green (33ff99), no trailing colon.
+  assertTrue(out[1]:find("|cff33ff99Available settings|r", 1, true) ~= nil, out[1])
+  local sawGroup, sawRow = false, false
+  for _, line in ipairs(out) do
+    if line:find("|cff3399ff%[%w+%]|r") then sawGroup = true end        -- [page] azure
+    if line:find("|cFFFFFF00%S+|r = |cFFFFFFFF") then sawRow = true end   -- gold key + white value
+    assertTrue(stripColor(line):find(":%s*$") == nil, "no trailing colon: " .. line)
+  end
+  assertTrue(sawGroup, "at least one steel-blue [page] group header")
+  assertTrue(sawRow, "at least one gold-key / white-value row")
 end)
 
 test("/at set <path> <value> writes through the schema and preserves path case", function()

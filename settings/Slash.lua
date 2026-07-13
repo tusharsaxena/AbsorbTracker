@@ -16,6 +16,13 @@ local function PrintCmd(cmd, desc)
     print(("  |cFFFFFF00%s|r \226\128\148 |cFFFFFFFF%s|r"):format(cmd, desc))
 end
 
+-- Shared `key = value` formatter for schema output (Ka0s standard, slash-commands-§5): setting
+-- key gold (ffff00), value white (ffffff). Used by /at list rows and the /at get / /at set
+-- single-line echo so the `key = value` shape reads identically everywhere. No trailing colon.
+local function FormatKV(path, valueStr)
+    return ("|cFFFFFF00%s|r = |cFFFFFFFF%s|r"):format(path, valueStr)
+end
+
 -- Forward declarations so the commands table can reference handlers defined below.
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
@@ -87,7 +94,7 @@ local function getVersion()
 end
 
 function printHelp()
-    print(("v%s \226\128\148 slash commands (|cFFFFFF00/absorbtracker|r is an alias for |cFFFFFF00/at|r):")
+    print(("v%s \226\128\148 slash commands (|cFFFFFF00/absorbtracker|r is an alias for |cFFFFFF00/at|r)")
         :format(getVersion()))
     for _, entry in ipairs(NS.COMMANDS) do
         PrintCmd("/at " .. entry[1], entry[2])
@@ -105,7 +112,9 @@ function listSettings()
     if not NS.Schema or #NS.Schema == 0 then
         return print("No settings registered yet")
     end
-    print("Available settings:")
+    -- Colour scheme for /at list (Ka0s standard, slash-commands-§5): header green (33ff99),
+    -- [page] group headers azure (3399ff), key/value via FormatKV. No trailing colons.
+    print("|cff33ff99Available settings|r")
 
     local byPage = {}
     for _, row in ipairs(NS.Schema) do
@@ -117,11 +126,10 @@ function listSettings()
     for _, page in ipairs(PAGE_ORDER) do
         local rows = byPage[page]
         if rows then
-            print("  [" .. page .. "]")
+            print("  |cff3399ff[" .. page .. "]|r")
             for _, row in ipairs(rows) do
                 local v = NS.GetSetting(row.path)
-                print(("    %s = %s"):format(
-                    row.path, NS.FormatSchemaValue(row, v)))
+                print("    " .. FormatKV(row.path, NS.FormatSchemaValue(row, v)))
             end
         end
     end
@@ -137,7 +145,7 @@ function getSetting(rest)
         return print("Setting not found: " .. path)
     end
     local v = NS.GetSetting(row.path)
-    print(("%s = %s"):format(row.path, NS.FormatSchemaValue(row, v)))
+    print(FormatKV(row.path, NS.FormatSchemaValue(row, v)))
 end
 
 function setSetting(rest)
@@ -158,8 +166,7 @@ function setSetting(rest)
     end
 
     NS.SetByPath(row.path, v)
-    print(("%s = %s"):format(row.path,
-        NS.FormatSchemaValue(row, NS.GetSetting(row.path))))
+    print(FormatKV(row.path, NS.FormatSchemaValue(row, NS.GetSetting(row.path))))
     if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
 end
 
@@ -272,7 +279,7 @@ function runProfile(rest)
     sub = (sub or ""):lower()
 
     if sub == "" then
-        print("Profile commands:")
+        print("Profile commands")
         PrintCmd("/at profile list",          "List all profiles")
         PrintCmd("/at profile current",       "Show current profile name")
         PrintCmd("/at profile use <name>",    "Switch to profile")
@@ -284,7 +291,7 @@ function runProfile(rest)
     end
 
     if sub == "list" then
-        print("Available profiles:")
+        print("Available profiles")
         local current = db:GetCurrentProfile()
         for _, name in ipairs(db:GetProfiles()) do
             local marker = (name == current) and " (current)" or ""

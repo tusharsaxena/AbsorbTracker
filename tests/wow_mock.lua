@@ -87,6 +87,16 @@ return function()
       end
       target.ScheduleRepeatingTimer = function() return {} end
       target.CancelTimer = noop
+      -- Faithfully mirror AceConsole-3.0's Embed: it stamps a :Print mixin onto the addon object,
+      -- clobbering any same-named custom NS.Print. Called as `NS.Print(msg)`, AceConsole treats the
+      -- message as `self` and renders "|cff33ff99<msg>|r:" — green, trailing colon, no tag. The
+      -- addon must reclaim NS.Print after NewAddon; reproducing the clobber here lets the tests
+      -- exercise the real production print path instead of a clean one the client never uses.
+      target.Print = function(selfOrMsg, ...)
+        local parts = { "|cff33ff99" .. tostring(selfOrMsg) .. "|r:" }
+        for i = 1, select("#", ...) do parts[#parts + 1] = tostring((select(i, ...))) end
+        if DEFAULT_CHAT_FRAME then DEFAULT_CHAT_FRAME:AddMessage(table.concat(parts, " ")) end
+      end
       return target
     end,
   }

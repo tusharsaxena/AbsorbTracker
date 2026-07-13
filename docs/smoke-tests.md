@@ -40,8 +40,8 @@ that covers the pure logic; this suite covers everything that only runs against 
 22. Open the dropdown → per-row hover border previews still render; selecting applies.
 
 ### F. Slash verbs — read/write/reset
-23. `/at list` → grouped `[general]/[bar]/[border]/[font]`, each `path = value` formatted.
-24. `/at get barWidth` → `barWidth = <n> px`; `/at get bogus` → not found; `/at get` → usage.
+23. `/at list` → grouped `[general]/[bar]/[border]/[font]`, each `path = value` formatted. Colour scheme (slash-commands-§5): green `Available settings` header, azure `[page]` group headers, gold keys, white values; no trailing colon on any line.
+24. `/at get barWidth` → `barWidth = <n> px` (gold key, white value); `/at get bogus` → not found; `/at get` → usage.
 25. `/at set barWidth 260` → `barWidth = 260 px`, bar widens, open panel refreshes; path case preserved.
 26. `/at set barWidth abc` → `Invalid value for barWidth`; bar unchanged.
 27. `/at reset bar` → `bar page reset to defaults`, reverts + repaints; `/at reset bogus` → unknown page.
