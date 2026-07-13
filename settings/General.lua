@@ -1,8 +1,8 @@
 -- AbsorbTracker: settings/General.lua
 --
 -- General sub-page — what `/at config` opens by default. Visibility,
--- lock, update interval, plus a Reset Position / Reset All Settings
--- button pair.
+-- show-only-in-combat, lock, update throttle, plus a Reset Position /
+-- Reset All Settings button pair.
 --
 -- Schema rows below double as the source for `/at list/get/set` on
 -- these paths.
@@ -14,10 +14,11 @@ local print = NS.Print
 local flatDefaults = NS.flatDefaults
 
 -- Master controls layout produces:
---     [Show Bar]              | [Lock Position]
+--     [Show Bar]              | [Show only in combat]
+--     [Lock Position]                                  (odd row-out, alone)
 --     [Reset Position]        | [Reset All Settings]   ← inline button pair
 -- Performance section produces:
---     [Update Interval (sec)]                          (solo: only one row)
+--     [Update throttle (sec)]                          (solo: only one row)
 
 NS.RegisterSchemaRows({
     {
