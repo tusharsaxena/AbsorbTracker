@@ -3,7 +3,7 @@
 Run on a **live Retail (Midnight, 12.0.7 / Interface 120007) English client** in order — later
 tests assume the addon loaded cleanly. Enable Lua errors first (`/console scriptErrors 1`, or
 BugSack/BugGrabber). Watch chat for the cyan `[AT]` prefix and for any red error frame. The addon
-also ships a headless gate (`lua tests/run.lua` → 36 passed, `luacheck .` → 0/0, `luac -p <file>`)
+also ships a headless gate (`lua tests/run.lua` → 43 passed, `luacheck .` → 0/0, `luac -p <file>`)
 that covers the pure logic; this suite covers everything that only runs against the live client.
 
 ### A. Load & bootstrap
@@ -12,6 +12,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 3. **/reload clean.** `/reload` → no errors; bar reappears in the same spot.
 4. **Value tracks reality.** Gain an absorb (e.g. Power Word: Shield) → fill + text update to the abbreviated amount; consume it → drops toward `0`.
 5. **Secret-value safety.** With a big absorb, the number shows an abbreviated string (e.g. `1.2M`), never `nil`/error.
+5a. **Secret-in-combat + debug on (regression).** `/at debug on`, enter combat, gain/consume absorbs → **zero Lua errors** (no `invalid value (secret) … for 'concat'`), debug console shows the value as `<secret>` where the combat-protected amount can't be stringified, and the **bar keeps updating**. Leave combat, `/at debug off`, re-enter combat → bar still updates. (Pre-fix this froze the bar until `/reload`.)
 
 ### B. Slash surface
 6. `/at` alone → help block (version line + command list).
@@ -22,8 +23,8 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### C. Settings panel & combat gate
 11. `/at config` (out of combat) → Blizzard Settings opens to **Ka0s Absorb Tracker**, tree expanded to General/Bar/Border/Font/Profiles.
-12. **Combat gate.** In combat, `/at config` → panel does **not** open; chat shows `[AT] Cannot open settings panel during combat…`.
-13. Drop combat, `/at config` → opens normally, no taint warning.
+12. **Combat gate (defer, §6.2).** In combat, `/at config` → panel does **not** open immediately; chat shows `[AT] In combat — settings will open when you leave combat.` Spam `/at config` a few times → still only **one** pending open (no duplicate notices past the first).
+13. **Deferred replay.** Leave combat → the panel **opens automatically** (tree expanded), **no taint warning**. Then out of combat, `/at config` → opens immediately as normal. *(Edge: `/reload` while a deferred open is pending → nothing opens after the reload, no error — the session flag cleared.)*
 
 ### D. Sub-pages render & edit live
 14. **General** — Show Bar / Lock Position, Reset Position + Reset All buttons, Update Interval slider. Toggle Show Bar → bar hides/shows; Lock Position → drag disabled; drag Update Interval → ticker cadence changes.
@@ -63,8 +64,8 @@ that covers the pure logic; this suite covers everything that only runs against 
 ### H. Debug console (§12)
 41. `/at debug` → **Absorb Tracker — Debug** window appears (dark, draggable); `/at debug` again → hides.
 42. Log lines render in a **monospace** font (JetBrains Mono).
-43. `/at debug on` → `[AT] debug on`, header **Debug: ON** (green); trigger an absorb change → timestamped `[tag] msg` lines (steel-blue ts, tan tag).
-44. `/at debug off` → `[AT] debug off`, header **Debug: OFF** (red); new changes no longer append.
+43. `/at debug on` → `[AT] debug on`, header **Debug: ON** (green); console logs a `[Debug] logging enabled` line; trigger an absorb change → timestamped `[tag] msg` lines (steel-blue ts, tan tag).
+44. `/at debug off` → `[AT] debug off`, header **Debug: OFF** (red); console logs a `[Debug] logging disabled` line (written as the final entry, after the state flips off); new changes no longer append.
 45. Header **Debug** toggle button → flips state exactly like the slash verb.
 46. **Copy** → opens a monospace EditBox with the plain-text log highlighted (Ctrl+C, then Esc).
 47. **Clear** → empties the log view and the copy buffer.
@@ -83,8 +84,8 @@ that covers the pure logic; this suite covers everything that only runs against 
 56. With all three on, `/reload` or profile switch → colors re-resolve with no manual refresh (getters read class color per-paint).
 57. Turn each Use Class Color off → manual RGBA picker re-enables; bar reverts to the stored manual color.
 
-**Pass criteria:** all 57 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
-and no combat-taint warning after step 12. On any failure, record the step number, observed vs.
+**Pass criteria:** all 58 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
+and no combat-taint warning after the deferred open in step 13. On any failure, record the step number, observed vs.
 expected, and any error text.
 
 ### Triage references (if a step fails)

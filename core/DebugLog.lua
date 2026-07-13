@@ -235,7 +235,10 @@ function D:SetEnabled(on)
     NS.State.debug = on
     D:RefreshHeader()
     NS.Print("debug " .. (on and "on" or "off"))
-    if on and NS.Debug then NS.Debug("Debug", "logging enabled") end
+    -- Bracket every session with a console line at both ends. Write through D:Add rather than
+    -- NS.Debug so the "logging disabled" line still lands after NS.State.debug has flipped off
+    -- (NS.Debug is gated on the flag, D:Add is not).
+    D:Add("Debug", on and "logging enabled" or "logging disabled")
 end
 
 function D:RefreshHeader()

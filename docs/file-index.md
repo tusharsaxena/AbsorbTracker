@@ -69,7 +69,7 @@ Each file (except `Profiles.lua`) registers schema rows for the page, declares a
 
 ## tests/ — headless harness
 
-Run from the repo root with `lua tests/run.lua`. Loads every addon source file with the `("AbsorbTracker", NS)` calling convention against a WoW-API mock, runs `NS:InitDB()`, then executes the suites. 36 tests total.
+Run from the repo root with `lua tests/run.lua`. Loads every addon source file with the `("AbsorbTracker", NS)` calling convention against a WoW-API mock, runs `NS:InitDB()`, then executes the suites. 43 tests total.
 
 | # | File | Lines | Responsibility |
 |---|------|-------|----------------|

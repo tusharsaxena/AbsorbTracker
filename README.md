@@ -78,7 +78,7 @@ re-enable manual color editing.
 | How do I move the bar? | `/at unlock`, drag, `/at lock`. The position saves per-profile. `/at resetposition` snaps the bar back to the screen center. |
 | Are there profiles? Per-character configs? | Yes — full AceDB profiles under Settings → Profiles. Every character on the account starts on the shared **Default** profile, so changes carry over. Opt into per-character / per-class / per-realm scope from the Profiles panel to diverge. |
 | Why is my bar empty? | You need an active absorb effect (Power Word: Shield, Ice Barrier, trinket procs, …) for the value to be non-zero. With no absorb up, the bar reads 0 and is effectively invisible against the background. |
-| Why does the settings panel refuse to open during a pull? | Blizzard's category-switching is protected, so opening *any* settings subcategory during combat would taint the panel. `/at config` errors out cleanly until combat ends. |
+| Why doesn't the settings panel open during a pull? | Blizzard's category-switching is protected, so opening *any* settings subcategory during combat would taint the panel. `/at config` in combat is **queued** — it opens automatically the moment you leave combat. |
 
 ## Troubleshooting
 
@@ -108,7 +108,7 @@ commit and before tagging a release.
 
 | Check | Command | Expected |
 |-------|---------|----------|
-| Unit tests | `lua tests/run.lua` | `36 passed, 0 failed` (schema parse/format/validate, DB migrations, Compat, DebugLog, slash dispatch) |
+| Unit tests | `lua tests/run.lua` | `43 passed, 0 failed` (schema parse/format/validate, DB migrations, Compat, secret-safe Util, DebugLog, slash dispatch) |
 | Lint | `luacheck .` | `0 warnings / 0 errors` |
 | Syntax-check one file | `luac -p <path/to/file.lua>` | no output (clean parse) |
 | In-game smoke tests | manual | see [docs/smoke-tests.md](./docs/smoke-tests.md) |

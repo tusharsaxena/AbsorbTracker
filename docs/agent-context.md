@@ -42,9 +42,13 @@ User-facing reference: [../README.md](../README.md). Subsystems + invariants:
   `NS.PREFIX` (`|cFF00FFFF[AT]|r`, defined in `core/Namespace.lua`). Files that emit chat shadow
   the global `print` with `local print = NS.Print`. Debug output does NOT go to chat — it routes
   to the on-screen console via `NS.Debug` / `core/DebugLog.lua`.
-- **`UnitGetTotalAbsorbs` may return a "secret" value.** Use `AbbreviateNumbers` directly — never
-  run the value through `tonumber` before display. Detail in
-  [midnight-quirks.md](./midnight-quirks.md).
+- **`UnitGetTotalAbsorbs` may return a "secret" value.** Use `AbbreviateNumbers` directly for
+  display — never run it through `tonumber` first, and never compare it with `<`/`>`. A secret
+  survives `tostring()` **and the `..` operator** but **raises in `table.concat`/`string.format`**,
+  so **never build a chat/debug line from a raw combat value** — every arg to `NS.Print` /
+  `NS.DebugPrint` goes through `NS.SafeToString` (`core/Util.lua`), which renders a secret as
+  `<secret>`. Its detector probes `table.concat`, not `..` (a `..` probe passes secrets through).
+  This is Ka0s standard **§9.8**. Detail in [midnight-quirks.md](./midnight-quirks.md).
 - **Deprecated APIs go through `core/Compat.lua`.** `Compat.GetAddOnMetadata` is the only metadata
   accessor. Never call `GetAddOnMetadata` / `C_AddOns.GetAddOnMetadata` inline.
 
@@ -76,7 +80,7 @@ time), guarding with `if NS.X then ... end` for the soft load-order coupling.
   AceGUI / AceConfig / AceDBOptions), LibSharedMedia-3.0, and the upstream
   `AceGUI-3.0-SharedMediaWidgets` r65. The displayButton tile is suppressed by
   `core/LSMPatch.lua` (addon-side, not a lib edit), so `r66+` refreshes are a clean drop-in.
-- **Headless tests (`tests/`) + lint gate.** `lua tests/run.lua` (36 tests: schema parse/format/
+- **Headless tests (`tests/`) + lint gate.** `lua tests/run.lua` (43 tests: schema parse/format/
   validate, DB migrations, Compat, DebugLog, slash dispatch) must be green and `luacheck .` clean
   (0/0) before every commit. Syntax-check one file with `luac -p <file>`. Toolchain: Lua 5.1 +
   luacheck. See [smoke-tests.md](./smoke-tests.md) for the in-game QA recipe.

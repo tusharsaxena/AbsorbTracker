@@ -63,6 +63,7 @@ _G.AT_TEST = {
 dofile("tests/test_schema.lua")
 dofile("tests/test_database.lua")
 dofile("tests/test_compat.lua")
+dofile("tests/test_util.lua")
 dofile("tests/test_debuglog.lua")
 dofile("tests/test_slash.lua")
 

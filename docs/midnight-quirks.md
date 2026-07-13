@@ -4,12 +4,24 @@ Catalog of WoW Midnight (Interface 12.0.x) behaviors and Blizzard-API convention
 
 ## Secret values from `UnitGetTotalAbsorbs`
 
-`UnitGetTotalAbsorbs("player")` may return WoW's opaque-token "secret" value for very large absorb amounts. Lua cannot compare a secret value with a number (`tonumber()` returns nil; `>` / `<` against a number errors).
+`UnitGetTotalAbsorbs("player")` may return WoW's opaque-token "secret" value in combat (and for very large absorb amounts). Lua cannot compare a secret value with a number (`tonumber()` returns nil; `>` / `<` against a number errors).
 
 - **Use `AbbreviateNumbers()` for display.** It accepts secret values directly and returns a formatted string (`"123K"`, `"1.2M"`). Never run the result of `UnitGetTotalAbsorbs` through `tonumber` before display — you'll lose the value.
 - **Pass the raw value into `statusBar:SetValue` and `statusBar:SetMinMaxValues`.** Engine-side widget APIs accept secret values directly. This is what `NS.UpdateAbsorbBar` (`modules/Display.lua`) does: it reads the absorb amount, formats the text via `AbbreviateNumbers`, and pushes the raw value into the StatusBar without any Lua-side comparison.
 
-The debug line inside `UpdateAbsorbBar` also feeds the raw value through `AbbreviateNumbers` (never `tonumber`), and is gated behind `NS.State.debug` so the format/allocation cost is zero when debug is off.
+### A secret survives `tostring()` **and `..`**, but **explodes in `table.concat`**
+
+The subtle trap: `AbbreviateNumbers(secretValue)` returns a *secret string*, not a plain one. A secret string passes through `tostring()` unchanged, **and the `..` operator does not raise on it either** — `secret .. ""` silently returns another secret string. What *does* raise is `table.concat`:
+
+```
+invalid value (secret) at index N in table for 'concat'
+```
+
+This asymmetry is the whole gotcha. The debug lines in `OnAbsorbChanged` (`core/AbsorbTracker.lua`) and `UpdateAbsorbBar` (`modules/Display.lua`) log `AbbreviateNumbers(UnitGetTotalAbsorbs("player"))`. In combat that argument is a secret string, and `NS.DebugPrint` finishes by `table.concat`-ing its args — so **with `/at debug on`, entering combat raised on every absorb event and every repaint tick.** Because the repaint runs on a *repeating* AceTimer (`modules/Timer.lua`), the erroring callback stopped rescheduling and the bar froze until `/reload`.
+
+The guard lives at the concat boundary, not the call sites: `NS.SafeToString` (`core/Util.lua`) substitutes the sentinel `"<secret>"` for any value that a real `table.concat` would reject (secrets show as `<secret>` in the debug console). Detection **must probe `table.concat`, not `..`** — `NS.IsConcatSafe(v)` runs `pcall(function() return table.concat({ v }) end)`, because a probe built on `..` reports a secret as *safe* (the operator propagates instead of raising) and lets it slip straight through to the real concat. Both `NS.Print` (chat) and `NS.DebugPrint` (console) route every arg through `SafeToString`, so no addon line can be killed by a secret. `nil`/`boolean` are handled up front (they are never secret but `table.concat` rejects them too). The debug lines remain gated behind `NS.State.debug` so the probe cost is zero when debug is off.
+
+**Rule of thumb:** never feed a value read from a combat-protected API into `..`, `table.concat`, or `string.format`. Hand it straight to an engine-side widget/`AbbreviateNumbers` for display, or run it through `NS.SafeToString` before it touches a string operation.
 
 ## `SetBackdrop` is a no-op when the table identity is unchanged
 
@@ -26,11 +38,19 @@ Don't try to "optimize" by skipping the `SetBackdrop(nil)`. The backdrop will lo
 
 `Settings.OpenToCategory(categoryID)` is part of the protected Settings API. Calling it during combat would taint the panel — even after combat ends, the tainted panel can refuse to open or break unrelated UI behavior.
 
-`NS.OpenOptionsPanel` (`settings/Panel.lua`) always early-returns when `InCombatLockdown()` is true:
+`NS.OpenOptionsPanel` (`settings/Panel.lua`) **defers** the open to combat end when `InCombatLockdown()` is true, per Ka0s standard §6.2 (defer-and-replay, not refuse):
 
 ```lua
 if InCombatLockdown() then
-    print("Cannot open settings panel during combat. Try again after combat ends.")
+    if not NS.State.panelOpenPending then
+        NS.State.panelOpenPending = true
+        NS.addon:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+            NS.addon:UnregisterEvent("PLAYER_REGEN_ENABLED")
+            NS.State.panelOpenPending = nil
+            NS.OpenOptionsPanel()               -- replay once lockdown has cleared
+        end)
+        print("In combat — settings will open when you leave combat.")
+    end
     return
 end
 Settings.OpenToCategory(mainCategoryID)
@@ -39,7 +59,7 @@ expandMainCategory()
 
 (The `print` is the `local print = NS.Print` shadow at the top of `settings/Panel.lua`, so the chat output gets the cyan `[AT]` prefix.)
 
-Don't try to clever-defer the call into a `PLAYER_REGEN_ENABLED` queue. A user who clicks `/at config` mid-pull and then tabs to another addon's UI mid-call would see weird state. The straight-up refusal with a chat notice is the right call.
+`PLAYER_REGEN_ENABLED` fires when combat *ends* — lockdown is already released — so the replayed `Settings.OpenToCategory` runs taint-free. The `NS.State.panelOpenPending` session flag makes it idempotent: hammering `/at config` mid-pull registers exactly one one-shot replay, and the handler unregisters itself on the first fire. `NS.State` is session-only, so a `/reload` during combat clears any pending open. This replaced the earlier refuse-with-notice behavior when the addon was brought into line with §6.2.
 
 ## `Settings.OpenToCategory` wants a numeric ID, not a category object
 

@@ -54,3 +54,21 @@ test("/at options is aliased to /at config (no unknown-command error)", function
     assertTrue(line:find("unknown command") == nil, "options must not be unknown")
   end
 end)
+
+test("/at config in combat defers the open (§6.2) instead of refusing", function()
+  local saved = T.mocks.InCombatLockdown
+  T.mocks.InCombatLockdown = function() return true end
+  NS.State.panelOpenPending = nil
+
+  local out = capture(function() NS.Slash:OnSlash("config") end)
+  assertTrue(NS.State.panelOpenPending == true, "in combat a pending open must be queued")
+  assertTrue(out[1] ~= nil and out[1]:find("leave combat", 1, true) ~= nil,
+    "should notify that the panel will open after combat, not refuse")
+
+  -- Hammering it must not queue a second replay.
+  capture(function() NS.Slash:OnSlash("config") end)
+  assertTrue(NS.State.panelOpenPending == true, "still exactly one pending open")
+
+  T.mocks.InCombatLockdown = saved
+  NS.State.panelOpenPending = nil
+end)

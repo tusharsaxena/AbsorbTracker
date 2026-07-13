@@ -136,7 +136,15 @@ The same `RefreshAllPanels` runs after every `/at set`, `/at reset`, and `/at re
 ```lua
 function NS.OpenOptionsPanel()
     if InCombatLockdown() then
-        print("Cannot open settings panel during combat. Try again after combat ends.")
+        if not NS.State.panelOpenPending then
+            NS.State.panelOpenPending = true
+            NS.addon:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+                NS.addon:UnregisterEvent("PLAYER_REGEN_ENABLED")
+                NS.State.panelOpenPending = nil
+                NS.OpenOptionsPanel()               -- replay once lockdown clears
+            end)
+            print("In combat — settings will open when you leave combat.")
+        end
         return
     end
     if not (Settings and Settings.OpenToCategory) then return end
@@ -146,7 +154,7 @@ function NS.OpenOptionsPanel()
 end
 ```
 
-`Settings.OpenToCategory` is part of Blizzard's protected Settings API. Calling it during combat would taint the panel — even after combat ends, the tainted panel can refuse to open or break unrelated UI. The combat-lockdown early-return is mandatory; don't try to clever-defer the call. (`print` here is the file-local `local print = NS.Print`, so the notice carries the cyan `[AT]` prefix.)
+`Settings.OpenToCategory` is part of Blizzard's protected Settings API. Calling it during combat would taint the panel — even after combat ends, the tainted panel can refuse to open or break unrelated UI. Per Ka0s standard §6.2 the gate **defers** rather than refuses: a one-shot `PLAYER_REGEN_ENABLED` handler replays the open the moment combat ends (lockdown already released, so the replay is taint-free), and the `NS.State.panelOpenPending` session flag keeps it to a single queued open no matter how often `/at config` is pressed mid-pull. (`print` here is the file-local `local print = NS.Print`, so the notice carries the cyan `[AT]` prefix.)
 
 `/at config` (dispatched through `NS.COMMANDS` in `settings/Slash.lua`) always opens the **parent** category (the about page) and then calls `expandMainCategory()` to expand the Blizzard Settings left-tree entry so every sub-page is visible. `expandMainCategory` walks `SettingsPanel:GetCategoryList():GetCategoryEntry(mainCategory):SetExpanded(true)` — `SettingsPanel` internals are private API, so the whole call is wrapped in `pcall`; if any of those calls disappears in a future patch, the panel still opens, just without the tree-expansion side effect.
 

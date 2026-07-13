@@ -59,6 +59,25 @@ test("header toggle click flips debug state", function()
   click(); assertTrue(NS.State.debug == false, "second click should turn state off")
 end)
 
+test("/at debug on writes a '[Debug] logging enabled' line to the console", function()
+  NS.State.debug = false
+  debugCmd("on")
+  local last = NS.DebugLog.buffer[#NS.DebugLog.buffer]
+  assertTrue(last and last:find("[Debug] logging enabled", 1, true) ~= nil,
+    "enabling should log '[Debug] logging enabled'")
+  NS.State.debug = false
+end)
+
+test("/at debug off writes a '[Debug] logging disabled' line to the console", function()
+  NS.State.debug = true
+  local before = #NS.DebugLog.buffer
+  debugCmd("off")
+  assertTrue(#NS.DebugLog.buffer > before, "disabling should still append a console line")
+  local last = NS.DebugLog.buffer[#NS.DebugLog.buffer]
+  assertTrue(last and last:find("[Debug] logging disabled", 1, true) ~= nil,
+    "disabling should log '[Debug] logging disabled'")
+end)
+
 test("NS.Debug is a no-op (no console write) when debug is off", function()
   NS.State.debug = false
   local before = #NS.DebugLog.buffer
