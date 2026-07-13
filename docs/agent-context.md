@@ -16,6 +16,13 @@ User-facing reference: [../README.md](../README.md). Subsystems + invariants:
 
 ## Hard rules
 
+- **Conform to the Ka0s WoW Addon Standard** (https://github.com/tusharsaxena/WowAddonStandards).
+  It is the source of truth for layout, TOC, the Ace substrate, schema-driven settings,
+  slash/prefix conventions, locales, Compat, tests/lint, and doc structure. **If a change would
+  deviate, STOP and flag it** — never silently deviate or silently conform. The user decides
+  whether it is (a) an accepted, documented deviation for this addon, or (b) a change to the
+  standard itself (updated upstream in the standards repo, then this addon follows the new rule).
+  See the root [CLAUDE.md](../CLAUDE.md) "Standards compliance" section.
 - **Schema is the single source of truth for settings.** `NS.Schema` is a flat array; each
   `settings/<page>.lua` calls `NS.RegisterSchemaRows({ ... })` at file-load time. The same array
   drives both the AceGUI panel widgets (via `Helpers.RenderSchema` / `Widgets.RenderField`) AND
