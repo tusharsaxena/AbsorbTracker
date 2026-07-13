@@ -32,6 +32,14 @@ return function()
   M.format = string.format
   M.wipe = function(t) if type(t) == "table" then for k in pairs(t) do t[k] = nil end end return t end
 
+  -- Scheduled one-shot timers, recorded so tests can inspect coalescing and fire them on demand.
+  M.__timers = {}
+  M.__fireTimers = function()
+    local due = M.__timers
+    M.__timers = {}
+    for _, t in ipairs(due) do t.fn() end
+  end
+
   -- player / absorb / world
   M.UnitClass = function() return "Mage", "MAGE", 8 end
   M.UnitGetTotalAbsorbs = function() return 0 end
@@ -72,7 +80,11 @@ return function()
       target.RegisterEvent = noop
       target.UnregisterEvent = noop
       target.RegisterChatCommand = noop
-      target.ScheduleTimer = function() return {} end
+      target.ScheduleTimer = function(_, fn, delay)
+        local timer = { fn = fn, delay = delay }
+        M.__timers[#M.__timers + 1] = timer
+        return timer
+      end
       target.ScheduleRepeatingTimer = function() return {} end
       target.CancelTimer = noop
       return target

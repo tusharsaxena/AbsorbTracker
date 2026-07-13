@@ -26,36 +26,41 @@ function addon:OnEnable()
     NS.RestoreBarPosition()
     NS.UpdateBarAppearance()
     NS.UpdateAbsorbBar()
-    NS.RestartUpdateTicker(true)   -- force start on login
 
     self:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED", "OnAbsorbChanged")
+    self:RegisterEvent("UNIT_MAXHEALTH", "OnMaxHealthChanged")
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
 
     -- Create the options panel (defined in settings/Panel.lua).
     if NS.CreateOptionsPanel then NS.CreateOptionsPanel() end
 end
 
--- The ticker (modules/Timer.lua) drives the actual repaint at the configured interval; the
--- absorb event only records that the value changed, so a burst of events can't repaint faster
--- than the interval. Gate the debug read so it costs nothing when debug is off (§12.4).
+-- The absorb event drives a coalesced repaint (modules/Timer.lua). Gate the debug read so it
+-- costs nothing when debug is off (§12.4).
 function addon:OnAbsorbChanged(_, unit)
-    if unit == "player" and NS.State and NS.State.debug then
+    if unit ~= "player" then return end
+    if NS.State and NS.State.debug then
         NS.DebugPrint("UNIT_ABSORB_AMOUNT_CHANGED -",
             AbbreviateNumbers(UnitGetTotalAbsorbs("player") or 0))
     end
+    NS.RequestRepaint()
+end
+
+-- The bar shows absorb as a fraction of max health, so a max-health change (buffs, stamina,
+-- level) must repaint too even when the absorb value itself is unchanged.
+function addon:OnMaxHealthChanged(_, unit)
+    if unit == "player" then NS.RequestRepaint() end
 end
 
 function addon:OnEnterWorld()
-    NS.UpdateAbsorbBar()
+    NS.RequestRepaint()
 end
 
 -- AceDB profile-change callback (registered in core/Database.lua). Repaint the bar from the new
--- profile, restart the ticker with the new interval, and refresh an open settings panel.
+-- profile and refresh an open settings panel.
 function NS.OnProfileChanged()
     NS.RestoreBarPosition()
     NS.UpdateBarAppearance()
     NS.UpdateAbsorbBar()
-    NS.ResetTickerInterval()       -- force ticker restart with the new profile's interval
-    NS.RestartUpdateTicker(true)
     if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
 end
