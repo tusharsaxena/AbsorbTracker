@@ -23,7 +23,7 @@ NS.defaults.profile = {
     useClassColorBorder = false,
     locked = false,
     hidden = false,
-    updateInterval = 1.0,
+    throttleWindow = 0.1,
     position = nil,
 }
 

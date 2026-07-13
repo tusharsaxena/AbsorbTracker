@@ -48,17 +48,16 @@ NS.RegisterSchemaRows({
         default = flatDefaults.locked,
     },
     {
-        path    = "updateInterval",
+        path    = "throttleWindow",
         page    = "general",
         group   = "Performance",
         order   = 10,
         type    = "number",
-        label   = "Update Interval (in sec)",
-        desc    = "How often the bar refreshes. Lower = smoother but more CPU.",
-        default = flatDefaults.updateInterval,
-        min = 0.1, max = 10, step = 0.1, fmt = "%.1f sec",
+        label   = "Update throttle (in sec)",
+        desc    = "Fastest the bar repaints during a burst of changes. Lower = snappier but more CPU.",
+        default = flatDefaults.throttleWindow,
+        min = 0.05, max = 1, step = 0.05, fmt = "%.2f sec",
         solo    = true,
-        onChange = function() NS.RestartUpdateTicker() end,
     },
 })
 
