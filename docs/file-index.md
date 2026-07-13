@@ -39,7 +39,7 @@ Loaded first among addon source (after libs). `Compat` leads so its shim exists 
 |---|------|-------|----------------|
 | 13 | `modules/Bar.lua` | 55 | Bar-frame creation at file-load time (from `flatDefaults`, before the DB is ready). Creates `AbsorbTrackerFrame` (outer movable `BackdropTemplate`, exported as `NS.bar`), the child `statusBar` (`NS.statusBar`), and `valueText` (`NS.valueText`), plus the reusable `NS.backdropInfo` table. The drag handler writes the new `position` via `NS.SetSetting`. |
 | 14 | `modules/Display.lua` | 89 | `RestoreBarPosition` (re-applies the saved `position` or centers), `UpdateBarAppearance` (re-applies *every* visual setting; `SetBackdrop(nil)` first to force refresh), `UpdateAbsorbBar` (reads `UnitGetTotalAbsorbs` / `UnitHealthMax`, formats with `AbbreviateNumbers` — never through `tonumber`; early-outs while `NS.testHoldUntil` is in the future so a `/at test` paint survives the next tick; gates the per-tick debug line behind `NS.State.debug`). |
-| 15 | `modules/Timer.lua` | 17 | Coalescing repaint scheduler via AceTimer. `NS.RequestRepaint()` is a trailing-edge one-shot throttle: a repaint already pending coalesces (no-op); otherwise `NS.addon:ScheduleTimer(fn, throttleWindow)` schedules `NS.UpdateAbsorbBar`, self-clearing (`pending = nil`) inside the callback. No polling fallback; idle = zero repaints. |
+| 15 | `modules/Timer.lua` | 20 | Coalescing repaint scheduler via AceTimer. `NS.RequestRepaint()` is a trailing-edge one-shot throttle: a repaint already pending coalesces (no-op); otherwise `NS.addon:ScheduleTimer(fn, throttleWindow)` schedules `NS.UpdateAbsorbBar`, self-clearing (`pending = nil`) inside the callback. No polling fallback; idle = zero repaints. |
 
 ## settings/ — settings-panel toolkit
 
@@ -69,7 +69,7 @@ Each file (except `Profiles.lua`) registers schema rows for the page, declares a
 
 ## tests/ — headless harness
 
-Run from the repo root with `lua tests/run.lua`. Loads every addon source file with the `("AbsorbTracker", NS)` calling convention against a WoW-API mock, runs `NS:InitDB()`, then executes the suites. 52 tests total.
+Run from the repo root with `lua tests/run.lua`. Loads every addon source file with the `("AbsorbTracker", NS)` calling convention against a WoW-API mock, runs `NS:InitDB()`, then executes the suites. 53 tests total.
 
 | # | File | Lines | Responsibility |
 |---|------|-------|----------------|
@@ -82,7 +82,7 @@ Run from the repo root with `lua tests/run.lua`. Loads every addon source file w
 | 34 | `tests/test_util.lua` | 47 | 5 tests — `NS.Print` / `NS.DebugPrint` prefixing and gating, `NS.SafeToString` secret-value handling. |
 | 35 | `tests/test_debuglog.lua` | 86 | 11 tests — `FormatPlain` / `FormatColored` formatters, `NS.Debug` gating, buffer cap, `SetEnabled` seam. |
 | 36 | `tests/test_slash.lua` | 74 | 7 tests — `NS.COMMANDS` verb table, dispatch, unknown-verb handling. |
-| 37 | `tests/test_timer.lua` | 61 | 6 tests — `NS.RequestRepaint` coalescing + `throttleWindow` delay, `OnAbsorbChanged` / `OnMaxHealthChanged` player-only repaint wiring. |
+| 37 | `tests/test_timer.lua` | 69 | 7 tests — `NS.RequestRepaint` coalescing + `throttleWindow` delay, `OnAbsorbChanged` / `OnMaxHealthChanged` player-only + `OnEnterWorld` repaint wiring. |
 
 ## Bundled libraries (libs/)
 

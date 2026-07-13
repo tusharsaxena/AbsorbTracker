@@ -59,3 +59,11 @@ test("OnMaxHealthChanged ignores non-player units", function()
   NS.addon:OnMaxHealthChanged(nil, "party1")
   assertEqual(#mocks.__timers, 0)
 end)
+
+test("OnEnterWorld requests a repaint", function()
+  local mocks = T.mocks
+  mocks.__timers = {}
+  NS.addon:OnEnterWorld()
+  assertEqual(#mocks.__timers, 1)
+  mocks.__fireTimers()
+end)

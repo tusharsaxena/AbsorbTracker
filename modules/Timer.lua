@@ -11,6 +11,9 @@ local pending
 function NS.RequestRepaint()
     if pending then return end            -- a repaint is already queued; coalesce into it
     pending = NS.addon:ScheduleTimer(function()
+        -- Clear `pending` BEFORE painting (not after): if UpdateAbsorbBar throws (e.g. the combat
+        -- secret-value path), the next event still re-arms instead of the bar freezing until
+        -- /reload — do not "tidy" this to after the paint call.
         pending = nil
         NS.UpdateAbsorbBar()
     end, NS.GetSetting("throttleWindow"))
