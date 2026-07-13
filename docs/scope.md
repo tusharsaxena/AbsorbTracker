@@ -48,7 +48,7 @@ Decisions made during requirements review and earlier releases — these are set
 
 ## Testing posture
 
-- **A headless test harness exists** at `tests/` (`run.lua`, `loader.lua`, `wow_mock.lua` plus `test_schema` / `test_database` / `test_compat` / `test_debuglog` / `test_slash`). It runs outside WoW against a mock and is the green gate together with `luacheck .` (0/0) and `luac -p`. Any claim that "there are no automated tests" is stale.
+- **A headless test harness exists** at `tests/` (`run.lua`, `loader.lua`, `wow_mock.lua` plus `test_schema` / `test_database` / `test_compat` / `test_util` / `test_debuglog` / `test_slash` / `test_timer`). It runs outside WoW against a mock and is the green gate together with `luacheck .` (0/0) and `luac -p`. Any claim that "there are no automated tests" is stale.
 - **In-game smoke tests remain the manual layer.** The harness cannot exercise real frames, protected APIs, or the live absorb engine; [docs/smoke-tests.md](./smoke-tests.md) is still the manual QA recipe run before a release.
 
 ## Where the contract lives
