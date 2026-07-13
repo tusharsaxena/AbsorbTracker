@@ -106,16 +106,25 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   `CreateOptionsPanel`.
 - **AceEvent** subscriptions (registered in `OnEnable`): `UNIT_ABSORB_AMOUNT_CHANGED` (records a
   debug line, then `NS.RequestRepaint()`), `UNIT_MAXHEALTH` (`OnMaxHealthChanged` →
-  `NS.RequestRepaint()` — the bar shows absorb as a fraction of max health), and
-  `PLAYER_ENTERING_WORLD` (`OnEnterWorld` → `NS.RequestRepaint()`). `NS.RequestRepaint` is a
+  `NS.RequestRepaint()` — the bar shows absorb as a fraction of max health),
+  `PLAYER_ENTERING_WORLD` (`OnEnterWorld` → `NS.ApplyVisibility()` + `NS.RequestRepaint()`), and the
+  combat-state pair `PLAYER_REGEN_DISABLED` (`OnEnterCombat`) / `PLAYER_REGEN_ENABLED`
+  (`OnLeaveCombat`) — each re-applies `NS.ApplyVisibility()` (the `showOnlyInCombat` gate) and
+  repaints. `OnLeaveCombat` is the single owner of `PLAYER_REGEN_ENABLED` and also replays a
+  combat-deferred `/at config` from `NS.State.panelOpenPending`. `NS.RequestRepaint` is a
   coalescing one-shot AceTimer throttle (`throttleWindow`, default 0.1s) — idle = zero repaints,
   no polling ticker.
 
 ## Taint Notes
 
 - **Combat-lockdown gate on `/at config`.** `Settings.OpenToCategory` is protected; calling it in
-  combat taints the panel for the session. `NS.OpenOptionsPanel` (`settings/Panel.lua`)
-  early-returns with a chat notice while `InCombatLockdown()` is true.
+  combat taints the panel for the session. `NS.OpenOptionsPanel` (`settings/Panel.lua`) queues the
+  open by setting `NS.State.panelOpenPending` (idempotent) and posting a chat notice while
+  `InCombatLockdown()` is true; `OnLeaveCombat` (`core/AbsorbTracker.lua`, the single owner of
+  `PLAYER_REGEN_ENABLED`) replays it once combat ends.
+- **Bar visibility Show/Hide is taint-free.** `AbsorbTrackerFrame` is a plain (non-secure) frame,
+  so `NS.ApplyVisibility` calling `bar:Show()` / `bar:Hide()` on combat transitions (the
+  `showOnlyInCombat` gate) carries no protected-frame restriction.
 - **`SetBackdrop(nil)` before `SetBackdrop(info)`.** WoW's backdrop API is a no-op when the table
   identity is unchanged even if its fields changed; `UpdateBarAppearance` clears first.
 - **Secret values.** `UnitGetTotalAbsorbs` may return a "secret" value — it is passed straight to

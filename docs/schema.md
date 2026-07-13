@@ -195,6 +195,7 @@ The exhaustive table of every setting the schema exposes. Defaults live in `defa
 |------|------|---------|----------------|-------------|
 | `hidden` | bool | `false` | — | If true, the bar is hidden. Rendered in the panel as an `inverse` "Show Bar" toggle. General page. |
 | `locked` | bool | `false` | — | If true, the bar is unmovable. `/at lock` / `/at unlock` flip this. General page. |
+| `showOnlyInCombat` | bool | `false` | — | When true, the bar is hidden except while in combat (composed with `hidden` via `NS.ShouldShowBar`; the master `hidden` toggle always wins). Label "Show only in combat". `onChange` applies visibility (`NS.ApplyVisibility`). General page, Master controls group, order 15. |
 | `throttleWindow` | number | `0.1` | 0.05 – 1 s (step 0.05) | Fastest the bar repaints during a burst of changes, via `NS.RequestRepaint`'s trailing-edge one-shot AceTimer. Label "Update throttle (in sec)". Display hint `"%.2f sec"`. General page, Performance group, `solo`. |
 | `barWidth` | number | `200` | 50 – 500 px | Bar width. Hint `"%d px"`. Bar page, Size. |
 | `barHeight` | number | `20` | 10 – 100 px | Bar height. Hint `"%d px"`. Bar page, Size. |

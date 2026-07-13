@@ -30,6 +30,8 @@ function addon:OnEnable()
     self:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED", "OnAbsorbChanged")
     self:RegisterEvent("UNIT_MAXHEALTH", "OnMaxHealthChanged")
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
+    self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnEnterCombat")
+    self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnLeaveCombat")
 
     -- Create the options panel (defined in settings/Panel.lua).
     if NS.CreateOptionsPanel then NS.CreateOptionsPanel() end
@@ -53,7 +55,26 @@ function addon:OnMaxHealthChanged(_, unit)
 end
 
 function addon:OnEnterWorld()
+    NS.ApplyVisibility()
     NS.RequestRepaint()
+end
+
+-- Combat transitions re-evaluate bar visibility (the `showOnlyInCombat` gate) and repaint so the
+-- bar is fresh if it just appeared. OnLeaveCombat is also the single owner of PLAYER_REGEN_ENABLED:
+-- it replays a combat-deferred /at config (settings/Panel.lua sets the flag), which keeps AceEvent's
+-- one-handler-per-event rule from colliding with the visibility handler.
+function addon:OnEnterCombat()
+    NS.ApplyVisibility()
+    NS.RequestRepaint()
+end
+
+function addon:OnLeaveCombat()
+    NS.ApplyVisibility()
+    NS.RequestRepaint()
+    if NS.State and NS.State.panelOpenPending then
+        NS.State.panelOpenPending = nil
+        if NS.OpenOptionsPanel then NS.OpenOptionsPanel() end
+    end
 end
 
 -- AceDB profile-change callback (registered in core/Database.lua). Repaint the bar from the new

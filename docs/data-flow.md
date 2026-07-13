@@ -47,6 +47,8 @@ OnEnable (PLAYER_LOGIN timing)
     ├─▶ self:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED", "OnAbsorbChanged")
     ├─▶ self:RegisterEvent("UNIT_MAXHEALTH", "OnMaxHealthChanged")
     ├─▶ self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
+    ├─▶ self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnEnterCombat")
+    ├─▶ self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnLeaveCombat")
     │
     └─▶ if NS.CreateOptionsPanel then
             NS.CreateOptionsPanel()    -- registers parent + sub-pages
@@ -147,13 +149,19 @@ NS.OnProfileChanged()
 
 `Helpers.RefreshAllPanels` walks every registered panel ctx and runs every refresher closure each widget maker registered. Each refresher re-reads its row's value from `db.profile` and pushes it back into the AceGUI widget via `SetValue` / `SetColor` (which AceGUI does NOT fire `OnValueChanged` for — so no recursion). The Profiles sub-page is driven by `AceConfigDialog:Open(...)` and re-pulls its own state on the next show.
 
+## Visibility composition
+
+`NS.ShouldShowBar()` (`modules/Display.lua`) is the single source of truth for whether the bar is on screen: the master `hidden` toggle wins outright (`hidden == true` → hidden regardless of combat), otherwise `showOnlyInCombat and not InCombatLockdown()` hides it. `NS.ApplyVisibility()` calls `NS.ShouldShowBar()` and shows/hides `NS.bar` accordingly (the bar is a plain, non-secure frame, so this is taint-free even mid-combat). `NS.UpdateBarAppearance()` ends with a call to `NS.ApplyVisibility()`, and `NS.UpdateAbsorbBar()` early-returns (skipping the paint) when `NS.ShouldShowBar()` is false — so both the settings-write path and the repaint path stay consistent with the combat gate without each caller re-deriving it.
+
 ## Other events
 
 | Event | Handler | What it does |
 |-------|---------|--------------|
-| `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | `NS.RequestRepaint()`. Handles zone transitions where the engine may have stale state. |
+| `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | `NS.ApplyVisibility()` + `NS.RequestRepaint()`. Handles zone transitions where the engine may have stale state (and re-evaluates the combat-visibility gate on load/reload). |
 | `UNIT_ABSORB_AMOUNT_CHANGED` (player only) | `addon:OnAbsorbChanged` | Debug line (gated on `NS.State.debug`) then `NS.RequestRepaint()`. |
 | `UNIT_MAXHEALTH` (player only) | `addon:OnMaxHealthChanged` | `NS.RequestRepaint()`. The bar shows absorb as a fraction of max health, so a max-health change (buffs, stamina, level) must repaint even when the absorb value itself is unchanged. |
+| `PLAYER_REGEN_DISABLED` (enter combat) | `addon:OnEnterCombat` | `NS.ApplyVisibility()` + `NS.RequestRepaint()` — re-evaluates the `showOnlyInCombat` gate so the bar appears (and repaints fresh) the moment combat starts. |
+| `PLAYER_REGEN_ENABLED` (leave combat) | `addon:OnLeaveCombat` | `NS.ApplyVisibility()` + `NS.RequestRepaint()`, then replays a combat-deferred `/at config`: if `NS.State.panelOpenPending` is set, clears it and calls `NS.OpenOptionsPanel()`. `OnLeaveCombat` is the **single owner** of `PLAYER_REGEN_ENABLED` — `settings/Panel.lua` only sets the `panelOpenPending` flag when `/at config` is invoked mid-combat, so AceEvent's one-handler-per-event rule never collides between the visibility handler and the deferred-panel-open handler. |
 
 ## Performance budget
 

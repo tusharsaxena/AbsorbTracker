@@ -100,6 +100,8 @@ A row marked `solo = true` flushes any in-progress two-column row first, then re
 
 The optional `afterGroup` map is `{ [groupName] = function(ctx) ... end }`. Each callback fires once, immediately after the group's last schema row is rendered (and before the next group's heading), then is nilled out (one-shot). General uses this to inject `Helpers.InlineButtonPair` ("Reset Position" + "Reset All Settings") under the **Master controls** group.
 
+On the General page, the **Master controls** group renders three schema rows in order — `hidden` ("Show Bar", order 10), `showOnlyInCombat` ("Show only in combat", order 15), `locked` ("Lock Position", order 20) — plus the `afterGroup`-injected button pair. The 50/50 pairing packs them as `[Show Bar] [Show only in combat]` on the first line; `locked` has no row left to pair with, so `[Lock Position]` renders alone on the next line; then `[Reset Position] [Reset All Settings]`.
+
 ## Widget makers and refresher closures
 
 Each row dispatches to a maker by `row.type`:

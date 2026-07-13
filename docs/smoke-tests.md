@@ -3,7 +3,7 @@
 Run on a **live Retail (Midnight, 12.0.7 / Interface 120007) English client** in order — later
 tests assume the addon loaded cleanly. Enable Lua errors first (`/console scriptErrors 1`, or
 BugSack/BugGrabber). Watch chat for the cyan `[AT]` prefix and for any red error frame. The addon
-also ships a headless gate (`lua tests/run.lua` → 53 passed, `luacheck .` → 0/0, `luac -p <file>`)
+also ships a headless gate (`lua tests/run.lua` → 60 passed, `luacheck .` → 0/0, `luac -p <file>`)
 that covers the pure logic; this suite covers everything that only runs against the live client.
 
 ### A. Load & bootstrap

@@ -47,11 +47,19 @@ function NS.UpdateBarAppearance()
     bar:SetMovable(not locked)
     bar:EnableMouse(not locked)
 
-    if NS.GetSetting("hidden") then
-        bar:Hide()
-    else
-        bar:Show()
-    end
+    NS.ApplyVisibility()
+end
+
+-- Effective bar visibility. The `hidden` master toggle wins; then the combat gate. The bar is a
+-- plain (non-secure) frame, so Show/Hide is taint-free even mid-combat.
+function NS.ShouldShowBar()
+    if NS.GetSetting("hidden") then return false end
+    if NS.GetSetting("showOnlyInCombat") and not InCombatLockdown() then return false end
+    return true
+end
+
+function NS.ApplyVisibility()
+    if NS.ShouldShowBar() then NS.bar:Show() else NS.bar:Hide() end
 end
 
 -- Repaint the absorb value. Reads the raw (possibly "secret") UnitGetTotalAbsorbs value and hands
@@ -61,8 +69,8 @@ function NS.UpdateAbsorbBar()
     local statusBar = NS.statusBar
     local valueText = NS.valueText
 
-    if NS.GetSetting("hidden") then
-        NS.DebugPrint("UpdateAbsorbBar", "Skipped: bar is hidden")
+    if not NS.ShouldShowBar() then
+        NS.DebugPrint("UpdateAbsorbBar", "Skipped: bar not visible")
         return
     end
 
