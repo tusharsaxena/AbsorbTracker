@@ -151,7 +151,7 @@ NS.OnProfileChanged()
 
 ## Visibility composition
 
-`NS.ShouldShowBar()` (`modules/Display.lua`) is the single source of truth for whether the bar is on screen: the master `hidden` toggle wins outright (`hidden == true` → hidden regardless of combat), otherwise `showOnlyInCombat and not InCombatLockdown()` hides it. `NS.ApplyVisibility()` calls `NS.ShouldShowBar()` and shows/hides `NS.bar` accordingly (the bar is a plain, non-secure frame, so this is taint-free even mid-combat). `NS.UpdateBarAppearance()` ends with a call to `NS.ApplyVisibility()`, and `NS.UpdateAbsorbBar()` early-returns (skipping the paint) when `NS.ShouldShowBar()` is false — so both the settings-write path and the repaint path stay consistent with the combat gate without each caller re-deriving it.
+`NS.ShouldShowBar()` (`modules/Display.lua`) is the single source of truth for whether the bar is on screen: the master `hidden` toggle wins outright (`hidden == true` → hidden regardless of combat), otherwise `showOnlyInCombat and not UnitAffectingCombat("player")` hides it (the gate keys off actual player combat, **not** `InCombatLockdown()`, which lags the `PLAYER_REGEN_DISABLED` transition — see `docs/midnight-quirks.md`). `NS.ApplyVisibility()` calls `NS.ShouldShowBar()` and shows/hides `NS.bar` accordingly (the bar is a plain, non-secure frame, so this is taint-free even mid-combat). `NS.UpdateBarAppearance()` ends with a call to `NS.ApplyVisibility()`, and `NS.UpdateAbsorbBar()` early-returns (skipping the paint) when `NS.ShouldShowBar()` is false — so both the settings-write path and the repaint path stay consistent with the combat gate without each caller re-deriving it.
 
 ## Other events
 

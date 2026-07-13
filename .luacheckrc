@@ -11,7 +11,8 @@ ignore = {
 read_globals = {
   "_G", "LibStub", "CreateFrame", "UIParent", "GetTime", "format", "time", "date",
   "UnitClass", "UnitHealthMax", "UnitGetTotalAbsorbs", "AbbreviateNumbers", "C_ClassColor",
-  "InCombatLockdown", "Settings", "SettingsPanel", "C_Timer", "C_AddOns", "GetAddOnMetadata",
+  "InCombatLockdown", "UnitAffectingCombat", "Settings", "SettingsPanel", "C_Timer", "C_AddOns",
+  "GetAddOnMetadata",
   "hooksecurefunc", "GameTooltip", "DEFAULT_CHAT_FRAME", "UISpecialFrames",
   "StaticPopup_Show", "CreateColor", "PlaySound",
   "wipe", "strsplit", "strtrim", "tinsert", "tremove", "select",

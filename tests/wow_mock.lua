@@ -47,6 +47,7 @@ return function()
   M.AbbreviateNumbers = function(n) return tostring(n) end
   M.C_ClassColor = { GetClassColor = function() return { r = 1, g = 1, b = 1 } end }
   M.InCombatLockdown = function() return false end
+  M.UnitAffectingCombat = function() return false end
 
   -- UI
   M.UIParent = stubFrame()

@@ -52,9 +52,17 @@ end
 
 -- Effective bar visibility. The `hidden` master toggle wins; then the combat gate. The bar is a
 -- plain (non-secure) frame, so Show/Hide is taint-free even mid-combat.
+--
+-- The combat gate keys off UnitAffectingCombat("player"), NOT InCombatLockdown(). At
+-- PLAYER_REGEN_DISABLED (OnEnterCombat), the client fires the event while InCombatLockdown() is
+-- still false — secure-frame lockdown lags actual combat by a fraction of a second — so gating on
+-- lockdown hid the bar exactly when it should appear, and no later repaint re-shows it (the paint
+-- path only updates the value). UnitAffectingCombat("player") is true the moment combat starts and
+-- false at PLAYER_REGEN_ENABLED, which is the correct predicate for a display gate. See
+-- docs/midnight-quirks.md.
 function NS.ShouldShowBar()
     if NS.GetSetting("hidden") then return false end
-    if NS.GetSetting("showOnlyInCombat") and not InCombatLockdown() then return false end
+    if NS.GetSetting("showOnlyInCombat") and not UnitAffectingCombat("player") then return false end
     return true
 end
 

@@ -34,6 +34,24 @@ bar:SetBackdrop(backdropInfo)   -- re-apply with current fields
 
 Don't try to "optimize" by skipping the `SetBackdrop(nil)`. The backdrop will look stale until the next `/reload`.
 
+## `InCombatLockdown()` lags `PLAYER_REGEN_DISABLED` — use `UnitAffectingCombat` for the visibility gate
+
+The `showOnlyInCombat` bar-visibility gate (`NS.ShouldShowBar`, `modules/Display.lua`) must key off `UnitAffectingCombat("player")`, **not** `InCombatLockdown()`.
+
+`InCombatLockdown()` reports the *secure-frame lockdown* state, which is a distinct thing from "the player is in combat" — and in this client the two are not simultaneous at the entering-combat edge. When `PLAYER_REGEN_DISABLED` fires (`addon:OnEnterCombat`), `InCombatLockdown()` still returns **false**; secure lockdown engages a fraction of a second later. Debug capture of the transition:
+
+```
+[OnEnterCombat] fired | InCombatLockdown: false
+[ApplyVisibility] decision: HIDE | InCombatLockdown: false | showOnlyInCombat: true
+[UpdateAbsorbBar] Absorb: <secret> | MaxHP: 734K   ← same second, now NOT skipped → lockdown flipped true
+```
+
+Gating on `InCombatLockdown()` therefore hid the bar at the exact moment it should appear: `OnEnterCombat`'s `NS.ApplyVisibility()` read the stale `false` and called `bar:Hide()`. The bar never recovered for the rest of the fight, because the repaint path (`NS.UpdateAbsorbBar`) only updates the bar's *value* — it never re-runs the show/hide decision — so nothing re-showed the frame once lockdown flipped true. Absorb values kept painting underneath a hidden frame.
+
+`UnitAffectingCombat("player")` is true from the instant combat starts (already true at `PLAYER_REGEN_DISABLED`) and false at `PLAYER_REGEN_ENABLED`, which is exactly the predicate a *display* gate wants. The bar is a plain, non-secure frame, so this query carries no taint concern.
+
+**Rule of thumb:** `InCombatLockdown()` answers "are secure actions locked?" (use it to defer protected API calls like `Settings.OpenToCategory`, below). `UnitAffectingCombat("player")` answers "is the player in combat?" (use it for display/visibility logic). They are not interchangeable at the combat-entry edge.
+
 ## Combat lockdown taints `Settings.OpenToCategory`
 
 `Settings.OpenToCategory(categoryID)` is part of the protected Settings API. Calling it during combat would taint the panel — even after combat ends, the tainted panel can refuse to open or break unrelated UI behavior.
