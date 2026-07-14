@@ -165,3 +165,23 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
   measurable combat CPU hotspot. A private unit-event frame is the established WoW pattern for this
   (BigWigs et al.). All other events (`PLAYER_ENTERING_WORLD`, `PLAYER_REGEN_DISABLED/ENABLED`) stay
   on AceEvent. This is the *only* raw event frame; §9.1 otherwise holds.
+
+## Performance & Profiler Attribution
+
+The addon is purely reactive — **no `OnUpdate`, no repeating ticker, no combat-log parsing, no
+hot-path hooks.** Its entire runtime cost is: player `UNIT_*` event (C-filtered) → `OnAbsorbChanged`
+/ `OnMaxHealthChanged` → `NS.RequestRepaint` (coalescing one-shot AceTimer, `throttleWindow` default
+0.1 s) → `NS.UpdateAbsorbBar`. After Finding 1 (above) the real cost is ~1.8 ms/s ≈ 0.18 % of one
+core.
+
+**Reading the in-game Addon Profiler (`C_AddOnProfiler`) — important caveat.** The profiler bills a
+shared library's dispatch frame to **whichever addon created it (first to load that LibStub copy)**,
+not to the addons whose callbacks it later serves. Because WoW loads addons **alphabetically** and
+`AbsorbTracker` sorts near the top, it typically **owns the shared AceEvent/CallbackHandler event
+frame** and is billed for *every* Ace-based addon's event dispatch. This makes it rank far higher
+than its own work warrants (it out-ranked ElvUI). This is **not** waste and is **not fixable from the
+addon** — a standalone Ace addon must ship AceEvent and may legitimately load first. It was proven by
+a controlled disable test (the blame transferred to the next alphabetical Ace addon, AlterEgo).
+
+Full analysis, exact numbers, and profiler screenshots:
+[docs/investigations/2026-07-14-addon-profiler-attribution/](./investigations/2026-07-14-addon-profiler-attribution/analysis.md).
