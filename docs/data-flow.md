@@ -44,8 +44,8 @@ OnEnable (PLAYER_LOGIN timing)
     ├─▶ NS.UpdateBarAppearance()       -- size, textures, colors, border, font
     ├─▶ NS.UpdateAbsorbBar()           -- initial value paint (direct, not via RequestRepaint)
     │
-    ├─▶ self:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED", "OnAbsorbChanged")
-    ├─▶ self:RegisterEvent("UNIT_MAXHEALTH", "OnMaxHealthChanged")
+    ├─▶ [private frame] RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "player") ─▶ OnAbsorbChanged
+    ├─▶ [private frame] RegisterUnitEvent("UNIT_MAXHEALTH", "player")             ─▶ OnMaxHealthChanged
     ├─▶ self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
     ├─▶ self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnEnterCombat")
     ├─▶ self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnLeaveCombat")
@@ -55,7 +55,7 @@ OnEnable (PLAYER_LOGIN timing)
         end
 ```
 
-Events are AceEvent registrations (`self:RegisterEvent`), not a hidden `CreateFrame` frame. The `if NS.CreateOptionsPanel then ... end` guard is the [forward-reference pattern](./module-map.md#forward-references) — in practice the call always succeeds because all files load synchronously before `OnEnable` fires, but the nil-check keeps the load-order coupling soft.
+The two `UNIT_*` events go through a **private `CreateFrame` frame** with `RegisterUnitEvent(event, "player")`, not AceEvent — a documented §9.1 deviation ([ARCHITECTURE.md → Standards Deviations](./ARCHITECTURE.md#standards-deviations)). These events fire for *every* unit the client knows about; AceEvent-3.0 shares one frame and cannot `RegisterUnitEvent`, so a plain `RegisterEvent` would pay a C→Lua dispatch per unit only to discard all but `"player"`. The private frame filters at the C layer instead. The three global, payload-free events stay on AceEvent (`self:RegisterEvent`). The `if NS.CreateOptionsPanel then ... end` guard is the [forward-reference pattern](./module-map.md#forward-references) — in practice the call always succeeds because all files load synchronously before `OnEnable` fires, but the nil-check keeps the load-order coupling soft.
 
 ## Absorb-update path
 
@@ -64,7 +64,7 @@ Events are AceEvent registrations (`self:RegisterEvent`), not a hidden `CreateFr
         │                                     │                            │
         ▼                                     ▼                            ▼
 UNIT_ABSORB_AMOUNT_CHANGED           UNIT_MAXHEALTH                PLAYER_ENTERING_WORLD
-(player only; AceEvent →             (player only; AceEvent →      (AceEvent →
+(player only; unit frame →           (player only; unit frame →    (AceEvent →
  addon:OnAbsorbChanged)               addon:OnMaxHealthChanged)     addon:OnEnterWorld)
         │  (also a debug line,               │                            │
         │   gated on NS.State.debug)         │                            │
@@ -158,8 +158,8 @@ NS.OnProfileChanged()
 | Event | Handler | What it does |
 |-------|---------|--------------|
 | `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | `NS.ApplyVisibility()` + `NS.RequestRepaint()`. Handles zone transitions where the engine may have stale state (and re-evaluates the combat-visibility gate on load/reload). |
-| `UNIT_ABSORB_AMOUNT_CHANGED` (player only) | `addon:OnAbsorbChanged` | Debug line (gated on `NS.State.debug`) then `NS.RequestRepaint()`. |
-| `UNIT_MAXHEALTH` (player only) | `addon:OnMaxHealthChanged` | `NS.RequestRepaint()`. The bar shows absorb as a fraction of max health, so a max-health change (buffs, stamina, level) must repaint even when the absorb value itself is unchanged. |
+| `UNIT_ABSORB_AMOUNT_CHANGED` (player only — private `RegisterUnitEvent` frame, C-level filter) | `addon:OnAbsorbChanged` | Debug line (gated on `NS.State.debug`) then `NS.RequestRepaint()`. |
+| `UNIT_MAXHEALTH` (player only — private `RegisterUnitEvent` frame, C-level filter) | `addon:OnMaxHealthChanged` | `NS.RequestRepaint()`. The bar shows absorb as a fraction of max health, so a max-health change (buffs, stamina, level) must repaint even when the absorb value itself is unchanged. |
 | `PLAYER_REGEN_DISABLED` (enter combat) | `addon:OnEnterCombat` | `NS.ApplyVisibility()` + `NS.RequestRepaint()` — re-evaluates the `showOnlyInCombat` gate so the bar appears (and repaints fresh) the moment combat starts. |
 | `PLAYER_REGEN_ENABLED` (leave combat) | `addon:OnLeaveCombat` | `NS.ApplyVisibility()` + `NS.RequestRepaint()`, then replays a combat-deferred `/at config`: if `NS.State.panelOpenPending` is set, clears it and calls `NS.OpenOptionsPanel()`. `OnLeaveCombat` is the **single owner** of `PLAYER_REGEN_ENABLED` — `settings/Panel.lua` only sets the `panelOpenPending` flag when `/at config` is invoked mid-combat, so AceEvent's one-handler-per-event rule never collides between the visibility handler and the deferred-panel-open handler. |
 

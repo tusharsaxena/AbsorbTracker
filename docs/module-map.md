@@ -186,8 +186,9 @@ addon:OnInitialize()   -- ADDON_LOADED timing: register the LSM monospace font, 
                        -- NS.Slash:Register().
 addon:OnEnable()       -- PLAYER_LOGIN timing: ClearLSMCache -> GetLSM -> ApplyLSMBorderPatch ->
                        -- RestoreBarPosition -> UpdateBarAppearance -> UpdateAbsorbBar (direct
-                       -- paint); RegisterEvent UNIT_ABSORB_AMOUNT_CHANGED / UNIT_MAXHEALTH /
-                       -- PLAYER_ENTERING_WORLD; CreateOptionsPanel.
+                       -- paint); private RegisterUnitEvent frame for UNIT_ABSORB_AMOUNT_CHANGED /
+                       -- UNIT_MAXHEALTH ("player"); RegisterEvent PLAYER_ENTERING_WORLD /
+                       -- PLAYER_REGEN_DISABLED / PLAYER_REGEN_ENABLED; CreateOptionsPanel.
 addon:OnAbsorbChanged(_, unit)  -- UNIT_ABSORB_AMOUNT_CHANGED; records a debug line, then calls
                                 -- NS.RequestRepaint() (a burst coalesces into one repaint).
 addon:OnMaxHealthChanged(_, unit)  -- UNIT_MAXHEALTH; NS.RequestRepaint() (absorb is shown as a
@@ -199,7 +200,7 @@ NS.OnProfileChanged()  -- registered as the AceDB profile callback inside InitDB
                        -- paint) + RefreshOptionsPanel.
 ```
 
-Events are AceEvent (`self:RegisterEvent`), not raw `CreateFrame` frames. Detail in [data-flow.md](./data-flow.md).
+Events are AceEvent (`self:RegisterEvent`), **except** the two `UNIT_*` events (`UNIT_ABSORB_AMOUNT_CHANGED`, `UNIT_MAXHEALTH`), which use a private `CreateFrame` frame with `RegisterUnitEvent(event, "player")` for C-level unit filtering — a documented §9.1 deviation ([ARCHITECTURE.md → Standards Deviations](./ARCHITECTURE.md#standards-deviations)). Detail in [data-flow.md](./data-flow.md).
 
 ### Defaults (`defaults/Profile.lua`)
 

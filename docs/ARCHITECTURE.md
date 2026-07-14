@@ -104,16 +104,26 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   `ClearLSMCache` → `GetLSM` → `ApplyLSMBorderPatch` → `RestoreBarPosition` →
   `UpdateBarAppearance` → `UpdateAbsorbBar` (direct paint) → register events →
   `CreateOptionsPanel`.
-- **AceEvent** subscriptions (registered in `OnEnable`): `UNIT_ABSORB_AMOUNT_CHANGED` (records a
-  debug line, then `NS.RequestRepaint()`), `UNIT_MAXHEALTH` (`OnMaxHealthChanged` →
-  `NS.RequestRepaint()` — the bar shows absorb as a fraction of max health),
-  `PLAYER_ENTERING_WORLD` (`OnEnterWorld` → `NS.ApplyVisibility()` + `NS.RequestRepaint()`), and the
-  combat-state pair `PLAYER_REGEN_DISABLED` (`OnEnterCombat`) / `PLAYER_REGEN_ENABLED`
-  (`OnLeaveCombat`) — each re-applies `NS.ApplyVisibility()` (the `showOnlyInCombat` gate) and
-  repaints. `OnLeaveCombat` is the single owner of `PLAYER_REGEN_ENABLED` and also replays a
-  combat-deferred `/at config` from `NS.State.panelOpenPending`. `NS.RequestRepaint` is a
-  coalescing one-shot AceTimer throttle (`throttleWindow`, default 0.1s) — idle = zero repaints,
-  no polling ticker.
+- **Private unit-event frame** (the two `UNIT_*` events): `UNIT_ABSORB_AMOUNT_CHANGED` (records a
+  debug line, then `NS.RequestRepaint()`) and `UNIT_MAXHEALTH` (`OnMaxHealthChanged` →
+  `NS.RequestRepaint()` — the bar shows absorb as a fraction of max health) are registered on a
+  private `CreateFrame("Frame")` via `RegisterUnitEvent(event, "player")`, **not** through AceEvent.
+  This is a documented §9.1 deviation (see below): these events fire for *every* unit the client
+  knows about (all raid members, pets, nameplates, target/focus), and AceEvent-3.0 routes all
+  events through one shared frame with plain `RegisterEvent` and cannot `RegisterUnitEvent` (a frame
+  can unit-filter at most two units) — so an AceEvent registration would pay a full C→Lua dispatch
+  for every unit only to discard all but `"player"`. The private frame moves that filter to the C
+  layer; the handler never fires for other units. The OnEvent stub routes to the same
+  `addon:OnAbsorbChanged` / `addon:OnMaxHealthChanged` methods; it is created once and guarded
+  against a disable/enable cycle.
+- **AceEvent** subscriptions (registered in `OnEnable`): `PLAYER_ENTERING_WORLD` (`OnEnterWorld` →
+  `NS.ApplyVisibility()` + `NS.RequestRepaint()`) and the combat-state pair `PLAYER_REGEN_DISABLED`
+  (`OnEnterCombat`) / `PLAYER_REGEN_ENABLED` (`OnLeaveCombat`) — each re-applies
+  `NS.ApplyVisibility()` (the `showOnlyInCombat` gate) and repaints. These are global, payload-free
+  events with no unit to filter, so they stay on AceEvent. `OnLeaveCombat` is the single owner of
+  `PLAYER_REGEN_ENABLED` and also replays a combat-deferred `/at config` from
+  `NS.State.panelOpenPending`. `NS.RequestRepaint` is a coalescing one-shot AceTimer throttle
+  (`throttleWindow`, default 0.1s) — idle = zero repaints, no polling ticker.
 
 ## Taint Notes
 
@@ -138,3 +148,20 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   ([scope.md](./scope.md)).
 - **No closed message bus** — cross-module calls are direct `NS.X` references, not
   `SendMessage`/`RegisterMessage`.
+
+## Standards Deviations
+
+Accepted, intentional departures from the Ka0s WoW Addon Standard. Each is recorded here with its
+justification; a fresh `/standards-audit` will re-surface them into a new dated bundle under
+`docs/audits/`.
+
+- **§9.1 — private `CreateFrame` event frame for the two `UNIT_*` events.** `OnEnable`
+  (`core/AbsorbTracker.lua`) registers `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` on a
+  private frame via `RegisterUnitEvent(event, "player")` rather than through AceEvent-3.0.
+  **Why:** both events fire for every unit the client knows about (raid, pets, nameplates,
+  target/focus); AceEvent-3.0 uses a single shared frame with plain `RegisterEvent` and
+  structurally cannot `RegisterUnitEvent` (a frame unit-filters at most two units), so an AceEvent
+  registration pays a full C→Lua dispatch per unit only to discard all but `"player"` — a
+  measurable combat CPU hotspot. A private unit-event frame is the established WoW pattern for this
+  (BigWigs et al.). All other events (`PLAYER_ENTERING_WORLD`, `PLAYER_REGEN_DISABLED/ENABLED`) stay
+  on AceEvent. This is the *only* raw event frame; §9.1 otherwise holds.

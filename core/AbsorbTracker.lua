@@ -36,8 +36,28 @@ function addon:OnEnable()
     NS.UpdateBarAppearance()
     NS.UpdateAbsorbBar()
 
-    self:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED", "OnAbsorbChanged")
-    self:RegisterEvent("UNIT_MAXHEALTH", "OnMaxHealthChanged")
+    -- UNIT_ABSORB_AMOUNT_CHANGED and UNIT_MAXHEALTH fire for EVERY unit the client knows about (all
+    -- raid members, their pets, nameplates, target/focus) — a flood of events per second in combat,
+    -- of which we care about exactly one unit. The vendored AceEvent-3.0 (MINOR 4) registers on a
+    -- shared frame with plain RegisterEvent and has no unit filtering, so routing these two through
+    -- AceEvent would pay a full C→Lua dispatch for every unit only to discard all but "player".
+    -- Register them on a private frame with RegisterUnitEvent("player") instead: the client filters
+    -- at the C level and OnEvent never fires for other units. (The rest are global, payload-free
+    -- events and stay on AceEvent.) Guard so a disable/enable cycle doesn't leak a second frame.
+    if not self.unitEventFrame then
+        local f = CreateFrame("Frame")
+        f:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "player")
+        f:RegisterUnitEvent("UNIT_MAXHEALTH", "player")
+        f:SetScript("OnEvent", function(_, event, unit)
+            if event == "UNIT_ABSORB_AMOUNT_CHANGED" then
+                addon:OnAbsorbChanged(event, unit)
+            else
+                addon:OnMaxHealthChanged(event, unit)
+            end
+        end)
+        self.unitEventFrame = f
+    end
+
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
     self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnEnterCombat")
     self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnLeaveCombat")
