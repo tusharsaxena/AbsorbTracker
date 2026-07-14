@@ -143,7 +143,7 @@ When a new retail patch ships:
 
 If the new patch *breaks* the addon, note the regression in README's troubleshooting section.
 
-See also: the [`/wow-addon:bump-interface` skill](../../.claude/skills/) for the automated version of this.
+See also: the `/wow-addon:bump-interface` skill for the automated version of this.
 
 ## Run the test gate
 
