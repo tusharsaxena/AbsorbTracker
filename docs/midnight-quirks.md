@@ -59,25 +59,33 @@ Gating on `InCombatLockdown()` therefore hid the bar at the exact moment it shou
 `NS.OpenOptionsPanel` (`settings/Panel.lua`) **defers** the open to combat end when `InCombatLockdown()` is true, per Ka0s standard §6.2 (defer-and-replay, not refuse):
 
 ```lua
-if InCombatLockdown() then
-    if not NS.State.panelOpenPending then
-        NS.State.panelOpenPending = true
-        NS.addon:RegisterEvent("PLAYER_REGEN_ENABLED", function()
-            NS.addon:UnregisterEvent("PLAYER_REGEN_ENABLED")
-            NS.State.panelOpenPending = nil
-            NS.OpenOptionsPanel()               -- replay once lockdown has cleared
-        end)
-        print("In combat — settings will open when you leave combat.")
+-- settings/Panel.lua — queue only; do NOT self-register a handler here.
+function NS.OpenOptionsPanel()
+    if InCombatLockdown() then
+        if not NS.State.panelOpenPending then
+            NS.State.panelOpenPending = true          -- idempotent session flag
+            print("In combat — settings will open when you leave combat.")
+        end
+        return
     end
-    return
+    Settings.OpenToCategory(mainCategoryID)
+    expandMainCategory()
 end
-Settings.OpenToCategory(mainCategoryID)
-expandMainCategory()
+
+-- core/AbsorbTracker.lua — OnLeaveCombat is the SINGLE owner of PLAYER_REGEN_ENABLED
+-- and consumes the flag, so there is no per-open handler to register/unregister.
+function addon:OnLeaveCombat()
+    -- …ApplyVisibility + RequestRepaint…
+    if NS.State.panelOpenPending then
+        NS.State.panelOpenPending = nil
+        NS.OpenOptionsPanel()                         -- replay once lockdown has cleared
+    end
+end
 ```
 
 (The `print` is the `local print = NS.Print` shadow at the top of `settings/Panel.lua`, so the chat output gets the cyan `[AT]` prefix.)
 
-`PLAYER_REGEN_ENABLED` fires when combat *ends* — lockdown is already released — so the replayed `Settings.OpenToCategory` runs taint-free. The `NS.State.panelOpenPending` session flag makes it idempotent: hammering `/at config` mid-pull registers exactly one one-shot replay, and the handler unregisters itself on the first fire. `NS.State` is session-only, so a `/reload` during combat clears any pending open. This replaced the earlier refuse-with-notice behavior when the addon was brought into line with §6.2.
+`PLAYER_REGEN_ENABLED` fires when combat *ends* — lockdown is already released — so the replayed `Settings.OpenToCategory` runs taint-free. The `NS.State.panelOpenPending` session flag makes it idempotent: hammering `/at config` mid-pull queues exactly one open, and `OnLeaveCombat` clears the flag before replaying. AceEvent allows only one handler per event, so `PLAYER_REGEN_ENABLED` has a single fixed owner (`OnLeaveCombat`) rather than a handler registered per open — the flag, not a throwaway closure, carries the intent. `NS.State` is session-only, so a `/reload` during combat clears any pending open. This replaced the earlier refuse-with-notice behavior when the addon was brought into line with §6.2.
 
 ## `Settings.OpenToCategory` wants a numeric ID, not a category object
 

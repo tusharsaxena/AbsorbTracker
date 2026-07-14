@@ -219,5 +219,3 @@ The exhaustive table of every setting the schema exposes. Defaults live in `defa
 - [settings-panel.md](./settings-panel.md) — how the schema-built pages get registered with Blizzard's Settings UI.
 - [data-flow.md](./data-flow.md) — the `SetByPath → onChange → UpdateBarAppearance` path.
 - [common-tasks.md](./common-tasks.md#add-a-new-setting) — recipe for adding a new schema row.
-</content>
-</invoke>

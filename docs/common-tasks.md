@@ -168,6 +168,7 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 | `tests/test_debuglog.lua` | `NS.Debug` sink, `FormatPlain` / `FormatColored`, on/off state |
 | `tests/test_slash.lua` | `NS.COMMANDS` dispatch, unknown-verb path, `/at` verbs |
 | `tests/test_timer.lua` | `NS.RequestRepaint` coalescing + `throttleWindow` delay, event-handler repaint wiring |
+| `tests/test_visibility.lua` | `NS.ShouldShowBar` / `NS.ApplyVisibility` combat gate (`showOnlyInCombat`), `OnEnterCombat` visibility+repaint, `OnLeaveCombat` deferred-`/at config` replay via `NS.State.panelOpenPending` |
 
 Add a new setting or page? Assert its default resolves in `test_schema.lua`. New slash verb? Add a `test_slash.lua` case. New core behavior? Prefer a new `tests/test_<area>.lua` wired into `tests/run.lua`.
 
