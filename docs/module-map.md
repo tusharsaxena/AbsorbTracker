@@ -58,7 +58,9 @@ NS.name    -- addonName
 NS.version -- "1.9.0" string constant
 NS.PREFIX  -- "|cFF00FFFF[AT]|r" — the one shared cyan [AT] chat tag
 
--- Cached math/string on NS to avoid global lookups in the bar paint path
+-- Cached math/string on NS to avoid global lookups in the bar paint path.
+-- modules/Display.lua pulls floor/max as locals; format is cached but has no
+-- current caller (dead-export candidate — see file-index.md).
 NS.floor  = math.floor
 NS.max    = math.max
 NS.format = format or string.format
