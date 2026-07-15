@@ -201,7 +201,13 @@ addon:OnAbsorbChanged(_, unit)  -- UNIT_ABSORB_AMOUNT_CHANGED; records a debug l
 addon:OnMaxHealthChanged(_, unit)  -- UNIT_MAXHEALTH; NS.RequestRepaint() (absorb is shown as a
                                     -- fraction of max health, so it must repaint too).
 addon:OnEnterWorld()   -- PLAYER_ENTERING_WORLD; NS.RequestRepaint().
+addon:OnEnterCombat()  -- PLAYER_REGEN_DISABLED; resets per-combat debug counters, applies
+                       -- visibility, NS.RequestRepaint().
+addon:OnLeaveCombat()  -- PLAYER_REGEN_ENABLED; applies visibility + repaints, flushes one
+                       -- "[Combat] left: N events, M repaints" rollup (never replays /at config).
 
+NS.NoteRepaint()       -- bumps the debug-gated repaint counter + last-absorb snapshot; called by
+                       -- modules/Display.lua's UpdateAbsorbBar on every paint.
 NS.OnProfileChanged()  -- registered as the AceDB profile callback inside InitDB; runs
                        -- RestoreBarPosition + UpdateBarAppearance + UpdateAbsorbBar (direct
                        -- paint) + RefreshOptionsPanel.
@@ -246,6 +252,9 @@ NS.RestoreBarPosition()      -- re-applies the saved position table or centers t
 NS.UpdateBarAppearance()     -- re-applies size, textures, colors, border, font, lock, visibility
 NS.UpdateAbsorbBar()         -- reads UnitGetTotalAbsorbs + UnitHealthMax, pushes into
                              -- statusBar/valueText; honors the /at test hold window
+NS.ShouldShowBar()           -- visibility truth table: master hidden-toggle vs. show-only-in-combat
+                             -- vs. UnitAffectingCombat/InCombatLockdown (lockdown-lag aware)
+NS.ApplyVisibility()         -- shows/hides the bar frame per ShouldShowBar()
 ```
 
 `UpdateBarAppearance` does the `SetBackdrop(nil)` → `SetBackdrop(info)` clear-then-reapply dance (WoW's backdrop API no-ops on unchanged table identity). `UpdateAbsorbBar` hands the raw (possibly "secret") absorb value straight to `AbbreviateNumbers` — never through `tonumber`. Detail in [midnight-quirks.md](./midnight-quirks.md).

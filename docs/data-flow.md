@@ -21,13 +21,13 @@ OnInitialize (ADDON_LOADED)
     │     ├─ fallback when AceDB absent:
     │     │     NS.db = { profile = AbsorbTrackerDB, global = {} }
     │     └─ NS:RunMigrations()          -- idempotent; v1 backfills missing
-    │                                    --   profile keys from flatDefaults
+    │                                    --   profile keys, v2 drops updateInterval
     │
     └─▶ NS.Slash:Register()             -- settings/Slash.lua registers the
                                         --   /at + /absorbtracker chat commands
 ```
 
-The flat→profile migration lives in `NS:RunMigrations` (`core/Database.lua`), not in the bootstrap body. Its v1 step walks `NS.flatDefaults` and copies any key still missing from `db.profile` (deep-copying table defaults so a saved-variable mutation can't reach back into the defaults). Because it only fills absent keys, it is a no-op on the second run — this single versioned step absorbs both the legacy pre-AceDB flat-SavedVariables shape and the no-AceDB fallback.
+The flat→profile migration lives in `NS:RunMigrations` (`core/Database.lua`), not in the bootstrap body. Its v1 step walks `NS.flatDefaults` and copies any key still missing from `db.profile` (deep-copying table defaults so a saved-variable mutation can't reach back into the defaults). Because it only fills absent keys, it is a no-op on the second run — this step absorbs both the legacy pre-AceDB flat-SavedVariables shape and the no-AceDB fallback. The shipped v2 step then retires the dead `profile.updateInterval` key (the repaint path moved from a poll ticker to the event-driven `throttleWindow` scheduler) and stamps `schemaVersion = 2`; the bump is idempotent and logs one `[Migrate]` line only when it actually fires.
 
 ### `addon:OnEnable` — the login body
 

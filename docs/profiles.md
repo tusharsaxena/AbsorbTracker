@@ -105,12 +105,17 @@ function NS:RunMigrations()
             end
         end
     end
+    -- v2: the poll ticker became event-driven; drop the dead poll-interval key.
+    if g.schemaVersion < 2 then
+        if profile then profile.updateInterval = nil end
+        g.schemaVersion = 2
+    end
 end
 ```
 
-The v1 step stamps `db.global.schemaVersion = 1` and backfills any missing `profile` key from `NS.flatDefaults`. This one versioned step absorbs both the legacy pre-AceDB flat-SavedVariables shape (the old inline migration) and the no-AceDB fallback: keys already present are left untouched, so running it twice is a no-op. Table defaults (e.g. `barColor`) are shallow-copied into a fresh table so an in-place mutation of a saved variable can't reach back and corrupt `flatDefaults`. It is a safe no-op when the DB is absent (no `db.global` to touch).
+The v1 step stamps `db.global.schemaVersion = 1` and backfills any missing `profile` key from `NS.flatDefaults`. This absorbs both the legacy pre-AceDB flat-SavedVariables shape (the old inline migration) and the no-AceDB fallback: keys already present are left untouched, so running it twice is a no-op. Table defaults (e.g. `barColor`) are shallow-copied into a fresh table so an in-place mutation of a saved variable can't reach back and corrupt `flatDefaults`. It is a safe no-op when the DB is absent (no `db.global` to touch).
 
-Future schema changes hook the same function: `if g.schemaVersion < 2 then ...; g.schemaVersion = 2 end`.
+The **v2 step (shipped)** stamps `schemaVersion = 2` and retires the dead `profile.updateInterval` key — the repaint path moved from a poll ticker to the event-driven coalescing scheduler (`throttleWindow`, seeded by the backfill above), so the old interval key is an orphan. It logs one `[Migrate] v<n> → v2` debug line only when the bump actually happens. Each future schema change hooks the same function with another `if g.schemaVersion < N then ...; g.schemaVersion = N end` block.
 
 ## Bar position is per-profile
 

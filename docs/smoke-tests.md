@@ -74,7 +74,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### I. SavedVariables migration — no-op on existing profile
 50. Customize a profile (e.g. `barWidth=260`, custom texture), `/reload` → all customized values **survive** (backfill only fills missing keys).
-51. Logout to flush, inspect `AbsorbTrackerDB.lua` → `global.schemaVersion = 1`; `/reload` again → stays `1`, values unchanged.
+51. Logout to flush, inspect `AbsorbTrackerDB.lua` → `global.schemaVersion = 2` (the shipped v2 migration); `/reload` again → stays `2`, values unchanged.
 52. *(Optional)* Hand-delete one profile key from the SV file, log in → that key restored to default, others untouched, no error.
 
 ### J. Class-color overrides
