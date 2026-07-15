@@ -91,20 +91,16 @@ test("/at options is aliased to /at config (no unknown-command error)", function
   end
 end)
 
-test("/at config in combat defers the open (§6.2) instead of refusing", function()
+test("/at config in combat refuses with a grey notice (options-ui-§2)", function()
   local saved = T.mocks.InCombatLockdown
   T.mocks.InCombatLockdown = function() return true end
   NS.State.panelOpenPending = nil
 
   local out = capture(function() NS.Slash:OnSlash("config") end)
-  assertTrue(NS.State.panelOpenPending == true, "in combat a pending open must be queued")
-  assertTrue(out[1] ~= nil and out[1]:find("leave combat", 1, true) ~= nil,
-    "should notify that the panel will open after combat, not refuse")
-
-  -- Hammering it must not queue a second replay.
-  capture(function() NS.Slash:OnSlash("config") end)
-  assertTrue(NS.State.panelOpenPending == true, "still exactly one pending open")
+  assertTrue(out[1] ~= nil and out[1]:find("cannot open settings during combat", 1, true) ~= nil,
+    "in combat the open must REFUSE with the canonical grey notice, not defer")
+  assertTrue(NS.State.panelOpenPending == nil,
+    "refusal must NOT defer-and-replay (no pending flag set)")
 
   T.mocks.InCombatLockdown = saved
-  NS.State.panelOpenPending = nil
 end)

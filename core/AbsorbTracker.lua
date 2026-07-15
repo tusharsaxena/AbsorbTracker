@@ -89,9 +89,9 @@ function addon:OnEnterWorld()
 end
 
 -- Combat transitions re-evaluate bar visibility (the `showOnlyInCombat` gate) and repaint so the
--- bar is fresh if it just appeared. OnLeaveCombat is also the single owner of PLAYER_REGEN_ENABLED:
--- it replays a combat-deferred /at config (settings/Panel.lua sets the flag), which keeps AceEvent's
--- one-handler-per-event rule from colliding with the visibility handler.
+-- bar is fresh if it just appeared. That is all these handlers do: per Ka0s standard options-ui-§2
+-- the settings panel REFUSES to open in combat (settings/Panel.lua) rather than deferring, so there
+-- is no combat-deferred /at config for OnLeaveCombat to replay — it only handles visibility now.
 function addon:OnEnterCombat()
     NS.ApplyVisibility()
     NS.RequestRepaint()
@@ -100,10 +100,6 @@ end
 function addon:OnLeaveCombat()
     NS.ApplyVisibility()
     NS.RequestRepaint()
-    if NS.State and NS.State.panelOpenPending then
-        NS.State.panelOpenPending = nil
-        if NS.OpenOptionsPanel then NS.OpenOptionsPanel() end
-    end
 end
 
 -- AceDB profile-change callback (registered in core/Database.lua). Repaint the bar from the new

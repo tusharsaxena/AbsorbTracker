@@ -84,7 +84,22 @@ test("OnEnterCombat applies visibility and requests a repaint", function()
   mocks.__fireTimers()
 end)
 
-test("OnLeaveCombat replays a pending deferred config open and clears the flag", function()
+test("OnLeaveCombat applies visibility and requests a repaint", function()
+  local mocks = T.mocks
+  mocks.__timers = {}
+  local applied = 0
+  local origApply = NS.ApplyVisibility
+  NS.ApplyVisibility = function() applied = applied + 1 end
+  NS.addon:OnLeaveCombat()
+  assertEqual(applied, 1)
+  assertEqual(#mocks.__timers, 1)   -- a repaint was requested
+  NS.ApplyVisibility = origApply
+  mocks.__fireTimers()
+end)
+
+-- options-ui-§2: the panel REFUSES to open in combat instead of deferring, so OnLeaveCombat must
+-- never auto-open the config — even if a stale panelOpenPending flag is somehow present.
+test("OnLeaveCombat never opens config, even with a stale panelOpenPending (options-ui-§2)", function()
   local mocks = T.mocks
   mocks.__timers = {}
   local opened = 0
@@ -93,22 +108,8 @@ test("OnLeaveCombat replays a pending deferred config open and clears the flag",
   NS.ApplyVisibility = function() end
   NS.State.panelOpenPending = true
   NS.addon:OnLeaveCombat()
-  assertEqual(opened, 1)
-  assertTrue(NS.State.panelOpenPending == nil, "pending flag is cleared")
-  NS.OpenOptionsPanel, NS.ApplyVisibility = origOpen, origApply
-  mocks.__fireTimers()
-end)
-
-test("OnLeaveCombat does not open config when none is pending", function()
-  local mocks = T.mocks
-  mocks.__timers = {}
-  local opened = 0
-  local origOpen, origApply = NS.OpenOptionsPanel, NS.ApplyVisibility
-  NS.OpenOptionsPanel = function() opened = opened + 1 end
-  NS.ApplyVisibility = function() end
-  NS.State.panelOpenPending = nil
-  NS.addon:OnLeaveCombat()
   assertEqual(opened, 0)
   NS.OpenOptionsPanel, NS.ApplyVisibility = origOpen, origApply
   mocks.__fireTimers()
+  NS.State.panelOpenPending = nil
 end)

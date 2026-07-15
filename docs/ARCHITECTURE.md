@@ -120,18 +120,21 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   `NS.ApplyVisibility()` + `NS.RequestRepaint()`) and the combat-state pair `PLAYER_REGEN_DISABLED`
   (`OnEnterCombat`) / `PLAYER_REGEN_ENABLED` (`OnLeaveCombat`) — each re-applies
   `NS.ApplyVisibility()` (the `showOnlyInCombat` gate) and repaints. These are global, payload-free
-  events with no unit to filter, so they stay on AceEvent. `OnLeaveCombat` is the single owner of
-  `PLAYER_REGEN_ENABLED` and also replays a combat-deferred `/at config` from
-  `NS.State.panelOpenPending`. `NS.RequestRepaint` is a coalescing one-shot AceTimer throttle
-  (`throttleWindow`, default 0.1s) — idle = zero repaints, no polling ticker.
+  events with no unit to filter, so they stay on AceEvent. `OnLeaveCombat` is the sole handler of
+  `PLAYER_REGEN_ENABLED` and does visibility + repaint only — it has no combat-deferred `/at config`
+  to replay (the panel refuses to open in combat, options-ui-§2; see Taint Notes). `NS.RequestRepaint`
+  is a coalescing one-shot AceTimer throttle (`throttleWindow`, default 0.1s) — idle = zero repaints,
+  no polling ticker.
 
 ## Taint Notes
 
-- **Combat-lockdown gate on `/at config`.** `Settings.OpenToCategory` is protected; calling it in
-  combat taints the panel for the session. `NS.OpenOptionsPanel` (`settings/Panel.lua`) queues the
-  open by setting `NS.State.panelOpenPending` (idempotent) and posting a chat notice while
-  `InCombatLockdown()` is true; `OnLeaveCombat` (`core/AbsorbTracker.lua`, the single owner of
-  `PLAYER_REGEN_ENABLED`) replays it once combat ends.
+- **Combat-lockdown gate on `/at config` (refuse, options-ui-§2).** `Settings.OpenToCategory` is
+  protected; calling it in combat taints the panel for the session. When `InCombatLockdown()` is
+  true, `NS.OpenOptionsPanel` (`settings/Panel.lua`) **refuses** — it prints a single grey,
+  `[AT]`-tagged notice (*"cannot open settings during combat — Blizzard's category-switch is
+  protected"*) and returns, never touching the protected call. It does **not** defer-and-replay on
+  `PLAYER_REGEN_ENABLED`; the user re-runs `/at config` after combat. The gate lives inside the
+  open function, so every caller (slash verb, `/run`, internal) is refused.
 - **Bar visibility Show/Hide is taint-free.** `AbsorbTrackerFrame` is a plain (non-secure) frame,
   so `NS.ApplyVisibility` calling `bar:Show()` / `bar:Hide()` on combat transitions (the
   `showOnlyInCombat` gate) carries no protected-frame restriction.

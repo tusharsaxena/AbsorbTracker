@@ -50,42 +50,29 @@ Gating on `InCombatLockdown()` therefore hid the bar at the exact moment it shou
 
 `UnitAffectingCombat("player")` is true from the instant combat starts (already true at `PLAYER_REGEN_DISABLED`) and false at `PLAYER_REGEN_ENABLED`, which is exactly the predicate a *display* gate wants. The bar is a plain, non-secure frame, so this query carries no taint concern.
 
-**Rule of thumb:** `InCombatLockdown()` answers "are secure actions locked?" (use it to defer protected API calls like `Settings.OpenToCategory`, below). `UnitAffectingCombat("player")` answers "is the player in combat?" (use it for display/visibility logic). They are not interchangeable at the combat-entry edge.
+**Rule of thumb:** `InCombatLockdown()` answers "are secure actions locked?" (use it to gate protected API calls like `Settings.OpenToCategory` — here, to *refuse* the panel open, below). `UnitAffectingCombat("player")` answers "is the player in combat?" (use it for display/visibility logic). They are not interchangeable at the combat-entry edge.
 
 ## Combat lockdown taints `Settings.OpenToCategory`
 
 `Settings.OpenToCategory(categoryID)` is part of the protected Settings API. Calling it during combat would taint the panel — even after combat ends, the tainted panel can refuse to open or break unrelated UI behavior.
 
-`NS.OpenOptionsPanel` (`settings/Panel.lua`) **defers** the open to combat end when `InCombatLockdown()` is true, per Ka0s standard §6.2 (defer-and-replay, not refuse):
+`NS.OpenOptionsPanel` (`settings/Panel.lua`) therefore **refuses** the open when `InCombatLockdown()` is true, per Ka0s standard options-ui-§2 (refuse-with-notice, *not* defer-and-replay). It prints a single grey, `[AT]`-tagged notice and returns — it never calls the protected `Settings.OpenToCategory` under lockdown, and never queues the open:
 
 ```lua
--- settings/Panel.lua — queue only; do NOT self-register a handler here.
 function NS.OpenOptionsPanel()
     if InCombatLockdown() then
-        if not NS.State.panelOpenPending then
-            NS.State.panelOpenPending = true          -- idempotent session flag
-            print("In combat — settings will open when you leave combat.")
-        end
+        -- Refuse: grey NS.PREFIX notice, then return. No PLAYER_REGEN_ENABLED replay.
+        print("|cffaaaaaacannot open settings during combat \226\128\148 Blizzard's category-switch is protected|r")
         return
     end
     Settings.OpenToCategory(mainCategoryID)
     expandMainCategory()
 end
-
--- core/AbsorbTracker.lua — OnLeaveCombat is the SINGLE owner of PLAYER_REGEN_ENABLED
--- and consumes the flag, so there is no per-open handler to register/unregister.
-function addon:OnLeaveCombat()
-    -- …ApplyVisibility + RequestRepaint…
-    if NS.State.panelOpenPending then
-        NS.State.panelOpenPending = nil
-        NS.OpenOptionsPanel()                         -- replay once lockdown has cleared
-    end
-end
 ```
 
-(The `print` is the `local print = NS.Print` shadow at the top of `settings/Panel.lua`, so the chat output gets the cyan `[AT]` prefix.)
+(The `print` is the `local print = NS.Print` shadow at the top of `settings/Panel.lua`, so the line still carries the cyan `[AT]` prefix; the message body is grey — hex `aaaaaa`. The canonical text is fixed by options-ui-§2.)
 
-`PLAYER_REGEN_ENABLED` fires when combat *ends* — lockdown is already released — so the replayed `Settings.OpenToCategory` runs taint-free. The `NS.State.panelOpenPending` session flag makes it idempotent: hammering `/at config` mid-pull queues exactly one open, and `OnLeaveCombat` clears the flag before replaying. AceEvent allows only one handler per event, so `PLAYER_REGEN_ENABLED` has a single fixed owner (`OnLeaveCombat`) rather than a handler registered per open — the flag, not a throwaway closure, carries the intent. `NS.State` is session-only, so a `/reload` during combat clears any pending open. This replaced the earlier refuse-with-notice behavior when the addon was brought into line with §6.2.
+The gate lives **inside** `OpenOptionsPanel` (not just the `/at config` slash dispatcher), so every caller — the slash verb, `/run` scripts, any future internal caller — is refused. The house behaviour is an explicit, greppable refusal rather than a panel that auto-opens the instant combat ends and steals focus during post-pull recovery; the user re-runs `/at config` when they choose. `addon:OnLeaveCombat` (`core/AbsorbTracker.lua`) now only re-applies visibility and repaints — there is no combat-deferred open to replay. (This reverses the earlier defer-and-replay behaviour, which conformed to the pre-v1.10.0 §6.2. A deferred **secure frame write** may legitimately still queue on `PLAYER_REGEN_ENABLED` (per the standard's events-frames-taint-§2), but a taint-prone *protected* path like the category-switch must not be touched at all under lockdown.)
 
 ## `Settings.OpenToCategory` wants a numeric ID, not a category object
 

@@ -23,8 +23,8 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### C. Settings panel & combat gate
 11. `/at config` (out of combat) → Blizzard Settings opens to **Ka0s Absorb Tracker**, tree expanded to General/Bar/Border/Font/Profiles.
-12. **Combat gate (defer, §6.2).** In combat, `/at config` → panel does **not** open immediately; chat shows `[AT] In combat — settings will open when you leave combat.` Spam `/at config` a few times → still only **one** pending open (no duplicate notices past the first).
-13. **Deferred replay.** Leave combat → the panel **opens automatically** (tree expanded), **no taint warning**. Then out of combat, `/at config` → opens immediately as normal. *(Edge: `/reload` while a deferred open is pending → nothing opens after the reload, no error — the session flag cleared.)*
+12. **Combat gate (refuse, options-ui-§2).** In combat, `/at config` → panel does **not** open; chat shows the grey notice `[AT] cannot open settings during combat — Blizzard's category-switch is protected`. Spam `/at config` a few times → the same refusal each time, **no queue**, **no taint warning**.
+13. **No auto-open on combat end.** Leave combat → the panel does **not** pop open by itself (nothing was queued). Then out of combat, `/at config` → opens immediately (tree expanded), **no taint warning**. *(`/run AbsorbTrackerNS and false` aside: the gate is inside `OpenOptionsPanel`, so a `/run`-triggered open in combat is refused too.)*
 
 ### D. Sub-pages render & edit live
 14. **General** — Show Bar / Lock Position, Reset Position + Reset All buttons, Update throttle slider (Performance group). Toggle Show Bar → bar hides/shows; Lock Position → drag disabled; shield gain/loss repaints the bar within ~0.1s; sitting idle with no shield produces no repaints.
@@ -85,7 +85,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 57. Turn each Use Class Color off → manual RGBA picker re-enables; bar reverts to the stored manual color.
 
 **Pass criteria:** all 58 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
-and no combat-taint warning after the deferred open in step 13. On any failure, record the step number, observed vs.
+and no combat-taint warning when the panel opens out of combat (step 13). On any failure, record the step number, observed vs.
 expected, and any error text.
 
 ### Triage references (if a step fails)

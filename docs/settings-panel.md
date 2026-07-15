@@ -138,12 +138,9 @@ The same `RefreshAllPanels` runs after every `/at set`, `/at reset`, and `/at re
 ```lua
 function NS.OpenOptionsPanel()
     if InCombatLockdown() then
-        -- Queue only. OnLeaveCombat (core/AbsorbTracker.lua), the single owner of
-        -- PLAYER_REGEN_ENABLED, consumes NS.State.panelOpenPending and replays this.
-        if not NS.State.panelOpenPending then
-            NS.State.panelOpenPending = true
-            print("In combat — settings will open when you leave combat.")
-        end
+        -- Refuse under lockdown (options-ui-§2): one grey NS.PREFIX notice, then return.
+        -- No Settings.OpenToCategory, no PLAYER_REGEN_ENABLED defer-and-replay.
+        print("|cffaaaaaacannot open settings during combat \226\128\148 Blizzard's category-switch is protected|r")
         return
     end
     if not (Settings and Settings.OpenToCategory) then return end
@@ -153,7 +150,7 @@ function NS.OpenOptionsPanel()
 end
 ```
 
-`Settings.OpenToCategory` is part of Blizzard's protected Settings API. Calling it during combat would taint the panel — even after combat ends, the tainted panel can refuse to open or break unrelated UI. Per Ka0s standard §6.2 the gate **defers** rather than refuses: `OpenOptionsPanel` sets the `NS.State.panelOpenPending` session flag and returns, and `addon:OnLeaveCombat` (`core/AbsorbTracker.lua`) — the single owner of `PLAYER_REGEN_ENABLED` — consumes the flag and replays the open the moment combat ends (lockdown already released, so the replay is taint-free). The flag keeps it to a single queued open no matter how often `/at config` is pressed mid-pull; it is not a per-open handler (AceEvent permits one handler per event, so the replay lives with the fixed `OnLeaveCombat` owner). (`print` here is the file-local `local print = NS.Print`, so the notice carries the cyan `[AT]` prefix.)
+`Settings.OpenToCategory` is part of Blizzard's protected Settings API. Calling it during combat would taint the panel — even after combat ends, the tainted panel can refuse to open or break unrelated UI. Per Ka0s standard options-ui-§2 the gate **refuses** rather than defers: `OpenOptionsPanel` prints a single grey, `[AT]`-tagged notice (canonical text *"cannot open settings during combat — Blizzard's category-switch is protected"*, grey hex `aaaaaa`) and returns, never touching the protected category-switch under lockdown. It does **not** defer-and-replay — `addon:OnLeaveCombat` (`core/AbsorbTracker.lua`) only re-applies visibility and repaints now, with no queued open to replay — because a panel that auto-opens the instant combat ends steals focus during post-pull recovery; the user re-runs `/at config` when ready. The gate lives inside `OpenOptionsPanel` (not just the slash dispatcher), so `/run` scripts and any internal caller are refused too. (`print` here is the file-local `local print = NS.Print`, so the notice carries the cyan `[AT]` prefix.)
 
 `/at config` (dispatched through `NS.COMMANDS` in `settings/Slash.lua`) always opens the **parent** category (the about page) and then calls `expandMainCategory()` to expand the Blizzard Settings left-tree entry so every sub-page is visible. `expandMainCategory` walks `SettingsPanel:GetCategoryList():GetCategoryEntry(mainCategory):SetExpanded(true)` — `SettingsPanel` internals are private API, so the whole call is wrapped in `pcall`; if any of those calls disappears in a future patch, the panel still opens, just without the tree-expansion side effect.
 

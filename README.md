@@ -78,7 +78,7 @@ re-enable manual color editing.
 | How do I move the bar? | `/at unlock`, drag, `/at lock`. The position saves per-profile. `/at resetposition` snaps the bar back to the screen center. |
 | Are there profiles? Per-character configs? | Yes — full AceDB profiles under Settings → Profiles. Every character on the account starts on the shared **Default** profile, so changes carry over. Opt into per-character / per-class / per-realm scope from the Profiles panel to diverge. |
 | Why is my bar empty? | You need an active absorb effect (Power Word: Shield, Ice Barrier, trinket procs, …) for the value to be non-zero. With no absorb up, the bar reads 0 and is effectively invisible against the background. |
-| Why doesn't the settings panel open during a pull? | Blizzard's category-switching is protected, so opening *any* settings subcategory during combat would taint the panel. `/at config` in combat is **queued** — it opens automatically the moment you leave combat. |
+| Why doesn't the settings panel open during a pull? | Blizzard's category-switching is protected, so opening *any* settings subcategory during combat would taint the panel. `/at config` in combat is **refused** with a short notice — just run `/at config` again once you're out of combat and it opens normally. |
 
 ## Troubleshooting
 

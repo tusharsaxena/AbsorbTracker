@@ -318,7 +318,8 @@ NS.CreateOptionsPanel()    -- called from OnEnable once db is ready. Stashes NS.
                            -- the pending page builders.
 NS.RefreshOptionsPanel()   -- routes to Helpers.RefreshAllPanels (re-runs every refresher)
 NS.OpenOptionsPanel()      -- Settings.OpenToCategory(mainCategoryID) + expandMainCategory();
-                           -- combat-lockdown gated (early-returns with a chat notice in combat).
+                           -- combat-lockdown gated: in combat it REFUSES with a grey [AT] notice
+                           -- and returns (options-ui-§2) — no defer-and-replay.
 
 NS.AceGUI                  -- the AceGUI-3.0 handle, stashed once in CreateOptionsPanel; the
                            -- toolkit / widget / about builders read this upvalue instead of

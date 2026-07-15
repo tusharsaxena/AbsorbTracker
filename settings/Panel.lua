@@ -106,14 +106,15 @@ end
 
 function NS.OpenOptionsPanel()
     if InCombatLockdown() then
-        -- Settings UI is protected during combat; opening it taints the panel for the session.
-        -- Per Ka0s standard §6.2, queue the open and let core/AbsorbTracker.lua's OnLeaveCombat
-        -- (the single owner of PLAYER_REGEN_ENABLED) replay it. The flag makes it idempotent —
-        -- hammering /at config mid-pull queues exactly one open.
-        if not NS.State.panelOpenPending then
-            NS.State.panelOpenPending = true
-            print("In combat \226\128\148 settings will open when you leave combat.")
-        end
+        -- Blizzard's category-switch (Settings.OpenToCategory) is protected; calling it under
+        -- lockdown taints the panel for the rest of the session. Per Ka0s standard options-ui-§2
+        -- the open MUST REFUSE with a grey, NS.PREFIX-tagged notice and return — it MUST NOT
+        -- defer-and-replay on PLAYER_REGEN_ENABLED (a panel that auto-opens the instant combat
+        -- drops steals focus during post-pull recovery). The user re-runs /at config when ready.
+        -- The gate lives HERE (inside the open fn) so every caller — the /at config verb, /run
+        -- scripts, future internal callers — is refused, not just the slash dispatcher. `print` is
+        -- the file-local `local print = NS.Print`, so the line still carries the cyan [AT] tag.
+        print("|cffaaaaaacannot open settings during combat \226\128\148 Blizzard's category-switch is protected|r")
         return
     end
     if not (Settings and Settings.OpenToCategory) then return end

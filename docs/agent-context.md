@@ -35,9 +35,10 @@ User-facing reference: [../README.md](../README.md). Subsystems + invariants:
 - **`SetBackdrop(nil)` before `SetBackdrop(info)`.** WoW's backdrop API is a no-op when the table
   identity is unchanged, even if its fields changed. `UpdateBarAppearance` (`modules/Display.lua`)
   clears first, then re-applies. Don't optimize this away.
-- **Combat-lockdown gate on `/at config`.** `Settings.OpenToCategory` is protected; calling it
-  during combat taints the panel for the rest of the session. `NS.OpenOptionsPanel`
-  (`settings/Panel.lua`) early-returns with a chat notice while `InCombatLockdown()` is true.
+- **Combat-lockdown gate on `/at config` (refuse, options-ui-§2).** `Settings.OpenToCategory` is
+  protected; calling it during combat taints the panel for the rest of the session.
+  `NS.OpenOptionsPanel` (`settings/Panel.lua`) **refuses** while `InCombatLockdown()` is true —
+  prints a grey `[AT]` notice and returns, never deferring/replaying on `PLAYER_REGEN_ENABLED`.
 - **Cyan `[AT]` chat prefix on all addon output.** Routes through `NS.Print(...)` which prepends
   `NS.PREFIX` (`|cFF00FFFF[AT]|r`, defined in `core/Namespace.lua`). Files that emit chat shadow
   the global `print` with `local print = NS.Print`. Debug output does NOT go to chat — it routes
