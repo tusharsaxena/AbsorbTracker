@@ -52,6 +52,11 @@ User-facing reference: [../README.md](../README.md). Subsystems + invariants:
   This is Ka0s standard **§9.8**. Detail in [midnight-quirks.md](./midnight-quirks.md).
 - **Deprecated APIs go through `core/Compat.lua`.** `Compat.GetAddOnMetadata` is the only metadata
   accessor. Never call `GetAddOnMetadata` / `C_AddOns.GetAddOnMetadata` inline.
+- **Keep the test inventory & badge in lockstep (testing-§5).** When the suite changes — a case
+  added, removed, or renamed, or the pass count moves (i.e. whenever a failing test is resolved) —
+  regenerate `docs/test-cases.md` via `lua tests/run.lua --list` AND update the README `tests` badge
+  count in the same change, not as a follow-up. `docs/test-cases.md` is generated (never hand-edit)
+  and is the authoritative count; there is no CI and no dynamic badge. See [testing.md](./testing.md).
 
 ## The `NS` bus
 
