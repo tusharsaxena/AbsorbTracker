@@ -150,7 +150,7 @@ See also: the `/wow-addon:bump-interface` skill for the automated version of thi
 This addon has a headless test harness under `tests/` — any doc claiming "no automated tests" is stale. Run the green gate before you consider a change done:
 
 ```sh
-lua tests/run.lua      # 70 tests: schema / database / compat / util / debuglog / slash / timer / visibility
+lua tests/run.lua      # suites: schema / database / compat / util / debuglog / slash / timer / visibility (count: docs/test-cases.md)
 luacheck .             # must be 0 warnings / 0 errors
 luac -p <changed.lua>  # bytecode-parse each file you touched
 ```

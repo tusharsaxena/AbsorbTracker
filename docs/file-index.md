@@ -69,21 +69,21 @@ Each file (except `Profiles.lua`) registers schema rows for the page, declares a
 
 ## tests/ — headless harness
 
-Run from the repo root with `lua tests/run.lua`. Loads every addon source file with the `("AbsorbTracker", NS)` calling convention against a WoW-API mock, runs `NS:InitDB()`, then executes the suites. 70 tests total.
+Run from the repo root with `lua tests/run.lua`. Loads every addon source file with the `("AbsorbTracker", NS)` calling convention against a WoW-API mock, runs `NS:InitDB()`, then executes the suites. The authoritative per-suite and total case counts live in the generated [test-cases.md](./test-cases.md) (`lua tests/run.lua --list`).
 
 | # | File | Lines | Responsibility |
 |---|------|-------|----------------|
-| 28 | `tests/run.lua` | 85 | The runner. Builds mocks, loads all source files in TOC order via `loader.lua`, calls `NS:InitDB()`, exposes the tiny `AT_TEST` framework (`test` / `assertEqual` / `assertTrue` / `assertFalse`), `dofile`s the eight suites, and exits non-zero on any failure. |
+| 28 | `tests/run.lua` | 134 | The runner. Builds mocks, loads all source files in TOC order via `loader.lua`, calls `NS:InitDB()`, exposes the tiny `AT_TEST` framework (`test` / `assertEqual` / `assertTrue` / `assertFalse`), `dofile`s the eight suites (stamping each case's `suite`), runs them (or, with `--list`, prints the `docs/test-cases.md` inventory and exits), and exits non-zero on any failure. |
 | 29 | `tests/loader.lua` | 33 | Headless file loader. `loadfile` + `setfenv` each chunk into an environment where WoW globals resolve to the mock set (falling back to `_G`); writes land in `_G` so `AbsorbTrackerDB` and `StaticPopupDialogs` behave like the real client. |
 | 30 | `tests/wow_mock.lua` | 117 | Minimal WoW-API mock builder — a fresh, isolated environment per run. Universal frame stub (any PascalCase method is a self-returning no-op) plus the specific globals the addon touches at load/test time, including `__timers` / `__fireTimers()` for driving `NS.addon:ScheduleTimer` deterministically. |
-| 31 | `tests/test_schema.lua` | 91 | 9 tests — schema registry, group-stable sort, `SetByPath`, `ValidateSchema` three-value return / path resolution, format/parse. |
-| 32 | `tests/test_database.lua` | 88 | 11 tests — `InitDB`, `RunMigrations` idempotency + `flatDefaults` backfill, deep-copy isolation, `schemaVersion` v1→v2 migration (drops `updateInterval`, seeds `throttleWindow`). |
-| 33 | `tests/test_compat.lua` | 33 | 4 tests — `Compat.GetAddOnMetadata` C_AddOns path, `_G` fallback, and `nil` degradation. |
-| 34 | `tests/test_util.lua` | 55 | 6 tests — `NS.Print` / `NS.Debug` (secret-safe sink) routing and gating, `NS.SafeToString` secret-value handling. |
-| 35 | `tests/test_debuglog.lua` | 109 | 11 tests — `FormatPlain` / `FormatColored` formatters, `NS.Debug` gating, buffer cap, and the `SetEnabled` seam (colour-coded ON/OFF chat ack, `[Debug]` brackets, and the `[Init]` session summary on enable). |
-| 36 | `tests/test_slash.lua` | 130 | 11 tests — `NS.COMMANDS` verb table, dispatch, unknown-verb handling, `OpenOptionsPanel` `[Cfg]` refusal logging, `SetByPath` `[Set]` logging (§10). |
-| 37 | `tests/test_timer.lua` | 69 | 7 tests — `NS.RequestRepaint` coalescing + `throttleWindow` delay, `OnAbsorbChanged` / `OnMaxHealthChanged` player-only + `OnEnterWorld` repaint wiring. |
-| 38 | `tests/test_visibility.lua` | 170 | 11 tests — `ShouldShowBar` truth table (incl. the lockdown-lags-combat regression) + combat-handler wiring, `[Combat]` rollup coalescing, per-event `[Absorb]` transition logging on non-secret values. |
+| 31 | `tests/test_schema.lua` | 91 | schema registry, group-stable sort, `SetByPath`, `ValidateSchema` three-value return / path resolution, format/parse. |
+| 32 | `tests/test_database.lua` | 88 | `InitDB`, `RunMigrations` idempotency + `flatDefaults` backfill, deep-copy isolation, `schemaVersion` v1→v2 migration (drops `updateInterval`, seeds `throttleWindow`). |
+| 33 | `tests/test_compat.lua` | 33 | `Compat.GetAddOnMetadata` C_AddOns path, `_G` fallback, and `nil` degradation. |
+| 34 | `tests/test_util.lua` | 55 | `NS.Print` / `NS.Debug` (secret-safe sink) routing and gating, `NS.SafeToString` secret-value handling. |
+| 35 | `tests/test_debuglog.lua` | 109 | `FormatPlain` / `FormatColored` formatters, `NS.Debug` gating, buffer cap, and the `SetEnabled` seam (colour-coded ON/OFF chat ack, `[Debug]` brackets, and the `[Init]` session summary on enable). |
+| 36 | `tests/test_slash.lua` | 130 | `NS.COMMANDS` verb table, dispatch, unknown-verb handling, `OpenOptionsPanel` `[Cfg]` refusal logging, `SetByPath` `[Set]` logging (§10). |
+| 37 | `tests/test_timer.lua` | 69 | `NS.RequestRepaint` coalescing + `throttleWindow` delay, `OnAbsorbChanged` / `OnMaxHealthChanged` player-only + `OnEnterWorld` repaint wiring. |
+| 38 | `tests/test_visibility.lua` | 170 | `ShouldShowBar` truth table (incl. the lockdown-lags-combat regression) + combat-handler wiring, `[Combat]` rollup coalescing, per-event `[Absorb]` transition logging on non-secret values. |
 
 ## Bundled libraries (libs/)
 

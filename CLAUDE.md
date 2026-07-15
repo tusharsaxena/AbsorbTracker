@@ -29,8 +29,11 @@ Start here, then read the docs:
   wiring, taint notes, known limitations.
 - Topic detail in `docs/`: `schema.md`, `settings-panel.md`, `data-flow.md`, `profiles.md`,
   `midnight-quirks.md`, `common-tasks.md`, `scope.md`, `file-index.md`, `module-map.md`,
-  `smoke-tests.md`.
+  `smoke-tests.md`, `testing.md`, `test-cases.md`.
 
-Green gate before every commit: `lua tests/run.lua` (63 tests) and `luacheck .` (0/0). Syntax-check
-one file with `luac -p <file>`. Never auto-stage/commit/push and never bump the version without an
-explicit instruction — see `docs/agent-context.md`.
+Green gate before every commit: `lua tests/run.lua` and `luacheck .` (0/0). Syntax-check one file
+with `luac -p <file>`. The authoritative test-case count lives in the generated
+`docs/test-cases.md` (testing-§5) — when the suite changes, regenerate it via `lua tests/run.lua
+--list` and update the README `tests` badge in the same change. Never auto-stage/commit/push and
+never bump the version without an explicit instruction — see `docs/agent-context.md` and
+`docs/testing.md`.

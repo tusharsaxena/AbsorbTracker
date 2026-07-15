@@ -81,12 +81,13 @@ time), guarding with `if NS.X then ... end` for the soft load-order coupling.
   AceGUI / AceConfig / AceDBOptions), LibSharedMedia-3.0, and the upstream
   `AceGUI-3.0-SharedMediaWidgets` r65. The displayButton tile is suppressed by
   `core/LSMPatch.lua` (addon-side, not a lib edit), so `r66+` refreshes are a clean drop-in.
-- **Headless tests (`tests/`) + lint gate.** `lua tests/run.lua` (70 tests: schema parse/format/
-  validate, DB migrations, Compat, Util, DebugLog, slash dispatch, repaint-throttle coalescing,
-  combat-visibility)
+- **Headless tests (`tests/`) + lint gate.** `lua tests/run.lua` (schema parse/format/validate, DB
+  migrations, Compat, Util, DebugLog, slash dispatch, repaint-throttle coalescing, combat-visibility)
   must be green and `luacheck .` clean
   (0/0) before every commit. Syntax-check one file with `luac -p <file>`. Toolchain: Lua 5.1 +
-  luacheck. See [smoke-tests.md](./smoke-tests.md) for the in-game QA recipe.
+  luacheck. The authoritative case list & count are in the generated `docs/test-cases.md`
+  (regenerate with `lua tests/run.lua --list`); see [testing.md](./testing.md) for the sync rule and
+  [smoke-tests.md](./smoke-tests.md) for the in-game QA recipe.
 
 ## Response style for this repo
 
