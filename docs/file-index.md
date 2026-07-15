@@ -2,11 +2,11 @@
 
 Where each responsibility lives in the source tree. Match this map to the actual files before editing — `AbsorbTracker.toc` is the source of truth for load order.
 
-The tree is tiered (Ka0s standard): `core/` (bootstrap + data + infrastructure), `defaults/` (AceDB defaults), `locales/` (strings), `modules/` (the bar runtime), `settings/` (schema + slash CLI + the multi-page panel), `tests/` (headless harness). Every file opens with `local addonName, NS = ...`; `NS` is the single shared private table, promoted to an AceAddon object in `core/AbsorbTracker.lua`.
+The tree is modular (Ka0s standard): `core/` (bootstrap + data + infrastructure), `defaults/` (AceDB defaults), `locales/` (strings), `modules/` (the bar runtime), `settings/` (schema + slash CLI + the multi-page panel), `tests/` (headless harness). Every file opens with `local addonName, NS = ...`; `NS` is the single shared private table, promoted to an AceAddon object in `core/AbsorbTracker.lua`.
 
 ## core/ — bootstrap, data, infrastructure
 
-Loaded first among addon source (after libs). `Compat` leads so its shim exists before anything calls it; `AbsorbTracker` (the AceAddon lifecycle) loads last in the tier so `InitDB` / the enable sequence can reference everything else.
+Loaded first among addon source (after libs). `Compat` leads so its shim exists before anything calls it; `AbsorbTracker` (the AceAddon lifecycle) loads last in the group so `InitDB` / the enable sequence can reference everything else.
 
 | # | File | Lines | Responsibility |
 |---|------|-------|----------------|
@@ -106,7 +106,7 @@ Folder-per-lib, loaded before any addon source via the `#@no-lib-strip@` block a
 
 ## Shared infrastructure
 
-- `AbsorbTracker.toc` — Interface line (`120007`), `## Version:`, SavedVariables (`AbsorbTrackerDB`), tiered file load order (Libraries → Core → Defaults → Locales → Modules → Settings). Order is dependency order, not alphabetical.
+- `AbsorbTracker.toc` — Interface line (`120007`), `## Version:`, SavedVariables (`AbsorbTrackerDB`), modular file load order (Libraries → Core → Defaults → Locales → Modules → Settings). Order is dependency order, not alphabetical.
 - `media/` — bundled assets in typed subfolders: `media/logos/absorbracker.logo.v2.tga` (`NS.Constants.LOGO_PATH`) and `media/fonts/JetBrainsMono-Regular.ttf` (+ `OFL.txt`, `NS.Constants.FONT_MONO`).
 - `.gitattributes` — enforces CRLF on `*.lua` / `*.toc` / `*.xml` / `*.md` (`* text=auto eol=crlf` plus explicit per-extension lines).
 - `LICENSE` — MIT.

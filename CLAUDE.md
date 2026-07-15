@@ -1,6 +1,6 @@
 # CLAUDE.md — Ka0s Absorb Tracker
 
-**Tier 2 (modular)** WoW addon. Adheres to the **Ka0s WoW Addon Standard** —
+**Ka0s WoW addon.** Adheres to the **Ka0s WoW Addon Standard** —
 https://github.com/tusharsaxena/WowAddonStandards
 
 ## Standards compliance (read first)
@@ -23,7 +23,7 @@ When in doubt, treat standard conformance as a hard requirement and ask.
 
 Start here, then read the docs:
 
-- **`docs/agent-context.md`** — the full agent brief (stack, Tier-2 layout, hard rules,
+- **`docs/agent-context.md`** — the full agent brief (stack, layout, hard rules,
   invariants, the `NS` bus, working environment, response style).
 - **`docs/ARCHITECTURE.md`** — module map, settings schema, message bus, slash surface, event
   wiring, taint notes, known limitations.

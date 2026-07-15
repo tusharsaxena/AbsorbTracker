@@ -1,6 +1,6 @@
 # Architecture
 
-Orient-yourself map for **Ka0s Absorb Tracker** (Tier 2, modular). User-facing behavior is in
+Orient-yourself map for **Ka0s Absorb Tracker** (modular layout). User-facing behavior is in
 [../README.md](../README.md); the full agent brief is in [agent-context.md](./agent-context.md);
 topic detail lives alongside this file in `docs/`.
 

@@ -8,7 +8,7 @@ code. The root [CLAUDE.md](../CLAUDE.md) is only a stub that points here.
 A single movable absorb status bar for the player. Bar size, fill texture and color, background
 texture and color, border style / size / color, and font face / size / outline are all
 independently configurable through LibSharedMedia-backed pickers. Bar fill, background, and border
-each have an opt-in class-color override. Position is saved per-profile. **Tier 2 (modular)**;
+each have an opt-in class-color override. Position is saved per-profile. **Modular layout**;
 Retail Midnight only (Interface 120007); English only.
 
 User-facing reference: [../README.md](../README.md). Subsystems + invariants:

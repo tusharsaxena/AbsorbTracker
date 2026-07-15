@@ -378,7 +378,7 @@ Each runs at file-load time: it calls `NS.RegisterSchemaRows({...})` (except Pro
 
 ## Forward references
 
-A small number of call sites reach across load order — the runtime modules (Core / Modules) load before the Settings tier:
+A small number of call sites reach across load order — the runtime modules (Core / Modules) load before the Settings group:
 
 - `core/AbsorbTracker.lua` (`OnEnable`) calls `NS.CreateOptionsPanel()` (defined in `settings/Panel.lua`, loaded later).
 - `core/AbsorbTracker.lua` (`OnEnable`) calls `NS.ApplyLSMBorderPatch()` (defined in `core/LSMPatch.lua`).
@@ -395,7 +395,7 @@ In practice the calls always succeed because all files are loaded synchronously 
 
 ## Load order
 
-`AbsorbTracker.toc` is the source of truth. Order is dependency order, not alphabetical. The tiers are **Libraries → Core → Defaults → Locales → Modules → Settings**:
+`AbsorbTracker.toc` is the source of truth. Order is dependency order, not alphabetical. The load groups are **Libraries → Core → Defaults → Locales → Modules → Settings**:
 
 1. `libs/` — LibStub, CallbackHandler-1.0, then the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB / AceGUI / AceConfig / AceDBOptions), LibSharedMedia-3.0, and the vendored upstream `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets) — all inside the `#@no-lib-strip@` block. Vendored **folder-per-lib** at `libs/` root (not `libs/Ace3/…`).
 2. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Util.lua`, `Data.lua`, `Database.lua`, `LSMPatch.lua`, `DebugLog.lua`, `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
@@ -404,7 +404,7 @@ In practice the calls always succeed because all files are loaded synchronously 
 5. **Modules** — `modules/Bar.lua` (bar frame creation at file-load), `Display.lua` (render functions), `Timer.lua` (coalescing repaint scheduler).
 6. **Settings** (last — depend on everything else being initialized) — `settings/Schema.lua` (registry), `Slash.lua` (`/at` dispatcher), `Panel.lua` (registration shell; publishes empty `NS.Helpers` + `NS.PARENT_TITLE`), then the toolkit slices `Helpers.lua` → `ScrollPatch.lua` → `Widgets.lua` → `About.lua` (each decorates `NS.Helpers`; order matters only between `Helpers` (defines `EnsureScroll`) and `ScrollPatch` (defines `PatchAlwaysShowScrollbar` that `EnsureScroll` references)), then the page builders `General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` (each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load; LSM-backed rows call `NS.Helpers.LSMValues(mediaType)`).
 
-If you add a new runtime file, put it in the right tier in `AbsorbTracker.toc`.
+If you add a new runtime file, put it in the right load group in `AbsorbTracker.toc`.
 
 ## Module publishing pattern (idiom)
 
