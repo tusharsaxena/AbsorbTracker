@@ -2,6 +2,7 @@
 
 ![wow](https://img.shields.io/badge/WoW-Midnight_12.0.7-orange)
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
+![tests](https://img.shields.io/badge/tests-70%2F70_passing-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-green)
 [![Ka0s Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-blue)](https://github.com/tusharsaxena/WowAddonStandards)
 
@@ -109,11 +110,14 @@ commit and before tagging a release.
 
 | Check | Command | Expected |
 |-------|---------|----------|
-| Unit tests | `lua tests/run.lua` | `70 passed, 0 failed` (schema parse/format/validate, DB migrations, Compat, secret-safe Util, DebugLog, slash dispatch, repaint timer/throttle, combat-visibility) |
+| Unit tests | `lua tests/run.lua` | all suites green (schema parse/format/validate, DB migrations, Compat, secret-safe Util, DebugLog, slash dispatch, repaint timer/throttle, combat-visibility) |
 | Lint | `luacheck .` | `0 warnings / 0 errors` |
 | Syntax-check one file | `luac -p <path/to/file.lua>` | no output (clean parse) |
+| Case inventory | `lua tests/run.lua --list` | regenerates [docs/test-cases.md](./docs/test-cases.md) — the authoritative case list & pass count |
 | In-game smoke tests | manual | see [docs/smoke-tests.md](./docs/smoke-tests.md) |
 
+The generated [docs/test-cases.md](./docs/test-cases.md) is the authoritative test-case count; the
+`tests` badge above is hand-maintained alongside it (see [docs/testing.md](./docs/testing.md)).
 Toolchain: Lua 5.1 + luacheck (`sudo apt-get install -y lua5.1 luarocks && sudo luarocks install
 luacheck`). Run the full gate after bumping `## Interface:` or refreshing vendored libs, and run
 the in-game smoke tests before every release.
