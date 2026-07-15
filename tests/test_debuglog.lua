@@ -29,6 +29,19 @@ local function debugCmd(rest)
   error("no debug command")
 end
 
+-- NS.Print writes to DEFAULT_CHAT_FRAME:AddMessage; override it on the mock frame to record the
+-- chat ack lines (same pattern as tests/test_slash.lua).
+local function captureChat(fn)
+  local cf = T.mocks.DEFAULT_CHAT_FRAME
+  local out = {}
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function(_, msg) out[#out + 1] = msg end
+  local ok, err = pcall(fn)
+  cf.AddMessage = old
+  if not ok then error(err) end
+  return table.concat(out, "\n")
+end
+
 test("/at debug on enables session state", function()
   NS.State.debug = false
   debugCmd("on")
@@ -59,23 +72,33 @@ test("header toggle click flips debug state", function()
   click(); assertTrue(NS.State.debug == false, "second click should turn state off")
 end)
 
-test("/at debug on writes a '[Debug] logging enabled' line to the console", function()
+test("/at debug on: green-ON ack, then '[Debug] logging enabled' bracket + [Init] summary (§5)", function()
   NS.State.debug = false
-  debugCmd("on")
-  local last = NS.DebugLog.buffer[#NS.DebugLog.buffer]
-  assertTrue(last and last:find("[Debug] logging enabled", 1, true) ~= nil,
-    "enabling should log '[Debug] logging enabled'")
+  local ack = captureChat(function() debugCmd("on") end)
+  -- §5: the chat ack colour-codes the state word — ON in green (40ff40).
+  assertTrue(ack:find("|cff40ff40ON|r", 1, true) ~= nil, "enable ack colours ON green: " .. ack)
+  -- On enable the [Init] session summary follows the bracket, so the bracket is second-to-last.
+  local n = #NS.DebugLog.buffer
+  local bracket, initLine = NS.DebugLog.buffer[n - 1], NS.DebugLog.buffer[n]
+  assertTrue(bracket and bracket:find("[Debug] logging enabled", 1, true) ~= nil,
+    "the bracket line is written on enable")
+  assertTrue(initLine and initLine:find("[Init]", 1, true) ~= nil,
+    "an [Init] session summary follows the bracket on enable")
+  assertTrue(initLine:find("schema v", 1, true) ~= nil and initLine:find("profile", 1, true) ~= nil,
+    "the [Init] summary names the schema version and active profile: " .. tostring(initLine))
   NS.State.debug = false
 end)
 
-test("/at debug off writes a '[Debug] logging disabled' line to the console", function()
+test("/at debug off: red-OFF ack, and '[Debug] logging disabled' is the last console line (§5)", function()
   NS.State.debug = true
   local before = #NS.DebugLog.buffer
-  debugCmd("off")
+  local ack = captureChat(function() debugCmd("off") end)
+  -- §5: OFF in red (ff4040). No [Init] summary on disable, so the bracket stays last.
+  assertTrue(ack:find("|cffff4040OFF|r", 1, true) ~= nil, "disable ack colours OFF red: " .. ack)
   assertTrue(#NS.DebugLog.buffer > before, "disabling should still append a console line")
   local last = NS.DebugLog.buffer[#NS.DebugLog.buffer]
   assertTrue(last and last:find("[Debug] logging disabled", 1, true) ~= nil,
-    "disabling should log '[Debug] logging disabled'")
+    "disabling should log '[Debug] logging disabled' as the last line")
 end)
 
 test("NS.Debug is a no-op (no console write) when debug is off", function()

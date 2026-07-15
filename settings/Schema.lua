@@ -93,6 +93,12 @@ end
 function NS.SetByPath(path, value)
     NS.SetSetting(path, value)
     local row = NS.FindSchemaRow(path)
+    -- §10: log every settings mutation once, at this single write seam. Gate the whole line
+    -- (including the value formatting) behind the debug flag so a ColorPicker drag — many writes
+    -- per second — does zero string work when debug is off.
+    if NS.State and NS.State.debug then
+        NS.Debug("Set", "%s = %s", path, row and NS.FormatSchemaValue(row, value) or tostring(value))
+    end
     if row then fireOnChange(row, value) end
 end
 

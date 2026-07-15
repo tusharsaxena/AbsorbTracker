@@ -28,7 +28,7 @@ State that lives on `NS` (rather than as a global):
 - Defaults (`defaults`, `flatDefaults`).
 - Session state (`State` — `State.debug`, never persisted).
 - Sub-tables that namespace a module's surface (`Constants`, `Compat`, `Util`, `Slash`, `DebugLog`, `Helpers`).
-- Helper functions attached directly (`Print`, `DebugPrint`, `Debug`, `GetSetting`, `SetSetting`, `GetBarColor`, ...).
+- Helper functions attached directly (`Print`, `Debug`, `GetSetting`, `SetSetting`, `GetBarColor`, ...).
 - The schema registry (`Schema`) and the localized-string table (`L`).
 - The slash command list (`COMMANDS`, aliased `SlashCommands`) — also rendered on the about page.
 - The stashed AceGUI reference (`AceGUI`), set once in `CreateOptionsPanel`.
@@ -94,11 +94,16 @@ NS.State.debug  -- bool, defaults nil/off, reset on every reload/login;
 ### Util (`core/Util.lua`)
 
 ```lua
-NS.Print(...)       -- prepends NS.PREFIX and prints via DEFAULT_CHAT_FRAME
-NS.DebugPrint(tag, ...)  -- routes to the on-screen console (NS.Debug) when State.debug is on;
-                         -- first arg is the [tag] (source event/fn name), rest is the message;
-                         -- zero-cost when off. No longer prints to chat.
+NS.Print(...)       -- prepends NS.PREFIX and prints via DEFAULT_CHAT_FRAME; every arg routes
+                    -- through NS.SafeToString, so a secret value never kills the line
 NS.Util.print       -- alias of NS.Print
+NS.IsConcatSafe(v)  -- probes table.concat({v}) to detect a WoW "secret" value (12.0 combat guard)
+NS.SafeToString(v)  -- secret-safe stringifier; renders a secret as "<secret>"
+
+-- The debug sink itself, NS.Debug(tag, fmt, ...), is defined in core/DebugLog.lua: it routes
+-- every vararg through NS.SafeToString then fmt:format(...), so call sites use %s-only format
+-- strings and can never raise on a secret. Routes to the on-screen console (never chat) when
+-- State.debug is on; zero-cost when off.
 ```
 
 ### Data (`core/Data.lua`)
@@ -166,7 +171,9 @@ NS.DebugLog.Show() / Hide() / Toggle()   -- the console window
 NS.DebugLog:Add(tag, msg)                -- append one line + mirror to the plain-text buffer
 NS.DebugLog:Clear()                      -- clear the log + buffer
 NS.DebugLog:ShowCopy()                   -- read-through EditBox with the whole log as plain text
-NS.DebugLog:SetEnabled(on)               -- single seam for flipping State.debug (chat ack + header)
+NS.DebugLog:SetEnabled(on)               -- single seam for flipping State.debug: colour-coded chat
+                                         -- ack (ON green/OFF red, §5) + header + [Debug] bracket +
+                                         -- [Init] session summary on enable
 NS.DebugLog:RefreshHeader()              -- resync the ON/OFF toggle label + colour
 NS.DebugLog.FormatPlain(ts, tag, msg)    -- pure formatter: "<ts> | [<tag>] <msg>" (Copy buffer)
 NS.DebugLog.FormatColored(ts, tag, msg)  -- pure colour-coded formatter (console view)
@@ -396,4 +403,4 @@ Modules that own a sub-surface publish it with the `NS.X = NS.X or {}` guard (`N
 
 ## Test harness
 
-There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` loads the runtime files in TOC order through `tests/loader.lua` against `tests/wow_mock.lua`, then runs `test_schema.lua`, `test_database.lua`, `test_compat.lua`, `test_util.lua`, `test_debuglog.lua`, `test_slash.lua`, `test_timer.lua`, and `test_visibility.lua` (63 tests total). The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.
+There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` loads the runtime files in TOC order through `tests/loader.lua` against `tests/wow_mock.lua`, then runs `test_schema.lua`, `test_database.lua`, `test_compat.lua`, `test_util.lua`, `test_debuglog.lua`, `test_slash.lua`, `test_timer.lua`, and `test_visibility.lua` (70 tests total). The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.

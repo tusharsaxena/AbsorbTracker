@@ -16,6 +16,16 @@ NS.addon = addon
 -- (KickCD sidesteps this entirely by only ever calling NS.Util.print; we keep the NS.Print name.)
 if NS.Util and NS.Util.print then NS.Print = NS.Util.print end
 
+-- Debug coalescing (§9): per-combat counters + last non-secret absorb, all maintained only when
+-- debug is on. Reset at combat start, flushed as one [Combat] rollup at combat end.
+local dbgAbsorbEvents, dbgRepaints = 0, 0
+local dbgLastAbsorb   -- last NON-secret absorb value seen (nil until a non-secret read)
+
+-- Called by modules/Display.lua on each actual repaint. Gated: counts nothing when debug is off.
+function NS.NoteRepaint()
+    if NS.State and NS.State.debug then dbgRepaints = dbgRepaints + 1 end
+end
+
 function addon:OnInitialize()
     -- Register the vendored monospace font with LSM for the debug console (§12.2).
     local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
@@ -64,6 +74,9 @@ function addon:OnEnable()
 
     -- Create the options panel (defined in settings/Panel.lua).
     if NS.CreateOptionsPanel then NS.CreateOptionsPanel() end
+    -- No [Init] boot summary here: the debug flag is session-only and off at login, so a
+    -- login-time NS.Debug line would always be gated off. Per debug-logging §5 the session summary
+    -- is emitted from DebugLog:SetEnabled on enable, the only point where it is current and visible.
 end
 
 -- The absorb event drives a coalesced repaint (modules/Timer.lua). Gate the debug read so it
@@ -71,8 +84,18 @@ end
 function addon:OnAbsorbChanged(_, unit)
     if unit ~= "player" then return end
     if NS.State and NS.State.debug then
-        NS.DebugPrint("UNIT_ABSORB_AMOUNT_CHANGED", "Value:",
-            AbbreviateNumbers(UnitGetTotalAbsorbs("player") or 0))
+        dbgAbsorbEvents = dbgAbsorbEvents + 1
+        local v = UnitGetTotalAbsorbs("player") or 0
+        -- Only compare when the value is NOT a combat secret (IsConcatSafe == readable).
+        if NS.IsConcatSafe(v) then
+            local prev = dbgLastAbsorb
+            if prev ~= nil and prev == 0 and v ~= 0 then
+                NS.Debug("Absorb", "shield up: %s \226\134\146 %s", prev, AbbreviateNumbers(v))
+            elseif prev ~= nil and prev ~= 0 and v == 0 then
+                NS.Debug("Absorb", "shield gone: %s \226\134\146 0", AbbreviateNumbers(prev))
+            end
+            dbgLastAbsorb = v
+        end
     end
     NS.RequestRepaint()
 end
@@ -84,6 +107,7 @@ function addon:OnMaxHealthChanged(_, unit)
 end
 
 function addon:OnEnterWorld()
+    NS.Debug("World", "entering world")
     NS.ApplyVisibility()
     NS.RequestRepaint()
 end
@@ -95,16 +119,34 @@ end
 function addon:OnEnterCombat()
     NS.ApplyVisibility()
     NS.RequestRepaint()
+    -- Reset the coalescing counters unconditionally (two assignments, harmless when debug is off)
+    -- so a fight that began before `/at debug on` still yields an accurate leave-rollup instead of
+    -- carrying stale residue from the previous debug-on combat.
+    dbgAbsorbEvents, dbgRepaints = 0, 0
+    if NS.State and NS.State.debug then
+        NS.Debug("Combat", "entered")
+    end
 end
 
 function addon:OnLeaveCombat()
     NS.ApplyVisibility()
     NS.RequestRepaint()
+    if NS.State and NS.State.debug then
+        local v = UnitGetTotalAbsorbs("player") or 0
+        if NS.IsConcatSafe(v) then
+            NS.Debug("Combat", "left: %s events, %s repaints, final=%s",
+                dbgAbsorbEvents, dbgRepaints, AbbreviateNumbers(v))
+        else
+            NS.Debug("Combat", "left: %s events, %s repaints", dbgAbsorbEvents, dbgRepaints)
+        end
+    end
 end
 
 -- AceDB profile-change callback (registered in core/Database.lua). Repaint the bar from the new
 -- profile and refresh an open settings panel.
 function NS.OnProfileChanged()
+    NS.Debug("Profile", "changed \226\134\146 %s",
+        (NS.db and NS.db.GetCurrentProfile and NS.db:GetCurrentProfile()) or "?")
     NS.RestoreBarPosition()
     NS.UpdateBarAppearance()
     NS.UpdateAbsorbBar()

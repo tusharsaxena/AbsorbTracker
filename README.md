@@ -109,7 +109,7 @@ commit and before tagging a release.
 
 | Check | Command | Expected |
 |-------|---------|----------|
-| Unit tests | `lua tests/run.lua` | `63 passed, 0 failed` (schema parse/format/validate, DB migrations, Compat, secret-safe Util, DebugLog, slash dispatch, repaint timer/throttle, combat-visibility) |
+| Unit tests | `lua tests/run.lua` | `70 passed, 0 failed` (schema parse/format/validate, DB migrations, Compat, secret-safe Util, DebugLog, slash dispatch, repaint timer/throttle, combat-visibility) |
 | Lint | `luacheck .` | `0 warnings / 0 errors` |
 | Syntax-check one file | `luac -p <path/to/file.lua>` | no output (clean parse) |
 | In-game smoke tests | manual | see [docs/smoke-tests.md](./docs/smoke-tests.md) |

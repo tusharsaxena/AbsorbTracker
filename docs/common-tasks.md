@@ -150,7 +150,7 @@ See also: the `/wow-addon:bump-interface` skill for the automated version of thi
 This addon has a headless test harness under `tests/` — any doc claiming "no automated tests" is stale. Run the green gate before you consider a change done:
 
 ```sh
-lua tests/run.lua      # 63 tests: schema / database / compat / util / debuglog / slash / timer / visibility
+lua tests/run.lua      # 70 tests: schema / database / compat / util / debuglog / slash / timer / visibility
 luacheck .             # must be 0 warnings / 0 errors
 luac -p <changed.lua>  # bytecode-parse each file you touched
 ```
@@ -164,7 +164,7 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 | `tests/test_schema.lua` | schema shape, `ValidateSchema` (errors / resolved / missing), `SetByPath`, `ApplyDefault`, formatters/parsers |
 | `tests/test_database.lua` | `InitDB`, `RunMigrations` idempotency, `flatDefaults` backfill, schemaVersion v1→v2 migration |
 | `tests/test_compat.lua` | `Compat.GetAddOnMetadata` wrapper + fallback |
-| `tests/test_util.lua` | `NS.Print` / `NS.DebugPrint` prefixing and gating, `NS.SafeToString` secret-value handling |
+| `tests/test_util.lua` | `NS.Print` / `NS.Debug` (secret-safe sink) prefixing and gating, `NS.SafeToString` secret-value handling |
 | `tests/test_debuglog.lua` | `NS.Debug` sink, `FormatPlain` / `FormatColored`, on/off state |
 | `tests/test_slash.lua` | `NS.COMMANDS` dispatch, unknown-verb path, `/at` verbs |
 | `tests/test_timer.lua` | `NS.RequestRepaint` coalescing + `throttleWindow` delay, event-handler repaint wiring |

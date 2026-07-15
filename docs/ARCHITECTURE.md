@@ -29,7 +29,7 @@ Modules → Settings.
 | `core/Constants.lua` | `NS.Constants`: fallback texture/border/font paths, `FONT_MONO` (debug console), `LOGO_PATH`. |
 | `core/Namespace.lua` | `NS.name` / `NS.version` / `NS.PREFIX` (cyan `[AT]`) and cached `floor`/`max`/`format`. |
 | `core/State.lua` | `NS.State` — session-only runtime state (the debug flag; never persisted). |
-| `core/Util.lua` | `NS.Print` (prefixed chat) + `NS.DebugPrint` (routes to the debug console when enabled). |
+| `core/Util.lua` | `NS.Print` (prefixed chat) only. The secret-safe debug sink is `NS.Debug` (`core/DebugLog.lua`); every debug arg routes through `NS.SafeToString`. |
 | `core/Data.lua` | The AceDB read/write seam (`GetSetting`/`SetSetting`), LSM fetchers with fallbacks, and the class-color-aware color resolvers. |
 | `core/Database.lua` | `NS:InitDB` (AceDB + profile callbacks) and `NS:RunMigrations` (schema-version seam). |
 | `core/LSMPatch.lua` | `NS.ApplyLSMBorderPatch` — collapses the upstream LSM30_Border preview tile; run once on enable. |
@@ -104,8 +104,9 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   `ClearLSMCache` → `GetLSM` → `ApplyLSMBorderPatch` → `RestoreBarPosition` →
   `UpdateBarAppearance` → `UpdateAbsorbBar` (direct paint) → register events →
   `CreateOptionsPanel`.
-- **Private unit-event frame** (the two `UNIT_*` events): `UNIT_ABSORB_AMOUNT_CHANGED` (records a
-  debug line, then `NS.RequestRepaint()`) and `UNIT_MAXHEALTH` (`OnMaxHealthChanged` →
+- **Private unit-event frame** (the two `UNIT_*` events): `UNIT_ABSORB_AMOUNT_CHANGED` (bumps a
+  debug-gated event counter, logs a non-secret `[Absorb]` shield up/gone transition when the value
+  is concat-safe, then `NS.RequestRepaint()`) and `UNIT_MAXHEALTH` (`OnMaxHealthChanged` →
   `NS.RequestRepaint()` — the bar shows absorb as a fraction of max health) are registered on a
   private `CreateFrame("Frame")` via `RegisterUnitEvent(event, "player")`, **not** through AceEvent.
   This is a documented §9.1 deviation (see below): these events fire for *every* unit the client
