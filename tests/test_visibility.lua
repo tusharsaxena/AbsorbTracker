@@ -113,3 +113,58 @@ test("OnLeaveCombat never opens config, even with a stale panelOpenPending (opti
   mocks.__fireTimers()
   NS.State.panelOpenPending = nil
 end)
+
+-- ── Debug coalescing (§9): [Combat] rollup + [Absorb] transitions ──────────────────
+test("combat rollup: OnLeaveCombat logs one [Combat] left summary with counts", function()
+  local mocks = T.mocks
+  NS.State.debug = true
+  NS.addon:OnEnterCombat()                 -- resets counters
+  NS.addon:OnAbsorbChanged(nil, "player")  -- +1 event
+  NS.addon:OnAbsorbChanged(nil, "player")  -- +1 event
+  NS.NoteRepaint()                         -- +1 repaint
+  local before = #NS.DebugLog.buffer
+  NS.addon:OnLeaveCombat()
+  NS.State.debug = false
+  local line
+  for i = #NS.DebugLog.buffer, before, -1 do
+    local l = NS.DebugLog.buffer[i]
+    if l and l:find("[Combat]", 1, true) and l:find("left", 1, true) then line = l break end
+  end
+  assertTrue(line ~= nil, "a [Combat] left summary is logged")
+  assertTrue(line:find("2 events", 1, true) ~= nil, "counts absorb events")
+  assertTrue(line:find("1 repaints", 1, true) ~= nil, "counts repaints")
+  mocks.__fireTimers()
+end)
+
+test("OnAbsorbChanged is silent on an unchanged value (no per-event spam)", function()
+  local mocks = T.mocks
+  local savedAbs = mocks.UnitGetTotalAbsorbs
+  NS.State.debug = true
+  mocks.UnitGetTotalAbsorbs = function() return 5000 end
+  NS.addon:OnEnterCombat()
+  NS.addon:OnAbsorbChanged(nil, "player")   -- establishes last=5000 (may log one transition)
+  local before = #NS.DebugLog.buffer
+  NS.addon:OnAbsorbChanged(nil, "player")   -- 5000 -> 5000: no transition, no line
+  assertEqual(#NS.DebugLog.buffer, before)  -- silent when the value is unchanged
+  mocks.UnitGetTotalAbsorbs = savedAbs
+  NS.State.debug = false
+  mocks.__fireTimers()
+end)
+
+test("[Absorb] transition logs on a non-secret 0->nonzero change", function()
+  local mocks = T.mocks
+  local savedAbs = mocks.UnitGetTotalAbsorbs
+  NS.State.debug = true
+  NS.addon:OnEnterCombat()
+  mocks.UnitGetTotalAbsorbs = function() return 0 end
+  NS.addon:OnAbsorbChanged(nil, "player")   -- establishes last = 0
+  mocks.UnitGetTotalAbsorbs = function() return 5000 end
+  local before = #NS.DebugLog.buffer
+  NS.addon:OnAbsorbChanged(nil, "player")   -- 0 -> 5000 transition
+  local last = NS.DebugLog.buffer[#NS.DebugLog.buffer]
+  assertTrue(#NS.DebugLog.buffer > before and last:find("[Absorb]", 1, true) ~= nil
+    and last:find("shield up", 1, true) ~= nil, "logs shield-up transition")
+  mocks.UnitGetTotalAbsorbs = savedAbs
+  NS.State.debug = false
+  mocks.__fireTimers()
+end)

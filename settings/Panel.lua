@@ -114,11 +114,13 @@ function NS.OpenOptionsPanel()
         -- The gate lives HERE (inside the open fn) so every caller — the /at config verb, /run
         -- scripts, future internal callers — is refused, not just the slash dispatcher. `print` is
         -- the file-local `local print = NS.Print`, so the line still carries the cyan [AT] tag.
+        NS.Debug("Cfg", "open refused (in combat)")
         print("|cffaaaaaacannot open settings during combat \226\128\148 Blizzard's category-switch is protected|r")
         return
     end
     if not (Settings and Settings.OpenToCategory) then return end
     if not mainCategoryID then return end
+    NS.Debug("Cfg", "opened")
     Settings.OpenToCategory(mainCategoryID)
     expandMainCategory()
 end

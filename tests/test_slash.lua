@@ -104,3 +104,27 @@ test("/at config in combat refuses with a grey notice (options-ui-§2)", functio
 
   T.mocks.InCombatLockdown = saved
 end)
+
+test("OpenOptionsPanel logs [Cfg] refused in combat", function()
+  local saved = T.mocks.InCombatLockdown
+  T.mocks.InCombatLockdown = function() return true end
+  NS.State.debug = true
+  local before = #NS.DebugLog.buffer
+  NS.OpenOptionsPanel()
+  NS.State.debug = false
+  T.mocks.InCombatLockdown = saved
+  local last = NS.DebugLog.buffer[#NS.DebugLog.buffer]
+  assertTrue(#NS.DebugLog.buffer > before and last:find("[Cfg]", 1, true) ~= nil
+    and last:find("refused", 1, true) ~= nil, "a [Cfg] refused line is logged in combat")
+end)
+
+test("SetByPath logs one [Set] path = value line (§10)", function()
+  NS.State.debug = true
+  local before = #NS.DebugLog.buffer
+  NS.SetByPath("barWidth", 200)
+  NS.State.debug = false
+  local last = NS.DebugLog.buffer[#NS.DebugLog.buffer]
+  assertTrue(#NS.DebugLog.buffer > before, "a [Set] line should be appended")
+  assertTrue(last:find("[Set]", 1, true) ~= nil, "tag is Set")
+  assertTrue(last:find("barWidth = 200", 1, true) ~= nil, "logs path = value")
+end)

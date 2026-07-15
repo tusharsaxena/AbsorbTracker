@@ -234,11 +234,26 @@ function D:SetEnabled(on)
     on = not not on
     NS.State.debug = on
     D:RefreshHeader()
-    NS.Print("debug " .. (on and "on" or "off"))
+    -- Colour-coded chat ack (debug-logging §5): the state word is ON green (40ff40) / OFF red
+    -- (ff4040), mirroring the title-bar toggle so the flag reads identically in chat and on the
+    -- console header. Routes through the shared NS.PREFIX printer (never a raw print/tag).
+    NS.Print("debug logging " .. (on and "|cff40ff40ON|r" or "|cffff4040OFF|r"))
     -- Bracket every session with a console line at both ends. Write through D:Add rather than
     -- NS.Debug so the "logging disabled" line still lands after NS.State.debug has flipped off
     -- (NS.Debug is gated on the flag, D:Add is not).
     D:Add("Debug", on and "logging enabled" or "logging disabled")
+    -- On enable, follow the bracket with a one-line [Init] session summary (debug-logging §5;
+    -- this also satisfies the §8 lifecycle boot-summary). Emitted HERE, not at login: the flag is
+    -- session-only and off at login, so a load-time summary would always be gated off and never
+    -- render — SetEnabled is the only point where it is both current and visible. Raw D:Add (not
+    -- the gated sink); values are plain but routed through NS.SafeToString to honour secret-safety.
+    if on then
+        local schemaVer = NS.db and NS.db.global and NS.db.global.schemaVersion
+        local profile = NS.db and NS.db.GetCurrentProfile and NS.db:GetCurrentProfile()
+        D:Add("Init", ("%s v%s, schema v%s, profile '%s'"):format(
+            NS.SafeToString(NS.name), NS.SafeToString(NS.version),
+            NS.SafeToString(schemaVer or "?"), NS.SafeToString(profile or "?")))
+    end
 end
 
 function D:RefreshHeader()
@@ -249,9 +264,17 @@ function D:RefreshHeader()
     else frame.debugToggle:SetTextColor(0.90, 0.30, 0.30) end
 end
 
--- Global debug sink. No-op (zero alloc) when debug is off; otherwise appends to the console.
+-- Global debug sink (Ka0s debug-logging §4). Zero-alloc when off. Every vararg passes through
+-- NS.SafeToString so a combat "secret" (absorb total) logs as <secret> instead of raising in
+-- string.format — so call sites use %s for every placeholder.
 function NS.Debug(tag, fmt, ...)
     if not (NS.State and NS.State.debug) then return end
-    local msg = select("#", ...) > 0 and fmt:format(...) or fmt
+    local n = select("#", ...)
+    local msg = fmt
+    if n > 0 then
+        local parts = {}
+        for i = 1, n do parts[i] = NS.SafeToString((select(i, ...))) end
+        msg = fmt:format(unpack(parts))
+    end
     D:Add(tag, msg)
 end

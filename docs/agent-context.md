@@ -47,7 +47,7 @@ User-facing reference: [../README.md](../README.md). Subsystems + invariants:
   display — never run it through `tonumber` first, and never compare it with `<`/`>`. A secret
   survives `tostring()` **and the `..` operator** but **raises in `table.concat`/`string.format`**,
   so **never build a chat/debug line from a raw combat value** — every arg to `NS.Print` /
-  `NS.DebugPrint` goes through `NS.SafeToString` (`core/Util.lua`), which renders a secret as
+  `NS.Debug` goes through `NS.SafeToString` (`core/Util.lua`), which renders a secret as
   `<secret>`. Its detector probes `table.concat`, not `..` (a `..` probe passes secrets through).
   This is Ka0s standard **§9.8**. Detail in [midnight-quirks.md](./midnight-quirks.md).
 - **Deprecated APIs go through `core/Compat.lua`.** `Compat.GetAddOnMetadata` is the only metadata
@@ -81,7 +81,7 @@ time), guarding with `if NS.X then ... end` for the soft load-order coupling.
   AceGUI / AceConfig / AceDBOptions), LibSharedMedia-3.0, and the upstream
   `AceGUI-3.0-SharedMediaWidgets` r65. The displayButton tile is suppressed by
   `core/LSMPatch.lua` (addon-side, not a lib edit), so `r66+` refreshes are a clean drop-in.
-- **Headless tests (`tests/`) + lint gate.** `lua tests/run.lua` (63 tests: schema parse/format/
+- **Headless tests (`tests/`) + lint gate.** `lua tests/run.lua` (70 tests: schema parse/format/
   validate, DB migrations, Compat, Util, DebugLog, slash dispatch, repaint-throttle coalescing,
   combat-visibility)
   must be green and `luacheck .` clean

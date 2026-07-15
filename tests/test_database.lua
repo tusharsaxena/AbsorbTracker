@@ -64,6 +64,20 @@ test("RunMigrations is a safe no-op when the DB is absent", function()
   NS.db = saved
 end)
 
+test("RunMigrations logs [Migrate] only when a version bump happens", function()
+  NS.State.debug = true
+  NS.db.global.schemaVersion = 1               -- force a v1->v2 migration
+  local before = #NS.DebugLog.buffer
+  NS:RunMigrations()
+  local afterMigrate = #NS.DebugLog.buffer
+  assertTrue(afterMigrate > before, "a [Migrate] line is logged when migrating")
+  assertTrue(NS.DebugLog.buffer[afterMigrate]:find("[Migrate]", 1, true) ~= nil, "tag is Migrate")
+  -- Idempotent: running again at v2 logs nothing new.
+  NS:RunMigrations()
+  assertEqual(#NS.DebugLog.buffer, afterMigrate)
+  NS.State.debug = false
+end)
+
 test("InitDB produced a profile carrying every default key", function()
   for k in pairs(NS.flatDefaults) do
     -- `position` defaults to nil, so it is legitimately absent.

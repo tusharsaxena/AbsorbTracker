@@ -168,7 +168,7 @@ NS.OnProfileChanged()
 The hot path is `NS.RequestRepaint()` (`modules/Timer.lua`) — a coalescing repaint scheduler, not a polling loop. A burst of `UNIT_ABSORB_AMOUNT_CHANGED` events during combat collapses into a single pending one-shot AceTimer (`NS.addon:ScheduleTimer(fn, throttleWindow)`, default 0.1s, range 0.05 – 1s); repeat calls while one is already pending are a no-op. Idle = zero repaints. Per fire of the resulting `NS.UpdateAbsorbBar()`:
 
 1. `UnitGetTotalAbsorbs("player")` + `UnitHealthMax("player")` — engine reads, microseconds each.
-2. `AbbreviateNumbers(value)` — string format. (The extra `DebugPrint` allocations are gated behind `NS.State.debug`, so they cost nothing when debug is off.)
+2. `AbbreviateNumbers(value)` — string format. (`NS.Debug` no longer logs per-repaint — `UpdateAbsorbBar` bumps a debug-gated repaint counter via `NS.NoteRepaint()`, coalesced into the one `[Combat]` rollup line at `OnLeaveCombat`; any remaining debug work is gated behind `NS.State.debug`, so it costs nothing when debug is off.)
 3. `statusBar:SetValue` + `valueText:SetText` — both fire on every repaint. Frame updates with unchanged values are cheap (Blizzard-side no-op for matching state), so the addon doesn't try to dedupe in Lua.
 
 There is no repeating ticker to guard: the one-shot timer self-clears (`pending = nil`) inside its own callback, so there's nothing to cancel between repaints.

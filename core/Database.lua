@@ -55,6 +55,7 @@ function NS:RunMigrations()
     -- orphan. Operates on the active profile, matching the backfill's scope.
     if g.schemaVersion < 2 then
         if profile then profile.updateInterval = nil end
+        NS.Debug("Migrate", "v%s \226\134\146 v2", g.schemaVersion)
         g.schemaVersion = 2
     end
 end

@@ -3,7 +3,7 @@
 Run on a **live Retail (Midnight, 12.0.7 / Interface 120007) English client** in order — later
 tests assume the addon loaded cleanly. Enable Lua errors first (`/console scriptErrors 1`, or
 BugSack/BugGrabber). Watch chat for the cyan `[AT]` prefix and for any red error frame. The addon
-also ships a headless gate (`lua tests/run.lua` → 63 passed, `luacheck .` → 0/0, `luac -p <file>`)
+also ships a headless gate (`lua tests/run.lua` → 70 passed, `luacheck .` → 0/0, `luac -p <file>`)
 that covers the pure logic; this suite covers everything that only runs against the live client.
 
 ### A. Load & bootstrap
@@ -12,7 +12,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 3. **/reload clean.** `/reload` → no errors; bar reappears in the same spot.
 4. **Value tracks reality.** Gain an absorb (e.g. Power Word: Shield) → fill + text update to the abbreviated amount; consume it → drops toward `0`.
 5. **Secret-value safety.** With a big absorb, the number shows an abbreviated string (e.g. `1.2M`), never `nil`/error.
-5a. **Secret-in-combat + debug on (regression).** `/at debug on`, enter combat, gain/consume absorbs → **zero Lua errors** (no `invalid value (secret) … for 'concat'`), debug console shows the value as `<secret>` where the combat-protected amount can't be stringified, and the **bar keeps updating**. Leave combat, `/at debug off`, re-enter combat → bar still updates. (Pre-fix this froze the bar until `/reload`.)
+5a. **Secret-in-combat + debug on (regression).** `/at debug on`, enter combat, gain/consume absorbs → **zero Lua errors** (no `invalid value (secret) … for 'concat'`). Per-event/per-repaint logging is coalesced (§9): no `[Absorb]`/repaint line fires per event in combat since the value is a secret there; leave combat → one `[Combat] left: N events, M repaints` rollup line appears, with `final=<value>` only if the post-combat read happens to be non-secret (otherwise counts only, no `final=`), and the **bar keeps updating** throughout. Leave combat, `/at debug off`, re-enter combat → bar still updates. (Pre-fix this froze the bar until `/reload`.)
 
 ### B. Slash surface
 6. `/at` alone → help block (version line + command list).
@@ -64,8 +64,8 @@ that covers the pure logic; this suite covers everything that only runs against 
 ### H. Debug console (§12)
 41. `/at debug` → **Absorb Tracker — Debug** window appears (dark, draggable); `/at debug` again → hides.
 42. Log lines render in a **monospace** font (JetBrains Mono).
-43. `/at debug on` → `[AT] debug on`, header **Debug: ON** (green); console logs a `[Debug] logging enabled` line; trigger an absorb change → timestamped `[tag] msg` lines (steel-blue ts, tan tag).
-44. `/at debug off` → `[AT] debug off`, header **Debug: OFF** (red); console logs a `[Debug] logging disabled` line (written as the final entry, after the state flips off); new changes no longer append.
+43. `/at debug on` → chat ack `[AT] debug logging ON` with **ON in green** (`40ff40`), header **Debug: ON** (green); console logs a `[Debug] logging enabled` line **followed by an `[Init]` session summary** (`[Init] AbsorbTracker v<version>, schema v<n>, profile '<name>'`); trigger an absorb change → timestamped `[tag] msg` lines (steel-blue ts, tan tag).
+44. `/at debug off` → chat ack `[AT] debug logging OFF` with **OFF in red** (`ff4040`), header **Debug: OFF** (red); console logs a `[Debug] logging disabled` line as the final entry (after the state flips off; no `[Init]` on disable); new changes no longer append.
 45. Header **Debug** toggle button → flips state exactly like the slash verb.
 46. **Copy** → opens a monospace EditBox with the plain-text log highlighted (Ctrl+C, then Esc).
 47. **Clear** → empties the log view and the copy buffer.

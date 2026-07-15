@@ -66,8 +66,16 @@ function NS.ShouldShowBar()
     return true
 end
 
+local dbgLastShown   -- module-local: last applied visibility, for transition-only logging
 function NS.ApplyVisibility()
-    if NS.ShouldShowBar() then NS.bar:Show() else NS.bar:Hide() end
+    local show = NS.ShouldShowBar()
+    if NS.State and NS.State.debug and show ~= dbgLastShown then
+        local reason = NS.GetSetting("hidden") and "hidden toggle"
+            or (NS.GetSetting("showOnlyInCombat") and "showOnlyInCombat") or "always"
+        NS.Debug("Bar", "%s (%s)", show and "shown" or "hidden", reason)
+    end
+    dbgLastShown = show
+    if show then NS.bar:Show() else NS.bar:Hide() end
 end
 
 -- Repaint the absorb value. Reads the raw (possibly "secret") UnitGetTotalAbsorbs value and hands
@@ -78,7 +86,6 @@ function NS.UpdateAbsorbBar()
     local valueText = NS.valueText
 
     if not NS.ShouldShowBar() then
-        NS.DebugPrint("UpdateAbsorbBar", "Skipped: bar not visible")
         return
     end
 
@@ -91,15 +98,10 @@ function NS.UpdateAbsorbBar()
     local totalAbsorb = UnitGetTotalAbsorbs("player") or 0
     local maxHealth = UnitHealthMax("player") or 1
 
-    -- Hot-path debug: gate the AbbreviateNumbers + format allocations so they don't fire every
-    -- tick when debug is off.
-    if NS.State and NS.State.debug then
-        NS.DebugPrint("UpdateAbsorbBar", "Absorb:", AbbreviateNumbers(totalAbsorb),
-            "| MaxHP:", AbbreviateNumbers(maxHealth), "| Timestamp:", NS.format("%.3f", GetTime()))
-    end
-
     bar:SetAlpha(1)
     statusBar:SetMinMaxValues(0, maxHealth)
     statusBar:SetValue(totalAbsorb)
     valueText:SetText(AbbreviateNumbers(totalAbsorb))
+
+    if NS.NoteRepaint then NS.NoteRepaint() end
 end
