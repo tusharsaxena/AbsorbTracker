@@ -51,7 +51,7 @@ When the suite changes — a case added, removed, or renamed, or the pass count 
 a failing test is resolved**) — do **both** of these **in the same change**, never as a follow-up:
 
 1. Regenerate the inventory: `lua tests/run.lua --list > docs/test-cases.md`.
-2. Update the README `tests` badge count (`![tests](…/badge/tests-X%2FY_passing-…)`) to the new
+2. Update the README `Tests` badge count (`![Tests](…/badge/Tests-X%2FY_passing-green)`) to the new
    passed / total.
 
 Both are local and hand-runnable — there is **no CI**, no GitHub Action, and no dynamic badge
