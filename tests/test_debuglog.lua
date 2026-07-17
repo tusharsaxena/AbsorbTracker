@@ -1,6 +1,7 @@
 local T = _G.AT_TEST
 local NS = T.NS
-local test, assertEqual, assertTrue = T.test, T.assertEqual, T.assertTrue
+local test, assertEqual, assertTrue, assertFalse =
+  T.test, T.assertEqual, T.assertTrue, T.assertFalse
 
 test("FONT_MONO constant is a JetBrains Mono TTF path", function()
   assertTrue(type(NS.Constants.FONT_MONO) == "string", "FONT_MONO must be a string")
@@ -106,4 +107,37 @@ test("NS.Debug is a no-op (no console write) when debug is off", function()
   local before = #NS.DebugLog.buffer
   NS.Debug("Absorb", "should not append")
   assertEqual(#NS.DebugLog.buffer, before)
+end)
+
+-- --- "Debug console" settings checkbox (settings/General.lua) ---
+-- ConsoleCheckbox() is the get/set spec the General page's checkbox is wired to. It toggles the
+-- console *window's visibility* only — never the debug logging flag (NS.State.debug). This is the
+-- headless seam for that wiring (the AceGUI widget itself isn't built without AceGUI).
+
+test("ConsoleCheckbox spec: get() reflects the console window visibility, not the debug flag", function()
+  local spec = NS.DebugLog:ConsoleCheckbox()
+  NS.DebugLog:Show()
+  assertTrue(spec.get() == true, "get() is true when the console window is shown")
+  NS.DebugLog:Hide()
+  assertFalse(spec.get(), "get() is false when the console window is hidden")
+end)
+
+test("ConsoleCheckbox spec: set(true) shows the console window without changing the debug flag", function()
+  NS.DebugLog:Hide()
+  NS.State.debug = false
+  local spec = NS.DebugLog:ConsoleCheckbox()
+  spec.set(true)
+  assertTrue(NS.DebugLog:IsShown(), "set(true) shows the console window")
+  assertFalse(NS.State.debug, "set(true) must NOT enable debug logging")
+  NS.DebugLog:Hide()
+end)
+
+test("ConsoleCheckbox spec: set(false) hides the console window without changing the debug flag", function()
+  NS.DebugLog:Show()
+  NS.State.debug = true
+  local spec = NS.DebugLog:ConsoleCheckbox()
+  spec.set(false)
+  assertFalse(NS.DebugLog:IsShown(), "set(false) hides the console window")
+  assertTrue(NS.State.debug == true, "set(false) must NOT disable debug logging")
+  NS.State.debug = false
 end)

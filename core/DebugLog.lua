@@ -122,7 +122,15 @@ local function EnsureFrame()
     frame.log = log
 
     applySkin(frame)
-    frame:HookScript("OnShow", function() D:RefreshHeader() end)
+    -- Keep the General page's session "Debug console" checkbox in sync with the window's actual
+    -- visibility, however it changes — this checkbox, the /at debug bare toggle, the header Close
+    -- button, or Esc (UISpecialFrames hides the frame directly). Guarded NS-bus call: the settings
+    -- layer may not be loaded. AceGUI SetValue doesn't fire OnValueChanged, so no recursion.
+    local function syncPanels()
+        if NS.Helpers and NS.Helpers.RefreshAllPanels then NS.Helpers.RefreshAllPanels() end
+    end
+    frame:HookScript("OnShow", function() D:RefreshHeader(); syncPanels() end)
+    frame:HookScript("OnHide", syncPanels)
     D:RefreshHeader()
 
     frame:Hide()
@@ -228,6 +236,10 @@ function D:Toggle()
     if f:IsShown() then f:Hide() else f:Show() end
 end
 
+-- Is the console window currently visible? Read-only, and never builds the frame — a nil frame
+-- (never opened this session) reads as hidden. Backs the General page's Debug console checkbox.
+function D:IsShown() return (frame and frame:IsShown()) and true or false end
+
 -- Single seam for changing debug state. The slash command and the header toggle both call this
 -- so the chat ack and the header label stay consistent. Session-only (§12.5).
 function D:SetEnabled(on)
@@ -262,6 +274,25 @@ function D:RefreshHeader()
     frame.debugToggle:SetText(on and "Debug: ON" or "Debug: OFF")
     if on then frame.debugToggle:SetTextColor(0.30, 0.85, 0.30)
     else frame.debugToggle:SetTextColor(0.90, 0.30, 0.30) end
+end
+
+-- "Debug console" checkbox spec for the General settings page. Toggles only the *visibility* of
+-- the console window (same as the bare /at debug) — it deliberately does NOT touch the debug
+-- logging flag (NS.State.debug), which stays on /at debug on|off and the window's own header
+-- toggle. `get` reads live window visibility; `set` shows/hides the window. Window visibility is
+-- transient UI state, never persisted (not a schema row). Consumed by Helpers.SessionCheckbox in
+-- settings/General.lua; also the headless test seam for the wiring.
+function D:ConsoleCheckbox()
+    return {
+        label   = "Debug console",
+        tooltip = "Show or hide the on-screen debug console window. Same as /at debug. "
+            .. "Whether logging is on is separate \226\128\148 use /at debug on|off "
+            .. "or the window's own toggle.",
+        get = function() return D:IsShown() end,
+        set = function(v)
+            if v then D:Show() else D:Hide() end
+        end,
+    }
 end
 
 -- Global debug sink (Ka0s debug-logging §4). Zero-alloc when off. Every vararg passes through

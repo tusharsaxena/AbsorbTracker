@@ -11,7 +11,14 @@ end
 -- A universal frame stub: any PascalCase method is a no-op returning the frame itself; other
 -- (lowercase/custom) field access misses through to nil so addon code can stash custom fields.
 local function stubFrame()
-  local f = {}
+  local f = { __shown = false }
+  -- Track shown state so IsShown/Toggle behave (the debug console's visibility checkbox reads it).
+  -- Every other capitalized method still no-ops through the metatable below.
+  function f:Show() self.__shown = true; return self end
+  function f:Hide() self.__shown = false; return self end
+  function f:SetShown(v) self.__shown = not not v; return self end
+  function f:IsShown() return self.__shown end
+  function f:IsVisible() return self.__shown end
   setmetatable(f, { __index = function(_, k)
     if type(k) == "string" and k:match("^%u") then
       return function() return f end

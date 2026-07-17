@@ -33,7 +33,7 @@ Modules → Settings.
 | `core/Data.lua` | The AceDB read/write seam (`GetSetting`/`SetSetting`), LSM fetchers with fallbacks, and the class-color-aware color resolvers. |
 | `core/Database.lua` | `NS:InitDB` (AceDB + profile callbacks) and `NS:RunMigrations` (schema-version seam). |
 | `core/LSMPatch.lua` | `NS.ApplyLSMBorderPatch` — collapses the upstream LSM30_Border preview tile; run once on enable. |
-| `core/DebugLog.lua` | On-screen debug console (§12): `ScrollingMessageFrame`, monospace font, `FormatPlain`/`FormatColored`, `NS.Debug` sink, session-only enable. |
+| `core/DebugLog.lua` | On-screen debug console (§12): `ScrollingMessageFrame`, monospace font, `FormatPlain`/`FormatColored`, `NS.Debug` sink, session-only logging enable (`SetEnabled`), window visibility (`Show`/`Hide`/`Toggle`/`IsShown`), and `ConsoleCheckbox()` — the General page's checkbox spec that shows/hides the window (not the logging flag). |
 | `core/AbsorbTracker.lua` | AceAddon promotion; `OnInitialize` (font register, InitDB, slash register), `OnEnable` (the login sequence), event handlers, `OnProfileChanged`. |
 | `defaults/Profile.lua` | `NS.defaults.profile` (bar settings) + `NS.defaults.global.schemaVersion`; `NS.flatDefaults` alias. |
 | `locales/enUS.lua` | `NS.L` metatable-fallback locale (English source keys; nothing wrapped yet). |
@@ -45,7 +45,7 @@ Modules → Settings.
 | `settings/Panel.lua` | Settings-category registration shell; publishes `NS.Helpers`; combat-gated `OpenOptionsPanel`. |
 | `settings/Helpers.lua` | Panel toolkit: layout constants, `CreatePanel`, section/scroll/tooltip, defaults/refresh registry, `LSMValues`. |
 | `settings/ScrollPatch.lua` | Always-visible scrollbar override for the AceGUI ScrollFrame. |
-| `settings/Widgets.lua` | Schema-row → AceGUI widget translation (`RenderField`/`RenderSchema`, four widget makers). |
+| `settings/Widgets.lua` | Schema-row → AceGUI widget translation (`RenderField`/`RenderSchema`, four schema widget makers), plus non-schema `SessionCheckbox` and the `RenderSchema` `pairWith` seam (session Debug console checkbox). |
 | `settings/About.lua` | The parent page (logo + Notes + slash-command list). |
 | `settings/{General,Bar,Border,Font,Profiles}.lua` | The five sub-pages; each registers schema rows + a deferred page builder — except Profiles, which registers no rows and renders AceDBOptions directly. |
 

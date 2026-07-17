@@ -65,6 +65,32 @@ local function makeCheckbox(ctx, row, parent, relativeWidth)
     return cb
 end
 
+-- Non-schema session checkbox: a bare AceGUI CheckBox wired to caller-supplied get/set instead of
+-- a schema path. For runtime-only, never-persisted toggles (the General page's "Debug console"
+-- window show/hide) that must NOT become a saved setting — so they can't go through makeCheckbox
+-- (which reads/writes a persisted path). Registers a refresher so RefreshAllPanels re-reads live
+-- state (e.g. when the console window is opened/closed elsewhere). spec = { label, tooltip, get, set }.
+function Helpers.SessionCheckbox(ctx, parent, relativeWidth, spec)
+    local AceGUI = NS.AceGUI
+    parent = parent or Helpers.EnsureScroll(ctx)
+    local cb = AceGUI:Create("CheckBox")
+    cb:SetLabel(spec.label)
+    applyWidth(cb, relativeWidth)
+
+    cb:SetValue(spec.get() and true or false)
+
+    local function refresh() cb:SetValue(spec.get() and true or false) end
+
+    cb:SetCallback("OnValueChanged", function(_, _, value)
+        spec.set(value and true or false)
+    end)
+
+    Helpers.AttachTooltip(cb, spec.label, spec.tooltip)
+    parent:AddChild(cb)
+    ctx.refreshers[#ctx.refreshers + 1] = refresh
+    return cb
+end
+
 local function snapToStep(value, mn, step)
     if not (step and step > 0) then return value end
     return math.floor((value - mn) / step + 0.5) * step + mn
@@ -238,7 +264,12 @@ end
 -- followed by a small vertical spacer for breathing room. afterGroup
 -- callbacks (e.g. inline action buttons) fire after the in-progress row
 -- is flushed, so they always start on a fresh line.
-function Helpers.RenderSchema(ctx, pageKey, afterGroup)
+--
+-- pairWith (optional) = { [path] = maker(ctx, rowGroup) }: attach a non-schema widget as the
+-- right partner of a named path's row (e.g. the General page's session "Debug console" checkbox
+-- beside "Lock Position"). One-shot, and only when that path is the lone widget on its row, so the
+-- pair stays 50/50 and never overflows to three-wide.
+function Helpers.RenderSchema(ctx, pageKey, afterGroup, pairWith)
     local AceGUI = NS.AceGUI
     local rows   = NS.SchemaForPage(pageKey)
     local scroll = Helpers.EnsureScroll(ctx)
@@ -276,6 +307,11 @@ function Helpers.RenderSchema(ctx, pageKey, afterGroup)
         if not pendingRow then pendingRow = startRow() end
         Helpers.RenderField(ctx, row, pendingRow, 0.5)
         pendingCount = pendingCount + 1
+        if pairWith and row.path and pairWith[row.path] and pendingCount == 1 then
+            pairWith[row.path](ctx, pendingRow)
+            pairWith[row.path] = nil       -- one-shot
+            pendingCount = pendingCount + 1
+        end
         if row.solo or pendingCount >= 2 then flushRow() end
 
         local nextRow = rows[i + 1]

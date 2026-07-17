@@ -44,7 +44,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - NS.Debug is a no-op when debug is off
 - Print tolerates a secret arg (no concat crash)
 
-### test_debuglog.lua (11)
+### test_debuglog.lua (14)
 
 - FONT_MONO constant is a JetBrains Mono TTF path
 - FormatPlain wraps the tag in brackets with single-space separators
@@ -57,6 +57,9 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at debug on: green-ON ack, then '[Debug] logging enabled' bracket + [Init] summary (§5)
 - /at debug off: red-OFF ack, and '[Debug] logging disabled' is the last console line (§5)
 - NS.Debug is a no-op (no console write) when debug is off
+- ConsoleCheckbox spec: get() reflects the console window visibility, not the debug flag
+- ConsoleCheckbox spec: set(true) shows the console window without changing the debug flag
+- ConsoleCheckbox spec: set(false) hides the console window without changing the debug flag
 
 ### test_slash.lua (11)
 
@@ -104,8 +107,8 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_database.lua | 11 |
 | test_compat.lua | 4 |
 | test_util.lua | 6 |
-| test_debuglog.lua | 11 |
+| test_debuglog.lua | 14 |
 | test_slash.lua | 11 |
 | test_timer.lua | 7 |
 | test_visibility.lua | 11 |
-| **Total** | **70** |
+| **Total** | **73** |

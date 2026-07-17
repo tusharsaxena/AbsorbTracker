@@ -184,6 +184,7 @@ Per-setting subcommands like `/at width 250` or `/at color classcolor on` are go
 ## What's *not* schema-driven
 
 - **Action buttons** like Reset Position. They're rendered via `Helpers.InlineButtonPair`, attached to a sub-page through `Helpers.RenderSchema`'s `afterGroup` callback. `settings/General.lua` wires the **Reset Position** + **Reset All Settings** pair under the **Master controls** group via `RenderSchema(ctx, "general", { ["Master controls"] = function(ctxRef) H.InlineButtonPair(ctxRef, ...) end })`. Each page's **Defaults** button (`Helpers.RestoreDefaults(pageKey, ctx)`) is likewise not a row.
+- **The Debug console checkbox** (General page, beside Lock Position). Shows/hides the debug console *window* (same as the bare `/at debug`) — deliberately *not* a schema row (window visibility is transient UI, never persisted), and it does **not** change the debug logging flag (`NS.State.debug`). It's rendered via `Helpers.SessionCheckbox` wired to `NS.DebugLog:ConsoleCheckbox()` (`get` = `D:IsShown()`, `set` = `D:Show()`/`D:Hide()`) and injected through `RenderSchema`'s `pairWith` seam.
 - **The non-key/value verbs.** `config`, `lock`, `unlock`, `toggle`, `debug`, `update`, `test`, `resetposition`, and `profile` live as dedicated entries in the ordered `NS.COMMANDS` table in `settings/Slash.lua` (15 verbs total; `NS.SlashCommands` is an alias the About page renders). An unknown verb prints `unknown command '<verb>'` then the help list.
 - **The Profiles sub-page.** `AceDBOptions:GetOptionsTable(db)` builds its own options table; no schema rows.
 

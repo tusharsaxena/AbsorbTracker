@@ -1,8 +1,8 @@
 -- AbsorbTracker: settings/General.lua
 --
 -- General sub-page — what `/at config` opens by default. Visibility,
--- show-only-in-combat, lock, update throttle, plus a Reset Position /
--- Reset All Settings button pair.
+-- show-only-in-combat, lock, a Debug console show/hide toggle, update
+-- throttle, plus a Reset Position / Reset All Settings button pair.
 --
 -- Schema rows below double as the source for `/at list/get/set` on
 -- these paths.
@@ -15,10 +15,15 @@ local flatDefaults = NS.flatDefaults
 
 -- Master controls layout produces:
 --     [Show Bar]              | [Show only in combat]
---     [Lock Position]                                  (odd row-out, alone)
+--     [Lock Position]         | [Debug console]        ← window show/hide, via pairWith
 --     [Reset Position]        | [Reset All Settings]   ← inline button pair
 -- Performance section produces:
 --     [Update throttle (sec)]                          (solo: only one row)
+--
+-- [Debug console] shows/hides the debug console window (same as bare /at debug) — it does NOT
+-- change the debug logging flag. NOT a schema row (window visibility is transient UI, never
+-- persisted); injected as Lock Position's right partner through RenderSchema's pairWith seam.
+-- Its get/set (window visibility) lives in NS.DebugLog:ConsoleCheckbox().
 
 NS.RegisterSchemaRows({
     {
@@ -139,6 +144,14 @@ local function build(mainCategory)
                         tooltip = "Reset every General, Bar, Border, and Font setting on this profile to defaults and recenter the bar.",
                         onClick = function() StaticPopup_Show("ABSORBTRACKER_RESET_ALL") end,
                     })
+            end,
+        }, {
+            -- "Debug console" checkbox as Lock Position's right partner: shows/hides the console
+            -- window (not a schema row — transient UI); get/set live in DebugLog.
+            locked = function(ctxRef, rowGroup)
+                if NS.DebugLog and NS.DebugLog.ConsoleCheckbox then
+                    H.SessionCheckbox(ctxRef, rowGroup, 0.5, NS.DebugLog:ConsoleCheckbox())
+                end
             end,
         })
     end)

@@ -366,7 +366,8 @@ NS.Helpers
 
     -- settings/Widgets.lua
     Helpers.RenderField(ctx, row, parent, w)       -- dispatches by row.type
-    Helpers.RenderSchema(ctx, pageKey, afterGroup?) -- two-column layout from schema rows
+    Helpers.SessionCheckbox(ctx, parent, w, spec)  -- non-schema checkbox (caller get/set)
+    Helpers.RenderSchema(ctx, pageKey, afterGroup?, pairWith?) -- two-column layout from schema rows
 
     -- settings/About.lua
     Helpers.BuildMainContent(ctx)                  -- top-level "Ka0s Absorb Tracker" page builder
