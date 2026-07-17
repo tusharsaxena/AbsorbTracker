@@ -8,7 +8,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### A. Load & bootstrap
 1. **Fresh login.** Delete `WTF/.../SavedVariables/AbsorbTrackerDB.lua`, log in → world reached, **zero Lua errors**.
-2. **Bar appears.** A single absorb bar is visible at screen center (default look); shows the value / `0`.
+2. **Bar appears.** A single absorb bar is visible at screen center; shows the value / `0`. **Default look is Blizzard-stock media** — `Blizzard Raid Bar` fill + background, `Blizzard Tooltip` border, `Friz Quadrata TT` text; no custom media ships in the defaults.
 3. **/reload clean.** `/reload` → no errors; bar reappears in the same spot.
 4. **Value tracks reality.** Gain an absorb (e.g. Power Word: Shield) → fill + text update to the abbreviated amount; consume it → drops toward `0`.
 5. **Secret-value safety.** With a big absorb, the number shows an abbreviated string (e.g. `1.2M`), never `nil`/error.
@@ -23,6 +23,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### C. Settings panel & combat gate
 11. `/at config` (out of combat) → Blizzard Settings opens to **Ka0s Absorb Tracker**, tree expanded to General/Bar/Border/Font/Profiles.
+11a. **About page media (documented exceptions).** Open the parent **Ka0s Absorb Tracker** / About page → the addon **logo renders** (custom branding texture via `C.LOGO_PATH`, §1.4 typed-subfolder exception — intentionally not user-swappable), Notes + slash-command list show, no error.
 12. **Combat gate (refuse, options-ui-§2).** In combat, `/at config` → panel does **not** open; chat shows the grey notice `[AT] cannot open settings during combat — Blizzard's category-switch is protected`. Spam `/at config` a few times → the same refusal each time, **no queue**, **no taint warning**.
 13. **No auto-open on combat end.** Leave combat → the panel does **not** pop open by itself (nothing was queued). Then out of combat, `/at config` → opens immediately (tree expanded), **no taint warning**. *(`/run AbsorbTrackerNS and false` aside: the gate is inside `OpenOptionsPanel`, so a `/run`-triggered open in combat is refused too.)*
 
@@ -32,8 +33,9 @@ that covers the pure logic; this suite covers everything that only runs against 
 16. **Border** — Style (LSM), Thickness, Use Class Color, Color. Change Style → edge changes; drag Thickness → grows/shrinks (inset recomputes, no glitch).
 17. **Font** — Face (LSM), Size, Outline (solo dropdown, 6 flags). Change Face/Outline → text updates live.
 18. **Profiles** — AceDBOptions UI renders **inside** the canvas panel (Current/New/Copy/Reset/Delete + scopes), no error.
-19. **Page Defaults button** — change Bar values, click Defaults → only Bar reverts; panel refreshes.
-20. **Reset All popup** — General → Reset All Settings → confirm popup → Yes → General/Bar/Border/Font revert, `[AT] All settings reset to defaults.`, Profiles untouched.
+19. **Page Defaults button (position isolation).** Change Bar values **and drag the bar off-center**, click Defaults → only Bar's rows revert; **the bar stays where you dragged it** (a page-level reset never moves the bar); panel refreshes.
+20. **Reset All popup (recenter regression).** Drag the bar off-center and change values on several pages, then General → Reset All Settings → confirm popup → Yes → General/Bar/Border/Font revert, `[AT] All settings reset to defaults.`, Profiles untouched, **and the bar recenters**. This must be an *identical* outcome to `/at resetall` (step 28) — both call the shared `Helpers.RestoreAllDefaults`; pre-fix the button reset settings but left the bar off-center.
+20a. **Reset-All wording parity.** The popup body text and the **Reset All Settings** button tooltip both state "…and recenter the bar" — matching the actual behavior and the `/at resetall` contract.
 
 ### E. LSM border-widget alignment fix
 21. Border page, **Border Style** dropdown closed → left edge flush with neighbors, **no ~42px gap** (LSMPatch suppresses the displayButton tile).
@@ -45,7 +47,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 25. `/at set barWidth 260` → `barWidth = 260 px`, bar widens, open panel refreshes; path case preserved.
 26. `/at set barWidth abc` → `Invalid value for barWidth`; bar unchanged.
 27. `/at reset bar` → `bar page reset to defaults`, reverts + repaints; `/at reset bogus` → unknown page.
-28. `/at resetall` → all pages revert **and** bar returns to center (position cleared).
+28. `/at resetall` → all pages revert **and** bar returns to center (position cleared) — same shared `RestoreAllDefaults` helper as the Reset All popup (step 20), so slash and button can never diverge.
 29. `/at resetposition` → bar snaps to center; other settings unchanged.
 30. `/at lock` / `/at unlock` → locks/unlocks dragging; dragged position persists across `/reload`.
 31. `/at toggle` → hides/shows the bar.
@@ -63,7 +65,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### H. Debug console (§12)
 41. `/at debug` → **Absorb Tracker — Debug** window appears (dark, draggable); `/at debug` again → hides.
-42. Log lines render in a **monospace** font (JetBrains Mono).
+42. Log lines render in a **monospace** font (JetBrains Mono) — a fixed face **independent of the Bar's Font Face setting** (documented §12.2 exception). Change the Bar's Font Face → console text is unaffected.
 43. `/at debug on` → chat ack `[AT] debug logging ON` with **ON in green** (`40ff40`), header **Debug: ON** (green); console logs a `[Debug] logging enabled` line **followed by an `[Init]` session summary** (`[Init] AbsorbTracker v<version>, schema v<n>, profile '<name>'`); trigger an absorb change → timestamped `[tag] msg` lines (steel-blue ts, tan tag).
 44. `/at debug off` → chat ack `[AT] debug logging OFF` with **OFF in red** (`ff4040`), header **Debug: OFF** (red); console logs a `[Debug] logging disabled` line as the final entry (after the state flips off; no `[Init]` on disable); new changes no longer append.
 45. Header **Debug** toggle button → flips state exactly like the slash verb.
@@ -84,7 +86,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 56. With all three on, `/reload` or profile switch → colors re-resolve with no manual refresh (getters read class color per-paint).
 57. Turn each Use Class Color off → manual RGBA picker re-enables; bar reverts to the stored manual color.
 
-**Pass criteria:** all 58 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
+**Pass criteria:** all 60 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
 and no combat-taint warning when the panel opens out of combat (step 13). On any failure, record the step number, observed vs.
 expected, and any error text.
 

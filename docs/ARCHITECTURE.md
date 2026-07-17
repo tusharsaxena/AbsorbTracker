@@ -85,7 +85,7 @@ schema paths survive) and looks it up in the ordered `NS.COMMANDS` table. Unknow
 | `/at get <path>` | Print one setting's current value |
 | `/at set <path> <value>` | Set one setting (typed: bool/number/string/color) |
 | `/at reset <general\|bar\|border\|font>` | Reset one panel to defaults |
-| `/at resetall` | Reset every setting and clear the saved position |
+| `/at resetall` | Reset every setting, clear the saved position, and recenter the bar (shared `Helpers.RestoreAllDefaults` — the panel's Reset All button calls the same path) |
 | `/at resetposition` | Return the bar to screen center |
 | `/at lock` / `/at unlock` | Flip the drag lock |
 | `/at toggle` | Flip bar visibility |
