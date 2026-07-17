@@ -55,7 +55,7 @@ Five pages under **Ka0s Absorb Tracker**:
 
 | Tab | Covers |
 |-----|--------|
-| General | Show or hide the bar, show it only in combat, lock the bar, and how often it refreshes. Buttons to reset the position or all settings. |
+| General | Show or hide the bar, show it only in combat, lock the bar, show or hide the debug console, and how often it refreshes. Buttons to reset the position or all settings. |
 | Bar | Bar width and height, plus the bar and background textures and colors. |
 | Border | Border style, thickness, and color. |
 | Font | Font face, size, and outline. |
