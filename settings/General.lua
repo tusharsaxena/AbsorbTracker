@@ -77,10 +77,11 @@ NS.RegisterSchemaRows({
 })
 
 -- StaticPopup for "Reset All Settings" — irreversible, so confirm
--- before wiping. The OnAccept body shares the helper with /at resetall
--- so the popup and the slash never diverge.
+-- before wiping. The OnAccept body calls NS.Helpers.RestoreAllDefaults,
+-- the same helper /at resetall calls, so the popup and the slash never
+-- diverge (they historically differed on whether position was cleared).
 StaticPopupDialogs["ABSORBTRACKER_RESET_ALL"] = {
-    text         = "Reset every General, Bar, Border, and Font setting on this profile to defaults? Profiles are left alone.",
+    text         = "Reset every General, Bar, Border, and Font setting on this profile to defaults and recenter the bar? Profiles are left alone.",
     button1      = "Yes",
     button2      = "No",
     timeout      = 0,
@@ -135,7 +136,7 @@ local function build(mainCategory)
                     },
                     {
                         text    = "Reset All Settings",
-                        tooltip = "Reset every General, Bar, Border, and Font setting on this profile to defaults.",
+                        tooltip = "Reset every General, Bar, Border, and Font setting on this profile to defaults and recenter the bar.",
                         onClick = function() StaticPopup_Show("ABSORBTRACKER_RESET_ALL") end,
                     })
             end,

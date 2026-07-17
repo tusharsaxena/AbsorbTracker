@@ -196,14 +196,12 @@ function runReset(rest)
 end
 
 function runResetAll()
-    for _, row in ipairs(NS.Schema) do
-        NS.ApplyDefault(row)
+    -- Delegate to the single shared helper so the slash command and the
+    -- "Reset All Settings" popup can never diverge — same rows reset,
+    -- same position clear + recenter, same panel refresh.
+    if NS.Helpers and NS.Helpers.RestoreAllDefaults then
+        NS.Helpers.RestoreAllDefaults()
     end
-    if NS.db and NS.db.profile then
-        NS.db.profile.position = nil
-    end
-    if NS.RestoreBarPosition then NS.RestoreBarPosition() end
-    if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
     print("All settings reset to defaults")
 end
 

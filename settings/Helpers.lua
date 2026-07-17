@@ -318,15 +318,25 @@ function Helpers.RestoreDefaults(pageKey, ctx)
 end
 
 -- Reset every schema-driven page (general / bar / border / font) to its
--- per-row default. Profiles is skipped on purpose — resetting profiles
--- would delete user data. After resetting, every open panel's
--- refreshers run so live widgets reflect the new state.
+-- per-row default, clear the saved bar position (recentering the bar),
+-- then refresh every open panel so live widgets reflect the new state.
+-- Profiles is skipped on purpose — resetting profiles would delete user
+-- data. This is the single "reset all" implementation; both the "Reset
+-- All Settings" popup and the `/at resetall` slash command call it, so
+-- the two can never diverge (they historically did on position).
 function Helpers.RestoreAllDefaults()
     for _, row in ipairs(NS.Schema or {}) do
         if row.page ~= "profiles" then
             NS.ApplyDefault(row)
         end
     end
+    -- Clear the saved position and recenter. `position` is not a schema
+    -- row (it's set by dragging the bar), so ApplyDefault above never
+    -- touches it — it must be cleared explicitly.
+    if NS.db and NS.db.profile then
+        NS.db.profile.position = nil
+    end
+    if NS.RestoreBarPosition then NS.RestoreBarPosition() end
     Helpers.RefreshAllPanels()
 end
 
