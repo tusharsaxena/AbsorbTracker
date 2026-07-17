@@ -170,6 +170,23 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
   (BigWigs et al.). All other events (`PLAYER_ENTERING_WORLD`, `PLAYER_REGEN_DISABLED/ENABLED`) stay
   on AceEvent. This is the *only* raw event frame; §9.1 otherwise holds.
 
+- **Non-Blizzard media that is intentionally fixed (no LSM selector).** The bar-appearance media —
+  `barTexture`, `bgTexture` (both default `"Blizzard Raid Bar"`), `border` (`"Blizzard Tooltip"`) and
+  `font` (`"Friz Quadrata TT"`) — is 100% Blizzard-stock by default and fully user-configurable
+  through LSM (`LSM30_Statusbar`/`LSM30_Border`/`LSM30_Font` dropdowns in `settings/{Bar,Border,Font}.lua`,
+  resolved via `lsm:Fetch` in `core/Data.lua` with Blizzard-stock fallbacks in `core/Constants.lua`).
+  Two assets sit outside that model — non-Blizzard *and* deliberately not exposed as a user setting.
+  Both are standard-sanctioned; they are recorded here only so a font/texture audit (or a fresh
+  `/standards-audit`) re-surfaces them with their justification rather than flagging them:
+  - **Debug-console font — `JetBrainsMono-Regular.ttf` (vendored, OFL).** `core/DebugLog.lua` renders
+    the on-screen console in this fixed monospace face via `C.FONT_MONO`. It is registered with LSM as
+    `"JetBrains Mono"` at init, but the console does not read a user font setting. **Why:** a fixed
+    monospace face is required for column-aligned debug output (§12.2). The console's backdrop is
+    Blizzard-stock (`WHITE8x8` fill + `UI-Tooltip-Border` edge).
+  - **About-page logo — `media/logos/absorbracker.logo.v2.tga`.** `settings/About.lua` draws the
+    addon's branding logo via `C.LOGO_PATH`. **Why:** addon branding, not bar appearance; a
+    user-swappable logo would be meaningless. Stored under a typed media subfolder per §1.4.
+
 ## Performance & Profiler Attribution
 
 The addon is purely reactive — **no `OnUpdate`, no repeating ticker, no combat-log parsing, no
