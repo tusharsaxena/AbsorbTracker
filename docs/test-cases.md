@@ -61,11 +61,12 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - ConsoleCheckbox spec: set(true) shows the console window without changing the debug flag
 - ConsoleCheckbox spec: set(false) hides the console window without changing the debug flag
 
-### test_slash.lua (11)
+### test_slash.lua (12)
 
 - NS.Print survives AceConsole's embed and stays the [AT]-prefixed printer
 - bare /at prints the help index: header + one row per command
 - unknown verb prints 'unknown command' then the help index
+- /at version prints the addon version (slash-commands-§3)
 - /at get <path> dispatches to the schema read
 - /at list uses the mandated colour scheme (slash-commands-§5)
 - /at set <path> <value> writes through the schema and preserves path case
@@ -99,6 +100,16 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OnAbsorbChanged is silent on an unchanged value (no per-event spam)
 - [Absorb] transition logs on a non-secret 0->nonzero change
 
+### test_bus.lua (7)
+
+- bus, NewBusTarget, and the message catalogue are published
+- a receiver on its own target hears a message, then is silent after unregister
+- two receivers of one message both fire (no (message,target) clobber)
+- a message payload reaches the receiver after the message name
+- REPAINT routes through Timer to one coalesced repaint
+- APPEARANCE / VISIBILITY / POSITION route to their Display consumers
+- sending a message with no subscribers is a harmless no-op
+
 ## Totals
 
 | Suite | Count |
@@ -108,7 +119,8 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_compat.lua | 4 |
 | test_util.lua | 6 |
 | test_debuglog.lua | 14 |
-| test_slash.lua | 11 |
+| test_slash.lua | 12 |
 | test_timer.lua | 7 |
 | test_visibility.lua | 11 |
-| **Total** | **73** |
+| test_bus.lua | 7 |
+| **Total** | **81** |

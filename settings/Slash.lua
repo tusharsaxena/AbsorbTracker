@@ -27,6 +27,7 @@ end
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
 local runDebug, runUpdate, runTest, runProfile
+local getVersion
 
 NS.COMMANDS = {
     {"help",          "List available commands",
@@ -62,7 +63,7 @@ NS.COMMANDS = {
             if hidden then
                 print("Hidden")
             else
-                if NS.UpdateAbsorbBar then NS.UpdateAbsorbBar() end
+                NS.bus:SendMessage(NS.MSG.REPAINT)
                 print("Shown")
             end
         end},
@@ -70,6 +71,8 @@ NS.COMMANDS = {
         function(rest) runDebug(rest) end},
     {"update",        "Force a bar refresh",
         function() runUpdate() end},
+    {"version",       "Print the addon version",
+        function() print(("v%s"):format(getVersion())) end},
     {"test",          "Test display with a fake value \226\128\148 `/at test [value] [hold-secs]`",
         function(rest) runTest(rest) end},
     {"profile",       "Profile management \226\128\148 try `/at profile` for the list",
@@ -89,7 +92,7 @@ end
 -- /at help
 -- ---------------------------------------------------------------------
 
-local function getVersion()
+function getVersion()
     return NS.Compat.GetAddOnMetadata(NS.name, "Version") or NS.version or "?"
 end
 
@@ -209,7 +212,7 @@ function runResetPosition()
     if NS.db and NS.db.profile then
         NS.db.profile.position = nil
     end
-    if NS.RestoreBarPosition then NS.RestoreBarPosition() end
+    NS.bus:SendMessage(NS.MSG.POSITION)
     print("Bar position reset")
 end
 
@@ -239,7 +242,7 @@ function runDebug(rest)
 end
 
 function runUpdate()
-    if NS.UpdateAbsorbBar then NS.UpdateAbsorbBar() end
+    NS.bus:SendMessage(NS.MSG.REPAINT)
     print("Forced refresh")
 end
 

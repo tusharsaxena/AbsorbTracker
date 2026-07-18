@@ -117,7 +117,7 @@ Both paths resolve at *call* time inside `NS.GetBarColor` / `NS.GetBgColor` / `N
 
 ## `UNIT_ABSORB_AMOUNT_CHANGED` fires often during heavy combat
 
-The event can fire many times per second during raid encounters with stacking absorbs (Power Word: Shield + trinket procs + Discipline absorbs + …). The `OnAbsorbChanged` handler in `core/AbsorbTracker.lua` records a debug line (gated behind `NS.State.debug`) then calls `NS.RequestRepaint()` — it does not repaint directly, so a burst of events can't over-render the StatusBar and the string-format calls.
+The event can fire many times per second during raid encounters with stacking absorbs (Power Word: Shield + trinket procs + Discipline absorbs + …). The `OnAbsorbChanged` handler in `core/AbsorbTracker.lua` records a debug line (gated behind `NS.State.debug`) then publishes the `REPAINT` message on the bus — it does not repaint directly. `modules/Timer.lua` owns the sole `REPAINT` subscriber and funnels it through `NS.RequestRepaint()` (below), so a burst of events can't over-render the StatusBar and the string-format calls.
 
 `NS.RequestRepaint()` (`modules/Timer.lua`) is the coalescing repaint scheduler and the source of truth for visual updates. It runs on **AceTimer** — a trailing-edge one-shot: if a repaint is already queued, further calls are a no-op; otherwise it schedules `NS.addon:ScheduleTimer(NS.UpdateAbsorbBar, throttleWindow)` (Ka0s standard §3.1 — a one-shot AceTimer, not a raw `C_Timer`), which self-clears once it fires. `throttleWindow` is user-configurable (0.05 – 1 s; default 0.1 s). There is no repeating ticker and no polling — idle = zero repaints. See [data-flow.md](./data-flow.md#absorb-update-path).
 

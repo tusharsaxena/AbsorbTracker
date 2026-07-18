@@ -44,11 +44,18 @@ local SECTION_TOP_SPACER   = 10
 local SECTION_BOTTOM_SPACER = 6
 local SECTION_HEADING_H    = 26
 
+-- Relative width of each button in a cell-filling paired-button row
+-- (options-ui-§8). A flat 0.5/0.5 lets AceGUI's Flow layout push the right
+-- button's border into the ScrollFrame's clip rectangle, shaving it; the
+-- 0.492 inset clears the clip while staying visually a 50/50 split.
+local BUTTON_PAIR_REL      = 0.492
+
 -- Cross-slice constants that Panel/Widgets.lua and Panel/About.lua need
 -- to read. Exposed on Helpers rather than copied into each file so the
 -- spacing stays in lockstep across the whole panel.
 Helpers.ROW_VSPACER       = ROW_VSPACER
 Helpers.SECTION_HEADING_H = SECTION_HEADING_H
+Helpers.BUTTON_PAIR_REL   = BUTTON_PAIR_REL
 
 -- ---------------------------------------------------------------------
 -- Panel registry — every CreatePanel ctx is appended here so
@@ -269,8 +276,9 @@ end
 -- Inline action buttons (not settings)
 -- ---------------------------------------------------------------------
 
--- Two side-by-side action buttons sharing one Flow row at 50% / 50%
--- width. Each spec is { text = ..., tooltip = ..., onClick = function }.
+-- Two side-by-side action buttons sharing one Flow row, each inset to
+-- BUTTON_PAIR_REL so the right button clears the ScrollFrame clip
+-- (options-ui-§8). Each spec is { text = ..., tooltip = ..., onClick = function }.
 function Helpers.InlineButtonPair(ctx, leftSpec, rightSpec)
     local AceGUI = NS.AceGUI
     local scroll = ensureScroll(ctx)
@@ -284,7 +292,7 @@ function Helpers.InlineButtonPair(ctx, leftSpec, rightSpec)
         if not spec then return end
         local btn = AceGUI:Create("Button")
         btn:SetText(spec.text or "")
-        btn:SetRelativeWidth(0.5)
+        btn:SetRelativeWidth(BUTTON_PAIR_REL)
         btn:SetCallback("OnClick", function()
             if not spec.onClick then return end
             local ok, err = pcall(spec.onClick)
@@ -336,7 +344,7 @@ function Helpers.RestoreAllDefaults()
     if NS.db and NS.db.profile then
         NS.db.profile.position = nil
     end
-    if NS.RestoreBarPosition then NS.RestoreBarPosition() end
+    NS.bus:SendMessage(NS.MSG.POSITION)
     Helpers.RefreshAllPanels()
 end
 

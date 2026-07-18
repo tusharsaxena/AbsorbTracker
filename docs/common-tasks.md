@@ -35,7 +35,7 @@ The schema-driven design makes this a one-row change. The widget on the relevant
 
    Use `flatDefaults.myNewKnob` for the `default` field — `defaults/Profile.lua` is the single source of truth for default values.
 
-3. **Override `onChange` if the side effect isn't `UpdateBarAppearance`.** Most settings just need to repaint, which is the default. For settings that need a different reaction:
+3. **Override `onChange` if the side effect isn't the default appearance refresh.** Most settings just need to re-apply appearance — the default `onChange` publishes the `APPEARANCE` message (→ `UpdateBarAppearance`). For settings that need a different reaction:
 
    ```lua
    onChange = function(v) NS.SomeOtherReaction(v) end,

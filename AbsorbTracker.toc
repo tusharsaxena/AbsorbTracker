@@ -28,11 +28,15 @@ libs\LibSharedMedia-3.0\lib.xml
 libs\AceGUI-3.0-SharedMediaWidgets\widget.xml
 #@end-no-lib-strip@
 
+# Locales
+locales\enUS.lua
+
 # Core (Compat loads first)
 core\Compat.lua
 core\Constants.lua
 core\Namespace.lua
 core\State.lua
+core\Bus.lua
 core\Util.lua
 core\Data.lua
 core\Database.lua
@@ -42,9 +46,6 @@ core\AbsorbTracker.lua
 
 # Defaults
 defaults\Profile.lua
-
-# Locales
-locales\enUS.lua
 
 # Modules
 modules\Bar.lua

@@ -42,9 +42,9 @@ function addon:OnEnable()
     NS.ClearLSMCache()
     NS.GetLSM()
     if NS.ApplyLSMBorderPatch then NS.ApplyLSMBorderPatch() end
-    NS.RestoreBarPosition()
-    NS.UpdateBarAppearance()
-    NS.UpdateAbsorbBar()
+    NS.bus:SendMessage(NS.MSG.POSITION)
+    NS.bus:SendMessage(NS.MSG.APPEARANCE)
+    NS.bus:SendMessage(NS.MSG.REPAINT)
 
     -- UNIT_ABSORB_AMOUNT_CHANGED and UNIT_MAXHEALTH fire for EVERY unit the client knows about (all
     -- raid members, their pets, nameplates, target/focus) — a flood of events per second in combat,
@@ -97,19 +97,19 @@ function addon:OnAbsorbChanged(_, unit)
             dbgLastAbsorb = v
         end
     end
-    NS.RequestRepaint()
+    NS.bus:SendMessage(NS.MSG.REPAINT)
 end
 
 -- The bar shows absorb as a fraction of max health, so a max-health change (buffs, stamina,
 -- level) must repaint too even when the absorb value itself is unchanged.
 function addon:OnMaxHealthChanged(_, unit)
-    if unit == "player" then NS.RequestRepaint() end
+    if unit == "player" then NS.bus:SendMessage(NS.MSG.REPAINT) end
 end
 
 function addon:OnEnterWorld()
     NS.Debug("World", "entering world")
-    NS.ApplyVisibility()
-    NS.RequestRepaint()
+    NS.bus:SendMessage(NS.MSG.VISIBILITY)
+    NS.bus:SendMessage(NS.MSG.REPAINT)
 end
 
 -- Combat transitions re-evaluate bar visibility (the `showOnlyInCombat` gate) and repaint so the
@@ -117,8 +117,8 @@ end
 -- the settings panel REFUSES to open in combat (settings/Panel.lua) rather than deferring, so there
 -- is no combat-deferred /at config for OnLeaveCombat to replay — it only handles visibility now.
 function addon:OnEnterCombat()
-    NS.ApplyVisibility()
-    NS.RequestRepaint()
+    NS.bus:SendMessage(NS.MSG.VISIBILITY)
+    NS.bus:SendMessage(NS.MSG.REPAINT)
     -- Reset the coalescing counters unconditionally (two assignments, harmless when debug is off)
     -- so a fight that began before `/at debug on` still yields an accurate leave-rollup instead of
     -- carrying stale residue from the previous debug-on combat.
@@ -129,8 +129,8 @@ function addon:OnEnterCombat()
 end
 
 function addon:OnLeaveCombat()
-    NS.ApplyVisibility()
-    NS.RequestRepaint()
+    NS.bus:SendMessage(NS.MSG.VISIBILITY)
+    NS.bus:SendMessage(NS.MSG.REPAINT)
     if NS.State and NS.State.debug then
         local v = UnitGetTotalAbsorbs("player") or 0
         if NS.IsConcatSafe(v) then
@@ -147,8 +147,8 @@ end
 function NS.OnProfileChanged()
     NS.Debug("Profile", "changed \226\134\146 %s",
         (NS.db and NS.db.GetCurrentProfile and NS.db:GetCurrentProfile()) or "?")
-    NS.RestoreBarPosition()
-    NS.UpdateBarAppearance()
-    NS.UpdateAbsorbBar()
+    NS.bus:SendMessage(NS.MSG.POSITION)
+    NS.bus:SendMessage(NS.MSG.APPEARANCE)
+    NS.bus:SendMessage(NS.MSG.REPAINT)
     if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
 end

@@ -79,6 +79,13 @@ There is no `:NewModule()` hierarchy — modules are plain files hanging functio
 reference functions defined in later-loaded modules through `NS.X` directly (looked up at call
 time), guarding with `if NS.X then ... end` for the soft load-order coupling.
 
+Cross-module *notifications*, though, do **not** go through direct `NS.X` calls — they run over the
+closed message bus (`core/Bus.lua`): producers `NS.bus:SendMessage(NS.MSG.X)`, and the display
+modules subscribe on their own `NS.NewBusTarget()` targets (architecture-§4; see
+[ARCHITECTURE.md](./ARCHITECTURE.md) → Message Bus). Direct `NS.X` calls remain for queries
+(`NS.GetSetting`, `NS.ShouldShowBar`) and intra-concern work (e.g. `Timer`'s coalescer painting via
+`NS.UpdateAbsorbBar`).
+
 ## Working environment
 
 - **Dual-path WSL.** Mirrored at `/mnt/d/Profile/Users/Tushar/Documents/GIT/AbsorbTracker/` and

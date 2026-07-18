@@ -40,9 +40,9 @@ OnEnable (PLAYER_LOGIN timing)
     ├─▶ NS.GetLSM()                    -- re-fetch LibSharedMedia
     ├─▶ NS.ApplyLSMBorderPatch()       -- suppress upstream LSM30_Border tile
     │
-    ├─▶ NS.RestoreBarPosition()        -- re-apply saved position or center
-    ├─▶ NS.UpdateBarAppearance()       -- size, textures, colors, border, font
-    ├─▶ NS.UpdateAbsorbBar()           -- initial value paint (direct, not via RequestRepaint)
+    ├─▶ NS.bus:SendMessage(NS.MSG.POSITION)    -- ▶ Display: re-apply saved position or center
+    ├─▶ NS.bus:SendMessage(NS.MSG.APPEARANCE)  -- ▶ Display: size, textures, colors, border, font
+    ├─▶ NS.bus:SendMessage(NS.MSG.REPAINT)     -- ▶ Timer: coalesced initial value paint
     │
     ├─▶ [private frame] RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "player") ─▶ OnAbsorbChanged
     ├─▶ [private frame] RegisterUnitEvent("UNIT_MAXHEALTH", "player")             ─▶ OnMaxHealthChanged
@@ -70,7 +70,10 @@ UNIT_ABSORB_AMOUNT_CHANGED           UNIT_MAXHEALTH                PLAYER_ENTERI
         │   gated on NS.State.debug)         │                            │
         └─────────────────┬───────────────────────────────────────────────┘
                            ▼
-                  NS.RequestRepaint()
+        NS.bus:SendMessage(NS.MSG.REPAINT)   -- producers publish; never call Display directly
+                           │
+                           ▼
+   [Timer's NS.Timer.__ev subscriber] ─▶ NS.RequestRepaint()
                            │
                            ▼
         pending? ──yes──► coalesce (no-op; a repaint is already queued)
@@ -79,7 +82,7 @@ UNIT_ABSORB_AMOUNT_CHANGED           UNIT_MAXHEALTH                PLAYER_ENTERI
    NS.addon:ScheduleTimer(fn, throttleWindow)   -- trailing-edge one-shot AceTimer
                            │
                            ▼ (fires once, ~throttleWindow seconds later)
-                NS.UpdateAbsorbBar()
+                NS.UpdateAbsorbBar()             -- direct intra-concern call (Timer → Display)
                            │
         ┌──────────────────┼──────────────────┐
         ▼                  ▼                  ▼
@@ -88,7 +91,7 @@ UNIT_ABSORB_AMOUNT_CHANGED           UNIT_MAXHEALTH                PLAYER_ENTERI
                                               (AbbreviateNumbers)
 ```
 
-**Repaints are purely event-driven — there is no polling ticker.** `NS.RequestRepaint()` (`modules/Timer.lua`) is a coalescing scheduler: if a repaint is already queued, a burst of events (heavy combat stacking absorbs) collapses into that single pending repaint instead of scheduling another. The one-shot AceTimer fires once per `throttleWindow` (default 0.1s) and calls `NS.UpdateAbsorbBar()`, then clears itself so the next event starts a fresh cycle. Idle = zero repaints. Login (`OnEnable`) and profile change (`NS.OnProfileChanged`) call `NS.UpdateAbsorbBar()` directly for an immediate paint, bypassing the throttle.
+**Repaints are purely event-driven — there is no polling ticker.** Producers never call the display module directly; they publish `NS.MSG.REPAINT` on the bus (architecture-§4, see [ARCHITECTURE.md → Message Bus](./ARCHITECTURE.md#message-bus)). `modules/Timer.lua` owns the sole `REPAINT` subscription (on its own `NS.Timer.__ev` target) and funnels it through `NS.RequestRepaint()`, a coalescing scheduler: if a repaint is already queued, a burst of events (heavy combat stacking absorbs) collapses into that single pending repaint instead of scheduling another. The one-shot AceTimer fires once per `throttleWindow` (default 0.1s) and calls `NS.UpdateAbsorbBar()` (a direct intra-concern call, Timer → Display), then clears itself so the next event starts a fresh cycle. Idle = zero repaints. Login (`OnEnable`), profile change (`NS.OnProfileChanged`), and the `/at toggle` / `/at update` verbs also publish `REPAINT` — they coalesce through the same throttle rather than painting directly.
 
 ## Settings-write path
 
@@ -105,10 +108,10 @@ setSetting(rest) → ParseSchemaValue      local set(row, value)
                              │
                   ┌──────────┴───────────┐
                   ▼                      ▼
-       SetSetting(path, v)      fireOnChange(row, v)
-       db.profile[path] = v     default:  UpdateBarAppearance()
-                                hidden:    UpdateBarAppearance()
-                                           + UpdateAbsorbBar()
+       SetSetting(path, v)      fireOnChange(row, v)  -- publishes, never calls Display directly
+       db.profile[path] = v     default:  bus ▶ APPEARANCE
+                                hidden:    bus ▶ APPEARANCE (+ REPAINT when shown)
+                                combat:    bus ▶ VISIBILITY (+ REPAINT when shown)
                              │
                              ▼
                    (slash path → NS.RefreshOptionsPanel;
@@ -122,7 +125,7 @@ setSetting(rest) → ParseSchemaValue      local set(row, value)
                    (no caching — class color toggles "just work")
 ```
 
-The slash and panel paths converge on `NS.SetByPath` (`settings/Schema.lua`) — the single write seam that does `SetSetting` + `fireOnChange`. `fireOnChange` runs `row.onChange` or, absent one, the default `UpdateBarAppearance()`. The panel's local `set(row, value)` (in `settings/Widgets.lua`) calls `SetByPath` then `Helpers.RefreshAllPanels`; the slash dispatcher (`settings/Slash.lua`, `setSetting`) calls `SetByPath` then `NS.RefreshOptionsPanel` (which itself routes to `Helpers.RefreshAllPanels`). Color getters resolve `useClassColor*` at call time, so no explicit "switch class color on" wiring is needed — the next paint reads the current toggle state and produces the right color.
+The slash and panel paths converge on `NS.SetByPath` (`settings/Schema.lua`) — the single write seam that does `SetSetting` + `fireOnChange`. `fireOnChange` runs `row.onChange` or, absent one, the default handler that publishes `NS.MSG.APPEARANCE` on the bus (so the write path signals the display module instead of calling `UpdateBarAppearance` across the module boundary). The panel's local `set(row, value)` (in `settings/Widgets.lua`) calls `SetByPath` then `Helpers.RefreshAllPanels`; the slash dispatcher (`settings/Slash.lua`, `setSetting`) calls `SetByPath` then `NS.RefreshOptionsPanel` (which itself routes to `Helpers.RefreshAllPanels`). Color getters resolve `useClassColor*` at call time, so no explicit "switch class color on" wiring is needed — the next paint reads the current toggle state and produces the right color.
 
 The color-picker widget takes a separate throttled route: mid-drag it writes through `SetByPath` on an `NS.addon:ScheduleTimer` (AceTimer one-shot) window and deliberately skips `RefreshAllPanels` to avoid churning the panel every frame of a drag.
 
@@ -138,9 +141,9 @@ OnProfileChanged / OnProfileCopied / OnProfileReset
     ▼
 NS.OnProfileChanged()
     │
-    ├─▶ NS.RestoreBarPosition()     -- new profile may have a different saved position
-    ├─▶ NS.UpdateBarAppearance()    -- size, textures, colors, border, font
-    ├─▶ NS.UpdateAbsorbBar()        -- repaint absorb value against new profile (direct paint)
+    ├─▶ NS.bus:SendMessage(NS.MSG.POSITION)    -- ▶ Display: new profile's saved position
+    ├─▶ NS.bus:SendMessage(NS.MSG.APPEARANCE)  -- ▶ Display: size, textures, colors, border, font
+    ├─▶ NS.bus:SendMessage(NS.MSG.REPAINT)     -- ▶ Timer: repaint absorb value against new profile
     │
     └─▶ if NS.RefreshOptionsPanel then
             NS.RefreshOptionsPanel()  -- routes to Helpers.RefreshAllPanels
@@ -157,15 +160,15 @@ NS.OnProfileChanged()
 
 | Event | Handler | What it does |
 |-------|---------|--------------|
-| `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | `NS.ApplyVisibility()` + `NS.RequestRepaint()`. Handles zone transitions where the engine may have stale state (and re-evaluates the combat-visibility gate on load/reload). |
-| `UNIT_ABSORB_AMOUNT_CHANGED` (player only — private `RegisterUnitEvent` frame, C-level filter) | `addon:OnAbsorbChanged` | Debug line (gated on `NS.State.debug`) then `NS.RequestRepaint()`. |
-| `UNIT_MAXHEALTH` (player only — private `RegisterUnitEvent` frame, C-level filter) | `addon:OnMaxHealthChanged` | `NS.RequestRepaint()`. The bar shows absorb as a fraction of max health, so a max-health change (buffs, stamina, level) must repaint even when the absorb value itself is unchanged. |
-| `PLAYER_REGEN_DISABLED` (enter combat) | `addon:OnEnterCombat` | `NS.ApplyVisibility()` + `NS.RequestRepaint()` — re-evaluates the `showOnlyInCombat` gate so the bar appears (and repaints fresh) the moment combat starts. |
-| `PLAYER_REGEN_ENABLED` (leave combat) | `addon:OnLeaveCombat` | `NS.ApplyVisibility()` + `NS.RequestRepaint()` — nothing else. Per options-ui-§2 the settings panel **refuses** to open in combat (`settings/Panel.lua` prints a grey notice and returns) rather than deferring, so there is no combat-deferred `/at config` for `OnLeaveCombat` to replay. It is the sole handler of `PLAYER_REGEN_ENABLED`, and its only job is re-evaluating the `showOnlyInCombat` visibility gate and repainting. |
+| `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | Publishes `VISIBILITY` + `REPAINT`. Handles zone transitions where the engine may have stale state (and re-evaluates the combat-visibility gate on load/reload). |
+| `UNIT_ABSORB_AMOUNT_CHANGED` (player only — private `RegisterUnitEvent` frame, C-level filter) | `addon:OnAbsorbChanged` | Debug line (gated on `NS.State.debug`) then publishes `REPAINT`. |
+| `UNIT_MAXHEALTH` (player only — private `RegisterUnitEvent` frame, C-level filter) | `addon:OnMaxHealthChanged` | Publishes `REPAINT`. The bar shows absorb as a fraction of max health, so a max-health change (buffs, stamina, level) must repaint even when the absorb value itself is unchanged. |
+| `PLAYER_REGEN_DISABLED` (enter combat) | `addon:OnEnterCombat` | Publishes `VISIBILITY` + `REPAINT` — re-evaluates the `showOnlyInCombat` gate so the bar appears (and repaints fresh) the moment combat starts. |
+| `PLAYER_REGEN_ENABLED` (leave combat) | `addon:OnLeaveCombat` | Publishes `VISIBILITY` + `REPAINT` — nothing else. Per options-ui-§2 the settings panel **refuses** to open in combat (`settings/Panel.lua` prints a grey notice and returns) rather than deferring, so there is no combat-deferred `/at config` for `OnLeaveCombat` to replay. It is the sole handler of `PLAYER_REGEN_ENABLED`, and its only job is re-evaluating the `showOnlyInCombat` visibility gate and repainting. |
 
 ## Performance budget
 
-The hot path is `NS.RequestRepaint()` (`modules/Timer.lua`) — a coalescing repaint scheduler, not a polling loop. A burst of `UNIT_ABSORB_AMOUNT_CHANGED` events during combat collapses into a single pending one-shot AceTimer (`NS.addon:ScheduleTimer(fn, throttleWindow)`, default 0.1s, range 0.05 – 1s); repeat calls while one is already pending are a no-op. Idle = zero repaints. Per fire of the resulting `NS.UpdateAbsorbBar()`:
+The hot path is `NS.RequestRepaint()` (`modules/Timer.lua`), reached via the bus — the `UNIT_*` handlers publish `NS.MSG.REPAINT` and Timer's subscriber funnels it into this coalescing repaint scheduler, not a polling loop. The bus hop is a single synchronous CallbackHandler dispatch to one registered target (no allocation), negligible next to the engine reads below. A burst of `UNIT_ABSORB_AMOUNT_CHANGED` events during combat collapses into a single pending one-shot AceTimer (`NS.addon:ScheduleTimer(fn, throttleWindow)`, default 0.1s, range 0.05 – 1s); repeat calls while one is already pending are a no-op. Idle = zero repaints. Per fire of the resulting `NS.UpdateAbsorbBar()`:
 
 1. `UnitGetTotalAbsorbs("player")` + `UnitHealthMax("player")` — engine reads, microseconds each.
 2. `AbbreviateNumbers(value)` — string format. (`NS.Debug` no longer logs per-repaint — `UpdateAbsorbBar` bumps a debug-gated repaint counter via `NS.NoteRepaint()`, coalesced into the one `[Combat]` rollup line at `OnLeaveCombat`; any remaining debug work is gated behind `NS.State.debug`, so it costs nothing when debug is off.)

@@ -17,7 +17,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 ### B. Slash surface
 6. `/at` alone → help block (version line + command list).
 7. `/absorbtracker` → identical help block.
-8. `/at help` → gold command + em-dash + white desc for all 15 verbs: help, config, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, update, test, profile.
+8. `/at help` → gold command + em-dash + white desc for all 16 verbs: help, config, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, update, version, test, profile.
 9. `/at wibble` → `unknown command 'wibble'` then help.
 10. `/at options` → opens the panel (back-compat alias for `config`).
 

@@ -93,6 +93,22 @@ NS.State.debug  -- bool, defaults nil/off, reset on every reload/login;
                 -- flipped by /at debug on|off and the console header toggle
 ```
 
+### Bus (`core/Bus.lua`)
+
+The closed cross-module message bus (architecture-§4). Producers publish; each consumer subscribes on its own target — never two receivers on one shared object (CallbackHandler keys by `(message, target)`, so a shared target silently overwrites — anti-pattern #32).
+
+```lua
+NS.bus                 -- AceEvent-embedded shared publish target (NS.bus:SendMessage(...))
+NS.NewBusTarget()      -- returns a fresh AceEvent-embedded table; one per receiver
+NS.MSG                 -- catalogue (all Ka0s_AbsorbTracker_*, payload-free):
+                       --   REPAINT    -> modules/Timer.lua   (coalesced repaint via RequestRepaint)
+                       --   APPEARANCE -> modules/Display.lua (UpdateBarAppearance)
+                       --   VISIBILITY -> modules/Display.lua (ApplyVisibility)
+                       --   POSITION   -> modules/Display.lua (RestoreBarPosition)
+```
+
+Senders: `core/AbsorbTracker.lua` (event/lifecycle), `settings/Slash.lua`, `settings/General.lua`, `settings/Schema.lua`, `settings/Helpers.lua`. Consumers register at file load in `modules/Timer.lua` (`NS.Timer.__ev`) and `modules/Display.lua` (`NS.Display.__ev`). Full catalogue (sender/consumer/effect) in [ARCHITECTURE.md → Message Bus](./ARCHITECTURE.md#message-bus).
+
 ### Util (`core/Util.lua`)
 
 ```lua
@@ -194,28 +210,28 @@ NS.addon               -- the AceAddon object (== NS via NewAddon(NS, ...))
 addon:OnInitialize()   -- ADDON_LOADED timing: register the LSM monospace font, NS:InitDB(),
                        -- NS.Slash:Register().
 addon:OnEnable()       -- PLAYER_LOGIN timing: ClearLSMCache -> GetLSM -> ApplyLSMBorderPatch ->
-                       -- RestoreBarPosition -> UpdateBarAppearance -> UpdateAbsorbBar (direct
-                       -- paint); private RegisterUnitEvent frame for UNIT_ABSORB_AMOUNT_CHANGED /
+                       -- publishes POSITION -> APPEARANCE -> REPAINT on the bus; private
+                       -- RegisterUnitEvent frame for UNIT_ABSORB_AMOUNT_CHANGED /
                        -- UNIT_MAXHEALTH ("player"); RegisterEvent PLAYER_ENTERING_WORLD /
                        -- PLAYER_REGEN_DISABLED / PLAYER_REGEN_ENABLED; CreateOptionsPanel.
-addon:OnAbsorbChanged(_, unit)  -- UNIT_ABSORB_AMOUNT_CHANGED; records a debug line, then calls
-                                -- NS.RequestRepaint() (a burst coalesces into one repaint).
-addon:OnMaxHealthChanged(_, unit)  -- UNIT_MAXHEALTH; NS.RequestRepaint() (absorb is shown as a
+addon:OnAbsorbChanged(_, unit)  -- UNIT_ABSORB_AMOUNT_CHANGED; records a debug line, then publishes
+                                -- REPAINT (a burst coalesces into one repaint).
+addon:OnMaxHealthChanged(_, unit)  -- UNIT_MAXHEALTH; publishes REPAINT (absorb is shown as a
                                     -- fraction of max health, so it must repaint too).
-addon:OnEnterWorld()   -- PLAYER_ENTERING_WORLD; NS.RequestRepaint().
-addon:OnEnterCombat()  -- PLAYER_REGEN_DISABLED; resets per-combat debug counters, applies
-                       -- visibility, NS.RequestRepaint().
-addon:OnLeaveCombat()  -- PLAYER_REGEN_ENABLED; applies visibility + repaints, flushes one
+addon:OnEnterWorld()   -- PLAYER_ENTERING_WORLD; publishes VISIBILITY + REPAINT.
+addon:OnEnterCombat()  -- PLAYER_REGEN_DISABLED; publishes VISIBILITY + REPAINT, resets per-combat
+                       -- debug counters.
+addon:OnLeaveCombat()  -- PLAYER_REGEN_ENABLED; publishes VISIBILITY + REPAINT, flushes one
                        -- "[Combat] left: N events, M repaints" rollup (never replays /at config).
 
-NS.NoteRepaint()       -- bumps the debug-gated repaint counter + last-absorb snapshot; called by
-                       -- modules/Display.lua's UpdateAbsorbBar on every paint.
-NS.OnProfileChanged()  -- registered as the AceDB profile callback inside InitDB; runs
-                       -- RestoreBarPosition + UpdateBarAppearance + UpdateAbsorbBar (direct
-                       -- paint) + RefreshOptionsPanel.
+NS.NoteRepaint()       -- bumps the debug-gated repaint counter + last-absorb snapshot; called
+                       -- directly by modules/Display.lua's UpdateAbsorbBar on every paint
+                       -- (an intra-implementation debug hook, not a bus message).
+NS.OnProfileChanged()  -- registered as the AceDB profile callback inside InitDB; publishes
+                       -- POSITION + APPEARANCE + REPAINT, then RefreshOptionsPanel.
 ```
 
-Events are AceEvent (`self:RegisterEvent`), **except** the two `UNIT_*` events (`UNIT_ABSORB_AMOUNT_CHANGED`, `UNIT_MAXHEALTH`), which use a private `CreateFrame` frame with `RegisterUnitEvent(event, "player")` for C-level unit filtering — a documented §9.1 deviation ([ARCHITECTURE.md → Standards Deviations](./ARCHITECTURE.md#standards-deviations)). Detail in [data-flow.md](./data-flow.md).
+Cross-module signalling goes through the message bus (see [Bus](#bus-corebuslua) above) — the handlers publish `NS.MSG.*` rather than calling the display module directly. Events are AceEvent (`self:RegisterEvent`), **except** the two `UNIT_*` events (`UNIT_ABSORB_AMOUNT_CHANGED`, `UNIT_MAXHEALTH`), which use a private `CreateFrame` frame with `RegisterUnitEvent(event, "player")` for C-level unit filtering — a documented §9.1 deviation ([ARCHITECTURE.md → Standards Deviations](./ARCHITECTURE.md#standards-deviations)). Detail in [data-flow.md](./data-flow.md).
 
 ### Defaults (`defaults/Profile.lua`)
 
@@ -259,7 +275,9 @@ NS.ShouldShowBar()           -- visibility truth table: master hidden-toggle vs.
 NS.ApplyVisibility()         -- shows/hides the bar frame per ShouldShowBar()
 ```
 
-`UpdateBarAppearance` does the `SetBackdrop(nil)` → `SetBackdrop(info)` clear-then-reapply dance (WoW's backdrop API no-ops on unchanged table identity). `UpdateAbsorbBar` hands the raw (possibly "secret") absorb value straight to `AbbreviateNumbers` — never through `tonumber`. Detail in [midnight-quirks.md](./midnight-quirks.md).
+`UpdateBarAppearance` does the `SetBackdrop(nil)` → `SetBackdrop(info)` clear-then-reapply dance (WoW's backdrop API no-ops on unchanged table identity); it ends with a direct `NS.ApplyVisibility()` (intra-concern). `UpdateAbsorbBar` hands the raw (possibly "secret") absorb value straight to `AbbreviateNumbers` — never through `tonumber`. Detail in [midnight-quirks.md](./midnight-quirks.md).
+
+**Bus consumer.** These functions are invoked through the message bus: at file load Display registers `NS.Display.__ev = NS.NewBusTarget()` and subscribes `APPEARANCE` → `UpdateBarAppearance`, `VISIBILITY` → `ApplyVisibility`, `POSITION` → `RestoreBarPosition`. The functions stay defined on `NS` (directly unit-testable); the bus handlers just call them.
 
 ### Timer (`modules/Timer.lua`)
 
@@ -270,6 +288,8 @@ event-driven (see AbsorbTracker above).
 NS.RequestRepaint()   -- trailing-edge one-shot: NS.addon:ScheduleTimer(fn, throttleWindow).
                        -- A repaint already pending coalesces (no-op); the timer self-clears
                        -- (pending = nil) inside its own callback before calling UpdateAbsorbBar.
+NS.Timer.__ev         -- bus target (NS.NewBusTarget()); owns the sole REPAINT subscription and
+                       -- funnels it into NS.RequestRepaint. Registered at file load.
 ```
 
 ### Schema (`settings/Schema.lua`)
@@ -307,9 +327,9 @@ NS.ValidateSchema()                -> errors, resolved, missing
 The AceConsole-registered `/at` dispatcher. `/at list` / `get` / `set` walk `NS.Schema` directly.
 
 ```lua
-NS.COMMANDS         -- ordered { name, desc, fn } array of 15 verbs: help, config, list, get,
+NS.COMMANDS         -- ordered { name, desc, fn } array of 16 verbs: help, config, list, get,
                     -- set, reset, resetall, resetposition, lock, unlock, toggle, debug, update,
-                    -- test, profile. printHelp and the about page both iterate it.
+                    -- version, test, profile. printHelp and the about page both iterate it.
 NS.SlashCommands    -- alias of NS.COMMANDS (kept for settings/About.lua)
 
 NS.Slash:OnSlash(msg)  -- parse + dispatch; unknown verb prints "unknown command '<verb>'" then help
@@ -386,7 +406,7 @@ A small number of call sites reach across load order — the runtime modules (Co
 - `core/AbsorbTracker.lua` (`OnEnable`) calls `NS.CreateOptionsPanel()` (defined in `settings/Panel.lua`, loaded later).
 - `core/AbsorbTracker.lua` (`OnEnable`) calls `NS.ApplyLSMBorderPatch()` (defined in `core/LSMPatch.lua`).
 - `NS.OnProfileChanged` calls `NS.RefreshOptionsPanel()` (defined in `settings/Panel.lua`).
-- `settings/Slash.lua` handlers call `NS.RefreshOptionsPanel` / `NS.RestoreBarPosition` / `NS.UpdateAbsorbBar`.
+- `settings/Slash.lua` handlers call `NS.RefreshOptionsPanel` directly, and publish bus messages for display work (`toggle`/`update` → `REPAINT`, `resetposition` → `POSITION`).
 
 These are guarded with runtime nil checks:
 
@@ -398,20 +418,20 @@ In practice the calls always succeed because all files are loaded synchronously 
 
 ## Load order
 
-`AbsorbTracker.toc` is the source of truth. Order is dependency order, not alphabetical. The load groups are **Libraries → Core → Defaults → Locales → Modules → Settings**:
+`AbsorbTracker.toc` is the source of truth. Order is dependency order, not alphabetical. The load groups are **Libraries → Locales → Core → Defaults → Modules → Settings**:
 
 1. `libs/` — LibStub, CallbackHandler-1.0, then the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB / AceGUI / AceConfig / AceDBOptions), LibSharedMedia-3.0, and the vendored upstream `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets) — all inside the `#@no-lib-strip@` block. Vendored **folder-per-lib** at `libs/` root (not `libs/Ace3/…`).
-2. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Util.lua`, `Data.lua`, `Database.lua`, `LSMPatch.lua`, `DebugLog.lua`, `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
-3. **Defaults** — `defaults/Profile.lua` (AceDB defaults; runs at file-load).
-4. **Locales** — `locales/enUS.lua` (`NS.L` metatable seam).
-5. **Modules** — `modules/Bar.lua` (bar frame creation at file-load), `Display.lua` (render functions), `Timer.lua` (coalescing repaint scheduler).
+2. **Locales** — `locales/enUS.lua` (`NS.L` metatable seam; loads directly after Libraries per `toc-file-§5` — no dependency on `core/*`).
+3. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Bus.lua` (the closed message bus — `NS.bus` / `NS.NewBusTarget` / `NS.MSG`), `Util.lua`, `Data.lua`, `Database.lua`, `LSMPatch.lua`, `DebugLog.lua`, `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
+4. **Defaults** — `defaults/Profile.lua` (AceDB defaults; runs at file-load).
+5. **Modules** — `modules/Bar.lua` (bar frame creation at file-load), `Display.lua` (render functions + `NS.Display.__ev` bus consumer), `Timer.lua` (coalescing repaint scheduler + `NS.Timer.__ev` bus consumer).
 6. **Settings** (last — depend on everything else being initialized) — `settings/Schema.lua` (registry), `Slash.lua` (`/at` dispatcher), `Panel.lua` (registration shell; publishes empty `NS.Helpers` + `NS.PARENT_TITLE`), then the toolkit slices `Helpers.lua` → `ScrollPatch.lua` → `Widgets.lua` → `About.lua` (each decorates `NS.Helpers`; order matters only between `Helpers` (defines `EnsureScroll`) and `ScrollPatch` (defines `PatchAlwaysShowScrollbar` that `EnsureScroll` references)), then the page builders `General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` (each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load; LSM-backed rows call `NS.Helpers.LSMValues(mediaType)`).
 
 If you add a new runtime file, put it in the right load group in `AbsorbTracker.toc`.
 
 ## Module publishing pattern (idiom)
 
-Modules that own a sub-surface publish it with the `NS.X = NS.X or {}` guard (`NS.Constants`, `NS.Compat`, `NS.Util`, `NS.State`, `NS.Slash`, `NS.DebugLog`, `NS.Helpers`, `NS.Schema`), then alias it to a file-local upvalue (`local C = NS.Constants`). Modules that only attach top-level functions (`Data`, `Display`, `Timer`) write straight to `NS`. The closest thing to a load-order guard is the import-as-locals pattern at the top of each file plus the `if NS.X then ... end` nil check around forward references.
+Modules that own a sub-surface publish it with the `NS.X = NS.X or {}` guard (`NS.Constants`, `NS.Compat`, `NS.Util`, `NS.State`, `NS.Slash`, `NS.DebugLog`, `NS.Helpers`, `NS.Schema`), then alias it to a file-local upvalue (`local C = NS.Constants`). Modules that mostly attach top-level functions (`Data`, `Display`, `Timer`) write straight to `NS` — `Display` and `Timer` additionally publish a small `NS.Display` / `NS.Timer` table to hold their `__ev` bus target, and `core/Bus.lua` publishes `NS.bus` / `NS.NewBusTarget` / `NS.MSG`. The closest thing to a load-order guard is the import-as-locals pattern at the top of each file plus the `if NS.X then ... end` nil check around forward references.
 
 ## Test harness
 

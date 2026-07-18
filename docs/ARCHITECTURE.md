@@ -20,7 +20,7 @@ The addon is an **AceAddon** (`core/AbsorbTracker.lua`) mixing in AceEvent / Ace
 
 ## Module Map
 
-Load order is dependency order (see `AbsorbTracker.toc`): Libraries → Core → Defaults → Locales →
+Load order is dependency order (see `AbsorbTracker.toc`): Libraries → Locales → Core → Defaults →
 Modules → Settings.
 
 | File | Responsibility |
@@ -62,13 +62,37 @@ the test harness to assert. Row grammar detail: [schema.md](./schema.md).
 
 ## Message Bus
 
-There is no closed AceEvent `SendMessage` bus. Modules are plain Lua files that hang functions on
-the shared `NS` table and call each other through `NS.X` (resolved at call time, so forward
-references across load order "just work"). Cross-cutting refresh runs through explicit calls:
-`Helpers.RefreshAllPanels` (after `/at set` or a profile change) walks per-widget refresher
-closures. The one real callback bus is **AceDB**: `NS.OnProfileChanged` is registered for
-`OnProfileChanged` / `OnProfileCopied` / `OnProfileReset` in `NS:InitDB` and repaints the bar +
-refreshes an open panel.
+Cross-module communication runs through a closed, named message bus (`core/Bus.lua`,
+architecture-§4), not direct `NS.X` calls. Producers — the event layer (`core/AbsorbTracker.lua`),
+the slash surface (`settings/Slash.lua`), the settings pages (`settings/{General,Schema}.lua`) and
+the reset helpers (`settings/Helpers.lua`) — publish via `NS.bus:SendMessage(...)`. Each consumer
+subscribes on its **own** target from `NS.NewBusTarget()` (never two receivers on one shared object;
+CallbackHandler keys callbacks by `(message, target)`, so a shared target would silently overwrite —
+anti-pattern #32). All messages are payload-free: the consumer re-reads live state (settings,
+absorbs) when it fires.
+
+| Message (`NS.MSG`) | Sender | Consumer | Effect |
+|---|---|---|---|
+| `Ka0s_AbsorbTracker_RepaintRequested` (`REPAINT`) | event / slash / lifecycle layer | `modules/Timer.lua` (`NS.Timer.__ev`) | Coalesced repaint via `NS.RequestRepaint` → `NS.UpdateAbsorbBar` |
+| `Ka0s_AbsorbTracker_AppearanceChanged` (`APPEARANCE`) | settings / lifecycle layer | `modules/Display.lua` (`NS.Display.__ev`) | `NS.UpdateBarAppearance` (size / texture / colors / border / font) |
+| `Ka0s_AbsorbTracker_VisibilityChanged` (`VISIBILITY`) | event / settings layer | `modules/Display.lua` (`NS.Display.__ev`) | `NS.ApplyVisibility` (the show/hide gate) |
+| `Ka0s_AbsorbTracker_PositionChanged` (`POSITION`) | slash / lifecycle / reset layer | `modules/Display.lua` (`NS.Display.__ev`) | `NS.RestoreBarPosition` (restore from profile) |
+
+Each message has exactly one sender concept and one consuming module. The display functions
+(`NS.UpdateBarAppearance` / `NS.ApplyVisibility` / `NS.RestoreBarPosition` / `NS.UpdateAbsorbBar`)
+and `NS.RequestRepaint` remain defined on `NS` — they are the consumer-side implementations the bus
+handlers call, and stay directly unit-testable. Within the display concern, `Timer`'s coalescer
+calls `NS.UpdateAbsorbBar` directly (intra-concern), as does `NS.UpdateBarAppearance` calling
+`NS.ApplyVisibility`; the debug-counter hook `NS.NoteRepaint` (paint path → `core/AbsorbTracker.lua`
+combat rollup) is likewise a direct intra-implementation call, not a bus notification. The bus mock
+in `tests/wow_mock.lua` models real `(message, target)` dispatch so `tests/test_bus.lua` asserts
+two receivers of one message both fire (anti-pattern #33).
+
+Other cross-cutting refresh stays as explicit calls: `Helpers.RefreshAllPanels` (after `/at set` or
+a profile change) walks per-widget refresher closures. The other callback bus is **AceDB**:
+`NS.OnProfileChanged` is registered for `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset` in
+`NS:InitDB`; it republishes `POSITION` / `APPEARANCE` / `REPAINT` on the bus and refreshes an open
+panel.
 
 ## Slash Commands
 
@@ -118,14 +142,16 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   `addon:OnAbsorbChanged` / `addon:OnMaxHealthChanged` methods; it is created once and guarded
   against a disable/enable cycle.
 - **AceEvent** subscriptions (registered in `OnEnable`): `PLAYER_ENTERING_WORLD` (`OnEnterWorld` →
-  `NS.ApplyVisibility()` + `NS.RequestRepaint()`) and the combat-state pair `PLAYER_REGEN_DISABLED`
-  (`OnEnterCombat`) / `PLAYER_REGEN_ENABLED` (`OnLeaveCombat`) — each re-applies
-  `NS.ApplyVisibility()` (the `showOnlyInCombat` gate) and repaints. These are global, payload-free
-  events with no unit to filter, so they stay on AceEvent. `OnLeaveCombat` is the sole handler of
-  `PLAYER_REGEN_ENABLED` and does visibility + repaint only — it has no combat-deferred `/at config`
-  to replay (the panel refuses to open in combat, options-ui-§2; see Taint Notes). `NS.RequestRepaint`
-  is a coalescing one-shot AceTimer throttle (`throttleWindow`, default 0.1s) — idle = zero repaints,
-  no polling ticker.
+  publishes `VisibilityChanged` + `RepaintRequested`) and the combat-state pair
+  `PLAYER_REGEN_DISABLED` (`OnEnterCombat`) / `PLAYER_REGEN_ENABLED` (`OnLeaveCombat`) — each
+  publishes `VisibilityChanged` (the `showOnlyInCombat` gate) and `RepaintRequested`. These are
+  global, payload-free events with no unit to filter, so they stay on AceEvent. `OnLeaveCombat` is
+  the sole handler of `PLAYER_REGEN_ENABLED` and does visibility + repaint only — it has no
+  combat-deferred `/at config` to replay (the panel refuses to open in combat, options-ui-§2; see
+  Taint Notes). The event handlers do not call the display module directly — they publish on the
+  message bus (see Message Bus); `modules/Timer.lua`'s `NS.RequestRepaint` consumer coalesces
+  `RepaintRequested` into a one-shot AceTimer throttle (`throttleWindow`, default 0.1s) — idle =
+  zero repaints, no polling ticker.
 
 ## Taint Notes
 
@@ -150,8 +176,6 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
 - **English only** — `NS.L` seam exists but no strings are wrapped yet.
 - **Single bar** — one player absorb bar; multi-bar / other units are out of scope
   ([scope.md](./scope.md)).
-- **No closed message bus** — cross-module calls are direct `NS.X` references, not
-  `SendMessage`/`RegisterMessage`.
 
 ## Standards Deviations
 

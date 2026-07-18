@@ -108,7 +108,31 @@ return function()
       return target
     end,
   }
-  libs["AceEvent-3.0"] = { Embed = function(_, obj) return obj end }
+  -- AceEvent-3.0 message bus. A no-op Embed would hide the whole (message, target)
+  -- clobber class of bug (architecture-§4 / anti-pattern #33): the real lib keys
+  -- callbacks by (message, target) through one shared registry, so a SendMessage on
+  -- any embedded object fans out to every target that registered that message, and
+  -- two receivers on ONE target would overwrite each other. Model that faithfully:
+  -- one registry shared across every embed, dispatching fn(message, ...) exactly as
+  -- CallbackHandler fires a function-ref callback. Fresh per build() for isolation.
+  local busRegistry = {}  -- [message] = { [target] = fn }
+  libs["AceEvent-3.0"] = {
+    Embed = function(_, obj)
+      obj.RegisterMessage = function(self, msg, fn)
+        busRegistry[msg] = busRegistry[msg] or {}
+        busRegistry[msg][self] = fn
+      end
+      obj.UnregisterMessage = function(self, msg)
+        if busRegistry[msg] then busRegistry[msg][self] = nil end
+      end
+      obj.SendMessage = function(_, msg, ...)
+        local subs = busRegistry[msg]
+        if not subs then return end
+        for _, fn in pairs(subs) do fn(msg, ...) end
+      end
+      return obj
+    end,
+  }
   libs["AceTimer-3.0"] = { Embed = function(_, obj) return obj end }
   libs["AceConsole-3.0"] = { Embed = function(_, obj) return obj end }
 

@@ -50,6 +50,24 @@ test("unknown verb prints 'unknown command' then the help index", function()
   assertEqual(#out, #NS.COMMANDS + 2)  -- error line + header + one row per command
 end)
 
+test("/at version prints the addon version (slash-commands-§3)", function()
+  -- The standalone `version` verb must exist in NS.COMMANDS and print the running
+  -- version on its own line. getVersion() reads Compat metadata with the NS.version
+  -- fallback; headless the metadata API is absent, so this resolves to NS.version.
+  local hasVersion = false
+  for _, entry in ipairs(NS.COMMANDS) do
+    if entry[1] == "version" then hasVersion = true break end
+  end
+  assertTrue(hasVersion, "NS.COMMANDS has a standalone 'version' verb")
+
+  local expected = "v" ..
+    (NS.Compat.GetAddOnMetadata(NS.name, "Version") or NS.version or "?")
+  local out = capture(function() NS.Slash:OnSlash("version") end)
+  assertEqual(#out, 1)
+  assertTrue(stripColor(out[1]):find(expected, 1, true) ~= nil,
+    "prints the running version: " .. tostring(out[1]))
+end)
+
 test("/at get <path> dispatches to the schema read", function()
   local out = capture(function() NS.Slash:OnSlash("get barWidth") end)
   assertTrue(stripColor(out[1]):find("barWidth = 200 px") ~= nil, out[1])

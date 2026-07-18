@@ -24,3 +24,13 @@ function NS.RequestRepaint()
     if pending then return end            -- a repaint is already queued; coalesce into it
     pending = NS.addon:ScheduleTimer(doRepaint, NS.GetSetting("throttleWindow"))
 end
+
+-- Bus subscription (architecture-§4). This module owns the SOLE subscription to
+-- RepaintRequested; the event / slash / lifecycle layers publish it instead of
+-- calling RequestRepaint across the module boundary. Registered on Timer's own
+-- target so no receiver ever shares a table with another (anti-pattern #32).
+NS.Timer = NS.Timer or {}
+if NS.NewBusTarget then
+    NS.Timer.__ev = NS.NewBusTarget()
+    NS.Timer.__ev:RegisterMessage(NS.MSG.REPAINT, function() NS.RequestRepaint() end)
+end

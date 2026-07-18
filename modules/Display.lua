@@ -105,3 +105,18 @@ function NS.UpdateAbsorbBar()
 
     if NS.NoteRepaint then NS.NoteRepaint() end
 end
+
+-- Bus subscriptions (architecture-§4). This module owns the SOLE subscription to
+-- each of the appearance / visibility / position notifications; the settings,
+-- event, and lifecycle layers publish them instead of calling these functions
+-- across the module boundary. All three register on Display's own bus target, so
+-- no two receivers ever share a table (anti-pattern #32). Handlers look the
+-- functions up on NS at dispatch time so a test can stub e.g. NS.ApplyVisibility.
+NS.Display = NS.Display or {}
+if NS.NewBusTarget then
+    local ev = NS.NewBusTarget()
+    NS.Display.__ev = ev
+    ev:RegisterMessage(NS.MSG.APPEARANCE, function() NS.UpdateBarAppearance() end)
+    ev:RegisterMessage(NS.MSG.VISIBILITY, function() NS.ApplyVisibility() end)
+    ev:RegisterMessage(NS.MSG.POSITION,   function() NS.RestoreBarPosition() end)
+end

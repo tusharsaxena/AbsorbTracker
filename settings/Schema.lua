@@ -80,7 +80,7 @@ end
 -- ---------------------------------------------------------------------
 
 local function defaultOnChange()
-    if NS.UpdateBarAppearance then NS.UpdateBarAppearance() end
+    if NS.bus then NS.bus:SendMessage(NS.MSG.APPEARANCE) end
 end
 
 local function fireOnChange(row, value)

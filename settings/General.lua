@@ -37,9 +37,9 @@ NS.RegisterSchemaRows({
         default = flatDefaults.hidden,
         inverse = true,
         onChange = function()
-            NS.UpdateBarAppearance()
+            NS.bus:SendMessage(NS.MSG.APPEARANCE)
             if not NS.GetSetting("hidden") then
-                NS.UpdateAbsorbBar()
+                NS.bus:SendMessage(NS.MSG.REPAINT)
             end
         end,
     },
@@ -53,8 +53,8 @@ NS.RegisterSchemaRows({
         desc    = "When on, the bar is hidden except while you're in combat.",
         default = flatDefaults.showOnlyInCombat,
         onChange = function()
-            NS.ApplyVisibility()
-            if NS.ShouldShowBar() then NS.UpdateAbsorbBar() end
+            NS.bus:SendMessage(NS.MSG.VISIBILITY)
+            if NS.ShouldShowBar() then NS.bus:SendMessage(NS.MSG.REPAINT) end
         end,
     },
     {
@@ -134,9 +134,7 @@ local function build(mainCategory)
                             if NS.db and NS.db.profile then
                                 NS.db.profile.position = nil
                             end
-                            if NS.RestoreBarPosition then
-                                NS.RestoreBarPosition()
-                            end
+                            NS.bus:SendMessage(NS.MSG.POSITION)
                         end,
                     },
                     {

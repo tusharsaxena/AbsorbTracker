@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 [![Standard](https://img.shields.io/badge/Ka0s-WoW%20Addon%20Standard-yellow)](https://github.com/tusharsaxena/WowAddonStandards)
-![Tests](https://img.shields.io/badge/Tests-73%2F73_passing-green)
+![Tests](https://img.shields.io/badge/Tests-81%2F81_passing-green)
 
 ![alt text](https://media.forgecdn.net/attachments/1659/653/absorbracker-logo-v2-jpg.jpg)
 
@@ -45,6 +45,7 @@ chat with a cyan `[AT]` tag.
 | `/at lock` / `/at unlock` | Lock or unlock the bar so you can drag it |
 | `/at toggle` | Show or hide the bar |
 | `/at update` | Refresh the bar now |
+| `/at version` | Show the addon version |
 | `/at test [value] [seconds]` | Fill the bar with a test value so you can preview your styling (default 50000 for 5 seconds) |
 | `/at debug` | Open the debug window; `/at debug on` / `off` turns logging on or off |
 | `/at profile <subcommand>` | Manage profiles: `list`, `current`, `use <name>`, `new <name>`, `copy <name>`, `delete <name>`, `reset` |

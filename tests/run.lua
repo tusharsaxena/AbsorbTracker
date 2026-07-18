@@ -24,10 +24,12 @@ local mocks = buildMocks()
 local NS = {}
 
 Loader.loadAll({
+  "locales/enUS.lua",
   "core/Compat.lua",
   "core/Constants.lua",
   "core/Namespace.lua",
   "core/State.lua",
+  "core/Bus.lua",
   "core/Util.lua",
   "core/Data.lua",
   "core/Database.lua",
@@ -35,7 +37,6 @@ Loader.loadAll({
   "core/DebugLog.lua",
   "core/AbsorbTracker.lua",
   "defaults/Profile.lua",
-  "locales/enUS.lua",
   "modules/Bar.lua",
   "modules/Display.lua",
   "modules/Timer.lua",
@@ -70,6 +71,7 @@ local SUITES = {
   "test_slash",
   "test_timer",
   "test_visibility",
+  "test_bus",
 }
 for _, suite in ipairs(SUITES) do
   currentSuite = suite
