@@ -15,6 +15,13 @@ background, and border can each follow your class color if you prefer.
 
 Set it all up in the WoW Settings panel, or with the `/at` slash command.
 
+## What's new in 1.9.0
+
+- **Show the bar only in combat.** A new General option hides the bar out of combat and brings it back the moment you're fighting.
+- **The bar now updates the instant a shield changes** instead of ticking on a timer, so it tracks your absorbs more smoothly.
+- **A proper on-screen debug window.** `/at debug` opens a styled window instead of spamming chat; `/at debug on` / `off` starts and stops logging, and each line is tagged with what triggered it.
+- **A Debug console toggle on the General page** to show or hide that window without a slash command.
+
 ## Screenshots
 
 _**Absorb tracker bar in action — see the bar above the unit frame**_
@@ -113,7 +120,7 @@ Please file new reports there rather than in comments, so nothing gets lost.
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| 1.9.0 | 2026-07-12 | Added an on-screen debug window — `/at debug` opens it, `/at debug on`/`off` turns logging on or off (no more chat spam) |
+| 1.9.0 | 2026-07-18 | Added a **Show only in combat** option that hides the bar out of combat<br>The bar now redraws the instant a shield changes instead of on a fixed timer, for smoother tracking<br>Added an on-screen debug window — `/at debug` opens it, `/at debug on`/`off` turns logging on or off (no more chat spam), with each line tagged by what triggered it<br>Added a **Debug console** toggle on the General page to show or hide that window |
 | 1.8.0 | 2026-05-03 | Redesigned the settings panel with breadcrumb navigation and an About page<br>Added a hold-time to `/at test` (`/at test <value> <seconds>`) and reshaped the Bar and Border pages |
 | 1.7.0 | 2026-04-24 | Rebranded to **Ka0s Absorb Tracker** with new artwork<br>Split the settings into separate pages<br>Chat messages now use a cyan `[AT]` tag |
 | 1.6.0 | 2026-02-14 | Added `/at` commands for the class-color options |
