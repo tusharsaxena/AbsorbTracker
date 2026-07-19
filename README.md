@@ -8,9 +8,7 @@
 
 ![alt text](https://media.forgecdn.net/attachments/1659/653/absorbracker-logo-v2-jpg.jpg)
 
-Ka0s Absorb Tracker shows your current absorb shield as a movable bar, so you can see at a glance
-how much damage you can soak up. Move the bar anywhere on screen and restyle almost everything about
-it — its size, the bar and background textures and colors, the border, and the font. The bar fill,
+Ka0s Absorb Tracker shows your current absorb shield as a movable bar, so you can see at a glance how much damage you can soak up. Move the bar anywhere on screen and restyle almost everything about it — its size, the bar and background textures and colors, the border, and the font. The bar fill,
 background, and border can each follow your class color if you prefer.
 
 Set it all up in the WoW Settings panel, or with the `/at` slash command.
@@ -30,7 +28,11 @@ _**Absorb tracker bar in action — see the bar above the unit frame**_
 
 _**Settings panel — invoked by /at config**_
 
-![alt text](https://media.forgecdn.net/attachments/1506/198/absorbtracker-schreenshot-2-png.png)
+![alt text](https://media.forgecdn.net/attachments/1804/983/absorbtracker-screenshot-02-png.png)
+
+![alt text](https://media.forgecdn.net/attachments/1804/985/absorbtracker-screenshot-03-png.png)
+
+![alt text](https://media.forgecdn.net/attachments/1804/986/absorbtracker-screenshot-04-png.png)
 
 ## Usage
 
@@ -98,6 +100,7 @@ dropping.
 | Can I have different setups? | Yes. Use the Profiles page in the settings panel to save and switch between setups. New characters start on the shared **Default** profile, so your changes carry over until you choose a separate setup. |
 | Why is my bar empty? | The bar only shows a value when you have an active absorb shield — Power Word: Shield, Ice Barrier, a trinket proc, and so on. With no shield up it reads 0 and is hard to see against the background. |
 | Why won't the settings panel open in combat? | WoW doesn't let addons change settings screens while you're fighting, so `/at config` is ignored until combat ends. Run it again once you're out of combat and it opens normally. |
+| An addon CPU profiler shows Absorb Tracker using a lot of CPU — is that real? | Almost certainly not. Its actual cost is tiny (~0.18% of one core). Wow addon profilers blame all of a shared library's work on whichever addon loaded it first, and because `AbsorbTracker` sorts near the top alphabetically it "owns" the shared Ace event frame and gets billed for *every* Ace addon's event traffic. Disabling Absorb Tracker just moves that CPU to the next addon in line. [Read the full investigation](https://github.com/tusharsaxena/absorbtracker/blob/master/docs/investigations/2026-07-14-addon-profiler-attribution/analysis.md). |
 
 ## Troubleshooting
 
@@ -120,7 +123,7 @@ Please file new reports there rather than in comments, so nothing gets lost.
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| 1.9.0 | 2026-07-18 | Added a **Show only in combat** option that hides the bar out of combat<br>The bar now redraws the instant a shield changes instead of on a fixed timer, for smoother tracking<br>Added an on-screen debug window — `/at debug` opens it, `/at debug on`/`off` turns logging on or off (no more chat spam), with each line tagged by what triggered it<br>Added a **Debug console** toggle on the General page to show or hide that window |
+| 1.9.0 | 2026-07-20 | Added a **Show only in combat** option that hides the bar out of combat<br>The bar now redraws the instant a shield changes instead of on a fixed timer, for smoother tracking<br>Added an on-screen debug window — `/at debug` opens it, `/at debug on`/`off` turns logging on or off (no more chat spam), with each line tagged by what triggered it<br>Added a **Debug console** toggle on the General page to show or hide that window |
 | 1.8.0 | 2026-05-03 | Redesigned the settings panel with breadcrumb navigation and an About page<br>Added a hold-time to `/at test` (`/at test <value> <seconds>`) and reshaped the Bar and Border pages |
 | 1.7.0 | 2026-04-24 | Rebranded to **Ka0s Absorb Tracker** with new artwork<br>Split the settings into separate pages<br>Chat messages now use a cyan `[AT]` tag |
 | 1.6.0 | 2026-02-14 | Added `/at` commands for the class-color options |
