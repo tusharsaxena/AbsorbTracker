@@ -71,7 +71,8 @@ that covers the pure logic; this suite covers everything that only runs against 
 44. `/at debug off` → chat ack `[AT] debug logging OFF` with **OFF in red** (`ff4040`), header **Debug: OFF** (red); console logs a `[Debug] logging disabled` line as the final entry (after the state flips off; no `[Init]` on disable); new changes no longer append.
 45. Header **Debug** toggle button → flips state exactly like the slash verb.
 46. **Copy** → opens a monospace EditBox with the plain-text log highlighted (Ctrl+C, then Esc).
-47. **Clear** → empties the log view and the copy buffer.
+46a. **Scrollbar + line counter (§11).** With logging on and enough lines to overflow the window: a thin **vertical scrollbar** sits on the log's right edge and its **thumb tracks the mouse wheel** (wheel up → thumb moves toward the **top/oldest**, wheel down → toward the **bottom/newest**); **dragging the thumb** scrolls the log the same way. The **bottom-right counter** reads `N / 500 lines` in the same monospace font and **increments on each new line**. When the log is short enough to fit, the bar **stays shown but inert** (thumb parked, no drag), matching the options-panel scrollbar. **Direction check:** top of the bar = oldest line, bottom = newest; if it reads inverted, the `sliderValue ↔ offset` sign is flipped.
+47. **Clear** → empties the log view and the copy buffer; the line counter resets to `0 / 500 lines` and the scrollbar goes inert.
 48. **Esc** → closes the debug window (and the Copy window); both in `UISpecialFrames`.
 49. `/at debug on`, then `/reload` → console hidden and logging OFF (session-only state resets).
 
