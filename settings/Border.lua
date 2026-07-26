@@ -69,14 +69,15 @@ local function build(mainCategory)
         defaultsButton  = true,
         defaultsTooltip = "Restore every Border setting on this profile to its addon default.",
     })
-    if ctx.panel.defaultsBtn then
-        ctx.panel.defaultsBtn:SetCallback("OnClick", function()
-            H.RestoreDefaults("border", ctx)
-        end)
+    -- Parked, not wired: the Defaults button does not exist yet — it is built
+    -- on first OnShow (see Helpers.EnsureDefaultsButton).
+    ctx.panel.defaultsOnClick = function()
+        H.RestoreDefaults("border", ctx)
     end
 
     local rendered = false
     ctx.panel:SetScript("OnShow", function()
+        H.EnsureDefaultsButton(ctx.panel)
         if rendered then return end
         rendered = true
         H.RenderSchema(ctx, "border")
