@@ -71,9 +71,10 @@ NS.RegisterOptionsPage("bar", "Bar", function(mainCategory)
         defaultsButton  = true,
         defaultsTooltip = "Restore every Bar setting on this profile to its addon default.",
     })
-    if ctx.panel.defaultsBtn then
-        ctx.panel.defaultsBtn:SetCallback("OnClick", function()
-            H.RestoreDefaults("bar", ctx)
+    -- Parked, not wired: the button does not exist until the panel's first
+    -- OnShow (Helpers.EnsureDefaultsButton), which attaches this.
+    ctx.panel.defaultsOnClick = function()
+        H.RestoreDefaults("bar", ctx)
         end)
     end
 

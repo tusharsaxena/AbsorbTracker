@@ -76,9 +76,10 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
            defaultsButton  = true,
            defaultsTooltip = "Restore every New Page setting on this profile to its addon default.",
        })
-       if ctx.panel.defaultsBtn then
-           ctx.panel.defaultsBtn:SetCallback("OnClick", function()
-               H.RestoreDefaults("newpage", ctx)
+       -- Parked, not wired: the button does not exist until the panel's first
+       -- OnShow (Helpers.EnsureDefaultsButton), which attaches this.
+       ctx.panel.defaultsOnClick = function()
+           H.RestoreDefaults("newpage", ctx)
            end)
        end
 
