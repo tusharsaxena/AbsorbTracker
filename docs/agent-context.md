@@ -98,7 +98,8 @@ modules subscribe on their own `NS.NewBusTarget()` targets (architecture-§4; se
   `AceGUI-3.0-SharedMediaWidgets` r65. The displayButton tile is suppressed by
   `core/LSMPatch.lua` (addon-side, not a lib edit), so `r66+` refreshes are a clean drop-in.
 - **Headless tests (`tests/`) + lint gate.** `lua tests/run.lua` (schema parse/format/validate, DB
-  migrations, Compat, Util, DebugLog, slash dispatch, repaint-throttle coalescing, combat-visibility)
+  migrations, Compat, Util, DebugLog, slash dispatch, repaint-throttle coalescing, combat-visibility,
+  message-bus dispatch)
   must be green and `luacheck .` clean
   (0/0) before every commit. Syntax-check one file with `luac -p <file>`. Toolchain: Lua 5.1 +
   luacheck. The authoritative case list & count are in the generated `docs/test-cases.md`

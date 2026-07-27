@@ -158,8 +158,10 @@ NS:InitDB()         -- AceDB:New("AbsorbTrackerDB", NS.defaults, true); register
                     -- OnProfileChanged/OnProfileCopied/OnProfileReset -> NS.OnProfileChanged
                     -- (RegisterCallback guarded for the headless mock); falls back to a
                     -- raw-SV table when AceDB is absent; then calls RunMigrations.
-NS:RunMigrations()  -- reads/writes db.global.schemaVersion (v1); backfills missing profile
-                    -- keys from flatDefaults, deep-copying table defaults. Idempotent.
+NS:RunMigrations()  -- reads/writes db.global.schemaVersion. Idempotent. v1 backfills missing
+                    -- profile keys from flatDefaults, deep-copying table defaults; v2 drops the
+                    -- dead profile.updateInterval key (repaints are event-driven now, and
+                    -- throttleWindow is already seeded by the v1 backfill).
 ```
 
 ### LSMPatch (`core/LSMPatch.lua`)
@@ -186,8 +188,14 @@ NS.Debug(tag, fmt, ...)   -- the global debug sink; no-op (zero alloc) when Stat
                           -- otherwise appends a formatted line to the console.
 
 NS.DebugLog.Show() / Hide() / Toggle()   -- the console window
+NS.DebugLog:IsShown()                    -- window visibility; read-only, never builds the frame
+NS.DebugLog:ConsoleCheckbox()            -- {label,tooltip,get,set} spec for the General page's
+                                         -- Debug console checkbox (window visibility only —
+                                         -- it does NOT touch the State.debug logging flag)
 NS.DebugLog:Add(tag, msg)                -- append one line + mirror to the plain-text buffer
 NS.DebugLog:Clear()                      -- clear the log + buffer
+NS.DebugLog:UpdateScrollBar()            -- resync the §11 scrollbar thumb/range to the log offset
+NS.DebugLog:UpdateStatus()               -- resync the bottom "N / 500 lines" counter
 NS.DebugLog:ShowCopy()                   -- read-through EditBox with the whole log as plain text
 NS.DebugLog:SetEnabled(on)               -- single seam for flipping State.debug: colour-coded chat
                                          -- ack (ON green/OFF red, §5) + header + [Debug] bracket +
@@ -368,7 +376,11 @@ NS.AceGUI                  -- the AceGUI-3.0 handle, stashed once in CreateOptio
 -- Panel toolkit, decorated across settings/*.lua and exposed as NS.Helpers:
 NS.Helpers
     -- settings/Helpers.lua
-    Helpers.CreatePanel(name, title, opts)         -- canvas frame + header + optional Defaults btn
+    Helpers.CreatePanel(name, title, opts)         -- canvas frame + header; records wantsDefaultsButton
+    Helpers.EnsureDefaultsButton(panel)            -- builds that Defaults button once, on the panel's
+                                                   -- first OnShow, wiring the parked defaultsOnClick
+                                                   -- (options-ui-§5: a widget created at load keeps
+                                                   -- Blizzard's stock art — skins hook later)
     Helpers.EnsureScroll(ctx)                      -- lazy AceGUI ScrollFrame; calls PatchAlwaysShowScrollbar
     Helpers.Section(ctx, label)                    -- AceGUI Heading row
     Helpers.InlineButtonPair(ctx, leftSpec, rightSpec)
@@ -380,6 +392,7 @@ NS.Helpers
     Helpers.RefreshAllPanels()                     -- run every panel ctx's refresher closures
     Helpers.ROW_VSPACER                            -- layout constants exposed for cross-slice use
     Helpers.SECTION_HEADING_H                      -- (read by settings/Widgets.lua and settings/About.lua)
+    Helpers.BUTTON_PAIR_REL                        -- 0.492 — inline button-pair relative width
 
     -- settings/ScrollPatch.lua
     Helpers.PatchAlwaysShowScrollbar(scroll)       -- always-visible scrollbar override
@@ -435,4 +448,4 @@ Modules that own a sub-surface publish it with the `NS.X = NS.X or {}` guard (`N
 
 ## Test harness
 
-There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` loads the runtime files in TOC order through `tests/loader.lua` against `tests/wow_mock.lua`, then runs `test_schema.lua`, `test_database.lua`, `test_compat.lua`, `test_util.lua`, `test_debuglog.lua`, `test_slash.lua`, `test_timer.lua`, and `test_visibility.lua` (authoritative case count in the generated [test-cases.md](./test-cases.md)). The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.
+There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` loads the runtime files in TOC order through `tests/loader.lua` against `tests/wow_mock.lua`, then runs `test_schema.lua`, `test_database.lua`, `test_compat.lua`, `test_util.lua`, `test_debuglog.lua`, `test_slash.lua`, `test_timer.lua`, `test_visibility.lua`, and `test_bus.lua` (authoritative case count in the generated [test-cases.md](./test-cases.md)). The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.
