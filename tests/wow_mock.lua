@@ -11,7 +11,7 @@ end
 -- A universal frame stub: any PascalCase method is a no-op returning the frame itself; other
 -- (lowercase/custom) field access misses through to nil so addon code can stash custom fields.
 local function stubFrame()
-  local f = { __shown = false }
+  local f = { __shown = false, __scripts = {} }
   -- Track shown state so IsShown/Toggle behave (the debug console's visibility checkbox reads it).
   -- Every other capitalized method still no-ops through the metatable below.
   function f:Show() self.__shown = true; return self end
@@ -19,6 +19,33 @@ local function stubFrame()
   function f:SetShown(v) self.__shown = not not v; return self end
   function f:IsShown() return self.__shown end
   function f:IsVisible() return self.__shown end
+
+  -- Store handlers instead of discarding them, and expose __fire so a test can drive the lazy
+  -- OnShow paths the panel depends on (the deferred body render, and EnsureDefaultsButton's
+  -- first-OnShow build — options-ui-§5). A no-op SetScript made those unreachable.
+  function f:SetScript(name, fn) self.__scripts[name] = fn; return self end
+  function f:GetScript(name) return self.__scripts[name] end
+  function f:HookScript(name, fn)
+    local prev = self.__scripts[name]
+    self.__scripts[name] = function(...)
+      if prev then prev(...) end
+      return fn(...)
+    end
+    return self
+  end
+  function f:__fire(name, ...)
+    local fn = self.__scripts[name]
+    if fn then return fn(self, ...) end
+  end
+
+  -- Geometry and naming must return real values, not the frame: settings/ScrollPatch.lua does
+  -- arithmetic on GetHeight() and string-concatenates GetName(), both of which raise on a table.
+  -- Deliberately NOT defining the setters (SetSize/SetWidth/...): tests spy on those by rawsetting
+  -- a recorder and rawsetting nil to restore, which would erase an explicit definition for good.
+  function f:GetName() return nil end
+  function f:GetHeight() return 0 end
+  function f:GetWidth() return 0 end
+
   setmetatable(f, { __index = function(_, k)
     if type(k) == "string" and k:match("^%u") then
       return function() return f end
@@ -64,21 +91,94 @@ return function()
   M.StaticPopupDialogs = {}
   M.StaticPopup_Show = function() end
   M.GameTooltip = stubFrame()
+  -- Record the canvas frames as they are registered. This is the only public seam a test has for
+  -- reaching the real page panels built by settings/<page>.lua, which is what makes it possible to
+  -- fire their OnShow and exercise the genuine deferred render.
+  M.__mainPanel    = nil
+  M.__subcategories = {}   -- [displayName] = panel frame
   M.Settings = {
-    RegisterCanvasLayoutCategory = function() return { GetID = function() return 1 end } end,
-    RegisterCanvasLayoutSubcategory = function() return {} end,
+    RegisterCanvasLayoutCategory = function(panel)
+      M.__mainPanel = panel
+      return { GetID = function() return 1 end }
+    end,
+    RegisterCanvasLayoutSubcategory = function(_parent, panel, name)
+      M.__subcategories[name] = panel
+      return {}
+    end,
     RegisterAddOnCategory = function() end,
     OpenToCategory = function() end,
   }
 
   -- LibStub + Ace library mocks
   local libs = {}
+  -- AceDB-3.0 with a WORKING profile surface. A bare {global, profile} stub left the entire
+  -- `/at profile` verb untestable: runProfile bails at `if not db.SetProfile` before touching a
+  -- single subcommand, so a broken switch/copy/delete would pass the suite silently. Model enough
+  -- of the real lib to exercise it — a named profile store, switch/copy/delete/reset, and the
+  -- OnProfileChanged / OnProfileCopied / OnProfileReset callbacks AceDB fires via CallbackHandler
+  -- (which is what wires NS.OnProfileChanged in core/Database.lua).
   libs["AceDB-3.0"] = {
     New = function(_, _name, defaults)
-      return {
-        global = deepcopy(defaults and defaults.global or {}),
-        profile = deepcopy(defaults and defaults.profile or {}),
-      }
+      local db = {}
+      local profiles, current, callbacks = {}, "Default", {}
+
+      local function freshProfile() return deepcopy(defaults and defaults.profile or {}) end
+      local function fire(event)
+        for _, cb in ipairs(callbacks[event] or {}) do cb(event, db, current) end
+      end
+
+      profiles[current] = freshProfile()
+      db.global  = deepcopy(defaults and defaults.global or {})
+      db.profile = profiles[current]
+
+      -- CallbackHandler shape: db.RegisterCallback(target, event, fn) — dot-called, so the
+      -- registering object arrives as the first arg. core/Database.lua passes a function ref.
+      db.RegisterCallback = function(_target, event, fn)
+        callbacks[event] = callbacks[event] or {}
+        callbacks[event][#callbacks[event] + 1] = fn
+      end
+
+      db.GetCurrentProfile = function() return current end
+
+      db.GetProfiles = function()
+        local names = {}
+        for name in pairs(profiles) do names[#names + 1] = name end
+        table.sort(names)
+        return names
+      end
+
+      db.SetProfile = function(_, name)
+        if name == current then return end
+        profiles[name] = profiles[name] or freshProfile()
+        current = name
+        db.profile = profiles[name]
+        fire("OnProfileChanged")
+      end
+
+      db.ResetProfile = function()
+        -- Wipe in place: the real lib keeps the profile table's identity across a reset, so
+        -- anything holding a reference to db.profile keeps seeing the live table.
+        local p = profiles[current]
+        for k in pairs(p) do p[k] = nil end
+        for k, v in pairs(freshProfile()) do p[k] = v end
+        fire("OnProfileReset")
+      end
+
+      db.CopyProfile = function(_, name)
+        local src = profiles[name]
+        if not src or name == current then return end
+        local p = profiles[current]
+        for k in pairs(p) do p[k] = nil end
+        for k, v in pairs(deepcopy(src)) do p[k] = v end
+        fire("OnProfileCopied")
+      end
+
+      db.DeleteProfile = function(_, name)
+        if name == current then return end
+        profiles[name] = nil
+      end
+
+      return db
     end,
   }
   libs["AceAddon-3.0"] = {
@@ -133,6 +233,82 @@ return function()
       return obj
     end,
   }
+  -- AceGUI-3.0. Without this NS.AceGUI stays nil, every widget maker in settings/Widgets.lua
+  -- returns early, and the schema → widget translation layer (four makers + RenderField +
+  -- RenderSchema) is untestable. Widgets here are inert data recorders rather than frames: they
+  -- remember what was set on them and, crucially, expose __fire so a test can drive the
+  -- OnValueChanged / OnMouseUp / OnValueConfirmed callbacks the way a real click would — which is
+  -- what exercises the read → SetByPath → RefreshAllPanels loop.
+  local function makeWidget(wtype)
+    local w = {
+      type      = wtype,
+      children  = {},
+      callbacks = {},
+      frame     = stubFrame(),
+    }
+    function w:SetLabel(v) self.labelText = v; return self end
+    function w:SetText(v) self.text = v; return self end
+    function w:SetValue(v) self.value = v; return self end
+    function w:GetValue() return self.value end
+    function w:SetList(items, order) self.list, self.order = items, order; return self end
+    function w:SetColor(r, g, b, a) self.color = { r = r, g = g, b = b, a = a }; return self end
+    function w:SetHasAlpha(v) self.hasAlpha = v; return self end
+    function w:SetDisabled(v) self.disabled = v and true or false; return self end
+    function w:SetSliderValues(mn, mx, st) self.min, self.max, self.step = mn, mx, st; return self end
+    function w:SetIsPercent(v) self.isPercent = v; return self end
+    function w:SetWidth(v) self.width = v; return self end
+    function w:SetHeight(v) self.height = v; return self end
+    function w:SetRelativeWidth(v) self.relativeWidth = v; return self end
+    function w:SetFullWidth(v) self.fullWidth = v and true or false; return self end
+    function w:SetLayout(v) self.layout = v; return self end
+    function w:SetAutoAdjustHeight(v) self.autoAdjustHeight = v; return self end
+    function w:SetImage(...) self.image = { ... }; return self end
+    function w:SetImageSize(...) self.imageSize = { ... }; return self end
+    function w:SetCallback(name, fn) self.callbacks[name] = fn; return self end
+    function w:AddChild(child) self.children[#self.children + 1] = child; return self end
+    function w:ReleaseChildren() self.children = {}; return self end
+    function w:DoLayout() self.layoutCount = (self.layoutCount or 0) + 1; return self end
+    -- AceGUI invokes a callback as fn(widget, eventName, ...); mirror that exactly, because the
+    -- makers destructure it as function(_, _, value).
+    function w:__fire(name, ...)
+      local fn = self.callbacks[name]
+      if fn then return fn(self, name, ...) end
+    end
+
+    if wtype == "ScrollFrame" then
+      -- settings/ScrollPatch.lua reaches into these three by name and does real work with them.
+      w.scrollbar   = stubFrame()
+      w.scrollframe = stubFrame()
+      w.content     = stubFrame()
+      w.content.original_width = 400
+      w.localstatus = { offset = 0 }
+      function w:FixScroll() self.fixScrollCount = (self.fixScrollCount or 0) + 1 end
+      function w:MoveScroll(v) self.movedTo = v end
+      function w:SetScroll(v) self.scrolledTo = v end
+    end
+    return w
+  end
+
+  local aceGUI = {
+    -- Populated by RegisterWidgetType. Empty by default, which models
+    -- AceGUI-3.0-SharedMediaWidgets being absent: makeDropdown asks GetWidgetVersion about
+    -- LSM30_* and falls back to a plain Dropdown when it comes back nil.
+    WidgetRegistry   = {},
+    __widgetVersions = {},
+  }
+  function aceGUI:Create(wtype)
+    local ctor = self.WidgetRegistry[wtype]
+    if ctor then return ctor() end
+    return makeWidget(wtype)
+  end
+  function aceGUI:GetWidgetVersion(wtype) return self.__widgetVersions[wtype] end
+  function aceGUI:RegisterWidgetType(wtype, ctor, version)
+    self.WidgetRegistry[wtype]   = ctor
+    self.__widgetVersions[wtype] = version
+  end
+  M.__makeAceGUIWidget = makeWidget
+  libs["AceGUI-3.0"] = aceGUI
+
   libs["AceTimer-3.0"] = { Embed = function(_, obj) return obj end }
   libs["AceConsole-3.0"] = { Embed = function(_, obj) return obj end }
 

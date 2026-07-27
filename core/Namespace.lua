@@ -9,7 +9,6 @@ NS.version = "1.9.0"
 -- Cyan [AT] chat tag — one shared constant so every module prints identically (§7.4).
 NS.PREFIX = "|cFF00FFFF[AT]|r"
 
--- Hot-path math/string caches used by the bar paint path (Display / Timer).
+-- Hot-path math caches used by the bar paint path (Display / Timer).
 NS.floor  = math.floor
 NS.max    = math.max
-NS.format = format or string.format

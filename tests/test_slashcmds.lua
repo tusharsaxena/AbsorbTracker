@@ -1,0 +1,447 @@
+local T = _G.AT_TEST
+local NS = T.NS
+local test, assertEqual, assertTrue, assertFalse =
+  T.test, T.assertEqual, T.assertTrue, T.assertFalse
+
+-- settings/Slash.lua, second half: the verbs tests/test_slash.lua does not reach — lock/unlock,
+-- toggle, the three reset verbs, update, test, the whole /at profile sub-dispatcher, and the
+-- get/set failure paths. Together with test_slash.lua this covers every entry in NS.COMMANDS.
+
+-- Same capture seam as test_slash.lua: Slash.lua bound `local print = NS.Print` at load, so the
+-- only interceptable point is the chat frame's AddMessage sink.
+local function capture(fn)
+  local out = {}
+  local cf = T.mocks.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function(_, msg) out[#out + 1] = msg end
+  local ok, err = pcall(fn)
+  cf.AddMessage = old
+  if not ok then error(err) end
+  return out
+end
+
+local function stripColor(s)
+  return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+
+-- Run a slash line and return its plain-text output lines.
+local function slash(line)
+  local out = capture(function() NS.Slash:OnSlash(line) end)
+  local plain = {}
+  for i, l in ipairs(out) do plain[i] = stripColor(l) end
+  return plain
+end
+
+local function joined(lines) return table.concat(lines, "\n") end
+
+local function contains(lines, needle)
+  return joined(lines):find(needle, 1, true) ~= nil
+end
+
+-- ── COMMANDS table shape ───────────────────────────────────────────────────────────
+
+test("every COMMANDS entry is a {name, description, handler} triple", function()
+  for i, entry in ipairs(NS.COMMANDS) do
+    local where = "COMMANDS[" .. i .. "]"
+    assertEqual(type(entry[1]), "string", where .. " has a name")
+    assertTrue(entry[1] ~= "", where .. " name is non-empty")
+    assertEqual(type(entry[2]), "string", where .. " (" .. entry[1] .. ") has a description")
+    assertTrue(entry[2] ~= "", where .. " (" .. entry[1] .. ") description is non-empty")
+    assertEqual(type(entry[3]), "function", where .. " (" .. entry[1] .. ") has a handler")
+  end
+end)
+
+test("COMMANDS verbs are unique and already lower-case", function()
+  -- OnSlash lower-cases the typed verb before lookup, so an upper-case entry here would be
+  -- permanently unreachable.
+  local seen = {}
+  for _, entry in ipairs(NS.COMMANDS) do
+    assertEqual(entry[1], entry[1]:lower(), entry[1] .. " must be lower-case to be dispatchable")
+    assertEqual(seen[entry[1]], nil, "duplicate verb: " .. entry[1])
+    seen[entry[1]] = true
+  end
+end)
+
+test("NS.SlashCommands is the same table the About page renders", function()
+  assertEqual(NS.SlashCommands, NS.COMMANDS, "the two must not drift apart")
+end)
+
+-- ── lock / unlock / toggle ─────────────────────────────────────────────────────────
+
+test("/at lock and /at unlock write the `locked` setting and acknowledge", function()
+  local out = slash("lock")
+  assertTrue(NS.GetSetting("locked"), "lock sets locked = true")
+  assertTrue(contains(out, "Bar locked"), joined(out))
+
+  out = slash("unlock")
+  assertFalse(NS.GetSetting("locked"), "unlock sets locked = false")
+  assertTrue(contains(out, "Bar unlocked"), joined(out))
+end)
+
+test("/at toggle flips `hidden` in both directions", function()
+  NS.SetSetting("hidden", false)
+  local out = slash("toggle")
+  assertTrue(NS.GetSetting("hidden"), "first toggle hides")
+  assertTrue(contains(out, "Hidden"), joined(out))
+
+  out = slash("toggle")
+  assertFalse(NS.GetSetting("hidden"), "second toggle shows")
+  assertTrue(contains(out, "Shown"), joined(out))
+  T.mocks.__fireTimers()
+end)
+
+test("/at toggle requests a repaint when SHOWING, not when hiding", function()
+  -- A bar that has just been un-hidden holds whatever value it had when it went away; the repaint
+  -- is what makes it current. Hiding needs no paint work, so it must publish nothing.
+  --
+  -- Exactly ONE publish on show: the verb delegates to SetByPath and the `hidden` row's onChange
+  -- (settings/General.lua) owns the republish, so the CLI and the panel checkbox travel the same
+  -- path. The verb used to publish a second, redundant REPAINT of its own.
+  NS.SetSetting("hidden", false)
+  local seen = 0
+  local target = NS.NewBusTarget()
+  target:RegisterMessage(NS.MSG.REPAINT, function() seen = seen + 1 end)
+
+  T.mocks.__fireTimers()                               -- drain, so `pending` starts clear
+  capture(function() NS.Slash:OnSlash("toggle") end)   -- -> hidden
+  assertEqual(seen, 0, "hiding schedules no repaint")
+  assertEqual(#T.mocks.__timers, 0, "and arms no timer")
+
+  capture(function() NS.Slash:OnSlash("toggle") end)   -- -> shown
+  assertEqual(seen, 1, "showing publishes exactly one repaint, from the schema onChange")
+  assertEqual(#T.mocks.__timers, 1, "which arms exactly one coalesced timer")
+
+  target:UnregisterMessage(NS.MSG.REPAINT)
+  T.mocks.__fireTimers()
+end)
+
+-- ── update ─────────────────────────────────────────────────────────────────────────
+
+test("/at update publishes REPAINT and acknowledges", function()
+  local seen = 0
+  local target = NS.NewBusTarget()
+  target:RegisterMessage(NS.MSG.REPAINT, function() seen = seen + 1 end)
+  local out = slash("update")
+  target:UnregisterMessage(NS.MSG.REPAINT)
+  assertEqual(seen, 1)
+  assertTrue(contains(out, "Forced refresh"), joined(out))
+  T.mocks.__fireTimers()
+end)
+
+-- ── reset / resetall / resetposition ───────────────────────────────────────────────
+
+test("/at reset with no page prints usage rather than resetting anything", function()
+  NS.SetSetting("barWidth", 250)
+  local out = slash("reset")
+  assertTrue(contains(out, "Usage: /at reset"), joined(out))
+  assertEqual(NS.GetSetting("barWidth"), 250, "nothing was reset")
+  NS.SetSetting("barWidth", 200)
+end)
+
+test("/at reset rejects an unknown page and names the valid ones", function()
+  local out = slash("reset bogus")
+  assertTrue(contains(out, "Unknown page 'bogus'"), joined(out))
+  assertTrue(contains(out, "general, bar, border, font"), joined(out))
+end)
+
+test("/at reset <page> restores just that page", function()
+  NS.SetSetting("barWidth", 250)
+  NS.SetSetting("borderSize", 20)
+  local out = slash("reset bar")
+  assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth)
+  assertEqual(NS.GetSetting("borderSize"), 20, "the border page is untouched")
+  assertTrue(contains(out, "bar page reset to defaults"), joined(out))
+  slash("reset border")
+end)
+
+test("/at reset lower-cases the page name", function()
+  NS.SetSetting("barWidth", 250)
+  slash("reset BAR")
+  assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth)
+end)
+
+test("/at resetall goes through the one shared RestoreAllDefaults helper", function()
+  -- The slash verb and the "Reset All Settings" popup must never diverge, so the verb owns no
+  -- reset logic of its own — it only delegates.
+  local called = 0
+  local orig = NS.Helpers.RestoreAllDefaults
+  NS.Helpers.RestoreAllDefaults = function() called = called + 1 end
+  local out = capture(function() NS.Slash:OnSlash("resetall") end)
+  NS.Helpers.RestoreAllDefaults = orig
+  assertEqual(called, 1)
+  assertTrue(joined(out):find("All settings reset to defaults", 1, true) ~= nil)
+end)
+
+test("/at resetall really does restore the defaults end to end", function()
+  NS.SetSetting("barWidth", 250)
+  NS.SetSetting("fontSize", 30)
+  slash("resetall")
+  assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth)
+  assertEqual(NS.GetSetting("fontSize"), NS.flatDefaults.fontSize)
+  T.mocks.__fireTimers()
+end)
+
+test("/at resetposition clears the saved anchor and republishes POSITION", function()
+  NS.db.profile.position = { point = "TOPLEFT", relPoint = "TOPLEFT", x = 9, y = 9 }
+  local seen = 0
+  local target = NS.NewBusTarget()
+  target:RegisterMessage(NS.MSG.POSITION, function() seen = seen + 1 end)
+  local out = slash("resetposition")
+  target:UnregisterMessage(NS.MSG.POSITION)
+  assertEqual(NS.db.profile.position, nil)
+  assertEqual(seen, 1)
+  assertTrue(contains(out, "Bar position reset"), joined(out))
+end)
+
+-- ── get / set failure paths ────────────────────────────────────────────────────────
+
+test("/at get with no path prints usage", function()
+  assertTrue(contains(slash("get"), "Usage: /at get <path>"))
+end)
+
+test("/at get on an unknown path says so instead of printing nil", function()
+  assertTrue(contains(slash("get nosuchsetting"), "Setting not found: nosuchsetting"))
+end)
+
+test("/at set with no path prints usage and points at /at list", function()
+  local out = slash("set")
+  assertTrue(contains(out, "Usage: /at set <path> <value>"), joined(out))
+  assertTrue(contains(out, "/at list"), joined(out))
+end)
+
+test("/at set on an unknown path says so", function()
+  assertTrue(contains(slash("set nosuchsetting 5"), "Setting not found: nosuchsetting"))
+end)
+
+test("/at set rejects a junk boolean and lists the words it accepts", function()
+  local before = NS.GetSetting("locked")
+  local out = slash("set locked maybe")
+  assertTrue(contains(out, "Invalid value for locked"), joined(out))
+  assertTrue(contains(out, "true/false/on/off/1/0/yes/no"), joined(out))
+  assertEqual(NS.GetSetting("locked"), before, "a rejected parse must not write")
+end)
+
+test("/at set rejects a non-numeric value for a number setting", function()
+  local out = slash("set barWidth wide")
+  assertTrue(contains(out, "Invalid value for barWidth"), joined(out))
+  assertTrue(contains(out, "expected a number"), joined(out))
+  assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth)
+end)
+
+test("/at set writes a colour from `r g b a` and echoes the STORED value", function()
+  local out = slash("set barColor 0.1 0.2 0.3 0.4")
+  local c = NS.GetSetting("barColor")
+  assertTrue(math.abs(c.r - 0.1) < 1e-6 and math.abs(c.a - 0.4) < 1e-6,
+    "the parsed colour was stored")
+  assertTrue(contains(out, "{0.10, 0.20, 0.30, 0.40}"), joined(out))
+  slash("reset bar")
+  T.mocks.__fireTimers()
+end)
+
+test("/at set accepts a bool written as a human word", function()
+  slash("set locked yes")
+  assertTrue(NS.GetSetting("locked"))
+  slash("set locked off")
+  assertFalse(NS.GetSetting("locked"))
+end)
+
+-- ── /at test ───────────────────────────────────────────────────────────────────────
+
+test("/at test refuses while the bar is hidden and tells the user how to fix it", function()
+  local savedHold = NS.testHoldUntil
+  NS.SetSetting("hidden", true)
+  local out = slash("test")
+  NS.SetSetting("hidden", false)
+  assertTrue(contains(out, "Bar is hidden"), joined(out))
+  assertTrue(contains(out, "/at toggle"), joined(out))
+  assertEqual(NS.testHoldUntil, savedHold, "no hold window is armed on the refusal path")
+end)
+
+test("/at test paints the given value and arms the hold window", function()
+  NS.SetSetting("hidden", false)
+  local painted
+  local sb = NS.statusBar
+  rawset(sb, "SetValue", function(_, v) painted = v end)
+  local out = slash("test 12345 7")
+  rawset(sb, "SetValue", nil)
+  assertEqual(painted, 12345)
+  assertEqual(NS.testHoldUntil, T.mocks.GetTime() + 7)
+  assertTrue(contains(out, "Testing display with value"), joined(out))
+  NS.testHoldUntil = nil
+end)
+
+test("/at test defaults to 50000 held for 5 seconds", function()
+  NS.SetSetting("hidden", false)
+  local painted
+  local sb = NS.statusBar
+  rawset(sb, "SetValue", function(_, v) painted = v end)
+  slash("test")
+  rawset(sb, "SetValue", nil)
+  assertEqual(painted, 50000)
+  assertEqual(NS.testHoldUntil, T.mocks.GetTime() + 5)
+  NS.testHoldUntil = nil
+end)
+
+test("/at test keeps the bar scale usable for a value below the 100k floor", function()
+  -- A small test value must not shrink the scale below 100000, or the fake fill reads as full.
+  NS.SetSetting("hidden", false)
+  local mn, mx
+  local sb = NS.statusBar
+  rawset(sb, "SetMinMaxValues", function(_, a, b) mn, mx = a, b end)
+  slash("test 500")
+  rawset(sb, "SetMinMaxValues", nil)
+  assertEqual(mn, 0)
+  assertEqual(mx, 100000)
+  NS.testHoldUntil = nil
+end)
+
+-- ── /at profile ────────────────────────────────────────────────────────────────────
+
+-- Leave the DB on the Default profile whatever a test did.
+local function backToDefault()
+  if NS.db and NS.db.SetProfile then NS.db:SetProfile("Default") end
+  T.mocks.__fireTimers()
+end
+
+test("/at profile with no subcommand prints the sub-help", function()
+  local out = slash("profile")
+  assertTrue(contains(out, "Profile commands"), joined(out))
+  for _, sub in ipairs({ "list", "current", "use", "new", "copy", "delete", "reset" }) do
+    assertTrue(contains(out, "/at profile " .. sub), "sub-help lists " .. sub)
+  end
+end)
+
+test("/at profile current names the active profile", function()
+  assertTrue(contains(slash("profile current"), "Current profile: Default"))
+end)
+
+test("/at profile list marks the current profile", function()
+  NS.db:SetProfile("Alt")
+  T.mocks.__fireTimers()
+  local out = slash("profile list")
+  backToDefault()
+  assertTrue(contains(out, "Available profiles"), joined(out))
+  assertTrue(contains(out, "Alt (current)"), joined(out))
+  assertTrue(contains(out, "Default"), joined(out))
+  assertTrue(joined(out):find("Default %(current%)") == nil, "only one profile is marked current")
+end)
+
+test("/at profile use switches the active profile", function()
+  local out = slash("profile use Alt")
+  assertEqual(NS.db:GetCurrentProfile(), "Alt")
+  assertTrue(contains(out, "Switched to profile 'Alt'"), joined(out))
+  backToDefault()
+end)
+
+test("/at profile use with no name prints usage and switches nothing", function()
+  local out = slash("profile use")
+  assertEqual(NS.db:GetCurrentProfile(), "Default")
+  assertTrue(contains(out, "Usage: /at profile use <name>"), joined(out))
+end)
+
+test("/at profile new creates a profile carrying the defaults, not the old values", function()
+  NS.SetSetting("barWidth", 456)
+  local out = slash("profile new Fresh")
+  assertEqual(NS.db:GetCurrentProfile(), "Fresh")
+  assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth,
+    "a new profile starts from defaults")
+  assertTrue(contains(out, "Created and switched to new profile 'Fresh'"), joined(out))
+  backToDefault()
+  slash("reset bar")
+  T.mocks.__fireTimers()
+end)
+
+test("/at profile new with no name prints usage", function()
+  assertTrue(contains(slash("profile new"), "Usage: /at profile new <name>"))
+end)
+
+test("/at profile copy pulls another profile's values into the current one", function()
+  NS.db:SetProfile("Source")
+  T.mocks.__fireTimers()
+  NS.SetSetting("barWidth", 411)
+  NS.db:SetProfile("Default")
+  T.mocks.__fireTimers()
+  assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth, "Default is untouched so far")
+
+  local out = slash("profile copy Source")
+  assertEqual(NS.GetSetting("barWidth"), 411, "the source's value landed in the current profile")
+  assertEqual(NS.db:GetCurrentProfile(), "Default", "copy does not switch profiles")
+  assertTrue(contains(out, "Copied settings from profile 'Source'"), joined(out))
+  slash("reset bar")
+  T.mocks.__fireTimers()
+end)
+
+test("/at profile copy with no name prints usage", function()
+  assertTrue(contains(slash("profile copy"), "Usage: /at profile copy <name>"))
+end)
+
+test("/at profile delete refuses to delete the profile in use", function()
+  local out = slash("profile delete Default")
+  assertTrue(contains(out, "Cannot delete the current profile"), joined(out))
+  local names = table.concat(NS.db:GetProfiles(), ",")
+  assertTrue(names:find("Default", 1, true) ~= nil, "and it is still there")
+end)
+
+test("/at profile delete removes a profile that is not in use", function()
+  NS.db:SetProfile("Doomed")
+  T.mocks.__fireTimers()
+  backToDefault()
+  local out = slash("profile delete Doomed")
+  assertTrue(contains(out, "Deleted profile 'Doomed'"), joined(out))
+  local names = table.concat(NS.db:GetProfiles(), ",")
+  assertTrue(names:find("Doomed", 1, true) == nil, "it is gone from the list")
+end)
+
+test("/at profile delete with no name prints usage", function()
+  assertTrue(contains(slash("profile delete"), "Usage: /at profile delete <name>"))
+end)
+
+test("/at profile reset restores the current profile's defaults in place", function()
+  NS.SetSetting("barWidth", 478)
+  local out = slash("profile reset")
+  assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth)
+  assertEqual(NS.db:GetCurrentProfile(), "Default", "reset does not switch profiles")
+  assertTrue(contains(out, "Profile reset to defaults"), joined(out))
+  T.mocks.__fireTimers()
+end)
+
+test("/at profile rejects an unknown subcommand and reprints the sub-help", function()
+  local out = slash("profile frobnicate")
+  assertTrue(contains(out, "Unknown profile subcommand 'frobnicate'"), joined(out))
+  assertTrue(contains(out, "Profile commands"), "the sub-help follows the error")
+end)
+
+test("/at profile sub-verbs are case-insensitive", function()
+  assertTrue(contains(slash("profile CURRENT"), "Current profile: Default"))
+end)
+
+test("/at profile degrades gracefully when AceDB is unavailable", function()
+  local saved = NS.db
+  NS.db = { profile = {}, global = {} }   -- no SetProfile: the no-AceDB fallback shape
+  local out = capture(function() NS.Slash:OnSlash("profile list") end)
+  NS.db = saved
+  assertTrue(joined(out):find("Profile system requires AceDB-3.0", 1, true) ~= nil, joined(out))
+end)
+
+test("a profile switch repaints the bar through OnProfileChanged", function()
+  -- core/Database.lua wires OnProfileChanged/Copied/Reset to NS.OnProfileChanged, which republishes
+  -- POSITION / APPEARANCE / REPAINT so the bar picks up the new profile's look immediately.
+  local seen = { pos = 0, app = 0, rep = 0 }
+  local target = NS.NewBusTarget()
+  target:RegisterMessage(NS.MSG.POSITION,   function() seen.pos = seen.pos + 1 end)
+  local t2 = NS.NewBusTarget()
+  t2:RegisterMessage(NS.MSG.APPEARANCE,     function() seen.app = seen.app + 1 end)
+  local t3 = NS.NewBusTarget()
+  t3:RegisterMessage(NS.MSG.REPAINT,        function() seen.rep = seen.rep + 1 end)
+
+  capture(function() NS.Slash:OnSlash("profile use Switched") end)
+
+  target:UnregisterMessage(NS.MSG.POSITION)
+  t2:UnregisterMessage(NS.MSG.APPEARANCE)
+  t3:UnregisterMessage(NS.MSG.REPAINT)
+  backToDefault()
+
+  assertEqual(seen.pos, 1)
+  assertEqual(seen.app, 1)
+  assertEqual(seen.rep, 1)
+end)

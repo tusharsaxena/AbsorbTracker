@@ -97,12 +97,17 @@ modules subscribe on their own `NS.NewBusTarget()` targets (architecture-§4; se
   AceGUI / AceConfig / AceDBOptions), LibSharedMedia-3.0, and the upstream
   `AceGUI-3.0-SharedMediaWidgets` r65. The displayButton tile is suppressed by
   `core/LSMPatch.lua` (addon-side, not a lib edit), so `r66+` refreshes are a clean drop-in.
-- **Headless tests (`tests/`) + lint gate.** `lua tests/run.lua` (schema parse/format/validate, DB
-  migrations, Compat, Util, DebugLog, slash dispatch, repaint-throttle coalescing, combat-visibility,
-  message-bus dispatch)
+- **Headless tests (`tests/`) + lint gate.** `lua tests/run.lua` (schema parse/format/validate plus
+  the build-time schema-integrity invariants, DB migrations, Compat, Util, DebugLog, the full `/at`
+  surface including `/at profile`, repaint-throttle coalescing, combat-visibility, message-bus
+  dispatch, the `core/Data.lua` settings/media/colour seam, the `modules/Display.lua` paint path,
+  the `settings/Helpers.lua` panel toolkit, and the schema → AceGUI widget layer)
   must be green and `luacheck .` clean
   (0/0) before every commit. Syntax-check one file with `luac -p <file>`. Toolchain: Lua 5.1 +
-  luacheck. The authoritative case list & count are in the generated `docs/test-cases.md`
+  luacheck. `tests/run.lua` mirrors the in-game lifecycle — it calls `NS:InitDB()` **and**
+  `NS.CreateOptionsPanel()` at bootstrap, so every `settings/<page>.lua` builder runs for real and a
+  page that breaks fails the gate instead of waiting to be opened in-game.
+  The authoritative case list & count are in the generated `docs/test-cases.md`
   (regenerate with `lua tests/run.lua --list`); see [testing.md](./testing.md) for the sync rule and
   [smoke-tests.md](./smoke-tests.md) for the in-game QA recipe.
 

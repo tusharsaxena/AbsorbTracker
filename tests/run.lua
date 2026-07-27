@@ -56,6 +56,13 @@ Loader.loadAll({
 
 NS:InitDB()
 
+-- Mirror the in-game lifecycle: OnInitialize inits the DB (above), OnEnable builds the settings
+-- panel. Building it here is what stashes NS.AceGUI and runs every settings/<page>.lua builder for
+-- real, so the schema → AceGUI widget layer (settings/Widgets.lua) is exercised as the client
+-- exercises it rather than through hand-called fictions. The Profiles page self-skips: its builder
+-- returns nil without AceDBOptions / AceConfigDialog, which are not mocked.
+NS.CreateOptionsPanel()
+
 _G.AT_TEST = {
   NS = NS, mocks = mocks, test = test,
   assertEqual = assertEqual, assertTrue = assertTrue, assertFalse = assertFalse,
@@ -72,6 +79,11 @@ local SUITES = {
   "test_timer",
   "test_visibility",
   "test_bus",
+  "test_data",
+  "test_display",
+  "test_helpers",
+  "test_slashcmds",
+  "test_widgets",
 }
 for _, suite in ipairs(SUITES) do
   currentSuite = suite

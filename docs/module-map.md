@@ -58,12 +58,10 @@ NS.name    -- addonName
 NS.version -- "1.9.0" string constant
 NS.PREFIX  -- "|cFF00FFFF[AT]|r" — the one shared cyan [AT] chat tag
 
--- Cached math/string on NS to avoid global lookups in the bar paint path.
--- modules/Display.lua pulls floor/max as locals; format is cached but has no
--- current caller (dead-export candidate — see file-index.md).
+-- Cached math on NS to avoid global lookups in the bar paint path.
+-- modules/Display.lua pulls floor/max as locals.
 NS.floor  = math.floor
 NS.max    = math.max
-NS.format = format or string.format
 ```
 
 ### Constants (`core/Constants.lua`)
@@ -419,7 +417,7 @@ A small number of call sites reach across load order — the runtime modules (Co
 - `core/AbsorbTracker.lua` (`OnEnable`) calls `NS.CreateOptionsPanel()` (defined in `settings/Panel.lua`, loaded later).
 - `core/AbsorbTracker.lua` (`OnEnable`) calls `NS.ApplyLSMBorderPatch()` (defined in `core/LSMPatch.lua`).
 - `NS.OnProfileChanged` calls `NS.RefreshOptionsPanel()` (defined in `settings/Panel.lua`).
-- `settings/Slash.lua` handlers call `NS.RefreshOptionsPanel` directly, and publish bus messages for display work (`toggle`/`update` → `REPAINT`, `resetposition` → `POSITION`).
+- `settings/Slash.lua` handlers call `NS.RefreshOptionsPanel` directly, and publish bus messages for display work (`update` → `REPAINT`, `resetposition` → `POSITION`). `toggle` publishes nothing itself — it writes `hidden` via `NS.SetByPath` and that row's `onChange` does the republishing.
 
 These are guarded with runtime nil checks:
 
@@ -448,4 +446,4 @@ Modules that own a sub-surface publish it with the `NS.X = NS.X or {}` guard (`N
 
 ## Test harness
 
-There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` loads the runtime files in TOC order through `tests/loader.lua` against `tests/wow_mock.lua`, then runs `test_schema.lua`, `test_database.lua`, `test_compat.lua`, `test_util.lua`, `test_debuglog.lua`, `test_slash.lua`, `test_timer.lua`, `test_visibility.lua`, and `test_bus.lua` (authoritative case count in the generated [test-cases.md](./test-cases.md)). The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.
+There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` loads the runtime files in TOC order through `tests/loader.lua` against `tests/wow_mock.lua`, then runs `test_schema.lua`, `test_database.lua`, `test_compat.lua`, `test_util.lua`, `test_debuglog.lua`, `test_slash.lua`, `test_timer.lua`, `test_visibility.lua`, `test_bus.lua`, `test_data.lua`, `test_display.lua`, `test_helpers.lua`, `test_slashcmds.lua`, and `test_widgets.lua` (authoritative case count in the generated [test-cases.md](./test-cases.md)). The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.

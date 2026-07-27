@@ -171,8 +171,16 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 | `tests/test_timer.lua` | `NS.RequestRepaint` coalescing + `throttleWindow` delay, event-handler repaint wiring |
 | `tests/test_visibility.lua` | `NS.ShouldShowBar` / `NS.ApplyVisibility` combat gate (`showOnlyInCombat`), `OnEnterCombat` + `OnLeaveCombat` visibility+repaint, and the options-ui-§2 guarantee that `OnLeaveCombat` never auto-opens `/at config` (no defer-and-replay) |
 | `tests/test_bus.lua` | `NS.bus` / `NS.NewBusTarget` / `NS.MSG` catalogue, per-target subscribe + unregister, two receivers of one message both firing (anti-pattern #33), and `REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION` routing to their consumers |
+| `tests/test_data.lua` | `GetSetting` / `SetSetting` (profile read, `flatDefaults` fallback, no-DB degradation), the LSM texture/border/font fetchers and their fallbacks, `ClearLSMCache`, `Helpers.LSMValues`, and the class-colour resolvers |
+| `tests/test_display.lua` | `RestoreBarPosition`, `UpdateBarAppearance` (size, backdrop insets, nil-then-set refresh, lock, font), `UpdateAbsorbBar` (hidden / `testHoldUntil` early-outs, max-health scaling, `NoteRepaint`) |
+| `tests/test_helpers.lua` | `CreatePanel` + the panel registry, the lazy Defaults-button declaration, `RestoreDefaults` / `RestoreAllDefaults` / `RefreshAllPanels` |
+| `tests/test_slashcmds.lua` | The remaining `/at` verbs: lock/unlock/toggle, update, reset/resetall/resetposition, get/set failure paths, `test`, and the full `/at profile` sub-dispatcher |
+| `tests/test_widgets.lua` | Schema-row → AceGUI widget translation: the four widget makers, `SessionCheckbox`, `RenderField` dispatch, `RenderSchema` layout, and the real pages driven through their deferred `OnShow` |
 
-Add a new setting or page? Assert its default resolves in `test_schema.lua`. New slash verb? Add a `test_slash.lua` case. New core behavior? Prefer a new `tests/test_<area>.lua` wired into `tests/run.lua`.
+Add a new setting or page? `test_schema.lua`'s integrity invariants already require a label, a desc, a
+default that agrees with `defaults.profile`, and (for numbers) a `min`/`max` bracketing that default —
+so a half-wired row fails the gate on its own. New slash verb? Add a `test_slash.lua` (core dispatch) or
+`test_slashcmds.lua` (verb behaviour) case. New core behavior? Prefer a new `tests/test_<area>.lua` wired into `tests/run.lua`.
 
 ## See also
 

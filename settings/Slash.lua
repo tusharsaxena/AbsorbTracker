@@ -58,14 +58,13 @@ NS.COMMANDS = {
         end},
     {"toggle",        "Toggle bar visibility",
         function()
+            -- No explicit REPAINT here: SetByPath fires the `hidden` row's onChange
+            -- (settings/General.lua), which already publishes APPEARANCE and — when the bar is
+            -- becoming visible — REPAINT. Publishing again from this verb only duplicated what
+            -- the schema seam does, and left the CLI and the panel checkbox on different paths.
             local hidden = not NS.GetSetting("hidden")
             NS.SetByPath("hidden", hidden)
-            if hidden then
-                print("Hidden")
-            else
-                NS.bus:SendMessage(NS.MSG.REPAINT)
-                print("Shown")
-            end
+            print(hidden and "Hidden" or "Shown")
         end},
     {"debug",         "Toggle the debug console \226\128\148 `on`/`off` enable/disable logging",
         function(rest) runDebug(rest) end},
