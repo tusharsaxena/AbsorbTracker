@@ -78,7 +78,9 @@ test("OnEnterCombat applies visibility and requests a repaint", function()
   local origApply = NS.ApplyVisibility
   NS.ApplyVisibility = function() applied = applied + 1 end
   NS.addon:OnEnterCombat()
-  assertEqual(applied, 1)
+  -- Task 4: the VISIBILITY message fans out over all three tracked units (NS.ForEachUnit), so
+  -- one combat transition now re-evaluates the gate once per bar, not once total.
+  assertEqual(applied, 3, "visibility is re-evaluated for player, target, and focus")
   assertEqual(#mocks.__timers, 1)   -- a repaint was requested
   NS.ApplyVisibility = origApply
   mocks.__fireTimers()
@@ -91,7 +93,8 @@ test("OnLeaveCombat applies visibility and requests a repaint", function()
   local origApply = NS.ApplyVisibility
   NS.ApplyVisibility = function() applied = applied + 1 end
   NS.addon:OnLeaveCombat()
-  assertEqual(applied, 1)
+  -- Task 4: same three-bar fan-out as OnEnterCombat above.
+  assertEqual(applied, 3, "visibility is re-evaluated for player, target, and focus")
   assertEqual(#mocks.__timers, 1)   -- a repaint was requested
   NS.ApplyVisibility = origApply
   mocks.__fireTimers()

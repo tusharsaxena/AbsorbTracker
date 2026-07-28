@@ -5,12 +5,13 @@ exclude_files = { "libs/", "docs/", "_dev/", "tests/" }
 ignore = {
   "212/self",       -- unused argument self
   "212/event",      -- unused argument event
+  "212/unit",       -- OnAbsorbChanged/OnMaxHealthChanged accept `unit` but repaint all bars alike
   "211/addonName",  -- mandated `local addonName, NS = ...` header; not every file uses addonName
   "431",            -- shadowing `print` with the prefixed `local print = NS.Print` is intentional
 }
 read_globals = {
   "_G", "LibStub", "CreateFrame", "UIParent", "GetTime", "format", "time", "date",
-  "UnitClass", "UnitHealthMax", "UnitGetTotalAbsorbs", "AbbreviateNumbers", "C_ClassColor",
+  "UnitClass", "UnitHealthMax", "UnitGetTotalAbsorbs", "UnitExists", "AbbreviateNumbers", "C_ClassColor",
   "InCombatLockdown", "UnitAffectingCombat", "Settings", "SettingsPanel", "C_Timer", "C_AddOns",
   "GetAddOnMetadata",
   "hooksecurefunc", "GameTooltip", "DEFAULT_CHAT_FRAME", "UISpecialFrames",

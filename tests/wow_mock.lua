@@ -74,10 +74,15 @@ return function()
     for _, t in ipairs(due) do t.fn() end
   end
 
-  -- player / absorb / world
+  -- player / absorb / world. The unit-taking stubs accept a unit token so a test can vary
+  -- target/focus independently of the player.
   M.UnitClass = function() return "Mage", "MAGE", 8 end
-  M.UnitGetTotalAbsorbs = function() return 0 end
-  M.UnitHealthMax = function() return 100 end
+  M.__unitExists = { player = true, target = false, focus = false }
+  M.UnitExists = function(unit) return M.__unitExists[unit] == true end
+  M.__absorbs = {}
+  M.UnitGetTotalAbsorbs = function(unit) return M.__absorbs[unit] or 0 end
+  M.__maxHealth = {}
+  M.UnitHealthMax = function(unit) return M.__maxHealth[unit] or 100 end
   M.AbbreviateNumbers = function(n) return tostring(n) end
   M.C_ClassColor = { GetClassColor = function() return { r = 1, g = 1, b = 1 } end }
   M.InCombatLockdown = function() return false end

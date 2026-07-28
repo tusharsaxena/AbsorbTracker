@@ -38,11 +38,16 @@ test("OnAbsorbChanged requests a repaint for the player", function()
   mocks.__fireTimers()
 end)
 
-test("OnAbsorbChanged ignores non-player units", function()
+-- Task 4 (multi-unit bars): the per-unit filter that used to live in this handler is gone. The
+-- RegisterUnitEvent frames in core/AbsorbTracker.lua already restrict dispatch to player/target/
+-- focus at the C level, so once an event reaches this handler every tracked unit drives the same
+-- single coalesced all-bars repaint — the handler no longer re-filters by unit.
+test("OnAbsorbChanged requests a repaint for any tracked unit, not just the player", function()
   local mocks = T.mocks
   mocks.__timers = {}
   NS.addon:OnAbsorbChanged(nil, "target")
-  assertEqual(#mocks.__timers, 0)
+  assertEqual(#mocks.__timers, 1)
+  mocks.__fireTimers()
 end)
 
 test("OnMaxHealthChanged requests a repaint for the player", function()
@@ -53,11 +58,14 @@ test("OnMaxHealthChanged requests a repaint for the player", function()
   mocks.__fireTimers()
 end)
 
-test("OnMaxHealthChanged ignores non-player units", function()
+test("OnMaxHealthChanged requests a repaint for any tracked unit, not just the player", function()
+  -- Same Task 4 change as OnAbsorbChanged above: filtering happens upstream at the
+  -- RegisterUnitEvent registration, not in this handler.
   local mocks = T.mocks
   mocks.__timers = {}
-  NS.addon:OnMaxHealthChanged(nil, "party1")
-  assertEqual(#mocks.__timers, 0)
+  NS.addon:OnMaxHealthChanged(nil, "focus")
+  assertEqual(#mocks.__timers, 1)
+  mocks.__fireTimers()
 end)
 
 test("OnEnterWorld requests a repaint", function()

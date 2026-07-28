@@ -48,29 +48,52 @@ function addon:OnEnable()
 
     -- UNIT_ABSORB_AMOUNT_CHANGED and UNIT_MAXHEALTH fire for EVERY unit the client knows about (all
     -- raid members, their pets, nameplates, target/focus) — a flood of events per second in combat,
-    -- of which we care about exactly one unit. The vendored AceEvent-3.0 (MINOR 4) registers on a
+    -- of which we care about exactly three units. The vendored AceEvent-3.0 (MINOR 4) registers on a
     -- shared frame with plain RegisterEvent and has no unit filtering, so routing these two through
-    -- AceEvent would pay a full C→Lua dispatch for every unit only to discard all but "player".
-    -- Register them on a private frame with RegisterUnitEvent("player") instead: the client filters
-    -- at the C level and OnEvent never fires for other units. (The rest are global, payload-free
-    -- events and stay on AceEvent.) Guard so a disable/enable cycle doesn't leak a second frame.
-    if not self.unitEventFrame then
-        local f = CreateFrame("Frame")
-        f:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "player")
-        f:RegisterUnitEvent("UNIT_MAXHEALTH", "player")
-        f:SetScript("OnEvent", function(_, event, unit)
+    -- AceEvent would pay a full C→Lua dispatch for every unit only to discard all but ours.
+    --
+    -- §9.1 deviation (see docs/ARCHITECTURE.md): register them on private frames via
+    -- RegisterUnitEvent instead, so the client filters at the C level and OnEvent never fires for
+    -- other units. (The rest are global, payload-free events and stay on AceEvent.)
+    --
+    -- TWO frames, not one: RegisterUnitEvent filters at most two units per frame, and we now track
+    -- three (player/target/focus). Frame A takes player+target, frame B takes focus. A future
+    -- reader will be tempted to merge these back into one frame — don't: the client-side API hard
+    -- caps RegisterUnitEvent at two unit tokens per registration, so a third unit needs a second
+    -- frame no matter how the code is arranged. Registration is unconditional (not gated on the
+    -- per-unit `enabled` flag) — the C-side filter already limits dispatch to three units, so
+    -- conditional registration would add lifecycle complexity for no measurable gain. Guard so a
+    -- disable/enable cycle doesn't leak a second pair of frames.
+    if not self.__unitEventFrames then
+        local function onEvent(_, event, unit)
             if event == "UNIT_ABSORB_AMOUNT_CHANGED" then
-                addon:OnAbsorbChanged(event, unit)
-            else
-                addon:OnMaxHealthChanged(event, unit)
+                self:OnAbsorbChanged(event, unit)
+            elseif event == "UNIT_MAXHEALTH" then
+                self:OnMaxHealthChanged(event, unit)
             end
-        end)
-        self.unitEventFrame = f
+        end
+
+        local frameA = CreateFrame("Frame")
+        frameA:SetScript("OnEvent", onEvent)
+        frameA:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "player", "target")
+        frameA:RegisterUnitEvent("UNIT_MAXHEALTH", "player", "target")
+
+        local frameB = CreateFrame("Frame")
+        frameB:SetScript("OnEvent", onEvent)
+        frameB:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "focus")
+        frameB:RegisterUnitEvent("UNIT_MAXHEALTH", "focus")
+
+        self.__unitEventFrames = { frameA, frameB }
     end
 
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
     self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnEnterCombat")
     self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnLeaveCombat")
+
+    -- Target / focus swaps change which bars should be visible and what they should read.
+    -- Global, payload-free events with no unit to filter, so they stay on AceEvent (§9.1).
+    self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnUnitSwap")
+    self:RegisterEvent("PLAYER_FOCUS_CHANGED", "OnUnitSwap")
 
     -- Create the options panel (defined in settings/Panel.lua).
     if NS.CreateOptionsPanel then NS.CreateOptionsPanel() end
@@ -79,10 +102,11 @@ function addon:OnEnable()
     -- is emitted from DebugLog:SetEnabled on enable, the only point where it is current and visible.
 end
 
--- The absorb event drives a coalesced repaint (modules/Timer.lua). Gate the debug read so it
--- costs nothing when debug is off (§12.4).
+-- The absorb event drives a coalesced repaint (modules/Timer.lua). Fires for player, target, or
+-- focus (the RegisterUnitEvent frames above already filter to just those three) and repaints ALL
+-- three bars as one coalesced pass, so the handler does not branch on which unit changed. Gate the
+-- debug read so it costs nothing when debug is off (§12.4).
 function addon:OnAbsorbChanged(_, unit)
-    if unit ~= "player" then return end
     if NS.State and NS.State.debug then
         dbgAbsorbEvents = dbgAbsorbEvents + 1
         local v = UnitGetTotalAbsorbs("player") or 0
@@ -101,13 +125,22 @@ function addon:OnAbsorbChanged(_, unit)
 end
 
 -- The bar shows absorb as a fraction of max health, so a max-health change (buffs, stamina,
--- level) must repaint too even when the absorb value itself is unchanged.
+-- level) must repaint too even when the absorb value itself is unchanged. Fires for player,
+-- target, or focus; the repaint stays a single coalesced all-bars pass regardless of which.
 function addon:OnMaxHealthChanged(_, unit)
-    if unit == "player" then NS.bus:SendMessage(NS.MSG.REPAINT) end
+    NS.bus:SendMessage(NS.MSG.REPAINT)
 end
 
 function addon:OnEnterWorld()
     NS.Debug("World", "entering world")
+    NS.bus:SendMessage(NS.MSG.VISIBILITY)
+    NS.bus:SendMessage(NS.MSG.REPAINT)
+end
+
+-- Target / focus swaps change both which bars should be visible (UnitExists gate) and what they
+-- should read, so re-evaluate visibility and repaint together — the same pair every other
+-- transition handler in this file sends.
+function addon:OnUnitSwap()
     NS.bus:SendMessage(NS.MSG.VISIBILITY)
     NS.bus:SendMessage(NS.MSG.REPAINT)
 end
