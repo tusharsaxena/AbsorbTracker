@@ -39,15 +39,32 @@ function NS:RunMigrations()
     local defaults = NS.defaults.profile
 
     -- v3 (§2.2/§5.1): bar appearance moved from flat profile keys to profile.units.<unit>.
-    -- Guarded on `units == nil` so re-running is a no-op. Runs BEFORE the backfill so the
-    -- backfill sees the migrated shape.
-    if profile and profile.units == nil then
-        profile.units = {}
+    --
+    -- Gated on schemaVersion, NOT on `profile.units == nil`. Under REAL AceDB-3.0, the very act
+    -- of reading `NS.db.profile` two lines above already triggered the library's own
+    -- copyDefaults: AceDB's dbmt.__index lazily initializes a section on first access and fills
+    -- every missing key — including the whole new `units` table — straight from NS.defaults
+    -- before this line ever runs. So on a real upgrading install `profile.units` is NEVER nil by
+    -- the time we get here, and a `units == nil` guard makes this entire block permanently dead:
+    -- the user's pre-v3 flat values (barWidth, barColor, position, ...) would be silently
+    -- orphaned and the bar would render with brand-new factory defaults instead of their saved
+    -- configuration. schemaVersion is the only reliable "does this profile predate v3" signal —
+    -- copyDefaults only ever fills an ABSENT key, so it never touches an existing
+    -- schemaVersion, meaning an upgrading user's global keeps its pre-v3 stamp (1 or 2) right up
+    -- until the version bump below runs.
+    if profile and g.schemaVersion < 3 then
+        -- profile.units usually already exists here (AceDB / the backfill on a prior run seeded
+        -- it) — only the no-AceDB fallback (NS.db = { profile = AbsorbTrackerDB, global = {} })
+        -- can reach this with no `units` table at all, so create it (and any missing unit row)
+        -- rather than assuming it is absent.
+        profile.units = profile.units or {}
         for _, unit in ipairs(NS.Units.LIST) do
-            profile.units[unit] = deepcopy(defaults.units[unit])
+            profile.units[unit] = profile.units[unit] or deepcopy(defaults.units[unit])
         end
-        -- Lift the pre-v3 flat appearance keys (and the saved position) onto the player unit,
-        -- then clear the originals. A user upgrading sees an identical bar in an identical spot.
+        -- Lift the pre-v3 flat appearance keys (and the saved position) onto the player unit —
+        -- OVERWRITING whatever copyDefaults may already have seeded there from the NEW
+        -- defaults — then clear the flat originals. A user upgrading sees an identical bar in
+        -- an identical spot.
         for _, key in ipairs(NS.Units.APPEARANCE_KEYS) do
             if profile[key] ~= nil then
                 profile.units.player[key] = profile[key]

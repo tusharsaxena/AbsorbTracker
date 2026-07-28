@@ -159,3 +159,51 @@ test("the schema version lands on 3", function()
   NS.db = savedDB
   assertEqual(v, 3)
 end)
+
+-- ── Regression coverage: the v3 lift must fire under REAL AceDB, not just a bespoke table ──
+-- The tests above build `NS.db` as a bare `{ profile = plainTable, global = {...} }`, which
+-- never triggers AceDB's own copyDefaults and so could not have caught the bug where reading
+-- `NS.db.profile` under the real library silently pre-populates `profile.units` from the NEW
+-- defaults before the migration's guard ever ran. These two drive the actual production path —
+-- NS:InitDB() -> AceDB:New() (tests/wow_mock.lua's mock, which now merges defaults into
+-- pre-existing saved data the way real copyDefaults does) -> NS:RunMigrations() — against a
+-- seeded SavedVariables global.
+test("real AceDB init: a legacy flat profile is lifted onto the player unit, not overwritten by fresh defaults", function()
+  local savedSV, savedDB = _G.AbsorbTrackerDB, NS.db
+  _G.AbsorbTrackerDB = {
+    profiles = {
+      Default = {
+        barWidth = 275,
+        fontSize = 17,
+        borderColor = { r = 0.9, g = 0.1, b = 0.1, a = 1.0 },
+        position = { point = "TOP", relPoint = "TOP", x = 1, y = 2 },
+      },
+    },
+    global = { schemaVersion = 2 },
+  }
+  NS:InitDB()
+  local profile = NS.db.profile
+  assertEqual(profile.units.player.barWidth, 275,
+    "the user's saved barWidth must survive the upgrade, not revert to the factory default")
+  assertEqual(profile.units.player.fontSize, 17)
+  assertEqual(profile.units.player.borderColor.r, 0.9)
+  assertEqual(profile.units.player.position.x, 1)
+  assertEqual(profile.barWidth, nil, "the flat original must be cleared, not duplicated")
+  assertEqual(profile.position, nil)
+  assertEqual(NS.db.global.schemaVersion, 3)
+  NS.db, _G.AbsorbTrackerDB = savedDB, savedSV
+end)
+
+test("real AceDB init: a fresh install (no saved data) converges on factory defaults at v3", function()
+  local savedSV, savedDB = _G.AbsorbTrackerDB, NS.db
+  _G.AbsorbTrackerDB = nil
+  NS:InitDB()
+  local profile = NS.db.profile
+  assertEqual(profile.units.player.barWidth, NS.defaults.profile.units.player.barWidth)
+  assertEqual(profile.units.player.enabled, true)
+  assertEqual(profile.units.target.enabled, false)
+  assertEqual(profile.units.target.mirror, true)
+  assertEqual(profile.barWidth, nil, "a fresh install has no flat key to lift in the first place")
+  assertEqual(NS.db.global.schemaVersion, 3)
+  NS.db, _G.AbsorbTrackerDB = savedDB, savedSV
+end)

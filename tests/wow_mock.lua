@@ -118,18 +118,59 @@ return function()
   -- OnProfileChanged / OnProfileCopied / OnProfileReset callbacks AceDB fires via CallbackHandler
   -- (which is what wires NS.OnProfileChanged in core/Database.lua).
   libs["AceDB-3.0"] = {
-    New = function(_, _name, defaults)
-      local db = {}
-      local profiles, current, callbacks = {}, "Default", {}
+    -- `tbl` is the real signature's first arg: either the STRING name of a global SavedVariables
+    -- table (what the addon passes: `AceDB:New("AbsorbTrackerDB", ...)`), or an actual table.
+    -- Resolving it against `_G` (rather than always starting fresh) is what lets a test seed
+    -- `_G.AbsorbTrackerDB` with a legacy profile and then drive the REAL NS:InitDB() path to
+    -- prove the v3 migration lift actually fires against real AceDB's merge-in-place semantics,
+    -- instead of only against a bespoke plain-table `NS.db` that never triggers them.
+    New = function(_, tbl, defaults)
+      local sv
+      if type(tbl) == "string" then
+        sv = _G[tbl]
+        if not sv then
+          sv = {}
+          _G[tbl] = sv
+        end
+      else
+        sv = tbl or {}
+      end
+      sv.profiles = sv.profiles or {}
+      sv.global = sv.global or {}
 
-      local function freshProfile() return deepcopy(defaults and defaults.profile or {}) end
+      local db = {}
+      local current, callbacks = "Default", {}
+
+      -- Faithful (if simplified) copy of AceDB-3.0's copyDefaults: recurse into every
+      -- TABLE-valued default, creating the dest sub-table if it's missing, but only ever fill a
+      -- SCALAR leaf when the dest doesn't already have it. An existing user value always wins —
+      -- this is the exact merge-in-place behavior that made the real v3 lift bug possible (a
+      -- bare read of db.profile silently pre-populates a brand-new `units` table from defaults
+      -- before RunMigrations' old `units == nil` guard ever got to look at it).
+      local function copyDefaults(dest, src)
+        for k, v in pairs(src or {}) do
+          if type(v) == "table" then
+            if type(dest[k]) ~= "table" then dest[k] = {} end
+            copyDefaults(dest[k], v)
+          elseif dest[k] == nil then
+            dest[k] = v
+          end
+        end
+      end
+
+      local function ensureProfile(name)
+        sv.profiles[name] = sv.profiles[name] or {}
+        copyDefaults(sv.profiles[name], defaults and defaults.profile)
+        return sv.profiles[name]
+      end
+
+      copyDefaults(sv.global, defaults and defaults.global)
+      db.global  = sv.global
+      db.profile = ensureProfile(current)
+
       local function fire(event)
         for _, cb in ipairs(callbacks[event] or {}) do cb(event, db, current) end
       end
-
-      profiles[current] = freshProfile()
-      db.global  = deepcopy(defaults and defaults.global or {})
-      db.profile = profiles[current]
 
       -- CallbackHandler shape: db.RegisterCallback(target, event, fn) — dot-called, so the
       -- registering object arrives as the first arg. core/Database.lua passes a function ref.
@@ -142,32 +183,31 @@ return function()
 
       db.GetProfiles = function()
         local names = {}
-        for name in pairs(profiles) do names[#names + 1] = name end
+        for name in pairs(sv.profiles) do names[#names + 1] = name end
         table.sort(names)
         return names
       end
 
       db.SetProfile = function(_, name)
         if name == current then return end
-        profiles[name] = profiles[name] or freshProfile()
         current = name
-        db.profile = profiles[name]
+        db.profile = ensureProfile(name)
         fire("OnProfileChanged")
       end
 
       db.ResetProfile = function()
         -- Wipe in place: the real lib keeps the profile table's identity across a reset, so
         -- anything holding a reference to db.profile keeps seeing the live table.
-        local p = profiles[current]
+        local p = sv.profiles[current]
         for k in pairs(p) do p[k] = nil end
-        for k, v in pairs(freshProfile()) do p[k] = v end
+        copyDefaults(p, defaults and defaults.profile)
         fire("OnProfileReset")
       end
 
       db.CopyProfile = function(_, name)
-        local src = profiles[name]
+        local src = sv.profiles[name]
         if not src or name == current then return end
-        local p = profiles[current]
+        local p = sv.profiles[current]
         for k in pairs(p) do p[k] = nil end
         for k, v in pairs(deepcopy(src)) do p[k] = v end
         fire("OnProfileCopied")
@@ -175,7 +215,7 @@ return function()
 
       db.DeleteProfile = function(_, name)
         if name == current then return end
-        profiles[name] = nil
+        sv.profiles[name] = nil
       end
 
       return db
