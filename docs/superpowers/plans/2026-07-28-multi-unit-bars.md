@@ -2535,6 +2535,23 @@ git commit -m "feat(slash): address settings by dotted per-unit path"
 
 In `docs/scope.md`:
 
+**First, a correctness fix to an existing bullet — user-approved 2026-07-28.** The
+*"Audible / text-to-speech alerts"* bullet currently reads *"tainted code may not compare or
+boolean-test a secret"*. The **boolean-test half is wrong**, and it contradicts
+[midnight-quirks.md](./midnight-quirks.md)-§1, which states only that *"Lua cannot compare a secret
+value with a number (`tonumber()` returns nil; `>` / `<` against a number errors)"*. Truthiness is
+on the safe side of the same line that lets `..` propagate a secret while `table.concat` raises: a
+secret is neither `nil` nor `false`, so `x or 0` returns `x` without inspecting it and leaks
+nothing about the value. The addon relies on this today — `modules/Display.lua`'s
+`UnitGetTotalAbsorbs(unit) or 0` runs on every in-combat repaint, where the value *is* secret.
+
+Change the phrase to *"may not compare a secret against a number, nor run it through
+`tonumber`"*. **Do not change the bullet's conclusion** — audio alerts stay out of scope, because
+that rests on `absorb == 0`, a genuine comparison that really does raise. Do not touch the `or 0`
+code in `modules/Display.lua` or `core/AbsorbTracker.lua`.
+
+Then the scope amendment proper:
+
 - Under **In scope**, replace *"A single movable absorb status bar for the player"* with:
   *"Three movable absorb status bars — player, target, and focus — each displaying the total of
   all active absorb shields on that unit as one combined value. Target and focus ship disabled."*
