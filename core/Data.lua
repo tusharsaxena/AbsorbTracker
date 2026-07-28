@@ -48,37 +48,43 @@ function NS.SetSetting(path, value)
     end
 end
 
-function NS.GetBarTexture()
+-- Media getters. `unit` defaults to "player" so existing single-bar call sites keep working;
+-- every read routes through Units.Get, which applies the mirror.
+local function unitSetting(unit, key)
+    return NS.Units.Get(unit or "player", key)
+end
+
+function NS.GetBarTexture(unit)
     local lsm = NS.GetLSM()
     if lsm then
-        local texture = lsm:Fetch("statusbar", NS.GetSetting("barTexture"))
+        local texture = lsm:Fetch("statusbar", unitSetting(unit, "barTexture"))
         if texture then return texture end
     end
     return C.FALLBACK_TEXTURE
 end
 
-function NS.GetBgTexture()
+function NS.GetBgTexture(unit)
     local lsm = NS.GetLSM()
     if lsm then
-        local texture = lsm:Fetch("statusbar", NS.GetSetting("bgTexture"))
+        local texture = lsm:Fetch("statusbar", unitSetting(unit, "bgTexture"))
         if texture then return texture end
     end
     return C.FALLBACK_TEXTURE
 end
 
-function NS.GetBorder()
+function NS.GetBorder(unit)
     local lsm = NS.GetLSM()
     if lsm then
-        local border = lsm:Fetch("border", NS.GetSetting("border"))
+        local border = lsm:Fetch("border", unitSetting(unit, "border"))
         if border then return border end
     end
     return C.FALLBACK_BORDER
 end
 
-function NS.GetFont()
+function NS.GetFont(unit)
     local lsm = NS.GetLSM()
     if lsm then
-        local font = lsm:Fetch("font", NS.GetSetting("font"))
+        local font = lsm:Fetch("font", unitSetting(unit, "font"))
         if font then return font end
     end
     return C.FALLBACK_FONT
@@ -137,27 +143,27 @@ local function GetBgClassColor()
     return playerBgClassColor
 end
 
-function NS.GetBarColor()
-    local c = NS.GetSetting("barColor")
-    if NS.GetSetting("useClassColorBar") then
+function NS.GetBarColor(unit)
+    local c = unitSetting(unit, "barColor")
+    if unitSetting(unit, "useClassColorBar") then
         local cc = GetPlayerClassColor()
         return cc.r, cc.g, cc.b, c.a
     end
     return c.r, c.g, c.b, c.a
 end
 
-function NS.GetBgColor()
-    local c = NS.GetSetting("bgColor")
-    if NS.GetSetting("useClassColorBg") then
+function NS.GetBgColor(unit)
+    local c = unitSetting(unit, "bgColor")
+    if unitSetting(unit, "useClassColorBg") then
         local cc = GetBgClassColor()
         return cc.r, cc.g, cc.b, c.a
     end
     return c.r, c.g, c.b, c.a
 end
 
-function NS.GetBorderColor()
-    local c = NS.GetSetting("borderColor")
-    if NS.GetSetting("useClassColorBorder") then
+function NS.GetBorderColor(unit)
+    local c = unitSetting(unit, "borderColor")
+    if unitSetting(unit, "useClassColorBorder") then
         local cc = GetPlayerClassColor()
         return cc.r, cc.g, cc.b, c.a
     end

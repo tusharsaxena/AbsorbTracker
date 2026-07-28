@@ -116,16 +116,16 @@ test("media fetchers return the LSM path when LSM resolves the configured key", 
     border    = { ["Blizzard Tooltip"]  = "path/to/border" },
     font      = { ["Friz Quadrata TT"]  = "path/to/font" },
   }, function()
-    withSetting("barTexture", "Blizzard Raid Bar", function()
+    withSetting("units.player.barTexture", "Blizzard Raid Bar", function()
       assertEqual(NS.GetBarTexture(), "path/to/bar")
     end)
-    withSetting("bgTexture", "Blizzard Raid Bar", function()
+    withSetting("units.player.bgTexture", "Blizzard Raid Bar", function()
       assertEqual(NS.GetBgTexture(), "path/to/bar")
     end)
-    withSetting("border", "Blizzard Tooltip", function()
+    withSetting("units.player.border", "Blizzard Tooltip", function()
       assertEqual(NS.GetBorder(), "path/to/border")
     end)
-    withSetting("font", "Friz Quadrata TT", function()
+    withSetting("units.player.font", "Friz Quadrata TT", function()
       assertEqual(NS.GetFont(), "path/to/font")
     end)
   end)
@@ -135,13 +135,13 @@ test("media fetchers fall back when LSM is present but the key does not resolve"
   -- The user's saved media key can outlive the addon that supplied it (uninstall a media pack and
   -- LSM stops knowing the name). Fetch returns nil and the bar must still get a valid path.
   withLSM({ statusbar = {}, border = {}, font = {} }, function()
-    withSetting("barTexture", "Some Uninstalled Pack", function()
+    withSetting("units.player.barTexture", "Some Uninstalled Pack", function()
       assertEqual(NS.GetBarTexture(), C.FALLBACK_TEXTURE)
     end)
-    withSetting("border", "Some Uninstalled Pack", function()
+    withSetting("units.player.border", "Some Uninstalled Pack", function()
       assertEqual(NS.GetBorder(), C.FALLBACK_BORDER)
     end)
-    withSetting("font", "Some Uninstalled Pack", function()
+    withSetting("units.player.font", "Some Uninstalled Pack", function()
       assertEqual(NS.GetFont(), C.FALLBACK_FONT)
     end)
   end)
@@ -172,8 +172,8 @@ end)
 -- ── Colour resolvers ───────────────────────────────────────────────────────────────
 
 test("GetBarColor returns the stored colour when useClassColorBar is off", function()
-  withSetting("useClassColorBar", false, function()
-    withSetting("barColor", { r = 0.1, g = 0.2, b = 0.3, a = 0.4 }, function()
+  withSetting("units.player.useClassColorBar", false, function()
+    withSetting("units.player.barColor", { r = 0.1, g = 0.2, b = 0.3, a = 0.4 }, function()
       local r, g, b, a = NS.GetBarColor()
       approx(r, 0.1); approx(g, 0.2); approx(b, 0.3); approx(a, 0.4)
     end)
@@ -183,8 +183,8 @@ end)
 test("GetBarColor substitutes the class colour but KEEPS the stored alpha", function()
   -- The class-colour toggles only override RGB; alpha stays user-controlled (the panel leaves the
   -- alpha slider live while the swatch is greyed out via `disabledIf`).
-  withSetting("useClassColorBar", true, function()
-    withSetting("barColor", { r = 0.1, g = 0.2, b = 0.3, a = 0.37 }, function()
+  withSetting("units.player.useClassColorBar", true, function()
+    withSetting("units.player.barColor", { r = 0.1, g = 0.2, b = 0.3, a = 0.37 }, function()
       local r, g, b, a = NS.GetBarColor()
       local mock = T.mocks.C_ClassColor.GetClassColor("MAGE")
       approx(r, mock.r); approx(g, mock.g); approx(b, mock.b)
@@ -194,8 +194,8 @@ test("GetBarColor substitutes the class colour but KEEPS the stored alpha", func
 end)
 
 test("GetBorderColor honours useClassColorBorder and keeps its own alpha", function()
-  withSetting("useClassColorBorder", true, function()
-    withSetting("borderColor", { r = 0, g = 0, b = 0, a = 0.55 }, function()
+  withSetting("units.player.useClassColorBorder", true, function()
+    withSetting("units.player.borderColor", { r = 0, g = 0, b = 0, a = 0.55 }, function()
       local r, g, b, a = NS.GetBorderColor()
       local mock = T.mocks.C_ClassColor.GetClassColor("MAGE")
       approx(r, mock.r); approx(g, mock.g); approx(b, mock.b)
@@ -205,8 +205,8 @@ test("GetBorderColor honours useClassColorBorder and keeps its own alpha", funct
 end)
 
 test("GetBorderColor returns the stored colour when the toggle is off", function()
-  withSetting("useClassColorBorder", false, function()
-    withSetting("borderColor", { r = 0.9, g = 0.8, b = 0.7, a = 0.6 }, function()
+  withSetting("units.player.useClassColorBorder", false, function()
+    withSetting("units.player.borderColor", { r = 0.9, g = 0.8, b = 0.7, a = 0.6 }, function()
       local r, g, b, a = NS.GetBorderColor()
       approx(r, 0.9); approx(g, 0.8); approx(b, 0.7); approx(a, 0.6)
     end)
@@ -216,8 +216,8 @@ end)
 test("GetBgColor uses the DIMMED class colour, not the raw one", function()
   -- The background palette is its own table scaled by 0.2 so a class-coloured backdrop reads as a
   -- dark tint behind the bar rather than a second bright fill. Player class is MAGE in the mock.
-  withSetting("useClassColorBg", true, function()
-    withSetting("bgColor", { r = 1, g = 1, b = 1, a = 0.8 }, function()
+  withSetting("units.player.useClassColorBg", true, function()
+    withSetting("units.player.bgColor", { r = 1, g = 1, b = 1, a = 0.8 }, function()
       local r, g, b, a = NS.GetBgColor()
       approx(r, 0.25 * 0.2); approx(g, 0.78 * 0.2); approx(b, 0.92 * 0.2)
       approx(a, 0.8, "alpha is preserved here too")
@@ -226,8 +226,8 @@ test("GetBgColor uses the DIMMED class colour, not the raw one", function()
 end)
 
 test("GetBgColor returns the stored colour when the toggle is off", function()
-  withSetting("useClassColorBg", false, function()
-    withSetting("bgColor", { r = 0.2, g = 0.2, b = 0.2, a = 0.8 }, function()
+  withSetting("units.player.useClassColorBg", false, function()
+    withSetting("units.player.bgColor", { r = 0.2, g = 0.2, b = 0.2, a = 0.8 }, function()
       local r, g, b, a = NS.GetBgColor()
       approx(r, 0.2); approx(g, 0.2); approx(b, 0.2); approx(a, 0.8)
     end)
@@ -235,11 +235,11 @@ test("GetBgColor returns the stored colour when the toggle is off", function()
 end)
 
 test("the three class-colour toggles are independent of each other", function()
-  withSetting("useClassColorBar", true, function()
-    withSetting("useClassColorBg", false, function()
-      withSetting("useClassColorBorder", false, function()
-        withSetting("bgColor", { r = 0.11, g = 0.12, b = 0.13, a = 1 }, function()
-          withSetting("borderColor", { r = 0.21, g = 0.22, b = 0.23, a = 1 }, function()
+  withSetting("units.player.useClassColorBar", true, function()
+    withSetting("units.player.useClassColorBg", false, function()
+      withSetting("units.player.useClassColorBorder", false, function()
+        withSetting("units.player.bgColor", { r = 0.11, g = 0.12, b = 0.13, a = 1 }, function()
+          withSetting("units.player.borderColor", { r = 0.21, g = 0.22, b = 0.23, a = 1 }, function()
             local br = select(1, NS.GetBgColor())
             local dr = select(1, NS.GetBorderColor())
             approx(br, 0.11, "bar's toggle must not bleed into the background")
@@ -249,4 +249,91 @@ test("the three class-colour toggles are independent of each other", function()
       end)
     end)
   end)
+end)
+
+-- ── Multi-unit media/color getters ────────────────────────────────────────────────
+
+test("media getters read through the unit's mirror resolution", function()
+  local saved = NS.db.profile.units.target.mirror
+  NS.db.profile.units.target.mirror = false
+  NS.db.profile.units.target.barTexture = "Blizzard Raid Bar"
+  NS.db.profile.units.target.mirror = saved
+  -- With no LSM headless, every fetcher falls back to the constant. The point of this test is
+  -- that passing a unit does not raise and does not read the player's key by accident.
+  assertEqual(NS.GetBarTexture("target"), NS.Constants.FALLBACK_TEXTURE)
+  assertEqual(NS.GetBorder("focus"), NS.Constants.FALLBACK_BORDER)
+  assertEqual(NS.GetFont("target"), NS.Constants.FALLBACK_FONT)
+end)
+
+test("a media getter with no unit still resolves the player", function()
+  assertEqual(NS.GetBarTexture(), NS.GetBarTexture("player"))
+end)
+
+test("with LSM present, the media getter resolves the REQUESTED unit's own key, not the player's",
+  function()
+    -- The fallback-constant tests above would pass even if every unit silently read the
+    -- player's setting (LSM is absent headlessly, so every branch falls through to the same
+    -- constant). Stub LSM in and give player/target genuinely different stored keys so this test
+    -- can only pass if NS.GetBarTexture actually threads `unit` into NS.Units.Get.
+    withLSM({ statusbar = { ["Player Texture"] = "PATH_PLAYER", ["Target Texture"] = "PATH_TARGET" } },
+      function()
+        local savedPlayer = NS.db.profile.units.player.barTexture
+        local savedMirror = NS.db.profile.units.target.mirror
+        local savedTarget = NS.db.profile.units.target.barTexture
+        NS.db.profile.units.player.barTexture = "Player Texture"
+        NS.db.profile.units.target.mirror = false
+        NS.db.profile.units.target.barTexture = "Target Texture"
+
+        assertEqual(NS.GetBarTexture("player"), "PATH_PLAYER")
+        assertEqual(NS.GetBarTexture("target"), "PATH_TARGET")
+
+        NS.db.profile.units.player.barTexture = savedPlayer
+        NS.db.profile.units.target.barTexture = savedTarget
+        NS.db.profile.units.target.mirror = savedMirror
+      end)
+  end)
+
+test("GetBarColor reads the requested unit's color", function()
+  local saved = NS.db.profile.units.target.mirror
+  NS.db.profile.units.target.mirror = false
+  NS.db.profile.units.target.barColor = { r = 0.1, g = 0.2, b = 0.3, a = 0.4 }
+  NS.db.profile.units.target.useClassColorBar = false
+  local r, g, b, a = NS.GetBarColor("target")
+  NS.db.profile.units.target.mirror = saved
+  assertEqual(r, 0.1); assertEqual(g, 0.2); assertEqual(b, 0.3); assertEqual(a, 0.4)
+end)
+
+test("class color on a target bar is still the PLAYER's class color", function()
+  -- Spec decision: resolving the tracked unit's class would need a PLAYER_TARGET_CHANGED recolor
+  -- for a cosmetic gain. All three bars use your own class color.
+  -- Note: the brief's test compares straight to NS.GetBarColor("player"), which only reflects the
+  -- class colour when the PLAYER row's own toggle is also on — its default is false. Flip it here
+  -- too so both sides genuinely take the class-colour branch; otherwise the assertion would
+  -- compare a resolved class colour against an unrelated stored RGB and fail for the wrong reason.
+  local savedMirror = NS.db.profile.units.target.mirror
+  local savedPlayerToggle = NS.db.profile.units.player.useClassColorBar
+  NS.db.profile.units.target.mirror = false
+  NS.db.profile.units.target.useClassColorBar = true
+  NS.db.profile.units.player.useClassColorBar = true
+  local r, g, b = NS.GetBarColor("target")
+  local pr, pg, pb = NS.GetBarColor("player")
+  NS.db.profile.units.target.useClassColorBar = false
+  NS.db.profile.units.player.useClassColorBar = savedPlayerToggle
+  NS.db.profile.units.target.mirror = savedMirror
+  assertEqual(r, pr); assertEqual(g, pg); assertEqual(b, pb)
+end)
+
+test("three bar frames exist and the player alias points at the player frame", function()
+  assertTrue(NS.bars.player ~= nil)
+  assertTrue(NS.bars.target ~= nil)
+  assertTrue(NS.bars.focus ~= nil)
+  assertEqual(NS.bar, NS.bars.player)
+  assertEqual(NS.statusBar, NS.bars.player.statusBar)
+  assertEqual(NS.valueText, NS.bars.player.valueText)
+end)
+
+test("each bar carries its own unit tag and its own backdrop table", function()
+  assertEqual(NS.bars.target.unit, "target")
+  assertTrue(NS.bars.target.backdropInfo ~= NS.bars.player.backdropInfo,
+    "a shared backdrop table cannot hold three different border sizes")
 end)
