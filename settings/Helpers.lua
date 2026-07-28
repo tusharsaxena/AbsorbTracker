@@ -330,6 +330,13 @@ function Helpers.ClearScroll(ctx)
         ctx.scroll:ReleaseChildren()
     end
     ctx.lastGroup = nil
+    -- Every RenderField call appends a refresher closure (settings/Widgets.lua), and those
+    -- closures capture the widget instances just released above. Without this reset, a released
+    -- widget's refresher survives in ctx.refreshers forever, so /at set, RestoreDefaults, and
+    -- profile changes pcall an ever-growing pile of stale closures on every re-render. Reassigned
+    -- (not wiped in place): renderedPanels holds this ctx table itself, not a separate reference
+    -- to ctx.refreshers, so a fresh table here is observed by RefreshAllPanels immediately.
+    ctx.refreshers = {}
 end
 
 --- Render a per-unit appearance page (Bar / Border / Font): the Unit dropdown, the mirror header

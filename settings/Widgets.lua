@@ -5,8 +5,9 @@
 -- documented single-write seam), registers a refresher closure for
 -- /at set + profile-change re-sync, and adds itself to the panel's
 -- AceGUI scroll. Helpers.RenderField dispatches by row.type;
--- Helpers.RenderSchema lays a page's rows into 50/50 flow rows with
--- section headings and inter-row spacers.
+-- Helpers.RenderRows lays an explicit row list into 50/50 flow rows with
+-- section headings and inter-row spacers; Helpers.RenderSchema is the
+-- thin per-page wrapper around it.
 --
 -- Decorates NS.Helpers (created by OptionsPanel.lua, decorated
 -- by Panel/Helpers.lua before this file loads).

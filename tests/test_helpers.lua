@@ -271,8 +271,29 @@ test("switching the dropdown to focus re-renders the page for that unit", functi
   for _, child in ipairs(ctx.scroll.children) do
     if child.type == "Dropdown" and child.labelText == "Unit" then dd = child break end
   end
+
+  -- The mirror checkbox only exists for target/focus, never for player (RenderUnitPanel gates it
+  -- behind `if ctx.unit ~= "player"`). So its presence/absence is a proxy for "did the scroll
+  -- actually get rebuilt for the new unit" — asserting only ctx.unit would pass even if the
+  -- OnValueChanged callback dropped its RenderUnitPanel call and merely reassigned the field.
+  local function hasMirrorCheckbox()
+    local found = false
+    local function walk(w)
+      for _, child in ipairs(w.children or {}) do
+        if child.labelText == "Use same styling as Player" then found = true end
+        walk(child)
+      end
+    end
+    walk(ctx.scroll)
+    return found
+  end
+  assertTrue(not hasMirrorCheckbox(), "the player page has no mirror header before the switch")
+
   dd:__fire("OnValueChanged", "focus")
   assertEqual(ctx.unit, "focus")
+  assertTrue(hasMirrorCheckbox(),
+    "switching to focus must actually re-render the page, not just flip ctx.unit")
+
   NS.Helpers.RenderUnitPanel(ctx, "bar")   -- restore to a known state for later tests
   ctx.unit = "player"
   NS.Helpers.RenderUnitPanel(ctx, "bar")
@@ -371,4 +392,60 @@ test("RestoreAllDefaults clears all three saved positions", function()
   for _, u in ipairs(NS.Units.LIST) do
     assertEqual(NS.db.profile.units[u].position, nil, u .. "'s position survived the reset")
   end
+end)
+
+test("the mirror checkbox renders exactly once — the header owns it, RenderRows must skip it",
+  function()
+  -- RenderRows is handed BOTH perUnitRows (which includes the alwaysPerUnit+skipRender mirror
+  -- row) and styledRows. If it ignored `row.skipRender`, the mirror row would render a second,
+  -- bespoke CheckBox down in the body with the same label as the header's — a set-membership
+  -- check (labels[x] = true) cannot see that duplicate, so this counts occurrences instead.
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  ctx.unit = "focus"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+
+  local count = 0
+  local function walk(w)
+    for _, child in ipairs(w.children or {}) do
+      if child.labelText == "Use same styling as Player" then count = count + 1 end
+      walk(child)
+    end
+  end
+  walk(ctx.scroll)
+  assertEqual(count, 1,
+    "the mirror checkbox must appear exactly once (the header), never a second time from the body")
+
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+end)
+
+test("ClearScroll resets ctx.refreshers, so repeated renders do not leak stale closures",
+  function()
+  -- Every RenderField call appends one refresher closure. Without ClearScroll wiping the table,
+  -- each OnShow / unit switch would grow ctx.refreshers forever with closures over widgets that
+  -- ReleaseChildren already tore down — and RefreshAllPanels pcalls every one of them on every
+  -- /at set, profile change, and Reset All.
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  local firstCount = #ctx.refreshers
+  assertTrue(firstCount > 0, "the render registered at least one refresher")
+
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+
+  assertEqual(#ctx.refreshers, firstCount,
+    "re-rendering the SAME unit repeatedly must not grow ctx.refreshers")
+
+  ctx.unit = "focus"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+
+  assertEqual(#ctx.refreshers, firstCount,
+    "switching units and back must also leave ctx.refreshers at a stable size")
 end)
