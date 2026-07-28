@@ -318,6 +318,110 @@ function Helpers.Section(ctx, label)
 end
 
 -- ---------------------------------------------------------------------
+-- Per-unit panel rendering — Unit dropdown + mirror header
+-- ---------------------------------------------------------------------
+
+--- Release every AceGUI child out of ctx.scroll and reset the section-heading tracker, so the
+--- next Helpers.Section call starts a fresh group instead of treating the first re-rendered row
+--- as a continuation of whatever group was last drawn. Reuses the SAME ScrollFrame instance —
+--- AceGUI's ReleaseChildren tears down children, not the container.
+function Helpers.ClearScroll(ctx)
+    if ctx.scroll and ctx.scroll.ReleaseChildren then
+        ctx.scroll:ReleaseChildren()
+    end
+    ctx.lastGroup = nil
+end
+
+--- Render a per-unit appearance page (Bar / Border / Font): the Unit dropdown, the mirror header
+--- for target/focus, then the schema rows filtered to the selected unit.
+---
+--- Full rebuild on every call rather than a persistent header widget: ensureScroll's ScrollFrame
+--- anchors flush to ctx.body, so there is no free real estate above it to park a persistent
+--- dropdown without surgery on that anchor. AceGUI's widget pool exists exactly to make
+--- release-and-recreate cheap, so each call clears ctx.scroll and rebuilds from scratch.
+function Helpers.RenderUnitPanel(ctx, pageKey)
+    ctx.unit = ctx.unit or "player"
+    Helpers.ClearScroll(ctx)
+    local scroll = ensureScroll(ctx)
+    Helpers.__lastUnitCtx = ctx   -- test seam: the harness has no other handle on a live ctx
+
+    local AceGUI = NS.AceGUI
+    if not AceGUI then return end
+
+    -- Unit selector ---------------------------------------------------
+    local dd = AceGUI:Create("Dropdown")
+    dd:SetLabel("Unit")
+    dd:SetFullWidth(true)
+    local items, order = {}, {}
+    for i, u in ipairs(NS.Units.LIST) do
+        items[u] = NS.Units.LABEL[u]
+        order[i] = u
+    end
+    dd:SetList(items, order)
+    dd:SetValue(ctx.unit)
+    dd:SetCallback("OnValueChanged", function(_, _, value)
+        ctx.unit = value
+        Helpers.RenderUnitPanel(ctx, pageKey)
+    end)
+    scroll:AddChild(dd)
+    addSpacer(scroll, ROW_VSPACER)
+
+    local rows = NS.SchemaForPage(pageKey, ctx.unit)
+    local perUnitRows, styledRows = NS.PartitionUnitRows(rows)
+
+    -- Mirror header (target / focus only) ------------------------------
+    local mirrored = NS.Units.IsMirrored(ctx.unit)
+    if ctx.unit ~= "player" then
+        local row = AceGUI:Create("SimpleGroup")
+        row:SetLayout("Flow")
+        row:SetFullWidth(true)
+
+        local cb = AceGUI:Create("CheckBox")
+        cb:SetLabel("Use same styling as Player")
+        cb:SetValue(mirrored)
+        cb:SetRelativeWidth(0.5)
+        cb:SetCallback("OnValueChanged", function(_, _, value)
+            NS.SetByPath("units." .. ctx.unit .. ".mirror", value and true or false)
+            Helpers.RenderUnitPanel(ctx, pageKey)
+        end)
+        attachTooltip(cb, "Use same styling as Player",
+            "Mirror every Player bar appearance setting. Position and enable stay independent.")
+        row:AddChild(cb)
+
+        local btn = AceGUI:Create("Button")
+        btn:SetText("Copy styling from Player")
+        btn:SetRelativeWidth(0.5)
+        btn:SetCallback("OnClick", function()
+            NS.Units.CopyFromPlayer(ctx.unit)
+            NS.bus:SendMessage(NS.MSG.APPEARANCE)
+            Helpers.RenderUnitPanel(ctx, pageKey)
+        end)
+        attachTooltip(btn, "Copy styling from Player",
+            "Take a one-time snapshot of the Player bar's appearance. Unlinks this unit so you can then edit it freely.")
+        row:AddChild(btn)
+
+        scroll:AddChild(row)
+        addSpacer(scroll, ROW_VSPACER)
+
+        if mirrored then
+            local hint = AceGUI:Create("Label")
+            hint:SetText("Linked to Player \226\128\147 uncheck to customize.")
+            hint:SetFullWidth(true)
+            scroll:AddChild(hint)
+            addSpacer(scroll, ROW_VSPACER)
+        end
+    end
+
+    -- Body: the per-unit rows always render; the appearance rows only when unlinked. The mirror
+    -- row itself carries skipRender, so RenderRows leaves it to the header above.
+    Helpers.RenderRows(ctx, perUnitRows)
+    if not mirrored then
+        Helpers.RenderRows(ctx, styledRows)
+    end
+    if scroll.DoLayout then scroll:DoLayout() end
+end
+
+-- ---------------------------------------------------------------------
 -- Inline action buttons (not settings)
 -- ---------------------------------------------------------------------
 
@@ -383,11 +487,11 @@ function Helpers.RestoreAllDefaults()
             NS.ApplyDefault(row)
         end
     end
-    -- Clear the saved position and recenter. `position` is not a schema
-    -- row (it's set by dragging the bar), so ApplyDefault above never
-    -- touches it — it must be cleared explicitly.
-    if NS.db and NS.db.profile then
-        NS.db.profile.position = nil
+    -- Clear every unit's saved position and recenter. `position` is not a schema row (it's set by
+    -- dragging), so ApplyDefault above never touches it — it must be cleared explicitly, once per
+    -- unit, or a target bar dragged off-screen would survive a Reset All.
+    for _, unit in ipairs(NS.Units.LIST) do
+        NS.Units.SetPosition(unit, nil)
     end
     NS.bus:SendMessage(NS.MSG.POSITION)
     Helpers.RefreshAllPanels()

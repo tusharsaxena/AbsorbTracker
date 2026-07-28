@@ -234,3 +234,141 @@ test("the cross-slice layout constants are published for the widget/about slices
   assertTrue(Helpers.BUTTON_PAIR_REL < 0.5,
     "the paired-button width is inset under 0.5 so the right button clears the scroll clip")
 end)
+
+-- ── Per-unit panel: Unit dropdown + mirror header ──────────────────────────────────
+
+-- Reach the real Bar page canvas the harness built, then drive its OnShow.
+local function barPanel()
+  return T.mocks.__subcategories["Bar"]
+end
+
+test("the Bar page opens on the player unit with no mirror header", function()
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  assertEqual(ctx.unit, "player")
+end)
+
+test("RenderUnitPanel draws a Unit dropdown listing all three units", function()
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  local dd
+  for _, child in ipairs(ctx.scroll.children) do
+    if child.type == "Dropdown" and child.labelText == "Unit" then dd = child break end
+  end
+  assertTrue(dd ~= nil, "no Unit dropdown was rendered")
+  assertEqual(#dd.order, 3)
+  assertEqual(dd.order[1], "player")
+  assertEqual(dd.value, "player")
+end)
+
+test("switching the dropdown to focus re-renders the page for that unit", function()
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  local dd
+  for _, child in ipairs(ctx.scroll.children) do
+    if child.type == "Dropdown" and child.labelText == "Unit" then dd = child break end
+  end
+  dd:__fire("OnValueChanged", "focus")
+  assertEqual(ctx.unit, "focus")
+  NS.Helpers.RenderUnitPanel(ctx, "bar")   -- restore to a known state for later tests
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+end)
+
+test("a mirrored unit hides its appearance rows but keeps the enable toggle", function()
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  NS.db.profile.units.focus.mirror = true
+  ctx.unit = "focus"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+
+  local labels = {}
+  local function walk(w)
+    for _, child in ipairs(w.children or {}) do
+      if child.labelText then labels[child.labelText] = true end
+      walk(child)
+    end
+  end
+  walk(ctx.scroll)
+
+  assertTrue(labels["Enable this bar"], "the enable toggle is per-unit and must stay visible")
+  assertTrue(labels["Use same styling as Player"], "the mirror checkbox is the header")
+  assertTrue(not labels["Bar Width (in px)"], "mirrored appearance rows must be hidden")
+
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+end)
+
+test("unchecking the mirror reveals the appearance rows", function()
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  NS.db.profile.units.focus.mirror = false
+  ctx.unit = "focus"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+
+  local labels = {}
+  local function walk(w)
+    for _, child in ipairs(w.children or {}) do
+      if child.labelText then labels[child.labelText] = true end
+      walk(child)
+    end
+  end
+  walk(ctx.scroll)
+  assertTrue(labels["Bar Width (in px)"], "an unlinked unit must expose its own appearance rows")
+
+  NS.db.profile.units.focus.mirror = true
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+end)
+
+test("the copy button snapshots the player's styling and clears the mirror", function()
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  NS.db.profile.units.player.barWidth = 288
+  NS.db.profile.units.target.mirror = true
+  ctx.unit = "target"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+
+  local btn
+  local function walk(w)
+    for _, child in ipairs(w.children or {}) do
+      if child.type == "Button" and child.text == "Copy styling from Player" then btn = child end
+      walk(child)
+    end
+  end
+  walk(ctx.scroll)
+  assertTrue(btn ~= nil, "no copy button was rendered")
+  btn:__fire("OnClick")
+
+  assertEqual(NS.db.profile.units.target.mirror, false)
+  assertEqual(NS.db.profile.units.target.barWidth, 288)
+
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+end)
+
+test("a page Defaults button resets that page across every unit", function()
+  NS.db.profile.units.player.barWidth = 111
+  NS.db.profile.units.target.barWidth = 222
+  NS.db.profile.units.focus.barWidth  = 333
+  NS.Helpers.RestoreDefaults("bar")
+  assertEqual(NS.db.profile.units.player.barWidth, NS.unitDefaults.barWidth)
+  assertEqual(NS.db.profile.units.target.barWidth, NS.unitDefaults.barWidth)
+  assertEqual(NS.db.profile.units.focus.barWidth,  NS.unitDefaults.barWidth)
+end)
+
+test("RestoreAllDefaults clears all three saved positions", function()
+  for _, u in ipairs(NS.Units.LIST) do
+    NS.db.profile.units[u].position = { point = "TOP", relPoint = "TOP", x = 1, y = 1 }
+  end
+  NS.Helpers.RestoreAllDefaults()
+  for _, u in ipairs(NS.Units.LIST) do
+    assertEqual(NS.db.profile.units[u].position, nil, u .. "'s position survived the reset")
+  end
+end)

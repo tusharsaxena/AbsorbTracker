@@ -182,12 +182,9 @@ local function build(mainCategory)
         H.RestoreDefaults("bar", ctx)
     end
 
-    local rendered = false
     ctx.panel:SetScript("OnShow", function()
         H.EnsureDefaultsButton(ctx.panel)
-        if rendered then return end
-        rendered = true
-        H.RenderSchema(ctx, "bar")
+        H.RenderUnitPanel(ctx, "bar")
     end)
 
     return Settings.RegisterCanvasLayoutSubcategory(

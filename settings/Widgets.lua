@@ -269,9 +269,14 @@ end
 -- right partner of a named path's row (e.g. the General page's session "Debug console" checkbox
 -- beside "Lock Position"). One-shot, and only when that path is the lone widget on its row, so the
 -- pair stays 50/50 and never overflows to three-wide.
-function Helpers.RenderSchema(ctx, pageKey, afterGroup, pairWith)
+
+--- Render an EXPLICIT list of schema rows into ctx's scroll. This is the former RenderSchema
+--- body, lifted so Helpers.RenderUnitPanel can render a filtered subset (the mirror partition).
+--- Rows carrying `skipRender` stay in the schema (so /at get|set and the Defaults buttons still
+--- see them) but are not drawn here — the panel renders them bespoke, e.g. the mirror checkbox
+--- in the per-unit page header.
+function Helpers.RenderRows(ctx, rows, afterGroup, pairWith)
     local AceGUI = NS.AceGUI
-    local rows   = NS.SchemaForPage(pageKey)
     local scroll = Helpers.EnsureScroll(ctx)
     local pendingRow, pendingCount = nil, 0
 
@@ -300,19 +305,21 @@ function Helpers.RenderSchema(ctx, pageKey, afterGroup, pairWith)
         -- row.solo = true means "render this widget alone in the left
         -- half of its own row, leaving the right half empty." Used for
         -- visually-grouping pivots.
-        if row.solo and pendingCount > 0 then
-            flushRow()
-        end
+        if not row.skipRender then
+            if row.solo and pendingCount > 0 then
+                flushRow()
+            end
 
-        if not pendingRow then pendingRow = startRow() end
-        Helpers.RenderField(ctx, row, pendingRow, 0.5)
-        pendingCount = pendingCount + 1
-        if pairWith and row.path and pairWith[row.path] and pendingCount == 1 then
-            pairWith[row.path](ctx, pendingRow)
-            pairWith[row.path] = nil       -- one-shot
+            if not pendingRow then pendingRow = startRow() end
+            Helpers.RenderField(ctx, row, pendingRow, 0.5)
             pendingCount = pendingCount + 1
+            if pairWith and row.path and pairWith[row.path] and pendingCount == 1 then
+                pairWith[row.path](ctx, pendingRow)
+                pairWith[row.path] = nil       -- one-shot
+                pendingCount = pendingCount + 1
+            end
+            if row.solo or pendingCount >= 2 then flushRow() end
         end
-        if row.solo or pendingCount >= 2 then flushRow() end
 
         local nextRow = rows[i + 1]
         if afterGroup and row.group
@@ -325,4 +332,8 @@ function Helpers.RenderSchema(ctx, pageKey, afterGroup, pairWith)
     end
     flushRow()
     if scroll.DoLayout then scroll:DoLayout() end
+end
+
+function Helpers.RenderSchema(ctx, pageKey, afterGroup, pairWith)
+    Helpers.RenderRows(ctx, NS.SchemaForPage(pageKey, ctx.unit), afterGroup, pairWith)
 end

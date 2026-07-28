@@ -90,12 +90,9 @@ local function build(mainCategory)
         H.RestoreDefaults("border", ctx)
     end
 
-    local rendered = false
     ctx.panel:SetScript("OnShow", function()
         H.EnsureDefaultsButton(ctx.panel)
-        if rendered then return end
-        rendered = true
-        H.RenderSchema(ctx, "border")
+        H.RenderUnitPanel(ctx, "border")
     end)
 
     return Settings.RegisterCanvasLayoutSubcategory(
