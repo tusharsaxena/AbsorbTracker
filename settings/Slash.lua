@@ -23,6 +23,25 @@ local function FormatKV(path, valueStr)
     return ("|cFFFFFF00%s|r = |cFFFFFFFF%s|r"):format(path, valueStr)
 end
 
+-- Trailing note for a row whose unit is CURRENTLY mirroring the player.
+--
+-- Why it is needed: `/at get` and `/at set` resolve through NS.GetSetting, which walks the raw
+-- profile path and never consults NS.Units.Get — so they read and write the unit's STORED value,
+-- not the mirror-resolved one. That is deliberate and self-consistent (it is exactly what `/at
+-- set` would write; resolving on read would make get/set asymmetric), but it is silent: `/at set
+-- units.focus.barWidth 400` echoes a confident confirmation while the focus bar does not move,
+-- because it is rendering the player's width. The note says so.
+--
+-- Only appearance rows are annotated. `enabled` and `mirror` carry alwaysPerUnit and are honoured
+-- per-unit even while mirrored, so a note on them would be a lie. Grey (808080) keeps it visually
+-- subordinate to the gold key / white value of the Ka0s scheme (slash-commands-§5).
+local function MirrorNote(row)
+    if row and row.unit and not row.alwaysPerUnit and NS.Units.IsMirrored(row.unit) then
+        return "  |cff808080(mirrored \226\128\148 the bar shows Player's appearance)|r"
+    end
+    return ""
+end
+
 -- Forward declarations so the commands table can reference handlers defined below.
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
@@ -125,7 +144,7 @@ function listSettings()
         print("  |cff3399ff[" .. header .. "]|r")
         for _, row in ipairs(rows) do
             local v = NS.GetSetting(row.path)
-            print("    " .. FormatKV(row.path, NS.FormatSchemaValue(row, v)))
+            print("    " .. FormatKV(row.path, NS.FormatSchemaValue(row, v)) .. MirrorNote(row))
         end
     end
 
@@ -150,7 +169,7 @@ function getSetting(rest)
         return print("Setting not found: " .. path)
     end
     local v = NS.GetSetting(row.path)
-    print(FormatKV(row.path, NS.FormatSchemaValue(row, v)))
+    print(FormatKV(row.path, NS.FormatSchemaValue(row, v)) .. MirrorNote(row))
 end
 
 function setSetting(rest)
@@ -171,7 +190,7 @@ function setSetting(rest)
     end
 
     NS.SetByPath(row.path, v)
-    print(FormatKV(row.path, NS.FormatSchemaValue(row, NS.GetSetting(row.path))))
+    print(FormatKV(row.path, NS.FormatSchemaValue(row, NS.GetSetting(row.path))) .. MirrorNote(row))
     if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
 end
 
@@ -211,10 +230,11 @@ function runResetAll()
 end
 
 function runResetPosition()
-    for _, unit in ipairs(NS.Units.LIST) do
-        NS.Units.SetPosition(unit, nil)
+    -- Delegate to the single shared helper so this verb and the General page's "Reset Position"
+    -- button can never diverge — same per-unit clear, same POSITION publish.
+    if NS.Helpers and NS.Helpers.ResetAllPositions then
+        NS.Helpers.ResetAllPositions()
     end
-    NS.bus:SendMessage(NS.MSG.POSITION)
     print("Bar positions reset")
 end
 

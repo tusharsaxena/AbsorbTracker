@@ -37,6 +37,21 @@ local function unit(enabled, mirror)
 end
 
 NS.defaults.profile = {
+    -- PER-PROFILE schema stamp — a deliberate, documented deviation from Ka0s standard §5.1, which
+    -- puts the version stamp account-wide under `global` (see docs/ARCHITECTURE.md "Standards
+    -- Deviations" and docs/profiles.md). The account-wide stamp still exists below and remains the
+    -- DB-wide marker; this one answers the narrower question "has THIS profile been lifted?", which
+    -- an account-wide stamp structurally cannot: the v3 lift is a PER-PROFILE mutation, so one
+    -- global flag flipping after the active profile migrates strands every other profile.
+    --
+    -- The default is 1 ("legacy — not yet lifted"), NOT the current 3, and that is load-bearing.
+    -- AceDB-3.0's copyDefaults fills every ABSENT key the first time a profile section is
+    -- instantiated, which happens BEFORE NS:RunMigrations ever reads it. A default of 3 would stamp
+    -- every pre-v3 profile as already-migrated on first touch and make the gate permanently dead —
+    -- the exact failure mode the old `units == nil` guard had. Defaulting to 1 makes an unstamped
+    -- profile read as what it is: pre-v3.
+    schemaVersion = 1,
+
     -- Globals: one value shared by all three bars.
     locked = false,
     hidden = false,

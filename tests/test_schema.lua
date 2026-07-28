@@ -151,10 +151,17 @@ test("every persisted profile default is reachable from a schema row", function(
   -- Appearance defaults now live two levels deep, at profile.units.<unit>.<key>, so walk that one
   -- extra level explicitly rather than a generic recursive walk (the shape is exactly two levels:
   -- flat globals at the root, and per-unit tables under `units`).
+  -- `schemaVersion` is also exempt: it is the per-profile migration stamp (defaults/Profile.lua),
+  -- bookkeeping the migration seam owns, not a user-facing setting. A schema row for it would put
+  -- a "schema version" slider on a settings page and let `/at set schemaVersion 1` re-trigger the
+  -- v3 lift on a live profile.
+  local EXEMPT = { schemaVersion = true }
   local paths = {}
   for _, row in ipairs(NS.Schema) do paths[row.path] = true end
   for key, val in pairs(NS.defaults.profile) do
-    if key == "units" then
+    if EXEMPT[key] then -- luacheck: ignore
+      -- bookkeeping, not a setting
+    elseif key == "units" then
       for unitName, unitDefaults in pairs(val) do
         for field in pairs(unitDefaults) do
           local path = "units." .. unitName .. "." .. field

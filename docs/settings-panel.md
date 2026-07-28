@@ -49,7 +49,7 @@ Every page (about + sub-pages) builds the same header via `Helpers.CreatePanel(n
 - Optional **Defaults** button (width `DEFAULTS_W = 110`) at TOPRIGHT — General / Bar / Border / Font opt in via `opts.defaultsButton = true`. About page and Profiles deliberately omit it (about page has no settings; Profiles has its own destructive controls inside the AceDBOptions UI).
 - Layout constants: `PADDING_X = 16`, `HEADER_TOP = 20`, `HEADER_HEIGHT = 54`. The body frame anchors `(0, -(HEADER_HEIGHT + 8))` below TOPLEFT.
 
-`CreatePanel` returns a `ctx` table threaded through the rest of the helpers: `{ panel, body, scroll = nil, refreshers = {}, lastGroup = nil, pageKey }`. Every ctx is appended to the `renderedPanels` registry so `RefreshAllPanels` can re-run its refreshers.
+`CreatePanel` returns a `ctx` table threaded through the rest of the helpers: `{ panel, body, scroll = nil, refreshers = {}, lastGroup = nil, pageKey }` (per-unit pages additionally carry `ctx.unit` and the transient `ctx.__rendering` re-entry guard). Every ctx is appended to the `renderedPanels` registry so `RefreshAllPanels` can re-run its refreshers.
 
 ## File-load registration vs. enable-time registration
 
@@ -104,6 +104,10 @@ The per-unit page renderer. On every call (first `OnShow`, a unit-dropdown switc
 3. Splits the page's rows for the selected unit via `NS.PartitionUnitRows(NS.SchemaForPage(pageKey, ctx.unit))` into `perUnitRows` (`alwaysPerUnit = true` — e.g. "Enable this bar") and `styledRows` (everything else). `perUnitRows` always render; `styledRows` render only when the unit is **not** mirrored — mirroring hides every appearance widget because editing them would silently edit the player's bar, not the mirrored unit's.
 
 Both row groups render through `Helpers.RenderRows` (below) — the same two-column layout engine General's unit-agnostic `Helpers.RenderSchema` uses.
+
+4. Registers one final refresher on `ctx.refreshers` that simply calls `RenderUnitPanel` again. **This is not decoration.** The mirror checkbox and the Copy button in step 2 are built inline, not through `Helpers.RenderField`, so neither registers a refresher of its own — without this one, `Helpers.RefreshAllPanels` structurally could not update them and nothing re-ran the step-3 partition. `Helpers.RestoreDefaults("bar", ctx)` resets `units.focus.mirror` to its default `true` and then runs only the refreshers, so the header checkbox would still read unchecked and the appearance rows would stay on screen over a now-mirrored unit (same after `/at set units.focus.mirror true`, and after a profile switch). It self-corrected on the next `OnShow`, which is what made it present as "the panel lied to me once".
+
+A whole re-render rather than a bespoke "tick the checkbox" closure, because the partition itself has to re-run. It is registered **last**, so the row refreshers ahead of it have already run against the widgets this call is about to release, and `RefreshAllPanels` iterates the pre-render table so the freshly-registered closure is never re-invoked in the same pass. `RenderUnitPanel` additionally sets `ctx.__rendering` for the duration of a render and returns immediately if it is already set, so a refresh fired from *inside* a render cannot recurse.
 
 ## `Helpers.RenderRows(ctx, rows, afterGroup?, pairWith?)` / `Helpers.RenderSchema(ctx, pageKey, afterGroup?, pairWith?)`
 

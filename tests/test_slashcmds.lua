@@ -522,3 +522,72 @@ test("toggle still flips the global hidden master", function()
   slash("toggle")
   assertEqual(NS.GetSetting("hidden"), before)
 end)
+
+-- ── Mirrored-unit annotation on get / set / list ──────────────────────────
+
+-- NS.GetSetting resolves the raw profile path and never consults NS.Units.Get, so `/at get|set`
+-- on a mirrored unit read and write its STORED value, not the resolved one. That is deliberate
+-- and stays that way -- but silent, it means `/at set units.focus.barWidth 400` echoes a
+-- confident confirmation while the focus bar does not move (it is rendering the player's width).
+local NOTE = "(mirrored"
+
+test("/at get annotates a row whose unit is currently mirroring the player", function()
+  NS.db.profile.units.focus.mirror = true
+  local out = slash("get units.focus.barWidth")
+  assertTrue(contains(out, "units.focus.barWidth"), joined(out))
+  assertTrue(contains(out, NOTE),
+    "a mirrored unit's value must say so, or the CLI silently lies: " .. joined(out))
+end)
+
+test("/at get does NOT annotate an unmirrored unit, or the player", function()
+  NS.db.profile.units.focus.mirror = false
+  assertTrue(not contains(slash("get units.focus.barWidth"), NOTE),
+    "an unlinked unit reads and writes its own value -- no note")
+  assertTrue(not contains(slash("get units.player.barWidth"), NOTE),
+    "the player is the mirror SOURCE and is never mirrored")
+  NS.db.profile.units.focus.mirror = true
+end)
+
+test("/at get does NOT annotate the per-unit rows a mirror never covers", function()
+  -- `enabled` and `mirror` carry alwaysPerUnit: they are honoured per-unit even while mirrored,
+  -- so a note on them would be a lie in the other direction.
+  NS.db.profile.units.focus.mirror = true
+  assertTrue(not contains(slash("get units.focus.enabled"), NOTE))
+  assertTrue(not contains(slash("get units.focus.mirror"), NOTE))
+end)
+
+test("/at set echoes the mirrored note alongside the value it just stored", function()
+  NS.db.profile.units.focus.mirror = true
+  local out = slash("set units.focus.barWidth 400")
+  assertEqual(NS.GetSetting("units.focus.barWidth"), 400, "the stored value is still written")
+  assertTrue(contains(out, NOTE),
+    "the echo must warn that the bar will not change: " .. joined(out))
+  NS.SetByPath("units.focus.barWidth", NS.unitDefaults.barWidth)
+end)
+
+test("/at list annotates only the mirrored units' appearance rows", function()
+  NS.db.profile.units.target.mirror = false
+  NS.db.profile.units.focus.mirror  = true
+  local out = slash("list")
+  local annotated = {}
+  for _, line in ipairs(out) do
+    if line:find(NOTE, 1, true) then
+      annotated[#annotated + 1] = line:match("units%.(%w+)%.") or "?"
+    end
+  end
+  assertTrue(#annotated > 0, "the mirrored focus rows must be annotated")
+  for _, unit in ipairs(annotated) do
+    assertEqual(unit, "focus", "only the mirrored unit's rows carry the note")
+  end
+  NS.db.profile.units.target.mirror = true
+end)
+
+test("the mirrored note keeps the Ka0s colour scheme intact and stays subordinate", function()
+  NS.db.profile.units.focus.mirror = true
+  local out = capture(function() NS.Slash:OnSlash("get units.focus.barWidth") end)
+  local line = out[1]
+  -- Gold key + white value untouched (slash-commands-§5), note in subordinate grey, no colon.
+  assertTrue(line:find("|cFFFFFF00units.focus.barWidth|r = |cFFFFFFFF", 1, true) ~= nil, line)
+  assertTrue(line:find("|cff808080(mirrored", 1, true) ~= nil, "the note is grey: " .. line)
+  assertTrue(stripColor(line):find(":%s*$") == nil, "no trailing colon: " .. line)
+end)

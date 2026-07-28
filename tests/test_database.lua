@@ -1,6 +1,7 @@
 local T = _G.AT_TEST
 local NS = T.NS
-local test, assertEqual, assertTrue = T.test, T.assertEqual, T.assertTrue
+local test, assertEqual, assertTrue, assertFalse =
+  T.test, T.assertEqual, T.assertTrue, T.assertFalse
 
 -- ── RunMigrations: the schema-migration seam (Ka0s standard §2.2/§5.1) ─────────────
 -- The current schema version is 3, so a full migration run leaves the DB stamped at 3.
@@ -206,4 +207,77 @@ test("real AceDB init: a fresh install (no saved data) converges on factory defa
   assertEqual(profile.barWidth, nil, "a fresh install has no flat key to lift in the first place")
   assertEqual(NS.db.global.schemaVersion, 3)
   NS.db, _G.AbsorbTrackerDB = savedDB, savedSV
+end)
+
+-- ── Per-profile v3 lift: every profile, not just the active one ───────────────────
+-- The account-wide `db.global.schemaVersion` cannot gate a PER-PROFILE mutation. A user on
+-- "Default" with a second pre-v3 "Raid" profile used to migrate Default, flip the account-wide
+-- stamp to 3, and strand Raid's flat barWidth / barColor / position forever — no later login
+-- re-ran the lift, so their raid layout silently reverted to factory defaults.
+
+test("InitDB lifts EVERY saved profile, not only the active one", function()
+  local savedSV, savedDB = _G.AbsorbTrackerDB, NS.db
+  _G.AbsorbTrackerDB = {
+    profiles = {
+      Default = { barWidth = 275 },
+      Raid    = { barWidth = 411, position = { point = "TOP", relPoint = "TOP", x = 3, y = 4 } },
+    },
+    global = { schemaVersion = 2 },
+  }
+  NS:InitDB()
+  local raid = _G.AbsorbTrackerDB.profiles.Raid
+  assertEqual(NS.db.profile.units.player.barWidth, 275, "the active profile is lifted")
+  assertEqual(raid.units.player.barWidth, 411,
+    "an inactive pre-v3 profile must be lifted too, or its layout is unreachable forever")
+  assertEqual(raid.units.player.position.x, 3, "including its saved position")
+  assertEqual(raid.barWidth, nil, "the inactive profile's flat original must be cleared")
+  assertEqual(raid.schemaVersion, 3, "and it carries its own stamp afterwards")
+  NS.db, _G.AbsorbTrackerDB = savedDB, savedSV
+end)
+
+test("a profile that appears AFTER the upgrade is lifted when it becomes active", function()
+  -- Copied in from another character, or restored from a backup SavedVariables file: it never
+  -- passed through InitDB's sweep, and the account-wide stamp already reads 3.
+  local savedSV, savedDB = _G.AbsorbTrackerDB, NS.db
+  _G.AbsorbTrackerDB = { profiles = { Default = {} }, global = { schemaVersion = 3 } }
+  NS:InitDB()
+  NS.db.sv.profiles.Restored = { barWidth = 333, fontSize = 19 }
+  NS.db:SetProfile("Restored")   -- fires OnProfileChanged, which re-runs the per-profile lift
+  local p = NS.db.profile
+  assertEqual(p.units.player.barWidth, 333,
+    "a restored pre-v3 profile must still be lifted on activation")
+  assertEqual(p.units.player.fontSize, 19)
+  assertEqual(p.barWidth, nil, "and its flat originals cleared")
+  assertEqual(p.schemaVersion, 3, "and stamped so it is never lifted twice")
+  NS.db, _G.AbsorbTrackerDB = savedDB, savedSV
+  T.mocks.__fireTimers()   -- OnProfileChanged published REPAINT; drain so `pending` resets
+end)
+
+test("the InitDB sweep and the profile-change lift compose without double-applying", function()
+  local savedSV, savedDB = _G.AbsorbTrackerDB, NS.db
+  _G.AbsorbTrackerDB = {
+    profiles = { Default = { barWidth = 275 } },
+    global   = { schemaVersion = 2 },
+  }
+  NS:InitDB()                                  -- mechanism (a): the sweep lifts Default
+  assertEqual(NS.db.profile.units.player.barWidth, 275)
+  NS.db.profile.units.player.barWidth = 500    -- the user then edits the migrated value
+  NS.db.profile.barWidth = 999                 -- and a stale flat key is planted at the root
+  NS.OnProfileChanged()                        -- mechanism (b) fires on the same profile
+  assertEqual(NS.db.profile.units.player.barWidth, 500,
+    "a second lift must not re-run and clobber the already-migrated value")
+  assertEqual(NS.db.profile.barWidth, 999,
+    "nor touch the profile root at all once the profile carries its own stamp")
+  assertFalse(NS.MigrateProfileToV3(NS.db.profile),
+    "the per-profile stamp \226\128\148 not the account-wide one \226\128\148 is the authority")
+  NS.db, _G.AbsorbTrackerDB = savedDB, savedSV
+  T.mocks.__fireTimers()   -- ditto
+end)
+
+test("the per-profile stamp defaults to 1 so copyDefaults cannot mark a pre-v3 profile migrated",
+  function()
+  -- Load-bearing: AceDB fills every absent key from the defaults BEFORE RunMigrations reads the
+  -- profile. A default of 3 here would stamp every upgrading profile as already-migrated on first
+  -- touch and make the whole gate dead code.
+  assertEqual(NS.defaults.profile.schemaVersion, 1)
 end)

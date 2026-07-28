@@ -215,7 +215,7 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 | Suite | Covers |
 |-------|--------|
 | `tests/test_schema.lua` | schema shape, `ValidateSchema` (errors / resolved / missing), `SetByPath`, `ApplyDefault`, formatters/parsers |
-| `tests/test_database.lua` | `InitDB`, `RunMigrations` idempotency, flat + per-unit backfill, schemaVersion v1→v2→v3 migration (v3 lifts pre-v3 flat keys onto `profile.units.player`) |
+| `tests/test_database.lua` | `InitDB`, `RunMigrations` idempotency, flat + per-unit backfill, schemaVersion v1→v2→v3 migration (v3 lifts pre-v3 flat keys onto `profile.units.player`), the per-profile lift across **every** saved profile, and the `OnProfileChanged` lift for a profile restored after the upgrade |
 | `tests/test_compat.lua` | `Compat.GetAddOnMetadata` wrapper + fallback |
 | `tests/test_util.lua` | `NS.Print` / `NS.Debug` (secret-safe sink) prefixing and gating, `NS.SafeToString` secret-value handling |
 | `tests/test_debuglog.lua` | `NS.Debug` sink, `FormatPlain` / `FormatColored`, on/off state |

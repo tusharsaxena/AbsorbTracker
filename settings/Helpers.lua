@@ -347,13 +347,21 @@ end
 --- dropdown without surgery on that anchor. AceGUI's widget pool exists exactly to make
 --- release-and-recreate cheap, so each call clears ctx.scroll and rebuilds from scratch.
 function Helpers.RenderUnitPanel(ctx, pageKey)
+    local AceGUI = NS.AceGUI
+    if not AceGUI then return end
+
+    -- Re-entrancy guard. The last thing this function does is register a refresher that re-renders
+    -- the whole panel (see the comment at the bottom), and a render registers a fresh refresher of
+    -- its own. Without this flag, any refresher pass fired from INSIDE a render — a widget's
+    -- onChange reaching RefreshAllPanels while the page is being built — would recurse. The flag
+    -- makes the inner call a no-op; the outer render finishes and leaves the panel correct.
+    if ctx.__rendering then return end
+    ctx.__rendering = true
+
     ctx.unit = ctx.unit or "player"
     Helpers.ClearScroll(ctx)
     local scroll = ensureScroll(ctx)
     Helpers.__lastUnitCtx = ctx   -- test seam: the harness has no other handle on a live ctx
-
-    local AceGUI = NS.AceGUI
-    if not AceGUI then return end
 
     -- Unit selector ---------------------------------------------------
     local dd = AceGUI:Create("Dropdown")
@@ -426,6 +434,26 @@ function Helpers.RenderUnitPanel(ctx, pageKey)
         Helpers.RenderRows(ctx, styledRows)
     end
     if scroll.DoLayout then scroll:DoLayout() end
+
+    -- Register the HEADER's refresher. The mirror checkbox and the "Copy styling from Player"
+    -- button above are built inline here, not through RenderField, so neither appends a refresher
+    -- of its own — RefreshAllPanels structurally could not update them, and nothing re-ran the
+    -- mirrored/unmirrored row partition. Concretely: RestoreDefaults("bar", ctx) resets
+    -- units.focus.mirror to its default `true`, then runs only the refreshers, so the checkbox
+    -- still read unchecked and the appearance rows stayed on screen over a now-mirrored unit
+    -- (same stale state after `/at set units.focus.mirror true` and after a profile switch).
+    --
+    -- A full re-render is the honest fix rather than a bespoke "set the checkbox" closure: the
+    -- partition itself has to re-run, and RenderUnitPanel already clears the scroll and is safe to
+    -- re-enter (the ctx.__rendering guard at the top). Registered LAST so the row refreshers above
+    -- have already run — they act on widgets this call is about to release, and RefreshAllPanels
+    -- iterates the pre-render table, so the freshly-registered closure is not re-invoked in the
+    -- same pass.
+    ctx.refreshers[#ctx.refreshers + 1] = function()
+        Helpers.RenderUnitPanel(ctx, pageKey)
+    end
+
+    ctx.__rendering = false
 end
 
 -- ---------------------------------------------------------------------
@@ -481,6 +509,22 @@ function Helpers.RestoreDefaults(pageKey, ctx)
     end
 end
 
+-- Clear EVERY unit's saved position and republish POSITION so all three bars re-anchor to their
+-- stacked defaults. This is the single "reset position" implementation: `/at resetposition`
+-- (settings/Slash.lua), the General page's "Reset Position" button (settings/General.lua) and
+-- RestoreAllDefaults below all call it, so the CLI and the panel can never diverge.
+--
+-- They diverged here once already: the panel button nil'd `db.profile.position`, the pre-v3 FLAT
+-- key that the v3 migration DELETES (it moves to units.player.position), so the assignment cleared
+-- an already-nil key and the POSITION publish re-anchored every bar from its untouched
+-- NS.Units.Position. The button was a silent no-op. Do not re-inline the loop at either call site.
+function Helpers.ResetAllPositions()
+    for _, unit in ipairs(NS.Units.LIST) do
+        NS.Units.SetPosition(unit, nil)
+    end
+    NS.bus:SendMessage(NS.MSG.POSITION)
+end
+
 -- Reset every schema-driven page (general / bar / border / font) to its
 -- per-row default, clear the saved bar position (recentering the bar),
 -- then refresh every open panel so live widgets reflect the new state.
@@ -496,11 +540,9 @@ function Helpers.RestoreAllDefaults()
     end
     -- Clear every unit's saved position and recenter. `position` is not a schema row (it's set by
     -- dragging), so ApplyDefault above never touches it — it must be cleared explicitly, once per
-    -- unit, or a target bar dragged off-screen would survive a Reset All.
-    for _, unit in ipairs(NS.Units.LIST) do
-        NS.Units.SetPosition(unit, nil)
-    end
-    NS.bus:SendMessage(NS.MSG.POSITION)
+    -- unit, or a target bar dragged off-screen would survive a Reset All. Delegated to the shared
+    -- helper above so this and `/at resetposition` stay one implementation.
+    Helpers.ResetAllPositions()
     Helpers.RefreshAllPanels()
 end
 

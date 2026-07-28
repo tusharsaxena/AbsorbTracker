@@ -130,13 +130,12 @@ local function build(mainCategory)
                 H.InlineButtonPair(ctxRef,
                     {
                         text    = "Reset Position",
-                        tooltip = "Move the bar back to the screen center.",
-                        onClick = function()
-                            if NS.db and NS.db.profile then
-                                NS.db.profile.position = nil
-                            end
-                            NS.bus:SendMessage(NS.MSG.POSITION)
-                        end,
+                        tooltip = "Move every bar back to its default position.",
+                        -- Same shared helper `/at resetposition` calls, so the button and the
+                        -- slash verb can never diverge. They did once: this body used to nil
+                        -- `db.profile.position`, the pre-v3 flat key the v3 migration deletes,
+                        -- which made the button a silent no-op (see Helpers.ResetAllPositions).
+                        onClick = function() H.ResetAllPositions() end,
                     },
                     {
                         text    = "Reset All Settings",

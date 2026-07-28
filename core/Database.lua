@@ -30,6 +30,81 @@ local function deepcopy(v)
     return out
 end
 
+-- v3 (§2.2/§5.1): bar appearance moved from flat profile keys to profile.units.<unit>.
+--
+-- Gated on a schemaVersion stamp, NOT on `profile.units == nil`. Under REAL AceDB-3.0, the very
+-- act of reading `NS.db.profile` already triggers the library's own copyDefaults: AceDB's
+-- dbmt.__index lazily initializes a section on first access and fills every missing key —
+-- including the whole new `units` table — straight from NS.defaults before any migration code
+-- runs. So on a real upgrading install `profile.units` is NEVER nil by the time we get here, and
+-- a `units == nil` guard makes this entire block permanently dead: the user's pre-v3 flat values
+-- (barWidth, barColor, position, ...) would be silently orphaned and the bar would render with
+-- brand-new factory defaults instead of their saved configuration.
+--
+-- The gate is the PER-PROFILE stamp (`profile.schemaVersion`, defaults/Profile.lua), not the
+-- account-wide `db.global.schemaVersion`. The lift is a per-profile mutation, so an account-wide
+-- flag cannot gate it correctly: a user on "Default" with a second pre-v3 "Raid" profile would
+-- migrate Default, flip the account-wide stamp to 3, and strand Raid's flat keys forever. The
+-- per-profile default is deliberately 1, so an unstamped (= pre-v3) profile reads as pre-v3 even
+-- after copyDefaults has been over it — see the comment in defaults/Profile.lua.
+--
+-- Idempotent by construction: it clears each flat original as it lifts, and stamps the profile at
+-- the end, so a second call (from InitDB's sweep AND from OnProfileChanged) is a no-op.
+-- Returns true only when it actually lifted something.
+function NS.MigrateProfileToV3(profile)
+    if type(profile) ~= "table" then return false end
+    if (profile.schemaVersion or 1) >= 3 then return false end
+
+    local defaults = NS.defaults.profile
+    -- profile.units usually already exists here (AceDB / the backfill on a prior run seeded it) —
+    -- the no-AceDB fallback and a raw, never-activated profile out of db.sv.profiles can reach
+    -- this with no `units` table at all, so create it (and any missing unit row) rather than
+    -- assuming it is absent.
+    profile.units = profile.units or {}
+    for _, unit in ipairs(NS.Units.LIST) do
+        profile.units[unit] = profile.units[unit] or deepcopy(defaults.units[unit])
+    end
+    -- Lift the pre-v3 flat appearance keys (and the saved position) onto the player unit —
+    -- OVERWRITING whatever copyDefaults may already have seeded there from the NEW defaults —
+    -- then clear the flat originals. A user upgrading sees an identical bar in an identical spot.
+    for _, key in ipairs(NS.Units.APPEARANCE_KEYS) do
+        if profile[key] ~= nil then
+            profile.units.player[key] = profile[key]
+            profile[key] = nil
+        end
+    end
+    if profile.position ~= nil then
+        profile.units.player.position = profile.position
+        profile.position = nil
+    end
+
+    profile.schemaVersion = 3
+    return true
+end
+
+-- Lift EVERY profile in the saved store, not just whichever one happens to be active at InitDB.
+-- Without this, a user with "Default" and "Raid" who upgrades while on Default migrates Default,
+-- flips the account-wide stamp, and Raid's flat barWidth / barColor / position become unreachable
+-- forever — their raid layout silently reverts to factory defaults.
+local function migrateAllProfiles()
+    local n = 0
+    if NS.MigrateProfileToV3(NS.db.profile) then n = n + 1 end
+
+    -- AceDB-3.0 keeps the raw name -> profile-table map at db.sv.profiles. Guarded rather than
+    -- assumed: the no-AceDB fallback (NS.db = { profile = AbsorbTrackerDB, global = {} }) has no
+    -- `sv` at all, and there the single profile handled above IS the whole store.
+    local sv = NS.db.sv
+    local store = (type(sv) == "table") and sv.profiles or nil
+    if type(store) == "table" then
+        for _, p in pairs(store) do
+            -- Skip the active profile: already done above, and MigrateProfileToV3's own stamp
+            -- would make a second pass a no-op anyway.
+            if p ~= NS.db.profile and NS.MigrateProfileToV3(p) then n = n + 1 end
+        end
+    end
+    return n
+end
+
 function NS:RunMigrations()
     local g = NS.db and NS.db.global
     if not g then return end
@@ -38,43 +113,9 @@ function NS:RunMigrations()
     local profile = NS.db.profile
     local defaults = NS.defaults.profile
 
-    -- v3 (§2.2/§5.1): bar appearance moved from flat profile keys to profile.units.<unit>.
-    --
-    -- Gated on schemaVersion, NOT on `profile.units == nil`. Under REAL AceDB-3.0, the very act
-    -- of reading `NS.db.profile` two lines above already triggered the library's own
-    -- copyDefaults: AceDB's dbmt.__index lazily initializes a section on first access and fills
-    -- every missing key — including the whole new `units` table — straight from NS.defaults
-    -- before this line ever runs. So on a real upgrading install `profile.units` is NEVER nil by
-    -- the time we get here, and a `units == nil` guard makes this entire block permanently dead:
-    -- the user's pre-v3 flat values (barWidth, barColor, position, ...) would be silently
-    -- orphaned and the bar would render with brand-new factory defaults instead of their saved
-    -- configuration. schemaVersion is the only reliable "does this profile predate v3" signal —
-    -- copyDefaults only ever fills an ABSENT key, so it never touches an existing
-    -- schemaVersion, meaning an upgrading user's global keeps its pre-v3 stamp (1 or 2) right up
-    -- until the version bump below runs.
-    if profile and g.schemaVersion < 3 then
-        -- profile.units usually already exists here (AceDB / the backfill on a prior run seeded
-        -- it) — only the no-AceDB fallback (NS.db = { profile = AbsorbTrackerDB, global = {} })
-        -- can reach this with no `units` table at all, so create it (and any missing unit row)
-        -- rather than assuming it is absent.
-        profile.units = profile.units or {}
-        for _, unit in ipairs(NS.Units.LIST) do
-            profile.units[unit] = profile.units[unit] or deepcopy(defaults.units[unit])
-        end
-        -- Lift the pre-v3 flat appearance keys (and the saved position) onto the player unit —
-        -- OVERWRITING whatever copyDefaults may already have seeded there from the NEW
-        -- defaults — then clear the flat originals. A user upgrading sees an identical bar in
-        -- an identical spot.
-        for _, key in ipairs(NS.Units.APPEARANCE_KEYS) do
-            if profile[key] ~= nil then
-                profile.units.player[key] = profile[key]
-                profile[key] = nil
-            end
-        end
-        if profile.position ~= nil then
-            profile.units.player.position = profile.position
-            profile.position = nil
-        end
+    local lifted = migrateAllProfiles()
+    if lifted > 0 then
+        NS.Debug("Migrate", "lifted %s profile(s) to v3", lifted)
     end
 
     -- Backfill any missing key from the defaults. Absorbs the legacy pre-AceDB flat

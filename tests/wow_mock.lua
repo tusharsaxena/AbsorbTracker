@@ -178,6 +178,13 @@ return function()
       end
 
       copyDefaults(sv.global, defaults and defaults.global)
+      -- Real AceDB-3.0 exposes the whole raw SavedVariables table as db.sv, and that is how
+      -- core/Database.lua reaches `sv.profiles` to lift EVERY saved profile (not just the active
+      -- one) at InitDB. Note the fidelity that matters: profiles are only merged with the defaults
+      -- by ensureProfile when they are actually activated, so a pre-seeded, never-activated
+      -- profile stays exactly as the SavedVariables file had it — un-stamped and pre-v3, which is
+      -- precisely the case the per-profile lift has to handle.
+      db.sv      = sv
       db.global  = sv.global
       db.profile = ensureProfile(current)
 
@@ -349,10 +356,17 @@ return function()
     WidgetRegistry   = {},
     __widgetVersions = {},
   }
+  -- Every widget this factory hands out, in creation order. Harness-side only — no production
+  -- code knows it exists. It is the ONLY way a test can reach a widget on a page whose ctx is
+  -- private to settings/Helpers.lua's `renderedPanels` list (the General page has no
+  -- __lastUnitCtx equivalent), which is why the "Reset Position" button's onClick shipped
+  -- unreachable and therefore untested.
+  aceGUI.__created = {}
   function aceGUI:Create(wtype)
     local ctor = self.WidgetRegistry[wtype]
-    if ctor then return ctor() end
-    return makeWidget(wtype)
+    local w = ctor and ctor() or makeWidget(wtype)
+    self.__created[#self.__created + 1] = w
+    return w
   end
   function aceGUI:GetWidgetVersion(wtype) return self.__widgetVersions[wtype] end
   function aceGUI:RegisterWidgetType(wtype, ctor, version)

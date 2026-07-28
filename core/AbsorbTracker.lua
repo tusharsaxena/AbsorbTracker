@@ -193,6 +193,16 @@ end
 -- AceDB profile-change callback (registered in core/Database.lua). Repaint the bar from the new
 -- profile and refresh an open settings panel.
 function NS.OnProfileChanged()
+    -- Belt and braces for the per-profile v3 lift. NS:InitDB sweeps every profile in the saved
+    -- store, but a profile that only APPEARS afterwards — copied in from another character,
+    -- restored from a backup SavedVariables file, or reset back to the shipped defaults — never
+    -- passed through that sweep. Its own `schemaVersion` stamp still reads pre-v3, so lift it the
+    -- moment it becomes active. Composes with the InitDB sweep without double-applying: the stamp,
+    -- not the account-wide one, is the authority for "has THIS profile been lifted", and
+    -- MigrateProfileToV3 returns immediately once it is set (core/Database.lua).
+    if NS.MigrateProfileToV3 and NS.db then
+        NS.MigrateProfileToV3(NS.db.profile)
+    end
     NS.Debug("Profile", "changed \226\134\146 %s",
         (NS.db and NS.db.GetCurrentProfile and NS.db:GetCurrentProfile()) or "?")
     NS.bus:SendMessage(NS.MSG.POSITION)

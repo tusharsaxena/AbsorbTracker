@@ -120,7 +120,7 @@ schema paths survive) and looks it up in the ordered `NS.COMMANDS` table. Unknow
 | `/at set <path> <value>` | Set one setting (typed: bool/number/string/color) |
 | `/at reset <general\|bar\|border\|font>` | Reset one panel to defaults |
 | `/at resetall` | Reset every setting, clear the saved position, and recenter the bar (shared `Helpers.RestoreAllDefaults` — the panel's Reset All button calls the same path) |
-| `/at resetposition` | Return the bar to screen center |
+| `/at resetposition` | Clear **every** unit's saved position and re-anchor all three bars to their stacked defaults (shared `Helpers.ResetAllPositions` — the General page's Reset Position button calls the same path) |
 | `/at lock` / `/at unlock` | Flip the drag lock |
 | `/at toggle` | Flip bar visibility |
 | `/at debug` (`on`/`off`) | Toggle the debug console window; `on`/`off` enable/disable logging |
@@ -214,6 +214,33 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
   pattern for this (BigWigs et al.). All other events (`PLAYER_ENTERING_WORLD`,
   `PLAYER_REGEN_DISABLED/ENABLED`, `PLAYER_TARGET_CHANGED`, `PLAYER_FOCUS_CHANGED`) stay on
   AceEvent. These are the *only* raw event frames; §9.1 otherwise holds.
+
+- **§5.1 — a PER-PROFILE `schemaVersion` stamp alongside the account-wide one.** §5.1 puts the
+  persisted-DB version stamp account-wide in `db.global`. This addon keeps that stamp *and* adds a
+  second one at `db.profile.schemaVersion` (`defaults/Profile.lua`, default `1`). **Why:** the v3
+  migration — lifting flat appearance keys onto `profile.units.<unit>` — is a **per-profile**
+  mutation, and an account-wide flag structurally cannot gate one. A user with "Default" and "Raid"
+  both pre-v3 who upgrades while on Default migrates Default, flips the account-wide stamp to 3, and
+  Raid's flat `barWidth` / `barColor` / `position` become unreachable forever — no later login
+  re-runs the lift, so their raid layout silently reverts to factory defaults. `NS:InitDB` now sweeps
+  every profile in `db.sv.profiles` before the account-wide stamp flips, and `NS.OnProfileChanged`
+  re-runs the lift for any profile that only *appears* later (copied in from another character,
+  restored from a backup SavedVariables file, or reset). The per-profile stamp is the authority for
+  "has **this** profile been lifted"; the account-wide stamp remains the DB-wide marker and still
+  drives the v2 step. The per-profile default is deliberately `1`, not `3`: AceDB's `copyDefaults`
+  fills every absent key before `RunMigrations` reads the profile, so a default of `3` would mark
+  every upgrading profile as already-migrated and make the gate dead code. See
+  [profiles.md](./profiles.md).
+
+- **A production test seam: `Helpers.__lastUnitCtx` (`settings/Helpers.lua`).**
+  `Helpers.RenderUnitPanel` stashes the ctx it just rendered on `NS.Helpers.__lastUnitCtx`.
+  **Why:** the per-page `ctx` tables are private to the `renderedPanels` list inside
+  `settings/Helpers.lua`, so the headless harness has no other handle on a *live* rendered panel;
+  without it, the entire per-unit render path (Unit dropdown, mirror header, row partition) would
+  be reachable only through in-game smoke tests. It is a single dunder-prefixed field, written on
+  every render and read by nothing in production — no behaviour depends on it. Recorded here rather
+  than removed because the coverage it buys is worth more than the purity; if a public
+  panel-registry accessor is ever added, this should collapse into it.
 
 - **Non-Blizzard media that is intentionally fixed (no LSM selector).** The bar-appearance media —
   `barTexture`, `bgTexture` (both default `"Blizzard Raid Bar"`), `border` (`"Blizzard Tooltip"`) and

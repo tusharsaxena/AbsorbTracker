@@ -212,6 +212,33 @@ The slash surface is `settings/Slash.lua`, registered via AceConsole (`NS.addon:
 
 Per-setting subcommands like `/at width 250` or `/at color classcolor on` were removed in favor of `/at set <path> <value>` — today that path is fully qualified: `/at set units.player.barWidth 250` and `/at set units.player.useClassColorBar true`.
 
+## Stored vs. resolved — the mirror seam
+
+Ask *"what is focus's `barWidth`?"* and three layers give three different answers. None of them is
+wrong; the point of this section is that the split is **deliberate**, so it is written down once
+here instead of being rediscovered from three files.
+
+| Layer | Answer | Why |
+|-------|--------|-----|
+| **`NS.Units.Get(unit, key)`** (`core/Units.lua`) | **Resolved** — follows the mirror. While `units.focus.mirror` is true it returns the **player's** value. | This is what the bar renders. `modules/Bar.lua`, `modules/Display.lua` and `core/Data.lua` read appearance *only* through here, so "mirror the player" lives in exactly one place. |
+| **`NS.GetSetting(path)`** (`core/Data.lua`) | **Stored** — `ResolvePath(db.profile, path)`, mirror ignored. Returns focus's *own* saved `barWidth`, whatever the bar is currently showing. | It is the read half of the same seam `/at set` writes through. Resolving on read would make `get` and `set` asymmetric: `/at set units.focus.barWidth 400` followed by `/at get units.focus.barWidth` would echo the player's number. `NS.Units.Set` is deliberately unresolved for the same reason — a write while mirrored must never silently edit the *player's* bar. |
+| **The panel** (`Helpers.RenderUnitPanel`) | **Hidden** — while a unit is mirrored its appearance rows are not rendered at all; only the mirror header and the `alwaysPerUnit` rows (`enabled`) are shown. | The stored value is not what the user would see on screen, so offering a widget for it would be a lie. `NS.PartitionUnitRows` does the split. |
+
+The seam is only dangerous where it is **silent**, so the slash surface says so out loud: `/at get`,
+`/at set` and `/at list` append a subordinate grey `(mirrored — the bar shows Player's appearance)`
+note to any row whose unit is currently mirroring (`MirrorNote` in `settings/Slash.lua`). Only
+appearance rows are annotated — `enabled` and `mirror` carry `alwaysPerUnit = true` and are honoured
+per-unit even while mirrored, so a note on them would be wrong in the other direction.
+
+Two consequences worth remembering:
+
+- **A write to a mirrored unit is not lost, it is parked.** `/at set units.focus.barWidth 400` really
+  does store 400. Untick the mirror (or `/at set units.focus.mirror false`) and 400 is what the focus
+  bar renders.
+- **`Units.CopyFromPlayer` is the bridge.** It deep-copies the player's fifteen appearance keys into
+  the unit's own storage and clears `mirror`, which makes the stored and resolved answers agree — once.
+  It is a snapshot, not a second live link.
+
 ## What's *not* schema-driven
 
 - **Action buttons** like Reset Position. They're rendered via `Helpers.InlineButtonPair`, attached to a sub-page through `Helpers.RenderSchema`'s `afterGroup` callback. `settings/General.lua` wires the **Reset Position** + **Reset All Settings** pair under the **Master controls** group via `RenderSchema(ctx, "general", { ["Master controls"] = function(ctxRef) H.InlineButtonPair(ctxRef, ...) end })`. Each page's **Defaults** button (`Helpers.RestoreDefaults(pageKey, ctx)`) is likewise not a row.

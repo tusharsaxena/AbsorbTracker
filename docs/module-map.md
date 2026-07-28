@@ -156,12 +156,18 @@ NS:InitDB()         -- AceDB:New("AbsorbTrackerDB", NS.defaults, true); register
                     -- OnProfileChanged/OnProfileCopied/OnProfileReset -> NS.OnProfileChanged
                     -- (RegisterCallback guarded for the headless mock); falls back to a
                     -- raw-SV table when AceDB is absent; then calls RunMigrations.
-NS:RunMigrations()  -- reads/writes db.global.schemaVersion. Idempotent. v3 (gated on
-                    -- schemaVersion < 3, NOT profile.units == nil -- see core/Database.lua's
-                    -- comment) lifts the pre-v3 flat appearance keys onto profile.units.player;
-                    -- the unconditional backfill step then fills any missing flat OR per-unit key
-                    -- from NS.defaults.profile; v2 drops the dead profile.updateInterval key
+NS:RunMigrations()  -- reads/writes db.global.schemaVersion. Idempotent. The v3 lift is gated
+                    -- PER PROFILE on profile.schemaVersion (NOT on the account-wide stamp, and
+                    -- NOT on profile.units == nil -- see core/Database.lua's comment) and runs
+                    -- over the active profile AND every profile in db.sv.profiles; it lifts the
+                    -- pre-v3 flat appearance keys onto profile.units.player. The unconditional
+                    -- backfill step then fills any missing flat OR per-unit key from
+                    -- NS.defaults.profile; v2 drops the dead profile.updateInterval key
                     -- (repaints are event-driven now).
+NS.MigrateProfileToV3(profile)
+                    -- The per-profile lift itself. Public so NS.OnProfileChanged can re-run it
+                    -- for a profile copied/restored in after InitDB's sweep. Returns false
+                    -- immediately once the profile carries its own schemaVersion = 3 stamp.
 ```
 
 ### Units (`core/Units.lua`)
@@ -286,8 +292,12 @@ Cross-module signalling goes through the message bus (see [Bus](#bus-corebuslua)
 Runs at file-load time; publishes the AceDB-shaped defaults.
 
 ```lua
-NS.defaults          -- { profile = { <4 flat globals>, units = { player, target, focus } },
-                     --   global = { schemaVersion = 3 } }
+NS.defaults          -- { profile = { schemaVersion = 1, <4 flat globals>,
+                     --               units = { player, target, focus } },
+                     --   global  = { schemaVersion = 3 } }
+                     -- profile.schemaVersion defaults to 1 ("not yet lifted") on purpose:
+                     -- AceDB copyDefaults fills it before RunMigrations reads it, so a
+                     -- default of 3 would mark every upgrading profile as already migrated.
 NS.flatDefaults      -- alias to defaults.profile (GetSetting fallback for flat keys)
 NS.unitDefaults      -- alias to defaults.profile.units.player — the canonical per-row default
                      -- source settings/{Bar,Border,Font}.lua read from, shared by all 3 units
