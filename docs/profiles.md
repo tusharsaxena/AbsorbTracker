@@ -98,7 +98,7 @@ The shim isn't exercised in-game (AceDB ships in-tree), but the migration/backfi
 
 `NS:RunMigrations` (`core/Database.lua`) is the single idempotent schema-upgrade seam, invoked once at the end of `InitDB`. It does three things, in order:
 
-1. **Lift every profile to v3** (`migrateAllProfiles` → `NS.MigrateProfileToV3`).
+1. **Lift every profile to v3** (`migrateAllProfiles` → `NS.MigrateProfileToV3`). Logs one `[Migrate] lifted N profile(s) to v3` line, and only when a flat key was actually moved — a factory-fresh profile is unstamped and so passes the gate and gets stamped, but has nothing to lift, so a fresh install logs nothing.
 2. **Backfill** any key still missing from the active profile — flat globals at the root, and every unit's keys under `units.<unit>` — from the defaults, deep-copying table values so a saved-variable mutation can never reach back into `NS.defaults`.
 3. **Stamp** the account-wide version: the v2 step (retiring the dead `profile.updateInterval` key, orphaned when the poll ticker became event-driven) and then `global.schemaVersion = 3`. Each step logs one `[Migrate]` debug line only when the bump actually happens.
 
@@ -123,7 +123,7 @@ Two mechanisms, composing on the one stamp so they cannot double-apply:
 | `NS:InitDB` → `RunMigrations` → `migrateAllProfiles` | The active profile, **plus every profile in the raw saved store** (`db.sv.profiles`, AceDB's name → profile-table map), before the account-wide stamp flips to 3. The `db.sv` lookup is guarded, so the no-AceDB fallback — which has no such store — simply migrates its single profile. |
 | `NS.OnProfileChanged` | Any profile that only *appears* after that sweep: copied in from another character, restored from a backup SavedVariables file, or reset back to defaults. Lifted the moment it becomes active. |
 
-`MigrateProfileToV3` returns `false` immediately for a profile that already carries the stamp, so running both is a no-op on the second pass. `tests/test_database.lua` covers all three cases — two pre-v3 profiles both lifted at `InitDB`, a profile appearing after the upgrade lifted on profile change, and proof the two do not double-apply.
+`MigrateProfileToV3` returns `false` immediately for a profile that already carries the stamp, so running both is a no-op on the second pass; it also returns `false` when it stamped a profile that had nothing to move, which is what keeps the `[Migrate]` count honest. `tests/test_database.lua` covers all three cases — two pre-v3 profiles both lifted at `InitDB`, a profile appearing after the upgrade lifted on profile change, and proof the two do not double-apply.
 
 ## Bar position is per-profile *and* per-unit
 

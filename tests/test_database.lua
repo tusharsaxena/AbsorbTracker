@@ -281,3 +281,34 @@ test("the per-profile stamp defaults to 1 so copyDefaults cannot mark a pre-v3 p
   -- touch and make the whole gate dead code.
   assertEqual(NS.defaults.profile.schemaVersion, 1)
 end)
+
+test("a fresh install logs no [Migrate] lift line -- nothing was actually lifted", function()
+  -- The per-profile stamp defaults to 1, so a factory-fresh profile passes the gate and gets
+  -- stamped -- but it has no flat keys to move. Reporting that as a migration made a brand-new
+  -- install log "lifted 1 profile(s) to v3" for work that never happened, contradicting
+  -- docs/profiles.md's claim that the line appears only when the bump actually happens.
+  local savedSV, savedDB, savedDebug = _G.AbsorbTrackerDB, NS.db, NS.State.debug
+  _G.AbsorbTrackerDB = nil
+  NS.State.debug = true
+  local before = #NS.DebugLog.buffer
+  NS:InitDB()
+  local logged = table.concat(NS.DebugLog.buffer, "\n", before + 1, #NS.DebugLog.buffer)
+  NS.db, _G.AbsorbTrackerDB, NS.State.debug = savedDB, savedSV, savedDebug
+  assertTrue(logged:find("lifted", 1, true) == nil,
+    "a fresh install lifted nothing and must say nothing: " .. logged)
+end)
+
+test("a real upgrade still logs the lift, with an accurate count", function()
+  local savedSV, savedDB, savedDebug = _G.AbsorbTrackerDB, NS.db, NS.State.debug
+  _G.AbsorbTrackerDB = {
+    profiles = { Default = { barWidth = 275 }, Raid = { fontSize = 19 }, Fresh = {} },
+    global   = { schemaVersion = 2 },
+  }
+  NS.State.debug = true
+  local before = #NS.DebugLog.buffer
+  NS:InitDB()
+  local logged = table.concat(NS.DebugLog.buffer, "\n", before + 1, #NS.DebugLog.buffer)
+  NS.db, _G.AbsorbTrackerDB, NS.State.debug = savedDB, savedSV, savedDebug
+  assertTrue(logged:find("lifted 2 profile(s) to v3", 1, true) ~= nil,
+    "two profiles carried flat keys; the third was empty and must not be counted: " .. logged)
+end)

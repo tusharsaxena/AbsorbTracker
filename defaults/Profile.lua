@@ -2,8 +2,11 @@ local addonName, NS = ...
 
 -- AceDB defaults. Bar appearance is PER UNIT (player / target / focus) under `profile.units`;
 -- the four master toggles stay flat at the profile root because they govern all three bars.
--- The persisted-DB schema-version stamp lives under `global` (account-wide) so NS:RunMigrations
--- has a single version to walk regardless of the active profile (Ka0s standard §5.1).
+-- There are TWO schema-version stamps. The account-wide one under `global` (Ka0s standard §5.1) is
+-- the DB-wide marker NS:RunMigrations walks regardless of the active profile. The second lives
+-- per-profile, below, and gates the v3 lift — which is a per-profile mutation an account-wide flag
+-- structurally cannot gate. That second stamp is a deliberate, recorded §5.1 deviation: see the
+-- "Standards Deviations" section of docs/ARCHITECTURE.md and docs/profiles.md.
 NS.defaults = NS.defaults or {}
 
 -- The per-unit appearance block. Built by a factory so each unit gets its OWN tables — sharing

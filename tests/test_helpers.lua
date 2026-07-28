@@ -579,3 +579,87 @@ test("the header refresher cannot recurse: a refresh fired mid-render is a no-op
   ctx.__rendering = false
   NS.Helpers.RenderUnitPanel(ctx, "bar")
 end)
+
+test("an ordinary schema write does NOT re-render the whole unit page", function()
+  -- settings/Widgets.lua's `set` calls RefreshAllPanels after EVERY schema write, so the header
+  -- refresher runs on every checkbox click, slider drag and LSM pick on this page. It must only
+  -- re-render when the mirror state actually changed: an unconditional re-render has ClearScroll
+  -- release the very widget whose OnValueChanged is still on the stack (an LSM dropdown with an
+  -- open pullout, a slider mid-drag), and takes scroll position and tooltips with it.
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  NS.db.profile.units.focus.mirror = false
+  ctx.unit = "focus"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+
+  local target
+  local function walk(w)
+    for _, child in ipairs(w.children or {}) do
+      if child.labelText == "Use Class Color" and not target then target = child end
+      walk(child)
+    end
+  end
+  walk(ctx.scroll)
+  assertTrue(target ~= nil, "no Use Class Color checkbox on the unlinked focus page")
+
+  local widgetsBefore = #NS.AceGUI.__created
+  local firstChild    = ctx.scroll.children[1]
+  target:__fire("OnValueChanged", true)
+
+  assertEqual(#NS.AceGUI.__created, widgetsBefore,
+    "an appearance write must create no widgets -- the page must not be torn down and rebuilt")
+  assertEqual(ctx.scroll.children[1], firstChild,
+    "the live widgets must survive the write, not be released under their own callback")
+
+  NS.SetByPath("units.focus.useClassColorBar", false)
+  NS.db.profile.units.focus.mirror = true
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+end)
+
+test("a mirror-state change DOES re-render -- the two-tier refresher keeps both halves", function()
+  -- The companion to the test above: prove the cheap path did not cost us the re-render. Counts
+  -- widget creations rather than only inspecting labels, so "it re-partitioned" is measured at the
+  -- same seam the no-re-render test measures.
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  NS.db.profile.units.focus.mirror = false
+  ctx.unit = "focus"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+
+  local widgetsBefore = #NS.AceGUI.__created
+  NS.SetByPath("units.focus.mirror", true)
+  NS.Helpers.RefreshAllPanels()
+
+  assertTrue(#NS.AceGUI.__created > widgetsBefore,
+    "flipping the mirror must rebuild the page so the row partition re-runs")
+  local checked, hasRows = mirrorHeaderState(ctx)
+  assertTrue(checked, "and the header checkbox follows the new mirror state")
+  assertFalse(hasRows, "and the mirrored unit's appearance rows are gone")
+
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+end)
+
+test("/at resetposition does not claim success when the settings helpers are absent", function()
+  -- Same silent-lie shape as the Reset Position no-op: the acknowledgement must live inside the
+  -- guard, not after it.
+  local real = NS.Helpers.ResetAllPositions
+  NS.Helpers.ResetAllPositions = nil
+  local out = {}
+  local cf  = T.mocks.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function(_, msg) out[#out + 1] = msg end
+  local ok, err = pcall(function() NS.Slash:OnSlash("resetposition") end)
+  cf.AddMessage = old
+  NS.Helpers.ResetAllPositions = real
+  if not ok then error(err) end
+
+  local joined = table.concat(out, "\n")
+  assertTrue(joined:find("Bar positions reset", 1, true) == nil,
+    "it must not report success it did not achieve: " .. joined)
+  assertTrue(joined:find("Cannot reset positions", 1, true) ~= nil,
+    "and it must say what went wrong: " .. joined)
+end)

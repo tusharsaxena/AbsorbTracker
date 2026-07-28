@@ -45,7 +45,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - the mirror row is kept out of the auto-rendered body
 - General's rows stay flat globals with no unit tag
 
-### test_database.lua (23)
+### test_database.lua (25)
 
 - RunMigrations migrates a fresh DB to the current version (3)
 - RunMigrations leaves an already-current (v3) DB unchanged
@@ -70,6 +70,8 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - a profile that appears AFTER the upgrade is lifted when it becomes active
 - the InitDB sweep and the profile-change lift compose without double-applying
 - the per-profile stamp defaults to 1 so copyDefaults cannot mark a pre-v3 profile migrated
+- a fresh install logs no [Migrate] lift line -- nothing was actually lifted
+- a real upgrade still logs the lift, with an accurate count
 
 ### test_units.lua (14)
 
@@ -238,7 +240,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_helpers.lua (37)
+### test_helpers.lua (40)
 
 - CreatePanel returns a ctx wired to a panel, a body and an empty refresher list
 - CreatePanel names the panel with the plain title for the Blizzard left tree
@@ -277,6 +279,9 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - a page refresh re-syncs the mirror checkbox and re-runs the row partition
 - `/at set units.<unit>.mirror` re-syncs an open panel's mirror header
 - the header refresher cannot recurse: a refresh fired mid-render is a no-op
+- an ordinary schema write does NOT re-render the whole unit page
+- a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
+- /at resetposition does not claim success when the settings helpers are absent
 
 ### test_slashcmds.lua (58)
 
@@ -395,7 +400,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | Suite | Count |
 |-------|-------|
 | test_schema.lua | 40 |
-| test_database.lua | 23 |
+| test_database.lua | 25 |
 | test_units.lua | 14 |
 | test_compat.lua | 4 |
 | test_util.lua | 6 |
@@ -406,7 +411,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
 | test_display.lua | 34 |
-| test_helpers.lua | 37 |
+| test_helpers.lua | 40 |
 | test_slashcmds.lua | 58 |
 | test_widgets.lua | 48 |
-| **Total** | **343** |
+| **Total** | **348** |

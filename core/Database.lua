@@ -50,11 +50,16 @@ end
 --
 -- Idempotent by construction: it clears each flat original as it lifts, and stamps the profile at
 -- the end, so a second call (from InitDB's sweep AND from OnProfileChanged) is a no-op.
--- Returns true only when it actually lifted something.
+--
+-- Returns true only when a flat key was ACTUALLY moved — not merely when the stamp was written.
+-- A factory-fresh profile is unstamped (the per-profile default is 1) and so passes the gate and
+-- gets stamped, but has no flat keys to lift; reporting that as a migration made a fresh install
+-- log "[Migrate] lifted 1 profile(s) to v3" for work that never happened.
 function NS.MigrateProfileToV3(profile)
     if type(profile) ~= "table" then return false end
     if (profile.schemaVersion or 1) >= 3 then return false end
 
+    local lifted = false
     local defaults = NS.defaults.profile
     -- profile.units usually already exists here (AceDB / the backfill on a prior run seeded it) —
     -- the no-AceDB fallback and a raw, never-activated profile out of db.sv.profiles can reach
@@ -71,15 +76,17 @@ function NS.MigrateProfileToV3(profile)
         if profile[key] ~= nil then
             profile.units.player[key] = profile[key]
             profile[key] = nil
+            lifted = true
         end
     end
     if profile.position ~= nil then
         profile.units.player.position = profile.position
         profile.position = nil
+        lifted = true
     end
 
     profile.schemaVersion = 3
-    return true
+    return lifted
 end
 
 -- Lift EVERY profile in the saved store, not just whichever one happens to be active at InitDB.

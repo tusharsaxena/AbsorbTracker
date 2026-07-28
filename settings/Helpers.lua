@@ -386,12 +386,13 @@ function Helpers.RenderUnitPanel(ctx, pageKey)
 
     -- Mirror header (target / focus only) ------------------------------
     local mirrored = NS.Units.IsMirrored(ctx.unit)
+    local cb                                   -- hoisted: the refresher at the bottom re-syncs it
     if ctx.unit ~= "player" then
         local row = AceGUI:Create("SimpleGroup")
         row:SetLayout("Flow")
         row:SetFullWidth(true)
 
-        local cb = AceGUI:Create("CheckBox")
+        cb = AceGUI:Create("CheckBox")
         cb:SetLabel("Use same styling as Player")
         cb:SetValue(mirrored)
         cb:SetRelativeWidth(0.5)
@@ -443,14 +444,29 @@ function Helpers.RenderUnitPanel(ctx, pageKey)
     -- still read unchecked and the appearance rows stayed on screen over a now-mirrored unit
     -- (same stale state after `/at set units.focus.mirror true` and after a profile switch).
     --
-    -- A full re-render is the honest fix rather than a bespoke "set the checkbox" closure: the
-    -- partition itself has to re-run, and RenderUnitPanel already clears the scroll and is safe to
-    -- re-enter (the ctx.__rendering guard at the top). Registered LAST so the row refreshers above
-    -- have already run — they act on widgets this call is about to release, and RefreshAllPanels
-    -- iterates the pre-render table, so the freshly-registered closure is not re-invoked in the
-    -- same pass.
+    -- TWO-TIER, and the split matters. Every schema widget's `set` (settings/Widgets.lua) calls
+    -- RefreshAllPanels, so this closure runs on EVERY checkbox click, slider drag and LSM pick on
+    -- this page:
+    --
+    --   * Always — re-sync the checkbox in place. Cheap, tears nothing down.
+    --   * Only when the mirror state actually CHANGED since this render — re-render, because that
+    --     is the only thing that can invalidate the mirrored/unmirrored partition.
+    --
+    -- An unconditional re-render here would rebuild the whole page on every ordinary appearance
+    -- write, and the mechanism (not the waste) is the problem: ClearScroll releases the very
+    -- widget whose OnValueChanged is still on the stack — an LSM30_* dropdown with an open pullout,
+    -- a slider mid-drag — and destroys scroll position and tooltips with it. makeColorPicker
+    -- already declines to call RefreshAllPanels for exactly this class of reason.
+    --
+    -- Registered LAST so the row refreshers above have already run; RefreshAllPanels iterates the
+    -- pre-render table, so a closure registered by a re-render is not re-invoked in the same pass.
+    local renderedUnit, renderedMirrored = ctx.unit, mirrored
     ctx.refreshers[#ctx.refreshers + 1] = function()
-        Helpers.RenderUnitPanel(ctx, pageKey)
+        local nowMirrored = NS.Units.IsMirrored(renderedUnit)
+        if cb then cb:SetValue(nowMirrored) end
+        if nowMirrored ~= renderedMirrored then
+            Helpers.RenderUnitPanel(ctx, pageKey)
+        end
     end
 
     ctx.__rendering = false
