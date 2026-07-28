@@ -39,6 +39,7 @@ core\State.lua
 core\Bus.lua
 core\Util.lua
 core\Data.lua
+core\Units.lua
 core\Database.lua
 core\LSMPatch.lua
 core\DebugLog.lua

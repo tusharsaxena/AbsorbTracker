@@ -22,40 +22,72 @@ function NS:InitDB()
     NS:RunMigrations()
 end
 
--- Schema-migration runner (Ka0s standard §2.2/§5.1). Reads/writes db.global.schemaVersion and
--- ships with an effectively no-op body — the *seam* is the requirement: future schema changes
--- get a single, idempotent upgrade path invoked once at init. Safe no-op when the DB isn't ready.
---
--- v1 also backfills any missing profile key from flatDefaults. This absorbs the legacy pre-AceDB
--- flat-SavedVariables shape (the old inline migration) and the no-AceDB fallback into one
--- versioned, idempotent step: keys already present are left untouched, so running it twice is a
--- no-op. Table defaults are deep-copied so an in-place mutation of a saved variable can't reach
--- back and corrupt flatDefaults.
+-- Deep-copy so an in-place mutation of a saved variable can never reach back into the defaults.
+local function deepcopy(v)
+    if type(v) ~= "table" then return v end
+    local out = {}
+    for k, vv in pairs(v) do out[k] = deepcopy(vv) end
+    return out
+end
+
 function NS:RunMigrations()
     local g = NS.db and NS.db.global
     if not g then return end
     g.schemaVersion = g.schemaVersion or 1
 
     local profile = NS.db.profile
+    local defaults = NS.defaults.profile
+
+    -- v3 (§2.2/§5.1): bar appearance moved from flat profile keys to profile.units.<unit>.
+    -- Guarded on `units == nil` so re-running is a no-op. Runs BEFORE the backfill so the
+    -- backfill sees the migrated shape.
+    if profile and profile.units == nil then
+        profile.units = {}
+        for _, unit in ipairs(NS.Units.LIST) do
+            profile.units[unit] = deepcopy(defaults.units[unit])
+        end
+        -- Lift the pre-v3 flat appearance keys (and the saved position) onto the player unit,
+        -- then clear the originals. A user upgrading sees an identical bar in an identical spot.
+        for _, key in ipairs(NS.Units.APPEARANCE_KEYS) do
+            if profile[key] ~= nil then
+                profile.units.player[key] = profile[key]
+                profile[key] = nil
+            end
+        end
+        if profile.position ~= nil then
+            profile.units.player.position = profile.position
+            profile.position = nil
+        end
+    end
+
+    -- Backfill any missing key from the defaults. Absorbs the legacy pre-AceDB flat
+    -- SavedVariables shape and the no-AceDB fallback into one versioned, idempotent step: keys
+    -- already present are left untouched, so running it twice is a no-op.
     if profile then
-        for key, defaultVal in pairs(NS.flatDefaults) do
-            if profile[key] == nil then
-                if type(defaultVal) == "table" then
-                    local copy = {}
-                    for k, v in pairs(defaultVal) do copy[k] = v end
-                    profile[key] = copy
-                else
-                    profile[key] = defaultVal
+        for key, defaultVal in pairs(defaults) do
+            if key ~= "units" and profile[key] == nil then
+                profile[key] = deepcopy(defaultVal)
+            end
+        end
+        profile.units = profile.units or {}
+        for _, unit in ipairs(NS.Units.LIST) do
+            profile.units[unit] = profile.units[unit] or {}
+            for key, defaultVal in pairs(defaults.units[unit]) do
+                if profile.units[unit][key] == nil then
+                    profile.units[unit][key] = deepcopy(defaultVal)
                 end
             end
         end
     end
-    -- v2 (§2.2/§5.1): the poll ticker became event-driven; the old poll-interval key is dead.
-    -- throttleWindow is seeded by the flatDefaults backfill above, so this step only deletes the
-    -- orphan. Operates on the active profile, matching the backfill's scope.
+
+    -- v2: the poll ticker became event-driven; the old poll-interval key is dead.
     if g.schemaVersion < 2 then
         if profile then profile.updateInterval = nil end
         NS.Debug("Migrate", "v%s \226\134\146 v2", g.schemaVersion)
         g.schemaVersion = 2
+    end
+    if g.schemaVersion < 3 then
+        NS.Debug("Migrate", "v%s \226\134\146 v3", g.schemaVersion)
+        g.schemaVersion = 3
     end
 end

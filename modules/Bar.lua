@@ -5,7 +5,10 @@ local addonName, NS = ...
 -- NS.valueText / NS.backdropInfo for the paint path (modules/Display.lua).
 
 local C = NS.Constants
-local flatDefaults = NS.flatDefaults
+-- Appearance defaults moved to profile.units.player in the v3 migration (core/Units.lua); this
+-- file still builds a single legacy frame at load time, so it reads the per-unit alias rather
+-- than the now-appearance-less flat profile defaults. Multi-unit bar construction is Task 2+.
+local flatDefaults = NS.unitDefaults
 
 -- Reusable backdrop table to avoid garbage.
 NS.backdropInfo = {

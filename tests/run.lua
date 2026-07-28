@@ -32,6 +32,7 @@ Loader.loadAll({
   "core/Bus.lua",
   "core/Util.lua",
   "core/Data.lua",
+  "core/Units.lua",
   "core/Database.lua",
   "core/LSMPatch.lua",
   "core/DebugLog.lua",
@@ -72,6 +73,7 @@ _G.AT_TEST = {
 local SUITES = {
   "test_schema",
   "test_database",
+  "test_units",
   "test_compat",
   "test_util",
   "test_debuglog",
