@@ -69,8 +69,9 @@ test("/at version prints the addon version (slash-commands-§3)", function()
 end)
 
 test("/at get <path> dispatches to the schema read", function()
-  local out = capture(function() NS.Slash:OnSlash("get barWidth") end)
-  assertTrue(stripColor(out[1]):find("barWidth = 200 px") ~= nil, out[1])
+  -- Appearance paths are fully qualified per unit (spec §9); "player" is the plain default unit.
+  local out = capture(function() NS.Slash:OnSlash("get units.player.barWidth") end)
+  assertTrue(stripColor(out[1]):find("units.player.barWidth = 200 px") ~= nil, out[1])
 end)
 
 test("/at list uses the mandated colour scheme (slash-commands-§5)", function()
@@ -88,16 +89,16 @@ test("/at list uses the mandated colour scheme (slash-commands-§5)", function()
 end)
 
 test("/at set <path> <value> writes through the schema and preserves path case", function()
-  capture(function() NS.Slash:OnSlash("set barWidth 250") end)
-  assertEqual(NS.GetSetting("barWidth"), 250)
-  capture(function() NS.Slash:OnSlash("set barWidth 200") end)  -- restore
-  assertEqual(NS.GetSetting("barWidth"), 200)
+  capture(function() NS.Slash:OnSlash("set units.player.barWidth 250") end)
+  assertEqual(NS.GetSetting("units.player.barWidth"), 250)
+  capture(function() NS.Slash:OnSlash("set units.player.barWidth 200") end)  -- restore
+  assertEqual(NS.GetSetting("units.player.barWidth"), 200)
 end)
 
 test("/at set clamps out-of-range numbers to the row max", function()
-  capture(function() NS.Slash:OnSlash("set barWidth 99999") end)
-  assertEqual(NS.GetSetting("barWidth"), 500)  -- barWidth max
-  capture(function() NS.Slash:OnSlash("set barWidth 200") end)
+  capture(function() NS.Slash:OnSlash("set units.player.barWidth 99999") end)
+  assertEqual(NS.GetSetting("units.player.barWidth"), 500)  -- barWidth max
+  capture(function() NS.Slash:OnSlash("set units.player.barWidth 200") end)
 end)
 
 test("/at options is aliased to /at config (no unknown-command error)", function()

@@ -145,19 +145,20 @@ test("/at reset rejects an unknown page and names the valid ones", function()
 end)
 
 test("/at reset <page> restores just that page", function()
-  NS.SetSetting("barWidth", 250)
-  NS.SetSetting("borderSize", 20)
+  -- Retargeted (spec §9): reset now applies per-unit dotted paths, not the old flat keys.
+  NS.SetSetting("units.player.barWidth", 250)
+  NS.SetSetting("units.player.borderSize", 20)
   local out = slash("reset bar")
-  assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth)
-  assertEqual(NS.GetSetting("borderSize"), 20, "the border page is untouched")
+  assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth)
+  assertEqual(NS.GetSetting("units.player.borderSize"), 20, "the border page is untouched")
   assertTrue(contains(out, "bar page reset to defaults"), joined(out))
   slash("reset border")
 end)
 
 test("/at reset lower-cases the page name", function()
-  NS.SetSetting("barWidth", 250)
+  NS.SetSetting("units.player.barWidth", 250)
   slash("reset BAR")
-  assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth)
+  assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth)
 end)
 
 test("/at resetall goes through the one shared RestoreAllDefaults helper", function()
@@ -173,24 +174,26 @@ test("/at resetall goes through the one shared RestoreAllDefaults helper", funct
 end)
 
 test("/at resetall really does restore the defaults end to end", function()
-  NS.SetSetting("barWidth", 250)
-  NS.SetSetting("fontSize", 30)
+  NS.SetSetting("units.player.barWidth", 250)
+  NS.SetSetting("units.player.fontSize", 30)
   slash("resetall")
-  assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth)
-  assertEqual(NS.GetSetting("fontSize"), NS.flatDefaults.fontSize)
+  assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth)
+  assertEqual(NS.GetSetting("units.player.fontSize"), NS.unitDefaults.fontSize)
   T.mocks.__fireTimers()
 end)
 
 test("/at resetposition clears the saved anchor and republishes POSITION", function()
-  NS.db.profile.position = { point = "TOPLEFT", relPoint = "TOPLEFT", x = 9, y = 9 }
+  -- Retargeted (spec §9): position now lives per-unit; the guarantee this pins — clear +
+  -- republish exactly once — is unchanged, just against the player unit's dotted path.
+  NS.db.profile.units.player.position = { point = "TOPLEFT", relPoint = "TOPLEFT", x = 9, y = 9 }
   local seen = 0
   local target = NS.NewBusTarget()
   target:RegisterMessage(NS.MSG.POSITION, function() seen = seen + 1 end)
   local out = slash("resetposition")
   target:UnregisterMessage(NS.MSG.POSITION)
-  assertEqual(NS.db.profile.position, nil)
+  assertEqual(NS.db.profile.units.player.position, nil)
   assertEqual(seen, 1)
-  assertTrue(contains(out, "Bar position reset"), joined(out))
+  assertTrue(contains(out, "Bar positions reset"), joined(out))
 end)
 
 -- ── get / set failure paths ────────────────────────────────────────────────────────
@@ -222,15 +225,17 @@ test("/at set rejects a junk boolean and lists the words it accepts", function()
 end)
 
 test("/at set rejects a non-numeric value for a number setting", function()
-  local out = slash("set barWidth wide")
-  assertTrue(contains(out, "Invalid value for barWidth"), joined(out))
+  -- Retargeted (spec §9): appearance paths are qualified now, so this exercises
+  -- units.player.barWidth rather than the no-longer-valid unqualified "barWidth".
+  local out = slash("set units.player.barWidth wide")
+  assertTrue(contains(out, "Invalid value for units.player.barWidth"), joined(out))
   assertTrue(contains(out, "expected a number"), joined(out))
-  assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth)
+  assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth)
 end)
 
 test("/at set writes a colour from `r g b a` and echoes the STORED value", function()
-  local out = slash("set barColor 0.1 0.2 0.3 0.4")
-  local c = NS.GetSetting("barColor")
+  local out = slash("set units.player.barColor 0.1 0.2 0.3 0.4")
+  local c = NS.GetSetting("units.player.barColor")
   assertTrue(math.abs(c.r - 0.1) < 1e-6 and math.abs(c.a - 0.4) < 1e-6,
     "the parsed colour was stored")
   assertTrue(contains(out, "{0.10, 0.20, 0.30, 0.40}"), joined(out))
@@ -358,13 +363,15 @@ end)
 test("/at profile copy pulls another profile's values into the current one", function()
   NS.db:SetProfile("Source")
   T.mocks.__fireTimers()
-  NS.SetSetting("barWidth", 411)
+  NS.SetSetting("units.player.barWidth", 411)
   NS.db:SetProfile("Default")
   T.mocks.__fireTimers()
-  assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth, "Default is untouched so far")
+  assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth,
+    "Default is untouched so far")
 
   local out = slash("profile copy Source")
-  assertEqual(NS.GetSetting("barWidth"), 411, "the source's value landed in the current profile")
+  assertEqual(NS.GetSetting("units.player.barWidth"), 411,
+    "the source's value landed in the current profile")
   assertEqual(NS.db:GetCurrentProfile(), "Default", "copy does not switch profiles")
   assertTrue(contains(out, "Copied settings from profile 'Source'"), joined(out))
   slash("reset bar")
@@ -444,4 +451,74 @@ test("a profile switch repaints the bar through OnProfileChanged", function()
   assertEqual(seen.pos, 1)
   assertEqual(seen.app, 1)
   assertEqual(seen.rep, 1)
+end)
+
+-- ── qualified per-unit slash paths (Task 7 / spec §9) ──────────────────────────────
+
+test("set writes a dotted per-unit path", function()
+  slash("set units.target.barWidth 275")
+  assertEqual(NS.db.profile.units.target.barWidth, 275)
+end)
+
+test("set on one unit leaves the others alone", function()
+  local before = NS.db.profile.units.player.barWidth
+  slash("set units.focus.barWidth 315")
+  assertEqual(NS.db.profile.units.player.barWidth, before)
+  assertEqual(NS.db.profile.units.focus.barWidth, 315)
+end)
+
+test("an unqualified appearance key is rejected", function()
+  -- Deliberate clean break (spec §9): paths are fully qualified, KickCD-style.
+  local out = slash("set barWidth 250")
+  assertTrue(contains(out, "Setting not found"),
+    "expected an unknown-setting error, got: " .. joined(out))
+end)
+
+test("a global key still uses its flat path", function()
+  slash("set showOnlyInCombat true")
+  assertEqual(NS.db.profile.showOnlyInCombat, true)
+  slash("set showOnlyInCombat false")
+end)
+
+test("get echoes a dotted path", function()
+  NS.db.profile.units.target.barWidth = 275
+  local out = slash("get units.target.barWidth")
+  assertTrue(contains(out, "units.target.barWidth"), "got: " .. joined(out))
+  assertTrue(contains(out, "275"), "got: " .. joined(out))
+end)
+
+test("list groups the appearance pages by unit", function()
+  local out = slash("list")
+  assertTrue(contains(out, "[bar / player]"), "no player group header; got: " .. joined(out))
+  assertTrue(contains(out, "[bar / target]"), "no target group header")
+  assertTrue(contains(out, "[bar / focus]"),  "no focus group header")
+  assertTrue(contains(out, "[general]"), "globals must still list under a plain page header")
+end)
+
+test("reset bar resets every unit", function()
+  NS.db.profile.units.player.barWidth = 111
+  NS.db.profile.units.target.barWidth = 222
+  NS.db.profile.units.focus.barWidth  = 333
+  slash("reset bar")
+  assertEqual(NS.db.profile.units.player.barWidth, NS.unitDefaults.barWidth)
+  assertEqual(NS.db.profile.units.target.barWidth, NS.unitDefaults.barWidth)
+  assertEqual(NS.db.profile.units.focus.barWidth,  NS.unitDefaults.barWidth)
+end)
+
+test("resetposition clears all three positions", function()
+  for _, u in ipairs(NS.Units.LIST) do
+    NS.db.profile.units[u].position = { point = "TOP", relPoint = "TOP", x = 1, y = 1 }
+  end
+  slash("resetposition")
+  for _, u in ipairs(NS.Units.LIST) do
+    assertEqual(NS.db.profile.units[u].position, nil, u .. " kept its position")
+  end
+end)
+
+test("toggle still flips the global hidden master", function()
+  local before = NS.GetSetting("hidden")
+  slash("toggle")
+  assertEqual(NS.GetSetting("hidden"), not before)
+  slash("toggle")
+  assertEqual(NS.GetSetting("hidden"), before)
 end)

@@ -40,11 +40,11 @@ NS.COMMANDS = {
         function(rest) getSetting(rest) end},
     {"set",           "Set a setting \226\128\148 `/at set <path> <value>` (try /at list)",
         function(rest) setSetting(rest) end},
-    {"reset",         "Reset a panel to defaults \226\128\148 `/at reset <general|bar|border|font>`",
+    {"reset",         "Reset a panel to defaults across every unit \226\128\148 `/at reset <general|bar|border|font>`",
         function(rest) runReset(rest) end},
     {"resetall",      "Reset every setting to defaults",
         function() runResetAll() end},
-    {"resetposition", "Move the bar back to the screen center",
+    {"resetposition", "Move every bar back to its default position",
         function() runResetPosition() end},
     {"lock",          "Lock the bar in place",
         function()
@@ -109,30 +109,33 @@ end
 
 -- Page order for /at list grouping. Profiles is omitted (its schema is supplied by AceDBOptions).
 local PAGE_ORDER = { "general", "bar", "border", "font" }
+-- Which pages carry per-unit rows and therefore list once per unit.
+local PER_UNIT_PAGES = { general = false, bar = true, border = true, font = true }
 
 function listSettings()
     if not NS.Schema or #NS.Schema == 0 then
         return print("No settings registered yet")
     end
-    -- Colour scheme for /at list (Ka0s standard, slash-commands-§5): header green (33ff99),
-    -- [page] group headers azure (3399ff), key/value via FormatKV. No trailing colons.
+    -- Colour scheme (Ka0s standard, slash-commands-§5): header green (33ff99), group headers
+    -- azure (3399ff), key/value via FormatKV. No trailing colons.
     print("|cff33ff99Available settings|r")
 
-    local byPage = {}
-    for _, row in ipairs(NS.Schema) do
-        local key = row.page or "?"
-        byPage[key] = byPage[key] or {}
-        byPage[key][#byPage[key] + 1] = row
+    local function printRows(header, rows)
+        if #rows == 0 then return end
+        print("  |cff3399ff[" .. header .. "]|r")
+        for _, row in ipairs(rows) do
+            local v = NS.GetSetting(row.path)
+            print("    " .. FormatKV(row.path, NS.FormatSchemaValue(row, v)))
+        end
     end
 
     for _, page in ipairs(PAGE_ORDER) do
-        local rows = byPage[page]
-        if rows then
-            print("  |cff3399ff[" .. page .. "]|r")
-            for _, row in ipairs(rows) do
-                local v = NS.GetSetting(row.path)
-                print("    " .. FormatKV(row.path, NS.FormatSchemaValue(row, v)))
+        if PER_UNIT_PAGES[page] then
+            for _, unit in ipairs(NS.Units.LIST) do
+                printRows(page .. " / " .. unit, NS.SchemaForPage(page, unit))
             end
+        else
+            printRows(page, NS.SchemaForPage(page))
         end
     end
 end
@@ -208,11 +211,11 @@ function runResetAll()
 end
 
 function runResetPosition()
-    if NS.db and NS.db.profile then
-        NS.db.profile.position = nil
+    for _, unit in ipairs(NS.Units.LIST) do
+        NS.Units.SetPosition(unit, nil)
     end
     NS.bus:SendMessage(NS.MSG.POSITION)
-    print("Bar position reset")
+    print("Bar positions reset")
 end
 
 -- ---------------------------------------------------------------------
@@ -257,10 +260,13 @@ function runTest(rest)
     end
 
     print(("Testing display with value: %s for %d s"):format(AbbreviateNumbers(n), hold))
-    if NS.valueText and NS.statusBar then
-        NS.valueText:SetText(AbbreviateNumbers(n))
-        NS.statusBar:SetMinMaxValues(0, math.max(n, 100000))
-        NS.statusBar:SetValue(n)
+    for _, unit in ipairs(NS.Units.LIST) do
+        local bar = NS.bars[unit]
+        if bar and NS.ShouldShowBar(unit) then
+            bar.valueText:SetText(AbbreviateNumbers(n))
+            bar.statusBar:SetMinMaxValues(0, math.max(n, 100000))
+            bar.statusBar:SetValue(n)
+        end
     end
     NS.testHoldUntil = GetTime() + hold
 end

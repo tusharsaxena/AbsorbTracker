@@ -145,22 +145,28 @@ end)
 -- ── RestoreAllDefaults ─────────────────────────────────────────────────────────────
 
 test("RestoreAllDefaults resets every schema row that is not on the profiles page", function()
-  NS.SetSetting("barWidth", 333)
-  NS.SetSetting("borderSize", 30)
-  NS.SetSetting("fontSize", 30)
+  -- Retargeted (spec §9): schema rows now live at dotted per-unit paths, not flat keys.
+  NS.SetSetting("units.player.barWidth", 333)
+  NS.SetSetting("units.player.borderSize", 30)
+  NS.SetSetting("units.player.fontSize", 30)
   Helpers.RestoreAllDefaults()
-  assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth)
-  assertEqual(NS.GetSetting("borderSize"), NS.flatDefaults.borderSize)
-  assertEqual(NS.GetSetting("fontSize"), NS.flatDefaults.fontSize)
+  assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth)
+  assertEqual(NS.GetSetting("units.player.borderSize"), NS.unitDefaults.borderSize)
+  assertEqual(NS.GetSetting("units.player.fontSize"), NS.unitDefaults.fontSize)
   T.mocks.__fireTimers()
 end)
 
 test("RestoreAllDefaults clears the saved bar position so the bar recentres", function()
   -- `position` is written by dragging, not by a schema row, so ApplyDefault never touches it. The
   -- explicit clear here is what keeps the popup and `/at resetall` from diverging (they once did).
-  NS.db.profile.position = { point = "TOPLEFT", relPoint = "TOPLEFT", x = 5, y = 5 }
+  -- Retargeted (spec §9): position is now per-unit; check every unit, not just one flat field.
+  for _, u in ipairs(NS.Units.LIST) do
+    NS.db.profile.units[u].position = { point = "TOPLEFT", relPoint = "TOPLEFT", x = 5, y = 5 }
+  end
   Helpers.RestoreAllDefaults()
-  assertEqual(NS.db.profile.position, nil)
+  for _, u in ipairs(NS.Units.LIST) do
+    assertEqual(NS.db.profile.units[u].position, nil, u .. " kept its position")
+  end
   T.mocks.__fireTimers()
 end)
 
