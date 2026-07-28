@@ -1865,12 +1865,28 @@ loop, exactly as in Step 3. For each row:
 
 Do **not** add `enabled` or `mirror` rows here — they live on the `bar` page only.
 
-- [ ] **Step 5: Run the gate**
+- [ ] **Step 5: Run the gate, and clear the three forward-pinned tests from Task 2**
 
 Run: `lua tests/run.lua && luacheck .`
 Expected: the new `test_schema` cases PASS, and `ValidateSchema` reports 0 errors / 0 missing
 (every generated path resolves against `defaults.profile.units.<unit>`). `test_widgets`,
 `test_helpers` and `test_slashcmds` still fail.
+
+**Task 2 left three tests forward-pinned on this task — verify all three explicitly and report on
+each by name.** They were written in Task 2 against data that only exists once this task tags rows
+with `unit` and converts their paths to dotted form:
+
+1. `"ValidateSchema resolves nested paths against defaults.profile"` — was RED. Must now be green,
+   with `missing == 0`.
+2. `"SchemaForPage with no unit returns every unit's rows"` — was RED. Must now be green.
+3. `"SchemaForPage filtered to a unit excludes the other units' rows"` — was passing **vacuously**
+   (no row carried a `unit` field, so its `r.unit == nil or r.unit == "focus"` assertion was
+   trivially true for every row). It must now pass *meaningfully*. Prove it: confirm the filtered
+   set is strictly smaller than the unfiltered set for the same page, and that rows tagged with a
+   different unit genuinely exist to be excluded. If it would still pass against a `SchemaForPage`
+   that ignored its `unit` argument entirely, strengthen it until it would not.
+
+The total failure count must drop by at least the two red ones. Report the count before and after.
 
 - [ ] **Step 6: Commit — only on explicit instruction**
 
