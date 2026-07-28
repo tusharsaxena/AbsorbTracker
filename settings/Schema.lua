@@ -52,14 +52,17 @@ function NS.FindSchemaRow(path)
     end
 end
 
-function NS.SchemaForPage(pageKey)
+--- Rows for one page. `unit` (optional) filters to that unit's rows plus any unit-agnostic rows
+--- (General's, which carry no `unit` field and always match). Omitting `unit` returns every
+--- unit's rows — which is what RestoreDefaults / RestoreAllDefaults / `/at list` want.
+function NS.SchemaForPage(pageKey, unit)
     local out = {}
     -- Track each group's first-seen registration index so groups stay in the order their rows
     -- were registered. Sorting purely on row.order would interleave groups (every group's
     -- order=10 row clustering before any order=20 row), which breaks the section-header layout.
     local groupIndex = {}
     for _, row in ipairs(NS.Schema) do
-        if row.page == pageKey then
+        if row.page == pageKey and (unit == nil or not row.unit or row.unit == unit) then
             out[#out + 1] = row
             local g = row.group or ""
             if groupIndex[g] == nil then
@@ -73,6 +76,53 @@ function NS.SchemaForPage(pageKey)
         return (a.order or 100) < (b.order or 100)
     end)
     return out
+end
+
+--- Split a unit page's rows into those that stay editable while mirrored (alwaysPerUnit — the
+--- enable toggle) and the appearance rows the mirror hides. Pure; unit-tested.
+function NS.PartitionUnitRows(rows)
+    local perUnit, styled = {}, {}
+    for _, row in ipairs(rows) do
+        if row.alwaysPerUnit then
+            perUnit[#perUnit + 1] = row
+        else
+            styled[#styled + 1] = row
+        end
+    end
+    return perUnit, styled
+end
+
+-- ---------------------------------------------------------------------
+-- Dotted-path walkers
+-- ---------------------------------------------------------------------
+--
+-- Per-unit settings live at `units.<unit>.<key>`, so the single read/write seam has to walk a
+-- path rather than index a flat table. Flat keys ("hidden") pass through unchanged, so the four
+-- globals keep working without a special case at every call site.
+
+function NS.ResolvePath(tbl, path)
+    if type(tbl) ~= "table" or type(path) ~= "string" then return nil end
+    local node = tbl
+    for segment in path:gmatch("[^%.]+") do
+        if type(node) ~= "table" then return nil end
+        node = node[segment]
+        if node == nil then return nil end
+    end
+    return node
+end
+
+function NS.SetPath(tbl, path, value)
+    if type(tbl) ~= "table" or type(path) ~= "string" then return end
+    local segments = {}
+    for segment in path:gmatch("[^%.]+") do segments[#segments + 1] = segment end
+    if #segments == 0 then return end
+    local node = tbl
+    for i = 1, #segments - 1 do
+        local key = segments[i]
+        if type(node[key]) ~= "table" then node[key] = {} end
+        node = node[key]
+    end
+    node[segments[#segments]] = value
 end
 
 -- ---------------------------------------------------------------------
@@ -194,9 +244,9 @@ function NS.ValidateSchema()
                 errors = errors + 1
             end
             -- §4.5: the path must resolve against the defaults profile. Profiles-page rows (if
-            -- any) are AceDBOptions-supplied and exempt.
+            -- any) are AceDBOptions-supplied and exempt. Paths may be dotted (units.<unit>.<key>).
             if hasPath and row.page ~= "profiles" then
-                if defaults[row.path] ~= nil then
+                if NS.ResolvePath(defaults, row.path) ~= nil then
                     resolved = resolved + 1
                 else
                     _printSchemaError(where, "`path` does not resolve against defaults.profile")

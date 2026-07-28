@@ -29,24 +29,22 @@ function NS.ClearLSMCache()
     LSM = nil
 end
 
--- Generic setting getter with fallback to the flat defaults when a key or the DB is absent.
-function NS.GetSetting(key)
+-- Generic setting getter with fallback to the defaults when a key or the DB is absent. Accepts
+-- both a flat global key ("hidden") and a dotted per-unit path ("units.target.barWidth").
+function NS.GetSetting(path)
     local db = NS.db
     if db and db.profile then
-        local val = db.profile[key]
-        if val == nil then
-            return NS.flatDefaults[key]
-        end
-        return val
+        local val = NS.ResolvePath(db.profile, path)
+        if val ~= nil then return val end
     end
-    return NS.flatDefaults[key]
+    return NS.ResolvePath(NS.flatDefaults, path)
 end
 
--- Generic setting setter.
-function NS.SetSetting(key, value)
+-- Generic setting setter. Same path grammar as GetSetting.
+function NS.SetSetting(path, value)
     local db = NS.db
     if db and db.profile then
-        db.profile[key] = value
+        NS.SetPath(db.profile, path, value)
     end
 end
 

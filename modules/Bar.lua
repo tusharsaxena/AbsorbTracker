@@ -49,7 +49,7 @@ bar.statusBar = statusBar
 
 -- Absorb value text (on statusBar so it's above the bar texture).
 local valueText = statusBar:CreateFontString(nil, "OVERLAY", nil)
-valueText:SetFont(NS.GetFont(), NS.GetSetting("fontSize"), NS.GetSetting("fontFlags") or "")
+valueText:SetFont(NS.GetFont(), flatDefaults.fontSize, flatDefaults.fontFlags or "")
 valueText:SetPoint("CENTER", bar, "CENTER", 0, 0)
 bar.valueText = valueText
 

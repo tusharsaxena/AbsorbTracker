@@ -264,3 +264,66 @@ test("ApplyDefault is a no-op for a row with no default", function()
   assertEqual(NS.GetSetting("barWidth"), 250, "nothing should have been written")
   NS.SetSetting("barWidth", NS.flatDefaults.barWidth)
 end)
+
+test("ResolvePath walks a dotted path", function()
+  local t = { units = { target = { barWidth = 275 } } }
+  assertEqual(NS.ResolvePath(t, "units.target.barWidth"), 275)
+end)
+
+test("ResolvePath returns nil for a missing branch instead of raising", function()
+  local t = { units = {} }
+  assertEqual(NS.ResolvePath(t, "units.focus.barWidth"), nil)
+  assertEqual(NS.ResolvePath(t, "nope.at.all"), nil)
+end)
+
+test("ResolvePath still handles a flat key", function()
+  assertEqual(NS.ResolvePath({ hidden = true }, "hidden"), true)
+end)
+
+test("SetPath writes through a dotted path and creates intermediate tables", function()
+  local t = {}
+  NS.SetPath(t, "units.focus.barWidth", 321)
+  assertEqual(t.units.focus.barWidth, 321)
+end)
+
+test("GetSetting and SetSetting round-trip a dotted path", function()
+  local saved = NS.GetSetting("units.target.barWidth")
+  NS.SetSetting("units.target.barWidth", 313)
+  assertEqual(NS.GetSetting("units.target.barWidth"), 313)
+  NS.SetSetting("units.target.barWidth", saved)
+end)
+
+test("ValidateSchema resolves nested paths against defaults.profile", function()
+  local errors, resolved, missing = NS.ValidateSchema()
+  assertEqual(errors, 0, "no malformed schema rows")
+  assertEqual(missing, 0, "every schema path must resolve against the defaults profile")
+  assertTrue(resolved > 0)
+end)
+
+test("SchemaForPage with no unit returns every unit's rows", function()
+  local rows = NS.SchemaForPage("bar")
+  local seen = {}
+  for _, r in ipairs(rows) do if r.unit then seen[r.unit] = true end end
+  assertTrue(seen.player and seen.target and seen.focus,
+    "resets and /at list need every unit's rows")
+end)
+
+test("SchemaForPage filtered to a unit excludes the other units' rows", function()
+  local rows = NS.SchemaForPage("bar", "focus")
+  for _, r in ipairs(rows) do
+    assertTrue(r.unit == nil or r.unit == "focus",
+      "a unit-filtered page must not leak another unit's widgets")
+  end
+end)
+
+test("PartitionUnitRows splits alwaysPerUnit rows from the mirrored appearance rows", function()
+  local rows = {
+    { path = "units.focus.enabled",  alwaysPerUnit = true },
+    { path = "units.focus.barWidth" },
+    { path = "units.focus.barColor" },
+  }
+  local perUnit, styled = NS.PartitionUnitRows(rows)
+  assertEqual(#perUnit, 1)
+  assertEqual(perUnit[1].path, "units.focus.enabled")
+  assertEqual(#styled, 2)
+end)
