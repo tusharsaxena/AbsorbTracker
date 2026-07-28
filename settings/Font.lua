@@ -8,7 +8,7 @@
 
 local addonName, NS = ...
 
-local flatDefaults = NS.flatDefaults
+local unitDefaults = NS.unitDefaults
 
 local fontFlagOptions = {
     [""]                          = "None",
@@ -24,44 +24,58 @@ local fontFlagSorting = {
     "MONOCHROME", "MONOCHROME, OUTLINE", "MONOCHROME, THICKOUTLINE",
 }
 
-NS.RegisterSchemaRows({
-    {
-        path    = "font",
-        page    = "font",
-        group   = "Typography",
-        order   = 10,
-        type    = "string",
-        label   = "Font Face",
-        desc    = "LibSharedMedia font used for the absorb amount text.",
-        default = flatDefaults.font,
-        dialogControl = "LSM30_Font",
-        values = NS.Helpers.LSMValues("font"),
-    },
-    {
-        path    = "fontSize",
-        page    = "font",
-        group   = "Typography",
-        order   = 20,
-        type    = "number",
-        label   = "Font Size",
-        desc    = "Absorb-amount text size in pixels.",
-        default = flatDefaults.fontSize,
-        min = 6, max = 32, step = 1,
-    },
-    {
-        path    = "fontFlags",
-        page    = "font",
-        group   = "Typography",
-        order   = 30,
-        type    = "string",
-        label   = "Font Outline",
-        desc    = "Outline / monochrome flags applied to the absorb-amount text.",
-        default = flatDefaults.fontFlags,
-        values  = fontFlagOptions,
-        sorting = fontFlagSorting,
-        solo    = true,
-    },
-})
+-- Every row below is generated once per unit in NS.Units.LIST: the path is prefixed with
+-- `units.<unit>.` and tagged `unit = unit`, so Helpers.RenderUnitPanel can filter the page to
+-- the currently-selected unit (settings/Schema.lua: SchemaForPage). The `default =` values come
+-- from NS.unitDefaults so all three units share one canonical default.
+local function addUnitRows(unit)
+    local p = "units." .. unit .. "."
+    local rows = {
+        {
+            path    = p .. "font",
+            page    = "font",
+            unit    = unit,
+            group   = "Typography",
+            order   = 10,
+            type    = "string",
+            label   = "Font Face",
+            desc    = "LibSharedMedia font used for the absorb amount text.",
+            default = unitDefaults.font,
+            dialogControl = "LSM30_Font",
+            values = NS.Helpers.LSMValues("font"),
+        },
+        {
+            path    = p .. "fontSize",
+            page    = "font",
+            unit    = unit,
+            group   = "Typography",
+            order   = 20,
+            type    = "number",
+            label   = "Font Size",
+            desc    = "Absorb-amount text size in pixels.",
+            default = unitDefaults.fontSize,
+            min = 6, max = 32, step = 1,
+        },
+        {
+            path    = p .. "fontFlags",
+            page    = "font",
+            unit    = unit,
+            group   = "Typography",
+            order   = 30,
+            type    = "string",
+            label   = "Font Outline",
+            desc    = "Outline / monochrome flags applied to the absorb-amount text.",
+            default = unitDefaults.fontFlags,
+            values  = fontFlagOptions,
+            sorting = fontFlagSorting,
+            solo    = true,
+        },
+    }
+
+    NS.RegisterSchemaRows(rows)
+end
+
+for _, unit in ipairs(NS.Units.LIST) do addUnitRows(unit) end
 
 local function build(mainCategory)
     if not (Settings and Settings.RegisterCanvasLayoutSubcategory) then

@@ -8,55 +8,70 @@
 
 local addonName, NS = ...
 
-local flatDefaults = NS.flatDefaults
+local unitDefaults = NS.unitDefaults
 
-NS.RegisterSchemaRows({
-    {
-        path    = "border",
-        page    = "border",
-        group   = "Border",
-        order   = 10,
-        type    = "string",
-        label   = "Border Style",
-        desc    = "LibSharedMedia border texture (edge style) used to draw the bar's border.",
-        default = flatDefaults.border,
-        dialogControl = "LSM30_Border",
-        values = NS.Helpers.LSMValues("border"),
-    },
-    {
-        path    = "borderSize",
-        page    = "border",
-        group   = "Border",
-        order   = 20,
-        type    = "number",
-        label   = "Border Thickness (in px)",
-        desc    = "Border edge size in pixels.",
-        default = flatDefaults.borderSize,
-        min = 1, max = 32, step = 1, fmt = "%d px",
-    },
-    {
-        path    = "useClassColorBorder",
-        page    = "border",
-        group   = "Border",
-        order   = 40,
-        type    = "bool",
-        label   = "Use Class Color",
-        desc    = "Use your class color for the border. Greys out the Border Color picker.",
-        default = flatDefaults.useClassColorBorder,
-    },
-    {
-        path     = "borderColor",
-        page     = "border",
-        group    = "Border",
-        order    = 30,
-        type     = "color",
-        label    = "Border Color",
-        desc     = "RGBA border color (only used when Use Class Color is off).",
-        default  = flatDefaults.borderColor,
-        hasAlpha = true,
-        disabledIf = "useClassColorBorder",
-    },
-})
+-- Every row below is generated once per unit in NS.Units.LIST: the path is prefixed with
+-- `units.<unit>.` and tagged `unit = unit`, so Helpers.RenderUnitPanel can filter the page to
+-- the currently-selected unit (settings/Schema.lua: SchemaForPage). The `default =` values come
+-- from NS.unitDefaults so all three units share one canonical default.
+local function addUnitRows(unit)
+    local p = "units." .. unit .. "."
+    local rows = {
+        {
+            path    = p .. "border",
+            page    = "border",
+            unit    = unit,
+            group   = "Border",
+            order   = 10,
+            type    = "string",
+            label   = "Border Style",
+            desc    = "LibSharedMedia border texture (edge style) used to draw the bar's border.",
+            default = unitDefaults.border,
+            dialogControl = "LSM30_Border",
+            values = NS.Helpers.LSMValues("border"),
+        },
+        {
+            path    = p .. "borderSize",
+            page    = "border",
+            unit    = unit,
+            group   = "Border",
+            order   = 20,
+            type    = "number",
+            label   = "Border Thickness (in px)",
+            desc    = "Border edge size in pixels.",
+            default = unitDefaults.borderSize,
+            min = 1, max = 32, step = 1, fmt = "%d px",
+        },
+        {
+            path    = p .. "useClassColorBorder",
+            page    = "border",
+            unit    = unit,
+            group   = "Border",
+            order   = 40,
+            type    = "bool",
+            label   = "Use Class Color",
+            desc    = "Use your class color for the border. Greys out the Border Color picker.",
+            default = unitDefaults.useClassColorBorder,
+        },
+        {
+            path     = p .. "borderColor",
+            page     = "border",
+            unit     = unit,
+            group    = "Border",
+            order    = 30,
+            type     = "color",
+            label    = "Border Color",
+            desc     = "RGBA border color (only used when Use Class Color is off).",
+            default  = unitDefaults.borderColor,
+            hasAlpha = true,
+            disabledIf = p .. "useClassColorBorder",
+        },
+    }
+
+    NS.RegisterSchemaRows(rows)
+end
+
+for _, unit in ipairs(NS.Units.LIST) do addUnitRows(unit) end
 
 local function build(mainCategory)
     if not (Settings and Settings.RegisterCanvasLayoutSubcategory) then
