@@ -44,9 +44,9 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### F. Slash verbs — read/write/reset
 23. `/at list` → grouped `[general]/[bar]/[border]/[font]`, each `path = value` formatted. Colour scheme (slash-commands-§5): green `Available settings` header, azure `[page]` group headers, gold keys, white values; no trailing colon on any line.
-24. `/at get barWidth` → `barWidth = <n> px` (gold key, white value); `/at get bogus` → not found; `/at get` → usage.
-25. `/at set barWidth 260` → `barWidth = 260 px`, bar widens, open panel refreshes; path case preserved.
-26. `/at set barWidth abc` → `Invalid value for barWidth`; bar unchanged.
+24. `/at get units.player.barWidth` → `units.player.barWidth = <n> px` (gold key, white value); `/at get bogus` → not found; `/at get` → usage.
+25. `/at set units.player.barWidth 260` → `units.player.barWidth = 260 px`, bar widens, open panel refreshes; path case preserved.
+26. `/at set units.player.barWidth abc` → `Invalid value for units.player.barWidth`; bar unchanged.
 27. `/at reset bar` → `bar page reset to defaults`, reverts + repaints; `/at reset bogus` → unknown page.
 28. `/at resetall` → all pages revert **and** bar returns to center (position cleared) — same shared `RestoreAllDefaults` helper as the Reset All popup (step 20), so slash and button can never diverge.
 29. `/at resetposition` → bar snaps to center; other settings unchanged.
@@ -59,7 +59,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 ### G. Profiles — switch repaints the bar
 35. `/at profile list` / `current` → lists / prints current.
 36. `/at profile new SmokeTest` → switches to a defaults profile; bar repaints to default immediately.
-37. On SmokeTest `/at set barWidth 400`, then `/at profile use Default` → bar repaints to the original width (validates `OnProfileChanged`).
+37. On SmokeTest `/at set units.player.barWidth 400`, then `/at profile use Default` → bar repaints to the original width (validates `OnProfileChanged`).
 38. `/at profile copy SmokeTest` → copies + repaints.
 39. `/at profile delete <current>` → refused; switch away, delete SmokeTest → deleted.
 40. **Panel-driven switch** — Profiles page dropdown switch → bar repaints live.

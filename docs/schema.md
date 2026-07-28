@@ -210,7 +210,7 @@ The slash surface is `settings/Slash.lua`, registered via AceConsole (`NS.addon:
 | `/at reset <page>` | Walks the schema rows for `<page>` (general / bar / border / font) via `SchemaForPage(page)` with **no unit filter**, so it resets that page across **all three units** at once, then `RefreshOptionsPanel`. |
 | `/at resetall` | Runs `ApplyDefault` on every row (all pages, all units). Also clears every unit's saved position (`NS.Units.SetPosition(unit, nil)` for each of `NS.Units.LIST`) and republishes `POSITION`. |
 
-Per-setting subcommands like `/at width 250` or `/at color classcolor on` are gone — `/at set units.player.barWidth 250` and `/at set units.player.useClassColorBar true` replace them.
+Per-setting subcommands like `/at width 250` or `/at color classcolor on` were removed in favor of `/at set <path> <value>` — today that path is fully qualified: `/at set units.player.barWidth 250` and `/at set units.player.useClassColorBar true`.
 
 ## What's *not* schema-driven
 

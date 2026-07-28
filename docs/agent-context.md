@@ -5,11 +5,20 @@ code. The root [CLAUDE.md](../CLAUDE.md) is only a stub that points here.
 
 ## What this addon is
 
-A single movable absorb status bar for the player. Bar size, fill texture and color, background
-texture and color, border style / size / color, and font face / size / outline are all
-independently configurable through LibSharedMedia-backed pickers. Bar fill, background, and border
-each have an opt-in class-color override. Position is saved per-profile. **Modular layout**;
-Retail Midnight only (Interface 120007); English only.
+Three movable absorb status bars — **player, target, and focus** — each displaying the total of
+all active absorb shields on that unit as one combined value. Target and focus ship **disabled**
+and **mirrored**: turned off by default, and once turned on they live-link to the player bar's
+appearance until the user unchecks the link. Bar size, fill texture and color, background texture
+and color, border style / size / color, and font face / size / outline are all independently
+configurable **per unit** through LibSharedMedia-backed pickers, via a Unit dropdown on the
+Bar/Border/Font pages. Bar fill, background, and border each have an opt-in class-color override
+(always the player's class, on all three bars). Position and the per-unit enable flag are per-unit
+and **never** mirrored. Two models exist for bringing a unit's appearance in line with the player:
+**mirror** is a live link (`units.<unit>.mirror = true` — the unit's appearance re-reads the
+player's settings on every paint) and **copy** is a one-shot snapshot
+(`NS.Units.CopyFromPlayer(unit)` — deep-copies the player's current values once, then the unit
+diverges independently). Position is saved per-profile, per unit. **Modular layout**; Retail
+Midnight only (Interface 120007); English only.
 
 User-facing reference: [../README.md](../README.md). Subsystems + invariants:
 [ARCHITECTURE.md](./ARCHITECTURE.md).
@@ -29,9 +38,20 @@ User-facing reference: [../README.md](../README.md). Subsystems + invariants:
   the `/at list/get/set/reset/resetall` CLI. Adding a new option = one schema row in some
   `settings/<page>.lua`. Don't add per-setting code in `settings/Slash.lua`; the row grammar
   covers it.
-- **Color getters resolve at call time.** `NS.GetBarColor` / `GetBgColor` / `GetBorderColor`
-  (`core/Data.lua`) re-read `useClassColor*` on every paint. Class change / respec / profile switch
-  all "just work" without explicit refresh wiring. Don't cache the resolved color on a frame.
+- **Color getters resolve at call time.** `NS.GetBarColor(unit)` / `GetBgColor(unit)` /
+  `GetBorderColor(unit)` (`core/Data.lua:146,155,164`) take a `unit` argument and re-read that
+  unit's `useClassColor*` on every paint (the resolved class color itself is always the player's).
+  Class change / respec / profile switch all "just work" without explicit refresh wiring. Don't
+  cache the resolved color on a frame.
+- **Only `core/Units.lua` reads `db.profile.units` for appearance.** Every other file —
+  `modules/Bar.lua`, `modules/Display.lua`, `core/Data.lua`, the settings pages — calls
+  `NS.Units.Get(unit, key)` instead of indexing `db.profile.units` directly, so mirror resolution
+  (does this unit read its own config or the player's?) lives in exactly one place. Don't add a
+  second `db.profile.units[...]` read site.
+- **Slash paths are fully qualified.** `/at set units.target.barWidth 250` works; the pre-1.9
+  unqualified `/at set barWidth 250` is rejected (`FindSchemaRow` has no bare-key row for a
+  per-unit setting). Only the four flat globals (`hidden`, `locked`, `showOnlyInCombat`,
+  `throttleWindow`) use a bare path.
 - **`SetBackdrop(nil)` before `SetBackdrop(info)`.** WoW's backdrop API is a no-op when the table
   identity is unchanged, even if its fields changed. `UpdateBarAppearance` (`modules/Display.lua`)
   clears first, then re-applies. Don't optimize this away.
@@ -101,7 +121,8 @@ modules subscribe on their own `NS.NewBusTarget()` targets (architecture-§4; se
   the build-time schema-integrity invariants, DB migrations, Compat, Util, DebugLog, the full `/at`
   surface including `/at profile`, repaint-throttle coalescing, combat-visibility, message-bus
   dispatch, the `core/Data.lua` settings/media/colour seam, the `modules/Display.lua` paint path,
-  the `settings/Helpers.lua` panel toolkit, and the schema → AceGUI widget layer)
+  the `settings/Helpers.lua` panel toolkit, the schema → AceGUI widget layer, and `core/Units.lua`
+  unit identity + mirror resolution)
   must be green and `luacheck .` clean
   (0/0) before every commit. Syntax-check one file with `luac -p <file>`. Toolchain: Lua 5.1 +
   luacheck. `tests/run.lua` mirrors the in-game lifecycle — it calls `NS:InitDB()` **and**
