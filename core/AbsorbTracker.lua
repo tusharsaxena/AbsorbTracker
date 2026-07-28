@@ -56,35 +56,10 @@ function addon:OnEnable()
     -- RegisterUnitEvent instead, so the client filters at the C level and OnEvent never fires for
     -- other units. (The rest are global, payload-free events and stay on AceEvent.)
     --
-    -- TWO frames, not one: RegisterUnitEvent filters at most two units per frame, and we now track
-    -- three (player/target/focus). Frame A takes player+target, frame B takes focus. A future
-    -- reader will be tempted to merge these back into one frame — don't: the client-side API hard
-    -- caps RegisterUnitEvent at two unit tokens per registration, so a third unit needs a second
-    -- frame no matter how the code is arranged. Registration is unconditional (not gated on the
-    -- per-unit `enabled` flag) — the C-side filter already limits dispatch to three units, so
-    -- conditional registration would add lifecycle complexity for no measurable gain. Guard so a
-    -- disable/enable cycle doesn't leak a second pair of frames.
-    if not self.__unitEventFrames then
-        local function onEvent(_, event, unit)
-            if event == "UNIT_ABSORB_AMOUNT_CHANGED" then
-                self:OnAbsorbChanged(event, unit)
-            elseif event == "UNIT_MAXHEALTH" then
-                self:OnMaxHealthChanged(event, unit)
-            end
-        end
-
-        local frameA = CreateFrame("Frame")
-        frameA:SetScript("OnEvent", onEvent)
-        frameA:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "player", "target")
-        frameA:RegisterUnitEvent("UNIT_MAXHEALTH", "player", "target")
-
-        local frameB = CreateFrame("Frame")
-        frameB:SetScript("OnEvent", onEvent)
-        frameB:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "focus")
-        frameB:RegisterUnitEvent("UNIT_MAXHEALTH", "focus")
-
-        self.__unitEventFrames = { frameA, frameB }
-    end
+    -- Extracted to its own method (rather than inlined here, as the original brief had it) purely
+    -- so a test can call it directly without paying for the rest of OnEnable's side effects
+    -- (CreateOptionsPanel is not safely re-callable). Behaviour is identical either way.
+    self:EnsureUnitEventFrames()
 
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
     self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnEnterCombat")
@@ -102,12 +77,50 @@ function addon:OnEnable()
     -- is emitted from DebugLog:SetEnabled on enable, the only point where it is current and visible.
 end
 
--- The absorb event drives a coalesced repaint (modules/Timer.lua). Fires for player, target, or
--- focus (the RegisterUnitEvent frames above already filter to just those three) and repaints ALL
--- three bars as one coalesced pass, so the handler does not branch on which unit changed. Gate the
--- debug read so it costs nothing when debug is off (§12.4).
+-- Build the two private RegisterUnitEvent frames (see the comment in OnEnable above for why two
+-- are required). Guarded so a disable/enable cycle — or a direct re-call — doesn't leak a second
+-- pair of frames; registration is unconditional (not gated on the per-unit `enabled` flag) since
+-- the C-side filter already limits dispatch to three units, so conditional registration would add
+-- lifecycle complexity for no measurable gain.
+function addon:EnsureUnitEventFrames()
+    if self.__unitEventFrames then return end
+
+    local function onEvent(_, event, unit)
+        if event == "UNIT_ABSORB_AMOUNT_CHANGED" then
+            self:OnAbsorbChanged(event, unit)
+        elseif event == "UNIT_MAXHEALTH" then
+            self:OnMaxHealthChanged(event, unit)
+        end
+    end
+
+    -- Frame A: player + target. RegisterUnitEvent filters at most TWO unit tokens per
+    -- registration, and we now track three (player/target/focus) — a future reader will be
+    -- tempted to merge this with frame B; don't, the two-token cap is a hard client-side limit,
+    -- not a style choice.
+    local frameA = CreateFrame("Frame")
+    frameA:SetScript("OnEvent", onEvent)
+    frameA:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "player", "target")
+    frameA:RegisterUnitEvent("UNIT_MAXHEALTH", "player", "target")
+
+    -- Frame B: the third unit that didn't fit on frame A.
+    local frameB = CreateFrame("Frame")
+    frameB:SetScript("OnEvent", onEvent)
+    frameB:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "focus")
+    frameB:RegisterUnitEvent("UNIT_MAXHEALTH", "focus")
+
+    self.__unitEventFrames = { frameA, frameB }
+end
+
+-- The absorb event drives a coalesced repaint (modules/Timer.lua) for EVERY tracked unit (the
+-- RegisterUnitEvent frames above already filter dispatch to player/target/focus), so the repaint
+-- itself never branches on `unit`. The debug rollup below is deliberately narrower: it counts and
+-- reports only the PLAYER's own absorb events (dbgAbsorbEvents / the "[Combat] left: N events"
+-- line / the [Absorb] shield-up/shield-gone transitions all read UnitGetTotalAbsorbs("player")),
+-- so it stays gated on unit == "player" — counting target/focus events here would make the rollup
+-- report a number that doesn't match what it prints. Gate the debug read so it costs nothing when
+-- debug is off (§12.4).
 function addon:OnAbsorbChanged(_, unit)
-    if NS.State and NS.State.debug then
+    if unit == "player" and NS.State and NS.State.debug then
         dbgAbsorbEvents = dbgAbsorbEvents + 1
         local v = UnitGetTotalAbsorbs("player") or 0
         -- Only compare when the value is NOT a combat secret (IsConcatSafe == readable).
@@ -126,8 +139,10 @@ end
 
 -- The bar shows absorb as a fraction of max health, so a max-health change (buffs, stamina,
 -- level) must repaint too even when the absorb value itself is unchanged. Fires for player,
--- target, or focus; the repaint stays a single coalesced all-bars pass regardless of which.
-function addon:OnMaxHealthChanged(_, unit)
+-- target, or focus; the repaint stays a single coalesced all-bars pass regardless of which, so
+-- (unlike OnAbsorbChanged) there is no per-unit debug rollup here to keep in sync, and the unit
+-- argument itself is unused.
+function addon:OnMaxHealthChanged(_)
     NS.bus:SendMessage(NS.MSG.REPAINT)
 end
 

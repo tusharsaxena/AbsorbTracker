@@ -70,6 +70,56 @@ end)
 
 local assertEqual = T.assertEqual
 
+-- ── Event wiring (core/AbsorbTracker.lua) — the two RegisterUnitEvent frames ────────
+
+-- This is the ONLY coverage that events from non-tracked units never reach the handlers at all:
+-- RegisterUnitEvent filters at the C level, tests/wow_mock.lua's stub can't simulate that
+-- dispatch, so the guarantee has to be pinned as "these are the exact tokens registered, and no
+-- others" instead. A widened filter (e.g. registering "player" alone, or adding a fourth unit)
+-- would fail this test even though it can't fail via a direct OnAbsorbChanged/OnMaxHealthChanged
+-- call.
+test("EnsureUnitEventFrames registers exactly player+target on frame A and focus on frame B", function()
+  -- Force a fresh pair so this test doesn't depend on whether OnEnable/EnsureUnitEventFrames ran
+  -- earlier in the suite.
+  NS.addon.__unitEventFrames = nil
+  NS.addon:EnsureUnitEventFrames()
+  local frameA, frameB = NS.addon.__unitEventFrames[1], NS.addon.__unitEventFrames[2]
+
+  local function set(list)
+    local seen = {}
+    for _, u in ipairs(list or {}) do seen[u] = true end
+    return seen
+  end
+
+  local aAbsorb, aHealth = frameA.__unitEvents.UNIT_ABSORB_AMOUNT_CHANGED,
+                            frameA.__unitEvents.UNIT_MAXHEALTH
+  local aAbsorbSet, aHealthSet = set(aAbsorb), set(aHealth)
+  assertEqual(#aAbsorb, 2, "frame A registers exactly two units for UNIT_ABSORB_AMOUNT_CHANGED")
+  assertEqual(#aHealth, 2, "frame A registers exactly two units for UNIT_MAXHEALTH")
+  assertTrue(aAbsorbSet.player and aAbsorbSet.target and not aAbsorbSet.focus,
+    "frame A is player+target only, never focus")
+  assertTrue(aHealthSet.player and aHealthSet.target and not aHealthSet.focus,
+    "frame A is player+target only, never focus")
+
+  local bAbsorb, bHealth = frameB.__unitEvents.UNIT_ABSORB_AMOUNT_CHANGED,
+                            frameB.__unitEvents.UNIT_MAXHEALTH
+  local bAbsorbSet, bHealthSet = set(bAbsorb), set(bHealth)
+  assertEqual(#bAbsorb, 1, "frame B registers exactly one unit for UNIT_ABSORB_AMOUNT_CHANGED")
+  assertEqual(#bHealth, 1, "frame B registers exactly one unit for UNIT_MAXHEALTH")
+  assertTrue(bAbsorbSet.focus and not bAbsorbSet.player and not bAbsorbSet.target,
+    "frame B is focus only, never player or target")
+  assertTrue(bHealthSet.focus and not bHealthSet.player and not bHealthSet.target,
+    "frame B is focus only, never player or target")
+end)
+
+test("EnsureUnitEventFrames is idempotent — a second call leaves the same frame pair in place", function()
+  NS.addon.__unitEventFrames = nil
+  NS.addon:EnsureUnitEventFrames()
+  local first = NS.addon.__unitEventFrames
+  NS.addon:EnsureUnitEventFrames()
+  assertTrue(NS.addon.__unitEventFrames == first, "a second call must not leak a second frame pair")
+end)
+
 -- ── Combat wiring (core/AbsorbTracker.lua) ──────────────────────────────────────────
 test("OnEnterCombat applies visibility and requests a repaint", function()
   local mocks = T.mocks

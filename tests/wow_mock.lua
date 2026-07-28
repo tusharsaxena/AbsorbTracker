@@ -46,6 +46,14 @@ local function stubFrame()
   function f:GetHeight() return 0 end
   function f:GetWidth() return 0 end
 
+  -- Record RegisterUnitEvent's (event -> unit tokens) instead of no-opping it through the
+  -- metatable below: core/AbsorbTracker.lua's two-frame split (player+target on one frame, focus
+  -- on the other, since RegisterUnitEvent caps at two tokens) is only trustworthy if a test can
+  -- see exactly which units each frame registered — a no-op would let a widened or dropped filter
+  -- pass the whole suite silently.
+  f.__unitEvents = {}
+  function f:RegisterUnitEvent(event, ...) self.__unitEvents[event] = { ... }; return self end
+
   setmetatable(f, { __index = function(_, k)
     if type(k) == "string" and k:match("^%u") then
       return function() return f end
