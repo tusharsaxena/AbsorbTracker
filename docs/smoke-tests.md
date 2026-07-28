@@ -8,7 +8,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### A. Load & bootstrap
 1. **Fresh login.** Delete `WTF/.../SavedVariables/AbsorbTrackerDB.lua`, log in → world reached, **zero Lua errors**.
-2. **Bar appears.** A single absorb bar is visible at screen center; shows the value / `0`. **Default look is Blizzard-stock media** — `Blizzard Raid Bar` fill + background, `Blizzard Tooltip` border, `Friz Quadrata TT` text; no custom media ships in the defaults.
+2. **Bar appears.** The **player** absorb bar is visible at screen center; shows the value / `0`. **Target and focus bars do not appear** — they ship disabled. **Default look is Blizzard-stock media** — `Blizzard Raid Bar` fill + background, `Blizzard Tooltip` border, `Friz Quadrata TT` text; no custom media ships in the defaults.
 3. **/reload clean.** `/reload` → no errors; bar reappears in the same spot.
 4. **Value tracks reality.** Gain an absorb (e.g. Power Word: Shield) → fill + text update to the abbreviated amount; consume it → drops toward `0`.
 5. **Secret-value safety.** With a big absorb, the number shows an abbreviated string (e.g. `1.2M`), never `nil`/error.
@@ -78,7 +78,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### I. SavedVariables migration — no-op on existing profile
 50. Customize a profile (e.g. `barWidth=260`, custom texture), `/reload` → all customized values **survive** (backfill only fills missing keys).
-51. Logout to flush, inspect `AbsorbTrackerDB.lua` → `global.schemaVersion = 2` (the shipped v2 migration); `/reload` again → stays `2`, values unchanged.
+51. Logout to flush, inspect `AbsorbTrackerDB.lua` → `global.schemaVersion = 3` (the shipped v3 migration, which also lifted your old flat `barWidth`/etc. onto `profile.units.player`); `/reload` again → stays `3`, values unchanged.
 52. *(Optional)* Hand-delete one profile key from the SV file, log in → that key restored to default, others untouched, no error.
 
 ### J. Class-color overrides
@@ -88,7 +88,15 @@ that covers the pure logic; this suite covers everything that only runs against 
 56. With all three on, `/reload` or profile switch → colors re-resolve with no manual refresh (getters read class color per-paint).
 57. Turn each Use Class Color off → manual RGBA picker re-enables; bar reverts to the stored manual color.
 
-**Pass criteria:** all 60 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
+### K. Multi-unit bars (player / target / focus)
+58. **Enable the target bar.** Bar page → Unit dropdown → **Target** → tick **Enable this bar**. With no target selected, the target bar does **not** appear (the visibility ladder's `UnitExists` step). Target a friendly or enemy unit → the target bar appears at its stacked default position (above the player bar); clear target (Esc or `/cleartarget`) → the target bar disappears again; re-target → reappears, live.
+59. **Mirror toggle.** With the target bar enabled and still mirrored (the default), the Bar/Border/Font pages show only the **Unit** dropdown, the mirror header (**Use same styling as Player** checkbox, ticked, + **Copy styling from Player** button), and the hint *"Linked to Player – uncheck to customize."* — no appearance rows underneath. Untick **Use same styling as Player** → the hint disappears and the full appearance row set (Width/Height, Texture, Color, etc.) appears, editable and currently matching the player's values. Re-tick it → the rows hide again and the target bar visually snaps back to mirroring the player live (change a player Bar setting while target is mirrored → the target bar's appearance updates too).
+60. **Copy styling from Player.** With the target unlinked (mirror off) and its own custom Bar Width set, switch to **Player**, change its Bar Width, then back to **Target**, click **Copy styling from Player** → the target's rows immediately show the player's *current* values (a one-time snapshot, not a live link) and the mirror checkbox stays unticked. Change the player's Bar Width again afterward → the target's copied value does **not** follow (proving Copy is one-shot, not a second mirror).
+61. **Drag each bar independently.** Unlock (`/at unlock`), drag the player bar to one spot and the target bar to another → each bar moves independently and keeps its own position; `/reload` → both positions persist. Position is **not** shared even while the target mirrors the player's appearance (steps 59–60 do not move any bar).
+62. **Global toggles govern all three.** With target (and optionally focus) enabled and visible, toggle **Show Bar** off on the General page → **all** enabled/visible bars hide together; toggle it back on → all reappear. Turn on **Show only in combat** → out of combat, every enabled bar hides (target/focus still additionally require a valid unit); entering combat shows them again.
+63. **`/at reset bar` resets all three units.** With player, target, and focus all customized (different widths/colors), run `/at reset bar` → **all three** units' Bar-page rows (width, height, textures, colors, class-color toggles) revert to default in one call, not just the currently-selected unit in the panel's Unit dropdown. `/at resetposition` similarly snaps **all three** bars back to their stacked default positions, not just the visible one.
+
+**Pass criteria:** all 67 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
 and no combat-taint warning when the panel opens out of combat (step 13). On any failure, record the step number, observed vs.
 expected, and any error text.
 
@@ -102,3 +110,5 @@ expected, and any error text.
 - Debug console — `core/DebugLog.lua`
 - LSM border alignment fix — `core/LSMPatch.lua`
 - Class-color-aware getters — `core/Data.lua` (`GetBarColor`/`GetBgColor`/`GetBorderColor`)
+- Mirror resolution / `CopyFromPlayer` / per-unit position — `core/Units.lua`
+- Unit dropdown, mirror header, copy button — `settings/Helpers.lua` (`RenderUnitPanel`)

@@ -6,13 +6,17 @@ topic detail lives alongside this file in `docs/`.
 
 ## Overview
 
-A single movable absorb status bar for the player, displaying the total of all active absorb
-shields as one combined value. Reads `UnitGetTotalAbsorbs("player")` against
-`UnitHealthMax("player")` on every event-driven, throttled repaint, paints a `BackdropTemplate` + `StatusBar`
-+ `FontString` stack, and exposes every visual knob through both a five-page Blizzard Settings
-panel and the `/at` slash CLI. Bar fill, background, and border each support an opt-in class-color
-override; position is saved per-profile via AceDB. Retail Midnight only (Interface 120007),
-English only.
+Three movable absorb status bars — player, target, and focus — each displaying the total of all
+active absorb shields on that unit as one combined value. Target and focus ship disabled; when
+enabled, either can "mirror" the player's appearance live, or take a one-shot "copy from player"
+snapshot and then diverge. Every bar reads `UnitGetTotalAbsorbs(unit)` against `UnitHealthMax(unit)`
+on every event-driven, throttled repaint, paints a `BackdropTemplate` + `StatusBar` + `FontString`
+stack (`AbsorbTrackerFrame` / `AbsorbTrackerTargetFrame` / `AbsorbTrackerFocusFrame`), and exposes
+every visual knob through both a five-page Blizzard Settings panel — with a Unit dropdown on the
+Bar/Border/Font pages — and the `/at` slash CLI via fully-qualified `units.<unit>.<key>` paths. Bar
+fill, background, and border each support an opt-in class-color override (always resolved from the
+player, on all three bars); position is per-unit and saved per-profile via AceDB. Retail Midnight
+only (Interface 120007), English only.
 
 The addon is an **AceAddon** (`core/AbsorbTracker.lua`) mixing in AceEvent / AceTimer / AceConsole.
 `local addonName, NS = ...` is the shared private namespace bus in every file; there is no
@@ -31,24 +35,25 @@ Modules → Settings.
 | `core/State.lua` | `NS.State` — session-only runtime state (the debug flag; never persisted). |
 | `core/Bus.lua` | The closed cross-module message bus: `NS.bus` (shared publish target), `NS.NewBusTarget()` (one per receiver), and the `NS.MSG` catalogue (`REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION`). |
 | `core/Util.lua` | `NS.Print` (prefixed chat) only. The secret-safe debug sink is `NS.Debug` (`core/DebugLog.lua`); every debug arg routes through `NS.SafeToString`. |
-| `core/Data.lua` | The AceDB read/write seam (`GetSetting`/`SetSetting`), LSM fetchers with fallbacks, and the class-color-aware color resolvers. |
+| `core/Data.lua` | The AceDB read/write seam (`GetSetting`/`SetSetting` — dotted-path aware, so `units.target.barWidth` and flat `hidden` both work), LSM fetchers with fallbacks (each takes a `unit`, resolved through `NS.Units.Get`), and the class-color-aware color resolvers (each takes a `unit`; the class color itself is always the player's). |
 | `core/Database.lua` | `NS:InitDB` (AceDB + profile callbacks) and `NS:RunMigrations` (schema-version seam). |
+| `core/Units.lua` | `NS.Units` — unit identity (`LIST`/`LABEL`), mirror resolution (`IsMirrored`/`SourceUnit`/`Get`), per-unit position read/write, and `CopyFromPlayer`. The only file that reads `db.profile.units` for appearance. |
 | `core/LSMPatch.lua` | `NS.ApplyLSMBorderPatch` — collapses the upstream LSM30_Border preview tile; run once on enable. |
 | `core/DebugLog.lua` | On-screen debug console (§12): `ScrollingMessageFrame`, monospace font, `FormatPlain`/`FormatColored`, `NS.Debug` sink, session-only logging enable (`SetEnabled`), window visibility (`Show`/`Hide`/`Toggle`/`IsShown`), the §11 always-shown scrollbar (`UpdateScrollBar`) + bottom line counter (`UpdateStatus`), and `ConsoleCheckbox()` — the General page's checkbox spec that shows/hides the window (not the logging flag). |
 | `core/AbsorbTracker.lua` | AceAddon promotion; `OnInitialize` (font register, InitDB, slash register), `OnEnable` (the login sequence), event handlers, `OnProfileChanged`. |
-| `defaults/Profile.lua` | `NS.defaults.profile` (bar settings) + `NS.defaults.global.schemaVersion`; `NS.flatDefaults` alias. |
+| `defaults/Profile.lua` | Four flat globals (`hidden`/`locked`/`showOnlyInCombat`/`throttleWindow`) + `NS.defaults.profile.units.{player,target,focus}` (each unit's own appearance table, built by a factory so no table is shared across units) + `NS.defaults.global.schemaVersion = 3`; `NS.flatDefaults` alias, `NS.unitDefaults` (= `defaults.profile.units.player`, the canonical per-row default source for `settings/{Bar,Border,Font}.lua`). |
 | `locales/enUS.lua` | `NS.L` metatable-fallback locale (English source keys; nothing wrapped yet). |
-| `modules/Bar.lua` | Builds the bar frame (`NS.bar`/`statusBar`/`valueText`/`backdropInfo`) at file load. |
-| `modules/Display.lua` | `RestoreBarPosition`, `UpdateBarAppearance`, `ShouldShowBar`/`ApplyVisibility` (the show/hide gate), `UpdateAbsorbBar` (the paint path); subscribes to `APPEARANCE`/`VISIBILITY`/`POSITION` on its own `NS.Display.__ev` bus target. |
+| `modules/Bar.lua` | `NS.CreateBar(unit, globalName)` builds one bar frame; `NS.bars` (keyed `player`/`target`/`focus`, frames `AbsorbTrackerFrame`/`AbsorbTrackerTargetFrame`/`AbsorbTrackerFocusFrame`) at file load, plus `NS.bar`/`statusBar`/`valueText`/`backdropInfo` as player aliases for pre-multi-unit call sites. Each bar owns its own `backdropInfo` table (border size differs per unit; `SetBackdrop` keys off table identity). |
+| `modules/Display.lua` | Every function takes a `unit` (defaulting to `"player"`): `RestoreBarPosition`, `UpdateBarAppearance`, `ShouldShowBar`/`ApplyVisibility` (the five-step visibility ladder), `UpdateAbsorbBar` (the paint path). `NS.ForEachUnit(fn)` and `NS.DefaultPosition(unit)` (stacks target/focus above the player bar) also live here. Subscribes to `APPEARANCE`/`VISIBILITY`/`POSITION` on its own `NS.Display.__ev` bus target, fanning each handler out over `NS.ForEachUnit` so the bus messages stay payload-free. |
 | `modules/Timer.lua` | Coalescing repaint scheduler (`NS.RequestRepaint`) — a trailing-edge one-shot AceTimer throttle. |
-| `settings/Schema.lua` | The schema registry + read/write seam (`SetByPath`), parse/format, and `ValidateSchema`. |
+| `settings/Schema.lua` | The schema registry + read/write seam (`SetByPath`), parse/format, and `ValidateSchema`. Rows carry `unit`, `alwaysPerUnit`, and `skipRender` fields; `SchemaForPage(page, unit)` filters to one unit's rows (or all, when `unit` is omitted); `PartitionUnitRows` splits a unit page into always-editable rows vs. mirror-hidden appearance rows; `ResolvePath`/`SetPath` walk dotted paths (`units.<unit>.<key>`) so flat globals and per-unit keys share one seam. |
 | `settings/Slash.lua` | AceConsole registration + the schema-driven `/at` dispatcher (`NS.COMMANDS`). |
 | `settings/Panel.lua` | Settings-category registration shell; publishes `NS.Helpers`; combat-gated `OpenOptionsPanel`. |
-| `settings/Helpers.lua` | Panel toolkit: layout constants, `CreatePanel`, `EnsureDefaultsButton` (builds the header Defaults button lazily on first OnShow), section/scroll/tooltip, defaults/refresh registry, `LSMValues`. |
+| `settings/Helpers.lua` | Panel toolkit: layout constants, `CreatePanel`, `EnsureDefaultsButton` (builds the header Defaults button lazily on first OnShow), section/scroll/tooltip, defaults/refresh registry, `LSMValues`. `RenderUnitPanel(ctx, pageKey)` draws the Unit dropdown + mirror header (checkbox + copy button, hidden-while-mirrored hint) via `Helpers.ClearScroll` (full rebuild) + `Widgets.lua`'s `RenderRows` for the filtered rows. |
 | `settings/ScrollPatch.lua` | Always-visible scrollbar override for the AceGUI ScrollFrame. |
 | `settings/Widgets.lua` | Schema-row → AceGUI widget translation (`RenderField`/`RenderSchema`, four schema widget makers), plus non-schema `SessionCheckbox` and the `RenderSchema` `pairWith` seam (session Debug console checkbox). |
 | `settings/About.lua` | The parent page (logo + Notes + slash-command list). |
-| `settings/{General,Bar,Border,Font,Profiles}.lua` | The five sub-pages; each registers schema rows + a deferred page builder — except Profiles, which registers no rows and renders AceDBOptions directly. |
+| `settings/{General,Bar,Border,Font,Profiles}.lua` | The five sub-pages; each registers schema rows + a deferred page builder — except Profiles, which registers no rows and renders AceDBOptions directly. Bar/Border/Font each generate their rows once per unit in `NS.Units.LIST` (path prefixed `units.<unit>.`, tagged `unit = unit`) and defer their page render to `Helpers.RenderUnitPanel` instead of `Helpers.RenderSchema`; General has no per-unit rows or dropdown. |
 
 ## Settings Schema
 
@@ -78,6 +83,10 @@ absorbs) when it fires.
 | `Ka0s_AbsorbTracker_AppearanceChanged` (`APPEARANCE`) | settings / lifecycle layer | `modules/Display.lua` (`NS.Display.__ev`) | `NS.UpdateBarAppearance` (size / texture / colors / border / font) |
 | `Ka0s_AbsorbTracker_VisibilityChanged` (`VISIBILITY`) | event / settings layer | `modules/Display.lua` (`NS.Display.__ev`) | `NS.ApplyVisibility` (the show/hide gate) |
 | `Ka0s_AbsorbTracker_PositionChanged` (`POSITION`) | slash / lifecycle / reset layer | `modules/Display.lua` (`NS.Display.__ev`) | `NS.RestoreBarPosition` (restore from profile) |
+
+Each Display handler fans out over `NS.ForEachUnit`, repainting/re-appearancing/re-positioning all
+three bars per message — this is what keeps the bus messages payload-free (no "which unit" to
+carry).
 
 Each message has exactly one sender concept and one consuming module. The display functions
 (`NS.UpdateBarAppearance` / `NS.ApplyVisibility` / `NS.RestoreBarPosition` / `NS.UpdateAbsorbBar`)
@@ -131,30 +140,34 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   `REPAINT` on the bus → register events → `CreateOptionsPanel`. The three publishes reach
   `RestoreBarPosition` / `UpdateBarAppearance` (Display) and `RequestRepaint` (Timer); the login
   paint therefore lands one `throttleWindow` later, not synchronously.
-- **Private unit-event frame** (the two `UNIT_*` events): `UNIT_ABSORB_AMOUNT_CHANGED` (bumps a
-  debug-gated event counter, logs a non-secret `[Absorb]` shield up/gone transition when the value
-  is concat-safe, then `NS.RequestRepaint()`) and `UNIT_MAXHEALTH` (`OnMaxHealthChanged` →
-  `NS.RequestRepaint()` — the bar shows absorb as a fraction of max health) are registered on a
-  private `CreateFrame("Frame")` via `RegisterUnitEvent(event, "player")`, **not** through AceEvent.
-  This is a documented §9.1 deviation (see below): these events fire for *every* unit the client
-  knows about (all raid members, pets, nameplates, target/focus), and AceEvent-3.0 routes all
-  events through one shared frame with plain `RegisterEvent` and cannot `RegisterUnitEvent` (a frame
-  can unit-filter at most two units) — so an AceEvent registration would pay a full C→Lua dispatch
-  for every unit only to discard all but `"player"`. The private frame moves that filter to the C
-  layer; the handler never fires for other units. The OnEvent stub routes to the same
-  `addon:OnAbsorbChanged` / `addon:OnMaxHealthChanged` methods; it is created once and guarded
-  against a disable/enable cycle.
+- **Two private unit-event frames** (`addon:EnsureUnitEventFrames()`) for the `UNIT_*` events:
+  `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` fire for *every* unit the client knows about
+  (all raid members, pets, nameplates, target/focus), and AceEvent-3.0 routes all events through
+  one shared frame with plain `RegisterEvent` and cannot `RegisterUnitEvent` — so an AceEvent
+  registration would pay a full C→Lua dispatch for every unit only to discard all but ours. A
+  private `CreateFrame("Frame")` with `RegisterUnitEvent` moves that filter to the C layer instead
+  — a documented §9.1 deviation (see below). `RegisterUnitEvent` filters **at most two** unit
+  tokens per frame, and the addon now tracks three, so **a second frame is required**: frame A
+  registers both events for `"player", "target"`; frame B registers them for `"focus"`. Both share
+  one `OnEvent` stub that routes to `addon:OnAbsorbChanged` / `addon:OnMaxHealthChanged` (bumping a
+  debug-gated event counter and logging a non-secret `[Absorb]` shield up/gone transition, player
+  only, when the value is concat-safe, then `NS.RequestRepaint()`); the pair is created once and
+  guarded against a disable/enable cycle.
 - **AceEvent** subscriptions (registered in `OnEnable`): `PLAYER_ENTERING_WORLD` (`OnEnterWorld` →
-  publishes `VisibilityChanged` + `RepaintRequested`) and the combat-state pair
+  publishes `VisibilityChanged` + `RepaintRequested`), the combat-state pair
   `PLAYER_REGEN_DISABLED` (`OnEnterCombat`) / `PLAYER_REGEN_ENABLED` (`OnLeaveCombat`) — each
-  publishes `VisibilityChanged` (the `showOnlyInCombat` gate) and `RepaintRequested`. These are
-  global, payload-free events with no unit to filter, so they stay on AceEvent. `OnLeaveCombat` is
-  the sole handler of `PLAYER_REGEN_ENABLED` and does visibility + repaint only — it has no
-  combat-deferred `/at config` to replay (the panel refuses to open in combat, options-ui-§2; see
-  Taint Notes). The event handlers do not call the display module directly — they publish on the
-  message bus (see Message Bus); `modules/Timer.lua`'s `NS.RequestRepaint` consumer coalesces
-  `RepaintRequested` into a one-shot AceTimer throttle (`throttleWindow`, default 0.1s) — idle =
-  zero repaints, no polling ticker.
+  publishes `VisibilityChanged` (the `showOnlyInCombat` gate) and `RepaintRequested` — and
+  `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` (both → `OnUnitSwap`, which publishes
+  `VisibilityChanged` then `RepaintRequested`: a target/focus swap changes both which bars should
+  be visible, via the `UnitExists` step of the visibility ladder, and what they should read). All
+  four are global, payload-free events with no unit to filter, so they stay on AceEvent.
+  `OnLeaveCombat` is the sole handler of `PLAYER_REGEN_ENABLED` and does visibility + repaint only
+  — it has no combat-deferred `/at config` to replay (the panel refuses to open in combat,
+  options-ui-§2; see Taint Notes). The event handlers do not call the display module directly —
+  they publish on the message bus (see Message Bus); `modules/Timer.lua`'s `NS.RequestRepaint`
+  consumer coalesces `RepaintRequested` into a one-shot AceTimer throttle (`throttleWindow`,
+  default 0.1s) — idle = zero repaints, no polling ticker. The `[Combat] left: N events` debug
+  rollup counts **player** events only, deliberately, so the printed count matches what it reports.
 
 ## Taint Notes
 
@@ -165,9 +178,10 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   protected"*) and returns, never touching the protected call. It does **not** defer-and-replay on
   `PLAYER_REGEN_ENABLED`; the user re-runs `/at config` after combat. The gate lives inside the
   open function, so every caller (slash verb, `/run`, internal) is refused.
-- **Bar visibility Show/Hide is taint-free.** `AbsorbTrackerFrame` is a plain (non-secure) frame,
-  so `NS.ApplyVisibility` calling `bar:Show()` / `bar:Hide()` on combat transitions (the
-  `showOnlyInCombat` gate) carries no protected-frame restriction.
+- **Bar visibility Show/Hide is taint-free.** All three bar frames (`AbsorbTrackerFrame` /
+  `AbsorbTrackerTargetFrame` / `AbsorbTrackerFocusFrame`) are plain (non-secure) frames, so
+  `NS.ApplyVisibility` calling `bar:Show()` / `bar:Hide()` on combat or target/focus transitions
+  carries no protected-frame restriction.
 - **`SetBackdrop(nil)` before `SetBackdrop(info)`.** WoW's backdrop API is a no-op when the table
   identity is unchanged even if its fields changed; `UpdateBarAppearance` clears first.
 - **Secret values.** `UnitGetTotalAbsorbs` may return a "secret" value — it is passed straight to
@@ -177,7 +191,7 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
 
 - **Retail Midnight only** (Interface 120007); no game-flavor branching.
 - **English only** — `NS.L` seam exists but no strings are wrapped yet.
-- **Single bar** — one player absorb bar; multi-bar / other units are out of scope
+- **Three bars — player, target, focus.** Group / raid / arena / boss units are out of scope
   ([scope.md](./scope.md)).
 
 ## Standards Deviations
@@ -186,16 +200,20 @@ Accepted, intentional departures from the Ka0s WoW Addon Standard. Each is recor
 justification; a fresh `/standards-audit` will re-surface them into a new dated bundle under
 `docs/audits/`.
 
-- **§9.1 — private `CreateFrame` event frame for the two `UNIT_*` events.** `OnEnable`
-  (`core/AbsorbTracker.lua`) registers `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` on a
-  private frame via `RegisterUnitEvent(event, "player")` rather than through AceEvent-3.0.
-  **Why:** both events fire for every unit the client knows about (raid, pets, nameplates,
-  target/focus); AceEvent-3.0 uses a single shared frame with plain `RegisterEvent` and
-  structurally cannot `RegisterUnitEvent` (a frame unit-filters at most two units), so an AceEvent
-  registration pays a full C→Lua dispatch per unit only to discard all but `"player"` — a
-  measurable combat CPU hotspot. A private unit-event frame is the established WoW pattern for this
-  (BigWigs et al.). All other events (`PLAYER_ENTERING_WORLD`, `PLAYER_REGEN_DISABLED/ENABLED`) stay
-  on AceEvent. This is the *only* raw event frame; §9.1 otherwise holds.
+- **§9.1 — two private `CreateFrame` event frames for the `UNIT_*` events.**
+  `addon:EnsureUnitEventFrames()` (called from `OnEnable`, `core/AbsorbTracker.lua`) registers
+  `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` on **two** private frames via `RegisterUnitEvent`
+  rather than through AceEvent-3.0: frame A for `"player", "target"`, frame B for `"focus"`.
+  **Why two events fire for every unit at all:** both events fire for every unit the client knows
+  about (raid, pets, nameplates, target/focus); AceEvent-3.0 uses a single shared frame with plain
+  `RegisterEvent` and structurally cannot `RegisterUnitEvent`, so an AceEvent registration pays a
+  full C→Lua dispatch per unit only to discard all but ours — a measurable combat CPU hotspot.
+  **Why two frames:** `RegisterUnitEvent` unit-filters **at most two** tokens per registration, and
+  the addon now tracks three units (player/target/focus), so a single frame cannot hold all three —
+  a second frame is required for the third unit. A private unit-event frame is the established WoW
+  pattern for this (BigWigs et al.). All other events (`PLAYER_ENTERING_WORLD`,
+  `PLAYER_REGEN_DISABLED/ENABLED`, `PLAYER_TARGET_CHANGED`, `PLAYER_FOCUS_CHANGED`) stay on
+  AceEvent. These are the *only* raw event frames; §9.1 otherwise holds.
 
 - **Non-Blizzard media that is intentionally fixed (no LSM selector).** The bar-appearance media —
   `barTexture`, `bgTexture` (both default `"Blizzard Raid Bar"`), `border` (`"Blizzard Tooltip"`) and
@@ -217,10 +235,12 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
 ## Performance & Profiler Attribution
 
 The addon is purely reactive — **no `OnUpdate`, no repeating ticker, no combat-log parsing, no
-hot-path hooks.** Its entire runtime cost is: player `UNIT_*` event (C-filtered) → `OnAbsorbChanged`
-/ `OnMaxHealthChanged` → `NS.RequestRepaint` (coalescing one-shot AceTimer, `throttleWindow` default
-0.1 s) → `NS.UpdateAbsorbBar`. After Finding 1 (above) the real cost is ~1.8 ms/s ≈ 0.18 % of one
-core.
+hot-path hooks.** Its entire runtime cost is: a player/target/focus `UNIT_*` event (C-filtered) →
+`OnAbsorbChanged` / `OnMaxHealthChanged` → `NS.RequestRepaint` (coalescing one-shot AceTimer,
+`throttleWindow` default 0.1 s) → `NS.UpdateAbsorbBar` (fanned out over all three units). The
+measurements below predate the multi-unit-bars feature (player-only at the time) and have not been
+re-run; after Finding 1 (above) the real cost was ~1.8 ms/s ≈ 0.18 % of one core for the single-bar
+build.
 
 **Reading the in-game Addon Profiler (`C_AddOnProfiler`) — important caveat.** The profiler bills a
 shared library's dispatch frame to **whichever addon created it (first to load that LibStub copy)**,

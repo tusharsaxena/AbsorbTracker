@@ -17,6 +17,10 @@ section.
 Toolchain: Lua 5.1 + luacheck (`sudo apt-get install -y lua5.1 luarocks && sudo luarocks install
 luacheck`).
 
+The suite list (see [common-tasks.md](./common-tasks.md#run-the-test-gate) for the full table) now
+includes `tests/test_units.lua` — `core/Units.lua`'s unit identity, mirror resolution
+(`IsEnabled`/`IsMirrored`/`SourceUnit`/`Get`/`Set`), per-unit position, and `CopyFromPlayer`.
+
 ## Current status
 
 The **authoritative** test-case list and pass count live in the generated inventory,

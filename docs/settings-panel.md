@@ -9,9 +9,9 @@ The settings UI is split across five toolkit files (all under `settings/`), plus
 | File | Role |
 |------|------|
 | `settings/Panel.lua` | Registration shell. Publishes empty `NS.Helpers = {}` and `NS.PARENT_TITLE`; owns `pendingPages`, `NS.RegisterOptionsPage`, `NS.CreateOptionsPanel`, `NS.OpenOptionsPanel`, `NS.RefreshOptionsPanel`. Stashes `NS.AceGUI` once (see below). |
-| `settings/Helpers.lua` | Toolkit core. `CreatePanel` / `Section` / `InlineButtonPair` / `EnsureScroll` / `AttachTooltip` / `AddSpacer` / `LSMValues` / `RestoreDefaults` / `RestoreAllDefaults` / `RefreshAllPanels`, plus the layout constants (`PADDING_X` / `HEADER_HEIGHT` / `ROW_VSPACER` / `SECTION_HEADING_H`) and the panel registry. |
+| `settings/Helpers.lua` | Toolkit core. `CreatePanel` / `Section` / `InlineButtonPair` / `EnsureScroll` / `AttachTooltip` / `AddSpacer` / `LSMValues` / `RestoreDefaults` / `RestoreAllDefaults` / `RefreshAllPanels`, plus the layout constants (`PADDING_X` / `HEADER_HEIGHT` / `ROW_VSPACER` / `SECTION_HEADING_H`) and the panel registry. `RenderUnitPanel(ctx, pageKey)` and `ClearScroll(ctx)` (full rebuild on unit switch / mirror toggle / copy) live here too — the Unit dropdown + mirror header for Bar/Border/Font. |
 | `settings/ScrollPatch.lua` | `Helpers.PatchAlwaysShowScrollbar` — the always-visible scrollbar override. |
-| `settings/Widgets.lua` | `Helpers.RenderField` (dispatches by `row.type`) + `Helpers.RenderSchema` (two-column layout) + the four widget makers (CheckBox / Slider / Dropdown / ColorPicker). |
+| `settings/Widgets.lua` | `Helpers.RenderField` (dispatches by `row.type`) + `Helpers.RenderRows` (two-column layout over an explicit row list, skipping `skipRender` rows) + the thin `Helpers.RenderSchema(ctx, pageKey, ...)` wrapper (`RenderRows(ctx, NS.SchemaForPage(pageKey, ctx.unit), ...)`) + the four widget makers (CheckBox / Slider / Dropdown / ColorPicker). |
 | `settings/About.lua` | `Helpers.BuildMainContent` — top-level "Ka0s Absorb Tracker" page (logo + Notes + slash command list). |
 
 Each `settings/*.lua` slice begins with `local addonName, NS = ...` then `local Helpers = NS.Helpers`, and decorates that shared table. The TOC loads them in order immediately after `settings/Panel.lua`, before any `settings/<page>.lua` (`General` / `Bar` / `Border` / `Font` / `Profiles`) consumes the toolkit.
@@ -35,6 +35,8 @@ Each `settings/*.lua` slice begins with `local addonName, NS = ...` then `local 
 `/at config` opens the parent page and expands the sub-page tree so every sub-page is visible at once. The user clicks the page they want from the tree.
 
 The parent and every sub-page register as **canvas-layout categories**: a custom Blizzard `Frame` is registered with `Settings.RegisterCanvasLayoutCategory` (parent) / `Settings.RegisterCanvasLayoutSubcategory` (each sub-page) and Blizzard renders it in its own settings panel slot. The schema-driven sub-pages (General / Bar / Border / Font) lay out their schema rows as **AceGUI widgets** (`CheckBox` / `Slider` / `Dropdown` / `ColorPicker`) inside an AceGUI `ScrollFrame` parented to the page's `body` frame.
+
+**Bar / Border / Font are per-unit; General and About are not.** Bar/Border/Font render through `Helpers.RenderUnitPanel(ctx, pageKey)`, which draws a **Unit** dropdown (Player/Target/Focus) above the schema rows and filters them to the selected unit. General has no per-unit rows (its four settings are global) and About has no settings at all — neither shows a Unit dropdown.
 
 Profiles is the only page that still uses AceConfig — it routes `AceConfigDialog:Open("AbsorbTracker-Profiles", container)` into an AceGUI `SimpleGroup` parented to the canvas body, so the AceDBOptions UI lands inside our shell with the same header.
 
@@ -75,14 +77,14 @@ NS.RegisterOptionsPage("bar", "Bar", function(mainCategory)
     -- OnShow (Helpers.EnsureDefaultsButton), which attaches this.
     ctx.panel.defaultsOnClick = function()
         H.RestoreDefaults("bar", ctx)
-        end)
     end
 
-    local rendered = false
+    -- No `rendered` one-shot guard: RenderUnitPanel does a full rebuild (ClearScroll +
+    -- re-render) every call — on first OnShow, AND every subsequent unit switch / mirror
+    -- toggle / copy — so re-running it on a later OnShow is intentional, not a bug.
     ctx.panel:SetScript("OnShow", function()
-        if rendered then return end
-        rendered = true
-        H.RenderSchema(ctx, "bar")
+        H.EnsureDefaultsButton(ctx.panel)
+        H.RenderUnitPanel(ctx, "bar")
     end)
 
     return Settings.RegisterCanvasLayoutSubcategory(mainCategory, ctx.panel, "Bar")
@@ -93,9 +95,19 @@ end)
 - `name` — display name shown in the Blizzard Settings tree AND used as the `<Page>` half of the breadcrumb header.
 - `builder(mainCategory)` — must return the sub-category from `Settings.RegisterCanvasLayoutSubcategory`, or `nil` to skip registration.
 
-## `Helpers.RenderSchema(ctx, pageKey, afterGroup?)`
+## `Helpers.RenderUnitPanel(ctx, pageKey)` — Bar / Border / Font
 
-The two-column layout engine. Walks `NS.SchemaForPage(pageKey)` and emits each row as an AceGUI widget through `Helpers.RenderField`, packing pairs of rows into 50%-width Flow rows (each pair wrapped in a full-width `SimpleGroup` so AceGUI gives both children exactly half the width). Section breaks (whenever `row.group` changes) emit a full-width `Heading` widget (`GameFontNormalLarge`) flanked by side dividers, with `SECTION_TOP_SPACER = 10` / `SECTION_BOTTOM_SPACER = 6` around it. Every two-column row is followed by a `ROW_VSPACER = 8` spacer for breathing room. A final `scroll:DoLayout()` runs after the last row.
+The per-unit page renderer. On every call (first `OnShow`, a unit-dropdown switch, a mirror-checkbox toggle, or a Copy click) it does a **full rebuild**: `Helpers.ClearScroll(ctx)` releases every AceGUI child and resets the section-heading tracker + `ctx.refreshers`, then:
+
+1. Draws a **Unit** dropdown (`AceGUI:Create("Dropdown")`, labeled "Unit", listing `NS.Units.LABEL` in `NS.Units.LIST` order). Changing it sets `ctx.unit` and re-runs `RenderUnitPanel` — the dropdown's own selection therefore also survives a rebuild.
+2. For target/focus (never for player, which is the mirror source and has no header), draws a mirror header row: a **"Use same styling as Player"** checkbox (writes `units.<unit>.mirror` via `NS.SetByPath`, re-renders on change) side-by-side with a **"Copy styling from Player"** button (`NS.Units.CopyFromPlayer(unit)` — a one-shot deep-copy of the fifteen appearance keys that also clears `mirror`, followed by publishing `NS.MSG.APPEARANCE` and a re-render). While mirrored, a hint label reads *"Linked to Player – uncheck to customize."* (en dash).
+3. Splits the page's rows for the selected unit via `NS.PartitionUnitRows(NS.SchemaForPage(pageKey, ctx.unit))` into `perUnitRows` (`alwaysPerUnit = true` — e.g. "Enable this bar") and `styledRows` (everything else). `perUnitRows` always render; `styledRows` render only when the unit is **not** mirrored — mirroring hides every appearance widget because editing them would silently edit the player's bar, not the mirrored unit's.
+
+Both row groups render through `Helpers.RenderRows` (below) — the same two-column layout engine General's unit-agnostic `Helpers.RenderSchema` uses.
+
+## `Helpers.RenderRows(ctx, rows, afterGroup?, pairWith?)` / `Helpers.RenderSchema(ctx, pageKey, afterGroup?, pairWith?)`
+
+The two-column layout engine. `RenderRows` takes an **explicit row list** (what `RenderUnitPanel` passes it, pre-filtered and partitioned) and emits each row — except any carrying `skipRender` (e.g. the mirror flag itself, drawn bespoke by the header above) — as an AceGUI widget through `Helpers.RenderField`, packing pairs of rows into 50%-width Flow rows (each pair wrapped in a full-width `SimpleGroup` so AceGUI gives both children exactly half the width). `RenderSchema` is a thin wrapper: `RenderRows(ctx, NS.SchemaForPage(pageKey, ctx.unit), afterGroup, pairWith)` — used by General, which has no per-unit rows and never sets `ctx.unit`, so the `unit` filter is a no-op there. Section breaks (whenever `row.group` changes) emit a full-width `Heading` widget (`GameFontNormalLarge`) flanked by side dividers, with `SECTION_TOP_SPACER = 10` / `SECTION_BOTTOM_SPACER = 6` around it. Every two-column row is followed by a `ROW_VSPACER = 8` spacer for breathing room. A final `scroll:DoLayout()` runs after the last row.
 
 A row marked `solo = true` flushes any in-progress two-column row first, then renders alone (left half of its own row, right half empty). Used for visually-grouping pivots like a texture row that sits above its color-picker pair.
 

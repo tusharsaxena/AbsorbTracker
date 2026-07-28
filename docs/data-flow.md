@@ -20,14 +20,23 @@ OnInitialize (ADDON_LOADED)
     │     │        OnProfileReset → NS.OnProfileChanged (guarded for headless)
     │     ├─ fallback when AceDB absent:
     │     │     NS.db = { profile = AbsorbTrackerDB, global = {} }
-    │     └─ NS:RunMigrations()          -- idempotent; v1 backfills missing
-    │                                    --   profile keys, v2 drops updateInterval
+    │     └─ NS:RunMigrations()          -- idempotent; v3 lifts flat appearance
+    │                                    --   keys onto profile.units.player,
+    │                                    --   backfills missing keys (flat +
+    │                                    --   per-unit), v2 drops updateInterval
     │
     └─▶ NS.Slash:Register()             -- settings/Slash.lua registers the
                                         --   /at + /absorbtracker chat commands
 ```
 
-The flat→profile migration lives in `NS:RunMigrations` (`core/Database.lua`), not in the bootstrap body. Its v1 step walks `NS.flatDefaults` and copies any key still missing from `db.profile` (deep-copying table defaults so a saved-variable mutation can't reach back into the defaults). Because it only fills absent keys, it is a no-op on the second run — this step absorbs both the legacy pre-AceDB flat-SavedVariables shape and the no-AceDB fallback. The shipped v2 step then retires the dead `profile.updateInterval` key (the repaint path moved from a poll ticker to the event-driven `throttleWindow` scheduler) and stamps `schemaVersion = 2`; the bump is idempotent and logs one `[Migrate]` line only when it actually fires.
+The flat→profile migration lives in `NS:RunMigrations` (`core/Database.lua`), not in the bootstrap body, and runs its steps in this order:
+
+1. **v3 lift** (only when `g.schemaVersion < 3`): moves the pre-v3 flat appearance keys (`barWidth`, `barColor`, `position`, ...) onto `profile.units.player`, overwriting whatever the backfill step below would otherwise seed there, then clears the flat originals. **Gated on `schemaVersion`, not on `profile.units == nil`** — under real AceDB-3.0, the very act of reading `NS.db.profile` two lines earlier already triggered AceDB's own `copyDefaults` (its `dbmt.__index` lazily fills every missing key, including the whole new `units` table, straight from `NS.defaults`), so on a real upgrading install `profile.units` is *never* nil by the time this runs — a `units == nil` guard would make the whole block permanently dead, silently orphaning the user's pre-v3 values under brand-new factory defaults. `schemaVersion` is the only reliable "does this profile predate v3" signal, because `copyDefaults` only ever fills an *absent* key, so it never touches an existing `schemaVersion` stamp.
+2. **Backfill** (unconditional, idempotent): walks `NS.defaults.profile` and copies any key still missing from `db.profile` — both the four flat globals and, per unit in `NS.Units.LIST`, any missing per-unit appearance key (deep-copying table defaults so a saved-variable mutation can't reach back into the defaults). Because it only fills absent keys, it is a no-op on the second run — this step absorbs the legacy pre-AceDB flat-SavedVariables shape and the no-AceDB fallback.
+3. **v2 bump** (`g.schemaVersion < 2`): retires the dead `profile.updateInterval` key (the repaint path moved from a poll ticker to the event-driven `throttleWindow` scheduler) and stamps `schemaVersion = 2`.
+4. **v3 bump** (`g.schemaVersion < 3`): stamps `schemaVersion = 3`.
+
+Both version bumps are idempotent and log one `[Migrate]` line only when they actually fire.
 
 ### `addon:OnEnable` — the login body
 
@@ -44,31 +53,38 @@ OnEnable (PLAYER_LOGIN timing)
     ├─▶ NS.bus:SendMessage(NS.MSG.APPEARANCE)  -- ▶ Display: size, textures, colors, border, font
     ├─▶ NS.bus:SendMessage(NS.MSG.REPAINT)     -- ▶ Timer: coalesced initial value paint
     │
-    ├─▶ [private frame] RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "player") ─▶ OnAbsorbChanged
-    ├─▶ [private frame] RegisterUnitEvent("UNIT_MAXHEALTH", "player")             ─▶ OnMaxHealthChanged
+    ├─▶ self:EnsureUnitEventFrames()
+    │     ├─ [private frame A] RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "player","target")
+    │     ├─ [private frame A] RegisterUnitEvent("UNIT_MAXHEALTH", "player","target")
+    │     ├─ [private frame B] RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "focus")
+    │     └─ [private frame B] RegisterUnitEvent("UNIT_MAXHEALTH", "focus")
+    │           both frames share one OnEvent stub ─▶ OnAbsorbChanged / OnMaxHealthChanged
     ├─▶ self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
     ├─▶ self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnEnterCombat")
     ├─▶ self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnLeaveCombat")
+    ├─▶ self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnUnitSwap")
+    ├─▶ self:RegisterEvent("PLAYER_FOCUS_CHANGED", "OnUnitSwap")
     │
     └─▶ if NS.CreateOptionsPanel then
             NS.CreateOptionsPanel()    -- registers parent + sub-pages
         end
 ```
 
-The two `UNIT_*` events go through a **private `CreateFrame` frame** with `RegisterUnitEvent(event, "player")`, not AceEvent — a documented §9.1 deviation ([ARCHITECTURE.md → Standards Deviations](./ARCHITECTURE.md#standards-deviations)). These events fire for *every* unit the client knows about; AceEvent-3.0 shares one frame and cannot `RegisterUnitEvent`, so a plain `RegisterEvent` would pay a C→Lua dispatch per unit only to discard all but `"player"`. The private frame filters at the C layer instead. The three global, payload-free events stay on AceEvent (`self:RegisterEvent`). The `if NS.CreateOptionsPanel then ... end` guard is the [forward-reference pattern](./module-map.md#forward-references) — in practice the call always succeeds because all files load synchronously before `OnEnable` fires, but the nil-check keeps the load-order coupling soft.
+The two `UNIT_*` events go through **two private `CreateFrame` frames** with `RegisterUnitEvent`, not AceEvent — a documented §9.1 deviation ([ARCHITECTURE.md → Standards Deviations](./ARCHITECTURE.md#standards-deviations)). These events fire for *every* unit the client knows about; AceEvent-3.0 shares one frame and cannot `RegisterUnitEvent`, so a plain `RegisterEvent` would pay a C→Lua dispatch per unit only to discard all but ours. The private frames filter at the C layer instead. **Two frames are required, not one:** `RegisterUnitEvent` filters at most two unit tokens per registration, and the addon now tracks three (player/target/focus) — frame A takes player+target, frame B takes the leftover focus. The five global, payload-free events (`PLAYER_ENTERING_WORLD`, the combat pair, and the target/focus-swap pair) stay on AceEvent (`self:RegisterEvent`). The `if NS.CreateOptionsPanel then ... end` guard is the [forward-reference pattern](./module-map.md#forward-references) — in practice the call always succeeds because all files load synchronously before `OnEnable` fires, but the nil-check keeps the load-order coupling soft.
 
 ## Absorb-update path
 
 ```
-[player gets a shield]                [max health changes]         [zone transition]
-        │                                     │                            │
-        ▼                                     ▼                            ▼
-UNIT_ABSORB_AMOUNT_CHANGED           UNIT_MAXHEALTH                PLAYER_ENTERING_WORLD
-(player only; unit frame →           (player only; unit frame →    (AceEvent →
- addon:OnAbsorbChanged)               addon:OnMaxHealthChanged)     addon:OnEnterWorld)
-        │  (also a debug line,               │                            │
-        │   gated on NS.State.debug)         │                            │
-        └─────────────────┬───────────────────────────────────────────────┘
+[a tracked unit gets a shield]       [max health changes]     [target/focus swap]   [zone transition]
+        │                                     │                       │                    │
+        ▼                                     ▼                       ▼                    ▼
+UNIT_ABSORB_AMOUNT_CHANGED           UNIT_MAXHEALTH          PLAYER_TARGET_CHANGED  PLAYER_ENTERING_WORLD
+(player/target/focus; two private     (player/target/focus;   / PLAYER_FOCUS_       (AceEvent →
+ unit-event frames →                   two private frames →    CHANGED (AceEvent →   addon:OnEnterWorld)
+ addon:OnAbsorbChanged)                 addon:OnMaxHealthChanged) addon:OnUnitSwap)
+        │  (debug line, player-only,          │                       │                    │
+        │   gated on NS.State.debug)          │                       │ also VISIBILITY     │
+        └─────────────────┬────────────────────────────────────────────┴────────────────────┘
                            ▼
         NS.bus:SendMessage(NS.MSG.REPAINT)   -- producers publish; never call Display directly
                            │
@@ -82,16 +98,20 @@ UNIT_ABSORB_AMOUNT_CHANGED           UNIT_MAXHEALTH                PLAYER_ENTERI
    NS.addon:ScheduleTimer(fn, throttleWindow)   -- trailing-edge one-shot AceTimer
                            │
                            ▼ (fires once, ~throttleWindow seconds later)
-                NS.UpdateAbsorbBar()             -- direct intra-concern call (Timer → Display)
-                           │
+                NS.UpdateAbsorbBar()             -- direct intra-concern call (Timer → Display),
+                           │                        called once per unit via NS.ForEachUnit
         ┌──────────────────┼──────────────────┐
         ▼                  ▼                  ▼
-  UnitGetTotalAbsorbs    UnitHealthMax       statusBar:SetValue
+  UnitGetTotalAbsorbs(unit) UnitHealthMax(unit) statusBar:SetValue
                                               valueText:SetText
                                               (AbbreviateNumbers)
 ```
 
-**Repaints are purely event-driven — there is no polling ticker.** Producers never call the display module directly; they publish `NS.MSG.REPAINT` on the bus (architecture-§4, see [ARCHITECTURE.md → Message Bus](./ARCHITECTURE.md#message-bus)). `modules/Timer.lua` owns the sole `REPAINT` subscription (on its own `NS.Timer.__ev` target) and funnels it through `NS.RequestRepaint()`, a coalescing scheduler: if a repaint is already queued, a burst of events (heavy combat stacking absorbs) collapses into that single pending repaint instead of scheduling another. The one-shot AceTimer fires once per `throttleWindow` (default 0.1s) and calls `NS.UpdateAbsorbBar()` (a direct intra-concern call, Timer → Display), then clears itself so the next event starts a fresh cycle. Idle = zero repaints. Login (`OnEnable`), profile change (`NS.OnProfileChanged`), and the `/at update` verb also publish `REPAINT` — they coalesce through the same throttle rather than painting directly. `/at toggle` publishes nothing itself: it writes through `NS.SetByPath`, and the `hidden` row's `onChange` (`settings/General.lua`) publishes `APPEARANCE` plus — only when the bar is becoming visible — `REPAINT`, so the verb and the panel's **Show Bar** checkbox travel one path.
+**One coalesced repaint fans out to all three bars — not three separate schedules.** A single `REPAINT` message (however it was triggered — an absorb event on any of the three units, a max-health change, a target/focus swap, or a zone transition) reaches `NS.RequestRepaint()` exactly once; when its one-shot AceTimer fires, `NS.UpdateAbsorbBar` runs once **per unit** via `NS.ForEachUnit` (`modules/Display.lua`), reading each unit's own `UnitGetTotalAbsorbs(unit)` / `UnitHealthMax(unit)`. There is no per-unit throttle bookkeeping — `throttleWindow` and the coalescing pending-flag are both global.
+
+**Repaints are purely event-driven — there is no polling ticker.** Producers never call the display module directly; they publish `NS.MSG.REPAINT` on the bus (architecture-§4, see [ARCHITECTURE.md → Message Bus](./ARCHITECTURE.md#message-bus)). `modules/Timer.lua` owns the sole `REPAINT` subscription (on its own `NS.Timer.__ev` target) and funnels it through `NS.RequestRepaint()`, a coalescing scheduler: if a repaint is already queued, a burst of events (heavy combat stacking absorbs) collapses into that single pending repaint instead of scheduling another. The one-shot AceTimer fires once per `throttleWindow` (default 0.1s) and calls `NS.UpdateAbsorbBar()` for every unit (a direct intra-concern call, Timer → Display), then clears itself so the next event starts a fresh cycle. Idle = zero repaints. Login (`OnEnable`), profile change (`NS.OnProfileChanged`), and the `/at update` verb also publish `REPAINT` — they coalesce through the same throttle rather than painting directly. `/at toggle` publishes nothing itself: it writes through `NS.SetByPath`, and the `hidden` row's `onChange` (`settings/General.lua`) publishes `APPEARANCE` plus — only when the bar is becoming visible — `REPAINT`, so the verb and the panel's **Show Bar** checkbox travel one path.
+
+**Mirror resolution sits between the schema read and the paint, not inside the repaint path itself.** `UpdateAbsorbBar` and `UpdateBarAppearance` never read `db.profile.units` directly — every appearance value comes from `NS.Units.Get(unit, key)` (`core/Units.lua`), which resolves `NS.Units.SourceUnit(unit)` (the player, if `unit` is mirrored; `unit` itself otherwise) *before* reading the config table. So a mirrored target bar's repaint reads the player's texture/color/font settings on every paint — live, not snapshotted — while its absorb value (`UnitGetTotalAbsorbs("target")`) and position stay the target's own, since neither is ever mirrored.
 
 ## Settings-write path
 
@@ -109,7 +129,10 @@ setSetting(rest) → ParseSchemaValue      local set(row, value)
                   ┌──────────┴───────────┐
                   ▼                      ▼
        SetSetting(path, v)      fireOnChange(row, v)  -- publishes, never calls Display directly
-       db.profile[path] = v     default:  bus ▶ APPEARANCE
+       NS.SetPath(db.profile,   default:  bus ▶ APPEARANCE
+         path, v)  -- walks dotted
+         paths (units.<unit>.<key>)
+         same as flat ones
                                 hidden:    bus ▶ APPEARANCE (+ REPAINT when shown)
                                 combat:    bus ▶ VISIBILITY (+ REPAINT when shown)
                              │
@@ -154,24 +177,33 @@ NS.OnProfileChanged()
 
 ## Visibility composition
 
-`NS.ShouldShowBar()` (`modules/Display.lua`) is the single source of truth for whether the bar is on screen: the master `hidden` toggle wins outright (`hidden == true` → hidden regardless of combat), otherwise `showOnlyInCombat and not UnitAffectingCombat("player")` hides it (the gate keys off actual player combat, **not** `InCombatLockdown()`, which lags the `PLAYER_REGEN_DISABLED` transition — see `docs/midnight-quirks.md`). `NS.ApplyVisibility()` calls `NS.ShouldShowBar()` and shows/hides `NS.bar` accordingly (the bar is a plain, non-secure frame, so this is taint-free even mid-combat). `NS.UpdateBarAppearance()` ends with a call to `NS.ApplyVisibility()`, and `NS.UpdateAbsorbBar()` early-returns (skipping the paint) when `NS.ShouldShowBar()` is false — so both the settings-write path and the repaint path stay consistent with the combat gate without each caller re-deriving it.
+`NS.ShouldShowBar(unit)` (`modules/Display.lua`) is the single source of truth for whether a given unit's bar is on screen — a five-step ladder, first `false` wins:
+
+1. the global `hidden` master toggle (`hidden == true` → every bar hidden, regardless of combat),
+2. the per-unit `NS.Units.IsEnabled(unit)` flag (target/focus ship `false`),
+3. `showOnlyInCombat and not UnitAffectingCombat("player")` (the gate keys off actual player combat, **not** `InCombatLockdown()`, which lags the `PLAYER_REGEN_DISABLED` transition — see `docs/midnight-quirks.md`),
+4. for target/focus only, `UnitExists(unit)` — **not** an absorb comparison (`UnitGetTotalAbsorbs` is a secret in restricted content and comparing it to zero raises; the same constraint recorded in `docs/scope.md` for the declined audio-alert feature),
+5. otherwise shown.
+
+`NS.ApplyVisibility(unit)` calls `NS.ShouldShowBar(unit)` and shows/hides that unit's bar frame accordingly (all three bar frames are plain, non-secure frames, so this is taint-free even mid-combat). `NS.UpdateBarAppearance(unit)` ends with a call to `NS.ApplyVisibility(unit)`, and `NS.UpdateAbsorbBar(unit)` early-returns (skipping the paint) when `NS.ShouldShowBar(unit)` is false — so both the settings-write path and the repaint path stay consistent with the same ladder without each caller re-deriving it. The bus handlers (`APPEARANCE`/`VISIBILITY`/`POSITION`) call these per-unit functions once for each of `NS.Units.LIST` via `NS.ForEachUnit`.
 
 ## Other events
 
 | Event | Handler | What it does |
 |-------|---------|--------------|
 | `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | Publishes `VISIBILITY` + `REPAINT`. Handles zone transitions where the engine may have stale state (and re-evaluates the combat-visibility gate on load/reload). |
-| `UNIT_ABSORB_AMOUNT_CHANGED` (player only — private `RegisterUnitEvent` frame, C-level filter) | `addon:OnAbsorbChanged` | Debug line (gated on `NS.State.debug`) then publishes `REPAINT`. |
-| `UNIT_MAXHEALTH` (player only — private `RegisterUnitEvent` frame, C-level filter) | `addon:OnMaxHealthChanged` | Publishes `REPAINT`. The bar shows absorb as a fraction of max health, so a max-health change (buffs, stamina, level) must repaint even when the absorb value itself is unchanged. |
-| `PLAYER_REGEN_DISABLED` (enter combat) | `addon:OnEnterCombat` | Publishes `VISIBILITY` + `REPAINT` — re-evaluates the `showOnlyInCombat` gate so the bar appears (and repaints fresh) the moment combat starts. |
+| `UNIT_ABSORB_AMOUNT_CHANGED` (player, target, focus — two private `RegisterUnitEvent` frames, C-level filter) | `addon:OnAbsorbChanged` | Debug line (player-only, gated on `NS.State.debug`) then publishes `REPAINT`. |
+| `UNIT_MAXHEALTH` (player, target, focus — two private `RegisterUnitEvent` frames, C-level filter) | `addon:OnMaxHealthChanged` | Publishes `REPAINT`. Every bar shows absorb as a fraction of max health, so a max-health change (buffs, stamina, level) must repaint even when the absorb value itself is unchanged. |
+| `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` (AceEvent, global) | `addon:OnUnitSwap` | Publishes `VISIBILITY` + `REPAINT`. A swap changes both which bars should be visible (step 4 of the ladder, `UnitExists`) and what they should read. |
+| `PLAYER_REGEN_DISABLED` (enter combat) | `addon:OnEnterCombat` | Publishes `VISIBILITY` + `REPAINT` — re-evaluates the `showOnlyInCombat` gate so any eligible bar appears (and repaints fresh) the moment combat starts. |
 | `PLAYER_REGEN_ENABLED` (leave combat) | `addon:OnLeaveCombat` | Publishes `VISIBILITY` + `REPAINT` — nothing else. Per options-ui-§2 the settings panel **refuses** to open in combat (`settings/Panel.lua` prints a grey notice and returns) rather than deferring, so there is no combat-deferred `/at config` for `OnLeaveCombat` to replay. It is the sole handler of `PLAYER_REGEN_ENABLED`, and its only job is re-evaluating the `showOnlyInCombat` visibility gate and repainting. |
 
 ## Performance budget
 
-The hot path is `NS.RequestRepaint()` (`modules/Timer.lua`), reached via the bus — the `UNIT_*` handlers publish `NS.MSG.REPAINT` and Timer's subscriber funnels it into this coalescing repaint scheduler, not a polling loop. The bus hop is a single synchronous CallbackHandler dispatch to one registered target (no allocation), negligible next to the engine reads below. A burst of `UNIT_ABSORB_AMOUNT_CHANGED` events during combat collapses into a single pending one-shot AceTimer (`NS.addon:ScheduleTimer(fn, throttleWindow)`, default 0.1s, range 0.05 – 1s); repeat calls while one is already pending are a no-op. Idle = zero repaints. Per fire of the resulting `NS.UpdateAbsorbBar()`:
+The hot path is `NS.RequestRepaint()` (`modules/Timer.lua`), reached via the bus — the `UNIT_*` handlers publish `NS.MSG.REPAINT` and Timer's subscriber funnels it into this coalescing repaint scheduler, not a polling loop. The bus hop is a single synchronous CallbackHandler dispatch to one registered target (no allocation), negligible next to the engine reads below. A burst of `UNIT_ABSORB_AMOUNT_CHANGED` events during combat — from any of the three tracked units — collapses into a single pending one-shot AceTimer (`NS.addon:ScheduleTimer(fn, throttleWindow)`, default 0.1s, range 0.05 – 1s); repeat calls while one is already pending are a no-op. Idle = zero repaints. When it fires, `NS.UpdateAbsorbBar()` runs once per unit via `NS.ForEachUnit`; per unit:
 
-1. `UnitGetTotalAbsorbs("player")` + `UnitHealthMax("player")` — engine reads, microseconds each.
-2. `AbbreviateNumbers(value)` — string format. (`NS.Debug` no longer logs per-repaint — `UpdateAbsorbBar` bumps a debug-gated repaint counter via `NS.NoteRepaint()`, coalesced into the one `[Combat]` rollup line at `OnLeaveCombat`; any remaining debug work is gated behind `NS.State.debug`, so it costs nothing when debug is off.)
+1. `UnitGetTotalAbsorbs(unit)` + `UnitHealthMax(unit)` — engine reads, microseconds each.
+2. `AbbreviateNumbers(value)` — string format. (`NS.Debug` no longer logs per-repaint — `UpdateAbsorbBar` bumps a debug-gated repaint counter via `NS.NoteRepaint()`, coalesced into the one `[Combat]` rollup line at `OnLeaveCombat` — player events only, deliberately, so the printed count matches what it reports; any remaining debug work is gated behind `NS.State.debug`, so it costs nothing when debug is off.)
 3. `statusBar:SetValue` + `valueText:SetText` — both fire on every repaint. Frame updates with unchanged values are cheap (Blizzard-side no-op for matching state), so the addon doesn't try to dedupe in Lua.
 
 There is no repeating ticker to guard: the one-shot timer self-clears (`pending = nil`) inside its own callback, so there's nothing to cancel between repaints.
@@ -180,4 +212,4 @@ There is no repeating ticker to guard: the one-shot timer self-clears (`pending 
 
 ## Saved variables
 
-Only `AbsorbTrackerDB` is declared in the TOC. With AceDB it holds the full profile structure (`profiles`, `profileKeys`, `char` map, etc.), with per-bar appearance/position under `db.profile` and the persisted schema-version stamp at `db.global.schemaVersion` (account-wide, so `NS:RunMigrations` has one version to walk regardless of the active profile). Without AceDB, `NS:InitDB` builds a minimal `{ profile = AbsorbTrackerDB, global = {} }` shim so `GetSetting` / `SetSetting` reads and writes stay consistent across the two modes. Either way, `NS:RunMigrations` runs once at init and backfills any missing profile key from `NS.flatDefaults`.
+Only `AbsorbTrackerDB` is declared in the TOC. With AceDB it holds the full profile structure (`profiles`, `profileKeys`, `char` map, etc.); `db.profile` holds the four flat globals plus `units.{player,target,focus}` (each unit's own appearance + position table), and the persisted schema-version stamp lives at `db.global.schemaVersion` (account-wide, so `NS:RunMigrations` has one version to walk regardless of the active profile — currently `3`, the version that introduced `profile.units`). Without AceDB, `NS:InitDB` builds a minimal `{ profile = AbsorbTrackerDB, global = {} }` shim so `GetSetting` / `SetSetting` reads and writes stay consistent across the two modes. Either way, `NS:RunMigrations` runs once at init and backfills any missing profile key (flat or per-unit) from `NS.defaults.profile`.

@@ -2,14 +2,14 @@
 
 _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > docs/test-cases.md`._
 
-### test_schema.lua (25)
+### test_schema.lua (40)
 
 - ParseSchemaValue bool accepts truthy/falsey words, rejects junk
 - ParseSchemaValue number clamps to the row's min/max
 - ParseSchemaValue color accepts 0-1 and 0-255 and clamps to 0..1
 - ParseSchemaValue string validates against allowed values
 - FormatSchemaValue formats by type
-- SchemaForPage keeps groups in registration order (Size, Bar, Background)
+- SchemaForPage keeps groups in registration order (This bar, Size, Bar, Background)
 - ValidateSchema resolves every real path against defaults (0 errors, 0 missing)
 - ValidateSchema reports a planted path that does not resolve against defaults
 - ValidateSchema flags an invalid page/type as a shape error
@@ -29,20 +29,60 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - SetByPath still writes a value that has no schema row at all
 - ApplyDefault deep-copies a colour table so profiles never share one
 - ApplyDefault is a no-op for a row with no default
+- ResolvePath walks a dotted path
+- ResolvePath returns nil for a missing branch instead of raising
+- ResolvePath still handles a flat key
+- SetPath writes through a dotted path and creates intermediate tables
+- GetSetting and SetSetting round-trip a dotted path
+- ValidateSchema resolves nested paths against defaults.profile
+- SchemaForPage with no unit returns every unit's rows
+- SchemaForPage filtered to a unit excludes the other units' rows
+- PartitionUnitRows splits alwaysPerUnit rows from the mirrored appearance rows
+- every appearance page carries a full row set for all three units
+- each unit's row set for a page is the same size
+- the enable row is per-unit and survives mirroring
+- the mirror row exists for target and focus but not the player
+- the mirror row is kept out of the auto-rendered body
+- General's rows stay flat globals with no unit tag
 
-### test_database.lua (11)
+### test_database.lua (19)
 
-- RunMigrations migrates a fresh DB to the current version (2)
-- RunMigrations leaves an already-current (v2) DB unchanged
+- RunMigrations migrates a fresh DB to the current version (3)
+- RunMigrations leaves an already-current (v3) DB unchanged
 - RunMigrations is idempotent across repeated runs
 - RunMigrations v2 retires the legacy updateInterval profile key
 - RunMigrations backfills throttleWindow from flatDefaults
-- RunMigrations backfills a missing scalar profile key from flatDefaults
-- RunMigrations deep-copies table defaults (no shared reference to flatDefaults)
+- RunMigrations backfills a missing scalar per-unit key from the defaults
+- RunMigrations deep-copies per-unit table defaults (no shared reference to defaults)
 - RunMigrations does not overwrite an existing user value
 - RunMigrations is a safe no-op when the DB is absent
 - RunMigrations logs [Migrate] only when a version bump happens
 - InitDB produced a profile carrying every default key
+- v3 migration lifts flat appearance keys onto the player unit
+- v3 migration seeds target and focus disabled and mirrored
+- v3 migration leaves the four global keys flat
+- v3 migration is idempotent
+- v3 migration does not share nested tables between units
+- the schema version lands on 3
+- real AceDB init: a legacy flat profile is lifted onto the player unit, not overwritten by fresh defaults
+- real AceDB init: a fresh install (no saved data) converges on factory defaults at v3
+
+### test_units.lua (14)
+
+- LIST is player, target, focus in render order
+- Get reads the unit's own value when it is not mirrored
+- Get resolves to the player's value when the unit is mirrored
+- player is never mirrored even if a mirror key is force-written
+- Position is never mirror-resolved
+- SetPosition writes the unit's own position while mirrored
+- CopyFromPlayer snapshots every appearance key and clears the mirror
+- a copied unit does not track later player changes
+- CopyFromPlayer deep-copies color tables rather than sharing them
+- CopyFromPlayer leaves position and enabled alone
+- CopyFromPlayer is a no-op for the player itself
+- IsEnabled reads the per-unit flag and ignores the global hidden toggle
+- target and focus ship disabled so an upgrade changes nothing on screen
+- target and focus ship mirrored so a first enable looks like the player bar
 
 ### test_compat.lua (4)
 
@@ -97,18 +137,20 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - RequestRepaint coalesces multiple requests into one scheduled repaint
 - RequestRepaint schedules the timer at the throttleWindow delay
 - OnAbsorbChanged requests a repaint for the player
-- OnAbsorbChanged ignores non-player units
+- OnAbsorbChanged requests a repaint for any tracked unit, not just the player
 - OnMaxHealthChanged requests a repaint for the player
-- OnMaxHealthChanged ignores non-player units
+- OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_visibility.lua (11)
+### test_visibility.lua (13)
 
 - ShouldShowBar: hidden master toggle wins even in combat
 - ShouldShowBar: default (not hidden, not combat-only) is shown
 - ShouldShowBar: combat-only + in combat is shown
 - ShouldShowBar: combat-only + out of combat is hidden
 - ShouldShowBar: combat-only shows when lockdown lags actual combat
+- EnsureUnitEventFrames registers exactly player+target on frame A and focus on frame B
+- EnsureUnitEventFrames is idempotent — a second call leaves the same frame pair in place
 - OnEnterCombat applies visibility and requests a repaint
 - OnLeaveCombat applies visibility and requests a repaint
 - OnLeaveCombat never opens config, even with a stale panelOpenPending (options-ui-§2)
@@ -126,7 +168,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - APPEARANCE / VISIBILITY / POSITION route to their Display consumers
 - sending a message with no subscribers is a harmless no-op
 
-### test_data.lua (19)
+### test_data.lua (26)
 
 - GetSetting reads the value out of the active profile
 - GetSetting falls back to flatDefaults when the key is missing from the profile
@@ -147,8 +189,15 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - GetBgColor uses the DIMMED class colour, not the raw one
 - GetBgColor returns the stored colour when the toggle is off
 - the three class-colour toggles are independent of each other
+- media getters read through the unit's mirror resolution
+- a media getter with no unit still resolves the player
+- with LSM present, the media getter resolves the REQUESTED unit's own key, not the player's
+- GetBarColor reads the requested unit's color
+- class color on a target bar is still the PLAYER's class color
+- three bar frames exist and the player alias points at the player frame
+- each bar carries its own unit tag and its own backdrop table
 
-### test_display.lua (23)
+### test_display.lua (34)
 
 - RestoreBarPosition centres the bar when no position is saved
 - RestoreBarPosition restores the saved anchor verbatim
@@ -173,8 +222,19 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - UpdateAbsorbBar writes the abbreviated value into the bar text
 - UpdateAbsorbBar notes the repaint for the combat rollup
 - a hidden bar's skipped paint is NOT counted as a repaint
+- the global hidden toggle hides every bar
+- a disabled unit stays hidden even with the master toggle on
+- an enabled target bar hides when there is no target
+- the player bar never consults UnitExists
+- showOnlyInCombat gates every bar on PLAYER combat
+- UpdateAbsorbBar reads the absorb of the unit it is painting
+- UpdateBarAppearance sizes the bar it is given, not always the player's
+- a mirrored unit paints with the player's size
+- the player bar defaults to dead centre
+- target and focus default stacked above the player bar
+- ForEachUnit walks all three units in order
 
-### test_helpers.lua (22)
+### test_helpers.lua (32)
 
 - CreatePanel returns a ctx wired to a panel, a body and an empty refresher list
 - CreatePanel names the panel with the plain title for the Blizzard left tree
@@ -198,8 +258,18 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - RefreshAllPanels isolates a throwing refresher from the rest
 - NS.RefreshOptionsPanel delegates to RefreshAllPanels
 - the cross-slice layout constants are published for the widget/about slices
+- the Bar page opens on the player unit with no mirror header
+- RenderUnitPanel draws a Unit dropdown listing all three units
+- switching the dropdown to focus re-renders the page for that unit
+- a mirrored unit hides its appearance rows but keeps the enable toggle
+- unchecking the mirror reveals the appearance rows
+- the copy button snapshots the player's styling and clears the mirror
+- a page Defaults button resets that page across every unit
+- RestoreAllDefaults clears all three saved positions
+- the mirror checkbox renders exactly once — the header owns it, RenderRows must skip it
+- ClearScroll resets ctx.refreshers, so repeated renders do not leak stale closures
 
-### test_slashcmds.lua (43)
+### test_slashcmds.lua (52)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -244,6 +314,15 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at profile sub-verbs are case-insensitive
 - /at profile degrades gracefully when AceDB is unavailable
 - a profile switch repaints the bar through OnProfileChanged
+- set writes a dotted per-unit path
+- set on one unit leaves the others alone
+- an unqualified appearance key is rejected
+- a global key still uses its flat path
+- get echoes a dotted path
+- list groups the appearance pages by unit
+- reset bar resets every unit
+- resetposition clears all three positions
+- toggle still flips the global hidden master
 
 ### test_widgets.lua (48)
 
@@ -292,7 +371,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - a page renders nothing until its first OnShow
 - first OnShow builds the Defaults button and renders the page
 - the Defaults button restores just its own page
-- a second OnShow is idempotent — no duplicate button, no re-render
+- a second OnShow rebuilds the panel body without stacking duplicate widgets
 - showing every page builds it without error
 - the main page's About content renders on its first OnShow
 
@@ -300,18 +379,19 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 
 | Suite | Count |
 |-------|-------|
-| test_schema.lua | 25 |
-| test_database.lua | 11 |
+| test_schema.lua | 40 |
+| test_database.lua | 19 |
+| test_units.lua | 14 |
 | test_compat.lua | 4 |
 | test_util.lua | 6 |
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
 | test_timer.lua | 7 |
-| test_visibility.lua | 11 |
+| test_visibility.lua | 13 |
 | test_bus.lua | 7 |
-| test_data.lua | 19 |
-| test_display.lua | 23 |
-| test_helpers.lua | 22 |
-| test_slashcmds.lua | 43 |
+| test_data.lua | 26 |
+| test_display.lua | 34 |
+| test_helpers.lua | 32 |
+| test_slashcmds.lua | 52 |
 | test_widgets.lua | 48 |
-| **Total** | **252** |
+| **Total** | **328** |

@@ -156,10 +156,40 @@ NS:InitDB()         -- AceDB:New("AbsorbTrackerDB", NS.defaults, true); register
                     -- OnProfileChanged/OnProfileCopied/OnProfileReset -> NS.OnProfileChanged
                     -- (RegisterCallback guarded for the headless mock); falls back to a
                     -- raw-SV table when AceDB is absent; then calls RunMigrations.
-NS:RunMigrations()  -- reads/writes db.global.schemaVersion. Idempotent. v1 backfills missing
-                    -- profile keys from flatDefaults, deep-copying table defaults; v2 drops the
-                    -- dead profile.updateInterval key (repaints are event-driven now, and
-                    -- throttleWindow is already seeded by the v1 backfill).
+NS:RunMigrations()  -- reads/writes db.global.schemaVersion. Idempotent. v3 (gated on
+                    -- schemaVersion < 3, NOT profile.units == nil -- see core/Database.lua's
+                    -- comment) lifts the pre-v3 flat appearance keys onto profile.units.player;
+                    -- the unconditional backfill step then fills any missing flat OR per-unit key
+                    -- from NS.defaults.profile; v2 drops the dead profile.updateInterval key
+                    -- (repaints are event-driven now).
+```
+
+### Units (`core/Units.lua`)
+
+Single source of unit identity + per-unit config resolution. **The only file that reads
+`db.profile.units` for appearance** — `modules/Bar.lua`, `modules/Display.lua`, and `core/Data.lua`
+all call `NS.Units.Get(unit, key)` instead, so mirror resolution lives in exactly one place.
+
+```lua
+NS.Units.LIST                  -- { "player", "target", "focus" }
+NS.Units.LABEL                 -- { player = "Player", target = "Target", focus = "Focus" }
+NS.Units.APPEARANCE_KEYS       -- the 15 appearance keys, in profile order; mirror resolution and
+                               -- CopyFromPlayer both walk this list
+
+NS.Units.Config(unit)          -> profile.units[unit] | nil
+NS.Units.IsEnabled(unit)       -> bool             -- the per-unit `enabled` flag
+NS.Units.IsMirrored(unit)      -> bool             -- always false for "player" (the mirror source)
+NS.Units.SourceUnit(unit)      -> "player" | unit  -- IsMirrored(unit) and "player" or unit
+NS.Units.Get(unit, key)        -> value            -- mirror-resolved read; THE read path for all
+                                                    -- 15 appearance keys
+NS.Units.Set(unit, key, value) -- writes the unit's OWN config, NOT mirror-resolved (a write while
+                               -- mirrored would silently edit the player's bar)
+NS.Units.Position(unit)        -> position | nil   -- never mirror-resolved
+NS.Units.SetPosition(unit, pos)
+NS.Units.CopyFromPlayer(unit)  -- one-shot: deep-copies the player's 15 appearance keys onto
+                               -- `unit`, then clears mirror. Does NOT copy `position` or
+                               -- `enabled` — both stay per-unit by design.
+NS.Units.DeepCopy(v)           -- generic recursive table copy
 ```
 
 ### LSMPatch (`core/LSMPatch.lua`)
@@ -216,19 +246,31 @@ NS.addon               -- the AceAddon object (== NS via NewAddon(NS, ...))
 addon:OnInitialize()   -- ADDON_LOADED timing: register the LSM monospace font, NS:InitDB(),
                        -- NS.Slash:Register().
 addon:OnEnable()       -- PLAYER_LOGIN timing: ClearLSMCache -> GetLSM -> ApplyLSMBorderPatch ->
-                       -- publishes POSITION -> APPEARANCE -> REPAINT on the bus; private
-                       -- RegisterUnitEvent frame for UNIT_ABSORB_AMOUNT_CHANGED /
-                       -- UNIT_MAXHEALTH ("player"); RegisterEvent PLAYER_ENTERING_WORLD /
-                       -- PLAYER_REGEN_DISABLED / PLAYER_REGEN_ENABLED; CreateOptionsPanel.
-addon:OnAbsorbChanged(_, unit)  -- UNIT_ABSORB_AMOUNT_CHANGED; records a debug line, then publishes
-                                -- REPAINT (a burst coalesces into one repaint).
-addon:OnMaxHealthChanged(_, unit)  -- UNIT_MAXHEALTH; publishes REPAINT (absorb is shown as a
-                                    -- fraction of max health, so it must repaint too).
+                       -- publishes POSITION -> APPEARANCE -> REPAINT on the bus;
+                       -- self:EnsureUnitEventFrames(); RegisterEvent PLAYER_ENTERING_WORLD /
+                       -- PLAYER_REGEN_DISABLED / PLAYER_REGEN_ENABLED / PLAYER_TARGET_CHANGED /
+                       -- PLAYER_FOCUS_CHANGED; CreateOptionsPanel.
+addon:EnsureUnitEventFrames()  -- builds TWO private RegisterUnitEvent frames (RegisterUnitEvent
+                               -- filters at most two units per frame, and there are three tracked
+                               -- units): frame A for UNIT_ABSORB_AMOUNT_CHANGED/UNIT_MAXHEALTH on
+                               -- "player","target"; frame B for the same two events on "focus".
+                               -- Guarded against a disable/enable cycle; both share one OnEvent
+                               -- stub that dispatches to OnAbsorbChanged / OnMaxHealthChanged.
+addon:OnAbsorbChanged(_, unit)  -- UNIT_ABSORB_AMOUNT_CHANGED (player/target/focus); records a
+                                -- debug line (player only), then publishes REPAINT (a burst
+                                -- coalesces into one repaint, all units repainted together).
+addon:OnMaxHealthChanged(_, unit)  -- UNIT_MAXHEALTH (player/target/focus); publishes REPAINT
+                                    -- (absorb is shown as a fraction of max health, so it must
+                                    -- repaint too; unit argument itself is unused).
 addon:OnEnterWorld()   -- PLAYER_ENTERING_WORLD; publishes VISIBILITY + REPAINT.
+addon:OnUnitSwap()     -- PLAYER_TARGET_CHANGED / PLAYER_FOCUS_CHANGED; publishes VISIBILITY +
+                       -- REPAINT (a swap changes both which bars should be visible, via the
+                       -- UnitExists step of the visibility ladder, and what they should read).
 addon:OnEnterCombat()  -- PLAYER_REGEN_DISABLED; publishes VISIBILITY + REPAINT, resets per-combat
                        -- debug counters.
 addon:OnLeaveCombat()  -- PLAYER_REGEN_ENABLED; publishes VISIBILITY + REPAINT, flushes one
-                       -- "[Combat] left: N events, M repaints" rollup (never replays /at config).
+                       -- "[Combat] left: N events, M repaints" rollup (player events only,
+                       -- deliberately; never replays /at config).
 
 NS.NoteRepaint()       -- bumps the debug-gated repaint counter + last-absorb snapshot; called
                        -- directly by modules/Display.lua's UpdateAbsorbBar on every paint
@@ -237,15 +279,18 @@ NS.OnProfileChanged()  -- registered as the AceDB profile callback inside InitDB
                        -- POSITION + APPEARANCE + REPAINT, then RefreshOptionsPanel.
 ```
 
-Cross-module signalling goes through the message bus (see [Bus](#bus-corebuslua) above) — the handlers publish `NS.MSG.*` rather than calling the display module directly. Events are AceEvent (`self:RegisterEvent`), **except** the two `UNIT_*` events (`UNIT_ABSORB_AMOUNT_CHANGED`, `UNIT_MAXHEALTH`), which use a private `CreateFrame` frame with `RegisterUnitEvent(event, "player")` for C-level unit filtering — a documented §9.1 deviation ([ARCHITECTURE.md → Standards Deviations](./ARCHITECTURE.md#standards-deviations)). Detail in [data-flow.md](./data-flow.md).
+Cross-module signalling goes through the message bus (see [Bus](#bus-corebuslua) above) — the handlers publish `NS.MSG.*` rather than calling the display module directly. Events are AceEvent (`self:RegisterEvent`), **except** the two `UNIT_*` events (`UNIT_ABSORB_AMOUNT_CHANGED`, `UNIT_MAXHEALTH`), which use two private `CreateFrame` frames with `RegisterUnitEvent` for C-level unit filtering — a documented §9.1 deviation ([ARCHITECTURE.md → Standards Deviations](./ARCHITECTURE.md#standards-deviations)); a second frame is required because `RegisterUnitEvent` filters at most two units per frame and the addon tracks three (player/target/focus). Detail in [data-flow.md](./data-flow.md).
 
 ### Defaults (`defaults/Profile.lua`)
 
 Runs at file-load time; publishes the AceDB-shaped defaults.
 
 ```lua
-NS.defaults          -- { profile = { ... }, global = { schemaVersion = 1 } }
-NS.flatDefaults      -- alias to defaults.profile (GetSetting fallback + per-key panel defaults)
+NS.defaults          -- { profile = { <4 flat globals>, units = { player, target, focus } },
+                     --   global = { schemaVersion = 3 } }
+NS.flatDefaults      -- alias to defaults.profile (GetSetting fallback for flat keys)
+NS.unitDefaults      -- alias to defaults.profile.units.player — the canonical per-row default
+                     -- source settings/{Bar,Border,Font}.lua read from, shared by all 3 units
 ```
 
 ### Locale (`locales/enUS.lua`)
@@ -258,32 +303,46 @@ English-only in v1.9.0 — the metatable returns the key itself, so untranslated
 
 ### Bar (`modules/Bar.lua`)
 
-Runs at file-load time, not as a function. Builds the frame from flat defaults and exports the handles for the paint path (`modules/Display.lua`):
+Runs at file-load time, not as a function. `NS.CreateBar(unit, globalName)` builds one bar frame from `NS.unitDefaults`; called once per `NS.Units.LIST` entry:
 
 ```lua
-NS.bar           -- the outer movable BackdropTemplate frame (named AbsorbTrackerFrame)
-NS.statusBar     -- child StatusBar (also bar.statusBar)
-NS.valueText     -- FontString child of statusBar (also bar.valueText)
-NS.backdropInfo  -- reusable backdrop info table; mutated in place by UpdateBarAppearance
+NS.CreateBar(unit, globalName)  -- builds one bar frame; each owns its OWN backdropInfo table
+                                -- (one shared table can't hold three different border sizes —
+                                -- SetBackdrop keys off table identity)
+NS.bars          -- { player = <frame>, target = <frame>, focus = <frame> }, named
+                 -- AbsorbTrackerFrame / AbsorbTrackerTargetFrame / AbsorbTrackerFocusFrame
+NS.bar           -- = NS.bars.player — player alias for call sites that predate multi-unit
+NS.statusBar     -- = NS.bars.player.statusBar
+NS.valueText     -- = NS.bars.player.valueText
+NS.backdropInfo  -- = NS.bars.player.backdropInfo
 ```
 
-The `OnDragStop` handler persists the new position via `NS.SetSetting("position", ...)`.
+The `OnDragStop` handler persists the new position via `NS.Units.SetPosition(self.unit, ...)` — never mirrored, so the write always targets the dragged frame's own unit.
 
 ### Display (`modules/Display.lua`)
 
+Every function below takes a `unit` argument (defaulting to `"player"`):
+
 ```lua
-NS.RestoreBarPosition()      -- re-applies the saved position table or centers the bar
-NS.UpdateBarAppearance()     -- re-applies size, textures, colors, border, font, lock, visibility
-NS.UpdateAbsorbBar()         -- reads UnitGetTotalAbsorbs + UnitHealthMax, pushes into
-                             -- statusBar/valueText; honors the /at test hold window
-NS.ShouldShowBar()           -- visibility truth table: master hidden-toggle vs. show-only-in-combat
-                             -- vs. UnitAffectingCombat/InCombatLockdown (lockdown-lag aware)
-NS.ApplyVisibility()         -- shows/hides the bar frame per ShouldShowBar()
+NS.ForEachUnit(fn)            -- runs fn(unit) for every unit in NS.Units.LIST order; the bus
+                               -- handlers drive all three bars through this
+NS.DefaultPosition(unit)       -- pre-drag default anchor: player is CENTER; target/focus stack
+                               -- upward, one player-bar-height + gap apart
+NS.RestoreBarPosition(unit)   -- re-applies the saved position table or the stacked default
+NS.UpdateBarAppearance(unit)  -- re-applies size, textures, colors, border, font, lock, visibility
+                               -- (every value read via NS.Units.Get(unit, key), so a mirrored
+                               -- unit re-reads the player's live settings)
+NS.UpdateAbsorbBar(unit)      -- reads UnitGetTotalAbsorbs(unit) + UnitHealthMax(unit), pushes into
+                               -- that unit's statusBar/valueText; honors the /at test hold window
+NS.ShouldShowBar(unit)        -- the five-step visibility ladder: hidden -> per-unit enabled ->
+                               -- showOnlyInCombat vs. UnitAffectingCombat("player") ->
+                               -- (target/focus only) UnitExists(unit) -> shown
+NS.ApplyVisibility(unit)      -- shows/hides that unit's bar frame per ShouldShowBar(unit)
 ```
 
-`UpdateBarAppearance` does the `SetBackdrop(nil)` → `SetBackdrop(info)` clear-then-reapply dance (WoW's backdrop API no-ops on unchanged table identity); it ends with a direct `NS.ApplyVisibility()` (intra-concern). `UpdateAbsorbBar` hands the raw (possibly "secret") absorb value straight to `AbbreviateNumbers` — never through `tonumber`. Detail in [midnight-quirks.md](./midnight-quirks.md).
+`UpdateBarAppearance` does the `SetBackdrop(nil)` → `SetBackdrop(info)` clear-then-reapply dance (WoW's backdrop API no-ops on unchanged table identity); it ends with a direct `NS.ApplyVisibility(unit)` (intra-concern). `UpdateAbsorbBar` hands the raw (possibly "secret") absorb value straight to `AbbreviateNumbers` — never through `tonumber`. Detail in [midnight-quirks.md](./midnight-quirks.md).
 
-**Bus consumer.** These functions are invoked through the message bus: at file load Display registers `NS.Display.__ev = NS.NewBusTarget()` and subscribes `APPEARANCE` → `UpdateBarAppearance`, `VISIBILITY` → `ApplyVisibility`, `POSITION` → `RestoreBarPosition`. The functions stay defined on `NS` (directly unit-testable); the bus handlers just call them.
+**Bus consumer.** These functions are invoked through the message bus: at file load Display registers `NS.Display.__ev = NS.NewBusTarget()` and subscribes `APPEARANCE` → `NS.ForEachUnit(UpdateBarAppearance)`, `VISIBILITY` → `NS.ForEachUnit(ApplyVisibility)`, `POSITION` → `NS.ForEachUnit(RestoreBarPosition)` — fanning each handler out over every unit so the bus messages stay payload-free. The functions stay defined on `NS` (directly unit-testable); the bus handlers just call them.
 
 ### Timer (`modules/Timer.lua`)
 
@@ -308,9 +367,17 @@ NS.RegisterSchemaRows(rows)        -- append rows to NS.Schema
 
 -- Lookup
 NS.FindSchemaRow(path)             -> row | nil
-NS.SchemaForPage(pageKey)          -> { rows }   -- sorted group-stably (each group's
+NS.SchemaForPage(pageKey, unit)    -> { rows }   -- sorted group-stably (each group's
                                                  -- first-seen registration index, then
-                                                 -- row.order within the group)
+                                                 -- row.order within the group); `unit` filters to
+                                                 -- that unit's rows plus unit-agnostic ones —
+                                                 -- omit to get every unit's rows
+NS.PartitionUnitRows(rows)         -> perUnit, styled   -- alwaysPerUnit rows vs. mirror-hidden
+                                                         -- appearance rows
+
+-- Dotted-path walkers (units.<unit>.<key> vs. flat keys — same seam)
+NS.ResolvePath(tbl, path)          -> value | nil
+NS.SetPath(tbl, path, value)
 
 -- Write / reset (reads go through GetSetting directly)
 NS.SetByPath(path, value)          -- SetSetting + fires row.onChange — the single write seam
@@ -330,7 +397,7 @@ NS.ValidateSchema()                -> errors, resolved, missing
 
 ### Slash (`settings/Slash.lua`)
 
-The AceConsole-registered `/at` dispatcher. `/at list` / `get` / `set` walk `NS.Schema` directly.
+The AceConsole-registered `/at` dispatcher. `/at list` / `get` / `set` walk `NS.Schema` directly, using **fully-qualified** dotted paths only — `/at set units.target.barWidth 250` works, the pre-1.9 unqualified `/at set barWidth 250` does not (a deliberate breaking change; see [scope.md](./scope.md)).
 
 ```lua
 NS.COMMANDS         -- ordered { name, desc, fn } array of 16 verbs: help, config, list, get,
@@ -342,7 +409,7 @@ NS.Slash:OnSlash(msg)  -- parse + dispatch; unknown verb prints "unknown command
 NS.Slash:Register()    -- NS.addon:RegisterChatCommand("at", ...) + ("absorbtracker", ...)
 ```
 
-No `SLASH_*` globals, no `SlashCmdList`. `/at options` is a back-compat alias for `/at config`. Profile subcommands are handled inline in `runProfile`. Detail in [profiles.md](./profiles.md).
+`/at list` groups Bar/Border/Font rows once per unit (`[bar / player]`, `[bar / target]`, `[bar / focus]`, etc. — `PER_UNIT_PAGES` in `settings/Slash.lua`); General has no per-unit rows. `/at reset <page>` spans all three units (`SchemaForPage(page)` with no unit filter). `/at resetposition` clears all three units' saved positions. No `SLASH_*` globals, no `SlashCmdList`. `/at options` is a back-compat alias for `/at config`. Profile subcommands are handled inline in `runProfile`. Detail in [profiles.md](./profiles.md).
 
 ### OptionsPanel (`settings/Panel.lua`)
 
@@ -385,8 +452,14 @@ NS.Helpers
     Helpers.AttachTooltip(widget, label, tooltip)
     Helpers.AddSpacer(scroll, height)              -- invisible full-width SimpleGroup
     Helpers.LSMValues(mediaType)                   -- deferred LSM hash factory for schema rows
+    Helpers.ClearScroll(ctx)                       -- releases every AceGUI child + resets the
+                                                   -- section-heading tracker and ctx.refreshers
+    Helpers.RenderUnitPanel(ctx, pageKey)          -- Bar/Border/Font: Unit dropdown + mirror
+                                                   -- header (checkbox + copy button), full
+                                                   -- rebuild via ClearScroll on every call
     Helpers.RestoreDefaults(pageKey, ctx)
-    Helpers.RestoreAllDefaults()                   -- every schema-driven page; skips profiles
+    Helpers.RestoreAllDefaults()                   -- every schema-driven page; skips profiles;
+                                                   -- clears every unit's saved position too
     Helpers.RefreshAllPanels()                     -- run every panel ctx's refresher closures
     Helpers.ROW_VSPACER                            -- layout constants exposed for cross-slice use
     Helpers.SECTION_HEADING_H                      -- (read by settings/Widgets.lua and settings/About.lua)
@@ -398,7 +471,15 @@ NS.Helpers
     -- settings/Widgets.lua
     Helpers.RenderField(ctx, row, parent, w)       -- dispatches by row.type
     Helpers.SessionCheckbox(ctx, parent, w, spec)  -- non-schema checkbox (caller get/set)
-    Helpers.RenderSchema(ctx, pageKey, afterGroup?, pairWith?) -- two-column layout from schema rows
+    Helpers.RenderRows(ctx, rows, afterGroup?, pairWith?)      -- two-column layout over an
+                                                               -- EXPLICIT row list; skips
+                                                               -- skipRender rows
+    Helpers.RenderSchema(ctx, pageKey, afterGroup?, pairWith?) -- thin wrapper:
+                                                               -- RenderRows(ctx,
+                                                               -- NS.SchemaForPage(pageKey,
+                                                               -- ctx.unit), ...) — used by
+                                                               -- General, which never sets
+                                                               -- ctx.unit
 
     -- settings/About.lua
     Helpers.BuildMainContent(ctx)                  -- top-level "Ka0s Absorb Tracker" page builder
@@ -408,7 +489,7 @@ The color-picker drag throttle in `settings/Widgets.lua` uses `NS.addon:Schedule
 
 ### Options pages (`settings/General|Bar|Border|Font|Profiles.lua`)
 
-Each runs at file-load time: it calls `NS.RegisterSchemaRows({...})` (except Profiles, whose UI is AceDBOptions-supplied) and `NS.RegisterOptionsPage(key, name, build)`. The `build` closure calls `Helpers.RenderSchema(ctx, pageKey)` (General/Bar/Border/Font) at enable time. The LSM-backed rows in Bar/Border/Font set `dialogControl = "LSM30_Statusbar" | "LSM30_Border" | "LSM30_Font"` and `values = NS.Helpers.LSMValues(mediaType)`. `Profiles.build` returns nil (opting the page out) when AceDBOptions / AceConfigDialog / AceConfig / AceGUI aren't all present.
+Each runs at file-load time and calls `NS.RegisterOptionsPage(key, name, build)`. General calls `NS.RegisterSchemaRows({...})` once for its four unit-agnostic globals; Bar/Border/Font instead define `addUnitRows(unit)` and call it once per `NS.Units.LIST` entry, so each registers its appearance keys three times (path prefixed `units.<unit>.`, tagged `unit = unit`) — plus a `mirror` row (`skipRender = true`) for target/focus only. Profiles registers no rows; its UI is AceDBOptions-supplied. At enable time, the `build` closure calls `Helpers.RenderSchema(ctx, pageKey)` (General — no dropdown) or `Helpers.RenderUnitPanel(ctx, pageKey)` (Bar/Border/Font — Unit dropdown + mirror header), with **no** `rendered` one-shot guard on the latter (`RenderUnitPanel` does a full rebuild every call, by design — unit switches and mirror toggles need it). The LSM-backed rows in Bar/Border/Font set `dialogControl = "LSM30_Statusbar" | "LSM30_Border" | "LSM30_Font"` and `values = NS.Helpers.LSMValues(mediaType)`. `Profiles.build` returns nil (opting the page out) when AceDBOptions / AceConfigDialog / AceConfig / AceGUI aren't all present.
 
 ## Forward references
 
@@ -433,7 +514,7 @@ In practice the calls always succeed because all files are loaded synchronously 
 
 1. `libs/` — LibStub, CallbackHandler-1.0, then the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB / AceGUI / AceConfig / AceDBOptions), LibSharedMedia-3.0, and the vendored upstream `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets) — all inside the `#@no-lib-strip@` block. Vendored **folder-per-lib** at `libs/` root (not `libs/Ace3/…`).
 2. **Locales** — `locales/enUS.lua` (`NS.L` metatable seam; loads directly after Libraries per `toc-file-§5` — no dependency on `core/*`).
-3. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Bus.lua` (the closed message bus — `NS.bus` / `NS.NewBusTarget` / `NS.MSG`), `Util.lua`, `Data.lua`, `Database.lua`, `LSMPatch.lua`, `DebugLog.lua`, `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
+3. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Bus.lua` (the closed message bus — `NS.bus` / `NS.NewBusTarget` / `NS.MSG`), `Util.lua`, `Data.lua`, `Units.lua` (unit identity + mirror resolution — loads after `Data.lua`, before `Database.lua` since migration needs `NS.Units.LIST`/`APPEARANCE_KEYS`), `Database.lua`, `LSMPatch.lua`, `DebugLog.lua`, `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
 4. **Defaults** — `defaults/Profile.lua` (AceDB defaults; runs at file-load).
 5. **Modules** — `modules/Bar.lua` (bar frame creation at file-load), `Display.lua` (render functions + `NS.Display.__ev` bus consumer), `Timer.lua` (coalescing repaint scheduler + `NS.Timer.__ev` bus consumer).
 6. **Settings** (last — depend on everything else being initialized) — `settings/Schema.lua` (registry), `Slash.lua` (`/at` dispatcher), `Panel.lua` (registration shell; publishes empty `NS.Helpers` + `NS.PARENT_TITLE`), then the toolkit slices `Helpers.lua` → `ScrollPatch.lua` → `Widgets.lua` → `About.lua` (each decorates `NS.Helpers`; order matters only between `Helpers` (defines `EnsureScroll`) and `ScrollPatch` (defines `PatchAlwaysShowScrollbar` that `EnsureScroll` references)), then the page builders `General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` (each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load; LSM-backed rows call `NS.Helpers.LSMValues(mediaType)`).
@@ -446,4 +527,4 @@ Modules that own a sub-surface publish it with the `NS.X = NS.X or {}` guard (`N
 
 ## Test harness
 
-There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` loads the runtime files in TOC order through `tests/loader.lua` against `tests/wow_mock.lua`, then runs `test_schema.lua`, `test_database.lua`, `test_compat.lua`, `test_util.lua`, `test_debuglog.lua`, `test_slash.lua`, `test_timer.lua`, `test_visibility.lua`, `test_bus.lua`, `test_data.lua`, `test_display.lua`, `test_helpers.lua`, `test_slashcmds.lua`, and `test_widgets.lua` (authoritative case count in the generated [test-cases.md](./test-cases.md)). The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.
+There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` loads the runtime files in TOC order through `tests/loader.lua` against `tests/wow_mock.lua`, then runs `test_schema.lua`, `test_database.lua`, `test_compat.lua`, `test_util.lua`, `test_debuglog.lua`, `test_slash.lua`, `test_timer.lua`, `test_visibility.lua`, `test_bus.lua`, `test_data.lua`, `test_display.lua`, `test_helpers.lua`, `test_slashcmds.lua`, `test_widgets.lua`, and `test_units.lua` (authoritative case count in the generated [test-cases.md](./test-cases.md)). The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.
