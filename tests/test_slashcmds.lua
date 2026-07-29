@@ -654,6 +654,8 @@ local P = NS.Perf
 -- poisons later suites (see the same note in tests/test_perf.lua).
 local function perfReset()
   P.on = false
+  P.experiment = false
+  P.armed, P.window = nil, nil
   if P.suspended then P.Resume() end
   P.Reset()
   NS.CancelPendingRepaint()
@@ -663,7 +665,7 @@ end
 test("/at debug perf (bare) reports status and prints usage", function()
   perfReset()
   local out = slash("debug perf")
-  assertTrue(contains(out, "perf capture"), "leads with the capture state")
+  assertTrue(contains(out, "perf "), "leads with the phase")
   assertTrue(contains(out, "usage: /at debug perf"), "then the usage block")
   assertTrue(contains(out, "suspend"), "documents the suspend arm")
 end)
@@ -671,9 +673,10 @@ end)
 test("/at debug perf on starts a capture", function()
   perfReset()
   local out = slash("debug perf on")
-  assertTrue(P.on, "capture running")
+  assertTrue(P.experiment, "experiment running")
+  assertFalse(P.on, "but sampling nothing until a window is armed")
   assertTrue(contains(out, "STARTED"), "acknowledges: " .. joined(out))
-  P.on = false
+  perfReset()
 end)
 
 test("/at debug perf on resets the counters from the previous capture", function()
@@ -681,13 +684,13 @@ test("/at debug perf on resets the counters from the previous capture", function
   P.Note("paintBar", 99)
   slash("debug perf on")
   assertEqual(P.__buckets().paintBar, nil, "a new capture starts clean")
-  P.on = false
+  perfReset()
 end)
 
 test("/at debug perf off refuses when no capture is running", function()
   perfReset()
   local out = slash("debug perf off")
-  assertTrue(contains(out, "not running"), "says so rather than saving an empty record")
+  assertTrue(contains(out, "no perf experiment"), "says so rather than saving an empty record")
 end)
 
 test("/at debug perf off saves the record to the perf ring", function()
@@ -742,8 +745,8 @@ test("/at debug perf report prints without stopping the capture", function()
   perfReset()
   slash("debug perf on")
   slash("debug perf report")
-  assertTrue(P.on, "still capturing")
-  P.on = false
+  assertTrue(P.experiment, "still running")
+  perfReset()
 end)
 
 test("/at debug perf routes output to the debug console, not chat", function()
@@ -811,4 +814,56 @@ test("/at debug perf on label reaches the saved record", function()
   local rec = _G.AbsorbTrackerPerfDB.runs[1]
   assertTrue(rec.label:find("full addon set", 1, true) ~= nil, "label persisted: " .. rec.label)
   _G.AbsorbTrackerPerfDB = nil
+end)
+
+test("/at debug perf measure a arms the active window", function()
+  perfReset()
+  slash("debug perf on")
+  local out = slash("debug perf measure a")
+  assertEqual(P.armed, "active", "armed")
+  assertFalse(P.suspended, "addon left running for the A arm")
+  assertTrue(contains(out, "armed"), "acknowledges: " .. joined(out))
+  assertTrue(contains(out, "combat"), "and says it waits for combat")
+  perfReset()
+end)
+
+test("/at debug perf measure b arms and suspends", function()
+  perfReset()
+  slash("debug perf on")
+  slash("debug perf measure b")
+  assertEqual(P.armed, "suspended", "armed")
+  assertTrue(P.suspended, "and the addon is inert without a separate command")
+  perfReset()
+end)
+
+test("/at debug perf measure refuses outside an experiment", function()
+  perfReset()
+  local out = slash("debug perf measure a")
+  assertTrue(contains(out, "/at debug perf on"), "points at the fix: " .. joined(out))
+end)
+
+test("/at debug perf measure rejects an unknown window", function()
+  perfReset()
+  slash("debug perf on")
+  local out = slash("debug perf measure z")
+  assertTrue(contains(out, "unknown window"), joined(out))
+  assertTrue(contains(out, "measure a"), "and names the valid ones")
+  perfReset()
+end)
+
+test("/at debug perf bare reports the armed window", function()
+  perfReset()
+  slash("debug perf on")
+  slash("debug perf measure a")
+  local out = slash("debug perf")
+  assertTrue(contains(out, "armed"), "shows the phase: " .. joined(out))
+  perfReset()
+end)
+
+test("the perf usage block documents the measure workflow", function()
+  perfReset()
+  local out = slash("debug perf")
+  assertTrue(contains(out, "measure a"), "lists measure a")
+  assertTrue(contains(out, "measure b"), "lists measure b")
+  assertTrue(contains(out, "typical run"), "and shows the order to use them in")
 end)

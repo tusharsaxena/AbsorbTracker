@@ -270,12 +270,43 @@ function P.FormatReport(record)
     return lines
 end
 
--- ── The FPS sampler ────────────────────────────────────────────────────────────────────────
+-- ── Measurement windows + the FPS sampler ──────────────────────────────────────────────────
+--
+-- An experiment is a sequence of explicitly-armed, COMBAT-GATED windows:
+--
+--     /at debug perf on          begin the experiment (samples nothing yet)
+--     /at debug perf measure a   arm window A - starts the moment combat does, ends when it does
+--     /at debug perf measure b   arm window B - same, with the addon suspended
+--     /at debug perf off         report both windows and resume
+--
+-- Why windows rather than sampling continuously and splitting by suspend state (the original
+-- design): continuous sampling silently folds every difference between the arms into the result.
+-- Two real captures were lost to exactly that - one where the active arm was ~78% combat against a
+-- suspended arm at ~100%, and one where the arms ran 72.3s and 59.2s. Both produced a delta that
+-- described the environment rather than the addon. A window that opens on PLAYER combat and closes
+-- when it ends measures a comparable slice by construction, and lets the user walk to the pull,
+-- reset a dungeon, or wait out a respawn between arms without contaminating anything.
+--
+-- Combat is read from UnitAffectingCombat("player") on the sampler's own OnUpdate rather than from
+-- the combat EVENTS, deliberately: P.Suspend() unregisters the addon's event frames, so window B -
+-- the suspended arm - would never see PLAYER_REGEN_DISABLED fire. Polling a cheap C call on a frame
+-- that only exists during an experiment sidesteps that entirely.
+--
+-- Window A maps to the `active` arm and window B to `suspended`, so the record schema and the delta
+-- computation are unchanged. `measure b` suspends the addon and `measure a` resumes it, so the two
+-- windows differ by the addon and nothing else - there is no way to forget the suspend.
+
+-- Window token -> FPS arm.
+P.WINDOWS = { a = "active", b = "suspended" }
+
+P.experiment = false   -- between `on` and `off`
+P.armed      = nil     -- arm waiting for combat to begin
+P.window     = nil     -- arm currently sampling
 
 local sampler
 
--- Created on first capture and reused. The frame's OnUpdate script is set only while capturing —
--- an idle addon must not pay for a per-frame callback that exists purely to measure.
+-- Created on first experiment and reused. The OnUpdate script is attached only while an experiment
+-- is running - an idle addon must not pay for a per-frame callback that exists purely to measure.
 local function ensureSampler()
     if sampler then return sampler end
     if type(CreateFrame) ~= "function" then return nil end
@@ -284,39 +315,122 @@ local function ensureSampler()
     return sampler
 end
 
-local function onUpdate(_, elapsed)
-    local a = fpsArms[P.suspended and "suspended" or "active"]
-    a.seconds = a.seconds + elapsed
-    a.frames  = a.frames + 1
+function P.__sampler() return sampler end
+
+-- Blizzard's stopwatch, driven so the user has an on-screen timer for the window actually being
+-- measured. Called as Lua functions rather than by running "/sw play" as a macro: RunMacroText is
+-- protected and would taint or fail outright in combat, whereas these FrameXML helpers are plain
+-- and safe to call mid-fight. Every one is existence-checked, so a client that has renamed or
+-- removed them degrades to no stopwatch rather than an error mid-capture.
+local function stopwatch(action)
+    if action == "reset" then
+        if type(Stopwatch_Clear) == "function" then Stopwatch_Clear() end
+        if StopwatchFrame and StopwatchFrame.Show then StopwatchFrame:Show() end
+    elseif action == "play" then
+        if type(Stopwatch_Play) == "function" then Stopwatch_Play() end
+    elseif action == "pause" then
+        if type(Stopwatch_Pause) == "function" then Stopwatch_Pause() end
+    end
 end
 
---- Begin a capture: zero the counters, arm the sampler, flip the brackets on.
+local function inCombat()
+    return UnitAffectingCombat and UnitAffectingCombat("player") and true or false
+end
+
+local function openWindow()
+    P.window = P.armed
+    P.armed  = nil
+    P.on     = true          -- the brackets record only inside a window
+    stopwatch("play")
+    NS.Debug("Perf", "window %s open \226\128\148 combat started", P.window)
+end
+
+local function closeWindow()
+    local w = P.window
+    P.window = nil
+    P.on     = false
+    stopwatch("pause")
+    if w then
+        local a = fpsArms[w]
+        NS.Debug("Perf", "window %s closed \226\128\148 %s, %s frames, %s fps",
+            w, ("%.1fs"):format(a.seconds), a.frames,
+            ("%.1f"):format(a.seconds > 0 and (a.frames / a.seconds) or 0))
+    end
+end
+
+local function onUpdate(_, elapsed)
+    if not P.experiment then return end
+    local combat = inCombat()
+
+    -- Open first, then fall THROUGH to accumulate: the frame that opens a window is itself an
+    -- in-combat frame and belongs in the sample. Returning after openWindow() silently dropped it,
+    -- which is invisible over a 60s pull but wrong, and wrong in a way that biases both arms.
+    if not P.window then
+        if not (P.armed and combat) then return end
+        openWindow()
+    end
+
+    if combat then
+        local a = fpsArms[P.window]
+        a.seconds = a.seconds + elapsed
+        a.frames  = a.frames + 1
+    else
+        closeWindow()
+    end
+end
+
+--- Begin an experiment. Samples nothing until a window is armed with Measure().
 function P.Start(label)
     P.Reset()
     P.label = label
-    -- Snapshot the limiter state at capture START, not at report time: changing maxFPS mid-capture
-    -- is exactly the kind of thing that would make a report describe conditions that no longer
-    -- match the frames it counted.
-    -- Lifecycle lines go through NS.Debug (gated on the debug flag, §12.4) so a capture's phase
-    -- boundaries land in the console timeline alongside [Combat] entered/left. Matching a suspend
-    -- against the combat it happened in is exactly how the first capture's unequal-combat confound
-    -- was spotted, and reconstructing that from memory afterwards is guesswork.
-    NS.Debug("Perf", "capture started \226\128\148 %s", P.label or "unlabelled")
+    P.experiment = true
+    P.armed, P.window = nil, nil
+    P.on = false
+    -- Lifecycle lines go through NS.Debug (gated on the debug flag, §12.4) so an experiment's phase
+    -- boundaries land in the console timeline alongside [Combat] entered/left. Matching a window
+    -- against the combat it happened in is exactly how the first capture's confound was spotted,
+    -- and reconstructing that from memory afterwards is guesswork.
+    NS.Debug("Perf", "experiment started \226\128\148 %s", P.label or "unlabelled")
     local s = ensureSampler()
     if s then
         s:SetScript("OnUpdate", onUpdate)
         s:Show()
     end
-    P.on = true
 end
 
---- End a capture and hand back the assembled record. Stops the sampler so the OnUpdate cost goes
---- away entirely rather than idling.
+--- Arm a measurement window. Returns the arm name, or nil plus the offending token.
+---
+--- Re-arming a window that already has data ZEROES it first, so a botched pull can simply be redone
+--- with the same command instead of silently averaging into the previous attempt.
+function P.Measure(token)
+    if not P.experiment then return nil, "no experiment" end
+    local arm = P.WINDOWS[tostring(token or ""):lower()]
+    if not arm then return nil, "unknown window" end
+
+    if P.window then closeWindow() end
+
+    -- The suspend state IS the independent variable, so it is set here rather than left to the
+    -- user: window B with the addon still running would look like a null result.
+    if arm == "suspended" then P.Suspend() else P.Resume() end
+
+    fpsArms[arm].seconds, fpsArms[arm].frames = 0, 0
+    P.armed = arm
+    stopwatch("reset")
+    NS.Debug("Perf", "window %s armed \226\128\148 waiting for combat", arm)
+    return arm
+end
+
+--- End the experiment and hand back the assembled record. Detaches the sampler so the OnUpdate cost
+--- goes away entirely rather than idling.
 function P.Stop()
+    if P.window then closeWindow() end
+    P.experiment = false
+    P.armed = nil
     P.on = false
-    local a = fpsArms.active
-    NS.Debug("Perf", "capture stopped \226\128\148 %s active, %s suspended",
-        ("%.1fs"):format(a.seconds), ("%.1fs"):format(fpsArms.suspended.seconds))
+    stopwatch("pause")
+    NS.Debug("Perf", "experiment stopped \226\128\148 %s active, %s suspended",
+        ("%.1fs"):format(fpsArms.active.seconds),
+        ("%.1fs"):format(fpsArms.suspended.seconds))
     if sampler then
         sampler:SetScript("OnUpdate", nil)
         sampler:Hide()

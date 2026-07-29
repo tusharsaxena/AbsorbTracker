@@ -31,6 +31,8 @@ end
 -- set, and would silently make every later visibility assertion in the whole suite return false.
 local function reset()
   P.on = false
+  P.experiment = false
+  P.armed, P.window = nil, nil
   P.suspended = false
   P.label = nil
   P.Reset()
@@ -387,22 +389,22 @@ local function captureDebugLines(fn)
   return table.concat(out, "\n")
 end
 
-test("perf: starting a capture logs it", function()
+test("perf: starting an experiment logs it", function()
   reset()
   local lines = captureDebugLines(function() P.Start("solo") end)
   P.on = false
   assertTrue(lines:find("[Perf]", 1, true) ~= nil, "tagged [Perf]: " .. lines)
-  assertTrue(lines:find("capture started", 1, true) ~= nil, "says what happened")
+  assertTrue(lines:find("experiment started", 1, true) ~= nil, "says what happened")
   assertTrue(lines:find("solo", 1, true) ~= nil, "and which capture: " .. lines)
 end)
 
-test("perf: stopping a capture logs both arm durations", function()
+test("perf: stopping an experiment logs both arm durations", function()
   reset()
   local arms = P.__fpsArms()
   arms.active.seconds, arms.active.frames = 60, 7000
   arms.suspended.seconds, arms.suspended.frames = 30, 3500
   local lines = captureDebugLines(function() P.Stop() end)
-  assertTrue(lines:find("capture stopped", 1, true) ~= nil, "logged: " .. lines)
+  assertTrue(lines:find("experiment stopped", 1, true) ~= nil, "logged: " .. lines)
   assertTrue(lines:find("60.0s", 1, true) ~= nil, "active arm duration")
   assertTrue(lines:find("30.0s", 1, true) ~= nil, "suspended arm duration")
 end)
@@ -440,4 +442,189 @@ test("perf: lifecycle lines cost nothing when debug logging is off", function()
   settle()
   P.Stop()
   assertEqual(#NS.DebugLog.buffer, before, "NS.Debug is gated, so nothing was written")
+end)
+
+-- ── combat-gated measurement windows ────────────────────────────────────────────────────────
+--
+-- The A/B is a pair of explicitly-armed windows that open when PLAYER combat starts and close when
+-- it ends, rather than continuous sampling split by suspend state. Continuous sampling folded every
+-- environmental difference into the result: two real captures were lost that way, one with the
+-- active arm at ~78% combat against a suspended arm at ~100%, one with arms of 72.3s and 59.2s.
+
+-- Drive the sampler's OnUpdate the way the client would.
+local function tick(seconds, combat)
+  local saved = mocks.UnitAffectingCombat
+  mocks.UnitAffectingCombat = function() return combat and true or false end
+  local s = P.__sampler()
+  s:__fire("OnUpdate", seconds)
+  mocks.UnitAffectingCombat = saved
+end
+
+local function startExperiment()
+  reset()
+  P.Start("test")
+end
+
+-- End an experiment AND put the probe fully back. P.Stop() deliberately leaves the suspend state
+-- alone (the slash `off` verb owns resuming), so a test that armed window B would otherwise leak
+-- P.suspended = true into every later suite and silently fail their visibility assertions.
+local function finish()
+  P.Stop()
+  if P.suspended then P.Resume() end
+  settle()
+end
+
+test("perf: an armed window samples nothing until combat begins", function()
+  startExperiment()
+  P.Measure("a")
+  tick(1.0, false)
+  tick(1.0, false)
+  assertEqual(P.__fpsArms().active.frames, 0, "out of combat is not measured")
+  assertTrue(P.armed ~= nil, "still waiting")
+  assertFalse(P.on, "and the brackets stay closed")
+  finish()
+end)
+
+test("perf: a window opens on combat and accumulates", function()
+  startExperiment()
+  P.Measure("a")
+  tick(0.5, true)
+  tick(0.5, true)
+  assertEqual(P.window, "active", "window open")
+  assertEqual(P.__fpsArms().active.frames, 2, "two frames")
+  assertEqual(P.__fpsArms().active.seconds, 1, "one second")
+  assertTrue(P.on, "brackets record inside a window")
+  finish()
+end)
+
+test("perf: a window closes when combat ends and stops accumulating", function()
+  startExperiment()
+  P.Measure("a")
+  tick(0.5, true)
+  tick(0.5, false)             -- combat ended: closes the window
+  tick(9.0, false)             -- and nothing lands afterwards
+  tick(9.0, true)              -- not even a later, unrelated fight
+  assertEqual(P.window, nil, "window closed")
+  assertEqual(P.__fpsArms().active.frames, 1, "only the in-combat frame counted")
+  assertFalse(P.on, "brackets closed with the window")
+  finish()
+end)
+
+test("perf: the walk between windows is never measured", function()
+  -- The whole point: reset a dungeon, run back, wait for respawns - none of it contaminates a run.
+  startExperiment()
+  P.Measure("a")
+  tick(1.0, true)
+  tick(1.0, false)
+  for _ = 1, 20 do tick(5.0, false) end   -- a long walk back
+  P.Measure("b")
+  tick(1.0, true)
+  local arms = P.__fpsArms()
+  assertEqual(arms.active.seconds, 1, "arm A holds only its own combat")
+  assertEqual(arms.suspended.seconds, 1, "arm B likewise")
+  finish()
+end)
+
+test("perf: measure b suspends the addon and measure a resumes it", function()
+  -- The suspend state is the independent variable, so arming sets it - it cannot be forgotten.
+  startExperiment()
+  P.Measure("b")
+  assertTrue(P.suspended, "B suspends")
+  P.Measure("a")
+  assertFalse(P.suspended, "A resumes")
+  finish()
+end)
+
+test("perf: window B still samples while the addon is suspended", function()
+  -- Suspend unregisters the addon's event frames, so a combat-EVENT-driven window would never open
+  -- for arm B. The sampler polls UnitAffectingCombat on its own frame precisely to avoid that.
+  startExperiment()
+  P.Measure("b")
+  assertTrue(P.suspended, "suspended")
+  tick(0.5, true)
+  tick(0.5, true)
+  assertEqual(P.__fpsArms().suspended.frames, 2, "arm B sampled anyway")
+  finish()
+end)
+
+test("perf: re-arming a window zeroes it rather than averaging in", function()
+  -- A botched pull should be redoable with the same command.
+  startExperiment()
+  P.Measure("a")
+  tick(1.0, true)
+  tick(1.0, false)
+  assertEqual(P.__fpsArms().active.seconds, 1, "first attempt recorded")
+  P.Measure("a")
+  tick(2.0, true)
+  assertEqual(P.__fpsArms().active.seconds, 2, "second attempt replaced it")
+  finish()
+end)
+
+test("perf: arming a window mid-combat closes the one already open", function()
+  startExperiment()
+  P.Measure("a")
+  tick(1.0, true)
+  P.Measure("b")
+  assertEqual(P.window, nil, "A was closed, B not yet open")
+  assertEqual(P.__fpsArms().active.seconds, 1, "A kept what it had")
+  finish()
+end)
+
+test("perf: Measure is rejected outside an experiment", function()
+  reset()
+  local arm, err = P.Measure("a")
+  assertEqual(arm, nil, "refused")
+  assertEqual(err, "no experiment", "with a reason the caller can branch on")
+end)
+
+test("perf: Measure rejects an unknown window token", function()
+  startExperiment()
+  local arm, err = P.Measure("c")
+  assertEqual(arm, nil, "refused")
+  assertEqual(err, "unknown window", "and says why")
+  finish()
+end)
+
+test("perf: Measure accepts either case", function()
+  startExperiment()
+  assertEqual(P.Measure("A"), "active", "uppercase A")
+  assertEqual(P.Measure("B"), "suspended", "uppercase B")
+  finish()
+end)
+
+test("perf: Stop closes an open window rather than discarding it", function()
+  startExperiment()
+  P.Measure("a")
+  tick(1.5, true)
+  local record = P.Stop()
+  assertEqual(P.window, nil, "closed")
+  assertEqual(record.fps.active.seconds, 1.5, "and its data survived into the record")
+end)
+
+test("perf: Stop detaches the sampler so an idle client pays nothing", function()
+  startExperiment()
+  P.Stop()
+  assertEqual(P.__sampler():GetScript("OnUpdate"), nil, "OnUpdate removed")
+  assertFalse(P.experiment, "experiment over")
+end)
+
+test("perf: the sampler ignores ticks once the experiment is over", function()
+  startExperiment()
+  P.Measure("a")
+  P.Stop()
+  tick(5.0, true)
+  assertEqual(P.__fpsArms().active.frames, 0, "nothing accumulated after Stop")
+end)
+
+test("perf: two completed windows produce a delta", function()
+  startExperiment()
+  P.Measure("a")
+  for _ = 1, 8 do tick(0.0125, true) end     -- 0.1s, 8 frames -> 80 fps, 12.5 ms/frame
+  tick(0.1, false)
+  P.Measure("b")
+  for _ = 1, 10 do tick(0.01, true) end      -- 0.1s, 10 frames -> 100 fps, 10 ms/frame
+  local record = P.Stop()
+  if P.suspended then P.Resume() end
+  settle()
+  assertEqual(record.fps.deltaMsPerFrame, 2.5, "A costs 2.5 ms/frame more than B")
 end)

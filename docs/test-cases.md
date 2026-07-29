@@ -154,7 +154,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (44)
+### test_perf.lua (59)
 
 - perf: Note accumulates calls, total and max
 - perf: Note tracks unrelated buckets independently
@@ -195,11 +195,26 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - perf: CancelPendingRepaint drops a queued pass
 - perf: suspend leaves no repaint queued behind it
 - perf: the suspended state is session-only, never persisted
-- perf: starting a capture logs it
-- perf: stopping a capture logs both arm durations
+- perf: starting an experiment logs it
+- perf: stopping an experiment logs both arm durations
 - perf: suspend and resume are logged
 - perf: a no-op suspend or resume logs nothing
 - perf: lifecycle lines cost nothing when debug logging is off
+- perf: an armed window samples nothing until combat begins
+- perf: a window opens on combat and accumulates
+- perf: a window closes when combat ends and stops accumulating
+- perf: the walk between windows is never measured
+- perf: measure b suspends the addon and measure a resumes it
+- perf: window B still samples while the addon is suspended
+- perf: re-arming a window zeroes it rather than averaging in
+- perf: arming a window mid-combat closes the one already open
+- perf: Measure is rejected outside an experiment
+- perf: Measure rejects an unknown window token
+- perf: Measure accepts either case
+- perf: Stop closes an open window rather than discarding it
+- perf: Stop detaches the sampler so an idle client pays nothing
+- perf: the sampler ignores ticks once the experiment is over
+- perf: two completed windows produce a delta
 
 ### test_visibility.lua (17)
 
@@ -345,7 +360,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
 
-### test_slashcmds.lua (78)
+### test_slashcmds.lua (84)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -425,6 +440,12 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at debug perf on accepts an optional label, appended to the timestamp
 - /at debug perf on without a label still stamps the capture
 - /at debug perf on label reaches the saved record
+- /at debug perf measure a arms the active window
+- /at debug perf measure b arms and suspends
+- /at debug perf measure refuses outside an experiment
+- /at debug perf measure rejects an unknown window
+- /at debug perf bare reports the armed window
+- the perf usage block documents the measure workflow
 
 ### test_widgets.lua (48)
 
@@ -489,12 +510,12 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
 | test_timer.lua | 11 |
-| test_perf.lua | 44 |
+| test_perf.lua | 59 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
 | test_display.lua | 39 |
 | test_helpers.lua | 40 |
-| test_slashcmds.lua | 78 |
+| test_slashcmds.lua | 84 |
 | test_widgets.lua | 48 |
-| **Total** | **427** |
+| **Total** | **448** |

@@ -60,7 +60,9 @@ output goes to the debug console (which is ungated) plus a one-line chat acknowl
 | Command | Effect |
 |---------|--------|
 | `/at debug perf` | Status + usage |
-| `/at debug perf on [label]` | Reset counters, start capture and the FPS sampler. The optional label is appended to the timestamp — use it when comparing runs (`on solo`, `on full addon set`) |
+| `/at debug perf on [label]` | Begin an experiment. Samples nothing until a window is armed. The optional label is appended to the timestamp |
+| `/at debug perf measure a` | Arm window **A** — addon active. Starts when combat starts, ends when combat ends |
+| `/at debug perf measure b` | Arm window **B** — addon suspended (done for you). Same combat gating |
 | `/at debug perf off` | Stop, append to the ring, print the summary, lift any suspend |
 | `/at debug perf report` | Print the summary without stopping |
 | `/at debug perf dump` | Render the capture as JSON in the copy window |
@@ -112,17 +114,36 @@ Run this when you want a defensible number rather than an impression.
 
 ### Capture
 
+Each window opens the moment **you** enter combat and closes the moment you leave it. Everything
+between windows — walking to the pull, resetting a dungeon, waiting on respawns — is not measured
+and cannot contaminate the result.
+
 ```
-/at debug perf on
-   … fight for 60 seconds …
-/at debug perf suspend
-   … fight for another 60 seconds, identically …
+/at debug perf on           (out of combat)
+/at debug perf measure a    arms A; walk in and pull
+   … fight …                A opens on combat, closes when it ends
+/at debug perf measure b    arms B and suspends the addon; reset, walk back, pull again
+   … same fight …           B opens and closes the same way
 /at debug perf off
 /reload
 ```
 
+`measure b` suspends the addon and `measure a` resumes it, so the two windows differ by the addon
+and nothing else — there is no separate suspend step to forget. Re-arming a window zeroes it, so a
+botched pull is simply redone with the same command.
+
+**Blizzard's stopwatch is driven for you**: reset when a window is armed, started when it opens,
+paused when it closes. It gives you an on-screen timer for exactly the slice being measured. (Driven
+by calling the FrameXML functions, not by running `/sw` as a macro — `RunMacroText` is protected and
+would fail in combat.)
+
 The `/reload` is what flushes SavedVariables. Without it the capture stays in memory and is lost on
 a crash or a logout.
+
+**Making the arms comparable is on you.** The harness guarantees both windows contain only combat;
+it cannot know whether they contain the *same* combat. A dungeon first-room pull reset and repeated,
+or two one-minute dummy runs, both work well. Comparing a 20-mob pull against a single dummy does
+not.
 
 ### Reading the result
 
@@ -161,10 +182,10 @@ addon's, and the investigation should move elsewhere.
   regardless of whether the limiter is enabled). Judge it from the arms themselves — two arms at the
   same frame time, or at a round one, means you were pinned. The bucket figures are unaffected
   either way; they time our code directly, independently of frame pacing.
-- **Unequal combat between the arms invalidates the delta too**, and nothing detects that for you.
-  Combat costs frame time on its own, so an active arm that was 78% combat against a suspended arm
-  that was 100% combat shows a *negative* delta that has nothing to do with the addon. Watch the
-  `[Combat] entered` / `[Combat] left` lines in the console and keep the arms comparable.
+- **Unequal combat between the arms invalidates the delta**, which is what the measurement windows
+  exist to prevent — they contain only in-combat frames by construction. What they cannot check is
+  whether the two fights were *equivalent*. Keep the pull, spec and rotation the same, and check the
+  `[Perf] window … closed` lines: two windows of wildly different duration are a warning sign.
 - Buckets **nest**. `repaintPass` contains `paintBar`. Never sum the column.
 - Bucket `ms/s` divides by the *active* seconds only — nothing accrues while suspended.
 - The sampler itself runs an `OnUpdate` during capture. It is in both arms, so it cancels out of the

@@ -258,13 +258,16 @@ local function emitPerfLines(lines)
 end
 
 local PERF_USAGE = {
-    "usage: /at debug perf <on|off|report|dump|suspend|resume>",
-    "  on [label]  start a capture (resets counters); label distinguishes runs",
-    "  off      stop, save to AbsorbTrackerPerfDB, print the summary",
-    "  report   print the summary without stopping",
-    "  dump     render the capture as JSON in the copy window",
-    "  suspend  make the addon inert \226\128\148 the B arm of the A/B",
-    "  resume   restore it",
+    "usage: /at debug perf <on|measure|off|report|dump|suspend|resume>",
+    "  on [label]   start an experiment (resets counters); label distinguishes runs",
+    "  measure a    arm window A \226\128\148 addon ACTIVE, starts when combat does",
+    "  measure b    arm window B \226\128\148 addon SUSPENDED, starts when combat does",
+    "  off          stop, save to AbsorbTrackerPerfDB, print the summary",
+    "  report       print the summary without stopping",
+    "  dump         render the capture as JSON in the copy window",
+    "  suspend      make the addon inert by hand (measure b does this for you)",
+    "  resume       restore it",
+    "typical run: on \226\134\146 measure a \226\134\146 fight \226\134\146 measure b \226\134\146 same fight \226\134\146 off \226\134\146 /reload",
 }
 
 -- Sub-verb handlers, one entry each. A dispatch table rather than an if/elseif ladder: the ladder
@@ -280,17 +283,33 @@ local PERF_SUBS = {
         local stamp = date and date("%Y-%m-%d %H:%M") or "capture"
         local label = (rest or ""):match("^%s*(.-)%s*$")
         P.Start(label ~= "" and (stamp .. " " .. label) or stamp)
-        print("perf capture |cff40ff40STARTED|r \226\128\148 fight normally, then "
-            .. "`/at debug perf suspend` for the B arm")
+        print("perf experiment |cff40ff40STARTED|r \226\128\148 now `/at debug perf measure a`, "
+            .. "then pull")
         if NS.DebugLog and NS.DebugLog.Show then NS.DebugLog:Show() end
     end,
 
+    measure = function(P, rest)
+        local token = (rest or ""):match("^(%S*)")
+        local arm, err = P.Measure(token)
+        if not arm then
+            if err == "no experiment" then
+                return print("start one first \226\128\148 `/at debug perf on`")
+            end
+            return print(("unknown window '%s' \226\128\148 use `measure a` or `measure b`")
+                :format(token ~= "" and token or "?"))
+        end
+        print(("window |cFFFFFF00%s|r armed (%s) \226\128\148 it starts when combat does and ends "
+            .. "when combat does"):format(token:lower(),
+            arm == "suspended" and "addon |cffff4040SUSPENDED|r" or "addon |cff40ff40active|r"))
+    end,
+
     off = function(P)
-        if not P.on then return print("perf capture is not running") end
+        if not P.experiment then return print("no perf experiment is running") end
         local record = P.Stop()
         P.Save(record)
         emitPerfLines(P.FormatReport(record))
-        print("perf capture |cffff4040STOPPED|r \226\128\148 saved; `/reload` to flush it to SavedVariables")
+        print("perf experiment |cffff4040STOPPED|r \226\128\148 saved; `/reload` to flush it to "
+            .. "SavedVariables")
         -- Leaving suspend on after a capture would silently disable the addon for the rest of the
         -- session, and nobody expects `off` to leave anything switched off but the capture itself.
         if P.suspended then
@@ -329,8 +348,15 @@ local PERF_SUBS = {
 
 -- Bare `/at debug perf`, and the fallback for anything unrecognised.
 local function printPerfStatus(P)
-    print(("perf capture %s, addon %s"):format(
-        P.on and "|cff40ff40RUNNING|r" or "|cffff4040stopped|r",
+    local phase = "|cffff4040stopped|r"
+    if P.window then
+        phase = ("|cff40ff40SAMPLING window %s|r"):format(P.window)
+    elseif P.armed then
+        phase = ("|cffffff00window %s armed|r \226\128\148 waiting for combat"):format(P.armed)
+    elseif P.experiment then
+        phase = "|cffffff00running|r \226\128\148 no window armed"
+    end
+    print(("perf %s, addon %s"):format(phase,
         P.suspended and "|cffff4040SUSPENDED|r" or "|cff40ff40active|r"))
     for _, line in ipairs(PERF_USAGE) do print(line) end
 end

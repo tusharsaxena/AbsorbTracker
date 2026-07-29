@@ -14,7 +14,9 @@ read_globals = {
   "InCombatLockdown", "UnitAffectingCombat", "Settings", "SettingsPanel", "C_Timer", "C_AddOns",
   "GetAddOnMetadata",
   "debugprofilestop",    -- ms CPU clock backing the perf probe's brackets (core/Perf.lua)
-  "C_CVar", "GetCVar",   -- frame-limiter probe: a capped client invalidates the perf FPS delta
+  -- Blizzard stopwatch, driven by the perf probe's measurement windows. Called as Lua functions
+  -- rather than via "/sw play": RunMacroText is protected and would fail in combat.
+  "Stopwatch_Clear", "Stopwatch_Play", "Stopwatch_Pause", "StopwatchFrame",
   "hooksecurefunc", "GameTooltip", "DEFAULT_CHAT_FRAME", "UISpecialFrames",
   "StaticPopup_Show", "CreateColor", "PlaySound",
   "wipe", "strsplit", "strtrim", "tinsert", "tremove", "select",

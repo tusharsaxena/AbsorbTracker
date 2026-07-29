@@ -249,12 +249,15 @@ lua tests/perf.lua --label after-my-change \
 In-game, as a sub-verb of the debug suite:
 
 ```
-/at debug perf on        # start a capture (works with logging off)
-/at debug perf suspend   # make the addon inert WITHOUT a reload - the B arm
-/at debug perf resume
-/at debug perf off       # stop, save to AbsorbTrackerPerfDB, print the summary
-/reload                  # flush SavedVariables
+/at debug perf on          # begin an experiment (works with logging off)
+/at debug perf measure a   # arm window A - opens when combat starts, closes when it ends
+/at debug perf measure b   # arm window B - same, and suspends the addon for you
+/at debug perf off         # stop, save to AbsorbTrackerPerfDB, print the summary
+/reload                    # flush SavedVariables
 ```
+
+Windows are combat-gated, so the walk between pulls is never measured. `suspend` / `resume` remain
+as manual verbs, but `measure b` handles the suspend itself.
 
 Captures land in the `AbsorbTrackerPerfDB` global inside
 `WTF/Account/<ACCOUNT>/SavedVariables/AbsorbTracker.lua` (note: the file is named after the **addon**,
