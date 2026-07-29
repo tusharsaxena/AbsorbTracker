@@ -732,17 +732,17 @@ test("/at perf routes output to the debug console, not chat", function()
   -- The console is ungated (D:Add ignores NS.State.debug), which is what makes perf usable with
   -- logging off. If these lines went to chat instead they would be lost in combat spam.
   perfReset()
-  local before = #NS.DebugLog.buffer
+  NS.DebugLog:Clear()
   slash("perf report")
-  assertTrue(#NS.DebugLog.buffer > before, "report lines landed in the console buffer")
+  assertTrue(#NS.DebugLog.buffer > 0, "report lines landed in the console buffer")
 end)
 
 test("/at perf dump emits parseable JSON carrying the schema stamp", function()
   perfReset()
-  local before = #NS.DebugLog.buffer
+  NS.DebugLog:Clear()
   slash("perf dump")
   local line = NS.DebugLog.buffer[#NS.DebugLog.buffer]
-  assertTrue(#NS.DebugLog.buffer > before, "something was written")
+  assertTrue(#NS.DebugLog.buffer > 0, "something was written")
   assertTrue(line:find('"schema":1', 1, true) ~= nil, "carries the schema: " .. line)
   assertTrue(line:find('"source":"ingame"', 1, true) ~= nil, "and the source")
 end)
@@ -872,14 +872,14 @@ test("/at perf start prints the workflow steps to chat and console", function()
   -- The ordering is what makes the two experiments comparable; a user who arms B before pulling,
   -- or forgets /reload, loses the capture.
   perfReset()
-  local before = #NS.DebugLog.buffer
+  NS.DebugLog:Clear()
   local out = slash("perf start")
   assertTrue(contains(out, "next steps"), "steps in chat: " .. joined(out))
   assertTrue(contains(out, "/at perf measure a"), "step 1")
   assertTrue(contains(out, "/at perf measure b"), "step 2")
   assertTrue(contains(out, "/at perf finish"), "step 3")
   assertTrue(contains(out, "/reload"), "step 4")
-  assertTrue(#NS.DebugLog.buffer > before, "and the run start reached the console too")
+  assertTrue(#NS.DebugLog.buffer > 0, "and the run start reached the console too")
   perfReset()
 end)
 
@@ -887,10 +887,10 @@ test("/at perf start announces to the console with debug logging OFF", function(
   perfReset()
   local wasOn = NS.State.debug
   NS.State.debug = false
-  local before = #NS.DebugLog.buffer
+  NS.DebugLog:Clear()
   slash("perf start")
   NS.State.debug = wasOn
-  assertTrue(#NS.DebugLog.buffer > before, "perf output is ungated")
+  assertTrue(#NS.DebugLog.buffer > 0, "perf output is ungated")
   perfReset()
 end)
 

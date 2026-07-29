@@ -154,7 +154,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (89)
+### test_perf.lua (91)
 
 - perf: Note accumulates calls, total and max
 - perf: Note tracks unrelated buckets independently
@@ -241,10 +241,12 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - perf: re-arming a completed experiment sends it back to busy
 - perf: a window that caught no frames still counts as completed
 - perf: Reset clears completion, so a fresh run starts from step one
-- perf: the panel renders every step and marks the done ones
+- perf: the panel renders every step and tracks their states
 - perf: a locked panel button refuses to act when clicked
 - perf: a ready panel button runs its slash command
 - perf: the panel refreshes off the bus, not by polling
+- perf: every step row carries a status dot, drawn not glyphed
+- perf: labels are plain text with no decoration baked in
 
 ### test_visibility.lua (17)
 
@@ -543,7 +545,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
 | test_timer.lua | 11 |
-| test_perf.lua | 89 |
+| test_perf.lua | 91 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
@@ -551,4 +553,4 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_helpers.lua | 40 |
 | test_slashcmds.lua | 87 |
 | test_widgets.lua | 48 |
-| **Total** | **481** |
+| **Total** | **483** |

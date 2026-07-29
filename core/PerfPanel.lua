@@ -15,6 +15,7 @@ local Panel = NS.PerfPanel
 -- probe directly, so a click and a typed command can never take different code paths.
 
 local BUTTON_W, BUTTON_H, GAP = 250, 22, 4
+local DOT, DOT_GAP = 8, 6      -- status dot size and its gap to the label
 local TITLE_H = 24
 local PAD = 8
 
@@ -26,9 +27,9 @@ local BACKDROP = {
     insets = { left = 3, right = 3, top = 3, bottom = 3 },
 }
 
--- Per-state text colour. `busy` deliberately shares the gold of an interactive control: the step IS
--- happening, and greying it out would read as "nothing is going on" during the one phase where the
--- user most needs to know the addon is recording.
+-- Per-state colour, used for both the row's text and its status dot. `busy` deliberately shares the
+-- gold of an interactive control: the step IS happening, and greying it out would read as "nothing
+-- is going on" during the one phase where the user most needs to know the addon is recording.
 local COLORS = {
     done   = { 0.30, 0.85, 0.30 },
     ready  = { 0.90, 0.90, 0.92 },
@@ -63,8 +64,16 @@ local function makeStepButton(parent, step, index)
     b:SetSize(BUTTON_W, BUTTON_H)
     b:SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -(TITLE_H + PAD + (index - 1) * (BUTTON_H + GAP)))
 
+    -- Status dot drawn with SetColorTexture rather than a glyph or an art file. A text tick (U+2713)
+    -- rendered as tofu in the default font, and any Interface\\... path is a guess that fails
+    -- silently as a green box. A solid colour texture has no dependency and cannot not render.
+    local dot = b:CreateTexture(nil, "ARTWORK")
+    dot:SetSize(DOT, DOT)
+    dot:SetPoint("LEFT", b, "LEFT", 6, 0)
+    b.dot = dot
+
     local fs = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    fs:SetPoint("LEFT", b, "LEFT", 6, 0)
+    fs:SetPoint("LEFT", b, "LEFT", 6 + DOT + DOT_GAP, 0)
     fs:SetJustifyH("LEFT")
     b.text = fs
     b.step = step
@@ -140,15 +149,19 @@ function Panel:Refresh()
         local b = frame.buttons[step.key]
         if b then
             local state = Panel.StateOf(step.key)
-            -- A tick marks the steps behind you, so progress is legible at a glance mid-combat.
-            local label = (state == "done" and "\226\156\147  " or "     ") .. step.label
-            b.text:SetText(label)
+            b.text:SetText(step.label)
             setColor(b.text, state)
+            -- The dot carries the state at a glance: green behind you, gold on the step that is
+            -- actually happening, grey ahead. Dimmed while locked so the eye skips it.
+            local c = COLORS[state] or COLORS.locked
+            if b.dot.SetColorTexture then
+                b.dot:SetColorTexture(c[1], c[2], c[3], state == "locked" and 0.35 or 1)
+            end
             if state == "ready" then b:Enable() else b:Disable() end
             -- What was actually rendered, for the headless suite. The mock's FontString stub cannot
             -- be asked (it returns the parent frame, and defining SetText on it would break the
             -- other suites' SetText spies — see the note in tests/wow_mock.lua).
-            b.__label, b.__state = label, state
+            b.__label, b.__state = step.label, state
         end
     end
 end

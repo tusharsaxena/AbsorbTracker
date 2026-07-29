@@ -377,16 +377,19 @@ end)
 -- Matching a suspend against the combat it happened in is exactly how the first capture's
 -- unequal-combat confound was spotted; reconstructing it from memory afterwards is guesswork.
 
+-- Clear the console, run `fn`, and return everything it logged.
+--
+-- Clearing rather than remembering an offset is deliberate: D.buffer is capped at MAX_BUFFER (500)
+-- and drops from the front once full, so any assertion phrased as "#buffer grew" silently stops
+-- working the moment the suite has produced 500 lines — and fails in a completely unrelated test.
 local function captureDebugLines(fn)
-  local before = #NS.DebugLog.buffer
+  NS.DebugLog:Clear()
   local wasOn = NS.State.debug
   NS.State.debug = true
   local ok, err = pcall(fn)
   NS.State.debug = wasOn
   if not ok then error(err) end
-  local out = {}
-  for i = before + 1, #NS.DebugLog.buffer do out[#out + 1] = NS.DebugLog.buffer[i] end
-  return table.concat(out, "\n")
+  return table.concat(NS.DebugLog.buffer, "\n")
 end
 
 test("perf: starting an experiment logs it", function()
@@ -439,24 +442,24 @@ test("perf: lifecycle lines appear even with debug logging OFF", function()
   reset()
   local wasOn = NS.State.debug
   NS.State.debug = false
-  local before = #NS.DebugLog.buffer
+  NS.DebugLog:Clear()
   P.Start("quiet")
   P.Suspend()
   P.Resume()
   settle()
   P.Stop()
   NS.State.debug = wasOn
-  assertTrue(#NS.DebugLog.buffer > before, "the run was logged regardless of the debug flag")
+  assertTrue(#NS.DebugLog.buffer > 0, "the run was logged regardless of the debug flag")
 end)
 
 test("perf: nothing is logged when no run is happening", function()
   -- Ungated does not mean chatty: the lines only exist inside a run.
   reset()
-  local before = #NS.DebugLog.buffer
+  NS.DebugLog:Clear()
   NS.UpdateAbsorbBar("player")
   NS.RequestRepaint()
   settle()
-  assertEqual(#NS.DebugLog.buffer, before, "an idle addon writes nothing")
+  assertEqual(#NS.DebugLog.buffer, 0, "an idle addon writes nothing")
 end)
 
 -- ── combat-gated measurement windows ────────────────────────────────────────────────────────
@@ -733,7 +736,7 @@ test("perf: recording start and end are announced to chat AND the debug log", fu
   cf.AddMessage = function(_, msg) chat[#chat + 1] = msg end
   local wasOn = NS.State.debug
   NS.State.debug = true
-  local before = #NS.DebugLog.buffer
+  NS.DebugLog:Clear()
 
   P.Start("announce")
   P.Measure("a")
@@ -744,7 +747,7 @@ test("perf: recording start and end are announced to chat AND the debug log", fu
   NS.State.debug = wasOn
   cf.AddMessage = oldAdd
   local chatText = table.concat(chat, "\n")
-  local logText = table.concat(NS.DebugLog.buffer, "\n", before + 1, #NS.DebugLog.buffer)
+  local logText = table.concat(NS.DebugLog.buffer, "\n")
 
   assertTrue(chatText:find("RECORDING", 1, true) ~= nil, "chat announced the start: " .. chatText)
   assertTrue(chatText:find("ENDED", 1, true) ~= nil, "and the end")
@@ -756,14 +759,14 @@ test("perf: the end announcement carries the duration and frame rate", function(
   reset()
   local wasOn = NS.State.debug
   NS.State.debug = true
-  local before = #NS.DebugLog.buffer
+  NS.DebugLog:Clear()
   P.Start("dur")
   P.Measure("a")
   for _ = 1, 60 do tick(0.05, true) end   -- 3.0s, 60 frames -> 20 fps
   tick(0.1, false)
   P.Stop()
   NS.State.debug = wasOn
-  local logText = table.concat(NS.DebugLog.buffer, "\n", before + 1, #NS.DebugLog.buffer)
+  local logText = table.concat(NS.DebugLog.buffer, "\n")
   assertTrue(logText:find("3.0s", 1, true) ~= nil, "duration: " .. logText)
   assertTrue(logText:find("60 frames", 1, true) ~= nil, "frames")
   assertTrue(logText:find("20.0 fps", 1, true) ~= nil, "and the rate")
@@ -775,13 +778,13 @@ test("perf: the console log is plain text, free of colour escapes", function()
   reset()
   local wasOn = NS.State.debug
   NS.State.debug = true
-  local before = #NS.DebugLog.buffer
+  NS.DebugLog:Clear()
   P.Start("plain")
   P.Measure("a")
   tick(0.5, true)
   P.Stop()
   NS.State.debug = wasOn
-  local logText = table.concat(NS.DebugLog.buffer, "\n", before + 1, #NS.DebugLog.buffer)
+  local logText = table.concat(NS.DebugLog.buffer, "\n")
   assertEqual(logText:find("|c", 1, true), nil, "no colour escapes: " .. logText)
   assertTrue(logText:find("Experiment A", 1, true) ~= nil, "and it reads cleanly")
 end)
@@ -790,7 +793,7 @@ test("perf: experiments are named A and B, never active/suspended", function()
   reset()
   local wasOn = NS.State.debug
   NS.State.debug = true
-  local before = #NS.DebugLog.buffer
+  NS.DebugLog:Clear()
   P.Start("naming")
   P.Measure("b")
   tick(0.5, true)
@@ -798,7 +801,7 @@ test("perf: experiments are named A and B, never active/suspended", function()
   if P.suspended then P.Resume() end
   settle()
   NS.State.debug = wasOn
-  local logText = table.concat(NS.DebugLog.buffer, "\n", before + 1, #NS.DebugLog.buffer)
+  local logText = table.concat(NS.DebugLog.buffer, "\n")
   assertTrue(logText:find("Experiment B", 1, true) ~= nil, "user-facing name: " .. logText)
 end)
 
@@ -806,11 +809,11 @@ test("perf: the run start is logged with its context", function()
   reset()
   local wasOn = NS.State.debug
   NS.State.debug = true
-  local before = #NS.DebugLog.buffer
+  NS.DebugLog:Clear()
   P.Start("logged run")
   P.Stop()
   NS.State.debug = wasOn
-  local logText = table.concat(NS.DebugLog.buffer, "\n", before + 1, #NS.DebugLog.buffer)
+  local logText = table.concat(NS.DebugLog.buffer, "\n")
   assertTrue(logText:find("run started", 1, true) ~= nil, "start line: " .. logText)
   assertTrue(logText:find("logged run", 1, true) ~= nil, "with the label")
   assertTrue(logText:find("Testchar", 1, true) ~= nil, "and the context")
@@ -821,14 +824,14 @@ test("perf: arming logs which experiment and whether the addon is suspended", fu
   reset()
   local wasOn = NS.State.debug
   NS.State.debug = true
-  local before = #NS.DebugLog.buffer
+  NS.DebugLog:Clear()
   P.Start("arm log")
   P.Measure("b")
   P.Stop()
   if P.suspended then P.Resume() end
   settle()
   NS.State.debug = wasOn
-  local logText = table.concat(NS.DebugLog.buffer, "\n", before + 1, #NS.DebugLog.buffer)
+  local logText = table.concat(NS.DebugLog.buffer, "\n")
   assertTrue(logText:find("armed", 1, true) ~= nil, "armed line: " .. logText)
   assertTrue(logText:find("SUSPENDED", 1, true) ~= nil, "and the addon state that defines the arm")
 end)
@@ -965,7 +968,7 @@ test("perf: Reset clears completion, so a fresh run starts from step one", funct
   P.Stop()
 end)
 
-test("perf: the panel renders every step and marks the done ones", function()
+test("perf: the panel renders every step and tracks their states", function()
   reset()
   P.Start("panel")
   P.Measure("a"); tick(0.5, true); tick(0.5, false)
@@ -976,12 +979,10 @@ test("perf: the panel renders every step and marks the done ones", function()
   for _, step in ipairs(NS.PerfPanel.STEPS) do
     assertTrue(f.buttons[step.key] ~= nil, "button for " .. step.key)
   end
-  assertTrue(f.buttons.measureA.__label:find("\226\156\147", 1, true) ~= nil,
-    "a completed step is ticked: " .. tostring(f.buttons.measureA.__label))
-  assertEqual(f.buttons.measureB.__label:find("\226\156\147", 1, true), nil,
-    "an incomplete one is not")
-  assertEqual(f.buttons.measureA.__state, "done", "and carries its state")
-  assertEqual(f.buttons.measureB.__state, "ready", "as does the next step")
+  assertEqual(f.buttons.measureA.__label, "Measure A  (with the addon)", "label is plain text")
+  assertEqual(f.buttons.measureA.__state, "done", "a completed step carries its state")
+  assertEqual(f.buttons.measureB.__state, "ready", "as does the next one")
+  assertEqual(f.buttons.finish.__state, "locked", "and the ones beyond it")
   P.Stop()
   NS.PerfPanel:Hide()
 end)
@@ -1017,12 +1018,38 @@ test("perf: the panel refreshes off the bus, not by polling", function()
   P.Start("panel")
   NS.PerfPanel:Show()
   local f = NS.PerfPanel.__frame()
-  assertEqual(f.buttons.measureB.__label:find("\226\156\147", 1, true), nil, "B not yet done")
+  assertEqual(f.buttons.measureB.__state, "locked", "B not yet reachable")
   P.Measure("a"); tick(0.5, true); tick(0.5, false)
   P.Measure("b"); tick(0.5, true); tick(0.5, false)
   -- No explicit Refresh() call here: closing the window published PERF, which drove it.
-  assertTrue(f.buttons.measureB.__label:find("\226\156\147", 1, true) ~= nil,
-    "the panel caught up on its own")
+  assertEqual(f.buttons.measureB.__state, "done", "the panel caught up on its own")
   finish()
+  NS.PerfPanel:Hide()
+end)
+
+test("perf: every step row carries a status dot, drawn not glyphed", function()
+  -- A text tick rendered as tofu in the default font, and any Interface\\... path is an unverifiable
+  -- guess. The dot is a SetColorTexture, which has no font or art dependency.
+  reset()
+  P.Start("dots")
+  NS.PerfPanel:Show()
+  local f = NS.PerfPanel.__frame()
+  for _, step in ipairs(NS.PerfPanel.STEPS) do
+    assertTrue(f.buttons[step.key].dot ~= nil, "dot for " .. step.key)
+  end
+  P.Stop()
+  NS.PerfPanel:Hide()
+end)
+
+test("perf: labels are plain text with no decoration baked in", function()
+  reset()
+  P.Start("labels")
+  NS.PerfPanel:Show()
+  local f = NS.PerfPanel.__frame()
+  for _, step in ipairs(NS.PerfPanel.STEPS) do
+    assertEqual(f.buttons[step.key].__label, step.label,
+      step.key .. " renders its label verbatim")
+  end
+  P.Stop()
   NS.PerfPanel:Hide()
 end)

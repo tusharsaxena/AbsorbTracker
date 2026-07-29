@@ -123,13 +123,18 @@ running.
 ```
   Perf Run
   ─────────────────────────
-  ✓  Start
-  ✓  Measure A  (with the addon)
-     Measure B  (without the addon)
-     Finish
-     Report
-     Dump
+  ●  Start                          green — done
+  ●  Measure A  (with the addon)    green — done
+  ●  Measure B  (without the addon) white — the only clickable row
+  ○  Finish                         dim   — locked
+  ○  Report                         dim   — locked
+  ○  Dump                           dim   — locked
 ```
+
+Each row carries a status dot: green behind you, gold on the step actually happening, dim grey
+ahead. The dot is drawn with `SetColorTexture` rather than a text glyph or an art path — a tick
+character renders as tofu in the default font, and an `Interface\…` path that does not exist fails
+silently as a green box.
 
 It exists because the *ordering* is what makes a run valid, and a numbered list in chat scrolls away
 the moment combat starts. The buttons dispatch through the slash layer, so a click and a typed
