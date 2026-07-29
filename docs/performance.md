@@ -64,10 +64,10 @@ when you explicitly ask for one. Everything also acknowledges in chat.
 | `/at perf start [label]` | Begin a run. Records nothing until an experiment is armed. Captures character, spec, zone and group |
 | `/at perf measure a` | Arm **Experiment A** — addon active. Records while in combat |
 | `/at perf measure b` | Arm **Experiment B** — addon suspended (done for you). Same combat gating |
-| `/at perf finish` | End the run, append to the ring, print the summary, lift any suspend |
+| `/at perf finish` | End the run, append to the ring, lift any suspend. Does **not** print the summary — use `report` |
 | `/at perf cancel` | Abandon the run — discards it unsaved and restores the addon. Only while a run is in flight |
 | `/at perf show` / `hide` / `toggle` | Drive the step panel. Never touches the run |
-| `/at perf report` | Reprint the summary without ending the run — useful mid-run to check an experiment landed |
+| `/at perf report` | Print the summary. The only thing that does — `finish` deliberately stays quiet |
 | `/at perf dump` | Render the run as one line of JSON in the copy window, for pasting elsewhere. Same data the summary is built from |
 
 ### Suspend
@@ -186,6 +186,10 @@ botched pull is simply redone with the same command.
 recording begins, paused when it ends. It gives you an on-screen timer for exactly the slice being measured. (Driven
 by calling the FrameXML functions, not by running `/sw` as a macro — `RunMacroText` is protected and
 would fail in combat.)
+
+`finish` saves the run but prints nothing: it fires the moment a fight ends, when the console is
+buried under combat output and a dozen unasked-for lines would scroll straight past. Click **Report**
+(or **Dump**) in the panel when you actually want to read it.
 
 The `/reload` is what flushes SavedVariables. Without it the capture stays in memory and is lost on
 a crash or a logout.

@@ -343,9 +343,12 @@ local PERF_SUBS = {
             print("addon |cff40ff40RESUMED|r \226\128\148 bars restored")
         end
         P.Save(record)
-        emitPerfLines(P.FormatReport(record))
-        P.Announce("perf run |cffff4040FINISHED|r \226\128\148 saved; `/reload` to flush it to "
-            .. "SavedVariables")
+        -- Deliberately does NOT print the summary. `finish` fires the moment a fight ends, when the
+        -- console is buried under combat output and the numbers scroll past unread; and the report
+        -- is a dozen lines the user has not asked for yet. Report and Dump are one click away in the
+        -- panel, at a moment of the user's choosing.
+        P.Announce("perf run |cffff4040FINISHED|r \226\128\148 saved; `Report` or `Dump` in the panel "
+            .. "to read it, `/reload` to flush it to SavedVariables")
     end,
 
     report = function(P)

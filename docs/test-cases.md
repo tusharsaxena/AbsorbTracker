@@ -412,7 +412,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
 
-### test_slashcmds.lua (93)
+### test_slashcmds.lua (95)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -478,6 +478,8 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at perf start starts a capture
 - /at perf start resets the counters from the previous capture
 - /at perf finish refuses when no run is active
+- /at perf finish does not print the summary
+- /at perf report still prints the summary on demand
 - /at perf finish saves the record to the perf ring
 - /at perf finish lifts a suspend left over from the capture
 - /at perf report prints without stopping the capture
@@ -577,6 +579,6 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_data.lua | 26 |
 | test_display.lua | 39 |
 | test_helpers.lua | 40 |
-| test_slashcmds.lua | 93 |
+| test_slashcmds.lua | 95 |
 | test_widgets.lua | 48 |
-| **Total** | **509** |
+| **Total** | **511** |

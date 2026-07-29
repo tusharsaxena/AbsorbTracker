@@ -693,6 +693,34 @@ test("/at perf finish refuses when no run is active", function()
   assertTrue(contains(out, "no perf run is active"), "says so rather than saving an empty record")
 end)
 
+test("/at perf finish does not print the summary", function()
+  -- It fires the moment a fight ends, when the console is buried in combat output and a dozen
+  -- unasked-for lines would scroll straight past. Report and Dump are one click away in the panel.
+  perfReset()
+  _G.AbsorbTrackerPerfDB = nil
+  slash("perf start")
+  NS.DebugLog:Clear()
+  local out = slash("perf finish")
+  assertEqual(joined(out):find("bucket", 1, true), nil, "no summary table: " .. joined(out))
+  assertTrue(contains(out, "FINISHED"), "just the acknowledgement")
+  assertTrue(contains(out, "Report"), "which points at how to read it")
+  local logged = table.concat(NS.DebugLog.buffer, "\n")
+  assertEqual(logged:find("bucket", 1, true), nil, "and none in the console either: " .. logged)
+  _G.AbsorbTrackerPerfDB = nil
+  perfReset()
+end)
+
+test("/at perf report still prints the summary on demand", function()
+  perfReset()
+  slash("perf start")
+  slash("perf finish")
+  NS.DebugLog:Clear()
+  slash("perf report")
+  local logged = table.concat(NS.DebugLog.buffer, "\n")
+  assertTrue(logged:find("bucket", 1, true) ~= nil, "the table is there when asked for: " .. logged)
+  perfReset()
+end)
+
 test("/at perf finish saves the record to the perf ring", function()
   perfReset()
   _G.AbsorbTrackerPerfDB = nil
