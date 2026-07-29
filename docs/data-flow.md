@@ -54,24 +54,27 @@ OnEnable (PLAYER_LOGIN timing)
     ├─▶ NS.bus:SendMessage(NS.MSG.APPEARANCE)  -- ▶ Display: size, textures, colors, border, font
     ├─▶ NS.bus:SendMessage(NS.MSG.REPAINT)     -- ▶ Timer: coalesced initial value paint
     │
-    ├─▶ self:SyncUnitEventFrames()
-    │     ├─ [private frame A] RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "player","target")
-    │     ├─ [private frame A] RegisterUnitEvent("UNIT_MAXHEALTH", "player","target")
-    │     ├─ [private frame B] RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "focus")
-    │     └─ [private frame B] RegisterUnitEvent("UNIT_MAXHEALTH", "focus")
-    │           both frames share one OnEvent stub ─▶ OnAbsorbChanged / OnMaxHealthChanged
+    ├─▶ self:SyncUnitEventFrames()          -- re-run on every UNITS message, not just here
+    │     for each unit in NS.Units.LIST:
+    │       ├─ enabled  ─▶ [that unit's private frame]
+    │       │               RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", <unit>)
+    │       │               RegisterUnitEvent("UNIT_MAXHEALTH", <unit>)
+    │       └─ disabled ─▶ [that unit's private frame]:UnregisterAllEvents()
+    │           every frame shares one OnEvent stub ─▶ OnAbsorbChanged / OnMaxHealthChanged
+    │     ├─ target enabled ? RegisterEvent("PLAYER_TARGET_CHANGED", "OnUnitSwap")
+    │     │                 : UnregisterEvent("PLAYER_TARGET_CHANGED")
+    │     └─ focus  enabled ? RegisterEvent("PLAYER_FOCUS_CHANGED", "OnUnitSwap")
+    │                       : UnregisterEvent("PLAYER_FOCUS_CHANGED")
     ├─▶ self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
     ├─▶ self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnEnterCombat")
     ├─▶ self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnLeaveCombat")
-    ├─▶ self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnUnitSwap")
-    ├─▶ self:RegisterEvent("PLAYER_FOCUS_CHANGED", "OnUnitSwap")
     │
     └─▶ if NS.CreateOptionsPanel then
             NS.CreateOptionsPanel()    -- registers parent + sub-pages
         end
 ```
 
-The two `UNIT_*` events go through **two private `CreateFrame` frames** with `RegisterUnitEvent`, not AceEvent — a documented §9.1 deviation ([ARCHITECTURE.md → Standards Deviations](./ARCHITECTURE.md#standards-deviations)). These events fire for *every* unit the client knows about; AceEvent-3.0 shares one frame and cannot `RegisterUnitEvent`, so a plain `RegisterEvent` would pay a C→Lua dispatch per unit only to discard all but ours. The private frames filter at the C layer instead. **Two frames are required, not one:** `RegisterUnitEvent` filters at most two unit tokens per registration, and the addon now tracks three (player/target/focus) — frame A takes player+target, frame B takes the leftover focus. The five global, payload-free events (`PLAYER_ENTERING_WORLD`, the combat pair, and the target/focus-swap pair) stay on AceEvent (`self:RegisterEvent`). The `if NS.CreateOptionsPanel then ... end` guard is the [forward-reference pattern](./module-map.md#forward-references) — in practice the call always succeeds because all files load synchronously before `OnEnable` fires, but the nil-check keeps the load-order coupling soft.
+The two `UNIT_*` events go through **one private `CreateFrame` frame per unit** with `RegisterUnitEvent`, not AceEvent — a documented §9.1 deviation ([ARCHITECTURE.md → Standards Deviations](./ARCHITECTURE.md#standards-deviations)). These events fire for *every* unit the client knows about; AceEvent-3.0 shares one frame and cannot `RegisterUnitEvent`, so a plain `RegisterEvent` would pay a C→Lua dispatch per unit only to discard all but ours. The private frames filter at the C layer instead. **A frame each, rather than packing tokens:** `RegisterUnitEvent` filters at most two unit tokens per registration, so three units could never share one frame anyway — and with a frame each, enabling or disabling a bar is a registration change on that unit's own frame, leaving a **disabled unit registered for nothing at all**. `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` stay on AceEvent but are gated on the same flag by the same function, which is where the saving actually lands (they fire on every swap in ordinary play). `PLAYER_ENTERING_WORLD` and the combat pair are unconditional AceEvent subscriptions. The `if NS.CreateOptionsPanel then ... end` guard is the [forward-reference pattern](./module-map.md#forward-references) — in practice the call always succeeds because all files load synchronously before `OnEnable` fires, but the nil-check keeps the load-order coupling soft.
 
 ## Absorb-update path
 
@@ -80,9 +83,10 @@ The two `UNIT_*` events go through **two private `CreateFrame` frames** with `Re
         │                                     │                       │                    │
         ▼                                     ▼                       ▼                    ▼
 UNIT_ABSORB_AMOUNT_CHANGED           UNIT_MAXHEALTH          PLAYER_TARGET_CHANGED  PLAYER_ENTERING_WORLD
-(player/target/focus; two private     (player/target/focus;   / PLAYER_FOCUS_       (AceEvent →
- unit-event frames →                   two private frames →    CHANGED (AceEvent →   addon:OnEnterWorld)
- addon:OnAbsorbChanged)                 addon:OnMaxHealthChanged) addon:OnUnitSwap)
+(enabled units only; one private     (enabled units only;    / PLAYER_FOCUS_       (AceEvent →
+ unit-event frame each →               one frame each →        CHANGED (AceEvent,     addon:OnEnterWorld)
+ addon:OnAbsorbChanged)                 addon:OnMaxHealthChanged) gated on enabled →
+                                                                 addon:OnUnitSwap)
         │  (debug line, player-only,          │                       │                    │
         │   gated on NS.State.debug)          │                       │ also VISIBILITY     │
         └─────────────────┬────────────────────────────────────────────┴────────────────────┘
@@ -194,9 +198,9 @@ A disabled unit is also unregistered from its absorb / max-health events entirel
 | Event | Handler | What it does |
 |-------|---------|--------------|
 | `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | Publishes `VISIBILITY` + `REPAINT`. Handles zone transitions where the engine may have stale state (and re-evaluates the combat-visibility gate on load/reload). |
-| `UNIT_ABSORB_AMOUNT_CHANGED` (player, target, focus — two private `RegisterUnitEvent` frames, C-level filter) | `addon:OnAbsorbChanged` | Debug line (player-only, gated on `NS.State.debug`) then publishes `REPAINT`. |
-| `UNIT_MAXHEALTH` (player, target, focus — two private `RegisterUnitEvent` frames, C-level filter) | `addon:OnMaxHealthChanged` | Publishes `REPAINT`. Every bar shows absorb as a fraction of max health, so a max-health change (buffs, stamina, level) must repaint even when the absorb value itself is unchanged. |
-| `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` (AceEvent, global) | `addon:OnUnitSwap` | Publishes `VISIBILITY` + `REPAINT`. A swap changes both which bars should be visible (step 4 of the ladder, `UnitExists`) and what they should read. |
+| `UNIT_ABSORB_AMOUNT_CHANGED` (enabled units only — one private `RegisterUnitEvent` frame per unit, C-level filter) | `addon:OnAbsorbChanged` | Debug line (player-only, gated on `NS.State.debug`) then publishes `REPAINT`. |
+| `UNIT_MAXHEALTH` (enabled units only — one private `RegisterUnitEvent` frame per unit, C-level filter) | `addon:OnMaxHealthChanged` | Publishes `REPAINT`. Every bar shows absorb as a fraction of max health, so a max-health change (buffs, stamina, level) must repaint even when the absorb value itself is unchanged. |
+| `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` (AceEvent, registered only while that unit's bar is enabled) | `addon:OnUnitSwap` | Publishes `VISIBILITY` + `REPAINT`. A swap changes both which bars should be visible (step 4 of the ladder, `UnitExists`) and what they should read. |
 | `PLAYER_REGEN_DISABLED` (enter combat) | `addon:OnEnterCombat` | Publishes `VISIBILITY` + `REPAINT` — re-evaluates the `showOnlyInCombat` gate so any eligible bar appears (and repaints fresh) the moment combat starts. |
 | `PLAYER_REGEN_ENABLED` (leave combat) | `addon:OnLeaveCombat` | Publishes `VISIBILITY` + `REPAINT` — nothing else. Per options-ui-§2 the settings panel **refuses** to open in combat (`settings/Panel.lua` prints a grey notice and returns) rather than deferring, so there is no combat-deferred `/at config` for `OnLeaveCombat` to replay. It is the sole handler of `PLAYER_REGEN_ENABLED`, and its only job is re-evaluating the `showOnlyInCombat` visibility gate and repainting. |
 

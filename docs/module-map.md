@@ -103,9 +103,11 @@ NS.MSG                 -- catalogue (all Ka0s_AbsorbTracker_*, payload-free):
                        --   APPEARANCE -> modules/Display.lua (UpdateBarAppearance)
                        --   VISIBILITY -> modules/Display.lua (ApplyVisibility)
                        --   POSITION   -> modules/Display.lua (RestoreBarPosition)
+                       --   UNITS      -> core/AbsorbTracker.lua (SyncUnitEventFrames --
+                       --                 registers events only for enabled units)
 ```
 
-Senders: `core/AbsorbTracker.lua` (event/lifecycle), `settings/Slash.lua`, `settings/General.lua`, `settings/Schema.lua`, `settings/Helpers.lua`. Consumers register at file load in `modules/Timer.lua` (`NS.Timer.__ev`) and `modules/Display.lua` (`NS.Display.__ev`). Full catalogue (sender/consumer/effect) in [ARCHITECTURE.md → Message Bus](./ARCHITECTURE.md#message-bus).
+Senders: `core/AbsorbTracker.lua` (event/lifecycle), `settings/Slash.lua`, `settings/General.lua`, `settings/Schema.lua`, `settings/Helpers.lua`. Consumers register at file load in `modules/Timer.lua` (`NS.Timer.__ev`), `modules/Display.lua` (`NS.Display.__ev`) and `core/AbsorbTracker.lua` (`NS.Events.__ev`, which owns the sole `UNITS` subscription). Full catalogue (sender/consumer/effect) in [ARCHITECTURE.md → Message Bus](./ARCHITECTURE.md#message-bus).
 
 ### Util (`core/Util.lua`)
 
@@ -287,7 +289,7 @@ NS.OnProfileChanged()  -- registered as the AceDB profile callback inside InitDB
                        -- POSITION + APPEARANCE + REPAINT, then RefreshOptionsPanel.
 ```
 
-Cross-module signalling goes through the message bus (see [Bus](#bus-corebuslua) above) — the handlers publish `NS.MSG.*` rather than calling the display module directly. Events are AceEvent (`self:RegisterEvent`), **except** the two `UNIT_*` events (`UNIT_ABSORB_AMOUNT_CHANGED`, `UNIT_MAXHEALTH`), which use two private `CreateFrame` frames with `RegisterUnitEvent` for C-level unit filtering — a documented §9.1 deviation ([ARCHITECTURE.md → Standards Deviations](./ARCHITECTURE.md#standards-deviations)); a second frame is required because `RegisterUnitEvent` filters at most two units per frame and the addon tracks three (player/target/focus). Detail in [data-flow.md](./data-flow.md).
+Cross-module signalling goes through the message bus (see [Bus](#bus-corebuslua) above) — the handlers publish `NS.MSG.*` rather than calling the display module directly. Events are AceEvent (`self:RegisterEvent`), **except** the two `UNIT_*` events (`UNIT_ABSORB_AMOUNT_CHANGED`, `UNIT_MAXHEALTH`), which use one private `CreateFrame` frame PER UNIT with `RegisterUnitEvent` for C-level unit filtering — a documented §9.1 deviation ([ARCHITECTURE.md → Standards Deviations](./ARCHITECTURE.md#standards-deviations)). A frame each (rather than packing two tokens onto one, `RegisterUnitEvent`'s cap) lets a unit's registration be added or dropped on its own as its bar is enabled or disabled, so a disabled unit is registered for nothing at all; `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` are gated on the same flag. Detail in [data-flow.md](./data-flow.md).
 
 ### Defaults (`defaults/Profile.lua`)
 

@@ -44,7 +44,7 @@ Modules → Settings.
 | `defaults/Profile.lua` | Three flat globals (`locked`/`showOnlyInCombat`/`throttleWindow` — there is no `hidden` master toggle; the per-unit `enabled` flags are the visibility switch) + `NS.defaults.profile.units.{player,target,focus}` (each unit's own appearance table, built by a factory so no table is shared across units) + `NS.defaults.global.schemaVersion = 3`; `NS.flatDefaults` alias, `NS.unitDefaults` (= `defaults.profile.units.player`, the canonical per-row default source for `settings/{Bar,Border,Font}.lua`). |
 | `locales/enUS.lua` | `NS.L` metatable-fallback locale (English source keys; nothing wrapped yet). |
 | `modules/Bar.lua` | `NS.CreateBar(unit, globalName)` builds one bar frame; `NS.bars` (keyed `player`/`target`/`focus`, frames `AbsorbTrackerFrame`/`AbsorbTrackerTargetFrame`/`AbsorbTrackerFocusFrame`) at file load, plus `NS.bar`/`statusBar`/`valueText`/`backdropInfo` as player aliases for pre-multi-unit call sites. Each bar owns its own `backdropInfo` table (border size differs per unit; `SetBackdrop` keys off table identity) and a `unitLabel` FontString above the frame naming its unit, shown only while unlocked. |
-| `modules/Display.lua` | Every function takes a `unit` (defaulting to `"player"`): `RestoreBarPosition`, `UpdateBarAppearance`, `ShouldShowBar`/`ApplyVisibility` (the five-step visibility ladder), `UpdateAbsorbBar` (the paint path). `NS.ForEachUnit(fn)` and `NS.DefaultPosition(unit)` (stacks target/focus above the player bar) also live here. Subscribes to `APPEARANCE`/`VISIBILITY`/`POSITION` on its own `NS.Display.__ev` bus target, fanning each handler out over `NS.ForEachUnit` so the bus messages stay payload-free. |
+| `modules/Display.lua` | Every function takes a `unit` (defaulting to `"player"`): `RestoreBarPosition`, `UpdateBarAppearance`, `ShouldShowBar`/`ApplyVisibility` (the four-step visibility ladder), `UpdateAbsorbBar` (the paint path). `NS.ForEachUnit(fn)` and `NS.DefaultPosition(unit)` (stacks target/focus above the player bar) also live here. Subscribes to `APPEARANCE`/`VISIBILITY`/`POSITION` on its own `NS.Display.__ev` bus target, fanning each handler out over `NS.ForEachUnit` so the bus messages stay payload-free. |
 | `modules/Timer.lua` | Coalescing repaint scheduler (`NS.RequestRepaint`) — a trailing-edge one-shot AceTimer throttle. |
 | `settings/Schema.lua` | The schema registry + read/write seam (`SetByPath`), parse/format, and `ValidateSchema`. Rows carry `unit`, `alwaysPerUnit`, and `skipRender` fields; `SchemaForPage(page, unit)` filters to one unit's rows (or all, when `unit` is omitted); `PartitionUnitRows` splits a unit page into always-editable rows vs. mirror-hidden appearance rows; `ResolvePath`/`SetPath` walk dotted paths (`units.<unit>.<key>`) so flat globals and per-unit keys share one seam. |
 | `settings/Slash.lua` | AceConsole registration + the schema-driven `/at` dispatcher (`NS.COMMANDS`). |
@@ -123,7 +123,7 @@ schema paths survive) and looks it up in the ordered `NS.COMMANDS` table. Unknow
 | `/at resetall` | Reset every setting, clear the saved position, and recenter the bar (shared `Helpers.RestoreAllDefaults` — the panel's Reset All button calls the same path) |
 | `/at resetposition` | Clear **every** unit's saved position and re-anchor all three bars to their stacked defaults (shared `Helpers.ResetAllPositions` — the General page's Reset Position button calls the same path) |
 | `/at lock` / `/at unlock` | Flip the drag lock |
-| `/at toggle` | Flip bar visibility |
+| `/at toggle [player\|target\|focus]` | Bare: flip **every** bar — all off if any is on, otherwise all on. With a unit token: flip that one bar only. Writes `units.<unit>.enabled` through `SetByPath`, so it travels the same path as the General page checkbox |
 | `/at debug` (`on`/`off`) | Toggle the debug console window; `on`/`off` enable/disable logging |
 | `/at update` | Force a bar refresh |
 | `/at version` | Print the addon version |
@@ -152,20 +152,26 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   as its bar is enabled or disabled, with no repacking. **A disabled bar is registered for nothing
   at all**, and its `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` watch is dropped too — that
   pair is where the saving actually lands, since the absorb events were already C-filtered. The
-  registrations re-sync off the `UNITS` bus message. Historically this was: frame A
-  registers both events for `"player", "target"`; frame B registers them for `"focus"`. Both share
-  one `OnEvent` stub that routes to `addon:OnAbsorbChanged` / `addon:OnMaxHealthChanged` (bumping a
-  debug-gated event counter and logging a non-secret `[Absorb]` shield up/gone transition, player
-  only, when the value is concat-safe, then `NS.RequestRepaint()`); the pair is created once and
-  guarded against a disable/enable cycle.
+  registrations re-sync off the `UNITS` bus message. Each frame registers both events for its own
+  unit token, and all of them share one `OnEvent` stub that routes to `addon:OnAbsorbChanged` /
+  `addon:OnMaxHealthChanged` (bumping a debug-gated event counter and logging a non-secret
+  `[Absorb]` shield up/gone transition, player only, when the value is concat-safe, then
+  `NS.RequestRepaint()`). The frames are built once and reused; only their registrations change as
+  bars are enabled and disabled. (Before per-unit gating this was two frames — `"player", "target"`
+  on one and `"focus"` on the other — packed against `RegisterUnitEvent`'s two-token cap.)
 - **AceEvent** subscriptions (registered in `OnEnable`): `PLAYER_ENTERING_WORLD` (`OnEnterWorld` →
   publishes `VisibilityChanged` + `RepaintRequested`), the combat-state pair
   `PLAYER_REGEN_DISABLED` (`OnEnterCombat`) / `PLAYER_REGEN_ENABLED` (`OnLeaveCombat`) — each
-  publishes `VisibilityChanged` (the `showOnlyInCombat` gate) and `RepaintRequested` — and
+  publishes `VisibilityChanged` (the `showOnlyInCombat` gate) and `RepaintRequested`. These three
+  are global, payload-free events with no unit to filter, so they stay on AceEvent unconditionally.
+
   `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` (both → `OnUnitSwap`, which publishes
-  `VisibilityChanged` then `RepaintRequested`: a target/focus swap changes both which bars should
-  be visible, via the `UnitExists` step of the visibility ladder, and what they should read). All
-  four are global, payload-free events with no unit to filter, so they stay on AceEvent.
+  `VisibilityChanged` then `RepaintRequested`: a swap changes both which bars should be visible, via
+  the `UnitExists` step of the ladder, and what they should read) are also AceEvent, but are
+  **registered and unregistered by `SyncUnitEventFrames` alongside the per-unit frames** — they are
+  only subscribed while that unit's bar is enabled. This is where the gating actually pays: both
+  fire on every target/focus change in ordinary play, whereas the `UNIT_*` events were already
+  C-filtered to the tokens we asked for.
   `OnLeaveCombat` is the sole handler of `PLAYER_REGEN_ENABLED` and does visibility + repaint only
   — it has no combat-deferred `/at config` to replay (the panel refuses to open in combat,
   options-ui-§2; see Taint Notes). The event handlers do not call the display module directly —
