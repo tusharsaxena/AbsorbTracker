@@ -53,15 +53,15 @@ local CMD_COLOR = { 0.45, 0.45, 0.48 }
 -- Ordered, and the order IS the workflow. `key` matches a field of NS.Perf.Progress(); `command` is
 -- the slash line the button runs.
 local STEPS = {
-    { key = "start",    label = "Start",                         command = "perf start"     },
+    { key = "start",    label = "Start perf run",                command = "perf start"     },
     { key = "measureA", label = "Measure A (with the addon)",    command = "perf measure a" },
     { key = "measureB", label = "Measure B (without the addon)", command = "perf measure b" },
-    { key = "finish",   label = "Finish",                        command = "perf finish"    },
+    { key = "finish",   label = "Finish perf run",               command = "perf finish"    },
     { key = "report",   label = "Report",                        command = "perf report"    },
-    { key = "dump",     label = "Dump",                           command = "perf dump"      },
+    { key = "dump",     label = "JSON Dump",                     command = "perf dump"      },
     -- Outside the linear progression: always clickable, at every point including none. Abandons an
     -- in-flight run unsaved, and doubles as "dismiss this panel" once a run has finished.
-    { key = "cancel",   label = "Cancel run",                    command = "perf cancel"    },
+    { key = "cancel",   label = "Cancel perf run",               command = "perf cancel"    },
 }
 Panel.STEPS = STEPS
 

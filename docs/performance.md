@@ -125,13 +125,13 @@ running.
 ```
   Absorb Tracker — Perf Run                                            ×
   ──────────────────────────────────────────────────────────────────────
-  ●  Start                                                 /at perf start
+  ●  Start perf run                                        /at perf start
   ●  Measure A (with the addon)                       /at perf measure a
   ●  Measure B (without the addon)                    /at perf measure b   ← clickable
-  ○  Finish                                               /at perf finish
+  ○  Finish perf run                                      /at perf finish
   ○  Report                                               /at perf report
-  ○  Dump                                                   /at perf dump
-  ○  Cancel run                                           /at perf cancel
+  ○  JSON Dump                                              /at perf dump
+  ○  Cancel perf run                                      /at perf cancel
 ```
 
 Three columns: status dot, step, slash command. The command column is the point — it teaches the
@@ -141,13 +141,13 @@ The dot is green behind you, gold on the step actually happening, dim grey ahead
 `SetColorTexture` rather than a text glyph or an art path: a tick character renders as tofu in the
 default font, and an `Interface\…` path that does not exist fails silently as a green box.
 
-**Cancel** sits outside the progression, in a muted red. It is clickable for as long as there is a
+**Cancel perf run** sits outside the progression, in a muted red. It is clickable for as long as there is a
 run to abandon — not before `start`, and not after `finish`, where the run is already saved and a
 live-looking button that discarded nothing would only worry you. It discards the run unsaved,
 restores the addon if Experiment B suspended it, and zeroes the counters so the next `start` begins
 clean. Nothing an earlier `finish` wrote to the ring is touched.
 
-**Report and Dump** turn green once used but stay clickable — re-reading a summary or re-dumping the
+**Report** and **JSON Dump** turn green once used but stay clickable — re-reading a summary or re-dumping the
 JSON costs nothing and is regularly wanted twice.
 
 **Closing the panel never touches the run.** The × hides it, Esc hides it, and `/at perf show`,
