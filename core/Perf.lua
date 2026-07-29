@@ -90,6 +90,47 @@ end
 function P.__buckets() return buckets end
 function P.__fpsArms() return fpsArms end
 
+-- ── Output ─────────────────────────────────────────────────────────────────────────────────
+--
+-- Perf output is deliberately NOT gated on NS.State.debug, unlike NS.Debug. That gate exists to
+-- keep the addon free when idle, and a perf run is explicit user action — none of this executes
+-- unless someone typed `/at perf start`. Gating it meant a user who started a run without first
+-- enabling debug logging watched a console that stayed empty while a capture was plainly running.
+--
+-- The console form is stripped of colour escapes: the Copy window mirrors the buffer verbatim, and
+-- colour codes in a log destined for analysis are noise.
+
+local function stripColors(s)
+    return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+
+local function render(fmt, ...)
+    if select("#", ...) == 0 then return fmt end
+    local parts = {}
+    for i = 1, select("#", ...) do parts[i] = NS.SafeToString((select(i, ...))) end
+    return fmt:format(unpack(parts))
+end
+
+--- Console only. Phase transitions and anything else worth having in the copied log.
+function P.Log(fmt, ...)
+    local msg = stripColors(render(fmt, ...))
+    if NS.DebugLog and NS.DebugLog.Add then
+        NS.DebugLog:Add("Perf", msg)
+    else
+        NS.Print(msg)
+    end
+end
+
+--- Chat AND console. For the things the user must see while looking at the game rather than at the
+--- console — recording starting and ending mid-combat, above all.
+function P.Announce(fmt, ...)
+    local msg = render(fmt, ...)
+    NS.Print(msg)
+    if NS.DebugLog and NS.DebugLog.Add then
+        NS.DebugLog:Add("Perf", stripColors(msg))
+    end
+end
+
 -- ── JSON encoding ──────────────────────────────────────────────────────────────────────────
 --
 -- Hand-rolled because Lua has none built in and the addon vendors no JSON library for one
@@ -400,27 +441,12 @@ end
 -- Both a chat line and a debug line, deliberately. These fire mid-combat, when the debug console is
 -- usually not what the user is looking at — the chat line is what tells them the recording actually
 -- started — while the console line is what survives into the copied log for later analysis.
-local function stripColors(s)
-    return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
-end
-
-local function announce(fmt, ...)
-    local msg = select("#", ...) > 0 and fmt:format(...) or fmt
-    NS.Print(msg)
-    -- Chat gets the coloured form; the console gets it plain. The console's Copy window mirrors its
-    -- buffer verbatim, and colour escapes in a log you are about to paste somewhere for analysis are
-    -- noise. Safe to pass as a format string with no arguments — NS.Debug skips :format entirely
-    -- when there are no varargs, so a stray % in a zone name cannot blow up mid-capture.
-    NS.Debug("Perf", stripColors(msg))
-end
-P.__announce = announce
-
 local function openWindow()
     P.recording = P.armed
     P.armed = nil
     P.on = true              -- the brackets record only inside an experiment
     stopwatch("play")
-    announce("Experiment |cFFFFFF00%s|r |cff40ff40RECORDING|r \226\128\148 combat started",
+    P.Announce("Experiment |cFFFFFF00%s|r |cff40ff40RECORDING|r \226\128\148 combat started",
         P.LABELS[P.recording] or P.recording)
 end
 
@@ -431,7 +457,7 @@ local function closeWindow()
     stopwatch("pause")
     if not w then return end
     local a = fpsArms[w]
-    announce("Experiment |cFFFFFF00%s|r |cffff4040ENDED|r \226\128\148 %s, %s frames, %s fps",
+    P.Announce("Experiment |cFFFFFF00%s|r |cffff4040ENDED|r \226\128\148 %s, %s frames, %s fps",
         P.LABELS[w] or w, ("%.1fs"):format(a.seconds), a.frames,
         ("%.1f"):format(a.seconds > 0 and (a.frames / a.seconds) or 0))
 end
@@ -469,8 +495,8 @@ function P.Start(label)
     -- against the combat it happened in is exactly how the first capture's confound was spotted,
     -- and reconstructing that from memory afterwards is guesswork.
     P.context = P.Context()
-    NS.Debug("Perf", "run started \226\128\148 %s", P.label or "unlabelled")
-    for _, line in ipairs(P.ContextLines(P.context)) do NS.Debug("Perf", line) end
+    P.Log("run started \226\128\148 %s", P.label or "unlabelled")
+    for _, line in ipairs(P.ContextLines(P.context)) do P.Log(line) end
     local s = ensureSampler()
     if s then
         s:SetScript("OnUpdate", onUpdate)
@@ -496,7 +522,7 @@ function P.Measure(token)
     fpsArms[arm].seconds, fpsArms[arm].frames = 0, 0
     P.armed = arm
     stopwatch("reset")
-    NS.Debug("Perf", "experiment %s armed (addon %s) \226\128\148 waiting for combat",
+    P.Log("experiment %s armed (addon %s) \226\128\148 waiting for combat",
         P.LABELS[arm] or arm, arm == "suspended" and "SUSPENDED" or "active")
     return arm
 end
@@ -509,7 +535,7 @@ function P.Stop()
     P.armed = nil
     P.on = false
     stopwatch("pause")
-    NS.Debug("Perf", "run finished \226\128\148 A %s / %s frames, B %s / %s frames",
+    P.Log("run finished \226\128\148 A %s / %s frames, B %s / %s frames",
         ("%.1fs"):format(fpsArms.active.seconds), fpsArms.active.frames,
         ("%.1fs"):format(fpsArms.suspended.seconds), fpsArms.suspended.frames)
     if sampler then
@@ -529,7 +555,7 @@ end
 function P.Suspend()
     if P.suspended then return false end
     P.suspended = true
-    NS.Debug("Perf", "addon SUSPENDED \226\128\148 inert, bars hidden, events unregistered")
+    P.Log("addon SUSPENDED \226\128\148 inert, bars hidden, events unregistered")
 
     local addon = NS.addon
     if addon then
@@ -557,7 +583,7 @@ end
 function P.Resume()
     if not P.suspended then return false end
     P.suspended = false
-    NS.Debug("Perf", "addon RESUMED \226\128\148 events and bars restored")
+    P.Log("addon RESUMED \226\128\148 events and bars restored")
 
     local addon = NS.addon
     if addon then

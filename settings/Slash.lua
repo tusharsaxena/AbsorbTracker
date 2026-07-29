@@ -260,16 +260,34 @@ local function emitPerfLines(lines)
 end
 
 local PERF_USAGE = {
-    "usage: /at perf <start|measure|finish|report|dump|suspend|resume>",
-    "  start [label]  begin a run (resets counters); label distinguishes runs",
-    "  measure a      arm Experiment A \226\128\148 addon ACTIVE, records while in combat",
-    "  measure b      arm Experiment B \226\128\148 addon SUSPENDED, records while in combat",
-    "  finish         end the run, save to AbsorbTrackerPerfDB, print the summary",
-    "  report         print the summary without ending the run",
-    "  dump           render the run as JSON in the copy window",
-    "  suspend        make the addon inert by hand (measure b does this for you)",
-    "  resume         restore it",
-    "typical run: start \226\134\146 measure a \226\134\146 pull \226\134\146 measure b \226\134\146 same pull \226\134\146 finish \226\134\146 /reload",
+    "usage: |cFFFFFF00/at perf <start|measure|finish|report|dump|suspend|resume>|r",
+    "  |cFFFFFF00start [label]|r  begin a run; zeroes the counters and records who/where you are.",
+    "                 The label is appended to the timestamp so runs are tellable apart.",
+    "  |cFFFFFF00measure a|r      arm Experiment A \226\128\148 addon ACTIVE. Recording starts the moment",
+    "                 combat does and ends when combat ends. Nothing between is measured.",
+    "  |cFFFFFF00measure b|r      arm Experiment B \226\128\148 same, but suspends the addon first, so the",
+    "                 two experiments differ by the addon and nothing else.",
+    "  |cFFFFFF00finish|r         end the run, save it to AbsorbTrackerPerfDB, print the summary",
+    "                 and lift any suspend. `/reload` afterwards to flush it to disk.",
+    "  |cFFFFFF00report|r         print the summary again without ending the run.",
+    "  |cFFFFFF00dump|r           render the run as one line of JSON in the copy window, for",
+    "                 pasting somewhere. Same data the summary is built from.",
+    "  |cFFFFFF00suspend|r        make the addon inert by hand \226\128\148 events unregistered, bars",
+    "                 hidden, no repaints \226\128\148 without a /reload. `measure b` does this for you.",
+    "  |cFFFFFF00resume|r         undo `suspend`.",
+}
+
+-- Printed on `start`, so the workflow is in front of the user rather than in the docs. The whole
+-- point of the run is that the two experiments be comparable, and the ordering is what makes them
+-- so — a user who arms B before pulling, or forgets `/reload`, loses the capture.
+local PERF_STEPS = {
+    "next steps:",
+    "  1. |cFFFFFF00/at perf measure a|r \226\128\148 then pull. Recording starts with combat.",
+    "  2. |cFFFFFF00/at perf measure b|r \226\128\148 reset, then repeat the SAME pull.",
+    "  3. |cFFFFFF00/at perf finish|r \226\128\148 saves the run and prints the summary.",
+    "  4. |cFFFFFF00/reload|r \226\128\148 flushes it to SavedVariables.",
+    "keep both pulls equivalent \226\128\148 the harness measures only combat, but cannot tell whether",
+    "the two fights were the same one.",
 }
 
 -- Sub-verb handlers, one entry each. A dispatch table rather than an if/elseif ladder: the ladder
@@ -285,8 +303,9 @@ local PERF_SUBS = {
         local stamp = date and date("%Y-%m-%d %H:%M") or "capture"
         local label = (rest or ""):match("^%s*(.-)%s*$")
         P.Start(label ~= "" and (stamp .. " " .. label) or stamp)
-        P.__announce("perf run |cff40ff40STARTED|r \226\128\148 now `/at perf measure a`, then pull")
+        P.Announce("perf run |cff40ff40STARTED|r \226\128\148 %s", P.label or "unlabelled")
         for _, line in ipairs(P.ContextLines(P.context)) do print(line) end
+        for _, line in ipairs(PERF_STEPS) do print(line) end
         if NS.DebugLog and NS.DebugLog.Show then NS.DebugLog:Show() end
     end,
 
@@ -310,7 +329,7 @@ local PERF_SUBS = {
         local record = P.Stop()
         P.Save(record)
         emitPerfLines(P.FormatReport(record))
-        P.__announce("perf run |cffff4040FINISHED|r \226\128\148 saved; `/reload` to flush it to "
+        P.Announce("perf run |cffff4040FINISHED|r \226\128\148 saved; `/reload` to flush it to "
             .. "SavedVariables")
         -- Leaving suspend on after a capture would silently disable the addon for the rest of the
         -- session, and nobody expects `off` to leave anything switched off but the capture itself.

@@ -54,8 +54,9 @@ added or removed a UI call in the repaint path and should know it.
 
 ## 2. In-game
 
-`/at perf` — a sub-verb of the debug suite. Works whether or not debug *logging* is on;
-output goes to the debug console (which is ungated) plus a one-line chat acknowledgement.
+`/at perf` — a top-level verb. **Works whether or not debug logging is on**: perf output writes
+straight to the console sink rather than through the gated `NS.Debug`, because a run only happens
+when you explicitly ask for one. Everything also acknowledges in chat.
 
 | Command | Effect |
 |---------|--------|
@@ -64,10 +65,10 @@ output goes to the debug console (which is ungated) plus a one-line chat acknowl
 | `/at perf measure a` | Arm **Experiment A** — addon active. Records while in combat |
 | `/at perf measure b` | Arm **Experiment B** — addon suspended (done for you). Same combat gating |
 | `/at perf finish` | End the run, append to the ring, print the summary, lift any suspend |
-| `/at perf report` | Print the summary without ending the run |
-| `/at perf dump` | Render the capture as JSON in the copy window |
-| `/at perf suspend` | Make the addon inert |
-| `/at perf resume` | Restore it |
+| `/at perf report` | Reprint the summary without ending the run — useful mid-run to check an experiment landed |
+| `/at perf dump` | Render the run as one line of JSON in the copy window, for pasting elsewhere. Same data the summary is built from |
+| `/at perf suspend` | Make the addon inert by hand — events unregistered, bars hidden, no repaints — without a `/reload`. `measure b` does this for you |
+| `/at perf resume` | Undo `suspend` |
 
 ### Suspend
 

@@ -885,5 +885,32 @@ test("the perf usage block documents the measure workflow", function()
   local out = slash("perf")
   assertTrue(contains(out, "measure a"), "lists measure a")
   assertTrue(contains(out, "measure b"), "lists measure b")
-  assertTrue(contains(out, "typical run"), "and shows the order to use them in")
+  assertTrue(contains(out, "suspends the addon first"), "explains what measure b changes")
+  assertTrue(contains(out, "without ending the run"), "and what report does")
+end)
+
+test("/at perf start prints the workflow steps to chat and console", function()
+  -- The ordering is what makes the two experiments comparable; a user who arms B before pulling,
+  -- or forgets /reload, loses the capture.
+  perfReset()
+  local before = #NS.DebugLog.buffer
+  local out = slash("perf start")
+  assertTrue(contains(out, "next steps"), "steps in chat: " .. joined(out))
+  assertTrue(contains(out, "/at perf measure a"), "step 1")
+  assertTrue(contains(out, "/at perf measure b"), "step 2")
+  assertTrue(contains(out, "/at perf finish"), "step 3")
+  assertTrue(contains(out, "/reload"), "step 4")
+  assertTrue(#NS.DebugLog.buffer > before, "and the run start reached the console too")
+  perfReset()
+end)
+
+test("/at perf start announces to the console with debug logging OFF", function()
+  perfReset()
+  local wasOn = NS.State.debug
+  NS.State.debug = false
+  local before = #NS.DebugLog.buffer
+  slash("perf start")
+  NS.State.debug = wasOn
+  assertTrue(#NS.DebugLog.buffer > before, "perf output is ungated")
+  perfReset()
 end)

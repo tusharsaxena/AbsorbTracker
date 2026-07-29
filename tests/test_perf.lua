@@ -432,16 +432,31 @@ test("perf: a no-op suspend or resume logs nothing", function()
   assertEqual(lines, "", "second resume is silent")
 end)
 
-test("perf: lifecycle lines cost nothing when debug logging is off", function()
+test("perf: lifecycle lines appear even with debug logging OFF", function()
+  -- Perf output is deliberately ungated. The debug gate exists to keep the addon free when idle,
+  -- and a run only happens because someone typed `/at perf start` — gating it meant watching an
+  -- empty console while a capture was plainly running.
   reset()
-  local before = #NS.DebugLog.buffer
+  local wasOn = NS.State.debug
   NS.State.debug = false
+  local before = #NS.DebugLog.buffer
   P.Start("quiet")
   P.Suspend()
   P.Resume()
   settle()
   P.Stop()
-  assertEqual(#NS.DebugLog.buffer, before, "NS.Debug is gated, so nothing was written")
+  NS.State.debug = wasOn
+  assertTrue(#NS.DebugLog.buffer > before, "the run was logged regardless of the debug flag")
+end)
+
+test("perf: nothing is logged when no run is happening", function()
+  -- Ungated does not mean chatty: the lines only exist inside a run.
+  reset()
+  local before = #NS.DebugLog.buffer
+  NS.UpdateAbsorbBar("player")
+  NS.RequestRepaint()
+  settle()
+  assertEqual(#NS.DebugLog.buffer, before, "an idle addon writes nothing")
 end)
 
 -- ── combat-gated measurement windows ────────────────────────────────────────────────────────

@@ -154,7 +154,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (74)
+### test_perf.lua (75)
 
 - perf: Note accumulates calls, total and max
 - perf: Note tracks unrelated buckets independently
@@ -199,7 +199,8 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - perf: stopping an experiment logs both arm durations
 - perf: suspend and resume are logged
 - perf: a no-op suspend or resume logs nothing
-- perf: lifecycle lines cost nothing when debug logging is off
+- perf: lifecycle lines appear even with debug logging OFF
+- perf: nothing is logged when no run is happening
 - perf: an armed window samples nothing until combat begins
 - perf: a window opens on combat and accumulates
 - perf: a window closes when combat ends and stops accumulating
@@ -375,7 +376,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
 
-### test_slashcmds.lua (86)
+### test_slashcmds.lua (88)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -463,6 +464,8 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at perf measure rejects an unknown window
 - /at perf bare reports the armed window
 - the perf usage block documents the measure workflow
+- /at perf start prints the workflow steps to chat and console
+- /at perf start announces to the console with debug logging OFF
 
 ### test_widgets.lua (48)
 
@@ -527,12 +530,12 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
 | test_timer.lua | 11 |
-| test_perf.lua | 74 |
+| test_perf.lua | 75 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
 | test_display.lua | 39 |
 | test_helpers.lua | 40 |
-| test_slashcmds.lua | 86 |
+| test_slashcmds.lua | 88 |
 | test_widgets.lua | 48 |
-| **Total** | **465** |
+| **Total** | **468** |
