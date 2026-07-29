@@ -154,7 +154,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (46)
+### test_perf.lua (50)
 
 - perf: Note accumulates calls, total and max
 - perf: Note tracks unrelated buckets independently
@@ -196,8 +196,12 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - perf: suspend leaves no repaint queued behind it
 - perf: the suspended state is session-only, never persisted
 - perf: IsFrameRateCapped is false with no limiter set
-- perf: IsFrameRateCapped catches maxFPS, maxFPSBk and vsync
-- perf: IsFrameRateCapped names which limiter tripped
+- perf: IsFrameRateCapped flags a cap the capture actually ran at
+- perf: a configured cap the capture never reached is NOT a cap
+- perf: vsync is flagged on configuration alone
+- perf: maxFPSBk is never warned on
+- perf: IsFrameRateCapped stays quiet when nothing was sampled
+- perf: IsFrameRateCapped names the cap and the observed rate
 - perf: IsFrameRateCapped tolerates a missing limits table
 - perf: BuildRecord carries the limiter state
 - perf: FormatReport invalidates the delta when the frame rate is capped
@@ -491,7 +495,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
 | test_timer.lua | 11 |
-| test_perf.lua | 46 |
+| test_perf.lua | 50 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
@@ -499,4 +503,4 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_helpers.lua | 40 |
 | test_slashcmds.lua | 78 |
 | test_widgets.lua | 48 |
-| **Total** | **429** |
+| **Total** | **433** |

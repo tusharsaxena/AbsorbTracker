@@ -151,8 +151,12 @@ addon's, and the investigation should move elsewhere.
 
 ### Caveats
 
-- **A capped frame rate invalidates the delta.** The report says so explicitly when it detects one.
-  The bucket figures are unaffected — they time our code directly, independently of frame pacing.
+- **A capped frame rate invalidates the delta.** The report says so when it detects one — but note
+  it warns only when the capture actually *ran at* the cap, not merely when a cap is configured.
+  WoW keeps `maxFPS` at its last slider value even when the limiter checkbox is off, so unticking
+  the slider in the graphics options does **not** zero the CVar. Use `/console maxFPS 0` and confirm
+  with `/dump GetCVar("maxFPS")`. The bucket figures are unaffected either way — they time our code
+  directly, independently of frame pacing.
 - **Unequal combat between the arms invalidates the delta too**, and nothing detects that for you.
   Combat costs frame time on its own, so an active arm that was 78% combat against a suspended arm
   that was 100% combat shows a *negative* delta that has nothing to do with the addon. Watch the

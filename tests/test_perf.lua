@@ -374,23 +374,48 @@ end)
 -- the client was capped at 120 and the addon's cost fit inside the headroom. A capped capture can
 -- only ever produce a delta near zero, which is indistinguishable from a genuine null result.
 
+local function atFps(n) return { active = { avgFps = n }, suspended = { avgFps = n } } end
+
 test("perf: IsFrameRateCapped is false with no limiter set", function()
-  assertFalse(P.IsFrameRateCapped({ maxFPS = 0, maxFPSBk = 0, vsync = 0 }), "uncapped")
+  assertFalse(P.IsFrameRateCapped({ maxFPS = 0, maxFPSBk = 0, vsync = 0 }, atFps(120)), "uncapped")
 end)
 
-test("perf: IsFrameRateCapped catches maxFPS, maxFPSBk and vsync", function()
-  assertTrue(P.IsFrameRateCapped({ maxFPS = 120, maxFPSBk = 0, vsync = 0 }), "maxFPS")
-  assertTrue(P.IsFrameRateCapped({ maxFPS = 0, maxFPSBk = 30, vsync = 0 }), "maxFPSBk")
-  assertTrue(P.IsFrameRateCapped({ maxFPS = 0, maxFPSBk = 0, vsync = 1 }), "vsync")
+test("perf: IsFrameRateCapped flags a cap the capture actually ran at", function()
+  assertTrue(P.IsFrameRateCapped({ maxFPS = 120, maxFPSBk = 0, vsync = 0 }, atFps(119.4)),
+    "119.4 fps against a 120 cap is pinned")
 end)
 
-test("perf: IsFrameRateCapped names which limiter tripped", function()
-  local _, why = P.IsFrameRateCapped({ maxFPS = 120, maxFPSBk = 0, vsync = 0 })
-  assertTrue(why:find("120", 1, true) ~= nil, "reports the value: " .. tostring(why))
+test("perf: a configured cap the capture never reached is NOT a cap", function()
+  -- WoW keeps maxFPS at its last slider value even when the limiter checkbox is off, so a non-zero
+  -- CVar is not evidence of anything. Warning on config alone produced a false alarm on a client
+  -- whose limiters were all disabled.
+  assertFalse(P.IsFrameRateCapped({ maxFPS = 120, maxFPSBk = 0, vsync = 0 }, atFps(74)),
+    "74 fps against a 120 cap is not pinned")
+end)
+
+test("perf: vsync is flagged on configuration alone", function()
+  -- We cannot see the display refresh rate from here to test whether it bound.
+  assertTrue(P.IsFrameRateCapped({ maxFPS = 0, maxFPSBk = 0, vsync = 1 }, atFps(60)), "vsync")
+end)
+
+test("perf: maxFPSBk is never warned on", function()
+  -- It only applies while the window is unfocused, which is not a state anyone captures in.
+  assertFalse(P.IsFrameRateCapped({ maxFPS = 0, maxFPSBk = 30, vsync = 0 }, atFps(120)), "background")
+end)
+
+test("perf: IsFrameRateCapped stays quiet when nothing was sampled", function()
+  assertFalse(P.IsFrameRateCapped({ maxFPS = 120, maxFPSBk = 0, vsync = 0 }, atFps(0)),
+    "no frames means no evidence either way")
+end)
+
+test("perf: IsFrameRateCapped names the cap and the observed rate", function()
+  local _, why = P.IsFrameRateCapped({ maxFPS = 120, maxFPSBk = 0, vsync = 0 }, atFps(119.4))
+  assertTrue(why:find("120", 1, true) ~= nil, "reports the cap: " .. tostring(why))
+  assertTrue(why:find("119.4", 1, true) ~= nil, "and what was measured: " .. tostring(why))
 end)
 
 test("perf: IsFrameRateCapped tolerates a missing limits table", function()
-  assertFalse(P.IsFrameRateCapped(nil), "no record of limits is not a cap")
+  assertFalse(P.IsFrameRateCapped(nil, atFps(120)), "no record of limits is not a cap")
 end)
 
 test("perf: BuildRecord carries the limiter state", function()
@@ -401,13 +426,15 @@ end)
 test("perf: FormatReport invalidates the delta when the frame rate is capped", function()
   reset()
   local arms = P.__fpsArms()
-  arms.active.seconds, arms.active.frames = 10, 1200
-  arms.suspended.seconds, arms.suspended.frames = 10, 1200
+  arms.active.seconds, arms.active.frames = 10, 1194      -- 119.4 fps, i.e. on a 120 cap
+  arms.suspended.seconds, arms.suspended.frames = 10, 1194
   local record = P.BuildRecord()
   record.limits = { maxFPS = 120, maxFPSBk = 0, vsync = 0 }
   local lines = table.concat(P.FormatReport(record), "\n")
   assertTrue(lines:find("DELTA IS INVALID", 1, true) ~= nil, "warns: " .. lines)
   assertTrue(lines:find("maxFPS 0", 1, true) ~= nil, "tells you how to fix it")
+  assertTrue(lines:find("does NOT zero the CVar", 1, true) ~= nil,
+    "and that unticking the slider is not enough")
   assertTrue(lines:find("bucket figures below are unaffected", 1, true) ~= nil,
     "and says what is still trustworthy")
 end)
@@ -418,7 +445,7 @@ test("perf: FormatReport leaves the delta alone when uncapped", function()
   arms.active.seconds, arms.active.frames = 10, 800
   arms.suspended.seconds, arms.suspended.frames = 10, 1000
   local record = P.BuildRecord()
-  record.limits = { maxFPS = 0, maxFPSBk = 0, vsync = 0 }
+  record.limits = { maxFPS = 120, maxFPSBk = 0, vsync = 0 }   -- configured but nowhere near binding
   local lines = table.concat(P.FormatReport(record), "\n")
   assertEqual(lines:find("DELTA IS INVALID", 1, true), nil, "no warning when uncapped")
   assertTrue(lines:find("+2.50 ms/frame", 1, true) ~= nil, "delta still reported")

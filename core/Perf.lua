@@ -199,17 +199,45 @@ local function readLimits()
     return out
 end
 
---- Is the frame rate limited in a way that invalidates the FPS delta? Returns false plus a reason.
-function P.IsFrameRateCapped(limits)
+--- Did a frame-rate limit actually BIND during this capture, invalidating the FPS delta?
+--- Returns false, or true plus a human reason.
+---
+--- Deliberately evidence-based rather than config-based. WoW keeps `maxFPS` at its last slider
+--- value even when the limiter checkbox is off, so "the CVar is non-zero" is not the same as "the
+--- frame rate was capped" — treating them as equivalent produced a false alarm on a client whose
+--- limiters were all disabled. What actually invalidates the delta is the frame rate being PINNED
+--- at a ceiling, because then the addon's cost disappears into headroom instead of into frame time.
+--- So the test is: a cap is configured AND the capture ran at it.
+---
+--- `maxFPSBk` is recorded but never warned on: it only applies while the window is unfocused, which
+--- is not a state anyone captures in.
+local CAP_TOLERANCE = 0.97   -- within 3% of the configured cap counts as running at it
+
+function P.IsFrameRateCapped(limits, fps)
     if not limits then return false end
-    if (limits.maxFPS or 0) > 0 then
-        return true, ("maxFPS is %d"):format(limits.maxFPS)
-    end
-    if (limits.maxFPSBk or 0) > 0 then
-        return true, ("maxFPSBk is %d"):format(limits.maxFPSBk)
-    end
+
+    -- Vsync pins the frame rate to the display's refresh whenever the client can keep up, and we
+    -- cannot see the refresh rate from here to test whether it bound. Flag it on configuration.
     if (limits.vsync or 0) ~= 0 then
         return true, "vsync is on"
+    end
+
+    local cap = limits.maxFPS or 0
+    if cap <= 0 then return false end
+
+    local observed = 0
+    if fps then
+        local a = (fps.active and fps.active.avgFps) or 0
+        local s = (fps.suspended and fps.suspended.avgFps) or 0
+        observed = a > s and a or s
+    end
+    -- Nothing sampled yet (e.g. a bare `report` before any frames): no evidence either way, so say
+    -- nothing rather than cry wolf on a merely-configured value.
+    if observed <= 0 then return false end
+
+    if observed >= cap * CAP_TOLERANCE then
+        return true, ("maxFPS is %d and the capture averaged %.1f fps \226\128\148 pinned at the cap")
+            :format(cap, observed)
     end
     return false
 end
@@ -298,14 +326,15 @@ function P.FormatReport(record)
             add("%-10s (not sampled)", name .. ":")
         end
     end
-    local capped, why = P.IsFrameRateCapped(record.limits)
+    local capped, why = P.IsFrameRateCapped(record.limits, f)
     if f.active.frames > 0 and f.suspended.frames > 0 then
         add("%-10s %45s%+6.2f ms/frame", "delta:", "", f.deltaMsPerFrame)
         -- A capped client absorbs the addon's cost in headroom, so the delta reads ~0 whether or
         -- not the addon is free. Say so loudly rather than let a meaningless zero be believed.
         if capped then
-            add("!! DELTA IS INVALID \226\128\148 %s. Uncap with `/console maxFPS 0`,", why)
-            add("!! `/console maxFPSBk 0` and vsync off, then capture again.")
+            add("!! DELTA IS INVALID \226\128\148 %s.", why)
+            add("!! Run `/console maxFPS 0` (unticking the slider does NOT zero the CVar);")
+            add("!! verify with `/dump GetCVar(\"maxFPS\")`, then capture again.")
             add("!! The bucket figures below are unaffected \226\128\148 they time our code directly.")
         end
     else
