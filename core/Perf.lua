@@ -58,6 +58,11 @@ P.BUCKET_ORDER = {
 
 local buckets = {}
 
+-- Which experiments have run to completion this session. Tracked explicitly rather than inferred
+-- from frame counts, so a window that opened and closed without accumulating a frame still counts
+-- as done — the step happened, whatever it caught.
+local completed = { active = false, suspended = false }
+
 -- FPS accumulators, one arm per suspend state. `seconds` comes from the OnUpdate elapsed argument
 -- rather than GetTime() deltas so a paused client doesn't inflate the denominator.
 local fpsArms = {
@@ -80,6 +85,7 @@ end
 --- Zero every counter. Called by `/at debug perf start` so each run begins clean.
 function P.Reset()
     buckets = {}
+    completed = { active = false, suspended = false }
     fpsArms = {
         active    = { seconds = 0, frames = 0 },
         suspended = { seconds = 0, frames = 0 },
@@ -89,6 +95,43 @@ end
 -- Test seam: expose the live tables without letting callers swap them out.
 function P.__buckets() return buckets end
 function P.__fpsArms() return fpsArms end
+function P.__completed() return completed end
+
+-- Tell the step panel (core/PerfPanel.lua) that something moved. Payload-free like every other bus
+-- message (architecture-§4): the panel re-reads P.Progress() when it fires.
+local function publishState()
+    if NS.bus and NS.MSG and NS.MSG.PERF then NS.bus:SendMessage(NS.MSG.PERF) end
+end
+
+--- The run as a list of step states, for the panel to render. Lives here rather than in the panel
+--- so the progression is testable without frames, and so the panel stays a dumb renderer.
+---
+--- Strictly linear: exactly one step is `ready` at a time. `locked` steps are not yet reachable,
+--- `busy` is armed-or-recording, `done` is finished. The slash verbs are NOT gated this way — a run
+--- that cannot complete Experiment B can still be closed with `/at perf finish` from chat.
+function P.Progress()
+    local aBusy = (P.armed == "active") or (P.recording == "active")
+    local bBusy = (P.armed == "suspended") or (P.recording == "suspended")
+    local finished = (not P.run) and (completed.active or completed.suspended)
+
+    local a = aBusy and "busy"
+        or (completed.active and "done")
+        or ((P.run and not bBusy) and "ready")
+        or "locked"
+    local b = bBusy and "busy"
+        or (completed.suspended and "done")
+        or ((P.run and completed.active and not aBusy) and "ready")
+        or "locked"
+    local fin = (finished and "done")
+        or ((P.run and completed.suspended and not bBusy) and "ready")
+        or "locked"
+    local review = finished and "ready" or "locked"
+
+    return {
+        start = "done",   -- the panel only exists once a run has started
+        measureA = a, measureB = b, finish = fin, report = review, dump = review,
+    }
+end
 
 -- ── Output ─────────────────────────────────────────────────────────────────────────────────
 --
@@ -446,6 +489,7 @@ local function openWindow()
     P.armed = nil
     P.on = true              -- the brackets record only inside an experiment
     stopwatch("play")
+    publishState()
     P.Announce("Experiment |cFFFFFF00%s|r |cff40ff40RECORDING|r \226\128\148 combat started",
         P.LABELS[P.recording] or P.recording)
 end
@@ -456,6 +500,8 @@ local function closeWindow()
     P.on = false
     stopwatch("pause")
     if not w then return end
+    completed[w] = true
+    publishState()
     local a = fpsArms[w]
     P.Announce("Experiment |cFFFFFF00%s|r |cffff4040ENDED|r \226\128\148 %s, %s frames, %s fps",
         P.LABELS[w] or w, ("%.1fs"):format(a.seconds), a.frames,
@@ -502,6 +548,7 @@ function P.Start(label)
         s:SetScript("OnUpdate", onUpdate)
         s:Show()
     end
+    publishState()
 end
 
 --- Arm a measurement window. Returns the arm name, or nil plus the offending token.
@@ -520,10 +567,12 @@ function P.Measure(token)
     if arm == "suspended" then P.Suspend() else P.Resume() end
 
     fpsArms[arm].seconds, fpsArms[arm].frames = 0, 0
+    completed[arm] = false          -- re-arming redoes the step, so it is no longer done
     P.armed = arm
     stopwatch("reset")
     P.Log("experiment %s armed (addon %s) \226\128\148 waiting for combat",
         P.LABELS[arm] or arm, arm == "suspended" and "SUSPENDED" or "active")
+    publishState()
     return arm
 end
 
@@ -542,6 +591,7 @@ function P.Stop()
         sampler:SetScript("OnUpdate", nil)
         sampler:Hide()
     end
+    publishState()
     return P.BuildRecord(P.label)
 end
 

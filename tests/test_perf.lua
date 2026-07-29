@@ -832,3 +832,197 @@ test("perf: arming logs which experiment and whether the addon is suspended", fu
   assertTrue(logText:find("armed", 1, true) ~= nil, "armed line: " .. logText)
   assertTrue(logText:find("SUSPENDED", 1, true) ~= nil, "and the addon state that defines the arm")
 end)
+
+-- ── the step panel ──────────────────────────────────────────────────────────────────────────
+--
+-- Progress() is the whole state model; core/PerfPanel.lua only renders it. Asserting here keeps the
+-- progression testable without frames.
+
+local function states() return P.Progress() end
+
+test("perf: before a run only Start reads done, everything else is locked", function()
+  reset()
+  local s = states()
+  assertEqual(s.start, "done", "start")
+  assertEqual(s.measureA, "locked", "A")
+  assertEqual(s.measureB, "locked", "B")
+  assertEqual(s.finish, "locked", "finish")
+  assertEqual(s.report, "locked", "report")
+end)
+
+test("perf: starting a run makes exactly Measure A ready", function()
+  reset()
+  P.Start("panel")
+  local s = states()
+  assertEqual(s.measureA, "ready", "A is next")
+  assertEqual(s.measureB, "locked", "B waits its turn")
+  assertEqual(s.finish, "locked", "finish waits")
+  P.Stop()
+end)
+
+test("perf: an armed or recording experiment reads busy, not ready", function()
+  reset()
+  P.Start("panel")
+  P.Measure("a")
+  assertEqual(states().measureA, "busy", "armed is busy")
+  tick(0.5, true)
+  assertEqual(states().measureA, "busy", "recording is busy too")
+  assertEqual(states().measureB, "locked", "and B stays locked meanwhile")
+  P.Stop()
+end)
+
+test("perf: completing A unlocks B and nothing else", function()
+  reset()
+  P.Start("panel")
+  P.Measure("a")
+  tick(0.5, true)
+  tick(0.5, false)
+  local s = states()
+  assertEqual(s.measureA, "done", "A done")
+  assertEqual(s.measureB, "ready", "B is next")
+  assertEqual(s.finish, "locked", "finish still locked")
+  P.Stop()
+end)
+
+test("perf: completing B unlocks Finish", function()
+  reset()
+  P.Start("panel")
+  P.Measure("a"); tick(0.5, true); tick(0.5, false)
+  P.Measure("b"); tick(0.5, true); tick(0.5, false)
+  local s = states()
+  assertEqual(s.measureB, "done", "B done")
+  assertEqual(s.finish, "ready", "finish is next")
+  assertEqual(s.report, "locked", "review waits for the run to end")
+  finish()
+end)
+
+test("perf: finishing unlocks Report and Dump", function()
+  reset()
+  P.Start("panel")
+  P.Measure("a"); tick(0.5, true); tick(0.5, false)
+  P.Measure("b"); tick(0.5, true); tick(0.5, false)
+  P.Stop()
+  if P.suspended then P.Resume() end
+  settle()
+  local s = states()
+  assertEqual(s.finish, "done", "finish done")
+  assertEqual(s.report, "ready", "report available")
+  assertEqual(s.dump, "ready", "dump available")
+end)
+
+test("perf: exactly one step is ready at any point in a run", function()
+  -- The panel's entire purpose: a run cannot be done out of order.
+  reset()
+  local function readyCount()
+    local n = 0
+    for _, state in pairs(states()) do if state == "ready" then n = n + 1 end end
+    return n
+  end
+  P.Start("panel")
+  assertEqual(readyCount(), 1, "after start")
+  P.Measure("a")
+  assertEqual(readyCount(), 0, "while A is armed, nothing else is offered")
+  tick(0.5, true); tick(0.5, false)
+  assertEqual(readyCount(), 1, "after A")
+  P.Measure("b")
+  assertEqual(readyCount(), 0, "while B is armed")
+  tick(0.5, true); tick(0.5, false)
+  assertEqual(readyCount(), 1, "after B")
+  finish()
+end)
+
+test("perf: re-arming a completed experiment sends it back to busy", function()
+  reset()
+  P.Start("panel")
+  P.Measure("a"); tick(0.5, true); tick(0.5, false)
+  assertEqual(states().measureA, "done", "done after the first attempt")
+  P.Measure("a")
+  assertEqual(states().measureA, "busy", "redoing it is in progress again")
+  assertEqual(states().measureB, "locked", "and B relocks until A completes")
+  P.Stop()
+end)
+
+test("perf: a window that caught no frames still counts as completed", function()
+  -- Completion is tracked explicitly rather than inferred from frame counts: the step happened,
+  -- whatever it caught.
+  reset()
+  P.Start("panel")
+  P.Measure("a")
+  tick(0.0, true)     -- opens, accumulates a zero-length frame
+  tick(0.0, false)    -- closes immediately
+  assertEqual(states().measureA, "done", "still done")
+  P.Stop()
+end)
+
+test("perf: Reset clears completion, so a fresh run starts from step one", function()
+  reset()
+  P.Start("panel")
+  P.Measure("a"); tick(0.5, true); tick(0.5, false)
+  P.Stop()
+  P.Start("second")
+  assertEqual(states().measureA, "ready", "A is offered again")
+  assertEqual(states().measureB, "locked", "and B is not")
+  P.Stop()
+end)
+
+test("perf: the panel renders every step and marks the done ones", function()
+  reset()
+  P.Start("panel")
+  P.Measure("a"); tick(0.5, true); tick(0.5, false)
+  NS.PerfPanel:Show()
+  local f = NS.PerfPanel.__frame()
+  assertTrue(f ~= nil, "panel built")
+  assertTrue(f:IsShown(), "and shown")
+  for _, step in ipairs(NS.PerfPanel.STEPS) do
+    assertTrue(f.buttons[step.key] ~= nil, "button for " .. step.key)
+  end
+  assertTrue(f.buttons.measureA.__label:find("\226\156\147", 1, true) ~= nil,
+    "a completed step is ticked: " .. tostring(f.buttons.measureA.__label))
+  assertEqual(f.buttons.measureB.__label:find("\226\156\147", 1, true), nil,
+    "an incomplete one is not")
+  assertEqual(f.buttons.measureA.__state, "done", "and carries its state")
+  assertEqual(f.buttons.measureB.__state, "ready", "as does the next step")
+  P.Stop()
+  NS.PerfPanel:Hide()
+end)
+
+test("perf: a locked panel button refuses to act when clicked", function()
+  -- Belt and braces over Disable(): a step that runs out of order corrupts the run the panel exists
+  -- to protect, and a script can be fired directly.
+  reset()
+  P.Start("panel")
+  NS.PerfPanel:Show()
+  local f = NS.PerfPanel.__frame()
+  assertEqual(NS.PerfPanel.StateOf("finish"), "locked", "finish is locked")
+  f.buttons.finish:__fire("OnClick")
+  assertTrue(P.run, "the run is still going — the click did nothing")
+  P.Stop()
+  NS.PerfPanel:Hide()
+end)
+
+test("perf: a ready panel button runs its slash command", function()
+  reset()
+  P.Start("panel")
+  NS.PerfPanel:Show()
+  local f = NS.PerfPanel.__frame()
+  assertEqual(NS.PerfPanel.StateOf("measureA"), "ready", "A is offered")
+  f.buttons.measureA:__fire("OnClick")
+  assertEqual(P.armed, "active", "clicking armed Experiment A")
+  P.Stop()
+  NS.PerfPanel:Hide()
+end)
+
+test("perf: the panel refreshes off the bus, not by polling", function()
+  reset()
+  P.Start("panel")
+  NS.PerfPanel:Show()
+  local f = NS.PerfPanel.__frame()
+  assertEqual(f.buttons.measureB.__label:find("\226\156\147", 1, true), nil, "B not yet done")
+  P.Measure("a"); tick(0.5, true); tick(0.5, false)
+  P.Measure("b"); tick(0.5, true); tick(0.5, false)
+  -- No explicit Refresh() call here: closing the window published PERF, which drove it.
+  assertTrue(f.buttons.measureB.__label:find("\226\156\147", 1, true) ~= nil,
+    "the panel caught up on its own")
+  finish()
+  NS.PerfPanel:Hide()
+end)

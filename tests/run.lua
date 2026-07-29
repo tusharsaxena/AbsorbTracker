@@ -32,6 +32,7 @@ Loader.loadAll({
   "core/Bus.lua",
   "core/Util.lua",
   "core/Perf.lua",
+  "core/PerfPanel.lua",
   "core/Data.lua",
   "core/Units.lua",
   "core/Database.lua",

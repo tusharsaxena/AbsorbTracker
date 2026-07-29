@@ -1,0 +1,177 @@
+local addonName, NS = ...
+NS.PerfPanel = NS.PerfPanel or {}
+local Panel = NS.PerfPanel
+
+-- core/PerfPanel.lua — the clickable step panel for a perf run (issue #17).
+--
+-- Appears on `/at perf start` and walks the user through the run one step at a time. The ordering
+-- is the whole point: arming Experiment B before pulling, or forgetting `/reload`, silently ruins a
+-- capture, and a numbered list in chat scrolls away the moment combat starts. A panel that only
+-- offers the next legal step cannot be done out of order.
+--
+-- This file is a DUMB RENDERER. Every question about what is clickable lives in NS.Perf.Progress(),
+-- which is pure state and headlessly testable; the panel asks it and draws the answer. Buttons
+-- dispatch through the slash layer (`NS.Slash:OnSlash("perf measure a")`) rather than calling the
+-- probe directly, so a click and a typed command can never take different code paths.
+
+local BUTTON_W, BUTTON_H, GAP = 250, 22, 4
+local TITLE_H = 24
+local PAD = 8
+
+-- Same shape as the debug console's skin so the two windows read as one addon.
+local BACKDROP = {
+    bgFile = "Interface\\Buttons\\WHITE8x8",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    edgeSize = 12,
+    insets = { left = 3, right = 3, top = 3, bottom = 3 },
+}
+
+-- Per-state text colour. `busy` deliberately shares the gold of an interactive control: the step IS
+-- happening, and greying it out would read as "nothing is going on" during the one phase where the
+-- user most needs to know the addon is recording.
+local COLORS = {
+    done   = { 0.30, 0.85, 0.30 },
+    ready  = { 0.90, 0.90, 0.92 },
+    busy   = { 1.00, 0.82, 0.00 },
+    locked = { 0.40, 0.40, 0.42 },
+}
+
+-- Ordered, and the order IS the workflow. `key` matches a field of NS.Perf.Progress(); `command` is
+-- the slash line the button runs.
+local STEPS = {
+    { key = "start",    label = "Start",                          command = "perf start"     },
+    { key = "measureA", label = "Measure A  (with the addon)",     command = "perf measure a" },
+    { key = "measureB", label = "Measure B  (without the addon)",  command = "perf measure b" },
+    { key = "finish",   label = "Finish",                         command = "perf finish"    },
+    { key = "report",   label = "Report",                         command = "perf report"    },
+    { key = "dump",     label = "Dump",                           command = "perf dump"      },
+}
+Panel.STEPS = STEPS
+
+local frame
+
+local function setColor(fs, state)
+    local c = COLORS[state] or COLORS.locked
+    fs:SetTextColor(c[1], c[2], c[3])
+end
+
+--- Build one step row. The click handler re-checks Progress() rather than trusting the button's
+--- enabled state: the mock (and a sufficiently determined user) can fire a script directly, and a
+--- step that runs out of order corrupts the run it was meant to protect.
+local function makeStepButton(parent, step, index)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(BUTTON_W, BUTTON_H)
+    b:SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -(TITLE_H + PAD + (index - 1) * (BUTTON_H + GAP)))
+
+    local fs = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    fs:SetPoint("LEFT", b, "LEFT", 6, 0)
+    fs:SetJustifyH("LEFT")
+    b.text = fs
+    b.step = step
+
+    b:SetScript("OnEnter", function()
+        if Panel.StateOf(step.key) == "ready" then fs:SetTextColor(1, 0.82, 0) end
+    end)
+    b:SetScript("OnLeave", function() setColor(fs, Panel.StateOf(step.key)) end)
+    b:SetScript("OnClick", function()
+        if Panel.StateOf(step.key) ~= "ready" then return end
+        if NS.Slash and NS.Slash.OnSlash then NS.Slash:OnSlash(step.command) end
+        Panel:Refresh()
+    end)
+    return b
+end
+
+--- Current state of one step, straight from the probe. Nil-safe so the panel can exist before a run.
+function Panel.StateOf(key)
+    if not (NS.Perf and NS.Perf.Progress) then return "locked" end
+    return NS.Perf.Progress()[key] or "locked"
+end
+
+local function EnsureFrame()
+    if frame then return frame end
+    if type(CreateFrame) ~= "function" then return nil end
+
+    local height = TITLE_H + PAD * 2 + #STEPS * (BUTTON_H + GAP)
+    frame = CreateFrame("Frame", "AbsorbTrackerPerfPanel", UIParent, "BackdropTemplate")
+    frame:SetSize(BUTTON_W + PAD * 2, height)
+    frame:SetPoint("CENTER", -320, 0)
+    frame:SetFrameStrata("DIALOG")
+    frame:EnableMouse(true)
+    frame:SetMovable(true)
+    frame:SetClampedToScreen(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", function() frame:StartMoving() end)
+    frame:SetScript("OnDragStop", function() frame:StopMovingOrSizing() end)
+
+    local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOP", frame, "TOP", 0, -6)
+    title:SetText("Perf Run")
+    frame.title = title
+
+    -- No close button: the panel is the workflow, and a run left half-finished is the failure mode
+    -- it exists to prevent. `/at perf finish` ends the run, and `/at perf` re-shows the panel if it
+    -- has been dragged somewhere forgotten.
+    local divider = frame:CreateTexture(nil, "ARTWORK")
+    divider:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -TITLE_H)
+    divider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD, -TITLE_H)
+    divider:SetHeight(1)
+    divider:SetColorTexture(0.24, 0.24, 0.27, 0.85)
+
+    frame.buttons = {}
+    for i, step in ipairs(STEPS) do
+        frame.buttons[step.key] = makeStepButton(frame, step, i)
+    end
+
+    if frame.SetBackdrop then
+        frame:SetBackdrop(BACKDROP)
+        frame:SetBackdropColor(0.06, 0.06, 0.07, 0.95)
+        frame:SetBackdropBorderColor(0, 0, 0, 1)
+    end
+
+    frame:Hide()
+    return frame
+end
+
+--- Repaint every row from the probe's current state. Cheap and idempotent, so it is safe to call
+--- from the bus on every transition rather than trying to work out which row changed.
+function Panel:Refresh()
+    if not frame then return end
+    for _, step in ipairs(STEPS) do
+        local b = frame.buttons[step.key]
+        if b then
+            local state = Panel.StateOf(step.key)
+            -- A tick marks the steps behind you, so progress is legible at a glance mid-combat.
+            local label = (state == "done" and "\226\156\147  " or "     ") .. step.label
+            b.text:SetText(label)
+            setColor(b.text, state)
+            if state == "ready" then b:Enable() else b:Disable() end
+            -- What was actually rendered, for the headless suite. The mock's FontString stub cannot
+            -- be asked (it returns the parent frame, and defining SetText on it would break the
+            -- other suites' SetText spies — see the note in tests/wow_mock.lua).
+            b.__label, b.__state = label, state
+        end
+    end
+end
+
+function Panel:Show()
+    local f = EnsureFrame()
+    if not f then return end
+    Panel:Refresh()
+    f:Show()
+end
+
+function Panel:Hide() if frame then frame:Hide() end end
+function Panel:IsShown() return (frame and frame:IsShown()) and true or false end
+
+-- Test seam: reach the buttons without a live client.
+function Panel.__frame() return frame end
+
+-- Bus subscription (architecture-§4). This module owns the SOLE subscription to PERF, on its own
+-- target so no two receivers share a table (anti-pattern #32). core/Perf.lua publishes on every
+-- phase transition; the panel re-reads Progress() rather than being handed state.
+if NS.NewBusTarget then
+    Panel.__ev = NS.NewBusTarget()
+    Panel.__ev:RegisterMessage(NS.MSG.PERF, function()
+        if NS.PerfPanel then NS.PerfPanel:Refresh() end
+    end)
+end

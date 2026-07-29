@@ -304,6 +304,9 @@ local PERF_SUBS = {
         for _, line in ipairs(P.ContextLines(P.context)) do print(line) end
         for _, line in ipairs(PERF_STEPS) do print(line) end
         if NS.DebugLog and NS.DebugLog.Show then NS.DebugLog:Show() end
+        -- The clickable equivalent of the steps just printed. Chat scrolls away the moment combat
+        -- starts; the panel does not.
+        if NS.PerfPanel and NS.PerfPanel.Show then NS.PerfPanel:Show() end
     end,
 
     measure = function(P, rest)
@@ -363,6 +366,9 @@ local function printPerfStatus(P)
     end
     print(("perf %s, addon %s"):format(phase,
         P.suspended and "|cffff4040SUSPENDED|r" or "|cff40ff40active|r"))
+    -- Re-show the step panel if a run is under way. There is no close button, but the panel is
+    -- draggable and can end up somewhere forgotten; this is the way back to it without a /reload.
+    if P.run and NS.PerfPanel and NS.PerfPanel.Show then NS.PerfPanel:Show() end
     for _, line in ipairs(PERF_USAGE) do print(line) end
 end
 

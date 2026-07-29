@@ -162,6 +162,30 @@ any pass armed a moment before.
 
 Protocol and how to read the output: [performance.md](./performance.md).
 
+### PerfPanel (`core/PerfPanel.lua`)
+
+The clickable step panel for a perf run, shown by `/at perf start`.
+
+```lua
+NS.PerfPanel.STEPS        -- ordered {key, label, command}; the order IS the workflow
+NS.PerfPanel.StateOf(key) -> "done" | "ready" | "busy" | "locked"
+NS.PerfPanel:Show()  / :Hide()  / :IsShown()
+NS.PerfPanel:Refresh()    -- idempotent repaint from NS.Perf.Progress()
+```
+
+A dumb renderer. The progression lives in `NS.Perf.Progress()` — pure state, no frames, testable
+headlessly — and the panel draws whatever that returns. Strictly linear: exactly one step is
+`ready` at a time, so a run cannot be done out of order. The slash verbs are deliberately **not**
+gated this way, so a run that cannot complete Experiment B can still be closed with
+`/at perf finish`.
+
+Buttons dispatch through `NS.Slash:OnSlash(step.command)` rather than calling the probe directly,
+so a click and a typed command are one code path. The click handler re-checks `StateOf` instead of
+trusting `Disable()` — a step run out of order corrupts the run the panel exists to protect.
+
+Refreshes off the `PERF` bus message (sole subscriber, own target), which `core/Perf.lua` publishes
+on every phase transition.
+
 ### Data (`core/Data.lua`)
 
 The AceDB read/write seam plus the LSM fetchers and the class-color-aware color resolvers. `NS.db` is declared here (nil until `InitDB`).

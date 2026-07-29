@@ -113,6 +113,32 @@ Run this when you want a defensible number rather than an impression.
    frame time, or on a round number like 8.33 ms (120 fps) or 6.94 ms (144 fps), you were pinned.
 4. Set a fixed graphics preset and don't touch it between arms.
 
+### The step panel
+
+`/at perf start` opens a small panel listing the run's steps. It is **strictly linear** — only the
+next legal step is clickable, completed steps go green with a tick, and everything else is greyed
+out. An armed or recording experiment shows gold, so it is obvious mid-fight that a capture is
+running.
+
+```
+  Perf Run
+  ─────────────────────────
+  ✓  Start
+  ✓  Measure A  (with the addon)
+     Measure B  (without the addon)
+     Finish
+     Report
+     Dump
+```
+
+It exists because the *ordering* is what makes a run valid, and a numbered list in chat scrolls away
+the moment combat starts. The buttons dispatch through the slash layer, so a click and a typed
+command are the same code path.
+
+The panel is draggable and has no close button — a half-finished run is the failure it exists to
+prevent. `/at perf` re-shows it if it ends up somewhere forgotten. The slash verbs are **not** gated
+this way: if a run cannot complete Experiment B, `/at perf finish` still closes it from chat.
+
 ### Capture
 
 Each window opens the moment **you** enter combat and closes the moment you leave it. Everything

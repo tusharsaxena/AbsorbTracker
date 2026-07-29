@@ -119,10 +119,12 @@ that covers the pure logic; this suite covers everything that only runs against 
 80. **The run persists to its own global.** `/reload`, then inspect `WTF/Account/<ACCOUNT>/SavedVariables/AbsorbTracker.lua` → a top-level `AbsorbTrackerPerfDB` with `schema = 1` and a `runs` list holding the run, including its `context`. **`AbsorbTrackerDB` is unchanged** — no perf data in the profile tree. Do more than 10 runs → `runs` keeps only the newest 10.
 81. **`report` and `dump`.** `/at perf report` mid-run reprints the summary without ending it. `/at perf dump` → the copy window opens with one JSON line starting `{"buckets":...` carrying `"schema":1` and `"source":"ingame"`; Ctrl+C, Esc → pastes as valid JSON.
 82. **The console log is plain text.** Open the console's **Copy** window after a run → the `[Perf]` lines carry **no** `|cff…` colour escapes, while the chat copies of the same lines are coloured.
-83. **Zero cost when idle.** With no run active, sit out of combat with a shield up → no `[Perf]` lines at all, and no repaint activity. (The brackets are gated on `Perf.on`, which is only true inside an open experiment.)
+83. **The step panel gates the workflow.** `/at perf start` → a small **Perf Run** panel appears with six rows. **Start** is green and ticked; **Measure A** is the only clickable row; everything below is greyed out. Click **Measure A** → it turns gold (armed) and **Measure B** stays greyed. Pull → still gold while recording. Leave combat → **Measure A** goes green and ticked, and **Measure B** becomes the only clickable row. Repeat for B → **Finish** unlocks. Click **Finish** → it goes green and **Report** / **Dump** unlock. Clicking a greyed row does nothing. Drag the panel → it moves and stays put; `/at perf` re-shows it. (What this pins: the ordering is what makes a run valid, and out-of-order steps silently ruin a capture.)
+84. **Panel and chat are the same path.** Click **Measure A** and separately type `/at perf measure a` → identical chat output and identical panel state. (The buttons dispatch through `NS.Slash:OnSlash`.)
+85. **Zero cost when idle.** With no run active, sit out of combat with a shield up → no `[Perf]` lines at all, and no repaint activity. (The brackets are gated on `Perf.on`, which is only true inside an open experiment.)
 
 
-**Pass criteria:** all 83 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
+**Pass criteria:** all 85 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
 and no combat-taint warning when the panel opens out of combat (step 13). On any failure, record the step number, observed vs.
 expected, and any error text.
 
@@ -132,7 +134,7 @@ expected, and any error text.
 - Combat gate — `settings/Panel.lua` (`OpenOptionsPanel`)
 - Bar paint / secret value / test-hold — `modules/Display.lua`
 - Repaint throttle / coalescing — `modules/Timer.lua`
-- Perf probe / suspend / capture ring — `core/Perf.lua`; protocol in `docs/performance.md`
+- Perf probe / suspend / capture ring — `core/Perf.lua`; step panel — `core/PerfPanel.lua`; protocol in `docs/performance.md`
 - DB init + idempotent migration — `core/Database.lua`
 - Debug console — `core/DebugLog.lua`
 - LSM border alignment fix — `core/LSMPatch.lua`

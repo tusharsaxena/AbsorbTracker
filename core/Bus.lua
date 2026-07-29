@@ -29,6 +29,10 @@ local addonName, NS = ...
 --       are currently enabled, so a disabled unit costs no event dispatch. Distinct from
 --       VISIBILITY on purpose: VISIBILITY also fires on combat and target-swap transitions, which
 --       must not churn event registrations.
+--   Ka0s_AbsorbTracker_PerfStateChanged   sender: core/Perf.lua, on every phase transition of a
+--       perf run (started, experiment armed, recording opened/closed, finished). consumer:
+--       core/PerfPanel.lua — the step panel re-reads NS.Perf.Progress() and re-renders. Payload-free
+--       like the rest: the panel asks for the state rather than being handed it.
 
 local AceEvent = LibStub("AceEvent-3.0")
 
@@ -53,4 +57,5 @@ NS.MSG = {
     VISIBILITY = "Ka0s_AbsorbTracker_VisibilityChanged",
     POSITION   = "Ka0s_AbsorbTracker_PositionChanged",
     UNITS      = "Ka0s_AbsorbTracker_UnitsChanged",
+    PERF       = "Ka0s_AbsorbTracker_PerfStateChanged",
 }

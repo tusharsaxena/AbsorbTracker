@@ -36,6 +36,7 @@ Modules → Settings.
 | `core/Bus.lua` | The closed cross-module message bus: `NS.bus` (shared publish target), `NS.NewBusTarget()` (one per receiver), and the `NS.MSG` catalogue (`REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION`). |
 | `core/Util.lua` | `NS.Print` (prefixed chat) only. The secret-safe debug sink is `NS.Debug` (`core/DebugLog.lua`); every debug arg routes through `NS.SafeToString`. |
 | `core/Perf.lua` | `NS.Perf` — the performance probe (issue #17). `debugprofilestop()` brackets (`Note`/`Reset`), the suspend-state-bucketed FPS sampler (`Start`/`Stop`), `Suspend`/`Resume`, the shared `EncodeJSON`, and the `AbsorbTrackerPerfDB` capture ring (`Save`). Session-only; zero cost when capture is off. |
+| `core/PerfPanel.lua` | `NS.PerfPanel` — the clickable step panel for a perf run. A dumb renderer over `NS.Perf.Progress()`; buttons dispatch through `NS.Slash:OnSlash` so a click and a typed command share one code path. Sole subscriber to the `PERF` bus message. |
 | `core/Data.lua` | The AceDB read/write seam (`GetSetting`/`SetSetting` — dotted-path aware, so `units.target.barWidth` and flat `locked` both work), LSM fetchers with fallbacks (each takes a `unit`, resolved through `NS.Units.Get`), and the class-color-aware color resolvers (each takes a `unit`; the class color itself is always the player's). |
 | `core/Database.lua` | `NS:InitDB` (AceDB + profile callbacks) and `NS:RunMigrations` (schema-version seam). |
 | `core/Units.lua` | `NS.Units` — unit identity (`LIST`/`LABEL`), mirror resolution (`IsMirrored`/`SourceUnit`/`Get`), per-unit position read/write, and `CopyFromPlayer`. The only file that reads `db.profile.units` for appearance. |
@@ -85,6 +86,7 @@ absorbs) when it fires.
 | `Ka0s_AbsorbTracker_VisibilityChanged` (`VISIBILITY`) | event / settings layer | `modules/Display.lua` (`NS.Display.__ev`) | `NS.ApplyVisibility` (the show/hide gate) |
 | `Ka0s_AbsorbTracker_PositionChanged` (`POSITION`) | slash / lifecycle / reset layer | `modules/Display.lua` (`NS.Display.__ev`) | `NS.RestoreBarPosition` (restore from profile) |
 | `Ka0s_AbsorbTracker_UnitsChanged` (`UNITS`) | settings / slash / profile layer, whenever a per-unit `enabled` flag changes | `core/AbsorbTracker.lua` (`NS.Events.__ev`) | `addon:SyncUnitEventFrames` — registers the absorb / max-health / swap events only for enabled units. Deliberately distinct from `VISIBILITY`, which also fires on combat and target-swap transitions and must not churn registrations |
+| `Ka0s_AbsorbTracker_PerfStateChanged` (`PERF`) | `core/Perf.lua`, on every phase transition of a perf run — started, experiment armed, recording opened/closed, finished | `core/PerfPanel.lua` (`Panel.__ev`) | The step panel re-reads `NS.Perf.Progress()` and re-renders, so the clickable step always matches the run's actual phase |
 
 Each Display handler fans out over `NS.ForEachUnit`, repainting/re-appearancing/re-positioning all
 three bars per message — this is what keeps the bus messages payload-free (no "which unit" to

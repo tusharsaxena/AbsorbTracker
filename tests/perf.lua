@@ -47,7 +47,7 @@ local NS = {}
 Loader.loadAll({
   "locales/enUS.lua",
   "core/Compat.lua", "core/Constants.lua", "core/Namespace.lua", "core/State.lua",
-  "core/Bus.lua", "core/Util.lua", "core/Perf.lua", "core/Data.lua", "core/Units.lua",
+  "core/Bus.lua", "core/Util.lua", "core/Perf.lua", "core/PerfPanel.lua", "core/Data.lua", "core/Units.lua",
   "core/Database.lua", "core/LSMPatch.lua", "core/DebugLog.lua", "core/AbsorbTracker.lua",
   "defaults/Profile.lua",
   "modules/Bar.lua", "modules/Display.lua", "modules/Timer.lua",
