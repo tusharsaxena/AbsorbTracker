@@ -167,8 +167,9 @@ Protocol and how to read the output: [performance.md](./performance.md).
 The clickable step panel for a perf run, shown by `/at perf start`.
 
 ```lua
-NS.PerfPanel.STEPS        -- ordered {key, label, command}; the order IS the workflow
-NS.PerfPanel.StateOf(key) -> "done" | "ready" | "busy" | "locked"
+NS.PerfPanel.STEPS            -- ordered {key, label, command}; the order IS the workflow
+NS.PerfPanel.StateOf(key)     -> "done" | "ready" | "busy" | "locked" | "cancel"
+NS.PerfPanel.IsActionable(key)-> true for the one `ready` step, and always for `cancel`
 NS.PerfPanel:Show()  / :Hide()  / :IsShown()
 NS.PerfPanel:Refresh()    -- idempotent repaint from NS.Perf.Progress()
 ```

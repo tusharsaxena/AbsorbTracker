@@ -65,6 +65,7 @@ when you explicitly ask for one. Everything also acknowledges in chat.
 | `/at perf measure a` | Arm **Experiment A** — addon active. Records while in combat |
 | `/at perf measure b` | Arm **Experiment B** — addon suspended (done for you). Same combat gating |
 | `/at perf finish` | End the run, append to the ring, print the summary, lift any suspend |
+| `/at perf cancel` | Abandon the run — discards it unsaved, restores the addon, closes the panel |
 | `/at perf report` | Reprint the summary without ending the run — useful mid-run to check an experiment landed |
 | `/at perf dump` | Render the run as one line of JSON in the copy window, for pasting elsewhere. Same data the summary is built from |
 
@@ -122,19 +123,27 @@ running.
 
 ```
   Perf Run
-  ─────────────────────────
-  ●  Start                          green — done
-  ●  Measure A  (with the addon)    green — done
-  ●  Measure B  (without the addon) white — the only clickable row
-  ○  Finish                         dim   — locked
-  ○  Report                         dim   — locked
-  ○  Dump                           dim   — locked
+  ───────────────────────────────────────────────────────
+  ●  Start                                 /at perf start
+  ●  Measure A (with the addon)       /at perf measure a
+  ●  Measure B (without the addon)    /at perf measure b     ← the only clickable row
+  ○  Finish                               /at perf finish
+  ○  Report                               /at perf report
+  ○  Dump                                   /at perf dump
+  ●  Cancel run                           /at perf cancel     ← always clickable, red
 ```
 
-Each row carries a status dot: green behind you, gold on the step actually happening, dim grey
-ahead. The dot is drawn with `SetColorTexture` rather than a text glyph or an art path — a tick
-character renders as tofu in the default font, and an `Interface\…` path that does not exist fails
-silently as a green box.
+Three columns: status dot, step, slash command. The command column is the point — it teaches the
+typed form while you click, so the panel is a crutch you can stop needing.
+
+The dot is green behind you, gold on the step actually happening, dim grey ahead. It is drawn with
+`SetColorTexture` rather than a text glyph or an art path: a tick character renders as tofu in the
+default font, and an `Interface\…` path that does not exist fails silently as a green box.
+
+**Cancel** sits outside the progression — always clickable, in a muted red. It abandons the run
+unsaved, restores the addon if Experiment B suspended it, and zeroes the counters so the next
+`start` begins clean. After a finished run it doubles as "dismiss this panel". Nothing already
+written to `AbsorbTrackerPerfDB` by an earlier `finish` is touched.
 
 It exists because the *ordering* is what makes a run valid, and a numbered list in chat scrolls away
 the moment combat starts. The buttons dispatch through the slash layer, so a click and a typed

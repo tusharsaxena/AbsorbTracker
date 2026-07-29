@@ -154,7 +154,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (91)
+### test_perf.lua (102)
 
 - perf: Note accumulates calls, total and max
 - perf: Note tracks unrelated buckets independently
@@ -247,6 +247,17 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - perf: the panel refreshes off the bus, not by polling
 - perf: every step row carries a status dot, drawn not glyphed
 - perf: labels are plain text with no decoration baked in
+- perf: cancel is offered at every point, including before a run
+- perf: cancel has its own state, so it never reads as the next step
+- perf: cancelling discards the run without saving it
+- perf: cancelling restores a suspended addon
+- perf: cancelling mid-recording does not announce the experiment as ended
+- perf: cancelling detaches the sampler
+- perf: cancel returns false when there is nothing to cancel
+- perf: a cancelled run leaves the next one clean
+- perf: every row shows its slash command
+- perf: the cancel row is clickable when every other row is locked
+- perf: clicking the cancel row abandons the run
 
 ### test_visibility.lua (17)
 
@@ -392,7 +403,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
 
-### test_slashcmds.lua (87)
+### test_slashcmds.lua (90)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -477,7 +488,10 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at perf measure rejects an unknown window
 - /at perf bare reports the armed window
 - the perf usage block documents the measure workflow
-- /at perf start prints the workflow steps to chat and console
+- /at perf start opens the panel instead of listing the steps in chat
+- /at perf cancel abandons the run and closes the panel
+- /at perf cancel says so when there is nothing to cancel
+- the perf usage block documents cancel
 - /at perf start announces to the console with debug logging OFF
 - /at perf no longer offers suspend or resume
 - /at perf finish resumes before it saves, so a later error cannot strand the addon
@@ -545,12 +559,12 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
 | test_timer.lua | 11 |
-| test_perf.lua | 91 |
+| test_perf.lua | 102 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
 | test_display.lua | 39 |
 | test_helpers.lua | 40 |
-| test_slashcmds.lua | 87 |
+| test_slashcmds.lua | 90 |
 | test_widgets.lua | 48 |
-| **Total** | **483** |
+| **Total** | **497** |

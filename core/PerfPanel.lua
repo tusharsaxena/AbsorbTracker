@@ -14,8 +14,12 @@ local Panel = NS.PerfPanel
 -- dispatch through the slash layer (`NS.Slash:OnSlash("perf measure a")`) rather than calling the
 -- probe directly, so a click and a typed command can never take different code paths.
 
-local BUTTON_W, BUTTON_H, GAP = 250, 22, 4
-local DOT, DOT_GAP = 8, 6      -- status dot size and its gap to the label
+-- Three columns: status dot, step, slash command. The command column is the point — it teaches the
+-- typed form while you click, so the panel is a crutch you can stop needing.
+local ROW_W, ROW_H, GAP = 340, 22, 4
+local DOT_X, DOT = 8, 8        -- column 1: status dot
+local LABEL_X   = 26           -- column 2: step name
+local CMD_PAD   = 10           -- column 3: slash command, right-aligned
 local TITLE_H = 24
 local PAD = 8
 
@@ -35,17 +39,26 @@ local COLORS = {
     ready  = { 0.90, 0.90, 0.92 },
     busy   = { 1.00, 0.82, 0.00 },
     locked = { 0.40, 0.40, 0.42 },
+    -- Muted red rather than a warning red: cancel is always available, so a shade that shouts would
+    -- shout on every frame of every run.
+    cancel = { 0.80, 0.32, 0.32 },
 }
+
+-- Command column, dimmer than its row so it reads as reference rather than as another control.
+local CMD_COLOR = { 0.45, 0.45, 0.48 }
 
 -- Ordered, and the order IS the workflow. `key` matches a field of NS.Perf.Progress(); `command` is
 -- the slash line the button runs.
 local STEPS = {
-    { key = "start",    label = "Start",                          command = "perf start"     },
-    { key = "measureA", label = "Measure A  (with the addon)",     command = "perf measure a" },
-    { key = "measureB", label = "Measure B  (without the addon)",  command = "perf measure b" },
-    { key = "finish",   label = "Finish",                         command = "perf finish"    },
-    { key = "report",   label = "Report",                         command = "perf report"    },
+    { key = "start",    label = "Start",                         command = "perf start"     },
+    { key = "measureA", label = "Measure A (with the addon)",    command = "perf measure a" },
+    { key = "measureB", label = "Measure B (without the addon)", command = "perf measure b" },
+    { key = "finish",   label = "Finish",                        command = "perf finish"    },
+    { key = "report",   label = "Report",                        command = "perf report"    },
     { key = "dump",     label = "Dump",                           command = "perf dump"      },
+    -- Outside the linear progression: always clickable, at every point including none. Abandons an
+    -- in-flight run unsaved, and doubles as "dismiss this panel" once a run has finished.
+    { key = "cancel",   label = "Cancel run",                    command = "perf cancel"    },
 }
 Panel.STEPS = STEPS
 
@@ -61,29 +74,39 @@ end
 --- step that runs out of order corrupts the run it was meant to protect.
 local function makeStepButton(parent, step, index)
     local b = CreateFrame("Button", nil, parent)
-    b:SetSize(BUTTON_W, BUTTON_H)
-    b:SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -(TITLE_H + PAD + (index - 1) * (BUTTON_H + GAP)))
+    b:SetSize(ROW_W, ROW_H)
+    b:SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -(TITLE_H + PAD + (index - 1) * (ROW_H + GAP)))
 
     -- Status dot drawn with SetColorTexture rather than a glyph or an art file. A text tick (U+2713)
     -- rendered as tofu in the default font, and any Interface\\... path is a guess that fails
     -- silently as a green box. A solid colour texture has no dependency and cannot not render.
     local dot = b:CreateTexture(nil, "ARTWORK")
     dot:SetSize(DOT, DOT)
-    dot:SetPoint("LEFT", b, "LEFT", 6, 0)
+    dot:SetPoint("LEFT", b, "LEFT", DOT_X, 0)
     b.dot = dot
 
     local fs = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    fs:SetPoint("LEFT", b, "LEFT", 6 + DOT + DOT_GAP, 0)
+    fs:SetPoint("LEFT", b, "LEFT", LABEL_X, 0)
     fs:SetJustifyH("LEFT")
     b.text = fs
+
+    local cmd = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    cmd:SetPoint("RIGHT", b, "RIGHT", -CMD_PAD, 0)
+    cmd:SetJustifyH("RIGHT")
+    cmd:SetText("/at " .. step.command)
+    cmd:SetTextColor(CMD_COLOR[1], CMD_COLOR[2], CMD_COLOR[3])
+    b.cmd = cmd
+
     b.step = step
 
     b:SetScript("OnEnter", function()
-        if Panel.StateOf(step.key) == "ready" then fs:SetTextColor(1, 0.82, 0) end
+        local state = Panel.StateOf(step.key)
+        if state == "cancel" then fs:SetTextColor(1.00, 0.45, 0.45)
+        elseif state == "ready" then fs:SetTextColor(1, 0.82, 0) end
     end)
     b:SetScript("OnLeave", function() setColor(fs, Panel.StateOf(step.key)) end)
     b:SetScript("OnClick", function()
-        if Panel.StateOf(step.key) ~= "ready" then return end
+        if not Panel.IsActionable(step.key) then return end
         if NS.Slash and NS.Slash.OnSlash then NS.Slash:OnSlash(step.command) end
         Panel:Refresh()
     end)
@@ -96,13 +119,19 @@ function Panel.StateOf(key)
     return NS.Perf.Progress()[key] or "locked"
 end
 
+--- Can this row be clicked? `ready` is the one legal next step; `cancel` is always available.
+function Panel.IsActionable(key)
+    local state = Panel.StateOf(key)
+    return state == "ready" or state == "cancel"
+end
+
 local function EnsureFrame()
     if frame then return frame end
     if type(CreateFrame) ~= "function" then return nil end
 
-    local height = TITLE_H + PAD * 2 + #STEPS * (BUTTON_H + GAP)
+    local height = TITLE_H + PAD * 2 + #STEPS * (ROW_H + GAP)
     frame = CreateFrame("Frame", "AbsorbTrackerPerfPanel", UIParent, "BackdropTemplate")
-    frame:SetSize(BUTTON_W + PAD * 2, height)
+    frame:SetSize(ROW_W + PAD * 2, height)
     frame:SetPoint("CENTER", -320, 0)
     frame:SetFrameStrata("DIALOG")
     frame:EnableMouse(true)
@@ -157,11 +186,11 @@ function Panel:Refresh()
             if b.dot.SetColorTexture then
                 b.dot:SetColorTexture(c[1], c[2], c[3], state == "locked" and 0.35 or 1)
             end
-            if state == "ready" then b:Enable() else b:Disable() end
+            if Panel.IsActionable(step.key) then b:Enable() else b:Disable() end
             -- What was actually rendered, for the headless suite. The mock's FontString stub cannot
             -- be asked (it returns the parent frame, and defining SetText on it would break the
             -- other suites' SetText spies — see the note in tests/wow_mock.lua).
-            b.__label, b.__state = step.label, state
+            b.__label, b.__state, b.__command = step.label, state, "/at " .. step.command
         end
     end
 end

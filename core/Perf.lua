@@ -130,8 +130,13 @@ function P.Progress()
     return {
         start = "done",   -- the panel only exists once a run has started
         measureA = a, measureB = b, finish = fin, report = review, dump = review,
+        -- Its own state, not "ready": it sits outside the linear progression, is offered at every
+        -- point including none, and the panel colours it separately so it never reads as the next
+        -- step to take.
+        cancel = "cancel",
     }
 end
+
 
 -- ── Output ─────────────────────────────────────────────────────────────────────────────────
 --
@@ -593,6 +598,31 @@ function P.Stop()
     end
     publishState()
     return P.BuildRecord(P.label)
+end
+
+--- Abandon a run. Everything measured is discarded — nothing is saved to the ring — the addon is
+--- restored, and the counters are zeroed so the next `start` begins clean.
+---
+--- Deliberately does NOT go through closeWindow(): that marks the experiment completed and announces
+--- it ENDED, which would be a lie about a run being thrown away.
+function P.Cancel()
+    if not (P.run or P.armed or P.recording) then return false end
+
+    P.run, P.armed, P.recording = false, nil, nil
+    P.on = false
+    stopwatch("pause")
+    if sampler then
+        sampler:SetScript("OnUpdate", nil)
+        sampler:Hide()
+    end
+    -- Restore before zeroing: Resume() republishes VISIBILITY/APPEARANCE/REPAINT, and the bars need
+    -- to come back whatever else happens.
+    if P.suspended then P.Resume() end
+    P.Reset()
+    P.label = nil
+    P.Log("run CANCELLED \226\128\148 measurements discarded, nothing saved")
+    publishState()
+    return true
 end
 
 -- ── Suspend / resume ───────────────────────────────────────────────────────────────────────

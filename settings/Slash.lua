@@ -260,7 +260,7 @@ local function emitPerfLines(lines)
 end
 
 local PERF_USAGE = {
-    "usage: |cFFFFFF00/at perf <start|measure|finish|report|dump>|r",
+    "usage: |cFFFFFF00/at perf <start|measure|finish|cancel|report|dump>|r",
     "  |cFFFFFF00start [label]|r  begin a run; zeroes the counters and records who/where you are.",
     "                 The label is appended to the timestamp so runs are tellable apart.",
     "  |cFFFFFF00measure a|r      arm Experiment A \226\128\148 addon ACTIVE. Recording starts the moment",
@@ -269,23 +269,13 @@ local PERF_USAGE = {
     "                 two experiments differ by the addon and nothing else.",
     "  |cFFFFFF00finish|r         end the run, save it to AbsorbTrackerPerfDB, print the summary",
     "                 and lift any suspend. `/reload` afterwards to flush it to disk.",
+    "  |cFFFFFF00cancel|r         abandon the run \226\128\148 discards it unsaved, restores the addon",
+    "                 and closes the panel. Also dismisses the panel after a finished run.",
     "  |cFFFFFF00report|r         print the summary again without ending the run.",
     "  |cFFFFFF00dump|r           render the run as one line of JSON in the copy window, for",
     "                 pasting somewhere. Same data the summary is built from.",
 }
 
--- Printed on `start`, so the workflow is in front of the user rather than in the docs. The whole
--- point of the run is that the two experiments be comparable, and the ordering is what makes them
--- so — a user who arms B before pulling, or forgets `/reload`, loses the capture.
-local PERF_STEPS = {
-    "next steps:",
-    "  1. |cFFFFFF00/at perf measure a|r \226\128\148 then pull. Recording starts with combat.",
-    "  2. |cFFFFFF00/at perf measure b|r \226\128\148 reset, then repeat the SAME pull.",
-    "  3. |cFFFFFF00/at perf finish|r \226\128\148 saves the run and prints the summary.",
-    "  4. |cFFFFFF00/reload|r \226\128\148 flushes it to SavedVariables.",
-    "keep both pulls equivalent \226\128\148 the harness measures only combat, but cannot tell whether",
-    "the two fights were the same one.",
-}
 
 -- Sub-verb handlers, one entry each. A dispatch table rather than an if/elseif ladder: the ladder
 -- form measured CCN 24 under `lizard`, the highest in the addon, purely from the shape of the
@@ -302,7 +292,6 @@ local PERF_SUBS = {
         P.Start(label ~= "" and (stamp .. " " .. label) or stamp)
         P.Announce("perf run |cff40ff40STARTED|r \226\128\148 %s", P.label or "unlabelled")
         for _, line in ipairs(P.ContextLines(P.context)) do print(line) end
-        for _, line in ipairs(PERF_STEPS) do print(line) end
         if NS.DebugLog and NS.DebugLog.Show then NS.DebugLog:Show() end
         -- The clickable equivalent of the steps just printed. Chat scrolls away the moment combat
         -- starts; the panel does not.
@@ -322,6 +311,12 @@ local PERF_SUBS = {
         print(("Experiment |cFFFFFF00%s|r |cffffff00ARMED|r (%s) \226\128\148 recording starts when "
             .. "combat does, and ends when combat does"):format(token:upper(),
             arm == "suspended" and "addon |cffff4040SUSPENDED|r" or "addon |cff40ff40active|r"))
+    end,
+
+    cancel = function(P)
+        if not P.Cancel() then return print("no perf run to cancel") end
+        print("perf run |cffcc5252CANCELLED|r \226\128\148 nothing saved")
+        if NS.PerfPanel and NS.PerfPanel.Hide then NS.PerfPanel:Hide() end
     end,
 
     finish = function(P)
