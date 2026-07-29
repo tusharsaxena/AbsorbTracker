@@ -74,7 +74,13 @@ as "none" regardless of which bracket it wears.
 
 ## Field notes
 
-- **`fps.deltaMsPerFrame`** is the number the whole in-game harness exists to produce: the per-frame
+- **`fps.deltaMsPerFrame`** has a resolution floor. Four captures of a very cheap addon put the
+  run-to-run spread of a 60–80 s A/B at roughly **±0.3 ms/frame**, and one of the four came back
+  negative. Treat any delta below about 0.5 ms/frame as unresolved rather than as zero, and read the
+  bucket figures instead — they measure the addon directly and are unaffected by arm mismatch or
+  frame pacing. See
+  [2026-07-29-combat-fps-drop](../investigations/2026-07-29-combat-fps-drop/analysis.md).
+- **`fps.deltaMsPerFrame`** is otherwise the number the in-game harness exists to produce: the per-frame
   cost of the addon being active, with load order and shared-frame ownership held fixed by suspend
   rather than by disabling the addon. It is reported as `0` unless **both** arms were sampled —
   with one arm empty a subtraction would report the entire frame time as the addon's cost.

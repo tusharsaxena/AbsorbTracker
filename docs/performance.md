@@ -235,6 +235,10 @@ addon's, and the investigation should move elsewhere.
 
 ### Caveats
 
+- **The delta has a resolution floor of roughly ±0.3 ms/frame** on a 60–80 s arm. Below that it
+  cannot distinguish a cheap addon from a free one — measured across four captures, one of which
+  came back negative. If the addon under test costs less than that, the bucket table is the only
+  instrument that will see it.
 - **A capped frame rate invalidates the delta**, and nothing detects it for you. The probe reports
   measurements and draws no conclusions about frame limiters: an earlier version tried and got the
   verdict wrong twice, because `maxFPS` is not a reliable signal (it holds the slider's last value
