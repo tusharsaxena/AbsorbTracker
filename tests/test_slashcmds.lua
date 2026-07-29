@@ -642,7 +642,7 @@ test("the mirrored note keeps the Ka0s colour scheme intact and stays subordinat
   assertTrue(stripColor(line):find(":%s*$") == nil, "no trailing colon: " .. line)
 end)
 
--- ── /at debug perf ──────────────────────────────────────────────────────────────────────────
+-- ── /at perf ──────────────────────────────────────────────────────────────────────────
 --
 -- The perf probe's slash surface (core/Perf.lua, issue #17). These assert the DISPATCH — that each
 -- sub-verb reaches the right probe call and says so — rather than re-testing the probe's accounting,
@@ -662,116 +662,116 @@ local function perfReset()
   for i = #T.mocks.__timers, 1, -1 do T.mocks.__timers[i] = nil end
 end
 
-test("/at debug perf (bare) reports status and prints usage", function()
+test("/at perf (bare) reports status and prints usage", function()
   perfReset()
-  local out = slash("debug perf")
+  local out = slash("perf")
   assertTrue(contains(out, "perf "), "leads with the phase")
-  assertTrue(contains(out, "usage: /at debug perf"), "then the usage block")
+  assertTrue(contains(out, "usage: /at perf"), "then the usage block")
   assertTrue(contains(out, "suspend"), "documents the suspend arm")
 end)
 
-test("/at debug perf start starts a capture", function()
+test("/at perf start starts a capture", function()
   perfReset()
-  local out = slash("debug perf start")
+  local out = slash("perf start")
   assertTrue(P.run, "experiment running")
   assertFalse(P.on, "but sampling nothing until a window is armed")
   assertTrue(contains(out, "STARTED"), "acknowledges: " .. joined(out))
   perfReset()
 end)
 
-test("/at debug perf start resets the counters from the previous capture", function()
+test("/at perf start resets the counters from the previous capture", function()
   perfReset()
   P.Note("paintBar", 99)
-  slash("debug perf start")
+  slash("perf start")
   assertEqual(P.__buckets().paintBar, nil, "a new capture starts clean")
   perfReset()
 end)
 
-test("/at debug perf finish refuses when no run is active", function()
+test("/at perf finish refuses when no run is active", function()
   perfReset()
-  local out = slash("debug perf finish")
+  local out = slash("perf finish")
   assertTrue(contains(out, "no perf run is active"), "says so rather than saving an empty record")
 end)
 
-test("/at debug perf finish saves the record to the perf ring", function()
+test("/at perf finish saves the record to the perf ring", function()
   perfReset()
   _G.AbsorbTrackerPerfDB = nil
-  slash("debug perf start")
-  slash("debug perf finish")
+  slash("perf start")
+  slash("perf finish")
   assertEqual(type(_G.AbsorbTrackerPerfDB), "table", "the ring exists")
   assertEqual(#_G.AbsorbTrackerPerfDB.runs, 1, "one capture stored")
   assertFalse(P.on, "capture stopped")
   _G.AbsorbTrackerPerfDB = nil
 end)
 
-test("/at debug perf finish lifts a suspend left over from the capture", function()
+test("/at perf finish lifts a suspend left over from the capture", function()
   -- Otherwise stopping a capture would silently leave the addon disabled for the whole session.
   perfReset()
-  slash("debug perf start")
-  slash("debug perf suspend")
-  local out = slash("debug perf finish")
+  slash("perf start")
+  slash("perf suspend")
+  local out = slash("perf finish")
   assertFalse(P.suspended, "suspend lifted")
   assertTrue(contains(out, "suspend lifted"), "and says so: " .. joined(out))
   perfReset()
   _G.AbsorbTrackerPerfDB = nil
 end)
 
-test("/at debug perf suspend and resume flip the probe's inert state", function()
+test("/at perf suspend and resume flip the probe's inert state", function()
   perfReset()
-  local out = slash("debug perf suspend")
+  local out = slash("perf suspend")
   assertTrue(P.suspended, "suspended")
   assertTrue(contains(out, "SUSPENDED"), "acknowledges: " .. joined(out))
-  out = slash("debug perf resume")
+  out = slash("perf resume")
   assertFalse(P.suspended, "resumed")
   assertTrue(contains(out, "RESUMED"), "acknowledges: " .. joined(out))
   perfReset()
 end)
 
-test("/at debug perf suspend twice reports the no-op rather than pretending", function()
+test("/at perf suspend twice reports the no-op rather than pretending", function()
   perfReset()
-  slash("debug perf suspend")
-  local out = slash("debug perf suspend")
+  slash("perf suspend")
+  local out = slash("perf suspend")
   assertTrue(contains(out, "already suspended"), joined(out))
   perfReset()
 end)
 
-test("/at debug perf resume without a suspend reports the no-op", function()
+test("/at perf resume without a suspend reports the no-op", function()
   perfReset()
-  local out = slash("debug perf resume")
+  local out = slash("perf resume")
   assertTrue(contains(out, "not suspended"), joined(out))
 end)
 
-test("/at debug perf report prints without stopping the capture", function()
+test("/at perf report prints without stopping the capture", function()
   perfReset()
-  slash("debug perf start")
-  slash("debug perf report")
+  slash("perf start")
+  slash("perf report")
   assertTrue(P.run, "still running")
   perfReset()
 end)
 
-test("/at debug perf routes output to the debug console, not chat", function()
+test("/at perf routes output to the debug console, not chat", function()
   -- The console is ungated (D:Add ignores NS.State.debug), which is what makes perf usable with
   -- logging off. If these lines went to chat instead they would be lost in combat spam.
   perfReset()
   local before = #NS.DebugLog.buffer
-  slash("debug perf report")
+  slash("perf report")
   assertTrue(#NS.DebugLog.buffer > before, "report lines landed in the console buffer")
 end)
 
-test("/at debug perf dump emits parseable JSON carrying the schema stamp", function()
+test("/at perf dump emits parseable JSON carrying the schema stamp", function()
   perfReset()
   local before = #NS.DebugLog.buffer
-  slash("debug perf dump")
+  slash("perf dump")
   local line = NS.DebugLog.buffer[#NS.DebugLog.buffer]
   assertTrue(#NS.DebugLog.buffer > before, "something was written")
   assertTrue(line:find('"schema":1', 1, true) ~= nil, "carries the schema: " .. line)
   assertTrue(line:find('"source":"ingame"', 1, true) ~= nil, "and the source")
 end)
 
-test("/at debug perf with an unknown sub falls back to the usage block", function()
+test("/at perf with an unknown sub falls back to the usage block", function()
   perfReset()
-  local out = slash("debug perf wibble")
-  assertTrue(contains(out, "usage: /at debug perf"), joined(out))
+  local out = slash("perf wibble")
+  assertTrue(contains(out, "usage: /at perf"), joined(out))
 end)
 
 test("/at debug on|off still toggles logging with perf present", function()
@@ -783,43 +783,63 @@ test("/at debug on|off still toggles logging with perf present", function()
   assertFalse(NS.State.debug, "logging off")
 end)
 
-test("the debug help row advertises the perf sub-verb", function()
+test("perf is a top-level verb in the help index", function()
   local out = slash("help")
-  assertTrue(contains(out, "/at debug"), "debug is listed")
-  assertTrue(contains(out, "perf"), "and mentions perf: " .. joined(out))
+  assertTrue(contains(out, "/at perf"), "listed in its own right: " .. joined(out))
+  assertTrue(contains(out, "/at debug"), "and debug is still there")
 end)
 
-test("/at debug perf start accepts an optional label, appended to the timestamp", function()
+test("perf is registered in NS.COMMANDS, so the About page lists it too", function()
+  -- PrintHelp and the About page both iterate NS.COMMANDS; a verb wired only into the dispatcher
+  -- would work but stay invisible in both.
+  local found
+  for _, entry in ipairs(NS.COMMANDS) do
+    if entry[1] == "perf" then found = entry end
+  end
+  assertTrue(found ~= nil, "perf has a COMMANDS row")
+  assertTrue(found[2] ~= nil and found[2] ~= "", "with a description")
+end)
+
+test("/at debug no longer swallows a perf argument", function()
+  -- `perf` used to be a sub-verb of debug. `/at debug perf` must now fall through to debug's own
+  -- handling rather than silently doing perf work.
+  perfReset()
+  local before = P.run
+  slash("debug perf")
+  assertEqual(P.run, before, "debug did not start a perf run")
+end)
+
+test("/at perf start accepts an optional label, appended to the timestamp", function()
   -- Captures accumulate in a ring across sessions; without a label two runs from the same
   -- afternoon are near-impossible to tell apart when reading SavedVariables later.
   perfReset()
-  slash("debug perf start solo run")
+  slash("perf start solo run")
   assertTrue(P.label:find("solo run", 1, true) ~= nil, "label kept: " .. tostring(P.label))
   assertTrue(#P.label > #"solo run", "timestamp still present: " .. tostring(P.label))
   P.on = false
 end)
 
-test("/at debug perf start without a label still stamps the capture", function()
+test("/at perf start without a label still stamps the capture", function()
   perfReset()
-  slash("debug perf start")
+  slash("perf start")
   assertTrue(P.label ~= nil and P.label ~= "", "auto-stamped: " .. tostring(P.label))
   P.on = false
 end)
 
-test("/at debug perf start label reaches the saved record", function()
+test("/at perf start label reaches the saved record", function()
   perfReset()
   _G.AbsorbTrackerPerfDB = nil
-  slash("debug perf start full addon set")
-  slash("debug perf finish")
+  slash("perf start full addon set")
+  slash("perf finish")
   local rec = _G.AbsorbTrackerPerfDB.runs[1]
   assertTrue(rec.label:find("full addon set", 1, true) ~= nil, "label persisted: " .. rec.label)
   _G.AbsorbTrackerPerfDB = nil
 end)
 
-test("/at debug perf measure a arms Experiment A", function()
+test("/at perf measure a arms Experiment A", function()
   perfReset()
-  slash("debug perf start")
-  local out = slash("debug perf measure a")
+  slash("perf start")
+  local out = slash("perf measure a")
   assertEqual(P.armed, "active", "armed")
   assertFalse(P.suspended, "addon left running for the A arm")
   assertTrue(contains(out, "ARMED"), "acknowledges: " .. joined(out))
@@ -827,42 +847,42 @@ test("/at debug perf measure a arms Experiment A", function()
   perfReset()
 end)
 
-test("/at debug perf measure b arms Experiment B and suspends", function()
+test("/at perf measure b arms Experiment B and suspends", function()
   perfReset()
-  slash("debug perf start")
-  slash("debug perf measure b")
+  slash("perf start")
+  slash("perf measure b")
   assertEqual(P.armed, "suspended", "armed")
   assertTrue(P.suspended, "and the addon is inert without a separate command")
   perfReset()
 end)
 
-test("/at debug perf measure refuses outside an experiment", function()
+test("/at perf measure refuses outside an experiment", function()
   perfReset()
-  local out = slash("debug perf measure a")
-  assertTrue(contains(out, "/at debug perf start"), "points at the fix: " .. joined(out))
+  local out = slash("perf measure a")
+  assertTrue(contains(out, "/at perf start"), "points at the fix: " .. joined(out))
 end)
 
-test("/at debug perf measure rejects an unknown window", function()
+test("/at perf measure rejects an unknown window", function()
   perfReset()
-  slash("debug perf start")
-  local out = slash("debug perf measure z")
+  slash("perf start")
+  local out = slash("perf measure z")
   assertTrue(contains(out, "unknown window"), joined(out))
   assertTrue(contains(out, "measure a"), "and names the valid ones")
   perfReset()
 end)
 
-test("/at debug perf bare reports the armed window", function()
+test("/at perf bare reports the armed window", function()
   perfReset()
-  slash("debug perf start")
-  slash("debug perf measure a")
-  local out = slash("debug perf")
+  slash("perf start")
+  slash("perf measure a")
+  local out = slash("perf")
   assertTrue(contains(out, "armed"), "shows the phase: " .. joined(out))
   perfReset()
 end)
 
 test("the perf usage block documents the measure workflow", function()
   perfReset()
-  local out = slash("debug perf")
+  local out = slash("perf")
   assertTrue(contains(out, "measure a"), "lists measure a")
   assertTrue(contains(out, "measure b"), "lists measure b")
   assertTrue(contains(out, "typical run"), "and shows the order to use them in")

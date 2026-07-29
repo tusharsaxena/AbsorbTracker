@@ -127,7 +127,7 @@ NS.SafeToString(v)  -- secret-safe stringifier; renders a secret as "<secret>"
 ### Perf (`core/Perf.lua`)
 
 The performance probe (issue #17). Session-only, off by default, reached only through
-`/at debug perf`. Costs an upvalue read, a field read and a boolean test when capture is off.
+`/at perf`. Costs an upvalue read, a field read and a boolean test when capture is off.
 
 ```lua
 NS.Perf.on            -- capture running? read directly by every bracket call site

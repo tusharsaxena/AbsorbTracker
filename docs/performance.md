@@ -6,7 +6,7 @@ Two harnesses, one record format. Issue
 - **Offline** — `tests/perf.lua`, a headless runner over the real addon code. Catches algorithmic
   regressions (broken coalescing, new allocations in the repaint path). Cannot see anything the
   game does on the C side.
-- **In-game** — `/at debug perf`, a probe inside the live addon. Measures our Lua *and*, through
+- **In-game** — `/at perf`, a probe inside the live addon. Measures our Lua *and*, through
   the FPS arms, the total frame cost of having the addon active at all.
 
 The second exists because the first cannot answer the question that matters. Almost all of a WoW
@@ -54,20 +54,20 @@ added or removed a UI call in the repaint path and should know it.
 
 ## 2. In-game
 
-`/at debug perf` — a sub-verb of the debug suite. Works whether or not debug *logging* is on;
+`/at perf` — a sub-verb of the debug suite. Works whether or not debug *logging* is on;
 output goes to the debug console (which is ungated) plus a one-line chat acknowledgement.
 
 | Command | Effect |
 |---------|--------|
-| `/at debug perf` | Status + usage |
-| `/at debug perf start [label]` | Begin a run. Records nothing until an experiment is armed. Captures character, spec, zone and group |
-| `/at debug perf measure a` | Arm **Experiment A** — addon active. Records while in combat |
-| `/at debug perf measure b` | Arm **Experiment B** — addon suspended (done for you). Same combat gating |
-| `/at debug perf finish` | End the run, append to the ring, print the summary, lift any suspend |
-| `/at debug perf report` | Print the summary without ending the run |
-| `/at debug perf dump` | Render the capture as JSON in the copy window |
-| `/at debug perf suspend` | Make the addon inert |
-| `/at debug perf resume` | Restore it |
+| `/at perf` | Status + usage |
+| `/at perf start [label]` | Begin a run. Records nothing until an experiment is armed. Captures character, spec, zone and group |
+| `/at perf measure a` | Arm **Experiment A** — addon active. Records while in combat |
+| `/at perf measure b` | Arm **Experiment B** — addon suspended (done for you). Same combat gating |
+| `/at perf finish` | End the run, append to the ring, print the summary, lift any suspend |
+| `/at perf report` | Print the summary without ending the run |
+| `/at perf dump` | Render the capture as JSON in the copy window |
+| `/at perf suspend` | Make the addon inert |
+| `/at perf resume` | Restore it |
 
 ### Suspend
 
@@ -75,7 +75,7 @@ output goes to the debug console (which is ungated) plus a one-line chat acknowl
 reload**. `NS.ShouldShowBar` checks the suspended flag as step 0 of its ladder, so nothing (a combat
 transition, a target swap, a settings edit) can re-show a bar mid-measurement.
 
-It is session-only and resets on `/reload`. `/at debug perf finish` lifts it automatically so a run
+It is session-only and resets on `/reload`. `/at perf finish` lifts it automatically so a run
 can't leave the addon switched off by accident.
 
 Suspend matters because **disabling an addon is not a clean experiment**. WoW's built-in Addon
@@ -119,12 +119,12 @@ between windows — walking to the pull, resetting a dungeon, waiting on respawn
 and cannot contaminate the result.
 
 ```
-/at debug perf start        (out of combat)
-/at debug perf measure a    arms Experiment A; walk in and pull
+/at perf start        (out of combat)
+/at perf measure a    arms Experiment A; walk in and pull
    … fight …                A records on combat, ends when combat ends
-/at debug perf measure b    arms Experiment B and suspends the addon; reset, pull again
+/at perf measure b    arms Experiment B and suspends the addon; reset, pull again
    … same fight …           B records and ends the same way
-/at debug perf finish
+/at perf finish
 /reload
 ```
 
@@ -206,7 +206,7 @@ documented there.
 
 In-game captures persist to the `AbsorbTrackerPerfDB` SavedVariables global (a ring of the last 10),
 written to `_retail_/WTF/Account/<ACCOUNT>/SavedVariables/AbsorbTracker.lua` on `/reload` or logout.
-Reading that file directly is the normal path — no copy-paste. `/at debug perf dump` is the fallback
+Reading that file directly is the normal path — no copy-paste. `/at perf dump` is the fallback
 for when the client is somewhere you can't read from disk.
 
 ---

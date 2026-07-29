@@ -375,7 +375,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
 
-### test_slashcmds.lua (84)
+### test_slashcmds.lua (86)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -437,29 +437,31 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at set echoes the mirrored note alongside the value it just stored
 - /at list annotates only the mirrored units' appearance rows
 - the mirrored note keeps the Ka0s colour scheme intact and stays subordinate
-- /at debug perf (bare) reports status and prints usage
-- /at debug perf start starts a capture
-- /at debug perf start resets the counters from the previous capture
-- /at debug perf finish refuses when no run is active
-- /at debug perf finish saves the record to the perf ring
-- /at debug perf finish lifts a suspend left over from the capture
-- /at debug perf suspend and resume flip the probe's inert state
-- /at debug perf suspend twice reports the no-op rather than pretending
-- /at debug perf resume without a suspend reports the no-op
-- /at debug perf report prints without stopping the capture
-- /at debug perf routes output to the debug console, not chat
-- /at debug perf dump emits parseable JSON carrying the schema stamp
-- /at debug perf with an unknown sub falls back to the usage block
+- /at perf (bare) reports status and prints usage
+- /at perf start starts a capture
+- /at perf start resets the counters from the previous capture
+- /at perf finish refuses when no run is active
+- /at perf finish saves the record to the perf ring
+- /at perf finish lifts a suspend left over from the capture
+- /at perf suspend and resume flip the probe's inert state
+- /at perf suspend twice reports the no-op rather than pretending
+- /at perf resume without a suspend reports the no-op
+- /at perf report prints without stopping the capture
+- /at perf routes output to the debug console, not chat
+- /at perf dump emits parseable JSON carrying the schema stamp
+- /at perf with an unknown sub falls back to the usage block
 - /at debug on|off still toggles logging with perf present
-- the debug help row advertises the perf sub-verb
-- /at debug perf start accepts an optional label, appended to the timestamp
-- /at debug perf start without a label still stamps the capture
-- /at debug perf start label reaches the saved record
-- /at debug perf measure a arms Experiment A
-- /at debug perf measure b arms Experiment B and suspends
-- /at debug perf measure refuses outside an experiment
-- /at debug perf measure rejects an unknown window
-- /at debug perf bare reports the armed window
+- perf is a top-level verb in the help index
+- perf is registered in NS.COMMANDS, so the About page lists it too
+- /at debug no longer swallows a perf argument
+- /at perf start accepts an optional label, appended to the timestamp
+- /at perf start without a label still stamps the capture
+- /at perf start label reaches the saved record
+- /at perf measure a arms Experiment A
+- /at perf measure b arms Experiment B and suspends
+- /at perf measure refuses outside an experiment
+- /at perf measure rejects an unknown window
+- /at perf bare reports the armed window
 - the perf usage block documents the measure workflow
 
 ### test_widgets.lua (48)
@@ -531,6 +533,6 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_data.lua | 26 |
 | test_display.lua | 39 |
 | test_helpers.lua | 40 |
-| test_slashcmds.lua | 84 |
+| test_slashcmds.lua | 86 |
 | test_widgets.lua | 48 |
-| **Total** | **463** |
+| **Total** | **465** |

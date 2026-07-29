@@ -126,7 +126,7 @@ schema paths survive) and looks it up in the ordered `NS.COMMANDS` table. Unknow
 | `/at lock` / `/at unlock` | Flip the drag lock |
 | `/at toggle [player\|target\|focus]` | Bare: flip **every** bar — all off if any is on, otherwise all on. With a unit token: flip that one bar only. Writes `units.<unit>.enabled` through `SetByPath`, so it travels the same path as the General page checkbox |
 | `/at debug` (`on`/`off`) | Toggle the debug console window; `on`/`off` enable/disable logging |
-| `/at debug perf <sub>` | The performance probe (`core/Perf.lua`): `start [label]`/`finish` bracket a run, `measure a|b` arm a combat-gated experiment, `report` print it, `dump` emit JSON, `suspend`/`resume` make the addon inert for an A/B. A **sub-verb of `debug`**, not a `NS.COMMANDS` entry — so the verb count is unchanged. See [performance.md](./performance.md) |
+| `/at perf <sub>` | The performance probe (`core/Perf.lua`): `start [label]`/`finish` bracket a run, `measure a\|b` arm a combat-gated experiment, `report` print it, `dump` emit JSON, `suspend`/`resume` make the addon inert by hand. Its own `NS.COMMANDS` verb. See [performance.md](./performance.md) |
 | `/at update` | Force a bar refresh |
 | `/at version` | Print the addon version |
 | `/at test [value] [hold-secs]` | Paint a fake value for visual tweaking |
@@ -326,7 +326,7 @@ shared-frame problem above, the addon ships its own harnesses:
 - `lua tests/perf.lua` — offline, headless, over the real addon code. Asserts deterministic counters
   (repaints per event burst, API calls per pass, bytes allocated per pass) and reports timings.
   **Outside the green gate** — wall-clock numbers are not stable enough to gate a commit on.
-- `/at debug perf` — in-game. `debugprofilestop()` brackets on the addon's own entry points, plus an
+- `/at perf` — in-game. `debugprofilestop()` brackets on the addon's own entry points, plus an
   FPS sampler bucketed by suspend state so one session yields both arms of an A/B. `suspend` makes
   the addon inert **without a reload**, holding load order and shared-frame ownership fixed — the
   one thing the July 14 confound cannot reach.

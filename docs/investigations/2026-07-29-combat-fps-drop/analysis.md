@@ -56,7 +56,7 @@ Built in this branch (see [docs/performance.md](../../performance.md)):
 1. **Offline** — `tests/perf.lua`, a headless runner over the real addon code, asserting
    deterministic counters (repaints per event burst, API calls per pass, bytes allocated per pass)
    and reporting timings.
-2. **In-game** — `/at debug perf`, a probe with `debugprofilestop()` brackets on the addon's own
+2. **In-game** — `/at perf`, a probe with `debugprofilestop()` brackets on the addon's own
    entry points plus an FPS sampler that buckets frames by suspend state, so one session yields both
    A/B arms on the same fight.
 3. **Suspend** — makes the addon inert *without a reload*, holding load order and shared-frame

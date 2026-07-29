@@ -45,7 +45,7 @@ end
 -- Forward declarations so the commands table can reference handlers defined below.
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
-local runDebug, runUpdate, runTest, runProfile, runToggle
+local runDebug, runUpdate, runTest, runProfile, runToggle, runPerf
 local getVersion
 
 NS.COMMANDS = {
@@ -77,8 +77,10 @@ NS.COMMANDS = {
         end},
     {"toggle",        "Toggle bars on or off \226\128\148 `/at toggle [player|target|focus]`",
         function(rest) runToggle(rest) end},
-    {"debug",         "Toggle the debug console \226\128\148 `on`/`off` logging, `perf` measurement",
+    {"debug",         "Toggle the debug console \226\128\148 `on`/`off` enable/disable logging",
         function(rest) runDebug(rest) end},
+    {"perf",          "Measure performance \226\128\148 try `/at perf` for the workflow",
+        function(rest) runPerf(rest) end},
     {"update",        "Force a bar refresh",
         function() runUpdate() end},
     {"version",       "Print the addon version",
@@ -241,12 +243,12 @@ end
 --
 -- /at debug        toggles the on-screen debug console window (state unchanged).
 -- /at debug on|off enables / disables session logging (§12.5).
--- /at debug perf … the performance measurement probe (core/Perf.lua, issue #17).
 
 -- Emit a block of lines to BOTH the debug console and chat. The console is the real destination
 -- (monospace, scrollable, copyable via its Copy button), but it writes through D:Add — which is
--- deliberately NOT gated on NS.State.debug — so `perf` output appears whether or not logging is
--- enabled. Without that, running a capture with logging off would look like it did nothing.
+-- deliberately NOT gated on NS.State.debug — so `/at perf` output appears whether or not debug
+-- logging is enabled. Without that, running a capture with logging off would look like it did
+-- nothing.
 local function emitPerfLines(lines)
     for _, line in ipairs(lines) do
         if NS.DebugLog and NS.DebugLog.Add then
@@ -258,7 +260,7 @@ local function emitPerfLines(lines)
 end
 
 local PERF_USAGE = {
-    "usage: /at debug perf <start|measure|finish|report|dump|suspend|resume>",
+    "usage: /at perf <start|measure|finish|report|dump|suspend|resume>",
     "  start [label]  begin a run (resets counters); label distinguishes runs",
     "  measure a      arm Experiment A \226\128\148 addon ACTIVE, records while in combat",
     "  measure b      arm Experiment B \226\128\148 addon SUSPENDED, records while in combat",
@@ -283,7 +285,7 @@ local PERF_SUBS = {
         local stamp = date and date("%Y-%m-%d %H:%M") or "capture"
         local label = (rest or ""):match("^%s*(.-)%s*$")
         P.Start(label ~= "" and (stamp .. " " .. label) or stamp)
-        P.__announce("perf run |cff40ff40STARTED|r \226\128\148 now `/at debug perf measure a`, then pull")
+        P.__announce("perf run |cff40ff40STARTED|r \226\128\148 now `/at perf measure a`, then pull")
         for _, line in ipairs(P.ContextLines(P.context)) do print(line) end
         if NS.DebugLog and NS.DebugLog.Show then NS.DebugLog:Show() end
     end,
@@ -293,7 +295,7 @@ local PERF_SUBS = {
         local arm, err = P.Measure(token)
         if not arm then
             if err == "no experiment" then
-                return print("start one first \226\128\148 `/at debug perf start`")
+                return print("start one first \226\128\148 `/at perf start`")
             end
             return print(("unknown window '%s' \226\128\148 use `measure a` or `measure b`")
                 :format(token ~= "" and token or "?"))
@@ -304,7 +306,7 @@ local PERF_SUBS = {
     end,
 
     finish = function(P)
-        if not P.run then return print("no perf run is active \226\128\148 `/at debug perf start`") end
+        if not P.run then return print("no perf run is active \226\128\148 `/at perf start`") end
         local record = P.Stop()
         P.Save(record)
         emitPerfLines(P.FormatReport(record))
@@ -331,7 +333,7 @@ local PERF_SUBS = {
 
     suspend = function(P)
         if P.Suspend() then
-            print("addon |cffff4040SUSPENDED|r \226\128\148 inert until `/at debug perf resume` or /reload")
+            print("addon |cffff4040SUSPENDED|r \226\128\148 inert until `/at perf resume` or /reload")
         else
             print("already suspended")
         end
@@ -346,7 +348,7 @@ local PERF_SUBS = {
     end,
 }
 
--- Bare `/at debug perf`, and the fallback for anything unrecognised.
+-- Bare `/at perf`, and the fallback for anything unrecognised.
 local function printPerfStatus(P)
     local phase = "|cffff4040stopped|r"
     if P.recording then
@@ -361,7 +363,7 @@ local function printPerfStatus(P)
     for _, line in ipairs(PERF_USAGE) do print(line) end
 end
 
-local function runPerf(rest)
+function runPerf(rest)
     rest = rest or ""
     local sub = rest:match("^(%S*)"):lower()
     local P = NS.Perf
@@ -371,9 +373,6 @@ end
 function runDebug(rest)
     local sub = (rest or ""):match("^(%S*)") or ""
     sub = sub:lower()
-    if sub == "perf" then
-        return runPerf((rest or ""):match("^%S*%s+(.*)$"))
-    end
     if sub == "on" or sub == "off" then
         if NS.DebugLog and NS.DebugLog.SetEnabled then
             NS.DebugLog:SetEnabled(sub == "on")

@@ -249,10 +249,10 @@ lua tests/perf.lua --label after-my-change \
 In-game, as a sub-verb of the debug suite:
 
 ```
-/at debug perf start       # begin a run (works with logging off)
-/at debug perf measure a   # arm Experiment A - records while in combat
-/at debug perf measure b   # arm Experiment B - same, and suspends the addon for you
-/at debug perf finish      # end the run, save to AbsorbTrackerPerfDB, print the summary
+/at perf start       # begin a run (works with logging off)
+/at perf measure a   # arm Experiment A - records while in combat
+/at perf measure b   # arm Experiment B - same, and suspends the addon for you
+/at perf finish      # end the run, save to AbsorbTrackerPerfDB, print the summary
 /reload                    # flush SavedVariables
 ```
 
