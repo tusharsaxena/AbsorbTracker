@@ -260,7 +260,7 @@ local function emitPerfLines(lines)
 end
 
 local PERF_USAGE = {
-    "usage: |cFFFFFF00/at perf <start|measure|finish|cancel|report|dump>|r",
+    "usage: |cFFFFFF00/at perf <start|measure|finish|cancel|report|dump|show|hide|toggle>|r",
     "  |cFFFFFF00start [label]|r  begin a run; zeroes the counters and records who/where you are.",
     "                 The label is appended to the timestamp so runs are tellable apart.",
     "  |cFFFFFF00measure a|r      arm Experiment A \226\128\148 addon ACTIVE. Recording starts the moment",
@@ -269,8 +269,9 @@ local PERF_USAGE = {
     "                 two experiments differ by the addon and nothing else.",
     "  |cFFFFFF00finish|r         end the run, save it to AbsorbTrackerPerfDB, print the summary",
     "                 and lift any suspend. `/reload` afterwards to flush it to disk.",
-    "  |cFFFFFF00cancel|r         abandon the run \226\128\148 discards it unsaved, restores the addon",
-    "                 and closes the panel. Also dismisses the panel after a finished run.",
+    "  |cFFFFFF00cancel|r         abandon the run \226\128\148 discards it unsaved and restores the addon.",
+    "                 Only available while a run is actually in flight.",
+    "  |cFFFFFF00show|r / |cFFFFFF00hide|r / |cFFFFFF00toggle|r   the step panel. Hiding it never touches the run.",
     "  |cFFFFFF00report|r         print the summary again without ending the run.",
     "  |cFFFFFF00dump|r           render the run as one line of JSON in the copy window, for",
     "                 pasting somewhere. Same data the summary is built from.",
@@ -313,10 +314,21 @@ local PERF_SUBS = {
             arm == "suspended" and "addon |cffff4040SUSPENDED|r" or "addon |cff40ff40active|r"))
     end,
 
+    show = function()
+        if NS.PerfPanel then NS.PerfPanel:Show() end
+    end,
+
+    hide = function()
+        if NS.PerfPanel then NS.PerfPanel:Hide() end
+    end,
+
+    toggle = function()
+        if NS.PerfPanel then NS.PerfPanel:Toggle() end
+    end,
+
     cancel = function(P)
         if not P.Cancel() then return print("no perf run to cancel") end
         print("perf run |cffcc5252CANCELLED|r \226\128\148 nothing saved")
-        if NS.PerfPanel and NS.PerfPanel.Hide then NS.PerfPanel:Hide() end
     end,
 
     finish = function(P)
@@ -338,13 +350,16 @@ local PERF_SUBS = {
 
     report = function(P)
         emitPerfLines(P.FormatReport(P.BuildRecord(P.label)))
+        P.MarkReviewed("report")
     end,
 
     dump = function(P)
         local json = P.EncodeJSON(P.BuildRecord(P.label))
+        P.MarkReviewed("dump")
         if not (NS.DebugLog and NS.DebugLog.Add) then return print(json) end
         NS.DebugLog:Add("Perf", json)
         if NS.DebugLog.ShowCopy then NS.DebugLog:ShowCopy() end
+        P.MarkReviewed("dump")
     end,
 
 }
@@ -361,9 +376,6 @@ local function printPerfStatus(P)
     end
     print(("perf %s, addon %s"):format(phase,
         P.suspended and "|cffff4040SUSPENDED|r" or "|cff40ff40active|r"))
-    -- Re-show the step panel if a run is under way. There is no close button, but the panel is
-    -- draggable and can end up somewhere forgotten; this is the way back to it without a /reload.
-    if P.run and NS.PerfPanel and NS.PerfPanel.Show then NS.PerfPanel:Show() end
     for _, line in ipairs(PERF_USAGE) do print(line) end
 end
 

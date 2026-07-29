@@ -63,6 +63,11 @@ local buckets = {}
 -- as done — the step happened, whatever it caught.
 local completed = { active = false, suspended = false }
 
+-- Review actions that have been used at least once. Unlike the measurement steps these stay
+-- available after use — reprinting a summary or re-dumping the JSON is free and often wanted twice —
+-- so they get their own state rather than being marked `done` and disabled.
+local reviewed = { report = false, dump = false }
+
 -- FPS accumulators, one arm per suspend state. `seconds` comes from the OnUpdate elapsed argument
 -- rather than GetTime() deltas so a paused client doesn't inflate the denominator.
 local fpsArms = {
@@ -86,6 +91,7 @@ end
 function P.Reset()
     buckets = {}
     completed = { active = false, suspended = false }
+    reviewed = { report = false, dump = false }
     fpsArms = {
         active    = { seconds = 0, frames = 0 },
         suspended = { seconds = 0, frames = 0 },
@@ -96,11 +102,22 @@ end
 function P.__buckets() return buckets end
 function P.__fpsArms() return fpsArms end
 function P.__completed() return completed end
+function P.__reviewed() return reviewed end
+
 
 -- Tell the step panel (core/PerfPanel.lua) that something moved. Payload-free like every other bus
 -- message (architecture-§4): the panel re-reads P.Progress() when it fires.
 local function publishState()
     if NS.bus and NS.MSG and NS.MSG.PERF then NS.bus:SendMessage(NS.MSG.PERF) end
+end
+
+--- Note that a review action has been run, so the panel can mark it without disabling it. Called by
+--- the slash handlers, so a typed command and a click mark it identically.
+function P.MarkReviewed(key)
+    if reviewed[key] == nil or reviewed[key] then return false end
+    reviewed[key] = true
+    publishState()
+    return true
 end
 
 --- The run as a list of step states, for the panel to render. Lives here rather than in the panel
@@ -125,15 +142,21 @@ function P.Progress()
     local fin = (finished and "done")
         or ((P.run and completed.suspended and not bBusy) and "ready")
         or "locked"
-    local review = finished and "ready" or "locked"
+    -- `used` is green like `done` but stays clickable: these are read-only actions worth repeating.
+    local function review(key)
+        if not finished then return "locked" end
+        return reviewed[key] and "used" or "ready"
+    end
 
     return {
         start = "done",   -- the panel only exists once a run has started
-        measureA = a, measureB = b, finish = fin, report = review, dump = review,
-        -- Its own state, not "ready": it sits outside the linear progression, is offered at every
-        -- point including none, and the panel colours it separately so it never reads as the next
-        -- step to take.
-        cancel = "cancel",
+        measureA = a, measureB = b, finish = fin,
+        report = review("report"), dump = review("dump"),
+        -- Its own state, not "ready": it sits outside the linear progression and the panel colours
+        -- it separately, so it never reads as the next step to take. Only offered while there is
+        -- actually a run to abandon — after `finish` the run is saved and there is nothing left to
+        -- cancel, and an live-looking button that discards nothing is just a way to worry someone.
+        cancel = (P.run or P.armed or P.recording) and "cancel" or "locked",
     }
 end
 

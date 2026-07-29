@@ -154,7 +154,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (102)
+### test_perf.lua (111)
 
 - perf: Note accumulates calls, total and max
 - perf: Note tracks unrelated buckets independently
@@ -247,7 +247,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - perf: the panel refreshes off the bus, not by polling
 - perf: every step row carries a status dot, drawn not glyphed
 - perf: labels are plain text with no decoration baked in
-- perf: cancel is offered at every point, including before a run
+- perf: cancel is offered throughout a run and nowhere else
 - perf: cancel has its own state, so it never reads as the next step
 - perf: cancelling discards the run without saving it
 - perf: cancelling restores a suspended addon
@@ -256,8 +256,17 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - perf: cancel returns false when there is nothing to cancel
 - perf: a cancelled run leaves the next one clean
 - perf: every row shows its slash command
-- perf: the cancel row is clickable when every other row is locked
+- perf: cancel stays clickable while a run is mid-experiment
+- perf: cancel is not clickable once the run is finished
+- perf: hiding the panel never touches the run
+- perf: Toggle flips visibility both ways
+- perf: the close button hides the panel and leaves the run alone
 - perf: clicking the cancel row abandons the run
+- perf: report and dump stay clickable after use, but read as done
+- perf: marking a review action twice is a no-op
+- perf: MarkReviewed ignores keys that are not review actions
+- perf: a fresh run clears the review marks
+- perf: the panel titles itself like the debug console
 
 ### test_visibility.lua (17)
 
@@ -403,7 +412,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
 
-### test_slashcmds.lua (90)
+### test_slashcmds.lua (93)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -490,6 +499,9 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - the perf usage block documents the measure workflow
 - /at perf start opens the panel instead of listing the steps in chat
 - /at perf cancel abandons the run and closes the panel
+- /at perf show, hide and toggle drive the panel without touching the run
+- /at perf (bare) reports status without moving the panel
+- the perf usage block documents show/hide/toggle
 - /at perf cancel says so when there is nothing to cancel
 - the perf usage block documents cancel
 - /at perf start announces to the console with debug logging OFF
@@ -559,12 +571,12 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
 | test_timer.lua | 11 |
-| test_perf.lua | 102 |
+| test_perf.lua | 111 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
 | test_display.lua | 39 |
 | test_helpers.lua | 40 |
-| test_slashcmds.lua | 90 |
+| test_slashcmds.lua | 93 |
 | test_widgets.lua | 48 |
-| **Total** | **497** |
+| **Total** | **509** |

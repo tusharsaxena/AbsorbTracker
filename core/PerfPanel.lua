@@ -16,7 +16,7 @@ local Panel = NS.PerfPanel
 
 -- Three columns: status dot, step, slash command. The command column is the point — it teaches the
 -- typed form while you click, so the panel is a crutch you can stop needing.
-local ROW_W, ROW_H, GAP = 340, 22, 4
+local ROW_W, ROW_H, GAP = 360, 22, 4
 local DOT_X, DOT = 8, 8        -- column 1: status dot
 local LABEL_X   = 26           -- column 2: step name
 local CMD_PAD   = 10           -- column 3: slash command, right-aligned
@@ -36,6 +36,9 @@ local BACKDROP = {
 -- is going on" during the one phase where the user most needs to know the addon is recording.
 local COLORS = {
     done   = { 0.30, 0.85, 0.30 },
+    -- Same green as `done`: it has been run. Still clickable, because re-reading a report costs
+    -- nothing and is regularly wanted twice.
+    used   = { 0.30, 0.85, 0.30 },
     ready  = { 0.90, 0.90, 0.92 },
     busy   = { 1.00, 0.82, 0.00 },
     locked = { 0.40, 0.40, 0.42 },
@@ -102,7 +105,7 @@ local function makeStepButton(parent, step, index)
     b:SetScript("OnEnter", function()
         local state = Panel.StateOf(step.key)
         if state == "cancel" then fs:SetTextColor(1.00, 0.45, 0.45)
-        elseif state == "ready" then fs:SetTextColor(1, 0.82, 0) end
+        elseif state == "ready" or state == "used" then fs:SetTextColor(1, 0.82, 0) end
     end)
     b:SetScript("OnLeave", function() setColor(fs, Panel.StateOf(step.key)) end)
     b:SetScript("OnClick", function()
@@ -119,10 +122,11 @@ function Panel.StateOf(key)
     return NS.Perf.Progress()[key] or "locked"
 end
 
---- Can this row be clicked? `ready` is the one legal next step; `cancel` is always available.
+--- Can this row be clicked? `ready` is the one legal next step, `cancel` is available for as long
+--- as there is a run to abandon, and `used` is a review action that stays repeatable.
 function Panel.IsActionable(key)
     local state = Panel.StateOf(key)
-    return state == "ready" or state == "cancel"
+    return state == "ready" or state == "cancel" or state == "used"
 end
 
 local function EnsureFrame()
@@ -143,12 +147,21 @@ local function EnsureFrame()
 
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("TOP", frame, "TOP", 0, -6)
-    title:SetText("Perf Run")
+    title:SetText("Absorb Tracker \226\128\148 Perf Run")
     frame.title = title
 
-    -- No close button: the panel is the workflow, and a run left half-finished is the failure mode
-    -- it exists to prevent. `/at perf finish` ends the run, and `/at perf` re-shows the panel if it
-    -- has been dragged somewhere forgotten.
+    -- Close hides the window WITHOUT touching the run — a hidden panel is not an abandoned capture.
+    -- Cancelling is the Cancel row's job, and conflating the two would make dismissing a window a
+    -- destructive act. `/at perf show` (or `toggle`) brings it back.
+    --
+    -- Built by the debug console's own factory rather than a lookalike, so the two windows cannot
+    -- drift apart. Guarded only because a close button is worth degrading over, not erroring over.
+    if NS.DebugLog and NS.DebugLog.MakeCloseButton then
+        local close = NS.DebugLog.MakeCloseButton(frame, function() Panel:Hide() end)
+        close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -6, -(TITLE_H - 18) / 2)
+        frame.closeButton = close
+    end
+
     local divider = frame:CreateTexture(nil, "ARTWORK")
     divider:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -TITLE_H)
     divider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD, -TITLE_H)
@@ -167,6 +180,10 @@ local function EnsureFrame()
     end
 
     frame:Hide()
+    -- Esc closes it, like the debug console. Hiding is non-destructive, so this is safe to wire.
+    if type(UISpecialFrames) == "table" then
+        table.insert(UISpecialFrames, "AbsorbTrackerPerfPanel")
+    end
     return frame
 end
 
@@ -204,6 +221,10 @@ end
 
 function Panel:Hide() if frame then frame:Hide() end end
 function Panel:IsShown() return (frame and frame:IsShown()) and true or false end
+
+function Panel:Toggle()
+    if Panel:IsShown() then Panel:Hide() else Panel:Show() end
+end
 
 -- Test seam: reach the buttons without a live client.
 function Panel.__frame() return frame end

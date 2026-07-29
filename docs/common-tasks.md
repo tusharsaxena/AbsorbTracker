@@ -254,6 +254,7 @@ In-game, as a sub-verb of the debug suite:
 /at perf measure b   # arm Experiment B - same, and suspends the addon for you
 /at perf finish      # end the run, save to AbsorbTrackerPerfDB, print the summary
 /at perf cancel      # or abandon it - discards the run unsaved and restores the addon
+/at perf show|hide|toggle   # drive the step panel; never touches the run
 /reload                    # flush SavedVariables
 ```
 

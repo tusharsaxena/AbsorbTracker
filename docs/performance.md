@@ -65,7 +65,8 @@ when you explicitly ask for one. Everything also acknowledges in chat.
 | `/at perf measure a` | Arm **Experiment A** — addon active. Records while in combat |
 | `/at perf measure b` | Arm **Experiment B** — addon suspended (done for you). Same combat gating |
 | `/at perf finish` | End the run, append to the ring, print the summary, lift any suspend |
-| `/at perf cancel` | Abandon the run — discards it unsaved, restores the addon, closes the panel |
+| `/at perf cancel` | Abandon the run — discards it unsaved and restores the addon. Only while a run is in flight |
+| `/at perf show` / `hide` / `toggle` | Drive the step panel. Never touches the run |
 | `/at perf report` | Reprint the summary without ending the run — useful mid-run to check an experiment landed |
 | `/at perf dump` | Render the run as one line of JSON in the copy window, for pasting elsewhere. Same data the summary is built from |
 
@@ -122,15 +123,15 @@ out. An armed or recording experiment shows gold, so it is obvious mid-fight tha
 running.
 
 ```
-  Perf Run
-  ───────────────────────────────────────────────────────
-  ●  Start                                 /at perf start
-  ●  Measure A (with the addon)       /at perf measure a
-  ●  Measure B (without the addon)    /at perf measure b     ← the only clickable row
-  ○  Finish                               /at perf finish
-  ○  Report                               /at perf report
-  ○  Dump                                   /at perf dump
-  ●  Cancel run                           /at perf cancel     ← always clickable, red
+  Absorb Tracker — Perf Run                                            ×
+  ──────────────────────────────────────────────────────────────────────
+  ●  Start                                                 /at perf start
+  ●  Measure A (with the addon)                       /at perf measure a
+  ●  Measure B (without the addon)                    /at perf measure b   ← clickable
+  ○  Finish                                               /at perf finish
+  ○  Report                                               /at perf report
+  ○  Dump                                                   /at perf dump
+  ○  Cancel run                                           /at perf cancel
 ```
 
 Three columns: status dot, step, slash command. The command column is the point — it teaches the
@@ -140,10 +141,18 @@ The dot is green behind you, gold on the step actually happening, dim grey ahead
 `SetColorTexture` rather than a text glyph or an art path: a tick character renders as tofu in the
 default font, and an `Interface\…` path that does not exist fails silently as a green box.
 
-**Cancel** sits outside the progression — always clickable, in a muted red. It abandons the run
-unsaved, restores the addon if Experiment B suspended it, and zeroes the counters so the next
-`start` begins clean. After a finished run it doubles as "dismiss this panel". Nothing already
-written to `AbsorbTrackerPerfDB` by an earlier `finish` is touched.
+**Cancel** sits outside the progression, in a muted red. It is clickable for as long as there is a
+run to abandon — not before `start`, and not after `finish`, where the run is already saved and a
+live-looking button that discarded nothing would only worry you. It discards the run unsaved,
+restores the addon if Experiment B suspended it, and zeroes the counters so the next `start` begins
+clean. Nothing an earlier `finish` wrote to the ring is touched.
+
+**Report and Dump** turn green once used but stay clickable — re-reading a summary or re-dumping the
+JSON costs nothing and is regularly wanted twice.
+
+**Closing the panel never touches the run.** The × hides it, Esc hides it, and `/at perf show`,
+`hide` and `toggle` drive it from chat. A hidden window is not an abandoned capture; abandoning is
+Cancel's job alone.
 
 It exists because the *ordering* is what makes a run valid, and a numbered list in chat scrolls away
 the moment combat starts. The buttons dispatch through the slash layer, so a click and a typed

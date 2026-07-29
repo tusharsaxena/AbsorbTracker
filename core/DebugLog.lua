@@ -42,6 +42,10 @@ local function makeTextButton(parent, text, width, onClick)
     return b
 end
 
+-- Exported as D.MakeCloseButton below: core/PerfPanel.lua builds the same control, and two inline
+-- copies of "the addon's close button" is exactly how two windows that should look identical drift
+-- apart. Safe to share despite PerfPanel loading first in the TOC — both are called at frame-build
+-- time, which is lazy and long after every file has loaded.
 local function makeCloseButton(parent, onClick)
     local b = CreateFrame("Button", nil, parent)
     b:SetSize(18, 18)
@@ -199,6 +203,8 @@ end
 
 -- Pure plain-text line formatter (no frames, no colour codes): "<ts> | [<tag>] <msg>". This is
 -- what the Copy buffer mirrors — clean text with the tag rendered verbatim (§12.3).
+D.MakeCloseButton = makeCloseButton
+
 function D.FormatPlain(ts, tag, msg)
     return ("%s | [%s] %s"):format(tostring(ts), tostring(tag or ""), tostring(msg))
 end
