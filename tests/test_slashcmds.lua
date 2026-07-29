@@ -765,6 +765,18 @@ test("/at perf routes output to the debug console, not chat", function()
   assertTrue(#NS.DebugLog.buffer > 0, "report lines landed in the console buffer")
 end)
 
+test("/at perf dump writes to the console, not the copy window", function()
+  -- The console is the log already open and scrollable, and its Copy button is one click away when
+  -- the text actually needs lifting out. A modal for something you may only want to glance at is
+  -- the wrong default.
+  perfReset()
+  NS.DebugLog:Clear()
+  slash("perf dump")
+  local logged = table.concat(NS.DebugLog.buffer, "\n")
+  assertTrue(logged:find('{"buckets"', 1, true) ~= nil, "JSON is in the console: " .. logged)
+  perfReset()
+end)
+
 test("/at perf dump emits parseable JSON carrying the schema stamp", function()
   perfReset()
   NS.DebugLog:Clear()
@@ -893,7 +905,7 @@ test("the perf usage block documents the measure workflow", function()
   assertTrue(contains(out, "measure a"), "lists measure a")
   assertTrue(contains(out, "measure b"), "lists measure b")
   assertTrue(contains(out, "suspends the addon first"), "explains what measure b changes")
-  assertTrue(contains(out, "without ending the run"), "and what report does")
+  assertTrue(contains(out, "opens the debug console"), "and what report does")
 end)
 
 test("/at perf start opens the panel instead of listing the steps in chat", function()
@@ -1001,5 +1013,36 @@ test("/at perf finish resumes before it saves, so a later error cannot strand th
   assertFalse(P.suspended, "addon restored")
   assertEqual(#_G.AbsorbTrackerPerfDB.runs, 1, "and the run still saved")
   _G.AbsorbTrackerPerfDB = nil
+  perfReset()
+end)
+
+test("/at perf report opens the debug console when it is hidden", function()
+  -- Output lands in the console. With it hidden the user clicks Report, sees nothing, and has no
+  -- reason to suspect a window they never opened.
+  perfReset()
+  slash("perf start")
+  NS.DebugLog:Hide()
+  assertFalse(NS.DebugLog:IsShown(), "console hidden")
+  slash("perf report")
+  assertTrue(NS.DebugLog:IsShown(), "report opened it")
+  perfReset()
+end)
+
+test("/at perf dump opens the debug console when it is hidden", function()
+  perfReset()
+  slash("perf start")
+  NS.DebugLog:Hide()
+  slash("perf dump")
+  assertTrue(NS.DebugLog:IsShown(), "dump opened it")
+  perfReset()
+end)
+
+test("/at perf dump marks itself reviewed exactly once", function()
+  perfReset()
+  slash("perf start")
+  slash("perf finish")
+  slash("perf dump")
+  assertTrue(P.__reviewed().dump, "marked")
+  assertFalse(P.MarkReviewed("dump"), "and only once")
   perfReset()
 end)

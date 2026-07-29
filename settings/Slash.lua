@@ -249,7 +249,18 @@ end
 -- deliberately NOT gated on NS.State.debug — so `/at perf` output appears whether or not debug
 -- logging is enabled. Without that, running a capture with logging off would look like it did
 -- nothing.
+-- Report and dump both land in the debug console. With the console hidden the user clicks Report,
+-- sees nothing happen, and has no reason to suspect a window they never opened — so open it for
+-- them. Guarded on IsShown rather than calling Show() blindly: the console's OnShow hook refreshes
+-- every settings panel, which is not something a report should trigger on each press.
+local function ensureConsole()
+    if NS.DebugLog and NS.DebugLog.Show and not NS.DebugLog:IsShown() then
+        NS.DebugLog:Show()
+    end
+end
+
 local function emitPerfLines(lines)
+    ensureConsole()
     for _, line in ipairs(lines) do
         if NS.DebugLog and NS.DebugLog.Add then
             NS.DebugLog:Add("Perf", line)
@@ -267,14 +278,14 @@ local PERF_USAGE = {
     "                 combat does and ends when combat ends. Nothing between is measured.",
     "  |cFFFFFF00measure b|r      arm Experiment B \226\128\148 same, but suspends the addon first, so the",
     "                 two experiments differ by the addon and nothing else.",
-    "  |cFFFFFF00finish|r         end the run, save it to AbsorbTrackerPerfDB, print the summary",
-    "                 and lift any suspend. `/reload` afterwards to flush it to disk.",
+    "  |cFFFFFF00finish|r         end the run, save it to AbsorbTrackerPerfDB and lift any suspend.",
+    "                 Prints nothing \226\128\148 use `report` when you want to read it. `/reload` to flush.",
     "  |cFFFFFF00cancel|r         abandon the run \226\128\148 discards it unsaved and restores the addon.",
     "                 Only available while a run is actually in flight.",
-    "  |cFFFFFF00show|r / |cFFFFFF00hide|r / |cFFFFFF00toggle|r   the step panel. Hiding it never touches the run.",
-    "  |cFFFFFF00report|r         print the summary again without ending the run.",
+    "  |cFFFFFF00report|r         print the summary; opens the debug console if it is hidden.",
     "  |cFFFFFF00dump|r           render the run as one line of JSON in the copy window, for",
     "                 pasting somewhere. Same data the summary is built from.",
+    "  |cFFFFFF00show|r / |cFFFFFF00hide|r / |cFFFFFF00toggle|r   the step panel. Hiding it never touches the run.",
 }
 
 
@@ -356,13 +367,16 @@ local PERF_SUBS = {
         P.MarkReviewed("report")
     end,
 
+    -- Writes the JSON to the console, NOT the copy window. The console is the log you already have
+    -- open and can scroll, and its own Copy button is one click away when you actually want to lift
+    -- the text out — popping a modal over the game for something you may only want to glance at is
+    -- the wrong default.
     dump = function(P)
         local json = P.EncodeJSON(P.BuildRecord(P.label))
         P.MarkReviewed("dump")
+        ensureConsole()
         if not (NS.DebugLog and NS.DebugLog.Add) then return print(json) end
         NS.DebugLog:Add("Perf", json)
-        if NS.DebugLog.ShowCopy then NS.DebugLog:ShowCopy() end
-        P.MarkReviewed("dump")
     end,
 
 }

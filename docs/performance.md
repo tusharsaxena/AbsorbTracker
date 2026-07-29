@@ -68,7 +68,7 @@ when you explicitly ask for one. Everything also acknowledges in chat.
 | `/at perf cancel` | Abandon the run — discards it unsaved and restores the addon. Only while a run is in flight |
 | `/at perf show` / `hide` / `toggle` | Drive the step panel. Never touches the run |
 | `/at perf report` | Print the summary. The only thing that does — `finish` deliberately stays quiet |
-| `/at perf dump` | Render the run as one line of JSON in the copy window, for pasting elsewhere. Same data the summary is built from |
+| `/at perf dump` | Write the run as one line of JSON into the debug console. Same data the summary is built from; the console's own **Copy** button lifts it out |
 
 ### Suspend
 
