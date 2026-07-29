@@ -77,7 +77,7 @@ NS.COMMANDS = {
         end},
     {"toggle",        "Toggle bars on or off \226\128\148 `/at toggle [player|target|focus]`",
         function(rest) runToggle(rest) end},
-    {"debug",         "Toggle the debug console \226\128\148 `on`/`off` enable/disable logging",
+    {"debug",         "Toggle the debug console \226\128\148 `on`/`off` logging, `perf` measurement",
         function(rest) runDebug(rest) end},
     {"update",        "Force a bar refresh",
         function() runUpdate() end},
@@ -241,10 +241,113 @@ end
 --
 -- /at debug        toggles the on-screen debug console window (state unchanged).
 -- /at debug on|off enables / disables session logging (§12.5).
+-- /at debug perf … the performance measurement probe (core/Perf.lua, issue #17).
+
+-- Emit a block of lines to BOTH the debug console and chat. The console is the real destination
+-- (monospace, scrollable, copyable via its Copy button), but it writes through D:Add — which is
+-- deliberately NOT gated on NS.State.debug — so `perf` output appears whether or not logging is
+-- enabled. Without that, running a capture with logging off would look like it did nothing.
+local function emitPerfLines(lines)
+    for _, line in ipairs(lines) do
+        if NS.DebugLog and NS.DebugLog.Add then
+            NS.DebugLog:Add("Perf", line)
+        else
+            print(line)
+        end
+    end
+end
+
+local PERF_USAGE = {
+    "usage: /at debug perf <on|off|report|dump|suspend|resume>",
+    "  on [label]  start a capture (resets counters); label distinguishes runs",
+    "  off      stop, save to AbsorbTrackerPerfDB, print the summary",
+    "  report   print the summary without stopping",
+    "  dump     render the capture as JSON in the copy window",
+    "  suspend  make the addon inert \226\128\148 the B arm of the A/B",
+    "  resume   restore it",
+}
+
+-- Sub-verb handlers, one entry each. A dispatch table rather than an if/elseif ladder: the ladder
+-- form measured CCN 24 under `lizard`, the highest in the addon, purely from the shape of the
+-- dispatch — and this file already carries the repo's other complexity warning in runProfile. Each
+-- handler here is CCN 1-3 and reads on its own.
+local PERF_SUBS = {
+    -- `rest` is the free text after the sub-verb: an optional capture label. Captures accumulate in
+    -- a 10-run ring across sessions, so an auto-timestamp alone makes two runs from the same
+    -- afternoon (e.g. "solo" vs "full addon set") near-impossible to tell apart when reading the
+    -- SavedVariables file later. A supplied label is appended to the timestamp, never replaces it.
+    on = function(P, rest)
+        local stamp = date and date("%Y-%m-%d %H:%M") or "capture"
+        local label = (rest or ""):match("^%s*(.-)%s*$")
+        P.Start(label ~= "" and (stamp .. " " .. label) or stamp)
+        print("perf capture |cff40ff40STARTED|r \226\128\148 fight normally, then "
+            .. "`/at debug perf suspend` for the B arm")
+        if NS.DebugLog and NS.DebugLog.Show then NS.DebugLog:Show() end
+    end,
+
+    off = function(P)
+        if not P.on then return print("perf capture is not running") end
+        local record = P.Stop()
+        P.Save(record)
+        emitPerfLines(P.FormatReport(record))
+        print("perf capture |cffff4040STOPPED|r \226\128\148 saved; `/reload` to flush it to SavedVariables")
+        -- Leaving suspend on after a capture would silently disable the addon for the rest of the
+        -- session, and nobody expects `off` to leave anything switched off but the capture itself.
+        if P.suspended then
+            P.Resume()
+            print("perf suspend lifted \226\128\148 bars restored")
+        end
+    end,
+
+    report = function(P)
+        emitPerfLines(P.FormatReport(P.BuildRecord(P.label)))
+    end,
+
+    dump = function(P)
+        local json = P.EncodeJSON(P.BuildRecord(P.label))
+        if not (NS.DebugLog and NS.DebugLog.Add) then return print(json) end
+        NS.DebugLog:Add("Perf", json)
+        if NS.DebugLog.ShowCopy then NS.DebugLog:ShowCopy() end
+    end,
+
+    suspend = function(P)
+        if P.Suspend() then
+            print("addon |cffff4040SUSPENDED|r \226\128\148 inert until `/at debug perf resume` or /reload")
+        else
+            print("already suspended")
+        end
+    end,
+
+    resume = function(P)
+        if P.Resume() then
+            print("addon |cff40ff40RESUMED|r")
+        else
+            print("not suspended")
+        end
+    end,
+}
+
+-- Bare `/at debug perf`, and the fallback for anything unrecognised.
+local function printPerfStatus(P)
+    print(("perf capture %s, addon %s"):format(
+        P.on and "|cff40ff40RUNNING|r" or "|cffff4040stopped|r",
+        P.suspended and "|cffff4040SUSPENDED|r" or "|cff40ff40active|r"))
+    for _, line in ipairs(PERF_USAGE) do print(line) end
+end
+
+local function runPerf(rest)
+    rest = rest or ""
+    local sub = rest:match("^(%S*)"):lower()
+    local P = NS.Perf
+    return (PERF_SUBS[sub] or printPerfStatus)(P, rest:match("^%S*%s+(.*)$"))
+end
 
 function runDebug(rest)
     local sub = (rest or ""):match("^(%S*)") or ""
     sub = sub:lower()
+    if sub == "perf" then
+        return runPerf((rest or ""):match("^%S*%s+(.*)$"))
+    end
     if sub == "on" or sub == "off" then
         if NS.DebugLog and NS.DebugLog.SetEnabled then
             NS.DebugLog:SetEnabled(sub == "on")

@@ -29,7 +29,7 @@ Start here, then read the docs:
   wiring, taint notes, known limitations.
 - Topic detail in `docs/`: `schema.md`, `settings-panel.md`, `data-flow.md`, `profiles.md`,
   `midnight-quirks.md`, `common-tasks.md`, `scope.md`, `file-index.md`, `module-map.md`,
-  `smoke-tests.md`, `testing.md`, `test-cases.md`.
+  `smoke-tests.md`, `testing.md`, `test-cases.md`, `performance.md`, `complexity.md`.
 
 Green gate before every commit: `lua tests/run.lua` and `luacheck .` (0/0). Syntax-check one file
 with `luac -p <file>`. The authoritative test-case count lives in the generated

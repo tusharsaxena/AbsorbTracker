@@ -35,6 +35,7 @@ Modules → Settings.
 | `core/State.lua` | `NS.State` — session-only runtime state (the debug flag; never persisted). |
 | `core/Bus.lua` | The closed cross-module message bus: `NS.bus` (shared publish target), `NS.NewBusTarget()` (one per receiver), and the `NS.MSG` catalogue (`REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION`). |
 | `core/Util.lua` | `NS.Print` (prefixed chat) only. The secret-safe debug sink is `NS.Debug` (`core/DebugLog.lua`); every debug arg routes through `NS.SafeToString`. |
+| `core/Perf.lua` | `NS.Perf` — the performance probe (issue #17). `debugprofilestop()` brackets (`Note`/`Reset`), the suspend-state-bucketed FPS sampler (`Start`/`Stop`), `Suspend`/`Resume`, the shared `EncodeJSON`, and the `AbsorbTrackerPerfDB` capture ring (`Save`). Session-only; zero cost when capture is off. |
 | `core/Data.lua` | The AceDB read/write seam (`GetSetting`/`SetSetting` — dotted-path aware, so `units.target.barWidth` and flat `locked` both work), LSM fetchers with fallbacks (each takes a `unit`, resolved through `NS.Units.Get`), and the class-color-aware color resolvers (each takes a `unit`; the class color itself is always the player's). |
 | `core/Database.lua` | `NS:InitDB` (AceDB + profile callbacks) and `NS:RunMigrations` (schema-version seam). |
 | `core/Units.lua` | `NS.Units` — unit identity (`LIST`/`LABEL`), mirror resolution (`IsMirrored`/`SourceUnit`/`Get`), per-unit position read/write, and `CopyFromPlayer`. The only file that reads `db.profile.units` for appearance. |
@@ -125,6 +126,7 @@ schema paths survive) and looks it up in the ordered `NS.COMMANDS` table. Unknow
 | `/at lock` / `/at unlock` | Flip the drag lock |
 | `/at toggle [player\|target\|focus]` | Bare: flip **every** bar — all off if any is on, otherwise all on. With a unit token: flip that one bar only. Writes `units.<unit>.enabled` through `SetByPath`, so it travels the same path as the General page checkbox |
 | `/at debug` (`on`/`off`) | Toggle the debug console window; `on`/`off` enable/disable logging |
+| `/at debug perf <sub>` | The performance probe (`core/Perf.lua`): `on [label]`/`off` start/stop a capture, `report` print it, `dump` emit JSON, `suspend`/`resume` make the addon inert for an A/B. A **sub-verb of `debug`**, not a `NS.COMMANDS` entry — so the verb count is unchanged. See [performance.md](./performance.md) |
 | `/at update` | Force a bar refresh |
 | `/at version` | Print the addon version |
 | `/at test [value] [hold-secs]` | Paint a fake value for visual tweaking |
@@ -210,6 +212,26 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
 Accepted, intentional departures from the Ka0s WoW Addon Standard. Each is recorded here with its
 justification; a fresh `/standards-audit` will re-surface them into a new dated bundle under
 `docs/audits/`.
+
+- **A second top-level SavedVariables global — `AbsorbTrackerPerfDB`.** The TOC declares it
+  alongside `AbsorbTrackerDB`. It holds the perf capture ring (last 10 runs) and is deliberately
+  **outside** the AceDB tree so diagnostic data never rides profile copy / reset / switch.
+  A separate SavedVariables *file* was considered and rejected: WoW names the file after the addon
+  and serialises every global it declares into that one file, so a separate file would require
+  shipping a companion addon in its own sibling folder — a two-addon repo, with packaging and
+  CurseForge knock-ons, for isolation a distinct global already provides.
+
+- **`lizard` as an optional dev dependency (complexity reporting).** Python tooling in a Lua repo,
+  used to generate `docs/complexity.md`. It is **not** part of the green gate
+  (`lua tests/run.lua` + `luacheck .`) and nothing fails without it. Issue #17 assigns the
+  standard's definition of a complexity rule to WowAddonStandards; this addon adopts whatever
+  lands there.
+
+- **Instrumentation hooks in hot paths.** `modules/Display.lua`, `modules/Timer.lua` and
+  `core/AbsorbTracker.lua` carry `local t0 = Perf.on and debugprofilestop()` brackets. When capture
+  is off this is an upvalue read, a field read and a boolean test — no call, no allocation. The
+  claim is enforced, not asserted: `tests/perf.lua`'s `probeOverheadOff` / `probeOverheadOn`
+  scenarios fail if a dormant bracket ever allocates more than an armed one.
 
 - **§9.1 — private `CreateFrame` event frames for the `UNIT_*` events, one per unit.**
   `addon:SyncUnitEventFrames()` (called from `OnEnable` and from the `UNITS` bus message,
@@ -297,3 +319,19 @@ a controlled disable test (the blame transferred to the next alphabetical Ace ad
 
 Full analysis, exact numbers, and profiler screenshots:
 [docs/investigations/2026-07-14-addon-profiler-attribution/](./investigations/2026-07-14-addon-profiler-attribution/analysis.md).
+
+**Measuring it yourself (issue #17).** Because the built-in profiler cannot attribute cost past the
+shared-frame problem above, the addon ships its own harnesses:
+
+- `lua tests/perf.lua` — offline, headless, over the real addon code. Asserts deterministic counters
+  (repaints per event burst, API calls per pass, bytes allocated per pass) and reports timings.
+  **Outside the green gate** — wall-clock numbers are not stable enough to gate a commit on.
+- `/at debug perf` — in-game. `debugprofilestop()` brackets on the addon's own entry points, plus an
+  FPS sampler bucketed by suspend state so one session yields both arms of an A/B. `suspend` makes
+  the addon inert **without a reload**, holding load order and shared-frame ownership fixed — the
+  one thing the July 14 confound cannot reach.
+
+Protocol, caveats and how to read the numbers: [docs/performance.md](./performance.md). Captured
+records: [docs/perf-runs/](./perf-runs/README.md). Complexity: [docs/complexity.md](./complexity.md).
+The current investigation into the reported in-combat FPS drop:
+[docs/investigations/2026-07-29-combat-fps-drop/](./investigations/2026-07-29-combat-fps-drop/analysis.md).

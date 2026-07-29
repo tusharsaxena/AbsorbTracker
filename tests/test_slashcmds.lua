@@ -641,3 +641,174 @@ test("the mirrored note keeps the Ka0s colour scheme intact and stays subordinat
   assertTrue(line:find("|cff808080(mirrored", 1, true) ~= nil, "the note is grey: " .. line)
   assertTrue(stripColor(line):find(":%s*$") == nil, "no trailing colon: " .. line)
 end)
+
+-- ── /at debug perf ──────────────────────────────────────────────────────────────────────────
+--
+-- The perf probe's slash surface (core/Perf.lua, issue #17). These assert the DISPATCH — that each
+-- sub-verb reaches the right probe call and says so — rather than re-testing the probe's accounting,
+-- which tests/test_perf.lua owns.
+
+local P = NS.Perf
+
+-- Every perf sub-verb that resumes republishes REPAINT and arms a coalescing timer; left armed it
+-- poisons later suites (see the same note in tests/test_perf.lua).
+local function perfReset()
+  P.on = false
+  if P.suspended then P.Resume() end
+  P.Reset()
+  NS.CancelPendingRepaint()
+  for i = #T.mocks.__timers, 1, -1 do T.mocks.__timers[i] = nil end
+end
+
+test("/at debug perf (bare) reports status and prints usage", function()
+  perfReset()
+  local out = slash("debug perf")
+  assertTrue(contains(out, "perf capture"), "leads with the capture state")
+  assertTrue(contains(out, "usage: /at debug perf"), "then the usage block")
+  assertTrue(contains(out, "suspend"), "documents the suspend arm")
+end)
+
+test("/at debug perf on starts a capture", function()
+  perfReset()
+  local out = slash("debug perf on")
+  assertTrue(P.on, "capture running")
+  assertTrue(contains(out, "STARTED"), "acknowledges: " .. joined(out))
+  P.on = false
+end)
+
+test("/at debug perf on resets the counters from the previous capture", function()
+  perfReset()
+  P.Note("paintBar", 99)
+  slash("debug perf on")
+  assertEqual(P.__buckets().paintBar, nil, "a new capture starts clean")
+  P.on = false
+end)
+
+test("/at debug perf off refuses when no capture is running", function()
+  perfReset()
+  local out = slash("debug perf off")
+  assertTrue(contains(out, "not running"), "says so rather than saving an empty record")
+end)
+
+test("/at debug perf off saves the record to the perf ring", function()
+  perfReset()
+  _G.AbsorbTrackerPerfDB = nil
+  slash("debug perf on")
+  slash("debug perf off")
+  assertEqual(type(_G.AbsorbTrackerPerfDB), "table", "the ring exists")
+  assertEqual(#_G.AbsorbTrackerPerfDB.runs, 1, "one capture stored")
+  assertFalse(P.on, "capture stopped")
+  _G.AbsorbTrackerPerfDB = nil
+end)
+
+test("/at debug perf off lifts a suspend left over from the capture", function()
+  -- Otherwise stopping a capture would silently leave the addon disabled for the whole session.
+  perfReset()
+  slash("debug perf on")
+  slash("debug perf suspend")
+  local out = slash("debug perf off")
+  assertFalse(P.suspended, "suspend lifted")
+  assertTrue(contains(out, "suspend lifted"), "and says so: " .. joined(out))
+  perfReset()
+  _G.AbsorbTrackerPerfDB = nil
+end)
+
+test("/at debug perf suspend and resume flip the probe's inert state", function()
+  perfReset()
+  local out = slash("debug perf suspend")
+  assertTrue(P.suspended, "suspended")
+  assertTrue(contains(out, "SUSPENDED"), "acknowledges: " .. joined(out))
+  out = slash("debug perf resume")
+  assertFalse(P.suspended, "resumed")
+  assertTrue(contains(out, "RESUMED"), "acknowledges: " .. joined(out))
+  perfReset()
+end)
+
+test("/at debug perf suspend twice reports the no-op rather than pretending", function()
+  perfReset()
+  slash("debug perf suspend")
+  local out = slash("debug perf suspend")
+  assertTrue(contains(out, "already suspended"), joined(out))
+  perfReset()
+end)
+
+test("/at debug perf resume without a suspend reports the no-op", function()
+  perfReset()
+  local out = slash("debug perf resume")
+  assertTrue(contains(out, "not suspended"), joined(out))
+end)
+
+test("/at debug perf report prints without stopping the capture", function()
+  perfReset()
+  slash("debug perf on")
+  slash("debug perf report")
+  assertTrue(P.on, "still capturing")
+  P.on = false
+end)
+
+test("/at debug perf routes output to the debug console, not chat", function()
+  -- The console is ungated (D:Add ignores NS.State.debug), which is what makes perf usable with
+  -- logging off. If these lines went to chat instead they would be lost in combat spam.
+  perfReset()
+  local before = #NS.DebugLog.buffer
+  slash("debug perf report")
+  assertTrue(#NS.DebugLog.buffer > before, "report lines landed in the console buffer")
+end)
+
+test("/at debug perf dump emits parseable JSON carrying the schema stamp", function()
+  perfReset()
+  local before = #NS.DebugLog.buffer
+  slash("debug perf dump")
+  local line = NS.DebugLog.buffer[#NS.DebugLog.buffer]
+  assertTrue(#NS.DebugLog.buffer > before, "something was written")
+  assertTrue(line:find('"schema":1', 1, true) ~= nil, "carries the schema: " .. line)
+  assertTrue(line:find('"source":"ingame"', 1, true) ~= nil, "and the source")
+end)
+
+test("/at debug perf with an unknown sub falls back to the usage block", function()
+  perfReset()
+  local out = slash("debug perf wibble")
+  assertTrue(contains(out, "usage: /at debug perf"), joined(out))
+end)
+
+test("/at debug on|off still toggles logging with perf present", function()
+  -- Guards the sub-verb split: `perf` must not have swallowed the existing on/off contract.
+  perfReset()
+  slash("debug on")
+  assertTrue(NS.State.debug, "logging on")
+  slash("debug off")
+  assertFalse(NS.State.debug, "logging off")
+end)
+
+test("the debug help row advertises the perf sub-verb", function()
+  local out = slash("help")
+  assertTrue(contains(out, "/at debug"), "debug is listed")
+  assertTrue(contains(out, "perf"), "and mentions perf: " .. joined(out))
+end)
+
+test("/at debug perf on accepts an optional label, appended to the timestamp", function()
+  -- Captures accumulate in a ring across sessions; without a label two runs from the same
+  -- afternoon are near-impossible to tell apart when reading SavedVariables later.
+  perfReset()
+  slash("debug perf on solo run")
+  assertTrue(P.label:find("solo run", 1, true) ~= nil, "label kept: " .. tostring(P.label))
+  assertTrue(#P.label > #"solo run", "timestamp still present: " .. tostring(P.label))
+  P.on = false
+end)
+
+test("/at debug perf on without a label still stamps the capture", function()
+  perfReset()
+  slash("debug perf on")
+  assertTrue(P.label ~= nil and P.label ~= "", "auto-stamped: " .. tostring(P.label))
+  P.on = false
+end)
+
+test("/at debug perf on label reaches the saved record", function()
+  perfReset()
+  _G.AbsorbTrackerPerfDB = nil
+  slash("debug perf on full addon set")
+  slash("debug perf off")
+  local rec = _G.AbsorbTrackerPerfDB.runs[1]
+  assertTrue(rec.label:find("full addon set", 1, true) ~= nil, "label persisted: " .. rec.label)
+  _G.AbsorbTrackerPerfDB = nil
+end)

@@ -124,6 +124,44 @@ NS.SafeToString(v)  -- secret-safe stringifier; renders a secret as "<secret>"
 -- State.debug is on; zero-cost when off.
 ```
 
+### Perf (`core/Perf.lua`)
+
+The performance probe (issue #17). Session-only, off by default, reached only through
+`/at debug perf`. Costs an upvalue read, a field read and a boolean test when capture is off.
+
+```lua
+NS.Perf.on            -- capture running? read directly by every bracket call site
+NS.Perf.suspended     -- addon inert? checked as step 0 of NS.ShouldShowBar
+NS.Perf.SCHEMA        -- record schema version (1)
+NS.Perf.RING_MAX      -- captures kept in AbsorbTrackerPerfDB (10)
+NS.Perf.BUCKET_ORDER  -- report order; the buckets NEST (repaintPass contains paintBar)
+
+NS.Perf.Note(key, ms)      -- accumulate one bracketed measurement (calls / totalMs / maxMs)
+NS.Perf.Reset()            -- zero every bucket and both FPS arms
+NS.Perf.Start(label)       -- reset, arm the OnUpdate FPS sampler, flip the brackets on
+NS.Perf.Stop()             -> record   -- stop the sampler, return the assembled record
+NS.Perf.BuildRecord(label) -> record   -- snapshot without stopping
+NS.Perf.FormatReport(rec)  -> {string} -- plain lines (no frames), so it is testable headlessly
+NS.Perf.EncodeJSON(value)  -> string   -- sorted keys, shared with tests/perf.lua
+NS.Perf.Save(record)       -- append to the AbsorbTrackerPerfDB ring, trimming oldest-first
+NS.Perf.Suspend()          -> bool     -- make the addon inert WITHOUT a /reload
+NS.Perf.Resume()           -> bool     -- restore events, registrations and bars
+
+-- The bracket idiom at every call site (modules/Display.lua, modules/Timer.lua,
+-- core/AbsorbTracker.lua):
+local t0 = Perf.on and debugprofilestop()
+-- ... work ...
+if t0 then Perf.Note("paintBar", debugprofilestop() - t0) end
+```
+
+Suspend enforces visibility **at the source** rather than hiding frames imperatively: because
+`NS.ShouldShowBar` checks `Perf.suspended` first, suspend only has to publish `VISIBILITY` once and
+no later publish — a combat transition, a target swap, a settings edit — can re-show a bar
+mid-measurement. `NS.RequestRepaint` bails while suspended, and `NS.CancelPendingRepaint()` drops
+any pass armed a moment before.
+
+Protocol and how to read the output: [performance.md](./performance.md).
+
 ### Data (`core/Data.lua`)
 
 The AceDB read/write seam plus the LSM fetchers and the class-color-aware color resolvers. `NS.db` is declared here (nil until `InitDB`).

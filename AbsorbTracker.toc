@@ -4,7 +4,7 @@
 ## Author: add1kted2ka0s
 ## Version: 1.9.0
 ## IconTexture: 512902
-## SavedVariables: AbsorbTrackerDB
+## SavedVariables: AbsorbTrackerDB, AbsorbTrackerPerfDB
 ## OptionalDeps: Ace3, LibStub, CallbackHandler-1.0, LibSharedMedia-3.0
 ## DefaultState: enabled
 ## Category-enUS: Combat
@@ -38,6 +38,7 @@ core\Namespace.lua
 core\State.lua
 core\Bus.lua
 core\Util.lua
+core\Perf.lua
 core\Data.lua
 core\Units.lua
 core\Database.lua

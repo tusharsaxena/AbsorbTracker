@@ -1,0 +1,425 @@
+-- tests/test_perf.lua — the performance probe (core/Perf.lua, issue #17).
+--
+-- Covers the pure logic: bucket accounting, JSON encoding, record assembly, report formatting,
+-- the SavedVariables ring, and the suspend/resume state machine. The timing values themselves are
+-- driven off the mock's settable debugprofilestop counter, so every assertion here is exact — a
+-- wall-clock reading would make these flaky for no benefit.
+
+local T = _G.AT_TEST
+local NS, mocks = T.NS, T.mocks
+local test, assertEqual, assertTrue, assertFalse =
+  T.test, T.assertEqual, T.assertTrue, T.assertFalse
+
+local P = NS.Perf
+
+-- Drain the repaint queue. Resume() republishes REPAINT, which arms a coalescing timer; left
+-- armed, `pending` in modules/Timer.lua stays set for the rest of the PROCESS and every later
+-- suite's RequestRepaint quietly coalesces into a pass that never fires. That is invisible here
+-- and shows up as unrelated failures three suites away, so every path that resumes drains first.
+local function settle()
+  NS.CancelPendingRepaint()
+  for i = #mocks.__timers, 1, -1 do mocks.__timers[i] = nil end
+end
+
+-- Resume and drain, for the tests that don't care about the return value.
+local function resume()
+  P.Resume()
+  settle()
+end
+
+-- Every test starts from a known probe state. Suspend in particular leaks across tests if left
+-- set, and would silently make every later visibility assertion in the whole suite return false.
+local function reset()
+  P.on = false
+  P.suspended = false
+  P.label = nil
+  P.Reset()
+  settle()
+  mocks.__profileMs = 0
+  _G.AbsorbTrackerPerfDB = nil
+end
+
+-- ── bucket accounting ───────────────────────────────────────────────────────────────────────
+
+test("perf: Note accumulates calls, total and max", function()
+  reset()
+  P.Note("paintBar", 2)
+  P.Note("paintBar", 5)
+  P.Note("paintBar", 1)
+  local b = P.__buckets().paintBar
+  assertEqual(b.calls, 3, "calls")
+  assertEqual(b.totalMs, 8, "totalMs")
+  assertEqual(b.maxMs, 5, "maxMs is the peak, not the last")
+end)
+
+test("perf: Note tracks unrelated buckets independently", function()
+  reset()
+  P.Note("paintBar", 2)
+  P.Note("repaintPass", 7)
+  assertEqual(P.__buckets().paintBar.calls, 1, "paintBar")
+  assertEqual(P.__buckets().repaintPass.totalMs, 7, "repaintPass")
+end)
+
+test("perf: Reset clears every bucket and both fps arms", function()
+  reset()
+  P.Note("paintBar", 2)
+  P.__fpsArms().active.frames = 99
+  P.Reset()
+  assertEqual(next(P.__buckets()), nil, "buckets emptied")
+  assertEqual(P.__fpsArms().active.frames, 0, "active arm zeroed")
+  assertEqual(P.__fpsArms().suspended.frames, 0, "suspended arm zeroed")
+end)
+
+-- ── JSON encoding ───────────────────────────────────────────────────────────────────────────
+
+test("perf: EncodeJSON emits object keys in sorted order", function()
+  -- Sorted output is what makes two captures diffable; pairs() order is unspecified.
+  assertEqual(P.EncodeJSON({ b = 1, a = 2, c = 3 }), '{"a":2,"b":1,"c":3}')
+end)
+
+test("perf: EncodeJSON renders integral numbers without a decimal point", function()
+  assertEqual(P.EncodeJSON({ n = 42 }), '{"n":42}')
+end)
+
+test("perf: EncodeJSON renders fractional numbers to four places", function()
+  assertEqual(P.EncodeJSON({ n = 1.5 }), '{"n":1.5000}')
+end)
+
+test("perf: EncodeJSON escapes quotes, backslashes and control characters", function()
+  assertEqual(P.EncodeJSON('a"b\\c\nd'), '"a\\"b\\\\c\\nd"')
+end)
+
+test("perf: EncodeJSON emits arrays for sequence tables", function()
+  assertEqual(P.EncodeJSON({ 1, 2, 3 }), "[1,2,3]")
+end)
+
+test("perf: EncodeJSON emits an empty table as an object", function()
+  assertEqual(P.EncodeJSON({}), "{}")
+end)
+
+test("perf: EncodeJSON coerces non-finite numbers rather than emitting invalid JSON", function()
+  -- inf/NaN have no JSON representation; emitting them raw would produce a file no parser reads.
+  assertEqual(P.EncodeJSON({ n = math.huge }), '{"n":0}')
+end)
+
+test("perf: EncodeJSON round-trips a full record without error", function()
+  reset()
+  P.Note("paintBar", 1.25)
+  local json = P.EncodeJSON(P.BuildRecord("x"))
+  assertTrue(json:find('"schema":1', 1, true) ~= nil, "carries the schema stamp")
+  assertTrue(json:find('"source":"ingame"', 1, true) ~= nil, "carries the source")
+  assertTrue(json:find('"paintBar"', 1, true) ~= nil, "carries the bucket")
+end)
+
+-- ── record assembly ─────────────────────────────────────────────────────────────────────────
+
+test("perf: BuildRecord carries schema, source and label", function()
+  reset()
+  local r = P.BuildRecord("dummy run")
+  assertEqual(r.schema, P.SCHEMA, "schema")
+  assertEqual(r.source, "ingame", "source")
+  assertEqual(r.label, "dummy run", "label")
+end)
+
+test("perf: BuildRecord derives avgFps and msPerFrame from the arms", function()
+  reset()
+  local a = P.__fpsArms().active
+  a.seconds, a.frames = 10, 800
+  local r = P.BuildRecord()
+  assertEqual(r.fps.active.avgFps, 80, "800 frames over 10s is 80 fps")
+  assertEqual(r.fps.active.msPerFrame, 12.5, "and 12.5 ms per frame")
+end)
+
+test("perf: BuildRecord reports zero delta when only one arm was sampled", function()
+  -- With no B arm, suspended.msPerFrame is 0 and a naive subtraction would report the ENTIRE
+  -- frame time as the addon's cost — a number that reads as a catastrophic finding.
+  reset()
+  local a = P.__fpsArms().active
+  a.seconds, a.frames = 10, 800
+  assertEqual(P.BuildRecord().fps.deltaMsPerFrame, 0, "no delta without both arms")
+end)
+
+test("perf: BuildRecord computes the delta when both arms were sampled", function()
+  reset()
+  local arms = P.__fpsArms()
+  arms.active.seconds, arms.active.frames = 10, 800        -- 12.5 ms/frame
+  arms.suspended.seconds, arms.suspended.frames = 10, 1000 -- 10.0 ms/frame
+  assertEqual(P.BuildRecord().fps.deltaMsPerFrame, 2.5, "active costs 2.5 ms/frame more")
+end)
+
+test("perf: BuildRecord snapshots buckets rather than aliasing them", function()
+  reset()
+  P.Note("paintBar", 3)
+  local r = P.BuildRecord()
+  P.Note("paintBar", 3)
+  assertEqual(r.buckets.paintBar.calls, 1, "the record is a snapshot, not a live view")
+end)
+
+-- ── the SavedVariables ring ─────────────────────────────────────────────────────────────────
+
+test("perf: Save creates the perf global and appends the run", function()
+  reset()
+  P.Save(P.BuildRecord("first"))
+  local db = _G.AbsorbTrackerPerfDB
+  assertEqual(type(db), "table", "global created")
+  assertEqual(#db.runs, 1, "one run stored")
+  assertEqual(db.runs[1].label, "first", "the run we saved")
+end)
+
+test("perf: Save stamps the schema on the store", function()
+  reset()
+  P.Save(P.BuildRecord())
+  assertEqual(_G.AbsorbTrackerPerfDB.schema, P.SCHEMA, "store is self-describing")
+end)
+
+test("perf: Save trims the ring to RING_MAX, dropping the oldest", function()
+  reset()
+  for i = 1, P.RING_MAX + 3 do P.Save(P.BuildRecord("run" .. i)) end
+  local runs = _G.AbsorbTrackerPerfDB.runs
+  assertEqual(#runs, P.RING_MAX, "capped at RING_MAX")
+  assertEqual(runs[1].label, "run4", "oldest three dropped")
+  assertEqual(runs[#runs].label, "run" .. (P.RING_MAX + 3), "newest kept")
+end)
+
+test("perf: Save is outside the AceDB tree", function()
+  -- The whole point of the separate global: a profile reset must not touch captures.
+  reset()
+  P.Save(P.BuildRecord())
+  assertEqual(NS.db.profile.runs, nil, "nothing landed in the profile")
+  assertEqual(NS.db.global.runs, nil, "nothing landed in AceDB global either")
+end)
+
+-- ── report formatting ───────────────────────────────────────────────────────────────────────
+
+test("perf: FormatReport marks an unsampled arm rather than printing zeros", function()
+  reset()
+  local lines = table.concat(P.FormatReport(P.BuildRecord()), "\n")
+  assertTrue(lines:find("(not sampled)", 1, true) ~= nil, "says so explicitly")
+end)
+
+test("perf: FormatReport prints both arms and the delta when both ran", function()
+  reset()
+  local arms = P.__fpsArms()
+  arms.active.seconds, arms.active.frames = 10, 800
+  arms.suspended.seconds, arms.suspended.frames = 10, 1000
+  local lines = table.concat(P.FormatReport(P.BuildRecord()), "\n")
+  assertTrue(lines:find("active:", 1, true) ~= nil, "active arm")
+  assertTrue(lines:find("suspended:", 1, true) ~= nil, "suspended arm")
+  assertTrue(lines:find("+2.50 ms/frame", 1, true) ~= nil, "signed delta")
+end)
+
+test("perf: FormatReport derives ms/s from the active seconds only", function()
+  reset()
+  local arms = P.__fpsArms()
+  arms.active.seconds, arms.active.frames = 10, 800
+  arms.suspended.seconds, arms.suspended.frames = 90, 9000  -- must not dilute the rate
+  P.Note("paintBar", 20)
+  local lines = table.concat(P.FormatReport(P.BuildRecord()), "\n")
+  assertTrue(lines:find("2.000", 1, true) ~= nil, "20ms over 10 active seconds is 2 ms/s")
+end)
+
+test("perf: FormatReport warns that buckets nest", function()
+  reset()
+  local lines = table.concat(P.FormatReport(P.BuildRecord()), "\n")
+  assertTrue(lines:find("do not sum", 1, true) ~= nil, "totals must not be added naively")
+end)
+
+test("perf: FormatReport omits buckets that never fired", function()
+  reset()
+  P.Note("paintBar", 1)
+  local lines = table.concat(P.FormatReport(P.BuildRecord()), "\n")
+  assertTrue(lines:find("paintBar", 1, true) ~= nil, "fired bucket present")
+  assertEqual(lines:find("appearance", 1, true), nil, "unfired bucket absent")
+end)
+
+-- ── the brackets ────────────────────────────────────────────────────────────────────────────
+
+test("perf: brackets record nothing while capture is off", function()
+  reset()
+  mocks.__profileMs = 100
+  NS.UpdateAbsorbBar("player")
+  assertEqual(next(P.__buckets()), nil, "no bucket created when off")
+end)
+
+test("perf: paintBar records when capture is on", function()
+  reset()
+  NS.SetByPath("units.player.enabled", true)
+  P.on = true
+  NS.UpdateAbsorbBar("player")
+  P.on = false
+  assertTrue(P.__buckets().paintBar ~= nil, "bucket created")
+  assertEqual(P.__buckets().paintBar.calls, 1, "one paint")
+end)
+
+test("perf: paintBar does not count a bar that early-outed", function()
+  -- ms/call is only meaningful if the call count excludes skipped bars.
+  reset()
+  NS.SetByPath("units.player.enabled", false)
+  P.on = true
+  NS.UpdateAbsorbBar("player")
+  P.on = false
+  NS.SetByPath("units.player.enabled", true)
+  assertEqual(P.__buckets().paintBar, nil, "hidden bar is not a paint")
+end)
+
+test("perf: repaintPass records one note per coalesced pass", function()
+  reset()
+  NS.SetByPath("units.player.enabled", true)
+  P.on = true
+  NS.RequestRepaint()
+  NS.RequestRepaint()
+  NS.RequestRepaint()
+  mocks.__fireTimers()
+  P.on = false
+  assertEqual(P.__buckets().repaintPass.calls, 1, "three requests coalesce into one pass")
+end)
+
+-- ── suspend / resume ────────────────────────────────────────────────────────────────────────
+
+test("perf: suspend hides bars through the visibility ladder", function()
+  reset()
+  NS.SetByPath("units.player.enabled", true)
+  assertTrue(NS.ShouldShowBar("player"), "shown before suspend")
+  P.Suspend()
+  assertFalse(NS.ShouldShowBar("player"), "hidden while suspended")
+  resume()
+  assertTrue(NS.ShouldShowBar("player"), "shown again after resume")
+end)
+
+test("perf: suspend returns false when already suspended", function()
+  reset()
+  assertTrue(P.Suspend(), "first call suspends")
+  assertFalse(P.Suspend(), "second is a no-op")
+  resume()
+end)
+
+test("perf: resume returns false when not suspended", function()
+  reset()
+  assertFalse(P.Resume(), "nothing to resume")
+end)
+
+test("perf: suspend unregisters every unit event frame", function()
+  reset()
+  NS.SetByPath("units.player.enabled", true)
+  NS.addon:SyncUnitEventFrames()
+  local f = NS.addon.__unitEventFrames.player
+  assertTrue(f.__unitEvents["UNIT_ABSORB_AMOUNT_CHANGED"] ~= nil, "registered before")
+  P.Suspend()
+  assertEqual(f.__unitEvents["UNIT_ABSORB_AMOUNT_CHANGED"], nil, "gone while suspended")
+  resume()
+  assertTrue(f.__unitEvents["UNIT_ABSORB_AMOUNT_CHANGED"] ~= nil, "restored on resume")
+end)
+
+test("perf: suspend unregisters the lifecycle events", function()
+  reset()
+  NS.addon:RegisterLifecycleEvents()
+  P.Suspend()
+  assertEqual(NS.addon.__events["PLAYER_REGEN_DISABLED"], nil, "combat event dropped")
+  resume()
+  assertTrue(NS.addon.__events["PLAYER_REGEN_DISABLED"] ~= nil, "restored on resume")
+end)
+
+test("perf: resume restores the lifecycle set from one definition", function()
+  -- Guards against Resume growing a hand-copied event list that drifts from OnEnable's.
+  reset()
+  P.Suspend()
+  resume()
+  for _, event in ipairs({
+    "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
+  }) do
+    assertTrue(NS.addon.__events[event] ~= nil, event .. " restored")
+  end
+end)
+
+test("perf: RequestRepaint no-ops while suspended", function()
+  reset()
+  NS.SetByPath("units.player.enabled", true)
+  P.Suspend()
+  local before = #mocks.__timers
+  NS.RequestRepaint()
+  assertEqual(#mocks.__timers, before, "no timer armed while inert")
+  resume()
+end)
+
+test("perf: CancelPendingRepaint drops a queued pass", function()
+  reset()
+  NS.RequestRepaint()
+  assertTrue(NS.CancelPendingRepaint(), "there was one to cancel")
+  assertFalse(NS.CancelPendingRepaint(), "and now there is not")
+  mocks.__fireTimers()
+end)
+
+test("perf: suspend leaves no repaint queued behind it", function()
+  -- A pass armed just before suspending would otherwise land inside the suspended measurement arm
+  -- and put work into a window that is supposed to contain none.
+  reset()
+  NS.SetByPath("units.player.enabled", true)
+  NS.RequestRepaint()
+  P.Suspend()
+  assertFalse(NS.CancelPendingRepaint(), "suspend already cleared it")
+  resume()
+end)
+
+test("perf: the suspended state is session-only, never persisted", function()
+  reset()
+  P.Suspend()
+  assertEqual(NS.db.profile.suspended, nil, "not in the profile")
+  assertEqual(NS.db.global.suspended, nil, "not in AceDB global")
+  resume()
+end)
+
+-- ── frame-rate cap detection ────────────────────────────────────────────────────────────────
+--
+-- Added after a real capture reported both arms at 119.4 fps / 8.37 ms per frame — 1/120 s — because
+-- the client was capped at 120 and the addon's cost fit inside the headroom. A capped capture can
+-- only ever produce a delta near zero, which is indistinguishable from a genuine null result.
+
+test("perf: IsFrameRateCapped is false with no limiter set", function()
+  assertFalse(P.IsFrameRateCapped({ maxFPS = 0, maxFPSBk = 0, vsync = 0 }), "uncapped")
+end)
+
+test("perf: IsFrameRateCapped catches maxFPS, maxFPSBk and vsync", function()
+  assertTrue(P.IsFrameRateCapped({ maxFPS = 120, maxFPSBk = 0, vsync = 0 }), "maxFPS")
+  assertTrue(P.IsFrameRateCapped({ maxFPS = 0, maxFPSBk = 30, vsync = 0 }), "maxFPSBk")
+  assertTrue(P.IsFrameRateCapped({ maxFPS = 0, maxFPSBk = 0, vsync = 1 }), "vsync")
+end)
+
+test("perf: IsFrameRateCapped names which limiter tripped", function()
+  local _, why = P.IsFrameRateCapped({ maxFPS = 120, maxFPSBk = 0, vsync = 0 })
+  assertTrue(why:find("120", 1, true) ~= nil, "reports the value: " .. tostring(why))
+end)
+
+test("perf: IsFrameRateCapped tolerates a missing limits table", function()
+  assertFalse(P.IsFrameRateCapped(nil), "no record of limits is not a cap")
+end)
+
+test("perf: BuildRecord carries the limiter state", function()
+  reset()
+  assertEqual(type(P.BuildRecord().limits), "table", "limits recorded")
+end)
+
+test("perf: FormatReport invalidates the delta when the frame rate is capped", function()
+  reset()
+  local arms = P.__fpsArms()
+  arms.active.seconds, arms.active.frames = 10, 1200
+  arms.suspended.seconds, arms.suspended.frames = 10, 1200
+  local record = P.BuildRecord()
+  record.limits = { maxFPS = 120, maxFPSBk = 0, vsync = 0 }
+  local lines = table.concat(P.FormatReport(record), "\n")
+  assertTrue(lines:find("DELTA IS INVALID", 1, true) ~= nil, "warns: " .. lines)
+  assertTrue(lines:find("maxFPS 0", 1, true) ~= nil, "tells you how to fix it")
+  assertTrue(lines:find("bucket figures below are unaffected", 1, true) ~= nil,
+    "and says what is still trustworthy")
+end)
+
+test("perf: FormatReport leaves the delta alone when uncapped", function()
+  reset()
+  local arms = P.__fpsArms()
+  arms.active.seconds, arms.active.frames = 10, 800
+  arms.suspended.seconds, arms.suspended.frames = 10, 1000
+  local record = P.BuildRecord()
+  record.limits = { maxFPS = 0, maxFPSBk = 0, vsync = 0 }
+  local lines = table.concat(P.FormatReport(record), "\n")
+  assertEqual(lines:find("DELTA IS INVALID", 1, true), nil, "no warning when uncapped")
+  assertTrue(lines:find("+2.50 ms/frame", 1, true) ~= nil, "delta still reported")
+end)

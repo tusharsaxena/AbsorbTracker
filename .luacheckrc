@@ -13,11 +13,14 @@ read_globals = {
   "UnitClass", "UnitHealthMax", "UnitGetTotalAbsorbs", "UnitExists", "AbbreviateNumbers", "C_ClassColor",
   "InCombatLockdown", "UnitAffectingCombat", "Settings", "SettingsPanel", "C_Timer", "C_AddOns",
   "GetAddOnMetadata",
+  "debugprofilestop",    -- ms CPU clock backing the perf probe's brackets (core/Perf.lua)
+  "C_CVar", "GetCVar",   -- frame-limiter probe: a capped client invalidates the perf FPS delta
   "hooksecurefunc", "GameTooltip", "DEFAULT_CHAT_FRAME", "UISpecialFrames",
   "StaticPopup_Show", "CreateColor", "PlaySound",
   "wipe", "strsplit", "strtrim", "tinsert", "tremove", "select",
 }
 globals = {
   "AbsorbTrackerDB",     -- the SavedVariables write target
+  "AbsorbTrackerPerfDB", -- second SavedVariables global: the perf capture ring (core/Perf.lua)
   "StaticPopupDialogs",  -- the Reset-All confirm dialog registers here
 }

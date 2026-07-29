@@ -14,12 +14,29 @@ section.
 | Syntax-check one file | `luac -p <path/to/file.lua>` | no output (clean parse) |
 | In-game smoke tests | manual | see [smoke-tests.md](./smoke-tests.md) |
 
+**Not part of the gate**, and deliberately so:
+
+| Check | Command | Why it is not gated |
+|-------|---------|---------------------|
+| Offline perf | `lua tests/perf.lua` | Wall-clock numbers on a developer machine are not stable enough to fail a build on, and a perf suite that fails spuriously gets switched off within a week. It *does* hard-assert the deterministic half (repaint counts, API calls per pass, bytes per pass) and exits non-zero on a real regression, so it is CI-usable later. |
+| Complexity | `lizard -l lua core modules settings defaults locales` | Optional Python dev dependency; the Ka0s standard does not yet define a complexity rule. Report: [complexity.md](./complexity.md). |
+
+Both are documented in [performance.md](./performance.md).
+
 Toolchain: Lua 5.1 + luacheck (`sudo apt-get install -y lua5.1 luarocks && sudo luarocks install
 luacheck`).
 
 The suite list (see [common-tasks.md](./common-tasks.md#run-the-test-gate) for the full table) now
 includes `tests/test_units.lua` — `core/Units.lua`'s unit identity, mirror resolution
-(`IsEnabled`/`IsMirrored`/`SourceUnit`/`Get`/`Set`), per-unit position, and `CopyFromPlayer`.
+(`IsEnabled`/`IsMirrored`/`SourceUnit`/`Get`/`Set`), per-unit position, and `CopyFromPlayer` — and
+`tests/test_perf.lua`, covering `core/Perf.lua`'s bucket accounting, JSON encoding, capture ring,
+report formatting, and the suspend/resume state machine.
+
+**A note for anyone adding tests that touch suspend or the repaint timer.** `NS.Perf.Resume()`
+republishes `REPAINT`, which arms a coalescing timer. Left armed, `pending` in `modules/Timer.lua`
+stays set for the rest of the **process**, and every later suite's `RequestRepaint` quietly
+coalesces into a pass that never fires — surfacing as unrelated failures three suites away.
+`tests/test_perf.lua` drains it via a local `settle()` helper after every resume. Do the same.
 
 ## Current status
 

@@ -74,6 +74,11 @@ return function()
   M.date = os.date
   M.GetTime = function() return M.__now end
   M.format = string.format
+  -- Millisecond CPU clock backing the perf brackets (core/Perf.lua). Driven off a settable
+  -- counter rather than a real clock so a test can assert on EXACT bucket totals — a wall-clock
+  -- reading would make every timing assertion flaky. Tests advance it via M.__profileMs.
+  M.__profileMs = 0
+  M.debugprofilestop = function() return M.__profileMs end
   M.wipe = function(t) if type(t) == "table" then for k in pairs(t) do t[k] = nil end end return t end
 
   -- Scheduled one-shot timers, recorded so tests can inspect coalescing and fire them on demand.

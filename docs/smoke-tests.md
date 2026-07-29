@@ -7,7 +7,7 @@ also ships a headless gate (`lua tests/run.lua` → all suites green, `luacheck 
 that covers the pure logic; this suite covers everything that only runs against the live client.
 
 ### A. Load & bootstrap
-1. **Fresh login.** Delete `WTF/.../SavedVariables/AbsorbTrackerDB.lua`, log in → world reached, **zero Lua errors**.
+1. **Fresh login.** Delete `WTF/.../SavedVariables/AbsorbTracker.lua`, log in → world reached, **zero Lua errors**.
 2. **Bar appears.** The **player** absorb bar is visible at screen center; shows the value / `0`. **Target and focus bars do not appear** — they ship disabled. **Default look is Blizzard-stock media** — `Blizzard Raid Bar` fill + background, `Blizzard Tooltip` border, `Friz Quadrata TT` text; no custom media ships in the defaults.
 3. **/reload clean.** `/reload` → no errors; bar reappears in the same spot.
 4. **Value tracks reality.** Gain an absorb (e.g. Power Word: Shield) → fill + text update to the abbreviated amount; consume it → drops toward `0`.
@@ -17,7 +17,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 ### B. Slash surface
 6. `/at` alone → help block (version line + command list).
 7. `/absorbtracker` → identical help block.
-8. `/at help` → gold command + em-dash + white desc for all 16 verbs: help, config, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, update, version, test, profile. `toggle` reads *"Toggle bars on or off — `/at toggle [player|target|focus]`"*.
+8. `/at help` → gold command + em-dash + white desc for all 16 verbs: help, config, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, update, version, test, profile. `toggle` reads *"Toggle bars on or off — `/at toggle [player|target|focus]`"*, and `debug` reads *"Toggle the debug console — `on`/`off` logging, `perf` measurement"*. The verb count is still 16: `perf` is a **sub-verb of `debug`**, not a new top-level command.
 9. `/at wibble` → `unknown command 'wibble'` then help.
 10. `/at options` → opens the panel (back-compat alias for `config`).
 
@@ -78,7 +78,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### I. SavedVariables migration — no-op on existing profile
 50. Customize a profile (e.g. `barWidth=260`, custom texture), `/reload` → all customized values **survive** (backfill only fills missing keys).
-51. Logout to flush, inspect `AbsorbTrackerDB.lua` → `global.schemaVersion = 4` (the shipped v3 migration, which also lifted your old flat `barWidth`/etc. onto `profile.units.player`); `/reload` again → stays `4`, values unchanged. **No `hidden` key survives anywhere in the file** — the v4 step sweeps it from every profile, not just the active one, so check an inactive profile block too.
+51. Logout to flush, inspect `AbsorbTracker.lua` → `global.schemaVersion = 4` (the shipped v3 migration, which also lifted your old flat `barWidth`/etc. onto `profile.units.player`); `/reload` again → stays `4`, values unchanged. **No `hidden` key survives anywhere in the file** — the v4 step sweeps it from every profile, not just the active one, so check an inactive profile block too.
 52. *(Optional)* Hand-delete one profile key from the SV file, log in → that key restored to default, others untouched, no error.
 
 ### J. Class-color overrides
@@ -97,7 +97,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 63. **`/at reset bar` resets all three units.** With player, target, and focus all customized (different widths/colors), run `/at reset bar` → **all three** units' Bar-page rows (width, height, textures, colors, class-color toggles) revert to default in one call, not just the currently-selected unit in the panel's Unit dropdown. `/at resetposition` similarly snaps **all three** bars back to their stacked default positions, not just the visible one. Note the enable toggles are **not** in scope: they live on General now, so an enabled target bar stays enabled across `/at reset bar`, and `/at reset general` is what restores them (Player on, Target and Focus off).
 64. **Reset Position resets every bar.** With at least the target bar enabled and visible, `/at unlock`, drag the player bar and the target bar to distinct off-centre spots, then General page → **Reset Position** → **both** bars snap back to their stacked default positions (not just the player's, and not neither). Repeat with `/at resetposition` → identical result. `/reload` → the reset positions persist.
 65. **The CLI says when a unit is mirrored.** With focus mirrored (default), run `/at get units.focus.barWidth` → the line reads `units.focus.barWidth = 200 px` followed by a subordinate grey `(mirrored — the bar shows Player's appearance)`. `/at set units.focus.barWidth 400` → the echo carries the same note and the focus bar does **not** change width. Untick **Use same styling as Player** for Focus → `/at get units.focus.barWidth` now reads `400 px` with **no** note, and the bar is 400 px wide. `/at get units.focus.enabled` never carries the note (it is honoured per-unit even while mirrored).
-66. **A second profile keeps its own layout across the upgrade.** (Upgrade check — only meaningful from a pre-v3 SavedVariables file.) With two profiles both saved before this version, log in on one, then `/at profile use <the other>` → the second profile's saved bar width / colors / position are intact, not factory defaults. Logout and inspect `AbsorbTrackerDB.lua`: **every** entry under `profiles` carries `schemaVersion = 3`, and none still has a flat `barWidth` / `position` at its root.
+66. **A second profile keeps its own layout across the upgrade.** (Upgrade check — only meaningful from a pre-v3 SavedVariables file.) With two profiles both saved before this version, log in on one, then `/at profile use <the other>` → the second profile's saved bar width / colors / position are intact, not factory defaults. Logout and inspect `AbsorbTracker.lua`: **every** entry under `profiles` carries `schemaVersion = 3`, and none still has a flat `barWidth` / `position` at its root.
 
 67. **Every enabled bar tracks its own unit's absorb (regression).** Enable target and focus, set focus to yourself and target yourself, then gain and consume an absorb → **all three bars fill and empty together**, each showing the same abbreviated number. Then target another player (or a training dummy) with a shield on them → the target bar reads *their* absorb, not yours. Pre-fix the coalesced repaint painted the player only, so the target and focus StatusBars never had a value written at all and sat permanently full with no text (`modules/Timer.lua` called `NS.UpdateAbsorbBar()` bare, defaulting the unit to `"player"`).
 68. **Unit labels appear only while unlocked.** `/at unlock` → a small label sits just above each visible bar reading **Player** / **Target** / **Focus**, in that bar's own font face at a fixed small size. `/at lock` → every label disappears. Enable target/focus and confirm each label names the bar it sits on. Change a bar's Font Face on the Font page while unlocked → its label follows the new face; change its Font Size → the label does **not** grow (fixed 10pt by design). The label is a drag affordance with no schema row, so it appears on no settings page and in no `/at list` output.
@@ -105,7 +105,21 @@ that covers the pure logic; this suite covers everything that only runs against 
 69. **A disabled bar receives no events (performance).** `/at debug on`, then untick **Enable Target Bar** and **Enable Focus Bar**. Target something with a shield on it and let it take damage → the debug console shows **no** `[Bar] target:` transition lines and no repaint activity attributable to the target. Tick **Enable Target Bar** back on → target-driven activity resumes immediately, with no `/reload` needed. (What this pins: `addon:SyncUnitEventFrames` unregisters a disabled unit's `UNIT_ABSORB_AMOUNT_CHANGED` / `UNIT_MAXHEALTH` entirely, and drops the `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` watch with it. The registration set follows the enable flags through the `UNITS` bus message, so switching profiles re-syncs it too — check that by switching to a profile with different enable flags.)
 70. **The enable flags survive a profile switch and re-sync the events.** On a profile with Target enabled, `/at profile new SmokeUnits` → the fresh profile has Target off (factory default) and the target bar disappears; `/at profile use Default` → Target comes back on and its bar tracks again without a `/reload`.
 
-**Pass criteria:** all 70 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
+### L. Performance probe (`/at debug perf`, issue #17)
+
+71. **Bare status + usage.** `/at debug perf` → one status line (`perf capture stopped, addon active`) followed by the usage block listing `on`, `off`, `report`, `dump`, `suspend`, `resume`. `/at debug perf wibble` → the same block (unknown subs fall back to usage, never a silent no-op).
+72. **Capture runs with logging OFF.** With `/at debug off` (logging disabled), run `/at debug perf on` → the debug console **opens** and chat acknowledges `perf capture STARTED`. Then `/at debug perf report` → the report lines appear **in the console** even though logging is off. (What this pins: perf writes through `D:Add`, which is ungated — otherwise running a capture with logging off would look like it did nothing.)
+73. **The FPS sampler collects an active arm.** `/at debug perf on`, wait ~15s, `/at debug perf report` → the `active:` row shows a non-zero seconds/frames count and a plausible fps figure; `suspended:` reads `(not sampled)` and the delta line says it needs both arms.
+74. **Suspend makes the addon inert.** Mid-capture, `/at debug perf suspend` → chat shows `addon SUSPENDED`, **all three bars disappear**, and gaining/losing an absorb produces no bar activity. Target something → **no** target bar appears. Enter and leave combat → still nothing appears. (What this pins: the suspend check is step 0 of `ShouldShowBar`, so no later VISIBILITY publish can re-show a bar mid-measurement.)
+75. **Resume restores everything without a `/reload`.** `/at debug perf resume` → `addon RESUMED`, the enabled bars come back, absorb changes repaint them again, and target/focus swaps work. `/at debug perf suspend` twice → second reports `already suspended`; `resume` twice → second reports `not suspended`.
+76. **Both arms produce a delta.** `/at debug perf on` → 60s of combat → `/at debug perf suspend` → 60s of identical combat → `/at debug perf report` → **both** `active:` and `suspended:` rows carry numbers and the `delta:` row shows a signed ms/frame figure. Run this with **every other addon disabled** and an uncapped frame rate (`/console maxFPS 0`, VSync off) or the delta is meaningless — see [performance.md](performance.md).
+77. **`off` saves and un-suspends.** While suspended and capturing, `/at debug perf off` → the summary prints, chat says `STOPPED` **and** `perf suspend lifted — bars restored`, and the bars are back. (A capture must never leave the addon switched off for the rest of the session.)
+78. **The capture persists to its own global.** After step 77, `/reload`, then inspect `WTF/Account/<ACCOUNT>/SavedVariables/AbsorbTracker.lua` → a top-level `AbsorbTrackerPerfDB` table with `schema = 1` and a `runs` list holding the capture. **`AbsorbTrackerDB` is unchanged** — no perf data inside the profile tree. Run more than 10 captures → `runs` holds only the newest 10.
+79. **`dump` yields parseable JSON.** `/at debug perf dump` → the copy window opens with a single JSON line starting `{"buckets":...`, carrying `"schema":1` and `"source":"ingame"`. Ctrl+C, Esc → it pastes into a text editor as valid JSON.
+80. **Zero cost when idle.** With perf **off**, sit out of combat with a shield up and watch the debug console → no perf lines, no repaint activity. (The brackets are gated on `Perf.on`; nothing should accrue.)
+
+
+**Pass criteria:** all 80 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
 and no combat-taint warning when the panel opens out of combat (step 13). On any failure, record the step number, observed vs.
 expected, and any error text.
 
@@ -115,6 +129,7 @@ expected, and any error text.
 - Combat gate — `settings/Panel.lua` (`OpenOptionsPanel`)
 - Bar paint / secret value / test-hold — `modules/Display.lua`
 - Repaint throttle / coalescing — `modules/Timer.lua`
+- Perf probe / suspend / capture ring — `core/Perf.lua`; protocol in `docs/performance.md`
 - DB init + idempotent migration — `core/Database.lua`
 - Debug console — `core/DebugLog.lua`
 - LSM border alignment fix — `core/LSMPatch.lua`

@@ -154,6 +154,55 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
+### test_perf.lua (46)
+
+- perf: Note accumulates calls, total and max
+- perf: Note tracks unrelated buckets independently
+- perf: Reset clears every bucket and both fps arms
+- perf: EncodeJSON emits object keys in sorted order
+- perf: EncodeJSON renders integral numbers without a decimal point
+- perf: EncodeJSON renders fractional numbers to four places
+- perf: EncodeJSON escapes quotes, backslashes and control characters
+- perf: EncodeJSON emits arrays for sequence tables
+- perf: EncodeJSON emits an empty table as an object
+- perf: EncodeJSON coerces non-finite numbers rather than emitting invalid JSON
+- perf: EncodeJSON round-trips a full record without error
+- perf: BuildRecord carries schema, source and label
+- perf: BuildRecord derives avgFps and msPerFrame from the arms
+- perf: BuildRecord reports zero delta when only one arm was sampled
+- perf: BuildRecord computes the delta when both arms were sampled
+- perf: BuildRecord snapshots buckets rather than aliasing them
+- perf: Save creates the perf global and appends the run
+- perf: Save stamps the schema on the store
+- perf: Save trims the ring to RING_MAX, dropping the oldest
+- perf: Save is outside the AceDB tree
+- perf: FormatReport marks an unsampled arm rather than printing zeros
+- perf: FormatReport prints both arms and the delta when both ran
+- perf: FormatReport derives ms/s from the active seconds only
+- perf: FormatReport warns that buckets nest
+- perf: FormatReport omits buckets that never fired
+- perf: brackets record nothing while capture is off
+- perf: paintBar records when capture is on
+- perf: paintBar does not count a bar that early-outed
+- perf: repaintPass records one note per coalesced pass
+- perf: suspend hides bars through the visibility ladder
+- perf: suspend returns false when already suspended
+- perf: resume returns false when not suspended
+- perf: suspend unregisters every unit event frame
+- perf: suspend unregisters the lifecycle events
+- perf: resume restores the lifecycle set from one definition
+- perf: RequestRepaint no-ops while suspended
+- perf: CancelPendingRepaint drops a queued pass
+- perf: suspend leaves no repaint queued behind it
+- perf: the suspended state is session-only, never persisted
+- perf: IsFrameRateCapped is false with no limiter set
+- perf: IsFrameRateCapped catches maxFPS, maxFPSBk and vsync
+- perf: IsFrameRateCapped names which limiter tripped
+- perf: IsFrameRateCapped tolerates a missing limits table
+- perf: BuildRecord carries the limiter state
+- perf: FormatReport invalidates the delta when the frame rate is capped
+- perf: FormatReport leaves the delta alone when uncapped
+
 ### test_visibility.lua (17)
 
 - ShouldShowBar: a disabled unit wins even in combat
@@ -298,7 +347,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
 
-### test_slashcmds.lua (60)
+### test_slashcmds.lua (78)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -360,6 +409,24 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at set echoes the mirrored note alongside the value it just stored
 - /at list annotates only the mirrored units' appearance rows
 - the mirrored note keeps the Ka0s colour scheme intact and stays subordinate
+- /at debug perf (bare) reports status and prints usage
+- /at debug perf on starts a capture
+- /at debug perf on resets the counters from the previous capture
+- /at debug perf off refuses when no capture is running
+- /at debug perf off saves the record to the perf ring
+- /at debug perf off lifts a suspend left over from the capture
+- /at debug perf suspend and resume flip the probe's inert state
+- /at debug perf suspend twice reports the no-op rather than pretending
+- /at debug perf resume without a suspend reports the no-op
+- /at debug perf report prints without stopping the capture
+- /at debug perf routes output to the debug console, not chat
+- /at debug perf dump emits parseable JSON carrying the schema stamp
+- /at debug perf with an unknown sub falls back to the usage block
+- /at debug on|off still toggles logging with perf present
+- the debug help row advertises the perf sub-verb
+- /at debug perf on accepts an optional label, appended to the timestamp
+- /at debug perf on without a label still stamps the capture
+- /at debug perf on label reaches the saved record
 
 ### test_widgets.lua (48)
 
@@ -424,11 +491,12 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
 | test_timer.lua | 11 |
+| test_perf.lua | 46 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
 | test_display.lua | 39 |
 | test_helpers.lua | 40 |
-| test_slashcmds.lua | 60 |
+| test_slashcmds.lua | 78 |
 | test_widgets.lua | 48 |
-| **Total** | **365** |
+| **Total** | **429** |
