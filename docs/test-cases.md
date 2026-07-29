@@ -154,7 +154,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (53)
+### test_perf.lua (44)
 
 - perf: Note accumulates calls, total and max
 - perf: Note tracks unrelated buckets independently
@@ -195,20 +195,11 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - perf: CancelPendingRepaint drops a queued pass
 - perf: suspend leaves no repaint queued behind it
 - perf: the suspended state is session-only, never persisted
-- perf: IsFrameRateCapped is false with no limiter set
-- perf: IsFrameRateCapped flags a cap the capture actually ran at
-- perf: a configured cap the capture never reached is NOT a cap
-- perf: vsync is flagged on configuration alone
-- perf: maxFPSBk is never warned on
-- perf: IsFrameRateCapped stays quiet when nothing was sampled
-- perf: IsFrameRateCapped names the cap and the observed rate
-- perf: IsFrameRateCapped tolerates a missing limits table
-- perf: BuildRecord carries the limiter state
-- perf: FormatReport invalidates the delta when the frame rate is capped
-- perf: FormatReport leaves the delta alone when uncapped
-- perf: FormatReport always prints the limiter CVars
-- perf: FormatReport says so when the limiters were never recorded
-- perf: BuildRecord records targetFPS alongside the hard caps
+- perf: starting a capture logs it
+- perf: stopping a capture logs both arm durations
+- perf: suspend and resume are logged
+- perf: a no-op suspend or resume logs nothing
+- perf: lifecycle lines cost nothing when debug logging is off
 
 ### test_visibility.lua (17)
 
@@ -498,7 +489,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
 | test_timer.lua | 11 |
-| test_perf.lua | 53 |
+| test_perf.lua | 44 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
@@ -506,4 +497,4 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_helpers.lua | 40 |
 | test_slashcmds.lua | 78 |
 | test_widgets.lua | 48 |
-| **Total** | **436** |
+| **Total** | **427** |

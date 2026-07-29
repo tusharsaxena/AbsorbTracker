@@ -164,84 +164,6 @@ local function arm(a)
     }
 end
 
--- Frame-rate limiter state at capture time.
---
--- This exists because of a real capture that silently measured nothing: both arms came back at
--- 119.4 fps / 8.37 ms per frame — 1/120 s to three decimals — because the client was capped at 120
--- and the addon's cost fit entirely inside the headroom. A capped capture can only ever report a
--- delta near zero, which is indistinguishable from a genuine null result. Record the limiter state
--- so FormatReport can say so instead of letting the number be believed.
---
--- CVar names are probed rather than asserted: the vsync CVar has been renamed across expansions, so
--- ask for several and keep whichever the client actually answers to.
-local FPS_CVARS = { maxFPS = "maxFPS", maxFPSBk = "maxFPSBk", targetFPS = "targetFPS" }
-local VSYNC_CVARS = { "vsync", "gxVSync", "VerticalSync" }
-
-local function getCVar(name)
-    if C_CVar and C_CVar.GetCVar then return C_CVar.GetCVar(name) end
-    if GetCVar then return GetCVar(name) end
-    return nil
-end
-
-local function readLimits()
-    local out = {}
-    for key, cvar in pairs(FPS_CVARS) do
-        out[key] = tonumber(getCVar(cvar)) or 0
-    end
-    for _, cvar in ipairs(VSYNC_CVARS) do
-        local v = getCVar(cvar)
-        if v ~= nil then
-            out.vsync = (v == "1" or v == 1) and 1 or 0
-            break
-        end
-    end
-    out.vsync = out.vsync or 0
-    return out
-end
-
---- Did a frame-rate limit actually BIND during this capture, invalidating the FPS delta?
---- Returns false, or true plus a human reason.
----
---- Deliberately evidence-based rather than config-based. WoW keeps `maxFPS` at its last slider
---- value even when the limiter checkbox is off, so "the CVar is non-zero" is not the same as "the
---- frame rate was capped" — treating them as equivalent produced a false alarm on a client whose
---- limiters were all disabled. What actually invalidates the delta is the frame rate being PINNED
---- at a ceiling, because then the addon's cost disappears into headroom instead of into frame time.
---- So the test is: a cap is configured AND the capture ran at it.
----
---- `maxFPSBk` is recorded but never warned on: it only applies while the window is unfocused, which
---- is not a state anyone captures in.
-local CAP_TOLERANCE = 0.97   -- within 3% of the configured cap counts as running at it
-
-function P.IsFrameRateCapped(limits, fps)
-    if not limits then return false end
-
-    -- Vsync pins the frame rate to the display's refresh whenever the client can keep up, and we
-    -- cannot see the refresh rate from here to test whether it bound. Flag it on configuration.
-    if (limits.vsync or 0) ~= 0 then
-        return true, "vsync is on"
-    end
-
-    local cap = limits.maxFPS or 0
-    if cap <= 0 then return false end
-
-    local observed = 0
-    if fps then
-        local a = (fps.active and fps.active.avgFps) or 0
-        local s = (fps.suspended and fps.suspended.avgFps) or 0
-        observed = a > s and a or s
-    end
-    -- Nothing sampled yet (e.g. a bare `report` before any frames): no evidence either way, so say
-    -- nothing rather than cry wolf on a merely-configured value.
-    if observed <= 0 then return false end
-
-    if observed >= cap * CAP_TOLERANCE then
-        return true, ("maxFPS is %d and the capture averaged %.1f fps \226\128\148 pinned at the cap")
-            :format(cap, observed)
-    end
-    return false
-end
-
 local function interfaceVersion()
     -- Compat wraps the metadata accessor; the TOC value is a string, and the record wants a number.
     local raw = NS.Compat and NS.Compat.GetAddOnMetadata
@@ -275,7 +197,6 @@ function P.BuildRecord(label)
         label     = label or "",
         buckets   = out,
         fps       = { active = active, suspended = suspended, deltaMsPerFrame = delta },
-        limits    = P.limits or readLimits(),
     }
 end
 
@@ -304,20 +225,6 @@ end
 
 -- ── Reporting ──────────────────────────────────────────────────────────────────────────────
 
---- One line describing the frame-limiter CVars as they were at capture start.
----
---- Printed on EVERY report, not only when a cap is detected, so a capture is self-documenting:
---- reading a saved run months later, the conditions travel with the numbers instead of having to be
---- remembered. It also makes the disagreement visible when the graphics UI and the CVars disagree —
---- a checkbox can read "off" while the CVar still holds a limiting value, and the engine obeys the
---- CVar.
-local function limitsLine(limits)
-    if not limits then return "limits:    (not recorded)" end
-    return ("limits:    maxFPS=%s  maxFPSBk=%s  targetFPS=%s  vsync=%s")
-        :format(limits.maxFPS or "?", limits.maxFPSBk or "?",
-            limits.targetFPS or "?", limits.vsync or "?")
-end
-
 --- Render a record as a list of plain strings. Returns a table (not a printed side effect) so the
 --- headless suite can assert on the exact lines without frames or a chat sink.
 function P.FormatReport(record)
@@ -329,7 +236,6 @@ function P.FormatReport(record)
     local f = record.fps
     add("capture: %s  (schema %d, v%s)", record.label ~= "" and record.label or "unlabelled",
         record.schema, record.version)
-    add(limitsLine(record.limits))
 
     -- FPS arms first: this is the headline the whole harness exists to produce.
     for _, name in ipairs({ "active", "suspended" }) do
@@ -341,17 +247,8 @@ function P.FormatReport(record)
             add("%-10s (not sampled)", name .. ":")
         end
     end
-    local capped, why = P.IsFrameRateCapped(record.limits, f)
     if f.active.frames > 0 and f.suspended.frames > 0 then
         add("%-10s %45s%+6.2f ms/frame", "delta:", "", f.deltaMsPerFrame)
-        -- A capped client absorbs the addon's cost in headroom, so the delta reads ~0 whether or
-        -- not the addon is free. Say so loudly rather than let a meaningless zero be believed.
-        if capped then
-            add("!! DELTA IS INVALID \226\128\148 %s.", why)
-            add("!! Run `/console maxFPS 0` (unticking the slider does NOT zero the CVar);")
-            add("!! verify with `/dump GetCVar(\"maxFPS\")`, then capture again.")
-            add("!! The bucket figures below are unaffected \226\128\148 they time our code directly.")
-        end
     else
         add("delta:     (needs both arms \226\128\148 run `/at debug perf suspend` mid-capture)")
     end
@@ -400,7 +297,11 @@ function P.Start(label)
     -- Snapshot the limiter state at capture START, not at report time: changing maxFPS mid-capture
     -- is exactly the kind of thing that would make a report describe conditions that no longer
     -- match the frames it counted.
-    P.limits = readLimits()
+    -- Lifecycle lines go through NS.Debug (gated on the debug flag, §12.4) so a capture's phase
+    -- boundaries land in the console timeline alongside [Combat] entered/left. Matching a suspend
+    -- against the combat it happened in is exactly how the first capture's unequal-combat confound
+    -- was spotted, and reconstructing that from memory afterwards is guesswork.
+    NS.Debug("Perf", "capture started \226\128\148 %s", P.label or "unlabelled")
     local s = ensureSampler()
     if s then
         s:SetScript("OnUpdate", onUpdate)
@@ -413,6 +314,9 @@ end
 --- away entirely rather than idling.
 function P.Stop()
     P.on = false
+    local a = fpsArms.active
+    NS.Debug("Perf", "capture stopped \226\128\148 %s active, %s suspended",
+        ("%.1fs"):format(a.seconds), ("%.1fs"):format(fpsArms.suspended.seconds))
     if sampler then
         sampler:SetScript("OnUpdate", nil)
         sampler:Hide()
@@ -430,6 +334,7 @@ end
 function P.Suspend()
     if P.suspended then return false end
     P.suspended = true
+    NS.Debug("Perf", "suspended \226\128\148 addon inert, bars hidden, events unregistered")
 
     local addon = NS.addon
     if addon then
@@ -457,6 +362,7 @@ end
 function P.Resume()
     if not P.suspended then return false end
     P.suspended = false
+    NS.Debug("Perf", "resumed \226\128\148 events restored")
 
     local addon = NS.addon
     if addon then

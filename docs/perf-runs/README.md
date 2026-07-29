@@ -76,6 +76,10 @@ as "none" regardless of which bracket it wears.
   collect either side. Allocation in a path that runs at combat frequency matters more than its
   wall time.
 - **`interface`** is `0` for offline runs — there is no client involved.
+- **Frame limiters are not recorded.** They were, briefly, and it was removed: `maxFPS` retains its
+  last slider value whether or not the limiter is enabled, so the reading proved nothing (a client
+  reporting `maxFPS=120` measured 200 fps). Judge a capped run from the arms — two arms at the same
+  frame time, or at a round one like 8.33 ms, means the client was pinned and the delta is unusable.
 
 ## Reading captures off disk
 

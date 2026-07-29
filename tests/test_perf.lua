@@ -368,114 +368,76 @@ test("perf: the suspended state is session-only, never persisted", function()
   resume()
 end)
 
--- ── frame-rate cap detection ────────────────────────────────────────────────────────────────
+
+-- ── lifecycle logging ───────────────────────────────────────────────────────────────────────
 --
--- Added after a real capture reported both arms at 119.4 fps / 8.37 ms per frame — 1/120 s — because
--- the client was capped at 120 and the addon's cost fit inside the headroom. A capped capture can
--- only ever produce a delta near zero, which is indistinguishable from a genuine null result.
+-- The capture's phase boundaries belong in the console timeline next to [Combat] entered/left.
+-- Matching a suspend against the combat it happened in is exactly how the first capture's
+-- unequal-combat confound was spotted; reconstructing it from memory afterwards is guesswork.
 
-local function atFps(n) return { active = { avgFps = n }, suspended = { avgFps = n } } end
+local function captureDebugLines(fn)
+  local before = #NS.DebugLog.buffer
+  local wasOn = NS.State.debug
+  NS.State.debug = true
+  local ok, err = pcall(fn)
+  NS.State.debug = wasOn
+  if not ok then error(err) end
+  local out = {}
+  for i = before + 1, #NS.DebugLog.buffer do out[#out + 1] = NS.DebugLog.buffer[i] end
+  return table.concat(out, "\n")
+end
 
-test("perf: IsFrameRateCapped is false with no limiter set", function()
-  assertFalse(P.IsFrameRateCapped({ maxFPS = 0, maxFPSBk = 0, vsync = 0 }, atFps(120)), "uncapped")
-end)
-
-test("perf: IsFrameRateCapped flags a cap the capture actually ran at", function()
-  assertTrue(P.IsFrameRateCapped({ maxFPS = 120, maxFPSBk = 0, vsync = 0 }, atFps(119.4)),
-    "119.4 fps against a 120 cap is pinned")
-end)
-
-test("perf: a configured cap the capture never reached is NOT a cap", function()
-  -- WoW keeps maxFPS at its last slider value even when the limiter checkbox is off, so a non-zero
-  -- CVar is not evidence of anything. Warning on config alone produced a false alarm on a client
-  -- whose limiters were all disabled.
-  assertFalse(P.IsFrameRateCapped({ maxFPS = 120, maxFPSBk = 0, vsync = 0 }, atFps(74)),
-    "74 fps against a 120 cap is not pinned")
-end)
-
-test("perf: vsync is flagged on configuration alone", function()
-  -- We cannot see the display refresh rate from here to test whether it bound.
-  assertTrue(P.IsFrameRateCapped({ maxFPS = 0, maxFPSBk = 0, vsync = 1 }, atFps(60)), "vsync")
-end)
-
-test("perf: maxFPSBk is never warned on", function()
-  -- It only applies while the window is unfocused, which is not a state anyone captures in.
-  assertFalse(P.IsFrameRateCapped({ maxFPS = 0, maxFPSBk = 30, vsync = 0 }, atFps(120)), "background")
-end)
-
-test("perf: IsFrameRateCapped stays quiet when nothing was sampled", function()
-  assertFalse(P.IsFrameRateCapped({ maxFPS = 120, maxFPSBk = 0, vsync = 0 }, atFps(0)),
-    "no frames means no evidence either way")
-end)
-
-test("perf: IsFrameRateCapped names the cap and the observed rate", function()
-  local _, why = P.IsFrameRateCapped({ maxFPS = 120, maxFPSBk = 0, vsync = 0 }, atFps(119.4))
-  assertTrue(why:find("120", 1, true) ~= nil, "reports the cap: " .. tostring(why))
-  assertTrue(why:find("119.4", 1, true) ~= nil, "and what was measured: " .. tostring(why))
-end)
-
-test("perf: IsFrameRateCapped tolerates a missing limits table", function()
-  assertFalse(P.IsFrameRateCapped(nil, atFps(120)), "no record of limits is not a cap")
-end)
-
-test("perf: BuildRecord carries the limiter state", function()
+test("perf: starting a capture logs it", function()
   reset()
-  assertEqual(type(P.BuildRecord().limits), "table", "limits recorded")
+  local lines = captureDebugLines(function() P.Start("solo") end)
+  P.on = false
+  assertTrue(lines:find("[Perf]", 1, true) ~= nil, "tagged [Perf]: " .. lines)
+  assertTrue(lines:find("capture started", 1, true) ~= nil, "says what happened")
+  assertTrue(lines:find("solo", 1, true) ~= nil, "and which capture: " .. lines)
 end)
 
-test("perf: FormatReport invalidates the delta when the frame rate is capped", function()
+test("perf: stopping a capture logs both arm durations", function()
   reset()
   local arms = P.__fpsArms()
-  arms.active.seconds, arms.active.frames = 10, 1194      -- 119.4 fps, i.e. on a 120 cap
-  arms.suspended.seconds, arms.suspended.frames = 10, 1194
-  local record = P.BuildRecord()
-  record.limits = { maxFPS = 120, maxFPSBk = 0, vsync = 0 }
-  local lines = table.concat(P.FormatReport(record), "\n")
-  assertTrue(lines:find("DELTA IS INVALID", 1, true) ~= nil, "warns: " .. lines)
-  assertTrue(lines:find("maxFPS 0", 1, true) ~= nil, "tells you how to fix it")
-  assertTrue(lines:find("does NOT zero the CVar", 1, true) ~= nil,
-    "and that unticking the slider is not enough")
-  assertTrue(lines:find("bucket figures below are unaffected", 1, true) ~= nil,
-    "and says what is still trustworthy")
+  arms.active.seconds, arms.active.frames = 60, 7000
+  arms.suspended.seconds, arms.suspended.frames = 30, 3500
+  local lines = captureDebugLines(function() P.Stop() end)
+  assertTrue(lines:find("capture stopped", 1, true) ~= nil, "logged: " .. lines)
+  assertTrue(lines:find("60.0s", 1, true) ~= nil, "active arm duration")
+  assertTrue(lines:find("30.0s", 1, true) ~= nil, "suspended arm duration")
 end)
 
-test("perf: FormatReport leaves the delta alone when uncapped", function()
+test("perf: suspend and resume are logged", function()
   reset()
-  local arms = P.__fpsArms()
-  arms.active.seconds, arms.active.frames = 10, 800
-  arms.suspended.seconds, arms.suspended.frames = 10, 1000
-  local record = P.BuildRecord()
-  record.limits = { maxFPS = 120, maxFPSBk = 0, vsync = 0 }   -- configured but nowhere near binding
-  local lines = table.concat(P.FormatReport(record), "\n")
-  assertEqual(lines:find("DELTA IS INVALID", 1, true), nil, "no warning when uncapped")
-  assertTrue(lines:find("+2.50 ms/frame", 1, true) ~= nil, "delta still reported")
+  local lines = captureDebugLines(function() P.Suspend() end)
+  assertTrue(lines:find("suspended", 1, true) ~= nil, "suspend logged: " .. lines)
+  lines = captureDebugLines(function() P.Resume() end)
+  settle()
+  assertTrue(lines:find("resumed", 1, true) ~= nil, "resume logged: " .. lines)
 end)
 
-test("perf: FormatReport always prints the limiter CVars", function()
-  -- Every report, not just capped ones: a saved run should carry the conditions it was taken under,
-  -- so a capture read months later does not depend on anyone remembering them.
+test("perf: a no-op suspend or resume logs nothing", function()
+  -- The line marks a real state transition; logging a rejected call would put phantom boundaries
+  -- in the timeline that never happened.
   reset()
-  local record = P.BuildRecord()
-  record.limits = { maxFPS = 0, maxFPSBk = 30, targetFPS = 60, vsync = 0 }
-  local lines = table.concat(P.FormatReport(record), "\n")
-  assertTrue(lines:find("limits:", 1, true) ~= nil, "limits line present: " .. lines)
-  assertTrue(lines:find("maxFPS=0", 1, true) ~= nil, "maxFPS shown")
-  assertTrue(lines:find("targetFPS=60", 1, true) ~= nil, "targetFPS shown")
-  assertTrue(lines:find("vsync=0", 1, true) ~= nil, "vsync shown")
-  assertEqual(lines:find("DELTA IS INVALID", 1, true), nil, "and no warning when nothing binds")
+  P.Suspend()
+  local lines = captureDebugLines(function() P.Suspend() end)
+  assertEqual(lines, "", "second suspend is silent")
+  lines = captureDebugLines(function() P.Resume() end)
+  settle()
+  assertTrue(lines ~= "", "the real resume still logs")
+  lines = captureDebugLines(function() P.Resume() end)
+  assertEqual(lines, "", "second resume is silent")
 end)
 
-test("perf: FormatReport says so when the limiters were never recorded", function()
+test("perf: lifecycle lines cost nothing when debug logging is off", function()
   reset()
-  local record = P.BuildRecord()
-  record.limits = nil
-  local lines = table.concat(P.FormatReport(record), "\n")
-  assertTrue(lines:find("(not recorded)", 1, true) ~= nil, "explicit rather than blank")
-end)
-
-test("perf: BuildRecord records targetFPS alongside the hard caps", function()
-  reset()
-  local limits = P.BuildRecord().limits
-  assertTrue(limits.targetFPS ~= nil, "targetFPS captured")
-  assertTrue(limits.maxFPS ~= nil, "maxFPS captured")
+  local before = #NS.DebugLog.buffer
+  NS.State.debug = false
+  P.Start("quiet")
+  P.Suspend()
+  P.Resume()
+  settle()
+  P.Stop()
+  assertEqual(#NS.DebugLog.buffer, before, "NS.Debug is gated, so nothing was written")
 end)

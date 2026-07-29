@@ -98,12 +98,16 @@ Run this when you want a defensible number rather than an impression.
    and attribution is not arguable.
 2. Pick a **repeatable fight**: a training dummy, same spec, same rotation, same camera angle. Do
    not compare a dummy to a raid.
-3. **Uncap the frame rate**: `/console maxFPS 0`, `/console maxFPSBk 0`, and VSync off. This is not
-   optional. A capped client absorbs the addon's cost in headroom, so both arms sit on the ceiling
-   and the delta reads ~0 whether or not the addon is free — indistinguishable from a genuine null
-   result. This has already wasted one real capture (both arms returned 8.37 ms/frame, i.e. exactly
-   1/120 s). The probe now records the limiter CVars at capture start and prints a
-   `DELTA IS INVALID` banner if any is set, but it is far better not to trip it.
+3. **Uncap the frame rate.** Untick **Max Foreground FPS** in the graphics options, and turn VSync
+   off. This is not optional: a capped client absorbs the addon's cost in headroom, so both arms sit
+   on the ceiling and the delta reads ~0 whether or not the addon is free — indistinguishable from a
+   genuine null result. It has already wasted one capture (both arms returned 8.37 ms/frame, i.e.
+   exactly 1/120 s).
+
+   **Verify by measurement, not by CVar.** `GetCVar("maxFPS")` keeps the slider's last value even
+   when the limiter is off, so it is not evidence either way — a client reading `maxFPS=120` was
+   measured at 200 fps. The only reliable check is the report itself: if both arms land on the same
+   frame time, or on a round number like 8.33 ms (120 fps) or 6.94 ms (144 fps), you were pinned.
 4. Set a fixed graphics preset and don't touch it between arms.
 
 ### Capture
@@ -124,7 +128,6 @@ a crash or a logout.
 
 ```
 capture: 2026-07-29 21:14  (schema 1, v1.9.0)
-limits:    maxFPS=0  maxFPSBk=30  targetFPS=60  vsync=0
 active:      62.3s    4821 frames    77.4 fps   12.92 ms/frame
 suspended:   60.1s    5903 frames    98.2 fps   10.18 ms/frame
 delta:                                          +2.74 ms/frame
@@ -152,12 +155,12 @@ addon's, and the investigation should move elsewhere.
 
 ### Caveats
 
-- **A capped frame rate invalidates the delta.** The report says so when it detects one — but note
-  it warns only when the capture actually *ran at* the cap, not merely when a cap is configured.
-  WoW keeps `maxFPS` at its last slider value even when the limiter checkbox is off, so unticking
-  the slider in the graphics options does **not** zero the CVar. Use `/console maxFPS 0` and confirm
-  with `/dump GetCVar("maxFPS")`. The bucket figures are unaffected either way — they time our code
-  directly, independently of frame pacing.
+- **A capped frame rate invalidates the delta**, and nothing detects it for you. The probe reports
+  measurements and draws no conclusions about frame limiters: an earlier version tried and got the
+  verdict wrong twice, because `maxFPS` is not a reliable signal (it holds the slider's last value
+  regardless of whether the limiter is enabled). Judge it from the arms themselves — two arms at the
+  same frame time, or at a round one, means you were pinned. The bucket figures are unaffected
+  either way; they time our code directly, independently of frame pacing.
 - **Unequal combat between the arms invalidates the delta too**, and nothing detects that for you.
   Combat costs frame time on its own, so an active arm that was 78% combat against a suspended arm
   that was 100% combat shows a *negative* delta that has nothing to do with the addon. Watch the
