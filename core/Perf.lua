@@ -77,7 +77,7 @@ function P.Note(key, ms)
     if ms > b.maxMs then b.maxMs = ms end
 end
 
---- Zero every counter. Called by `/at debug perf on` so each capture starts clean.
+--- Zero every counter. Called by `/at debug perf start` so each run begins clean.
 function P.Reset()
     buckets = {}
     fpsArms = {
@@ -197,6 +197,7 @@ function P.BuildRecord(label)
         label     = label or "",
         buckets   = out,
         fps       = { active = active, suspended = suspended, deltaMsPerFrame = delta },
+        context   = P.context,
     }
 end
 
@@ -236,6 +237,7 @@ function P.FormatReport(record)
     local f = record.fps
     add("capture: %s  (schema %d, v%s)", record.label ~= "" and record.label or "unlabelled",
         record.schema, record.version)
+    for _, line in ipairs(P.ContextLines(record.context)) do add(line) end
 
     -- FPS arms first: this is the headline the whole harness exists to produce.
     for _, name in ipairs({ "active", "suspended" }) do
@@ -297,11 +299,14 @@ end
 -- windows differ by the addon and nothing else - there is no way to forget the suspend.
 
 -- Window token -> FPS arm.
-P.WINDOWS = { a = "active", b = "suspended" }
+P.EXPERIMENTS = { a = "active", b = "suspended" }
 
-P.experiment = false   -- between `on` and `off`
-P.armed      = nil     -- arm waiting for combat to begin
-P.window     = nil     -- arm currently sampling
+-- Reverse map, so every message names the experiment the way the user typed it.
+P.LABELS = { active = "A", suspended = "B" }
+
+P.run        = false   -- between `start` and `finish`
+P.armed      = nil     -- experiment armed, waiting for combat to begin
+P.recording  = nil     -- experiment currently recording
 
 local sampler
 
@@ -333,45 +338,118 @@ local function stopwatch(action)
     end
 end
 
+-- Who / where / what, captured once at the start of a run. A saved capture is read weeks later, and
+-- "119 fps" means nothing without knowing it was a Blood DK soloing a dummy rather than a healer in
+-- a 20-man. Every lookup is existence-checked so the headless harness (and any client that renames
+-- one of these) degrades to "?" rather than erroring at the start of a capture.
+local function groupContext()
+    local inInstance, instanceType
+    if IsInInstance then inInstance, instanceType = IsInInstance() end
+    local n = (GetNumGroupMembers and GetNumGroupMembers()) or 0
+    local base = "solo"
+    if IsInRaid and IsInRaid() then
+        base = ("raid (%d)"):format(n)
+    elseif IsInGroup and IsInGroup() then
+        base = ("party (%d)"):format(n)
+    end
+    if inInstance and instanceType and instanceType ~= "none" then
+        return base .. " / " .. instanceType
+    end
+    return base
+end
+
+function P.Context()
+    local ctx = {
+        character = "?", realm = "?", class = "?", spec = "?",
+        level = 0, zone = "?", subZone = "", group = "solo",
+    }
+    if UnitName then ctx.character = UnitName("player") or "?" end
+    if GetRealmName then ctx.realm = GetRealmName() or "?" end
+    if UnitClass then ctx.class = (UnitClass("player")) or "?" end
+    if UnitLevel then ctx.level = UnitLevel("player") or 0 end
+    if GetSpecialization and GetSpecializationInfo then
+        local index = GetSpecialization()
+        if index then
+            local _, name = GetSpecializationInfo(index)
+            ctx.spec = name or "?"
+        end
+    end
+    if GetZoneText then ctx.zone = GetZoneText() or "?" end
+    if GetSubZoneText then ctx.subZone = GetSubZoneText() or "" end
+    ctx.group = groupContext()
+    return ctx
+end
+
+--- The context as display lines, shared by the chat ack and the report so they cannot drift.
+function P.ContextLines(ctx)
+    if not ctx then return {} end
+    local where = ctx.zone or "?"
+    if ctx.subZone and ctx.subZone ~= "" then where = where .. " \226\128\148 " .. ctx.subZone end
+    return {
+        ("who:       %s-%s, level %s %s %s"):format(ctx.character, ctx.realm,
+            tostring(ctx.level), ctx.spec, ctx.class),
+        ("where:     %s"):format(where),
+        ("group:     %s"):format(ctx.group),
+    }
+end
+
 local function inCombat()
     return UnitAffectingCombat and UnitAffectingCombat("player") and true or false
 end
 
+-- Both a chat line and a debug line, deliberately. These fire mid-combat, when the debug console is
+-- usually not what the user is looking at — the chat line is what tells them the recording actually
+-- started — while the console line is what survives into the copied log for later analysis.
+local function stripColors(s)
+    return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+
+local function announce(fmt, ...)
+    local msg = select("#", ...) > 0 and fmt:format(...) or fmt
+    NS.Print(msg)
+    -- Chat gets the coloured form; the console gets it plain. The console's Copy window mirrors its
+    -- buffer verbatim, and colour escapes in a log you are about to paste somewhere for analysis are
+    -- noise. Safe to pass as a format string with no arguments — NS.Debug skips :format entirely
+    -- when there are no varargs, so a stray % in a zone name cannot blow up mid-capture.
+    NS.Debug("Perf", stripColors(msg))
+end
+P.__announce = announce
+
 local function openWindow()
-    P.window = P.armed
-    P.armed  = nil
-    P.on     = true          -- the brackets record only inside a window
+    P.recording = P.armed
+    P.armed = nil
+    P.on = true              -- the brackets record only inside an experiment
     stopwatch("play")
-    NS.Debug("Perf", "window %s open \226\128\148 combat started", P.window)
+    announce("Experiment |cFFFFFF00%s|r |cff40ff40RECORDING|r \226\128\148 combat started",
+        P.LABELS[P.recording] or P.recording)
 end
 
 local function closeWindow()
-    local w = P.window
-    P.window = nil
-    P.on     = false
+    local w = P.recording
+    P.recording = nil
+    P.on = false
     stopwatch("pause")
-    if w then
-        local a = fpsArms[w]
-        NS.Debug("Perf", "window %s closed \226\128\148 %s, %s frames, %s fps",
-            w, ("%.1fs"):format(a.seconds), a.frames,
-            ("%.1f"):format(a.seconds > 0 and (a.frames / a.seconds) or 0))
-    end
+    if not w then return end
+    local a = fpsArms[w]
+    announce("Experiment |cFFFFFF00%s|r |cffff4040ENDED|r \226\128\148 %s, %s frames, %s fps",
+        P.LABELS[w] or w, ("%.1fs"):format(a.seconds), a.frames,
+        ("%.1f"):format(a.seconds > 0 and (a.frames / a.seconds) or 0))
 end
 
 local function onUpdate(_, elapsed)
-    if not P.experiment then return end
+    if not P.run then return end
     local combat = inCombat()
 
     -- Open first, then fall THROUGH to accumulate: the frame that opens a window is itself an
     -- in-combat frame and belongs in the sample. Returning after openWindow() silently dropped it,
     -- which is invisible over a 60s pull but wrong, and wrong in a way that biases both arms.
-    if not P.window then
+    if not P.recording then
         if not (P.armed and combat) then return end
         openWindow()
     end
 
     if combat then
-        local a = fpsArms[P.window]
+        local a = fpsArms[P.recording]
         a.seconds = a.seconds + elapsed
         a.frames  = a.frames + 1
     else
@@ -383,14 +461,16 @@ end
 function P.Start(label)
     P.Reset()
     P.label = label
-    P.experiment = true
-    P.armed, P.window = nil, nil
+    P.run = true
+    P.armed, P.recording = nil, nil
     P.on = false
     -- Lifecycle lines go through NS.Debug (gated on the debug flag, §12.4) so an experiment's phase
     -- boundaries land in the console timeline alongside [Combat] entered/left. Matching a window
     -- against the combat it happened in is exactly how the first capture's confound was spotted,
     -- and reconstructing that from memory afterwards is guesswork.
-    NS.Debug("Perf", "experiment started \226\128\148 %s", P.label or "unlabelled")
+    P.context = P.Context()
+    NS.Debug("Perf", "run started \226\128\148 %s", P.label or "unlabelled")
+    for _, line in ipairs(P.ContextLines(P.context)) do NS.Debug("Perf", line) end
     local s = ensureSampler()
     if s then
         s:SetScript("OnUpdate", onUpdate)
@@ -403,11 +483,11 @@ end
 --- Re-arming a window that already has data ZEROES it first, so a botched pull can simply be redone
 --- with the same command instead of silently averaging into the previous attempt.
 function P.Measure(token)
-    if not P.experiment then return nil, "no experiment" end
-    local arm = P.WINDOWS[tostring(token or ""):lower()]
+    if not P.run then return nil, "no experiment" end
+    local arm = P.EXPERIMENTS[tostring(token or ""):lower()]
     if not arm then return nil, "unknown window" end
 
-    if P.window then closeWindow() end
+    if P.recording then closeWindow() end
 
     -- The suspend state IS the independent variable, so it is set here rather than left to the
     -- user: window B with the addon still running would look like a null result.
@@ -416,21 +496,22 @@ function P.Measure(token)
     fpsArms[arm].seconds, fpsArms[arm].frames = 0, 0
     P.armed = arm
     stopwatch("reset")
-    NS.Debug("Perf", "window %s armed \226\128\148 waiting for combat", arm)
+    NS.Debug("Perf", "experiment %s armed (addon %s) \226\128\148 waiting for combat",
+        P.LABELS[arm] or arm, arm == "suspended" and "SUSPENDED" or "active")
     return arm
 end
 
 --- End the experiment and hand back the assembled record. Detaches the sampler so the OnUpdate cost
 --- goes away entirely rather than idling.
 function P.Stop()
-    if P.window then closeWindow() end
-    P.experiment = false
+    if P.recording then closeWindow() end
+    P.run = false
     P.armed = nil
     P.on = false
     stopwatch("pause")
-    NS.Debug("Perf", "experiment stopped \226\128\148 %s active, %s suspended",
-        ("%.1fs"):format(fpsArms.active.seconds),
-        ("%.1fs"):format(fpsArms.suspended.seconds))
+    NS.Debug("Perf", "run finished \226\128\148 A %s / %s frames, B %s / %s frames",
+        ("%.1fs"):format(fpsArms.active.seconds), fpsArms.active.frames,
+        ("%.1fs"):format(fpsArms.suspended.seconds), fpsArms.suspended.frames)
     if sampler then
         sampler:SetScript("OnUpdate", nil)
         sampler:Hide()
@@ -448,7 +529,7 @@ end
 function P.Suspend()
     if P.suspended then return false end
     P.suspended = true
-    NS.Debug("Perf", "suspended \226\128\148 addon inert, bars hidden, events unregistered")
+    NS.Debug("Perf", "addon SUSPENDED \226\128\148 inert, bars hidden, events unregistered")
 
     local addon = NS.addon
     if addon then
@@ -476,7 +557,7 @@ end
 function P.Resume()
     if not P.suspended then return false end
     P.suspended = false
-    NS.Debug("Perf", "resumed \226\128\148 events restored")
+    NS.Debug("Perf", "addon RESUMED \226\128\148 events and bars restored")
 
     local addon = NS.addon
     if addon then

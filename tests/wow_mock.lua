@@ -101,6 +101,25 @@ return function()
   M.AbbreviateNumbers = function(n) return tostring(n) end
   M.C_ClassColor = { GetClassColor = function() return { r = 1, g = 1, b = 1 } end }
   M.InCombatLockdown = function() return false end
+
+  -- Capture-context lookups (core/Perf.lua). Settable so a test can assert the recorded context is
+  -- the character's rather than a hard-coded string.
+  M.__context = {
+    name = "Testchar", realm = "Testrealm", level = 80,
+    spec = "Blood", zone = "Silvermoon City", subZone = "Falconwing Square",
+    inInstance = false, instanceType = "none", inGroup = false, inRaid = false, groupSize = 0,
+  }
+  M.UnitName = function() return M.__context.name end
+  M.GetRealmName = function() return M.__context.realm end
+  M.UnitLevel = function() return M.__context.level end
+  M.GetZoneText = function() return M.__context.zone end
+  M.GetSubZoneText = function() return M.__context.subZone end
+  M.GetSpecialization = function() return 1 end
+  M.GetSpecializationInfo = function() return 250, M.__context.spec end
+  M.IsInInstance = function() return M.__context.inInstance, M.__context.instanceType end
+  M.IsInRaid = function() return M.__context.inRaid end
+  M.IsInGroup = function() return M.__context.inGroup end
+  M.GetNumGroupMembers = function() return M.__context.groupSize end
   M.UnitAffectingCombat = function() return false end
 
   -- UI

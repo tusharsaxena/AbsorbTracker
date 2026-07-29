@@ -32,6 +32,14 @@ increment it on any breaking field change.
   "timestamp": 1785110400,      // epoch seconds
   "label": "baseline-v1.9.0",
 
+  // Who / where / what, captured once at the start of an in-game run. Absent for offline runs.
+  "context": {
+    "character": "Kaosdk", "realm": "Silvermoon", "level": 80,
+    "class": "Death Knight", "spec": "Blood",
+    "zone": "Nexus-Point Xenas", "subZone": "The Approach",
+    "group": "party (5) / party"
+  },
+
   // Per-bucket totals. In-game buckets are the probe's brackets; offline buckets are the
   // runner's scenarios. THESE NEST — repaintPass contains paintBar. Never sum the column.
   "buckets": {

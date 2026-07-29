@@ -60,11 +60,11 @@ output goes to the debug console (which is ungated) plus a one-line chat acknowl
 | Command | Effect |
 |---------|--------|
 | `/at debug perf` | Status + usage |
-| `/at debug perf on [label]` | Begin an experiment. Samples nothing until a window is armed. The optional label is appended to the timestamp |
-| `/at debug perf measure a` | Arm window **A** — addon active. Starts when combat starts, ends when combat ends |
-| `/at debug perf measure b` | Arm window **B** — addon suspended (done for you). Same combat gating |
-| `/at debug perf off` | Stop, append to the ring, print the summary, lift any suspend |
-| `/at debug perf report` | Print the summary without stopping |
+| `/at debug perf start [label]` | Begin a run. Records nothing until an experiment is armed. Captures character, spec, zone and group |
+| `/at debug perf measure a` | Arm **Experiment A** — addon active. Records while in combat |
+| `/at debug perf measure b` | Arm **Experiment B** — addon suspended (done for you). Same combat gating |
+| `/at debug perf finish` | End the run, append to the ring, print the summary, lift any suspend |
+| `/at debug perf report` | Print the summary without ending the run |
 | `/at debug perf dump` | Render the capture as JSON in the copy window |
 | `/at debug perf suspend` | Make the addon inert |
 | `/at debug perf resume` | Restore it |
@@ -119,21 +119,21 @@ between windows — walking to the pull, resetting a dungeon, waiting on respawn
 and cannot contaminate the result.
 
 ```
-/at debug perf on           (out of combat)
-/at debug perf measure a    arms A; walk in and pull
-   … fight …                A opens on combat, closes when it ends
-/at debug perf measure b    arms B and suspends the addon; reset, walk back, pull again
-   … same fight …           B opens and closes the same way
-/at debug perf off
+/at debug perf start        (out of combat)
+/at debug perf measure a    arms Experiment A; walk in and pull
+   … fight …                A records on combat, ends when combat ends
+/at debug perf measure b    arms Experiment B and suspends the addon; reset, pull again
+   … same fight …           B records and ends the same way
+/at debug perf finish
 /reload
 ```
 
-`measure b` suspends the addon and `measure a` resumes it, so the two windows differ by the addon
+`measure b` suspends the addon and `measure a` resumes it, so the two experiments differ by the addon
 and nothing else — there is no separate suspend step to forget. Re-arming a window zeroes it, so a
 botched pull is simply redone with the same command.
 
-**Blizzard's stopwatch is driven for you**: reset when a window is armed, started when it opens,
-paused when it closes. It gives you an on-screen timer for exactly the slice being measured. (Driven
+**Blizzard's stopwatch is driven for you**: reset when an experiment is armed, started when
+recording begins, paused when it ends. It gives you an on-screen timer for exactly the slice being measured. (Driven
 by calling the FrameXML functions, not by running `/sw` as a macro — `RunMacroText` is protected and
 would fail in combat.)
 
@@ -148,7 +148,10 @@ not.
 ### Reading the result
 
 ```
-capture: 2026-07-29 21:14  (schema 1, v1.9.0)
+capture:   2026-07-29 21:14 solo  (schema 1, v1.9.0)
+who:       Kaosdk-Silvermoon, level 80 Blood Death Knight
+where:     Nexus-Point Xenas — The Approach
+group:     party (5) / party
 active:      62.3s    4821 frames    77.4 fps   12.92 ms/frame
 suspended:   60.1s    5903 frames    98.2 fps   10.18 ms/frame
 delta:                                          +2.74 ms/frame
@@ -185,7 +188,8 @@ addon's, and the investigation should move elsewhere.
 - **Unequal combat between the arms invalidates the delta**, which is what the measurement windows
   exist to prevent — they contain only in-combat frames by construction. What they cannot check is
   whether the two fights were *equivalent*. Keep the pull, spec and rotation the same, and check the
-  `[Perf] window … closed` lines: two windows of wildly different duration are a warning sign.
+  `[Perf] Experiment … ENDED` lines, which carry each one's duration and frame rate: two
+  experiments of wildly different duration are a warning sign.
 - Buckets **nest**. `repaintPass` contains `paintBar`. Never sum the column.
 - Bucket `ms/s` divides by the *active* seconds only — nothing accrues while suspended.
 - The sampler itself runs an `OnUpdate` during capture. It is in both arms, so it cancels out of the

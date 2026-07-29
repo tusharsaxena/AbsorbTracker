@@ -126,7 +126,7 @@ schema paths survive) and looks it up in the ordered `NS.COMMANDS` table. Unknow
 | `/at lock` / `/at unlock` | Flip the drag lock |
 | `/at toggle [player\|target\|focus]` | Bare: flip **every** bar — all off if any is on, otherwise all on. With a unit token: flip that one bar only. Writes `units.<unit>.enabled` through `SetByPath`, so it travels the same path as the General page checkbox |
 | `/at debug` (`on`/`off`) | Toggle the debug console window; `on`/`off` enable/disable logging |
-| `/at debug perf <sub>` | The performance probe (`core/Perf.lua`): `on [label]`/`off` start/stop an experiment, `measure a|b` arm a combat-gated window, `report` print it, `dump` emit JSON, `suspend`/`resume` make the addon inert for an A/B. A **sub-verb of `debug`**, not a `NS.COMMANDS` entry — so the verb count is unchanged. See [performance.md](./performance.md) |
+| `/at debug perf <sub>` | The performance probe (`core/Perf.lua`): `start [label]`/`finish` bracket a run, `measure a|b` arm a combat-gated experiment, `report` print it, `dump` emit JSON, `suspend`/`resume` make the addon inert for an A/B. A **sub-verb of `debug`**, not a `NS.COMMANDS` entry — so the verb count is unchanged. See [performance.md](./performance.md) |
 | `/at update` | Force a bar refresh |
 | `/at version` | Print the addon version |
 | `/at test [value] [hold-secs]` | Paint a fake value for visual tweaking |

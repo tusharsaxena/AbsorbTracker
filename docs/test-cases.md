@@ -154,7 +154,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (59)
+### test_perf.lua (74)
 
 - perf: Note accumulates calls, total and max
 - perf: Note tracks unrelated buckets independently
@@ -215,6 +215,21 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - perf: Stop detaches the sampler so an idle client pays nothing
 - perf: the sampler ignores ticks once the experiment is over
 - perf: two completed windows produce a delta
+- perf: Context captures character, spec, zone and group
+- perf: Context reports solo when ungrouped
+- perf: Context reports party size and instance type
+- perf: Context reports raid size
+- perf: a run records its context
+- perf: ContextLines folds the sub-zone into the location
+- perf: ContextLines omits an empty sub-zone cleanly
+- perf: ContextLines tolerates a record with no context
+- perf: FormatReport includes the context
+- perf: recording start and end are announced to chat AND the debug log
+- perf: the end announcement carries the duration and frame rate
+- perf: the console log is plain text, free of colour escapes
+- perf: experiments are named A and B, never active/suspended
+- perf: the run start is logged with its context
+- perf: arming logs which experiment and whether the addon is suspended
 
 ### test_visibility.lua (17)
 
@@ -423,11 +438,11 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at list annotates only the mirrored units' appearance rows
 - the mirrored note keeps the Ka0s colour scheme intact and stays subordinate
 - /at debug perf (bare) reports status and prints usage
-- /at debug perf on starts a capture
-- /at debug perf on resets the counters from the previous capture
-- /at debug perf off refuses when no capture is running
-- /at debug perf off saves the record to the perf ring
-- /at debug perf off lifts a suspend left over from the capture
+- /at debug perf start starts a capture
+- /at debug perf start resets the counters from the previous capture
+- /at debug perf finish refuses when no run is active
+- /at debug perf finish saves the record to the perf ring
+- /at debug perf finish lifts a suspend left over from the capture
 - /at debug perf suspend and resume flip the probe's inert state
 - /at debug perf suspend twice reports the no-op rather than pretending
 - /at debug perf resume without a suspend reports the no-op
@@ -437,11 +452,11 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at debug perf with an unknown sub falls back to the usage block
 - /at debug on|off still toggles logging with perf present
 - the debug help row advertises the perf sub-verb
-- /at debug perf on accepts an optional label, appended to the timestamp
-- /at debug perf on without a label still stamps the capture
-- /at debug perf on label reaches the saved record
-- /at debug perf measure a arms the active window
-- /at debug perf measure b arms and suspends
+- /at debug perf start accepts an optional label, appended to the timestamp
+- /at debug perf start without a label still stamps the capture
+- /at debug perf start label reaches the saved record
+- /at debug perf measure a arms Experiment A
+- /at debug perf measure b arms Experiment B and suspends
 - /at debug perf measure refuses outside an experiment
 - /at debug perf measure rejects an unknown window
 - /at debug perf bare reports the armed window
@@ -510,7 +525,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
 | test_timer.lua | 11 |
-| test_perf.lua | 59 |
+| test_perf.lua | 74 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
@@ -518,4 +533,4 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_helpers.lua | 40 |
 | test_slashcmds.lua | 84 |
 | test_widgets.lua | 48 |
-| **Total** | **448** |
+| **Total** | **463** |

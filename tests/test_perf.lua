@@ -31,8 +31,8 @@ end
 -- set, and would silently make every later visibility assertion in the whole suite return false.
 local function reset()
   P.on = false
-  P.experiment = false
-  P.armed, P.window = nil, nil
+  P.run = false
+  P.armed, P.recording = nil, nil
   P.suspended = false
   P.label = nil
   P.Reset()
@@ -394,7 +394,7 @@ test("perf: starting an experiment logs it", function()
   local lines = captureDebugLines(function() P.Start("solo") end)
   P.on = false
   assertTrue(lines:find("[Perf]", 1, true) ~= nil, "tagged [Perf]: " .. lines)
-  assertTrue(lines:find("experiment started", 1, true) ~= nil, "says what happened")
+  assertTrue(lines:find("run started", 1, true) ~= nil, "says what happened")
   assertTrue(lines:find("solo", 1, true) ~= nil, "and which capture: " .. lines)
 end)
 
@@ -404,7 +404,7 @@ test("perf: stopping an experiment logs both arm durations", function()
   arms.active.seconds, arms.active.frames = 60, 7000
   arms.suspended.seconds, arms.suspended.frames = 30, 3500
   local lines = captureDebugLines(function() P.Stop() end)
-  assertTrue(lines:find("experiment stopped", 1, true) ~= nil, "logged: " .. lines)
+  assertTrue(lines:find("run finished", 1, true) ~= nil, "logged: " .. lines)
   assertTrue(lines:find("60.0s", 1, true) ~= nil, "active arm duration")
   assertTrue(lines:find("30.0s", 1, true) ~= nil, "suspended arm duration")
 end)
@@ -412,10 +412,10 @@ end)
 test("perf: suspend and resume are logged", function()
   reset()
   local lines = captureDebugLines(function() P.Suspend() end)
-  assertTrue(lines:find("suspended", 1, true) ~= nil, "suspend logged: " .. lines)
+  assertTrue(lines:find("SUSPENDED", 1, true) ~= nil, "suspend logged: " .. lines)
   lines = captureDebugLines(function() P.Resume() end)
   settle()
-  assertTrue(lines:find("resumed", 1, true) ~= nil, "resume logged: " .. lines)
+  assertTrue(lines:find("RESUMED", 1, true) ~= nil, "resume logged: " .. lines)
 end)
 
 test("perf: a no-op suspend or resume logs nothing", function()
@@ -490,7 +490,7 @@ test("perf: a window opens on combat and accumulates", function()
   P.Measure("a")
   tick(0.5, true)
   tick(0.5, true)
-  assertEqual(P.window, "active", "window open")
+  assertEqual(P.recording, "active", "window open")
   assertEqual(P.__fpsArms().active.frames, 2, "two frames")
   assertEqual(P.__fpsArms().active.seconds, 1, "one second")
   assertTrue(P.on, "brackets record inside a window")
@@ -504,7 +504,7 @@ test("perf: a window closes when combat ends and stops accumulating", function()
   tick(0.5, false)             -- combat ended: closes the window
   tick(9.0, false)             -- and nothing lands afterwards
   tick(9.0, true)              -- not even a later, unrelated fight
-  assertEqual(P.window, nil, "window closed")
+  assertEqual(P.recording, nil, "window closed")
   assertEqual(P.__fpsArms().active.frames, 1, "only the in-combat frame counted")
   assertFalse(P.on, "brackets closed with the window")
   finish()
@@ -565,7 +565,7 @@ test("perf: arming a window mid-combat closes the one already open", function()
   P.Measure("a")
   tick(1.0, true)
   P.Measure("b")
-  assertEqual(P.window, nil, "A was closed, B not yet open")
+  assertEqual(P.recording, nil, "A was closed, B not yet open")
   assertEqual(P.__fpsArms().active.seconds, 1, "A kept what it had")
   finish()
 end)
@@ -597,7 +597,7 @@ test("perf: Stop closes an open window rather than discarding it", function()
   P.Measure("a")
   tick(1.5, true)
   local record = P.Stop()
-  assertEqual(P.window, nil, "closed")
+  assertEqual(P.recording, nil, "closed")
   assertEqual(record.fps.active.seconds, 1.5, "and its data survived into the record")
 end)
 
@@ -605,7 +605,7 @@ test("perf: Stop detaches the sampler so an idle client pays nothing", function(
   startExperiment()
   P.Stop()
   assertEqual(P.__sampler():GetScript("OnUpdate"), nil, "OnUpdate removed")
-  assertFalse(P.experiment, "experiment over")
+  assertFalse(P.run, "experiment over")
 end)
 
 test("perf: the sampler ignores ticks once the experiment is over", function()
@@ -627,4 +627,193 @@ test("perf: two completed windows produce a delta", function()
   if P.suspended then P.Resume() end
   settle()
   assertEqual(record.fps.deltaMsPerFrame, 2.5, "A costs 2.5 ms/frame more than B")
+end)
+
+-- ── capture context ─────────────────────────────────────────────────────────────────────────
+--
+-- A saved record is read weeks later, and "119 fps" means nothing without knowing it was a Blood DK
+-- soloing a dummy rather than a healer in a 20-man.
+
+test("perf: Context captures character, spec, zone and group", function()
+  local ctx = P.Context()
+  assertEqual(ctx.character, "Testchar", "character")
+  assertEqual(ctx.realm, "Testrealm", "realm")
+  assertEqual(ctx.level, 80, "level")
+  assertEqual(ctx.spec, "Blood", "spec")
+  assertEqual(ctx.zone, "Silvermoon City", "zone")
+  assertEqual(ctx.subZone, "Falconwing Square", "sub-zone")
+end)
+
+test("perf: Context reports solo when ungrouped", function()
+  assertEqual(P.Context().group, "solo")
+end)
+
+test("perf: Context reports party size and instance type", function()
+  local saved = mocks.__context
+  mocks.__context = {
+    name = "X", realm = "Y", level = 80, spec = "Blood", zone = "Nexus-Point Xenas", subZone = "",
+    inInstance = true, instanceType = "party", inGroup = true, inRaid = false, groupSize = 5,
+  }
+  local g = P.Context().group
+  mocks.__context = saved
+  assertEqual(g, "party (5) / party", "names both the group and where it is")
+end)
+
+test("perf: Context reports raid size", function()
+  local saved = mocks.__context
+  mocks.__context = {
+    name = "X", realm = "Y", level = 80, spec = "Blood", zone = "Z", subZone = "",
+    inInstance = true, instanceType = "raid", inGroup = true, inRaid = true, groupSize = 20,
+  }
+  local g = P.Context().group
+  mocks.__context = saved
+  assertEqual(g, "raid (20) / raid")
+end)
+
+test("perf: a run records its context", function()
+  reset()
+  P.Start("ctx")
+  local record = P.Stop()
+  assertEqual(record.context.character, "Testchar", "context reached the record")
+  assertEqual(record.context.zone, "Silvermoon City", "including where it happened")
+end)
+
+test("perf: ContextLines folds the sub-zone into the location", function()
+  local lines = table.concat(P.ContextLines(P.Context()), "\n")
+  assertTrue(lines:find("Silvermoon City", 1, true) ~= nil, "zone: " .. lines)
+  assertTrue(lines:find("Falconwing Square", 1, true) ~= nil, "and sub-zone")
+end)
+
+test("perf: ContextLines omits an empty sub-zone cleanly", function()
+  local lines = table.concat(P.ContextLines({
+    character = "X", realm = "Y", level = 80, spec = "Blood", class = "Death Knight",
+    zone = "Orgrimmar", subZone = "", group = "solo",
+  }), "\n")
+  assertTrue(lines:find("Orgrimmar", 1, true) ~= nil, "zone present")
+  assertEqual(lines:find("\226\128\148 \n", 1, true), nil, "no dangling separator")
+end)
+
+test("perf: ContextLines tolerates a record with no context", function()
+  assertEqual(#P.ContextLines(nil), 0, "returns nothing rather than erroring")
+end)
+
+test("perf: FormatReport includes the context", function()
+  reset()
+  P.Start("ctx")
+  local lines = table.concat(P.FormatReport(P.Stop()), "\n")
+  assertTrue(lines:find("Testchar", 1, true) ~= nil, "who: " .. lines)
+  assertTrue(lines:find("Silvermoon City", 1, true) ~= nil, "where")
+  assertTrue(lines:find("solo", 1, true) ~= nil, "group")
+end)
+
+-- ── experiment announcements ────────────────────────────────────────────────────────────────
+
+test("perf: recording start and end are announced to chat AND the debug log", function()
+  -- These fire mid-combat: chat is what the user actually sees, the console line is what survives
+  -- into the copied log for later analysis. Both, deliberately.
+  reset()
+  local chat = {}
+  local cf = mocks.DEFAULT_CHAT_FRAME
+  local oldAdd = rawget(cf, "AddMessage")
+  cf.AddMessage = function(_, msg) chat[#chat + 1] = msg end
+  local wasOn = NS.State.debug
+  NS.State.debug = true
+  local before = #NS.DebugLog.buffer
+
+  P.Start("announce")
+  P.Measure("a")
+  tick(0.5, true)          -- opens
+  tick(0.5, false)         -- closes
+  P.Stop()
+
+  NS.State.debug = wasOn
+  cf.AddMessage = oldAdd
+  local chatText = table.concat(chat, "\n")
+  local logText = table.concat(NS.DebugLog.buffer, "\n", before + 1, #NS.DebugLog.buffer)
+
+  assertTrue(chatText:find("RECORDING", 1, true) ~= nil, "chat announced the start: " .. chatText)
+  assertTrue(chatText:find("ENDED", 1, true) ~= nil, "and the end")
+  assertTrue(logText:find("RECORDING", 1, true) ~= nil, "console too: " .. logText)
+  assertTrue(logText:find("ENDED", 1, true) ~= nil, "and the end")
+end)
+
+test("perf: the end announcement carries the duration and frame rate", function()
+  reset()
+  local wasOn = NS.State.debug
+  NS.State.debug = true
+  local before = #NS.DebugLog.buffer
+  P.Start("dur")
+  P.Measure("a")
+  for _ = 1, 60 do tick(0.05, true) end   -- 3.0s, 60 frames -> 20 fps
+  tick(0.1, false)
+  P.Stop()
+  NS.State.debug = wasOn
+  local logText = table.concat(NS.DebugLog.buffer, "\n", before + 1, #NS.DebugLog.buffer)
+  assertTrue(logText:find("3.0s", 1, true) ~= nil, "duration: " .. logText)
+  assertTrue(logText:find("60 frames", 1, true) ~= nil, "frames")
+  assertTrue(logText:find("20.0 fps", 1, true) ~= nil, "and the rate")
+end)
+
+test("perf: the console log is plain text, free of colour escapes", function()
+  -- The Copy window mirrors this buffer verbatim; colour codes in a log you are about to paste
+  -- somewhere for analysis are noise.
+  reset()
+  local wasOn = NS.State.debug
+  NS.State.debug = true
+  local before = #NS.DebugLog.buffer
+  P.Start("plain")
+  P.Measure("a")
+  tick(0.5, true)
+  P.Stop()
+  NS.State.debug = wasOn
+  local logText = table.concat(NS.DebugLog.buffer, "\n", before + 1, #NS.DebugLog.buffer)
+  assertEqual(logText:find("|c", 1, true), nil, "no colour escapes: " .. logText)
+  assertTrue(logText:find("Experiment A", 1, true) ~= nil, "and it reads cleanly")
+end)
+
+test("perf: experiments are named A and B, never active/suspended", function()
+  reset()
+  local wasOn = NS.State.debug
+  NS.State.debug = true
+  local before = #NS.DebugLog.buffer
+  P.Start("naming")
+  P.Measure("b")
+  tick(0.5, true)
+  P.Stop()
+  if P.suspended then P.Resume() end
+  settle()
+  NS.State.debug = wasOn
+  local logText = table.concat(NS.DebugLog.buffer, "\n", before + 1, #NS.DebugLog.buffer)
+  assertTrue(logText:find("Experiment B", 1, true) ~= nil, "user-facing name: " .. logText)
+end)
+
+test("perf: the run start is logged with its context", function()
+  reset()
+  local wasOn = NS.State.debug
+  NS.State.debug = true
+  local before = #NS.DebugLog.buffer
+  P.Start("logged run")
+  P.Stop()
+  NS.State.debug = wasOn
+  local logText = table.concat(NS.DebugLog.buffer, "\n", before + 1, #NS.DebugLog.buffer)
+  assertTrue(logText:find("run started", 1, true) ~= nil, "start line: " .. logText)
+  assertTrue(logText:find("logged run", 1, true) ~= nil, "with the label")
+  assertTrue(logText:find("Testchar", 1, true) ~= nil, "and the context")
+  assertTrue(logText:find("run finished", 1, true) ~= nil, "and the finish line")
+end)
+
+test("perf: arming logs which experiment and whether the addon is suspended", function()
+  reset()
+  local wasOn = NS.State.debug
+  NS.State.debug = true
+  local before = #NS.DebugLog.buffer
+  P.Start("arm log")
+  P.Measure("b")
+  P.Stop()
+  if P.suspended then P.Resume() end
+  settle()
+  NS.State.debug = wasOn
+  local logText = table.concat(NS.DebugLog.buffer, "\n", before + 1, #NS.DebugLog.buffer)
+  assertTrue(logText:find("armed", 1, true) ~= nil, "armed line: " .. logText)
+  assertTrue(logText:find("SUSPENDED", 1, true) ~= nil, "and the addon state that defines the arm")
 end)
