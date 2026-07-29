@@ -75,7 +75,7 @@ output goes to the debug console (which is ungated) plus a one-line chat acknowl
 reload**. `NS.ShouldShowBar` checks the suspended flag as step 0 of its ladder, so nothing (a combat
 transition, a target swap, a settings edit) can re-show a bar mid-measurement.
 
-It is session-only and resets on `/reload`. `/at debug perf off` lifts it automatically so a capture
+It is session-only and resets on `/reload`. `/at debug perf finish` lifts it automatically so a run
 can't leave the addon switched off by accident.
 
 Suspend matters because **disabling an addon is not a clean experiment**. WoW's built-in Addon
