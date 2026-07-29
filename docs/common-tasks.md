@@ -48,7 +48,7 @@ That's it. The widget renders on the General sub-page on the next `/reload`; `/a
 
 `NS.ValidateSchema` (run once at panel-registration time) will warn in chat if the new row's `path` doesn't resolve against `NS.defaults.profile` — a cheap guard against typos between step 1 and step 2.
 
-See [schema.md](./schema.md) for the full row grammar (knobs like `inverse`, `disabledIf`, `dialogControl`, `fmt`, `solo`).
+See [schema.md](./schema.md) for the full row grammar (knobs like `disabledIf`, `dialogControl`, `fmt`, `solo`).
 
 ## Add a per-unit setting
 

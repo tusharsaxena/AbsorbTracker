@@ -2,7 +2,7 @@
 
 _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > docs/test-cases.md`._
 
-### test_schema.lua (41)
+### test_schema.lua (40)
 
 - ParseSchemaValue bool accepts truthy/falsey words, rejects junk
 - ParseSchemaValue number clamps to the row's min/max
@@ -20,7 +20,6 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - every persisted profile default is reachable from a schema row
 - every number row declares a usable min/max range
 - every string row supplies a values source
-- `inverse` is only used on bool rows
 - `disabledIf` names a real sibling setting
 - every schema row lands on a page the panel actually builds
 - FindSchemaRow returns the row for a known path and nil for an unknown one
@@ -141,10 +140,13 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OpenOptionsPanel logs [Cfg] refused in combat
 - SetByPath logs one [Set] path = value line (§10)
 
-### test_timer.lua (8)
+### test_timer.lua (11)
 
 - RequestRepaint coalesces multiple requests into one scheduled repaint
 - the coalesced repaint paints every tracked unit, not just the player
+- one coalesced pass counts one repaint, however many bars it painted
+- a pass in which no bar painted counts no repaint
+- a pass counts one repaint when only some of the bars painted
 - RequestRepaint schedules the timer at the throttleWindow delay
 - OnAbsorbChanged requests a repaint for the player
 - OnAbsorbChanged requests a repaint for any tracked unit, not just the player
@@ -211,7 +213,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - three bar frames exist and the player alias points at the player frame
 - each bar carries its own unit tag and its own backdrop table
 
-### test_display.lua (38)
+### test_display.lua (39)
 
 - RestoreBarPosition centres the bar when no position is saved
 - RestoreBarPosition restores the saved anchor verbatim
@@ -238,8 +240,9 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - UpdateAbsorbBar scales the bar to max health and sets the absorb value
 - UpdateAbsorbBar substitutes 0 / 1 when the absorb and health reads come back nil
 - UpdateAbsorbBar writes the abbreviated value into the bar text
-- UpdateAbsorbBar notes the repaint for the combat rollup
-- a hidden bar's skipped paint is NOT counted as a repaint
+- UpdateAbsorbBar reports true when it paints
+- UpdateAbsorbBar reports false for a bar it skipped
+- UpdateAbsorbBar reports false while a /at test hold is active
 - each unit's enable flag governs only its own bar
 - a disabled unit stays hidden even when the others are on
 - an enabled target bar hides when there is no target
@@ -358,14 +361,12 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at list annotates only the mirrored units' appearance rows
 - the mirrored note keeps the Ka0s colour scheme intact and stays subordinate
 
-### test_widgets.lua (50)
+### test_widgets.lua (48)
 
 - NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
 - a bool row renders a CheckBox labelled from the schema
 - a checkbox reads its initial state from the current setting
 - clicking a checkbox writes through SetByPath
-- an `inverse` row displays the NEGATED value
-- an `inverse` row writes the negated value back too
 - a checkbox registers a refresher that re-reads after an external change
 - every widget gets tooltip callbacks wired from the schema desc
 - relativeWidth is applied when given, full width otherwise
@@ -415,19 +416,19 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 
 | Suite | Count |
 |-------|-------|
-| test_schema.lua | 41 |
+| test_schema.lua | 40 |
 | test_database.lua | 27 |
 | test_units.lua | 14 |
 | test_compat.lua | 4 |
 | test_util.lua | 6 |
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
-| test_timer.lua | 8 |
+| test_timer.lua | 11 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
-| test_display.lua | 38 |
+| test_display.lua | 39 |
 | test_helpers.lua | 40 |
 | test_slashcmds.lua | 60 |
-| test_widgets.lua | 50 |
-| **Total** | **364** |
+| test_widgets.lua | 48 |
+| **Total** | **365** |

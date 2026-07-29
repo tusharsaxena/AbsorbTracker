@@ -282,9 +282,11 @@ addon:OnLeaveCombat()  -- PLAYER_REGEN_ENABLED; publishes VISIBILITY + REPAINT, 
                        -- "[Combat] left: N events, M repaints" rollup (player events only,
                        -- deliberately; never replays /at config).
 
-NS.NoteRepaint()       -- bumps the debug-gated repaint counter + last-absorb snapshot; called
-                       -- directly by modules/Display.lua's UpdateAbsorbBar on every paint
-                       -- (an intra-implementation debug hook, not a bus message).
+NS.NoteRepaint()       -- bumps the debug-gated repaint counter; called directly by
+                       -- modules/Timer.lua's doRepaint ONCE per coalesced pass in which at
+                       -- least one bar painted -- not once per bar, or M would scale with the
+                       -- visible bar count and could exceed the player-only event count N.
+                       -- (An intra-implementation debug hook, not a bus message.)
 NS.OnProfileChanged()  -- registered as the AceDB profile callback inside InitDB; publishes
                        -- POSITION + APPEARANCE + REPAINT, then RefreshOptionsPanel.
 ```

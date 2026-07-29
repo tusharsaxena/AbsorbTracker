@@ -149,7 +149,7 @@ Each row dispatches to a maker by `row.type`:
 
 | Type | Widget | Notes |
 |------|--------|-------|
-| `bool` | `CheckBox` | Honors `inverse = true` (widget shows `not value`). |
+| `bool` | `CheckBox` | Reads and writes the stored value directly. |
 | `number` | `Slider` | Snaps to `step` on `OnMouseUp`. |
 | `string` | `Dropdown` (or `LSM30_Statusbar` / `_Border` / `_Font` when `dialogControl` is set and the LSM widget is loaded) | Falls back to plain `Dropdown` if the LSM widget didn't load. |
 | `color` | `ColorPicker` | Honors `hasAlpha`; greys out when `disabledIf`'s sibling toggle is on. |

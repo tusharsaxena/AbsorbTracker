@@ -197,15 +197,6 @@ test("every string row supplies a values source", function()
   end
 end)
 
-test("`inverse` is only used on bool rows", function()
-  -- The widget layer applies `inverse` by negating the value; on any other type that is nonsense.
-  for _, row in ipairs(NS.Schema) do
-    if row.inverse then
-      assertEqual(row.type, "bool", row.path .. " uses inverse on a non-bool row")
-    end
-  end
-end)
-
 test("`disabledIf` names a real sibling setting", function()
   -- A typo'd disabledIf reads nil, which is falsey, so the widget would simply never grey out —
   -- a silent failure with no error to notice.

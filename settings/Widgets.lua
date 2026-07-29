@@ -45,9 +45,7 @@ local function makeCheckbox(ctx, row, parent, relativeWidth)
     applyWidth(cb, relativeWidth)
 
     local function readValue()
-        local v = get(row.path) and true or false
-        if row.inverse then v = not v end
-        return v
+        return get(row.path) and true or false
     end
 
     cb:SetValue(readValue())
@@ -55,9 +53,7 @@ local function makeCheckbox(ctx, row, parent, relativeWidth)
     local function refresh() cb:SetValue(readValue()) end
 
     cb:SetCallback("OnValueChanged", function(_, _, value)
-        local v = value and true or false
-        if row.inverse then v = not v end
-        set(row, v)
+        set(row, value and true or false)
     end)
 
     Helpers.AttachTooltip(cb, row.label, row.desc)

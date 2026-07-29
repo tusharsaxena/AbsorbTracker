@@ -20,7 +20,17 @@ local function doRepaint()
     -- Fan out over every tracked unit. UpdateAbsorbBar defaults its `unit` argument to "player",
     -- so calling it bare here painted the player bar and left the target/focus StatusBars at their
     -- untouched frame defaults (full fill, no text) however many absorb events arrived.
-    NS.ForEachUnit(function(unit) NS.UpdateAbsorbBar(unit) end)
+    --
+    -- Count ONE repaint for the whole pass, not one per bar. The `[Combat]` rollup reads
+    -- "N events, M repaints" to show the throttle coalescing, and its N counts player events only
+    -- — an M that scaled with the visible bar count could exceed N and read as if the throttle
+    -- were amplifying work. A pass in which no bar painted (all hidden, or a /at test hold) still
+    -- counts nothing, so the "hidden bar is not a repaint" property is unchanged.
+    local painted = false
+    NS.ForEachUnit(function(unit)
+        if NS.UpdateAbsorbBar(unit) then painted = true end
+    end)
+    if painted and NS.NoteRepaint then NS.NoteRepaint() end
 end
 
 function NS.RequestRepaint()

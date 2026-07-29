@@ -22,7 +22,6 @@ local addonName, NS = ...
 --     dialogControl = "LSM30_Statusbar",              -- string (LSM swatch dropdown)
 --     hasAlpha      = true,                           -- color
 --     onChange   = function(v) ... end,               -- defaults to UpdateBarAppearance
---     inverse    = true,                              -- bool only: widget shows !value
 --     disabledIf = "useClassColorBar",                -- color only: greys out when sibling on
 --     fmt        = "%.1f sec",                        -- /at list/get formatting hint
 --     solo       = true,                              -- panel only: render alone in a row

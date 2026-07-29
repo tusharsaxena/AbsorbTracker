@@ -34,7 +34,6 @@ The array itself and its helpers live in `settings/Schema.lua` (`NS.Schema`). Th
 
     -- behavior:
     onChange      = function(v) ... end,    -- defaults to UpdateBarAppearance
-    inverse       = true,                   -- bool only: widget shows !value
     disabledIf    = "useClassColorBar",     -- color only: greys out when sibling toggle is on
     fmt           = "%.1f sec",             -- /at list/get formatting hint
     solo          = true,                   -- panel only: render alone in its own row
@@ -104,12 +103,6 @@ Each call generates three rows per appearance key — one per `NS.Units.LIST` en
 `NS.SetByPath` (in `settings/Schema.lua`) is the single write seam: it calls `NS.SetSetting` then fires the row's `onChange`. It does **not** itself refresh the panel — the slash handlers call `NS.RefreshOptionsPanel` afterward, and the panel widgets' own `set()` closures end with `Helpers.RefreshAllPanels`.
 
 ## Behavior knobs
-
-### `inverse = true` (bool only)
-
-Flips the widget value vs. the db value: the db stores one polarity, the checkbox displays the other, and a click writes the negation back. Both the slash path and the panel therefore land on the same db slot from opposite ends.
-
-**No production row uses this today.** It existed for `path = "hidden"`, rendered as a positive "Show Bar" toggle; schema v4 removed that setting in favour of the three per-unit `enabled` toggles, which need no inversion. The capability is kept (it is generic schema machinery and costs two lines in `makeCheckbox`) and stays covered by `tests/test_widgets.lua` against a synthetic row.
 
 ### `disabledIf = "<sibling-path>"` (color only)
 

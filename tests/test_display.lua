@@ -351,31 +351,45 @@ test("UpdateAbsorbBar writes the abbreviated value into the bar text", function(
   assertEqual(calls[1][1], T.mocks.AbbreviateNumbers(4200))
 end)
 
-test("UpdateAbsorbBar notes the repaint for the combat rollup", function()
+-- UpdateAbsorbBar reports whether it painted; modules/Timer.lua turns that into the [Combat]
+-- rollup's repaint count (one per coalesced pass, not one per bar -- see tests/test_timer.lua).
+test("UpdateAbsorbBar reports true when it paints", function()
   local savedHold = NS.testHoldUntil
-  local noted = 0
-  local orig = NS.NoteRepaint
-  NS.NoteRepaint = function() noted = noted + 1 end
   NS.testHoldUntil = nil
+  local painted
   local ok, err = pcall(function()
-    withUnitSetting("player", "enabled", true, NS.UpdateAbsorbBar)
+    withUnitSetting("player", "enabled", true, function()
+      painted = NS.UpdateAbsorbBar("player")
+    end)
   end)
-  NS.NoteRepaint = orig
   NS.testHoldUntil = savedHold
   if not ok then error(err) end
-  assertEqual(noted, 1)
+  assertEqual(painted, true)
 end)
 
-test("a hidden bar's skipped paint is NOT counted as a repaint", function()
-  local noted = 0
-  local orig = NS.NoteRepaint
-  NS.NoteRepaint = function() noted = noted + 1 end
+test("UpdateAbsorbBar reports false for a bar it skipped", function()
+  local painted
   local ok, err = pcall(function()
-    withUnitSetting("player", "enabled", false, NS.UpdateAbsorbBar)
+    withUnitSetting("player", "enabled", false, function()
+      painted = NS.UpdateAbsorbBar("player")
+    end)
   end)
-  NS.NoteRepaint = orig
   if not ok then error(err) end
-  assertEqual(noted, 0, "the [Combat] rollup would over-report otherwise")
+  assertEqual(painted, false, "the [Combat] rollup would over-report otherwise")
+end)
+
+test("UpdateAbsorbBar reports false while a /at test hold is active", function()
+  local savedHold = NS.testHoldUntil
+  local painted
+  local ok, err = pcall(function()
+    withUnitSetting("player", "enabled", true, function()
+      NS.testHoldUntil = T.mocks.GetTime() + 5
+      painted = NS.UpdateAbsorbBar("player")
+    end)
+  end)
+  NS.testHoldUntil = savedHold
+  if not ok then error(err) end
+  assertEqual(painted, false)
 end)
 
 -- ── per-unit visibility ladder ─────────────────────────────────────────────────────

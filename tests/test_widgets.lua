@@ -72,38 +72,6 @@ test("clicking a checkbox writes through SetByPath", function()
   T.mocks.__fireTimers()
 end)
 
--- `inverse` presents a bool as its opposite (the dropped "Show Bar" row rendered `hidden` that
--- way: ticked meant NOT hidden). Getting it backwards ships a checkbox that reads the opposite of
--- what it does. No production row uses it since schema v4 removed `hidden`, so these drive a
--- SYNTHETIC row over the real `locked` path to keep the schema feature covered.
-local function renderInverse()
-  local ctx = newCtx()
-  local row = { path = "locked", type = "bool", label = "Unlocked", inverse = true,
-                desc = "synthetic inverse row" }
-  local parent = AceGUI:Create("SimpleGroup")
-  return Helpers.RenderField(ctx, row, parent, 0.5)
-end
-
-test("an `inverse` row displays the NEGATED value", function()
-  withSetting("locked", true, function()
-    assertFalse(renderInverse().value, "locked = true renders as an UNticked 'Unlocked'")
-  end)
-  withSetting("locked", false, function()
-    assertTrue(renderInverse().value, "locked = false renders as a ticked 'Unlocked'")
-  end)
-end)
-
-test("an `inverse` row writes the negated value back too", function()
-  withSetting("locked", true, function()
-    local cb = renderInverse()
-    cb:__fire("OnValueChanged", true)          -- user ticks "Unlocked"
-    assertFalse(NS.GetSetting("locked"), "ticking the inverse label clears the setting")
-    cb:__fire("OnValueChanged", false)         -- user unticks it
-    assertTrue(NS.GetSetting("locked"))
-  end)
-  T.mocks.__fireTimers()
-end)
-
 test("a checkbox registers a refresher that re-reads after an external change", function()
   withSetting("showOnlyInCombat", false, function()
     local cb, _, ctx = render("showOnlyInCombat")

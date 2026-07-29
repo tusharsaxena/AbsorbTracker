@@ -138,18 +138,24 @@ end
 
 -- Repaint one bar's absorb value. Reads the raw (possibly "secret") UnitGetTotalAbsorbs value and
 -- hands it straight to the C-side UI functions / AbbreviateNumbers — never through tonumber first.
+--
+-- Returns true when it actually painted, false on either early-out. modules/Timer.lua uses that to
+-- count ONE repaint per coalesced pass rather than one per bar: the `[Combat] left: N events, M
+-- repaints` rollup exists to show that the throttle coalesced, and N counts player events only, so
+-- an M that scaled with the number of visible bars could exceed N and read as if the throttle were
+-- amplifying work. A pass that painted nothing still counts nothing, same as before.
 function NS.UpdateAbsorbBar(unit)
     unit = unit or "player"
     local bar = NS.bars[unit]
-    if not bar then return end
+    if not bar then return false end
 
     if not NS.ShouldShowBar(unit) then
-        return
+        return false
     end
 
     -- /at test paints a fake value and sets testHoldUntil so this doesn't immediately overwrite it.
     if (NS.testHoldUntil or 0) > GetTime() then
-        return
+        return false
     end
 
     local totalAbsorb = UnitGetTotalAbsorbs(unit) or 0
@@ -160,7 +166,7 @@ function NS.UpdateAbsorbBar(unit)
     bar.statusBar:SetValue(totalAbsorb)
     bar.valueText:SetText(AbbreviateNumbers(totalAbsorb))
 
-    if NS.NoteRepaint then NS.NoteRepaint() end
+    return true
 end
 
 -- Bus subscriptions (architecture-§4). This module owns the SOLE subscription to each of the

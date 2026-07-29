@@ -44,6 +44,55 @@ test("the coalesced repaint paints every tracked unit, not just the player", fun
   end
 end)
 
+-- The [Combat] rollup prints "N events, M repaints" to show the throttle coalescing, and its N
+-- counts PLAYER absorb events only (core/AbsorbTracker.lua). So M has to be passes, not bar-paints:
+-- counting per bar made M scale with how many bars happened to be visible, which could push it
+-- above N and read as if the throttle were amplifying work rather than collapsing it.
+test("one coalesced pass counts one repaint, however many bars it painted", function()
+  local mocks = T.mocks
+  mocks.__timers = {}
+  local noted = 0
+  local origNote, origPaint = NS.NoteRepaint, NS.UpdateAbsorbBar
+  NS.NoteRepaint = function() noted = noted + 1 end
+  NS.UpdateAbsorbBar = function() return true end   -- every unit paints
+
+  NS.RequestRepaint()
+  mocks.__fireTimers()
+
+  NS.NoteRepaint, NS.UpdateAbsorbBar = origNote, origPaint
+  assertEqual(noted, 1, "three bars painted, but it is still one repaint")
+end)
+
+test("a pass in which no bar painted counts no repaint", function()
+  local mocks = T.mocks
+  mocks.__timers = {}
+  local noted = 0
+  local origNote, origPaint = NS.NoteRepaint, NS.UpdateAbsorbBar
+  NS.NoteRepaint = function() noted = noted + 1 end
+  NS.UpdateAbsorbBar = function() return false end  -- all hidden, or a /at test hold
+
+  NS.RequestRepaint()
+  mocks.__fireTimers()
+
+  NS.NoteRepaint, NS.UpdateAbsorbBar = origNote, origPaint
+  assertEqual(noted, 0, "the rollup would over-report otherwise")
+end)
+
+test("a pass counts one repaint when only some of the bars painted", function()
+  local mocks = T.mocks
+  mocks.__timers = {}
+  local noted = 0
+  local origNote, origPaint = NS.NoteRepaint, NS.UpdateAbsorbBar
+  NS.NoteRepaint = function() noted = noted + 1 end
+  NS.UpdateAbsorbBar = function(unit) return unit == "player" end
+
+  NS.RequestRepaint()
+  mocks.__fireTimers()
+
+  NS.NoteRepaint, NS.UpdateAbsorbBar = origNote, origPaint
+  assertEqual(noted, 1, "one bar painting is still a repaint")
+end)
+
 test("RequestRepaint schedules the timer at the throttleWindow delay", function()
   local mocks = T.mocks
   mocks.__timers = {}

@@ -94,7 +94,7 @@ Each message has exactly one sender concept and one consuming module. The displa
 and `NS.RequestRepaint` remain defined on `NS` — they are the consumer-side implementations the bus
 handlers call, and stay directly unit-testable. Within the display concern, `Timer`'s coalescer
 calls `NS.UpdateAbsorbBar` directly (intra-concern), as does `NS.UpdateBarAppearance` calling
-`NS.ApplyVisibility`; the debug-counter hook `NS.NoteRepaint` (paint path → `core/AbsorbTracker.lua`
+`NS.ApplyVisibility`; the debug-counter hook `NS.NoteRepaint` (`modules/Timer.lua`'s pass → `core/AbsorbTracker.lua`
 combat rollup) is likewise a direct intra-implementation call, not a bus notification. The bus mock
 in `tests/wow_mock.lua` models real `(message, target)` dispatch so `tests/test_bus.lua` asserts
 two receivers of one message both fire (anti-pattern #33).
