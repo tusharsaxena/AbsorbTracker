@@ -708,38 +708,17 @@ test("/at perf finish lifts a suspend left over from the capture", function()
   -- Otherwise stopping a capture would silently leave the addon disabled for the whole session.
   perfReset()
   slash("perf start")
-  slash("perf suspend")
+  slash("perf measure b")
+  assertTrue(P.suspended, "measure b suspended the addon")
   local out = slash("perf finish")
-  assertFalse(P.suspended, "suspend lifted")
-  assertTrue(contains(out, "suspend lifted"), "and says so: " .. joined(out))
+  assertFalse(P.suspended, "finish lifted it")
+  assertTrue(contains(out, "RESUMED"), "and says so: " .. joined(out))
   perfReset()
   _G.AbsorbTrackerPerfDB = nil
 end)
 
-test("/at perf suspend and resume flip the probe's inert state", function()
-  perfReset()
-  local out = slash("perf suspend")
-  assertTrue(P.suspended, "suspended")
-  assertTrue(contains(out, "SUSPENDED"), "acknowledges: " .. joined(out))
-  out = slash("perf resume")
-  assertFalse(P.suspended, "resumed")
-  assertTrue(contains(out, "RESUMED"), "acknowledges: " .. joined(out))
-  perfReset()
-end)
 
-test("/at perf suspend twice reports the no-op rather than pretending", function()
-  perfReset()
-  slash("perf suspend")
-  local out = slash("perf suspend")
-  assertTrue(contains(out, "already suspended"), joined(out))
-  perfReset()
-end)
 
-test("/at perf resume without a suspend reports the no-op", function()
-  perfReset()
-  local out = slash("perf resume")
-  assertTrue(contains(out, "not suspended"), joined(out))
-end)
 
 test("/at perf report prints without stopping the capture", function()
   perfReset()
@@ -912,5 +891,29 @@ test("/at perf start announces to the console with debug logging OFF", function(
   slash("perf start")
   NS.State.debug = wasOn
   assertTrue(#NS.DebugLog.buffer > before, "perf output is ungated")
+  perfReset()
+end)
+
+test("/at perf no longer offers suspend or resume", function()
+  -- Vestigial once `measure b` handles the suspend itself. `finish` resumes before it saves or
+  -- formats anything, so no failure downstream can strand the addon inert, and /reload remains the
+  -- universal escape.
+  perfReset()
+  local usage = slash("perf")
+  assertEqual(joined(usage):find("suspend|resume", 1, true), nil, "gone from the usage line")
+  local out = slash("perf suspend")
+  assertTrue(contains(out, "usage: "), "unknown sub falls back to usage: " .. joined(out))
+  assertFalse(P.suspended, "and did not suspend anything")
+end)
+
+test("/at perf finish resumes before it saves, so a later error cannot strand the addon", function()
+  perfReset()
+  _G.AbsorbTrackerPerfDB = nil
+  slash("perf start")
+  slash("perf measure b")
+  slash("perf finish")
+  assertFalse(P.suspended, "addon restored")
+  assertEqual(#_G.AbsorbTrackerPerfDB.runs, 1, "and the run still saved")
+  _G.AbsorbTrackerPerfDB = nil
   perfReset()
 end)

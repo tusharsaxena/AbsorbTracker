@@ -256,8 +256,9 @@ In-game, as a sub-verb of the debug suite:
 /reload                    # flush SavedVariables
 ```
 
-Experiments are combat-gated, so the walk between pulls is never measured. `suspend` / `resume`
-remain as manual verbs, but `measure b` handles the suspend itself.
+Experiments are combat-gated, so the walk between pulls is never measured. There is no manual
+suspend verb: `measure b` owns it, which is what keeps the two experiments differing by the addon
+and nothing else.
 
 Captures land in the `AbsorbTrackerPerfDB` global inside
 `WTF/Account/<ACCOUNT>/SavedVariables/AbsorbTracker.lua` (note: the file is named after the **addon**,

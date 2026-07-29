@@ -260,7 +260,7 @@ local function emitPerfLines(lines)
 end
 
 local PERF_USAGE = {
-    "usage: |cFFFFFF00/at perf <start|measure|finish|report|dump|suspend|resume>|r",
+    "usage: |cFFFFFF00/at perf <start|measure|finish|report|dump>|r",
     "  |cFFFFFF00start [label]|r  begin a run; zeroes the counters and records who/where you are.",
     "                 The label is appended to the timestamp so runs are tellable apart.",
     "  |cFFFFFF00measure a|r      arm Experiment A \226\128\148 addon ACTIVE. Recording starts the moment",
@@ -272,9 +272,6 @@ local PERF_USAGE = {
     "  |cFFFFFF00report|r         print the summary again without ending the run.",
     "  |cFFFFFF00dump|r           render the run as one line of JSON in the copy window, for",
     "                 pasting somewhere. Same data the summary is built from.",
-    "  |cFFFFFF00suspend|r        make the addon inert by hand \226\128\148 events unregistered, bars",
-    "                 hidden, no repaints \226\128\148 without a /reload. `measure b` does this for you.",
-    "  |cFFFFFF00resume|r         undo `suspend`.",
 }
 
 -- Printed on `start`, so the workflow is in front of the user rather than in the docs. The whole
@@ -327,16 +324,18 @@ local PERF_SUBS = {
     finish = function(P)
         if not P.run then return print("no perf run is active \226\128\148 `/at perf start`") end
         local record = P.Stop()
+        -- Resume BEFORE saving or formatting. Experiment B leaves the addon inert, and with no
+        -- manual `resume` verb the only other way back is a /reload — so an error in Save or
+        -- FormatReport must not be able to strand the addon dead for the rest of the session.
+        -- Nobody expects `finish` to leave anything switched off but the run itself.
+        if P.suspended then
+            P.Resume()
+            print("addon |cff40ff40RESUMED|r \226\128\148 bars restored")
+        end
         P.Save(record)
         emitPerfLines(P.FormatReport(record))
         P.Announce("perf run |cffff4040FINISHED|r \226\128\148 saved; `/reload` to flush it to "
             .. "SavedVariables")
-        -- Leaving suspend on after a capture would silently disable the addon for the rest of the
-        -- session, and nobody expects `off` to leave anything switched off but the capture itself.
-        if P.suspended then
-            P.Resume()
-            print("perf suspend lifted \226\128\148 bars restored")
-        end
     end,
 
     report = function(P)
@@ -350,21 +349,6 @@ local PERF_SUBS = {
         if NS.DebugLog.ShowCopy then NS.DebugLog:ShowCopy() end
     end,
 
-    suspend = function(P)
-        if P.Suspend() then
-            print("addon |cffff4040SUSPENDED|r \226\128\148 inert until `/at perf resume` or /reload")
-        else
-            print("already suspended")
-        end
-    end,
-
-    resume = function(P)
-        if P.Resume() then
-            print("addon |cff40ff40RESUMED|r")
-        else
-            print("not suspended")
-        end
-    end,
 }
 
 -- Bare `/at perf`, and the fallback for anything unrecognised.

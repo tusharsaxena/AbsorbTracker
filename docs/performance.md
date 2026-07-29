@@ -67,17 +67,17 @@ when you explicitly ask for one. Everything also acknowledges in chat.
 | `/at perf finish` | End the run, append to the ring, print the summary, lift any suspend |
 | `/at perf report` | Reprint the summary without ending the run — useful mid-run to check an experiment landed |
 | `/at perf dump` | Render the run as one line of JSON in the copy window, for pasting elsewhere. Same data the summary is built from |
-| `/at perf suspend` | Make the addon inert by hand — events unregistered, bars hidden, no repaints — without a `/reload`. `measure b` does this for you |
-| `/at perf resume` | Undo `suspend` |
 
 ### Suspend
 
-`suspend` unregisters every event, cancels any pending repaint, and hides all bars — **without a
-reload**. `NS.ShouldShowBar` checks the suspended flag as step 0 of its ladder, so nothing (a combat
-transition, a target swap, a settings edit) can re-show a bar mid-measurement.
+Experiment B suspends the addon: every event unregistered, any pending repaint cancelled, all bars
+hidden — **without a reload**. `NS.ShouldShowBar` checks the suspended flag as step 0 of its ladder,
+so nothing (a combat transition, a target swap, a settings edit) can re-show a bar mid-measurement.
 
-It is session-only and resets on `/reload`. `/at perf finish` lifts it automatically so a run
-can't leave the addon switched off by accident.
+There is no manual `suspend` verb — `measure b` owns it, which is what guarantees the two
+experiments differ by the addon and nothing else. It is session-only, `/at perf finish` lifts it
+before it saves or formats anything (so no later failure can strand the addon inert), and `/reload`
+clears it regardless.
 
 Suspend matters because **disabling an addon is not a clean experiment**. WoW's built-in Addon
 Profiler bills a shared library's dispatch frame to whichever addon created it — the first to load

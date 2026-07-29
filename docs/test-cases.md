@@ -376,7 +376,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
 
-### test_slashcmds.lua (88)
+### test_slashcmds.lua (87)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -444,9 +444,6 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at perf finish refuses when no run is active
 - /at perf finish saves the record to the perf ring
 - /at perf finish lifts a suspend left over from the capture
-- /at perf suspend and resume flip the probe's inert state
-- /at perf suspend twice reports the no-op rather than pretending
-- /at perf resume without a suspend reports the no-op
 - /at perf report prints without stopping the capture
 - /at perf routes output to the debug console, not chat
 - /at perf dump emits parseable JSON carrying the schema stamp
@@ -466,6 +463,8 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - the perf usage block documents the measure workflow
 - /at perf start prints the workflow steps to chat and console
 - /at perf start announces to the console with debug logging OFF
+- /at perf no longer offers suspend or resume
+- /at perf finish resumes before it saves, so a later error cannot strand the addon
 
 ### test_widgets.lua (48)
 
@@ -536,6 +535,6 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_data.lua | 26 |
 | test_display.lua | 39 |
 | test_helpers.lua | 40 |
-| test_slashcmds.lua | 88 |
+| test_slashcmds.lua | 87 |
 | test_widgets.lua | 48 |
-| **Total** | **468** |
+| **Total** | **467** |
