@@ -154,7 +154,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (50)
+### test_perf.lua (53)
 
 - perf: Note accumulates calls, total and max
 - perf: Note tracks unrelated buckets independently
@@ -206,6 +206,9 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - perf: BuildRecord carries the limiter state
 - perf: FormatReport invalidates the delta when the frame rate is capped
 - perf: FormatReport leaves the delta alone when uncapped
+- perf: FormatReport always prints the limiter CVars
+- perf: FormatReport says so when the limiters were never recorded
+- perf: BuildRecord records targetFPS alongside the hard caps
 
 ### test_visibility.lua (17)
 
@@ -495,7 +498,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
 | test_timer.lua | 11 |
-| test_perf.lua | 50 |
+| test_perf.lua | 53 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
@@ -503,4 +506,4 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_helpers.lua | 40 |
 | test_slashcmds.lua | 78 |
 | test_widgets.lua | 48 |
-| **Total** | **433** |
+| **Total** | **436** |

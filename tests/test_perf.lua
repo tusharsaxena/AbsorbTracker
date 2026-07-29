@@ -450,3 +450,32 @@ test("perf: FormatReport leaves the delta alone when uncapped", function()
   assertEqual(lines:find("DELTA IS INVALID", 1, true), nil, "no warning when uncapped")
   assertTrue(lines:find("+2.50 ms/frame", 1, true) ~= nil, "delta still reported")
 end)
+
+test("perf: FormatReport always prints the limiter CVars", function()
+  -- Every report, not just capped ones: a saved run should carry the conditions it was taken under,
+  -- so a capture read months later does not depend on anyone remembering them.
+  reset()
+  local record = P.BuildRecord()
+  record.limits = { maxFPS = 0, maxFPSBk = 30, targetFPS = 60, vsync = 0 }
+  local lines = table.concat(P.FormatReport(record), "\n")
+  assertTrue(lines:find("limits:", 1, true) ~= nil, "limits line present: " .. lines)
+  assertTrue(lines:find("maxFPS=0", 1, true) ~= nil, "maxFPS shown")
+  assertTrue(lines:find("targetFPS=60", 1, true) ~= nil, "targetFPS shown")
+  assertTrue(lines:find("vsync=0", 1, true) ~= nil, "vsync shown")
+  assertEqual(lines:find("DELTA IS INVALID", 1, true), nil, "and no warning when nothing binds")
+end)
+
+test("perf: FormatReport says so when the limiters were never recorded", function()
+  reset()
+  local record = P.BuildRecord()
+  record.limits = nil
+  local lines = table.concat(P.FormatReport(record), "\n")
+  assertTrue(lines:find("(not recorded)", 1, true) ~= nil, "explicit rather than blank")
+end)
+
+test("perf: BuildRecord records targetFPS alongside the hard caps", function()
+  reset()
+  local limits = P.BuildRecord().limits
+  assertTrue(limits.targetFPS ~= nil, "targetFPS captured")
+  assertTrue(limits.maxFPS ~= nil, "maxFPS captured")
+end)

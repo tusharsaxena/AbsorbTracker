@@ -124,6 +124,7 @@ a crash or a logout.
 
 ```
 capture: 2026-07-29 21:14  (schema 1, v1.9.0)
+limits:    maxFPS=0  maxFPSBk=30  targetFPS=60  vsync=0
 active:      62.3s    4821 frames    77.4 fps   12.92 ms/frame
 suspended:   60.1s    5903 frames    98.2 fps   10.18 ms/frame
 delta:                                          +2.74 ms/frame

@@ -174,7 +174,7 @@ end
 --
 -- CVar names are probed rather than asserted: the vsync CVar has been renamed across expansions, so
 -- ask for several and keep whichever the client actually answers to.
-local FPS_CVARS = { maxFPS = "maxFPS", maxFPSBk = "maxFPSBk" }
+local FPS_CVARS = { maxFPS = "maxFPS", maxFPSBk = "maxFPSBk", targetFPS = "targetFPS" }
 local VSYNC_CVARS = { "vsync", "gxVSync", "VerticalSync" }
 
 local function getCVar(name)
@@ -304,6 +304,20 @@ end
 
 -- ── Reporting ──────────────────────────────────────────────────────────────────────────────
 
+--- One line describing the frame-limiter CVars as they were at capture start.
+---
+--- Printed on EVERY report, not only when a cap is detected, so a capture is self-documenting:
+--- reading a saved run months later, the conditions travel with the numbers instead of having to be
+--- remembered. It also makes the disagreement visible when the graphics UI and the CVars disagree —
+--- a checkbox can read "off" while the CVar still holds a limiting value, and the engine obeys the
+--- CVar.
+local function limitsLine(limits)
+    if not limits then return "limits:    (not recorded)" end
+    return ("limits:    maxFPS=%s  maxFPSBk=%s  targetFPS=%s  vsync=%s")
+        :format(limits.maxFPS or "?", limits.maxFPSBk or "?",
+            limits.targetFPS or "?", limits.vsync or "?")
+end
+
 --- Render a record as a list of plain strings. Returns a table (not a printed side effect) so the
 --- headless suite can assert on the exact lines without frames or a chat sink.
 function P.FormatReport(record)
@@ -315,6 +329,7 @@ function P.FormatReport(record)
     local f = record.fps
     add("capture: %s  (schema %d, v%s)", record.label ~= "" and record.label or "unlabelled",
         record.schema, record.version)
+    add(limitsLine(record.limits))
 
     -- FPS arms first: this is the headline the whole harness exists to produce.
     for _, name in ipairs({ "active", "suspended" }) do
