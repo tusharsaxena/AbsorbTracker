@@ -2,14 +2,14 @@
 
 _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > docs/test-cases.md`._
 
-### test_schema.lua (40)
+### test_schema.lua (41)
 
 - ParseSchemaValue bool accepts truthy/falsey words, rejects junk
 - ParseSchemaValue number clamps to the row's min/max
 - ParseSchemaValue color accepts 0-1 and 0-255 and clamps to 0..1
 - ParseSchemaValue string validates against allowed values
 - FormatSchemaValue formats by type
-- SchemaForPage keeps groups in registration order (This bar, Size, Bar, Background)
+- SchemaForPage keeps groups in registration order (Size, Bar, Background)
 - ValidateSchema resolves every real path against defaults (0 errors, 0 missing)
 - ValidateSchema reports a planted path that does not resolve against defaults
 - ValidateSchema flags an invalid page/type as a shape error
@@ -40,15 +40,16 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - PartitionUnitRows splits alwaysPerUnit rows from the mirrored appearance rows
 - every appearance page carries a full row set for all three units
 - each unit's row set for a page is the same size
-- the enable row is per-unit and survives mirroring
+- the enable row is per-unit, lives on General, and survives mirroring
+- the enable toggles lead the left column, interleaved with the globals
 - the mirror row exists for target and focus but not the player
 - the mirror row is kept out of the auto-rendered body
-- General's rows stay flat globals with no unit tag
+- General's rows are the flat globals plus one enable toggle per unit
 
-### test_database.lua (25)
+### test_database.lua (27)
 
-- RunMigrations migrates a fresh DB to the current version (3)
-- RunMigrations leaves an already-current (v3) DB unchanged
+- RunMigrations migrates a fresh DB to the current version (4)
+- RunMigrations leaves an already-current (v4) DB unchanged
 - RunMigrations is idempotent across repeated runs
 - RunMigrations v2 retires the legacy updateInterval profile key
 - RunMigrations backfills throttleWindow from flatDefaults
@@ -60,12 +61,14 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - InitDB produced a profile carrying every default key
 - v3 migration lifts flat appearance keys onto the player unit
 - v3 migration seeds target and focus disabled and mirrored
-- v3 migration leaves the four global keys flat
+- v3 migration leaves the remaining global keys flat
+- v4 drops the dead `hidden` key from every profile, not just the active one
+- v4 does not resurrect `hidden` via the defaults backfill
 - v3 migration is idempotent
 - v3 migration does not share nested tables between units
-- the schema version lands on 3
+- the schema version lands on 4
 - real AceDB init: a legacy flat profile is lifted onto the player unit, not overwritten by fresh defaults
-- real AceDB init: a fresh install (no saved data) converges on factory defaults at v3
+- real AceDB init: a fresh install (no saved data) converges on factory defaults at v4
 - InitDB lifts EVERY saved profile, not only the active one
 - a profile that appears AFTER the upgrade is lifted when it becomes active
 - the InitDB sweep and the profile-change lift compose without double-applying
@@ -138,9 +141,10 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OpenOptionsPanel logs [Cfg] refused in combat
 - SetByPath logs one [Set] path = value line (§10)
 
-### test_timer.lua (7)
+### test_timer.lua (8)
 
 - RequestRepaint coalesces multiple requests into one scheduled repaint
+- the coalesced repaint paints every tracked unit, not just the player
 - RequestRepaint schedules the timer at the throttleWindow delay
 - OnAbsorbChanged requests a repaint for the player
 - OnAbsorbChanged requests a repaint for any tracked unit, not just the player
@@ -148,15 +152,19 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_visibility.lua (13)
+### test_visibility.lua (17)
 
-- ShouldShowBar: hidden master toggle wins even in combat
-- ShouldShowBar: default (not hidden, not combat-only) is shown
+- ShouldShowBar: a disabled unit wins even in combat
+- ShouldShowBar: default (enabled, not combat-only) is shown
 - ShouldShowBar: combat-only + in combat is shown
 - ShouldShowBar: combat-only + out of combat is hidden
 - ShouldShowBar: combat-only shows when lockdown lags actual combat
-- EnsureUnitEventFrames registers exactly player+target on frame A and focus on frame B
-- EnsureUnitEventFrames is idempotent — a second call leaves the same frame pair in place
+- SyncUnitEventFrames registers each enabled unit on its own frame, one token each
+- a disabled unit is registered for nothing at all
+- enabling a unit registers it and disabling it again unregisters
+- the target/focus swap events are registered only while that bar is enabled
+- SyncUnitEventFrames reuses its frames — a re-sync must not leak a new set
+- the UNITS message re-syncs the registrations
 - OnEnterCombat applies visibility and requests a repaint
 - OnLeaveCombat applies visibility and requests a repaint
 - OnLeaveCombat never opens config, even with a stale panelOpenPending (options-ui-§2)
@@ -203,7 +211,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - three bar frames exist and the player alias points at the player frame
 - each bar carries its own unit tag and its own backdrop table
 
-### test_display.lua (34)
+### test_display.lua (38)
 
 - RestoreBarPosition centres the bar when no position is saved
 - RestoreBarPosition restores the saved anchor verbatim
@@ -216,6 +224,10 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - UpdateBarAppearance pushes the resolved media into the backdrop
 - UpdateBarAppearance makes the bar immovable and mouse-inert when locked
 - UpdateBarAppearance restores drag + mouse when unlocked
+- every bar owns a unit label
+- unlocking shows a label naming the unit
+- locking hides the unit label
+- the unit label follows the unit's own font face
 - UpdateBarAppearance re-applies the font from the profile
 - UpdateBarAppearance tolerates a nil fontFlags by passing an empty flag string
 - UpdateBarAppearance ends by applying visibility
@@ -228,8 +240,8 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - UpdateAbsorbBar writes the abbreviated value into the bar text
 - UpdateAbsorbBar notes the repaint for the combat rollup
 - a hidden bar's skipped paint is NOT counted as a repaint
-- the global hidden toggle hides every bar
-- a disabled unit stays hidden even with the master toggle on
+- each unit's enable flag governs only its own bar
+- a disabled unit stays hidden even when the others are on
 - an enabled target bar hides when there is no target
 - the player bar never consults UnitExists
 - showOnlyInCombat gates every bar on PLAYER combat
@@ -267,7 +279,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - the Bar page opens on the player unit with no mirror header
 - RenderUnitPanel draws a Unit dropdown listing all three units
 - switching the dropdown to focus re-renders the page for that unit
-- a mirrored unit hides its appearance rows but keeps the enable toggle
+- a mirrored unit shows only its header, no appearance rows
 - unchecking the mirror reveals the appearance rows
 - the copy button snapshots the player's styling and clears the mirror
 - a page Defaults button resets that page across every unit
@@ -283,13 +295,15 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
 
-### test_slashcmds.lua (58)
+### test_slashcmds.lua (60)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
 - NS.SlashCommands is the same table the About page renders
 - /at lock and /at unlock write the `locked` setting and acknowledge
-- /at toggle flips `hidden` in both directions
+- /at toggle turns every bar off, then every bar back on
+- /at toggle <unit> flips only that unit
+- /at toggle rejects an unknown unit and changes nothing
 - /at toggle requests a repaint when SHOWING, not when hiding
 - /at update publishes REPAINT and acknowledges
 - /at reset with no page prints usage rather than resetting anything
@@ -307,7 +321,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at set rejects a non-numeric value for a number setting
 - /at set writes a colour from `r g b a` and echoes the STORED value
 - /at set accepts a bool written as a human word
-- /at test refuses while the bar is hidden and tells the user how to fix it
+- /at test refuses while every bar is disabled and tells the user how to fix it
 - /at test paints the given value and arms the hold window
 - /at test defaults to 50000 held for 5 seconds
 - /at test keeps the bar scale usable for a value below the 100k floor
@@ -336,7 +350,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - list groups the appearance pages by unit
 - reset bar resets every unit
 - resetposition clears all three positions
-- toggle still flips the global hidden master
+- toggle round-trips the enabled set
 - /at get annotates a row whose unit is currently mirroring the player
 - /at get does NOT annotate an unmirrored unit, or the player
 - /at get does NOT annotate the per-unit rows a mirror never covers
@@ -344,7 +358,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at list annotates only the mirrored units' appearance rows
 - the mirrored note keeps the Ka0s colour scheme intact and stays subordinate
 
-### test_widgets.lua (48)
+### test_widgets.lua (50)
 
 - NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
 - a bool row renders a CheckBox labelled from the schema
@@ -383,6 +397,8 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - a `solo` row is rendered alone on its own line
 - RenderSchema emits a Heading for each schema group
 - an afterGroup callback fires exactly once, after its group's last row
+- each enable toggle leads its row, paired with a global on the right
+- every tracked unit gets an enable toggle on the General page
 - a pairWith partner is attached to the named row and is one-shot
 - RenderSchema runs a layout pass at the end
 - EnsureScroll is lazy, created once, and patched for an always-visible scrollbar
@@ -399,19 +415,19 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 
 | Suite | Count |
 |-------|-------|
-| test_schema.lua | 40 |
-| test_database.lua | 25 |
+| test_schema.lua | 41 |
+| test_database.lua | 27 |
 | test_units.lua | 14 |
 | test_compat.lua | 4 |
 | test_util.lua | 6 |
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
-| test_timer.lua | 7 |
-| test_visibility.lua | 13 |
+| test_timer.lua | 8 |
+| test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
-| test_display.lua | 34 |
+| test_display.lua | 38 |
 | test_helpers.lua | 40 |
-| test_slashcmds.lua | 58 |
-| test_widgets.lua | 48 |
-| **Total** | **348** |
+| test_slashcmds.lua | 60 |
+| test_widgets.lua | 50 |
+| **Total** | **364** |

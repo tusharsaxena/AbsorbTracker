@@ -45,7 +45,7 @@ end
 -- Forward declarations so the commands table can reference handlers defined below.
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
-local runDebug, runUpdate, runTest, runProfile
+local runDebug, runUpdate, runTest, runProfile, runToggle
 local getVersion
 
 NS.COMMANDS = {
@@ -75,16 +75,8 @@ NS.COMMANDS = {
             NS.SetByPath("locked", false)
             print("Bar unlocked")
         end},
-    {"toggle",        "Toggle bar visibility",
-        function()
-            -- No explicit REPAINT here: SetByPath fires the `hidden` row's onChange
-            -- (settings/General.lua), which already publishes APPEARANCE and — when the bar is
-            -- becoming visible — REPAINT. Publishing again from this verb only duplicated what
-            -- the schema seam does, and left the CLI and the panel checkbox on different paths.
-            local hidden = not NS.GetSetting("hidden")
-            NS.SetByPath("hidden", hidden)
-            print(hidden and "Hidden" or "Shown")
-        end},
+    {"toggle",        "Toggle bars on or off \226\128\148 `/at toggle [player|target|focus]`",
+        function(rest) runToggle(rest) end},
     {"debug",         "Toggle the debug console \226\128\148 `on`/`off` enable/disable logging",
         function(rest) runDebug(rest) end},
     {"update",        "Force a bar refresh",
@@ -268,6 +260,43 @@ function runDebug(rest)
     end
 end
 
+-- ---------------------------------------------------------------------
+-- /at toggle [unit]
+-- ---------------------------------------------------------------------
+--
+-- Bare: flips EVERY bar at once — off if any is currently on, otherwise all on. That asymmetry is
+-- deliberate: a plain flip of each unit independently would invert the user's mix (player on,
+-- target off becomes player off, target on), which is not what "toggle the bars" means to anyone.
+--
+-- With a unit token: flips that one unit only, leaving the others alone.
+--
+-- Both write through NS.SetByPath, so the enable row's onChange fires exactly as it does from the
+-- panel checkbox — publishing UNITS (re-syncing event registrations), APPEARANCE and REPAINT.
+-- The CLI and the checkbox therefore can never drift onto different code paths.
+function runToggle(rest)
+    local token = (rest or ""):match("^(%S*)"):lower()
+
+    if token ~= "" then
+        if not NS.Units.LABEL[token] then
+            local names = table.concat(NS.Units.LIST, ", ")
+            return print(("unknown unit '%s' \226\128\148 expected one of: %s"):format(token, names))
+        end
+        local on = not NS.Units.IsEnabled(token)
+        NS.SetByPath("units." .. token .. ".enabled", on)
+        return print(("%s bar %s"):format(NS.Units.LABEL[token], on and "shown" or "hidden"))
+    end
+
+    local anyEnabled = false
+    for _, unit in ipairs(NS.Units.LIST) do
+        if NS.Units.IsEnabled(unit) then anyEnabled = true break end
+    end
+    local on = not anyEnabled
+    for _, unit in ipairs(NS.Units.LIST) do
+        NS.SetByPath("units." .. unit .. ".enabled", on)
+    end
+    print(on and "All bars shown" or "All bars hidden")
+end
+
 function runUpdate()
     NS.bus:SendMessage(NS.MSG.REPAINT)
     print("Forced refresh")
@@ -279,8 +308,14 @@ function runTest(rest)
     local n    = tonumber(args[1]) or 50000
     local hold = tonumber(args[2]) or 5
 
-    if NS.GetSetting("hidden") then
-        print("Bar is hidden; run /at toggle to show it before testing")
+    -- Nothing to paint if every bar is off. Checks `enabled` per unit rather than a master
+    -- toggle — there is no `hidden` global any more (schema v4).
+    local anyEnabled = false
+    for _, unit in ipairs(NS.Units.LIST) do
+        if NS.Units.IsEnabled(unit) then anyEnabled = true break end
+    end
+    if not anyEnabled then
+        print("Every bar is disabled; run /at toggle to turn them on before testing")
         return
     end
 

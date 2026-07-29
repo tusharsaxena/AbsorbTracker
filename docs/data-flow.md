@@ -35,6 +35,7 @@ The flat→profile migration lives in `NS:RunMigrations` (`core/Database.lua`), 
 2. **Backfill** (unconditional, idempotent): walks `NS.defaults.profile` and copies any key still missing from `db.profile` — both the four flat globals and, per unit in `NS.Units.LIST`, any missing per-unit appearance key (deep-copying table defaults so a saved-variable mutation can't reach back into the defaults). Because it only fills absent keys, it is a no-op on the second run — this step absorbs the legacy pre-AceDB flat-SavedVariables shape and the no-AceDB fallback.
 3. **v2 bump** (`g.schemaVersion < 2`): retires the dead `profile.updateInterval` key (the repaint path moved from a poll ticker to the event-driven `throttleWindow` scheduler) and stamps `schemaVersion = 2`.
 4. **v3 bump** (`g.schemaVersion < 3`): stamps the account-wide `schemaVersion = 3`. This is the DB-wide marker; the *per-profile* stamps were already written in step 1.
+5. **v4 bump** (`g.schemaVersion < 4`): drops the dead `hidden` master toggle from **every** profile in the store via `dropKeyEverywhere` (same all-profiles reasoning as the v3 lift — a key left on an inactive profile returns the moment the user switches to it), then stamps `schemaVersion = 4`. The per-unit `enabled` flags replaced it, so a surviving `hidden = true` would suppress every bar with no UI left to clear it.
 
 Both version bumps are idempotent and log one `[Migrate]` line only when they actually fire.
 
@@ -53,7 +54,7 @@ OnEnable (PLAYER_LOGIN timing)
     ├─▶ NS.bus:SendMessage(NS.MSG.APPEARANCE)  -- ▶ Display: size, textures, colors, border, font
     ├─▶ NS.bus:SendMessage(NS.MSG.REPAINT)     -- ▶ Timer: coalesced initial value paint
     │
-    ├─▶ self:EnsureUnitEventFrames()
+    ├─▶ self:SyncUnitEventFrames()
     │     ├─ [private frame A] RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "player","target")
     │     ├─ [private frame A] RegisterUnitEvent("UNIT_MAXHEALTH", "player","target")
     │     ├─ [private frame B] RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "focus")
@@ -133,7 +134,7 @@ setSetting(rest) → ParseSchemaValue      local set(row, value)
          path, v)  -- walks dotted
          paths (units.<unit>.<key>)
          same as flat ones
-                                hidden:    bus ▶ APPEARANCE (+ REPAINT when shown)
+                                enabled:   bus ▶ UNITS + APPEARANCE (+ REPAINT when on)
                                 combat:    bus ▶ VISIBILITY (+ REPAINT when shown)
                              │
                              ▼
@@ -177,13 +178,14 @@ NS.OnProfileChanged()
 
 ## Visibility composition
 
-`NS.ShouldShowBar(unit)` (`modules/Display.lua`) is the single source of truth for whether a given unit's bar is on screen — a five-step ladder, first `false` wins:
+`NS.ShouldShowBar(unit)` (`modules/Display.lua`) is the single source of truth for whether a given unit's bar is on screen — a four-step ladder, first `false` wins:
 
-1. the global `hidden` master toggle (`hidden == true` → every bar hidden, regardless of combat),
-2. the per-unit `NS.Units.IsEnabled(unit)` flag (target/focus ship `false`),
-3. `showOnlyInCombat and not UnitAffectingCombat("player")` (the gate keys off actual player combat, **not** `InCombatLockdown()`, which lags the `PLAYER_REGEN_DISABLED` transition — see `docs/midnight-quirks.md`),
-4. for target/focus only, `UnitExists(unit)` — **not** an absorb comparison (`UnitGetTotalAbsorbs` is a secret in restricted content and comparing it to zero raises; the same constraint recorded in `docs/scope.md` for the declined audio-alert feature),
-5. otherwise shown.
+1. the per-unit `NS.Units.IsEnabled(unit)` flag (target/focus ship `false`) — there is no master `hidden` toggle above it any more; schema v4 dropped it, and these three flags ARE the visibility switch,
+2. `showOnlyInCombat and not UnitAffectingCombat("player")` (the gate keys off actual player combat, **not** `InCombatLockdown()`, which lags the `PLAYER_REGEN_DISABLED` transition — see `docs/midnight-quirks.md`),
+3. for target/focus only, `UnitExists(unit)` — **not** an absorb comparison (`UnitGetTotalAbsorbs` is a secret in restricted content and comparing it to zero raises; the same constraint recorded in `docs/scope.md` for the declined audio-alert feature),
+4. otherwise shown.
+
+A disabled unit is also unregistered from its absorb / max-health events entirely (`addon:SyncUnitEventFrames`, driven by the `UNITS` message), so step 1 rarely even gets the chance to reject a paint — the event that would have triggered it never reaches Lua.
 
 `NS.ApplyVisibility(unit)` calls `NS.ShouldShowBar(unit)` and shows/hides that unit's bar frame accordingly (all three bar frames are plain, non-secure frames, so this is taint-free even mid-combat). `NS.UpdateBarAppearance(unit)` ends with a call to `NS.ApplyVisibility(unit)`, and `NS.UpdateAbsorbBar(unit)` early-returns (skipping the paint) when `NS.ShouldShowBar(unit)` is false — so both the settings-write path and the repaint path stay consistent with the same ladder without each caller re-deriving it. The bus handlers (`APPEARANCE`/`VISIBILITY`/`POSITION`) call these per-unit functions once for each of `NS.Units.LIST` via `NS.ForEachUnit`.
 

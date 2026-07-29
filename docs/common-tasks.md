@@ -4,7 +4,7 @@ Recipes for the routine modifications. For deeper context on any module, see [mo
 
 ## Add a new setting (General page — a flat, unit-agnostic global)
 
-This recipe is for a **flat** setting like `hidden` / `locked` / `showOnlyInCombat` / `throttleWindow` — one that governs all three bars at once and belongs on the General page. For a Bar/Border/Font appearance setting that should exist per unit, see [Add a per-unit setting](#add-a-per-unit-setting) below instead.
+This recipe is for a **flat** setting like `locked` / `showOnlyInCombat` / `throttleWindow` — one that governs all three bars at once and belongs on the General page. For a Bar/Border/Font appearance setting that should exist per unit, see [Add a per-unit setting](#add-a-per-unit-setting) below instead.
 
 The schema-driven design makes a flat setting a one-row change. The widget on the General sub-page AND the `/at set <path>` CLI come for free.
 
@@ -13,7 +13,7 @@ The schema-driven design makes a flat setting a one-row change. The widget on th
    ```lua
    -- defaults/Profile.lua
    NS.defaults.profile = {
-       -- ... hidden, locked, showOnlyInCombat, throttleWindow ...
+       -- ... locked, showOnlyInCombat, throttleWindow ...
        myNewKnob = 42,
        units = { ... },
    }
@@ -221,7 +221,7 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 | `tests/test_debuglog.lua` | `NS.Debug` sink, `FormatPlain` / `FormatColored`, on/off state |
 | `tests/test_slash.lua` | `NS.COMMANDS` dispatch, unknown-verb path, `/at` verbs |
 | `tests/test_timer.lua` | `NS.RequestRepaint` coalescing + `throttleWindow` delay, event-handler repaint wiring |
-| `tests/test_visibility.lua` | `NS.ShouldShowBar` / `NS.ApplyVisibility` five-step ladder (`hidden` / per-unit `enabled` / `showOnlyInCombat` / target-focus `UnitExists`), `OnEnterCombat` + `OnLeaveCombat` + `OnUnitSwap` visibility+repaint, and the options-ui-§2 guarantee that `OnLeaveCombat` never auto-opens `/at config` (no defer-and-replay) |
+| `tests/test_visibility.lua` | `NS.ShouldShowBar` / `NS.ApplyVisibility` four-step ladder (per-unit `enabled` / `showOnlyInCombat` / target-focus `UnitExists`), `OnEnterCombat` + `OnLeaveCombat` + `OnUnitSwap` visibility+repaint, and the options-ui-§2 guarantee that `OnLeaveCombat` never auto-opens `/at config` (no defer-and-replay) |
 | `tests/test_bus.lua` | `NS.bus` / `NS.NewBusTarget` / `NS.MSG` catalogue, per-target subscribe + unregister, two receivers of one message both firing (anti-pattern #33), and `REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION` routing to their consumers (each fanning out over `NS.ForEachUnit`) |
 | `tests/test_data.lua` | `GetSetting` / `SetSetting` (profile read, dotted-path resolution, `flatDefaults` fallback, no-DB degradation), the per-unit LSM texture/border/font fetchers and their fallbacks, `ClearLSMCache`, `Helpers.LSMValues`, and the per-unit class-colour resolvers |
 | `tests/test_display.lua` | `NS.ForEachUnit`, `NS.DefaultPosition`, `RestoreBarPosition`, `UpdateBarAppearance` (size, backdrop insets, nil-then-set refresh, lock, font, mirror-resolved reads), `UpdateAbsorbBar` (hidden / `testHoldUntil` early-outs, max-health scaling, `NoteRepaint`) — all per unit |

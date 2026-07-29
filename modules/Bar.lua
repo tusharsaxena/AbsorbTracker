@@ -8,6 +8,9 @@ local addonName, NS = ...
 local C = NS.Constants
 local unitDefaults = NS.unitDefaults
 
+-- Gap between the top of a bar and its unit label, in pixels.
+local LABEL_GAP = 2
+
 --- Build one bar. Each frame owns its OWN backdropInfo table: one shared table cannot hold three
 --- different border sizes, and WoW's SetBackdrop keys off table identity.
 function NS.CreateBar(unit, globalName)
@@ -54,6 +57,22 @@ function NS.CreateBar(unit, globalName)
     valueText:SetFont(NS.GetFont(unit), unitDefaults.fontSize, unitDefaults.fontFlags or "")
     valueText:SetPoint("CENTER", bar, "CENTER", 0, 0)
     bar.valueText = valueText
+
+    -- Unit name, shown above the bar only while the bars are unlocked. The three bars stack and
+    -- look alike, so this is what tells the user which one they are about to drag; it is an
+    -- affordance rather than a styled element, so it has no schema row. Parented to `bar` (not
+    -- statusBar) so it sits outside the fill and moves with the frame. Starts hidden so a locked
+    -- login never flashes it.
+    --
+    -- Deliberately NOT given text here: a FontString raises "SetText(): Font not set" if text is
+    -- assigned before a font, and this label's font (the unit's own face at a fixed label size) is
+    -- owned by NS.UpdateBarAppearance, which runs from the APPEARANCE message on enable. That
+    -- error would abort CreateBar mid-frame and leave NS.bars nil for the whole session, so keep
+    -- the SetFont → SetText order there and create this bare.
+    local unitLabel = bar:CreateFontString(nil, "OVERLAY", nil)
+    unitLabel:SetPoint("BOTTOM", bar, "TOP", 0, LABEL_GAP)
+    unitLabel:Hide()
+    bar.unitLabel = unitLabel
 
     return bar
 end

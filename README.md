@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 [![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)](https://github.com/tusharsaxena/WowAddonStandards)
-![Tests](https://img.shields.io/badge/Tests-348%2F348_passing-green)
+![Tests](https://img.shields.io/badge/Tests-364%2F364_passing-green)
 
 ![Logo](https://media.forgecdn.net/attachments/1659/653/absorbracker-logo-v2-jpg.jpg)
 
@@ -14,7 +14,8 @@ Set it all up in the WoW Settings panel, or with the `/at` slash command.
 
 ## What's new in 1.9.0
 
-- **Target and Focus absorb bars.** Two new bars — off by default — track the same combined-absorb display for your current target and focus. Turn them on with the Unit dropdown on the Bar/Border/Font pages.
+- **Target and Focus absorb bars.** Two new bars — off by default — track the same combined-absorb display for your current target and focus. Turn them on with **Enable Target Bar** / **Enable Focus Bar** on the General page.
+- **Each bar is switched on independently.** The old single **Show Bar** master toggle is gone; the three per-bar enable checkboxes replace it, and a bar you turn off stops receiving events entirely rather than just hiding.
 - **Mirror or copy the Player bar's look.** A Target/Focus bar can live-link to the Player bar's appearance ("Use same styling as Player"), or take a one-time snapshot with **Copy styling from Player** and then customize it independently.
 - **Slash paths are now fully qualified.** `/at set units.player.barWidth 250` replaces the old unqualified `/at set barWidth 250` — see [Breaking change](#breaking-change-slash-paths) below if you have macros.
 - **Show the bar only in combat.** A new General option hides the bar(s) out of combat and brings them back the moment you're fighting.
@@ -58,14 +59,14 @@ chat with a cyan `[AT]` tag.
 | `/at resetall` | Reset every setting and move every bar back to center |
 | `/at resetposition` | Move every bar back to its default screen position |
 | `/at lock` / `/at unlock` | Lock or unlock the bars so you can drag them |
-| `/at toggle` | Show or hide all the bars |
+| `/at toggle` | Turn all the bars off, or all back on. `/at toggle target` flips just one bar (`player` / `target` / `focus`) |
 | `/at update` | Refresh the bars now |
 | `/at version` | Show the addon version |
 | `/at test [value] [seconds]` | Fill the visible bars with a test value so you can preview your styling (default 50000 for 5 seconds) |
 | `/at debug` | Toggle the debug window; `/at debug on` / `off` turns logging on or off |
 | `/at profile <subcommand>` | Manage profiles: `list`, `current`, `use <name>`, `new <name>`, `copy <name>`, `delete <name>`, `reset` |
 
-Global settings (`showOnlyInCombat`, `hidden`, `locked`, `throttleWindow`) use their plain name — `/at set hidden true`. Only the per-bar appearance settings on the Bar/Border/Font pages need the `units.<player|target|focus>.` prefix.
+Global settings (`showOnlyInCombat`, `locked`, `throttleWindow`) use their plain name — `/at set locked true`. Only the per-bar appearance settings on the Bar/Border/Font pages need the `units.<player|target|focus>.` prefix.
 
 ### Settings panel
 
@@ -73,13 +74,13 @@ Five pages under **Ka0s Absorb Tracker**:
 
 | Tab | Covers |
 |-----|--------|
-| General | Show or hide the bars, show them only in combat, lock the bars, show or hide the debug console, and the repaint throttle (how fast the bars may redraw during a burst of changes). Buttons to reset the position or all settings. |
+| General | Turn each bar on or off (Player / Target / Focus), show them only in combat, lock the bars, show or hide the debug console, and the repaint throttle (how fast the bars may redraw during a burst of changes). Buttons to reset the position or all settings. |
 | Bar | A **Unit** dropdown to pick Player/Target/Focus, then that bar's width and height, plus its bar and background textures and colors. |
 | Border | Same Unit dropdown, then border style, thickness, and color for the selected bar. |
 | Font | Same Unit dropdown, then font face, size, and outline for the selected bar. |
 | Profiles | Save different setups and switch between them. |
 
-**Target and Focus start off.** Pick **Target** or **Focus** from the Unit dropdown on the Bar page and turn on **Enable this bar** to start tracking that unit — it only shows while you actually have that unit (no target/focus = no bar).
+**Target and Focus start off.** Tick **Enable Target Bar** or **Enable Focus Bar** in **General → Master controls** to start tracking that unit — all three enable toggles sit together there, so you never have to hunt through the Unit dropdown to turn a bar on. An enabled target/focus bar only shows while you actually have that unit (no target/focus = no bar).
 
 **Mirror or copy the Player bar.** While a Target/Focus bar has **Use same styling as Player** checked, it shares the Player bar's texture, colors, border, and font live — change the Player bar and the linked one updates too. Uncheck it to style that bar independently, or click **Copy styling from Player** to grab the Player bar's current look as a one-time starting point and then tweak it on its own. Position and whether the bar is enabled are never linked — each bar keeps its own.
 
@@ -111,7 +112,7 @@ or focus and its bar disappears until you have one again.
 |----------|--------|
 | Do I need to install anything else? | No. Everything the addon needs is bundled, so it works on its own. Install a media pack (such as one that includes SharedMedia) if you want extra textures and fonts in the dropdowns. |
 | Does this replace the shield display on my unit frames? | No. These are separate movable bars. Blizzard's shield overlay on the player, target, and focus frames is left alone — hide it in *Edit Mode* if you don't want to see both. |
-| How do I turn on the Target or Focus bar? | Bar page → Unit dropdown → **Target** or **Focus** → tick **Enable this bar**. It only appears while you actually have that target or focus set. |
+| How do I turn on the Target or Focus bar? | General page → Master controls → tick **Enable Target Bar** or **Enable Focus Bar**. It only appears while you actually have that target or focus set. |
 | Can the Target/Focus bar match my Player bar automatically? | Yes — that's what **Use same styling as Player** does: it's a live link, so changes to the Player bar's look carry over immediately. Uncheck it any time to style that bar on its own, or use **Copy styling from Player** for a one-time copy you then customize independently. |
 | How do I move a bar? | Type `/at unlock`, drag the bar you want where you want it, then `/at lock`. Each bar remembers its own position. Use `/at resetposition` to snap all of them back to their default spots. |
 | Can I show the bars only while I'm fighting? | Yes. Turn on **Show only in combat** on the General page. Every enabled bar hides out of combat and reappears the instant you enter combat. |
@@ -126,10 +127,10 @@ or focus and its bar disappears until you have one again.
 
 | Problem | Fix |
 |---------|-----|
-| The Player bar never shows up | Check three things: it isn't hidden (`/at toggle`, or **Show Bar** on the General page), the addon is enabled on the character-select screen, and — if **Show only in combat** is on — that you're actually in combat. The background and border show even with no shield, so if you see *nothing* at all the bar is hidden, not just empty. |
-| The Target/Focus bar never shows up | Confirm **Enable this bar** is on for that unit (Bar page → Unit dropdown). Even enabled, it only appears while you actually have that target or focus set — no target/focus means no bar, by design. |
+| The Player bar never shows up | Check three things: **Enable Player Bar** is ticked on the General page (or run `/at toggle player`), the addon is enabled on the character-select screen, and — if **Show only in combat** is on — that you're actually in combat. The background and border show even with no shield, so if you see *nothing* at all the bar is hidden, not just empty. |
+| The Target/Focus bar never shows up | Confirm **Enable Target Bar** / **Enable Focus Bar** is ticked on the General page. Even enabled, it only appears while you actually have that target or focus set — no target/focus means no bar, by design. |
 | The bar(s) disappear when I leave combat | You have **Show only in combat** turned on. Turn it off on the General settings page. |
-| `/at test` does nothing | A bar has to be visible to preview a test value on it. If it's hidden, run `/at toggle` (or turn on **Show Bar**) first, then try `/at test` again. |
+| `/at test` does nothing | A bar has to be enabled to preview a test value on it. If every bar is off, run `/at toggle` (or tick an **Enable ... Bar** box) first, then try `/at test` again. |
 | A bar won't stay where I put it | Lock it after positioning: `/at lock`, or turn on **Lock Position** on the General page. Unlock again whenever you want to drag it. |
 | My class color isn't showing | The bar has to be visible and have an active shield for the color to appear. Check that the matching **Use Class Color** toggle is on. When it's on the color picker greys out — that's normal. |
 | Custom textures or fonts aren't in the dropdowns | Install a media pack addon (one that includes SharedMedia). Without one, only WoW's built-in options show. |

@@ -159,6 +159,65 @@ test("UpdateBarAppearance restores drag + mouse when unlocked", function()
   assertEqual(mouse[1][1], true)
 end)
 
+-- ── unit labels (unlocked drag affordance) ─────────────────────────────────────────
+-- The three bars stack and look identical, so while they can be dragged each one names the unit
+-- it tracks. Purely an affordance: it follows the global `locked` flag and has no schema row.
+--
+-- Harness note: the stub frame answers every PascalCase call from its metatable by returning
+-- ITSELF, so `bar:CreateFontString(...)` hands back the bar. `bar.unitLabel` and `bar` are one
+-- object here, which means a raw Show/Hide count also catches the bar's own visibility call at the
+-- end of UpdateBarAppearance. Suppress ApplyVisibility so these assert the label alone.
+local function withoutVisibility(body)
+  local saved = NS.ApplyVisibility
+  NS.ApplyVisibility = function() end
+  local ok, err = pcall(body)
+  NS.ApplyVisibility = saved
+  if not ok then error(err) end
+end
+
+test("every bar owns a unit label", function()
+  for _, unit in ipairs(NS.Units.LIST) do
+    assertTrue(NS.bars[unit].unitLabel ~= nil, unit .. " has no unitLabel")
+  end
+end)
+
+test("unlocking shows a label naming the unit", function()
+  local shows, texts
+  withSetting("locked", false, function()
+    withoutVisibility(function()
+      texts = record(NS.bars.focus.unitLabel, "SetText", function()
+        shows = record(NS.bars.focus.unitLabel, "Show", function()
+          NS.UpdateBarAppearance("focus")
+        end)
+      end)
+    end)
+  end)
+  assertEqual(#shows, 1, "the label is shown while the bars are draggable")
+  assertEqual(texts[1][1], NS.Units.LABEL.focus, "the label names its own unit, not the player")
+end)
+
+test("locking hides the unit label", function()
+  local hides
+  withSetting("locked", true, function()
+    withoutVisibility(function()
+      hides = record(NS.bars.target.unitLabel, "Hide", function()
+        NS.UpdateBarAppearance("target")
+      end)
+    end)
+  end)
+  assertEqual(#hides, 1, "a locked bar shows no label")
+end)
+
+test("the unit label follows the unit's own font face", function()
+  local calls
+  withSetting("locked", false, function()
+    calls = record(NS.bars.player.unitLabel, "SetFont", NS.UpdateBarAppearance)
+  end)
+  assertEqual(calls[1][1], NS.GetFont("player"), "label uses the resolved font face")
+  assertTrue(calls[1][2] < NS.Units.Get("player", "fontSize"),
+    "the label is smaller than the bar's own value text")
+end)
+
 test("UpdateBarAppearance re-applies the font from the profile", function()
   local calls
   withUnitSetting("player", "fontSize", 17, function()
@@ -196,22 +255,22 @@ end)
 -- ── ApplyVisibility ────────────────────────────────────────────────────────────────
 
 test("ApplyVisibility shows the bar when the gate passes and hides it when it does not", function()
-  withSetting("hidden", false, function()
+  withUnitSetting("player", "enabled", true, function()
     NS.ApplyVisibility()
     assertTrue(NS.bar:IsShown(), "not hidden -> shown")
   end)
-  withSetting("hidden", true, function()
+  withUnitSetting("player", "enabled", false, function()
     NS.ApplyVisibility()
     assertTrue(NS.bar:IsShown() == false, "hidden -> hidden")
   end)
-  withSetting("hidden", false, function() NS.ApplyVisibility() end)
+  withUnitSetting("player", "enabled", true, function() NS.ApplyVisibility() end)
 end)
 
 -- ── UpdateAbsorbBar ────────────────────────────────────────────────────────────────
 
 test("UpdateAbsorbBar is a no-op while the bar is hidden", function()
   local calls
-  withSetting("hidden", true, function()
+  withUnitSetting("player", "enabled", false, function()
     calls = record(NS.statusBar, "SetValue", NS.UpdateAbsorbBar)
   end)
   assertEqual(#calls, 0, "no paint work is done for an invisible bar")
@@ -222,7 +281,7 @@ test("UpdateAbsorbBar is a no-op inside a /at test hold window", function()
   -- value alone until the hold expires, or the test display flickers back to the live value.
   local savedHold = NS.testHoldUntil
   local calls
-  withSetting("hidden", false, function()
+  withUnitSetting("player", "enabled", true, function()
     NS.testHoldUntil = T.mocks.GetTime() + 5
     calls = record(NS.statusBar, "SetValue", NS.UpdateAbsorbBar)
   end)
@@ -233,7 +292,7 @@ end)
 test("UpdateAbsorbBar paints again once the hold window has expired", function()
   local savedHold = NS.testHoldUntil
   local calls
-  withSetting("hidden", false, function()
+  withUnitSetting("player", "enabled", true, function()
     NS.testHoldUntil = T.mocks.GetTime() - 1
     calls = record(NS.statusBar, "SetValue", NS.UpdateAbsorbBar)
   end)
@@ -248,7 +307,7 @@ test("UpdateAbsorbBar scales the bar to max health and sets the absorb value", f
   T.mocks.UnitHealthMax = function() return 250000 end
   NS.testHoldUntil = nil
   local minmax, value
-  withSetting("hidden", false, function()
+  withUnitSetting("player", "enabled", true, function()
     minmax = record(NS.statusBar, "SetMinMaxValues", function()
       value = record(NS.statusBar, "SetValue", NS.UpdateAbsorbBar)
     end)
@@ -267,7 +326,7 @@ test("UpdateAbsorbBar substitutes 0 / 1 when the absorb and health reads come ba
   T.mocks.UnitHealthMax = function() return nil end
   NS.testHoldUntil = nil
   local minmax, value
-  withSetting("hidden", false, function()
+  withUnitSetting("player", "enabled", true, function()
     minmax = record(NS.statusBar, "SetMinMaxValues", function()
       value = record(NS.statusBar, "SetValue", NS.UpdateAbsorbBar)
     end)
@@ -284,7 +343,7 @@ test("UpdateAbsorbBar writes the abbreviated value into the bar text", function(
   T.mocks.UnitGetTotalAbsorbs = function() return 4200 end
   NS.testHoldUntil = nil
   local calls
-  withSetting("hidden", false, function()
+  withUnitSetting("player", "enabled", true, function()
     calls = record(NS.valueText, "SetText", NS.UpdateAbsorbBar)
   end)
   T.mocks.UnitGetTotalAbsorbs = savedAbs
@@ -299,7 +358,7 @@ test("UpdateAbsorbBar notes the repaint for the combat rollup", function()
   NS.NoteRepaint = function() noted = noted + 1 end
   NS.testHoldUntil = nil
   local ok, err = pcall(function()
-    withSetting("hidden", false, NS.UpdateAbsorbBar)
+    withUnitSetting("player", "enabled", true, NS.UpdateAbsorbBar)
   end)
   NS.NoteRepaint = orig
   NS.testHoldUntil = savedHold
@@ -312,7 +371,7 @@ test("a hidden bar's skipped paint is NOT counted as a repaint", function()
   local orig = NS.NoteRepaint
   NS.NoteRepaint = function() noted = noted + 1 end
   local ok, err = pcall(function()
-    withSetting("hidden", true, NS.UpdateAbsorbBar)
+    withUnitSetting("player", "enabled", false, NS.UpdateAbsorbBar)
   end)
   NS.NoteRepaint = orig
   if not ok then error(err) end
@@ -330,19 +389,21 @@ local function withUnitFlag(unit, key, value, body)
   if not ok then error(err) end
 end
 
-test("the global hidden toggle hides every bar", function()
-  withSetting("hidden", true, function()
+-- There is no master `hidden` toggle above the ladder any more (dropped in schema v4): each
+-- unit's own `enabled` flag is the visibility switch, so disabling one bar must not touch another.
+test("each unit's enable flag governs only its own bar", function()
+  withUnitFlag("player", "enabled", false, function()
     withUnitFlag("target", "enabled", true, function()
       T.mocks.__unitExists.target = true
-      assertEqual(NS.ShouldShowBar("player"), false)
-      assertEqual(NS.ShouldShowBar("target"), false)
+      assertEqual(NS.ShouldShowBar("player"), false, "the player bar follows its own flag")
+      assertEqual(NS.ShouldShowBar("target"), true, "and does not drag the target bar down with it")
       T.mocks.__unitExists.target = false
     end)
   end)
 end)
 
-test("a disabled unit stays hidden even with the master toggle on", function()
-  withSetting("hidden", false, function()
+test("a disabled unit stays hidden even when the others are on", function()
+  withUnitFlag("player", "enabled", true, function()
     withUnitFlag("target", "enabled", false, function()
       T.mocks.__unitExists.target = true
       assertEqual(NS.ShouldShowBar("target"), false)
@@ -352,7 +413,7 @@ test("a disabled unit stays hidden even with the master toggle on", function()
 end)
 
 test("an enabled target bar hides when there is no target", function()
-  withSetting("hidden", false, function()
+  withUnitSetting("player", "enabled", true, function()
     withUnitFlag("target", "enabled", true, function()
       T.mocks.__unitExists.target = false
       assertEqual(NS.ShouldShowBar("target"), false)
@@ -365,7 +426,7 @@ end)
 
 test("the player bar never consults UnitExists", function()
   -- The player always exists; gating on it would add a pointless call and a failure mode.
-  withSetting("hidden", false, function()
+  withUnitSetting("player", "enabled", true, function()
     T.mocks.__unitExists.player = false
     assertEqual(NS.ShouldShowBar("player"), true)
     T.mocks.__unitExists.player = true
@@ -373,7 +434,7 @@ test("the player bar never consults UnitExists", function()
 end)
 
 test("showOnlyInCombat gates every bar on PLAYER combat", function()
-  withSetting("hidden", false, function()
+  withUnitSetting("player", "enabled", true, function()
     withSetting("showOnlyInCombat", true, function()
       withUnitFlag("target", "enabled", true, function()
         T.mocks.__unitExists.target = true
@@ -398,7 +459,7 @@ test("UpdateAbsorbBar reads the absorb of the unit it is painting", function()
   T.mocks.__maxHealth.target = 300000
   T.mocks.__unitExists.target = true
   local value
-  withSetting("hidden", false, function()
+  withUnitSetting("player", "enabled", true, function()
     withUnitFlag("target", "enabled", true, function()
       value = record(NS.bars.target.statusBar, "SetValue", function()
         NS.UpdateAbsorbBar("target")

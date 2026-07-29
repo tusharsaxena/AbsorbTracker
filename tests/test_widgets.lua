@@ -72,24 +72,34 @@ test("clicking a checkbox writes through SetByPath", function()
   T.mocks.__fireTimers()
 end)
 
+-- `inverse` presents a bool as its opposite (the dropped "Show Bar" row rendered `hidden` that
+-- way: ticked meant NOT hidden). Getting it backwards ships a checkbox that reads the opposite of
+-- what it does. No production row uses it since schema v4 removed `hidden`, so these drive a
+-- SYNTHETIC row over the real `locked` path to keep the schema feature covered.
+local function renderInverse()
+  local ctx = newCtx()
+  local row = { path = "locked", type = "bool", label = "Unlocked", inverse = true,
+                desc = "synthetic inverse row" }
+  local parent = AceGUI:Create("SimpleGroup")
+  return Helpers.RenderField(ctx, row, parent, 0.5)
+end
+
 test("an `inverse` row displays the NEGATED value", function()
-  -- `hidden` is presented as "Show Bar": ticked means NOT hidden. Getting this backwards ships a
-  -- checkbox that reads the opposite of what it does.
-  withSetting("hidden", true, function()
-    assertFalse(render("hidden").value, "hidden = true renders as an UNticked 'Show Bar'")
+  withSetting("locked", true, function()
+    assertFalse(renderInverse().value, "locked = true renders as an UNticked 'Unlocked'")
   end)
-  withSetting("hidden", false, function()
-    assertTrue(render("hidden").value, "hidden = false renders as a ticked 'Show Bar'")
+  withSetting("locked", false, function()
+    assertTrue(renderInverse().value, "locked = false renders as a ticked 'Unlocked'")
   end)
 end)
 
 test("an `inverse` row writes the negated value back too", function()
-  withSetting("hidden", true, function()
-    local cb = render("hidden")
-    cb:__fire("OnValueChanged", true)          -- user ticks "Show Bar"
-    assertFalse(NS.GetSetting("hidden"), "ticking 'Show Bar' clears `hidden`")
+  withSetting("locked", true, function()
+    local cb = renderInverse()
+    cb:__fire("OnValueChanged", true)          -- user ticks "Unlocked"
+    assertFalse(NS.GetSetting("locked"), "ticking the inverse label clears the setting")
     cb:__fire("OnValueChanged", false)         -- user unticks it
-    assertTrue(NS.GetSetting("hidden"))
+    assertTrue(NS.GetSetting("locked"))
   end)
   T.mocks.__fireTimers()
 end)
@@ -441,23 +451,74 @@ test("an afterGroup callback fires exactly once, after its group's last row", fu
   assertEqual(fired, 1)
 end)
 
+-- The General page's Master controls run the three enable toggles down the LEFT column, each
+-- paired with a global on the right; Enable Focus Bar is the odd one out and takes the Debug
+-- console checkbox as its partner through the pairWith seam (asserted separately below).
+-- RenderRows fills left-then-right in schema order, so the pairing is entirely a product of row
+-- order — a re-numbered `order` silently re-columns the page, which is what these pin.
+test("each enable toggle leads its row, paired with a global on the right", function()
+  local ctx = newCtx()
+  Helpers.RenderSchema(ctx, "general")
+
+  local function rowContaining(label)
+    for _, child in ipairs(ctx.scroll.children) do
+      if child.type == "SimpleGroup" and child.layout == "Flow" then
+        for _, w in ipairs(child.children) do
+          if w.labelText == label then return child end
+        end
+      end
+    end
+  end
+
+  local pairs_ = {
+    { "Enable Player Bar", "Lock Position"       },
+    { "Enable Target Bar", "Show only in combat" },
+  }
+  for _, p in ipairs(pairs_) do
+    local row = rowContaining(p[1])
+    assertTrue(row ~= nil, "no row rendered for " .. p[1])
+    assertEqual(#row.children, 2, p[1] .. " must share its row with exactly one widget")
+    assertEqual(row.children[2].labelText, p[2], p[1] .. " must pair with " .. p[2])
+  end
+end)
+
+test("every tracked unit gets an enable toggle on the General page", function()
+  local ctx = newCtx()
+  Helpers.RenderSchema(ctx, "general")
+  local labels = {}
+  local function walk(w)
+    for _, child in ipairs(w.children or {}) do
+      if child.labelText then labels[child.labelText] = true end
+      walk(child)
+    end
+  end
+  walk(ctx.scroll)
+  for _, unit in ipairs(NS.Units.LIST) do
+    assertTrue(labels["Enable " .. NS.Units.LABEL[unit] .. " Bar"],
+      unit .. " has no enable toggle on the General page")
+  end
+end)
+
 test("a pairWith partner is attached to the named row and is one-shot", function()
-  -- `locked` is the production pairing site: the session-only "Debug console" checkbox rides
-  -- beside it as the right half of its row (settings/General.lua).
+  -- `units.focus.enabled` is the production pairing site: the session-only "Debug console"
+  -- checkbox rides beside Enable Focus Bar as the right half of its row (settings/General.lua).
+  -- It only works because the five schema rows above pair off as 2 + 2 + 1, leaving Enable Focus
+  -- Bar alone on its row — pairWith declines to fire otherwise, so this doubles as a guard that
+  -- the Master controls row count stays odd.
   local ctx = newCtx()
   local made = 0
   local partner = {
-    locked = function(_ctxRef, rowGroup)
+    ["units.focus.enabled"] = function(_ctxRef, rowGroup)
       made = made + 1
       rowGroup:AddChild(AceGUI:Create("CheckBox"))
     end,
   }
   Helpers.RenderSchema(ctx, "general", nil, partner)
   assertEqual(made, 1, "the partner was built once")
-  assertEqual(partner.locked, nil, "and the entry was consumed so it cannot repeat")
+  assertEqual(partner["units.focus.enabled"], nil, "and the entry was consumed so it cannot repeat")
 
-  -- It must land as the SECOND widget of the `locked` row, not on a line of its own.
-  local lockedLabel = NS.FindSchemaRow("locked").label
+  -- It must land as the SECOND widget of that row, not on a line of its own.
+  local lockedLabel = NS.FindSchemaRow("units.focus.enabled").label
   local row
   for _, child in ipairs(ctx.scroll.children) do
     if child.type == "SimpleGroup" and child.layout == "Flow" then
@@ -466,7 +527,7 @@ test("a pairWith partner is attached to the named row and is one-shot", function
       end
     end
   end
-  assertTrue(row ~= nil, "the locked row was found")
+  assertTrue(row ~= nil, "the Enable Focus Bar row was found")
   assertEqual(#row.children, 2, "the pair stays 50/50 and never overflows to three-wide")
 end)
 

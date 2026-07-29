@@ -59,16 +59,14 @@ function addon:OnEnable()
     -- Extracted to its own method (rather than inlined here, as the original brief had it) purely
     -- so a test can call it directly without paying for the rest of OnEnable's side effects
     -- (CreateOptionsPanel is not safely re-callable). Behaviour is identical either way.
-    self:EnsureUnitEventFrames()
+    -- Also registers PLAYER_TARGET_CHANGED / PLAYER_FOCUS_CHANGED, but only for units whose bar
+    -- is enabled — which is why those two are not registered unconditionally alongside the three
+    -- below. Re-runs on every UNITS message (subscribed at the bottom of this file).
+    self:SyncUnitEventFrames()
 
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
     self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnEnterCombat")
     self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnLeaveCombat")
-
-    -- Target / focus swaps change which bars should be visible and what they should read.
-    -- Global, payload-free events with no unit to filter, so they stay on AceEvent (§9.1).
-    self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnUnitSwap")
-    self:RegisterEvent("PLAYER_FOCUS_CHANGED", "OnUnitSwap")
 
     -- Create the options panel (defined in settings/Panel.lua).
     if NS.CreateOptionsPanel then NS.CreateOptionsPanel() end
@@ -77,38 +75,66 @@ function addon:OnEnable()
     -- is emitted from DebugLog:SetEnabled on enable, the only point where it is current and visible.
 end
 
--- Build the two private RegisterUnitEvent frames (see the comment in OnEnable above for why two
--- are required). Guarded so a disable/enable cycle — or a direct re-call — doesn't leak a second
--- pair of frames; registration is unconditional (not gated on the per-unit `enabled` flag) since
--- the C-side filter already limits dispatch to three units, so conditional registration would add
--- lifecycle complexity for no measurable gain.
-function addon:EnsureUnitEventFrames()
-    if self.__unitEventFrames then return end
+-- One private RegisterUnitEvent frame PER UNIT, registered only while that unit's bar is enabled.
+--
+-- Per-unit frames rather than the old two (RegisterUnitEvent accepts at most two unit tokens, so
+-- three units used to mean one frame for player+target and a second for focus): with a frame each,
+-- enabling or disabling one unit is a registration change on that unit's frame alone, with no
+-- token-packing to redo. The frames are created once and reused; only their registrations change.
+--
+-- Called from OnEnable and from the UNITS message (settings/Slash.lua and the General page's
+-- enable toggles publish it), so the registration set always matches the enabled set.
+--
+-- Honest note on the win: RegisterUnitEvent already filters at the C level, so the disabled-unit
+-- events were never reaching Lua for OTHER units anyway — this saves the dispatch for the two or
+-- three tokens we ourselves asked for. The material saving is PLAYER_TARGET_CHANGED /
+-- PLAYER_FOCUS_CHANGED below, which fire on every target and focus swap regardless of absorbs.
+function addon:SyncUnitEventFrames()
+    local frames = self.__unitEventFrames
+    if not frames then
+        local function onEvent(_, event, unit)
+            if event == "UNIT_ABSORB_AMOUNT_CHANGED" then
+                self:OnAbsorbChanged(event, unit)
+            elseif event == "UNIT_MAXHEALTH" then
+                self:OnMaxHealthChanged(event, unit)
+            end
+        end
 
-    local function onEvent(_, event, unit)
-        if event == "UNIT_ABSORB_AMOUNT_CHANGED" then
-            self:OnAbsorbChanged(event, unit)
-        elseif event == "UNIT_MAXHEALTH" then
-            self:OnMaxHealthChanged(event, unit)
+        frames = {}
+        for _, unit in ipairs(NS.Units.LIST) do
+            local f = CreateFrame("Frame")
+            f:SetScript("OnEvent", onEvent)
+            frames[unit] = f
+        end
+        self.__unitEventFrames = frames
+    end
+
+    for _, unit in ipairs(NS.Units.LIST) do
+        local f = frames[unit]
+        if NS.Units.IsEnabled(unit) then
+            -- RegisterUnitEvent replaces any prior registration for the same event on this frame,
+            -- so re-registering an already-registered unit is a harmless no-op.
+            f:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", unit)
+            f:RegisterUnitEvent("UNIT_MAXHEALTH", unit)
+        else
+            f:UnregisterAllEvents()
         end
     end
 
-    -- Frame A: player + target. RegisterUnitEvent filters at most TWO unit tokens per
-    -- registration, and we now track three (player/target/focus) — a future reader will be
-    -- tempted to merge this with frame B; don't, the two-token cap is a hard client-side limit,
-    -- not a style choice.
-    local frameA = CreateFrame("Frame")
-    frameA:SetScript("OnEvent", onEvent)
-    frameA:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "player", "target")
-    frameA:RegisterUnitEvent("UNIT_MAXHEALTH", "player", "target")
-
-    -- Frame B: the third unit that didn't fit on frame A.
-    local frameB = CreateFrame("Frame")
-    frameB:SetScript("OnEvent", onEvent)
-    frameB:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "focus")
-    frameB:RegisterUnitEvent("UNIT_MAXHEALTH", "focus")
-
-    self.__unitEventFrames = { frameA, frameB }
+    -- The swap events only matter while that unit's bar is enabled: they exist to re-evaluate the
+    -- UnitExists step of the visibility ladder and repaint the new unit's absorb. With the bar off
+    -- there is nothing to re-evaluate, and PLAYER_TARGET_CHANGED in particular fires constantly in
+    -- ordinary play. AceEvent's Unregister is safe to call when not registered.
+    if NS.Units.IsEnabled("target") then
+        self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnUnitSwap")
+    else
+        self:UnregisterEvent("PLAYER_TARGET_CHANGED")
+    end
+    if NS.Units.IsEnabled("focus") then
+        self:RegisterEvent("PLAYER_FOCUS_CHANGED", "OnUnitSwap")
+    else
+        self:UnregisterEvent("PLAYER_FOCUS_CHANGED")
+    end
 end
 
 -- The absorb event drives a coalesced repaint (modules/Timer.lua) for EVERY tracked unit (the
@@ -205,8 +231,24 @@ function NS.OnProfileChanged()
     end
     NS.Debug("Profile", "changed \226\134\146 %s",
         (NS.db and NS.db.GetCurrentProfile and NS.db:GetCurrentProfile()) or "?")
+    -- The new profile carries its own enable flags, so the event registrations have to follow it.
+    NS.bus:SendMessage(NS.MSG.UNITS)
     NS.bus:SendMessage(NS.MSG.POSITION)
     NS.bus:SendMessage(NS.MSG.APPEARANCE)
     NS.bus:SendMessage(NS.MSG.REPAINT)
     if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
+end
+
+-- Bus subscription (architecture-§4). This module owns the SOLE subscription to UNITS, on its own
+-- target so no two receivers share a table (anti-pattern #32). Publishers are the General page's
+-- enable toggles, `/at toggle`, and the reset helpers — anything that can change which units are
+-- enabled. Looks the method up at dispatch time so a test can stub it.
+NS.Events = NS.Events or {}
+if NS.NewBusTarget then
+    NS.Events.__ev = NS.NewBusTarget()
+    NS.Events.__ev:RegisterMessage(NS.MSG.UNITS, function()
+        if NS.addon and NS.addon.SyncUnitEventFrames then
+            NS.addon:SyncUnitEventFrames()
+        end
+    end)
 end

@@ -30,7 +30,7 @@ function NS.ClearLSMCache()
 end
 
 -- Generic setting getter with fallback to the defaults when a key or the DB is absent. Accepts
--- both a flat global key ("hidden") and a dotted per-unit path ("units.target.barWidth").
+-- both a flat global key ("locked") and a dotted per-unit path ("units.target.barWidth").
 function NS.GetSetting(path)
     local db = NS.db
     if db and db.profile then

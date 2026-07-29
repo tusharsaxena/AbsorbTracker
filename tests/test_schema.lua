@@ -52,9 +52,10 @@ test("FormatSchemaValue formats by type", function()
     "{1.00, 0.00, 0.00, 1.00}")
 end)
 
-test("SchemaForPage keeps groups in registration order (This bar, Size, Bar, Background)", function()
-  -- Filtered to one unit so the per-unit "enabled" row (group "This bar", registered first) does
-  -- not get lost among the other two units' rows when checking group order.
+test("SchemaForPage keeps groups in registration order (Size, Bar, Background)", function()
+  -- Filtered to one unit so the three units' rows don't interleave when checking group order.
+  -- The Bar page opens on Size now: the enable toggle that used to head it in a "This bar" group
+  -- lives on the General page, and the only row left group-less is the unrendered mirror flag.
   local rows = NS.SchemaForPage("bar", "player")
   assertTrue(#rows >= 6, "bar page should have >= 6 rows")
   local order, seen = {}, {}
@@ -64,10 +65,9 @@ test("SchemaForPage keeps groups in registration order (This bar, Size, Bar, Bac
       order[#order + 1] = r.group
     end
   end
-  assertEqual(order[1], "This bar")
-  assertEqual(order[2], "Size")
-  assertEqual(order[3], "Bar")
-  assertEqual(order[4], "Background")
+  assertEqual(order[1], "Size")
+  assertEqual(order[2], "Bar")
+  assertEqual(order[3], "Background")
 end)
 
 test("ValidateSchema resolves every real path against defaults (0 errors, 0 missing)", function()
@@ -388,12 +388,38 @@ test("each unit's row set for a page is the same size", function()
   end
 end)
 
-test("the enable row is per-unit and survives mirroring", function()
+test("the enable row is per-unit, lives on General, and survives mirroring", function()
   for _, unit in ipairs(NS.Units.LIST) do
     local row = NS.FindSchemaRow("units." .. unit .. ".enabled")
     assertTrue(row ~= nil, unit .. " has no enable row")
+    -- alwaysPerUnit is what keeps `/at get units.<unit>.enabled` free of the "(mirrored)" note:
+    -- the flag is honoured per-unit whatever the mirror says.
     assertEqual(row.alwaysPerUnit, true)
-    assertEqual(row.page, "bar")
+    assertEqual(row.page, "general", "the enable toggles are master controls, not appearance")
+    assertEqual(row.group, "Master controls")
+    assertEqual(row.label, "Enable " .. NS.Units.LABEL[unit] .. " Bar")
+  end
+end)
+
+test("the enable toggles lead the left column, interleaved with the globals", function()
+  -- RenderRows fills left-then-right in schema order, so the rendered pairing IS the row order:
+  -- [Enable Player Bar | Lock Position], [Enable Target Bar | Show only in combat],
+  -- [Enable Focus Bar | <Debug console, via pairWith>]. Assert the sequence, not the orders.
+  --
+  -- The ODD count matters: it leaves Enable Focus Bar alone on its row, which is the only reason
+  -- the pairWith seam will attach the Debug console checkbox there.
+  local want = {
+    "units.player.enabled", "locked",
+    "units.target.enabled", "showOnlyInCombat",
+    "units.focus.enabled",
+  }
+  local got = {}
+  for _, r in ipairs(NS.SchemaForPage("general")) do
+    if r.group == "Master controls" then got[#got + 1] = r.path end
+  end
+  assertEqual(#got, #want, "unexpected Master controls row count")
+  for i, path in ipairs(want) do
+    assertEqual(got[i], path, "Master controls row " .. i)
   end
 end)
 
@@ -409,9 +435,24 @@ test("the mirror row is kept out of the auto-rendered body", function()
   assertEqual(NS.FindSchemaRow("units.focus.mirror").skipRender, true)
 end)
 
-test("General's rows stay flat globals with no unit tag", function()
+-- General carries the four flat globals plus exactly one enable toggle per unit. Nothing else
+-- unit-scoped belongs here: appearance is what the Bar/Border/Font Unit dropdown is for, and a
+-- second unit-scoped row would silently render all three units' copies at once (the General page
+-- renders with ctx.unit nil, so SchemaForPage does no unit filtering).
+test("General's rows are the flat globals plus one enable toggle per unit", function()
+  local enables = {}
   for _, r in ipairs(NS.SchemaForPage("general")) do
-    assertEqual(r.unit, nil, r.path .. " must not be unit-scoped")
-    assertTrue(not r.path:match("^units%."), r.path .. " must stay a flat global")
+    if r.unit then
+      assertEqual(r.path, "units." .. r.unit .. ".enabled",
+        r.path .. " is unit-scoped but is not an enable toggle")
+      assertTrue(not enables[r.unit], "duplicate enable row for " .. r.unit)
+      enables[r.unit] = true
+    else
+      assertTrue(not r.path:match("^units%."),
+        r.path .. " writes a per-unit path but carries no unit tag")
+    end
+  end
+  for _, unit in ipairs(NS.Units.LIST) do
+    assertTrue(enables[unit], unit .. " has no enable toggle on General")
   end
 end)

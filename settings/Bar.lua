@@ -4,7 +4,7 @@
 -- Class-color toggles use disabledIf to grey out the matching color
 -- picker when their toggle is on.
 --
--- Layout produces:
+-- Layout produces (under the Unit dropdown and, for target/focus, the mirror header):
 --     [Bar Width]          | [Bar Height]
 --     [Bar Texture]
 --     [Bar Color]          | [Use Class Color]
@@ -22,23 +22,6 @@ local unitDefaults = NS.unitDefaults
 local function addUnitRows(unit)
     local p = "units." .. unit .. "."
     local rows = {
-        {
-            path    = p .. "enabled",
-            page    = "bar",
-            unit    = unit,
-            alwaysPerUnit = true,   -- stays editable even while this unit mirrors the player
-            group   = "This bar",
-            order   = 10,
-            type    = "bool",
-            label   = "Enable this bar",
-            desc    = "Track and display absorbs for this unit.",
-            default = (unit == "player"),
-            solo    = true,
-            onChange = function()
-                NS.bus:SendMessage(NS.MSG.APPEARANCE)
-                NS.bus:SendMessage(NS.MSG.REPAINT)
-            end,
-        },
         {
             path    = p .. "barWidth",
             page    = "bar",
@@ -144,6 +127,11 @@ local function addUnitRows(unit)
     -- The mirror flag. Not rendered in the page body — Helpers.RenderUnitPanel draws it as a
     -- header checkbox — but kept in the schema so `/at set units.focus.mirror false` works.
     -- The player is the mirror SOURCE and gets no row.
+    --
+    -- Deliberately group-less. It is the only row left in what used to be the "This bar" group
+    -- (the enable toggle moved to the General page), and RenderRows emits a group's Section
+    -- heading BEFORE it checks skipRender — so naming a group here would draw an empty "This bar"
+    -- heading above nothing on every target/focus render.
     if unit ~= "player" then
         rows[#rows + 1] = {
             path       = p .. "mirror",
@@ -151,7 +139,6 @@ local function addUnitRows(unit)
             unit       = unit,
             alwaysPerUnit = true,
             skipRender = true,
-            group      = "This bar",
             order      = 20,
             type       = "bool",
             label      = "Use same styling as Player",

@@ -253,15 +253,17 @@ addon:OnInitialize()   -- ADDON_LOADED timing: register the LSM monospace font, 
                        -- NS.Slash:Register().
 addon:OnEnable()       -- PLAYER_LOGIN timing: ClearLSMCache -> GetLSM -> ApplyLSMBorderPatch ->
                        -- publishes POSITION -> APPEARANCE -> REPAINT on the bus;
-                       -- self:EnsureUnitEventFrames(); RegisterEvent PLAYER_ENTERING_WORLD /
-                       -- PLAYER_REGEN_DISABLED / PLAYER_REGEN_ENABLED / PLAYER_TARGET_CHANGED /
-                       -- PLAYER_FOCUS_CHANGED; CreateOptionsPanel.
-addon:EnsureUnitEventFrames()  -- builds TWO private RegisterUnitEvent frames (RegisterUnitEvent
-                               -- filters at most two units per frame, and there are three tracked
-                               -- units): frame A for UNIT_ABSORB_AMOUNT_CHANGED/UNIT_MAXHEALTH on
-                               -- "player","target"; frame B for the same two events on "focus".
-                               -- Guarded against a disable/enable cycle; both share one OnEvent
-                               -- stub that dispatches to OnAbsorbChanged / OnMaxHealthChanged.
+                       -- self:SyncUnitEventFrames(); RegisterEvent PLAYER_ENTERING_WORLD /
+                       -- PLAYER_REGEN_DISABLED / PLAYER_REGEN_ENABLED; CreateOptionsPanel.
+addon:SyncUnitEventFrames()    -- one private RegisterUnitEvent frame PER unit, registered for
+                               -- UNIT_ABSORB_AMOUNT_CHANGED/UNIT_MAXHEALTH only while that unit's
+                               -- bar is enabled, UnregisterAllEvents'd when it is not. Also gates
+                               -- PLAYER_TARGET_CHANGED / PLAYER_FOCUS_CHANGED on the same flag --
+                               -- those fire constantly in ordinary play, so that is where the
+                               -- saving actually is. Frames are built once and reused; all share
+                               -- one OnEvent stub dispatching to OnAbsorbChanged /
+                               -- OnMaxHealthChanged. Re-run on every UNITS message.
+NS.Events.__ev                 -- bus target owning the SOLE UNITS subscription -> the sync above
 addon:OnAbsorbChanged(_, unit)  -- UNIT_ABSORB_AMOUNT_CHANGED (player/target/focus); records a
                                 -- debug line (player only), then publishes REPAINT (a burst
                                 -- coalesces into one repaint, all units repainted together).
@@ -292,9 +294,9 @@ Cross-module signalling goes through the message bus (see [Bus](#bus-corebuslua)
 Runs at file-load time; publishes the AceDB-shaped defaults.
 
 ```lua
-NS.defaults          -- { profile = { schemaVersion = 1, <4 flat globals>,
+NS.defaults          -- { profile = { schemaVersion = 1, <3 flat globals>,
                      --               units = { player, target, focus } },
-                     --   global  = { schemaVersion = 3 } }
+                     --   global  = { schemaVersion = 4 } }
                      -- profile.schemaVersion defaults to 1 ("not yet lifted") on purpose:
                      -- AceDB copyDefaults fills it before RunMigrations reads it, so a
                      -- default of 3 would mark every upgrading profile as already migrated.
@@ -327,6 +329,11 @@ NS.valueText     -- = NS.bars.player.valueText
 NS.backdropInfo  -- = NS.bars.player.backdropInfo
 ```
 
+Each frame also carries `bar.unitLabel` — a FontString anchored `BOTTOM` to the bar's `TOP`, holding
+`NS.Units.LABEL[unit]`. It is created hidden and toggled by `UpdateBarAppearance` with the global
+`locked` flag: the three bars stack and look alike, so the label is what identifies a drag target.
+It is an affordance, not a styled element — no schema row, fixed 10pt, the unit's own font face.
+
 The `OnDragStop` handler persists the new position via `NS.Units.SetPosition(self.unit, ...)` — never mirrored, so the write always targets the dragged frame's own unit.
 
 ### Display (`modules/Display.lua`)
@@ -339,14 +346,16 @@ NS.ForEachUnit(fn)            -- runs fn(unit) for every unit in NS.Units.LIST o
 NS.DefaultPosition(unit)       -- pre-drag default anchor: player is CENTER; target/focus stack
                                -- upward, one player-bar-height + gap apart
 NS.RestoreBarPosition(unit)   -- re-applies the saved position table or the stacked default
-NS.UpdateBarAppearance(unit)  -- re-applies size, textures, colors, border, font, lock, visibility
-                               -- (every value read via NS.Units.Get(unit, key), so a mirrored
-                               -- unit re-reads the player's live settings)
+NS.UpdateBarAppearance(unit)  -- re-applies size, textures, colors, border, font, lock, the
+                               -- unlocked-only unit label, and visibility (every value read via
+                               -- NS.Units.Get(unit, key), so a mirrored unit re-reads the
+                               -- player's live settings)
 NS.UpdateAbsorbBar(unit)      -- reads UnitGetTotalAbsorbs(unit) + UnitHealthMax(unit), pushes into
                                -- that unit's statusBar/valueText; honors the /at test hold window
-NS.ShouldShowBar(unit)        -- the five-step visibility ladder: hidden -> per-unit enabled ->
+NS.ShouldShowBar(unit)        -- the four-step visibility ladder: per-unit enabled ->
                                -- showOnlyInCombat vs. UnitAffectingCombat("player") ->
-                               -- (target/focus only) UnitExists(unit) -> shown
+                               -- (target/focus only) UnitExists(unit) -> shown. There is no
+                               -- master `hidden` toggle above it -- v4 dropped it.
 NS.ApplyVisibility(unit)      -- shows/hides that unit's bar frame per ShouldShowBar(unit)
 ```
 
@@ -362,7 +371,9 @@ event-driven (see AbsorbTracker above).
 ```lua
 NS.RequestRepaint()   -- trailing-edge one-shot: NS.addon:ScheduleTimer(fn, throttleWindow).
                        -- A repaint already pending coalesces (no-op); the timer self-clears
-                       -- (pending = nil) inside its own callback before calling UpdateAbsorbBar.
+                       -- (pending = nil) inside its own callback, then fans out over
+                       -- NS.ForEachUnit into UpdateAbsorbBar(unit) — one pass paints all three
+                       -- bars. Calling UpdateAbsorbBar bare here would paint the player only.
 NS.Timer.__ev         -- bus target (NS.NewBusTarget()); owns the sole REPAINT subscription and
                        -- funnels it into NS.RequestRepaint. Registered at file load.
 ```
@@ -489,7 +500,12 @@ NS.Helpers
                                                                -- NS.SchemaForPage(pageKey,
                                                                -- ctx.unit), ...) — used by
                                                                -- General, which never sets
-                                                               -- ctx.unit
+                                                               -- ctx.unit, so its three
+                                                               -- units.<unit>.enabled rows all
+                                                               -- render (no unit filter).
+                                                               -- pairWith attaches the Debug
+                                                               -- console beside the lone
+                                                               -- Enable Focus Bar row
 
     -- settings/About.lua
     Helpers.BuildMainContent(ctx)                  -- top-level "Ka0s Absorb Tracker" page builder

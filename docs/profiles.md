@@ -31,8 +31,8 @@ The third arg to `AceDB:New` is `defaultProfile` — `true` means use the WoW-su
 
 Defaults come from `defaults/Profile.lua`:
 
-- `NS.defaults.profile` — the four flat globals (`locked`, `hidden`, `throttleWindow`, `showOnlyInCombat`), a per-profile `schemaVersion` stamp, and `units.<player|target|focus>` carrying that unit's fifteen appearance keys plus `enabled`, `mirror` and `position`.
-- `NS.defaults.global.schemaVersion = 3` — the account-wide DB-version stamp.
+- `NS.defaults.profile` — the three flat globals (`locked`, `throttleWindow`, `showOnlyInCombat`), a per-profile `schemaVersion` stamp, and `units.<player|target|focus>` carrying that unit's fifteen appearance keys plus `enabled`, `mirror` and `position`.
+- `NS.defaults.global.schemaVersion = 4` — the account-wide DB-version stamp.
 - `NS.defaults.profile.schemaVersion = 1` — the **per-profile** stamp. Its default is `1` ("legacy — not yet lifted"), *not* the current `3`, and that is load-bearing; see [Migrations](#migrations-and-the-flatprofile-backfill) below.
 - `NS.flatDefaults` — a flat alias of `NS.defaults.profile` used by the fallback read path; `NS.unitDefaults` — an alias of `NS.defaults.profile.units.player`, the one canonical default every unit's schema rows share.
 
@@ -100,7 +100,7 @@ The shim isn't exercised in-game (AceDB ships in-tree), but the migration/backfi
 
 1. **Lift every profile to v3** (`migrateAllProfiles` → `NS.MigrateProfileToV3`). Logs one `[Migrate] lifted N profile(s) to v3` line, and only when a flat key was actually moved — a factory-fresh profile is unstamped and so passes the gate and gets stamped, but has nothing to lift, so a fresh install logs nothing.
 2. **Backfill** any key still missing from the active profile — flat globals at the root, and every unit's keys under `units.<unit>` — from the defaults, deep-copying table values so a saved-variable mutation can never reach back into `NS.defaults`.
-3. **Stamp** the account-wide version: the v2 step (retiring the dead `profile.updateInterval` key, orphaned when the poll ticker became event-driven) and then `global.schemaVersion = 3`. Each step logs one `[Migrate]` debug line only when the bump actually happens.
+3. **Stamp** the account-wide version: the v2 step (retiring the dead `profile.updateInterval` key, orphaned when the poll ticker became event-driven), the v3 stamp, then the v4 step (dropping the dead `hidden` master toggle from every profile in the store, replaced by the per-unit `enabled` flags) landing on `global.schemaVersion = 4`. Each step logs one `[Migrate]` debug line only when the bump actually happens.
 
 It is a safe no-op when the DB is absent (no `db.global` to touch).
 

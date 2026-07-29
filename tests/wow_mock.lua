@@ -47,12 +47,14 @@ local function stubFrame()
   function f:GetWidth() return 0 end
 
   -- Record RegisterUnitEvent's (event -> unit tokens) instead of no-opping it through the
-  -- metatable below: core/AbsorbTracker.lua's two-frame split (player+target on one frame, focus
-  -- on the other, since RegisterUnitEvent caps at two tokens) is only trustworthy if a test can
-  -- see exactly which units each frame registered — a no-op would let a widened or dropped filter
-  -- pass the whole suite silently.
+  -- metatable below: core/AbsorbTracker.lua registers absorb / max-health events per unit and
+  -- ONLY for units whose bar is enabled, which is only trustworthy if a test can see exactly which
+  -- units each frame registered — a no-op would let a widened or dropped filter pass the whole
+  -- suite silently. UnregisterAllEvents is likewise explicit: the metatable's blanket no-op would
+  -- leave a disabled unit's registrations visibly in place and make the gating untestable.
   f.__unitEvents = {}
   function f:RegisterUnitEvent(event, ...) self.__unitEvents[event] = { ... }; return self end
+  function f:UnregisterAllEvents() self.__unitEvents = {}; return self end
 
   setmetatable(f, { __index = function(_, k)
     if type(k) == "string" and k:match("^%u") then
@@ -245,8 +247,19 @@ return function()
     NewAddon = function(_, target)
       target = target or {}
       local noop = function() end
-      target.RegisterEvent = noop
-      target.UnregisterEvent = noop
+      -- Record AceEvent registrations rather than no-opping them: PLAYER_TARGET_CHANGED and
+      -- PLAYER_FOCUS_CHANGED are registered only while that unit's bar is enabled
+      -- (addon:SyncUnitEventFrames), and that gating is invisible to a test unless the mock
+      -- remembers what is currently registered.
+      target.__events = {}
+      target.RegisterEvent = function(self, event, handler)
+        self.__events[event] = handler or true
+        return self
+      end
+      target.UnregisterEvent = function(self, event)
+        self.__events[event] = nil
+        return self
+      end
       target.RegisterChatCommand = noop
       target.ScheduleTimer = function(_, fn, delay)
         local timer = { fn = fn, delay = delay }

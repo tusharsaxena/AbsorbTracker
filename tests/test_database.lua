@@ -4,23 +4,23 @@ local test, assertEqual, assertTrue, assertFalse =
   T.test, T.assertEqual, T.assertTrue, T.assertFalse
 
 -- ── RunMigrations: the schema-migration seam (Ka0s standard §2.2/§5.1) ─────────────
--- The current schema version is 3, so a full migration run leaves the DB stamped at 3.
-test("RunMigrations migrates a fresh DB to the current version (3)", function()
+-- The current schema version is 4, so a full migration run leaves the DB stamped at 4.
+test("RunMigrations migrates a fresh DB to the current version (4)", function()
   NS.db.global.schemaVersion = nil
   NS:RunMigrations()
-  assertEqual(NS.db.global.schemaVersion, 3)
+  assertEqual(NS.db.global.schemaVersion, 4)
 end)
 
-test("RunMigrations leaves an already-current (v3) DB unchanged", function()
-  NS.db.global.schemaVersion = 3
+test("RunMigrations leaves an already-current (v4) DB unchanged", function()
+  NS.db.global.schemaVersion = 4
   NS:RunMigrations()
-  assertEqual(NS.db.global.schemaVersion, 3)
+  assertEqual(NS.db.global.schemaVersion, 4)
 end)
 
 test("RunMigrations is idempotent across repeated runs", function()
   NS.db.global.schemaVersion = nil
   NS:RunMigrations(); NS:RunMigrations(); NS:RunMigrations()
-  assertEqual(NS.db.global.schemaVersion, 3)
+  assertEqual(NS.db.global.schemaVersion, 4)
 end)
 
 test("RunMigrations v2 retires the legacy updateInterval profile key", function()
@@ -28,7 +28,7 @@ test("RunMigrations v2 retires the legacy updateInterval profile key", function(
   NS.db.profile.updateInterval = 1.0
   NS:RunMigrations()
   assertEqual(NS.db.profile.updateInterval, nil)
-  assertEqual(NS.db.global.schemaVersion, 3)
+  assertEqual(NS.db.global.schemaVersion, 4)
 end)
 
 test("RunMigrations backfills throttleWindow from flatDefaults", function()
@@ -118,15 +118,44 @@ test("v3 migration seeds target and focus disabled and mirrored", function()
   assertEqual(profile.units.focus.mirror, true)
 end)
 
-test("v3 migration leaves the four global keys flat", function()
-  local profile = { hidden = true, locked = true, showOnlyInCombat = true, throttleWindow = 0.25 }
+test("v3 migration leaves the remaining global keys flat", function()
+  local profile = { locked = true, showOnlyInCombat = true, throttleWindow = 0.25 }
   local savedDB = NS.db
   NS.db = { profile = profile, global = { schemaVersion = 2 } }
   NS:RunMigrations()
   NS.db = savedDB
-  assertEqual(profile.hidden, true)
+  assertEqual(profile.locked, true)
   assertEqual(profile.throttleWindow, 0.25)
-  assertEqual(profile.units.player.hidden, nil, "globals must not be duplicated per unit")
+  assertEqual(profile.units.player.locked, nil, "globals must not be duplicated per unit")
+end)
+
+-- v4 drops the `hidden` master toggle: the per-unit `enabled` flags are the only visibility
+-- switch now, so a surviving `hidden = true` would suppress every bar with no UI left to clear it.
+test("v4 drops the dead `hidden` key from every profile, not just the active one", function()
+  local active = { hidden = true, schemaVersion = 3 }
+  local raid   = { hidden = true, schemaVersion = 3 }
+  local savedDB = NS.db
+  NS.db = {
+    profile = active,
+    global  = { schemaVersion = 3 },
+    sv      = { profiles = { Default = active, Raid = raid } },
+  }
+  NS:RunMigrations()
+  local version = NS.db.global.schemaVersion
+  NS.db = savedDB
+
+  assertEqual(active.hidden, nil, "the active profile's dead key is dropped")
+  assertEqual(raid.hidden, nil, "and so is an inactive profile's -- it would return on a switch")
+  assertEqual(version, 4)
+end)
+
+test("v4 does not resurrect `hidden` via the defaults backfill", function()
+  local profile = {}
+  local savedDB = NS.db
+  NS.db = { profile = profile, global = { schemaVersion = 1 } }
+  NS:RunMigrations()
+  NS.db = savedDB
+  assertEqual(profile.hidden, nil, "`hidden` is gone from defaults, so nothing can backfill it")
 end)
 
 test("v3 migration is idempotent", function()
@@ -152,13 +181,13 @@ test("v3 migration does not share nested tables between units", function()
   assertTrue(profile.units.focus.barColor.r ~= 0.11)
 end)
 
-test("the schema version lands on 3", function()
+test("the schema version lands on 4", function()
   local savedDB = NS.db
   NS.db = { profile = {}, global = { schemaVersion = 1 } }
   NS:RunMigrations()
   local v = NS.db.global.schemaVersion
   NS.db = savedDB
-  assertEqual(v, 3)
+  assertEqual(v, 4)
 end)
 
 -- ── Regression coverage: the v3 lift must fire under REAL AceDB, not just a bespoke table ──
@@ -191,11 +220,11 @@ test("real AceDB init: a legacy flat profile is lifted onto the player unit, not
   assertEqual(profile.units.player.position.x, 1)
   assertEqual(profile.barWidth, nil, "the flat original must be cleared, not duplicated")
   assertEqual(profile.position, nil)
-  assertEqual(NS.db.global.schemaVersion, 3)
+  assertEqual(NS.db.global.schemaVersion, 4)
   NS.db, _G.AbsorbTrackerDB = savedDB, savedSV
 end)
 
-test("real AceDB init: a fresh install (no saved data) converges on factory defaults at v3", function()
+test("real AceDB init: a fresh install (no saved data) converges on factory defaults at v4", function()
   local savedSV, savedDB = _G.AbsorbTrackerDB, NS.db
   _G.AbsorbTrackerDB = nil
   NS:InitDB()
@@ -205,7 +234,7 @@ test("real AceDB init: a fresh install (no saved data) converges on factory defa
   assertEqual(profile.units.target.enabled, false)
   assertEqual(profile.units.target.mirror, true)
   assertEqual(profile.barWidth, nil, "a fresh install has no flat key to lift in the first place")
-  assertEqual(NS.db.global.schemaVersion, 3)
+  assertEqual(NS.db.global.schemaVersion, 4)
   NS.db, _G.AbsorbTrackerDB = savedDB, savedSV
 end)
 

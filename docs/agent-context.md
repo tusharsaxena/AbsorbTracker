@@ -50,7 +50,7 @@ User-facing reference: [../README.md](../README.md). Subsystems + invariants:
   second `db.profile.units[...]` read site.
 - **Slash paths are fully qualified.** `/at set units.target.barWidth 250` works; the pre-1.9
   unqualified `/at set barWidth 250` is rejected (`FindSchemaRow` has no bare-key row for a
-  per-unit setting). Only the four flat globals (`hidden`, `locked`, `showOnlyInCombat`,
+  per-unit setting). Only the three flat globals (`locked`, `showOnlyInCombat`,
   `throttleWindow`) use a bare path.
 - **`SetBackdrop(nil)` before `SetBackdrop(info)`.** WoW's backdrop API is a no-op when the table
   identity is unchanged, even if its fields changed. `UpdateBarAppearance` (`modules/Display.lua`)

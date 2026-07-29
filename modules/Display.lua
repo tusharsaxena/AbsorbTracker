@@ -5,6 +5,11 @@ local floor, max = NS.floor, NS.max
 -- Gap between stacked default bar positions, in pixels.
 local STACK_GAP = 8
 
+-- Point size of the unlocked-only unit label. Deliberately fixed rather than derived from the
+-- unit's `fontSize`: the label identifies a drag target and should stay small and uniform across
+-- the three bars even when one of them is styled with 24pt value text.
+local LABEL_FONT_SIZE = 10
+
 --- Run `fn(unit)` for every tracked unit, in NS.Units.LIST order. The bus handlers drive all
 --- three bars through this, which is what keeps the bus messages payload-free.
 function NS.ForEachUnit(fn)
@@ -78,14 +83,24 @@ function NS.UpdateBarAppearance(unit)
     bar:SetMovable(not locked)
     bar:EnableMouse(not locked)
 
+    -- The unit label rides the same flag: it exists to tell the stacked bars apart while they can
+    -- be dragged, so a locked (i.e. finished) layout shows nothing. Font face follows the unit's
+    -- own setting — mirror-resolved like every other read here — at a fixed small size.
+    local unitLabel = bar.unitLabel
+    unitLabel:SetFont(NS.GetFont(unit), LABEL_FONT_SIZE, "OUTLINE")
+    unitLabel:SetText(NS.Units.LABEL[unit] or unit)
+    if locked then unitLabel:Hide() else unitLabel:Show() end
+
     NS.ApplyVisibility(unit)
 end
 
 -- Effective bar visibility, composed in order — the first false wins:
---   1. the global `hidden` master toggle
---   2. the per-unit `enabled` flag
---   3. the global `showOnlyInCombat` gate
---   4. for target/focus only, whether the unit exists
+--   1. the per-unit `enabled` flag
+--   2. the global `showOnlyInCombat` gate
+--   3. for target/focus only, whether the unit exists
+--
+-- There is no master `hidden` toggle above these any more (dropped in schema v4): `enabled` is the
+-- visibility switch, and `/at toggle` flips all three at once rather than a separate global.
 --
 -- The combat gate keys off UnitAffectingCombat("player"), NOT InCombatLockdown(). At
 -- PLAYER_REGEN_DISABLED the client fires the event while InCombatLockdown() is still false —
@@ -97,7 +112,6 @@ end
 -- zero raises — the same constraint recorded in docs/scope.md for the audio-alert feature.
 function NS.ShouldShowBar(unit)
     unit = unit or "player"
-    if NS.GetSetting("hidden") then return false end
     if not NS.Units.IsEnabled(unit) then return false end
     if NS.GetSetting("showOnlyInCombat") and not UnitAffectingCombat("player") then return false end
     if unit ~= "player" and not UnitExists(unit) then return false end
@@ -111,8 +125,7 @@ function NS.ApplyVisibility(unit)
     if not bar then return end
     local show = NS.ShouldShowBar(unit)
     if NS.State and NS.State.debug and show ~= dbgLastShown[unit] then
-        local reason = NS.GetSetting("hidden") and "hidden toggle"
-            or (not NS.Units.IsEnabled(unit) and "unit disabled")
+        local reason = (not NS.Units.IsEnabled(unit)) and "unit disabled"
             or (NS.GetSetting("showOnlyInCombat") and not UnitAffectingCombat("player")
                 and "showOnlyInCombat")
             or (unit ~= "player" and not UnitExists(unit) and "no unit")

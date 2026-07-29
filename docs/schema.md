@@ -16,7 +16,7 @@ The array itself and its helpers live in `settings/Schema.lua` (`NS.Schema`). Th
                                   -- per-unit path, "units.<unit>.barWidth"
     page    = "bar",             -- which settings/<page>.lua renders it
     unit    = "player",          -- per-unit rows only: which unit this row belongs to (nil for
-                                  -- unit-agnostic rows, e.g. General's four globals)
+                                  -- unit-agnostic rows, e.g. General's three globals)
     group   = "Size",            -- optional inline group label within the page
     order   = 10,                -- render order within the group
 
@@ -49,7 +49,7 @@ The array itself and its helpers live in `settings/Schema.lua` (`NS.Schema`). Th
 
 ## Registration
 
-`settings/General.lua` calls `NS.RegisterSchemaRows({ ... })` once at file-load time for its four unit-agnostic globals. `settings/{Bar,Border,Font}.lua` (except `Profiles`) instead define an `addUnitRows(unit)` function and call it once per tracked unit:
+`settings/General.lua` calls `NS.RegisterSchemaRows({ ... })` once at file-load time for its three unit-agnostic globals, then loops `NS.Units.LIST` to register one `units.<unit>.enabled` toggle per unit (the only unit-scoped rows outside the Bar/Border/Font pages). `settings/{Bar,Border,Font}.lua` (except `Profiles`) instead define an `addUnitRows(unit)` function and call it once per tracked unit:
 
 ```lua
 local addonName, NS = ...
@@ -71,7 +71,7 @@ for _, unit in ipairs(NS.Units.LIST) do addUnitRows(unit) end
 
 Each call generates three rows per appearance key — one per `NS.Units.LIST` entry — with the path prefixed `units.<unit>.` and tagged `unit = unit`, so `NS.SchemaForPage(page, unit)` can filter the page down to whichever unit is selected in the panel's Unit dropdown.
 
-**Defaults reference `unitDefaults` (per-unit pages) or `flatDefaults` (General's globals).** `defaults/Profile.lua` is the single place to change a default — the schema rows just point at it. `NS.flatDefaults` is an alias of `NS.defaults.profile` (the four flat globals plus `units`); `NS.unitDefaults` is an alias of `NS.defaults.profile.units.player`, the canonical per-row default source shared by all three units (a color picker's default doesn't change based on which unit is selected). Don't hard-code default values in schema rows.
+**Defaults reference `unitDefaults` (per-unit pages) or `flatDefaults` (General's globals).** `defaults/Profile.lua` is the single place to change a default — the schema rows just point at it. `NS.flatDefaults` is an alias of `NS.defaults.profile` (the three flat globals plus `units`); `NS.unitDefaults` is an alias of `NS.defaults.profile.units.player`, the canonical per-row default source shared by all three units (a color picker's default doesn't change based on which unit is selected). Don't hard-code default values in schema rows.
 
 ## How the row drives both surfaces
 
@@ -107,9 +107,9 @@ Each call generates three rows per appearance key — one per `NS.Units.LIST` en
 
 ### `inverse = true` (bool only)
 
-Flips the widget value vs. the db value. Used so `path = "hidden"` shows up as a positive "Show Bar" toggle: db stores `true` for hidden, the widget displays the opposite.
+Flips the widget value vs. the db value: the db stores one polarity, the checkbox displays the other, and a click writes the negation back. Both the slash path and the panel therefore land on the same db slot from opposite ends.
 
-`/at set hidden true` and the panel's "Show Bar" off both write the same db slot from opposite ends — slash and panel paths remain truly equivalent.
+**No production row uses this today.** It existed for `path = "hidden"`, rendered as a positive "Show Bar" toggle; schema v4 removed that setting in favour of the three per-unit `enabled` toggles, which need no inversion. The capability is kept (it is generic schema machinery and costs two lines in `makeCheckbox`) and stays covered by `tests/test_widgets.lua` against a synthetic row.
 
 ### `disabledIf = "<sibling-path>"` (color only)
 
@@ -128,7 +128,7 @@ The ColorPicker maker (`settings/Widgets.lua`) reads `disabledIf` inside its ref
 Defaults to `NS.UpdateBarAppearance`. Override when the row's side effect differs:
 
 - `throttleWindow` — no override; uses the default `UpdateBarAppearance` (the throttle window itself is read live by `NS.RequestRepaint`, not applied via `onChange`).
-- `hidden` → `UpdateBarAppearance` plus a follow-up `UpdateAbsorbBar` (only when re-showing) so the bar's first frame after un-hide reflects current state.
+- `units.<unit>.enabled` → publishes `UNITS` (re-syncs that unit's event registrations), then `APPEARANCE`, then `REPAINT` **only when the bar ends up enabled** — a bar being switched off needs no paint work, and one just switched on is still holding whatever value it had when it went away.
 
 ### `fmt = "%.1f sec"` (number only)
 
@@ -166,7 +166,7 @@ NS.PartitionUnitRows(rows)              -> perUnit, styled   -- splits a unit pa
                                                               -- rows the mirror hides
 
 -- Dotted-path walkers (per-unit settings live at units.<unit>.<key>; flat keys pass through
--- unchanged so the four globals need no special case)
+-- unchanged so the three globals need no special case)
 NS.ResolvePath(tbl, path)               -> value | nil
 NS.SetPath(tbl, path, value)
 
@@ -242,28 +242,27 @@ Two consequences worth remembering:
 ## What's *not* schema-driven
 
 - **Action buttons** like Reset Position. They're rendered via `Helpers.InlineButtonPair`, attached to a sub-page through `Helpers.RenderSchema`'s `afterGroup` callback. `settings/General.lua` wires the **Reset Position** + **Reset All Settings** pair under the **Master controls** group via `RenderSchema(ctx, "general", { ["Master controls"] = function(ctxRef) H.InlineButtonPair(ctxRef, ...) end })`. Each page's **Defaults** button (`Helpers.RestoreDefaults(pageKey, ctx)`) is likewise not a row.
-- **The Debug console checkbox** (General page, beside Lock Position). Shows/hides the debug console *window* (same as the bare `/at debug`) — deliberately *not* a schema row (window visibility is transient UI, never persisted), and it does **not** change the debug logging flag (`NS.State.debug`). It's rendered via `Helpers.SessionCheckbox` wired to `NS.DebugLog:ConsoleCheckbox()` (`get` = `D:IsShown()`, `set` = `D:Show()`/`D:Hide()`) and injected through `RenderSchema`'s `pairWith` seam.
+- **The Debug console checkbox** (General page, beside Enable Focus Bar). Shows/hides the debug console *window* (same as the bare `/at debug`) — deliberately *not* a schema row (window visibility is transient UI, never persisted), and it does **not** change the debug logging flag (`NS.State.debug`). It's rendered via `Helpers.SessionCheckbox` wired to `NS.DebugLog:ConsoleCheckbox()` (`get` = `D:IsShown()`, `set` = `D:Show()`/`D:Hide()`) and injected through `RenderSchema`'s `pairWith` seam as **Enable Focus Bar's** right partner.
 - **The non-key/value verbs.** `config`, `lock`, `unlock`, `toggle`, `debug`, `update`, `version`, `test`, `resetposition`, and `profile` live as dedicated entries in the ordered `NS.COMMANDS` table in `settings/Slash.lua` (16 verbs total; `NS.SlashCommands` is an alias the About page renders). An unknown verb prints `unknown command '<verb>'` then the help list.
 - **The Profiles sub-page.** `AceDBOptions:GetOptionsTable(db)` builds its own options table; no schema rows.
 
 ## Settings reference (every schema row)
 
-Defaults live in `defaults/Profile.lua`'s `NS.defaults.profile`. The four globals below are flat, single rows on the General page. Every other setting is **per-unit**: `settings/{Bar,Border,Font}.lua` register the same fifteen appearance keys three times each — once per `NS.Units.LIST` entry (`player`, `target`, `focus`) — at the dotted path `units.<unit>.<key>`, all sharing one canonical `default` from `NS.unitDefaults` (= `defaults.profile.units.player`). `/at get units.target.barWidth` reads the target bar's width; `/at get barWidth` (the pre-1.9 unqualified form) finds nothing.
+Defaults live in `defaults/Profile.lua`'s `NS.defaults.profile`. The three globals below are flat, single rows on the General page, which also carries the three per-unit `enabled` toggles (the one place a `units.<unit>.*` path is edited outside the Bar/Border/Font Unit dropdown — so `/at reset general` resets them, and `/at reset bar` does not). Every other setting is **per-unit**: `settings/{Bar,Border,Font}.lua` register the same fifteen appearance keys three times each — once per `NS.Units.LIST` entry (`player`, `target`, `focus`) — at the dotted path `units.<unit>.<key>`, all sharing one canonical `default` from `NS.unitDefaults` (= `defaults.profile.units.player`). `/at get units.target.barWidth` reads the target bar's width; `/at get barWidth` (the pre-1.9 unqualified form) finds nothing.
 
-### General page (flat globals)
+### General page (flat globals + the per-unit enable toggles)
 
 | Path | Type | Default | Range / Values | Description |
 |------|------|---------|----------------|-------------|
-| `hidden` | bool | `false` | — | If true, all three bars are hidden. Rendered in the panel as an `inverse` "Show Bar" toggle. Governs every unit. |
-| `locked` | bool | `false` | — | If true, no bar is movable. `/at lock` / `/at unlock` flip this. Governs every unit. |
-| `showOnlyInCombat` | bool | `false` | — | When true, every bar is hidden except while in combat (composed with `hidden` via `NS.ShouldShowBar`; the master `hidden` toggle always wins). Label "Show only in combat". `onChange` publishes `NS.MSG.VISIBILITY` (and `REPAINT` when the change makes a bar visible). Master controls group, order 15. |
+| `locked` | bool | `false` | — | If true, no bar is movable, and the per-bar unit labels are hidden with it. `/at lock` / `/at unlock` flip this. Governs every unit. Master controls, order 15. |
+| `showOnlyInCombat` | bool | `false` | — | When true, every *enabled* bar is hidden except while in combat (the second step of `NS.ShouldShowBar`'s ladder, after the per-unit `enabled` flag). Label "Show only in combat". `onChange` publishes `NS.MSG.VISIBILITY` (and `REPAINT` when the change makes a bar visible). Master controls, order 25. |
+| `units.<unit>.enabled` | bool | `true` (player) / `false` (target, focus) | — | Track and display absorbs for that unit. **The visibility switch** — there is no master `hidden` toggle. One row per `NS.Units.LIST` entry, labelled "Enable Player/Target/Focus Bar", orders 10 / 20 / 30 so each leads a row with a global on its right. The **only** unit-scoped rows on this page: `alwaysPerUnit = true`, so they stay honoured — and free of the `/at get` "(mirrored)" note — even while that unit mirrors the player. Target and focus additionally need `UnitExists` before the bar appears. |
 | `throttleWindow` | number | `0.1` | 0.05 – 1 s (step 0.05) | Fastest any bar repaints during a burst of changes, via `NS.RequestRepaint`'s trailing-edge one-shot AceTimer. Label "Update throttle (in sec)". Display hint `"%.2f sec"`. Performance group, `solo`. |
 
 ### Bar / Border / Font pages (per-unit, path = `units.<unit>.<key>`)
 
 | Key | Type | Default | Range / Values | Description |
 |-----|------|---------|----------------|-------------|
-| `enabled` | bool | `true` (player) / `false` (target, focus) | — | Track and display absorbs for this unit. `alwaysPerUnit = true` — stays editable even while the unit mirrors the player. Bar page, "This bar" group, `solo`. |
 | `mirror` | bool | `true` (target, focus only — player has no row, it's the mirror source) | — | Live-mirror every appearance key from the player. `alwaysPerUnit = true`, `skipRender = true` — not drawn by `RenderRows`; `Helpers.RenderUnitPanel` draws it as the header "Use same styling as Player" checkbox instead. |
 | `barWidth` | number | `200` | 50 – 500 px | Bar width. Hint `"%d px"`. Bar page, Size. |
 | `barHeight` | number | `20` | 10 – 100 px | Bar height. Hint `"%d px"`. Bar page, Size. |

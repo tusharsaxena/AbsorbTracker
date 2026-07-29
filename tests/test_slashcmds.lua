@@ -78,36 +78,73 @@ test("/at lock and /at unlock write the `locked` setting and acknowledge", funct
   assertTrue(contains(out, "Bar unlocked"), joined(out))
 end)
 
-test("/at toggle flips `hidden` in both directions", function()
-  NS.SetSetting("hidden", false)
+-- Bare `/at toggle` flips EVERY bar together: off if any is on, otherwise all on. A plain
+-- per-unit flip would invert a mixed set (player on + target off -> player off + target on),
+-- which is not what "toggle the bars" means.
+test("/at toggle turns every bar off, then every bar back on", function()
+  NS.db.profile.units.player.enabled = true
+  NS.db.profile.units.target.enabled = false
+  NS.db.profile.units.focus.enabled  = false
+
   local out = slash("toggle")
-  assertTrue(NS.GetSetting("hidden"), "first toggle hides")
-  assertTrue(contains(out, "Hidden"), joined(out))
+  for _, unit in ipairs(NS.Units.LIST) do
+    assertFalse(NS.Units.IsEnabled(unit), unit .. " must be off after the first toggle")
+  end
+  assertTrue(contains(out, "All bars hidden"), joined(out))
 
   out = slash("toggle")
-  assertFalse(NS.GetSetting("hidden"), "second toggle shows")
-  assertTrue(contains(out, "Shown"), joined(out))
+  for _, unit in ipairs(NS.Units.LIST) do
+    assertTrue(NS.Units.IsEnabled(unit), unit .. " must be on after the second toggle")
+  end
+  assertTrue(contains(out, "All bars shown"), joined(out))
+
+  NS.db.profile.units.target.enabled = false
+  NS.db.profile.units.focus.enabled  = false
   T.mocks.__fireTimers()
 end)
 
+test("/at toggle <unit> flips only that unit", function()
+  NS.db.profile.units.player.enabled = true
+  NS.db.profile.units.target.enabled = false
+
+  local out = slash("toggle target")
+  assertTrue(NS.Units.IsEnabled("target"), "the named unit flips on")
+  assertTrue(NS.Units.IsEnabled("player"), "and the others are left alone")
+  assertTrue(contains(out, "Target bar shown"), joined(out))
+
+  out = slash("toggle target")
+  assertFalse(NS.Units.IsEnabled("target"), "and back off")
+  assertTrue(contains(out, "Target bar hidden"), joined(out))
+  T.mocks.__fireTimers()
+end)
+
+test("/at toggle rejects an unknown unit and changes nothing", function()
+  local before = NS.Units.IsEnabled("player")
+  local out = slash("toggle wibble")
+  assertTrue(contains(out, "unknown unit 'wibble'"), joined(out))
+  assertEqual(NS.Units.IsEnabled("player"), before, "a rejected token must not flip anything")
+end)
+
 test("/at toggle requests a repaint when SHOWING, not when hiding", function()
-  -- A bar that has just been un-hidden holds whatever value it had when it went away; the repaint
-  -- is what makes it current. Hiding needs no paint work, so it must publish nothing.
+  -- A bar that has just been re-enabled holds whatever value it had when it went away; the repaint
+  -- is what makes it current. Hiding needs no paint work.
   --
-  -- Exactly ONE publish on show: the verb delegates to SetByPath and the `hidden` row's onChange
-  -- (settings/General.lua) owns the republish, so the CLI and the panel checkbox travel the same
-  -- path. The verb used to publish a second, redundant REPAINT of its own.
-  NS.SetSetting("hidden", false)
+  -- The verb delegates to SetByPath, so the enable row's onChange (settings/General.lua) owns the
+  -- republish and the CLI travels the same path as the panel checkbox. One publish per unit
+  -- written, coalesced by RequestRepaint into a single armed timer either way.
+  NS.db.profile.units.player.enabled = true
+  NS.db.profile.units.target.enabled = false
+  NS.db.profile.units.focus.enabled  = false
   local seen = 0
   local target = NS.NewBusTarget()
   target:RegisterMessage(NS.MSG.REPAINT, function() seen = seen + 1 end)
 
-  T.mocks.__fireTimers()                               -- drain, so `pending` starts clear
-  capture(function() NS.Slash:OnSlash("toggle") end)   -- -> hidden
+  T.mocks.__fireTimers()                                    -- drain, so `pending` starts clear
+  capture(function() NS.Slash:OnSlash("toggle player") end)  -- -> off
   assertEqual(seen, 0, "hiding schedules no repaint")
   assertEqual(#T.mocks.__timers, 0, "and arms no timer")
 
-  capture(function() NS.Slash:OnSlash("toggle") end)   -- -> shown
+  capture(function() NS.Slash:OnSlash("toggle player") end)  -- -> on
   assertEqual(seen, 1, "showing publishes exactly one repaint, from the schema onChange")
   assertEqual(#T.mocks.__timers, 1, "which arms exactly one coalesced timer")
 
@@ -252,18 +289,24 @@ end)
 
 -- ── /at test ───────────────────────────────────────────────────────────────────────
 
-test("/at test refuses while the bar is hidden and tells the user how to fix it", function()
+test("/at test refuses while every bar is disabled and tells the user how to fix it", function()
   local savedHold = NS.testHoldUntil
-  NS.SetSetting("hidden", true)
+  local saved = {}
+  for _, unit in ipairs(NS.Units.LIST) do
+    saved[unit] = NS.db.profile.units[unit].enabled
+    NS.db.profile.units[unit].enabled = false
+  end
   local out = slash("test")
-  NS.SetSetting("hidden", false)
-  assertTrue(contains(out, "Bar is hidden"), joined(out))
+  for _, unit in ipairs(NS.Units.LIST) do
+    NS.db.profile.units[unit].enabled = saved[unit]
+  end
+  assertTrue(contains(out, "Every bar is disabled"), joined(out))
   assertTrue(contains(out, "/at toggle"), joined(out))
   assertEqual(NS.testHoldUntil, savedHold, "no hold window is armed on the refusal path")
 end)
 
 test("/at test paints the given value and arms the hold window", function()
-  NS.SetSetting("hidden", false)
+  NS.db.profile.units.player.enabled = true
   local painted
   local sb = NS.statusBar
   rawset(sb, "SetValue", function(_, v) painted = v end)
@@ -515,12 +558,19 @@ test("resetposition clears all three positions", function()
   end
 end)
 
-test("toggle still flips the global hidden master", function()
-  local before = NS.GetSetting("hidden")
+test("toggle round-trips the enabled set", function()
+  local before = {}
+  for _, unit in ipairs(NS.Units.LIST) do before[unit] = NS.Units.IsEnabled(unit) end
   slash("toggle")
-  assertEqual(NS.GetSetting("hidden"), not before)
   slash("toggle")
-  assertEqual(NS.GetSetting("hidden"), before)
+  -- Not an identity: an all-off/all-on pair converges on all-on by design (see the toggle tests
+  -- above), so assert the reachable invariant -- every bar ends up enabled.
+  for _, unit in ipairs(NS.Units.LIST) do
+    assertTrue(NS.Units.IsEnabled(unit), unit .. " is on after an off/on round trip")
+  end
+  for _, unit in ipairs(NS.Units.LIST) do
+    NS.db.profile.units[unit].enabled = before[unit]
+  end
 end)
 
 -- ── Mirrored-unit annotation on get / set / list ──────────────────────────

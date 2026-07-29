@@ -305,7 +305,7 @@ test("switching the dropdown to focus re-renders the page for that unit", functi
   NS.Helpers.RenderUnitPanel(ctx, "bar")
 end)
 
-test("a mirrored unit hides its appearance rows but keeps the enable toggle", function()
+test("a mirrored unit shows only its header, no appearance rows", function()
   local panel = barPanel()
   panel:__fire("OnShow")
   local ctx = NS.Helpers.__lastUnitCtx
@@ -322,9 +322,11 @@ test("a mirrored unit hides its appearance rows but keeps the enable toggle", fu
   end
   walk(ctx.scroll)
 
-  assertTrue(labels["Enable this bar"], "the enable toggle is per-unit and must stay visible")
   assertTrue(labels["Use same styling as Player"], "the mirror checkbox is the header")
   assertTrue(not labels["Bar Width (in px)"], "mirrored appearance rows must be hidden")
+  -- The enable toggle moved to General's Master controls; the mirror flag is the only per-unit
+  -- row left on this page and it renders in the header, not the body.
+  assertTrue(not labels["Enable this bar"], "the enable toggle no longer lives on the Bar page")
 
   ctx.unit = "player"
   NS.Helpers.RenderUnitPanel(ctx, "bar")

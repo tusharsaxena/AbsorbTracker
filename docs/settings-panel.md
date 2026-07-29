@@ -36,7 +36,7 @@ Each `settings/*.lua` slice begins with `local addonName, NS = ...` then `local 
 
 The parent and every sub-page register as **canvas-layout categories**: a custom Blizzard `Frame` is registered with `Settings.RegisterCanvasLayoutCategory` (parent) / `Settings.RegisterCanvasLayoutSubcategory` (each sub-page) and Blizzard renders it in its own settings panel slot. The schema-driven sub-pages (General / Bar / Border / Font) lay out their schema rows as **AceGUI widgets** (`CheckBox` / `Slider` / `Dropdown` / `ColorPicker`) inside an AceGUI `ScrollFrame` parented to the page's `body` frame.
 
-**Bar / Border / Font are per-unit; General and About are not.** Bar/Border/Font render through `Helpers.RenderUnitPanel(ctx, pageKey)`, which draws a **Unit** dropdown (Player/Target/Focus) above the schema rows and filters them to the selected unit. General has no per-unit rows (its four settings are global) and About has no settings at all — neither shows a Unit dropdown.
+**Bar / Border / Font are per-unit; General and About are not.** Bar/Border/Font render through `Helpers.RenderUnitPanel(ctx, pageKey)`, which draws a **Unit** dropdown (Player/Target/Focus) above the schema rows and filters them to the selected unit. General shows no Unit dropdown either — its three globals are unit-agnostic, and its three `units.<unit>.enabled` toggles are all rendered at once rather than filtered — and About has no settings at all.
 
 Profiles is the only page that still uses AceConfig — it routes `AceConfigDialog:Open("AbsorbTracker-Profiles", container)` into an AceGUI `SimpleGroup` parented to the canvas body, so the AceDBOptions UI lands inside our shell with the same header.
 
@@ -124,9 +124,22 @@ A row marked `solo = true` flushes any in-progress two-column row first, then re
 
 The optional `afterGroup` map is `{ [groupName] = function(ctx) ... end }`. Each callback fires once, immediately after the group's last schema row is rendered (and before the next group's heading), then is nilled out (one-shot). General uses this to inject `Helpers.InlineButtonPair` ("Reset Position" + "Reset All Settings") under the **Master controls** group.
 
-The optional `pairWith` map (fourth argument) is `{ [path] = function(ctx, rowGroup) ... end }`. It attaches a **non-schema** widget as the right partner of a named schema path's row, fired one-shot and only when that path is the lone widget on its current row (so the pair stays 50/50 and never overflows to three-wide). General uses this to inject the **Debug console** checkbox — `Helpers.SessionCheckbox` wired to `NS.DebugLog:ConsoleCheckbox()` — beside `locked`.
+The optional `pairWith` map (fourth argument) is `{ [path] = function(ctx, rowGroup) ... end }`. It attaches a **non-schema** widget as the right partner of a named schema path's row, fired one-shot and only when that path is the lone widget on its current row (so the pair stays 50/50 and never overflows to three-wide). General uses it to inject the **Debug console** checkbox — `Helpers.SessionCheckbox` wired to `NS.DebugLog:ConsoleCheckbox()` — beside `units.focus.enabled`.
 
-On the General page, the **Master controls** group renders three schema rows in order — `hidden` ("Show Bar", order 10), `showOnlyInCombat` ("Show only in combat", order 15), `locked` ("Lock Position", order 20) — plus the `pairWith`-injected Debug console checkbox and the `afterGroup`-injected button pair. The 50/50 pairing packs them as `[Show Bar] [Show only in combat]` on the first line; `locked` pairs with the injected `[Debug console]` checkbox on the next line; then `[Reset Position] [Reset All Settings]`.
+On the General page, the **Master controls** group renders **five** schema rows, interleaved so each per-unit enable toggle leads a row with a flat global on its right: `units.player.enabled` ("Enable Player Bar", 10), `locked` ("Lock Position", 15), `units.target.enabled` ("Enable Target Bar", 20), `showOnlyInCombat` ("Show only in combat", 25), `units.focus.enabled` ("Enable Focus Bar", 30). The 50/50 pairing therefore packs them as:
+
+```
+[Enable Player Bar]   [Lock Position]
+[Enable Target Bar]   [Show only in combat]
+[Enable Focus Bar]    [Debug console]            <- pairWith partner
+[Reset Position]      [Reset All Settings]       <- afterGroup, Helpers.InlineButtonPair
+```
+
+**The odd row count is load-bearing.** Five schema rows pair off as 2 + 2 + 1, leaving Enable Focus Bar alone on the third row — which is the only condition under which `pairWith` will attach the Debug console beside it. Add or remove a Master controls row and the console silently drops to a row of its own.
+
+**The pairing is a pure product of row order**, since `RenderRows` fills left-then-right in the order `SchemaForPage` returns. Re-numbering any one `order` re-columns the whole group; `tests/test_widgets.lua` asserts the pairs by label, and `tests/test_schema.lua` asserts the full five-path sequence, so a stray renumber fails the suite rather than the eye.
+
+The enable toggles are the only unit-scoped rows on General. They keep their `unit` tag but the page renders with `ctx.unit` nil, so `SchemaForPage(page, nil)` returns all three rather than filtering — which is exactly what puts all three on screen at once. They also keep `alwaysPerUnit = true`, which is what stops `/at get units.focus.enabled` from carrying the "(mirrored)" note.
 
 The **Debug console** checkbox toggles the **visibility of the console window only** — the same as the bare `/at debug`. It deliberately does **not** change the debug logging flag (`NS.State.debug`); that stays on `/at debug on|off` and the window's own header toggle. It is **not** a schema row: `Helpers.SessionCheckbox` reads/writes window visibility through `NS.DebugLog` (`get` = `D:IsShown()`, `set` = `D:Show()`/`D:Hide()`) rather than a persisted path, so ticking it never lands in the saved profile. Whenever the window's visibility changes by any route — this checkbox, bare `/at debug`, the header Close button, or Esc (`UISpecialFrames`) — the console frame's `OnShow`/`OnHide` hooks call `NS.Helpers.RefreshAllPanels`, so an open settings panel's checkbox stays in sync.
 

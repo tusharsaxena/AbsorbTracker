@@ -112,6 +112,29 @@ local function migrateAllProfiles()
     return n
 end
 
+-- Delete one dead profile key from EVERY profile in the store, not just the active one. Same
+-- reasoning as migrateAllProfiles: a key left behind on an inactive profile comes back the moment
+-- the user switches to it. Returns how many profiles actually carried the key.
+local function dropKeyEverywhere(key)
+    local n = 0
+    local function drop(p)
+        if type(p) == "table" and p[key] ~= nil then
+            p[key] = nil
+            n = n + 1
+        end
+    end
+
+    drop(NS.db.profile)
+    local sv = NS.db.sv
+    local store = (type(sv) == "table") and sv.profiles or nil
+    if type(store) == "table" then
+        for _, p in pairs(store) do
+            if p ~= NS.db.profile then drop(p) end
+        end
+    end
+    return n
+end
+
 function NS:RunMigrations()
     local g = NS.db and NS.db.global
     if not g then return end
@@ -154,5 +177,16 @@ function NS:RunMigrations()
     if g.schemaVersion < 3 then
         NS.Debug("Migrate", "v%s \226\134\146 v3", g.schemaVersion)
         g.schemaVersion = 3
+    end
+    -- v4: the global `hidden` master toggle is gone. The three per-unit `enabled` flags are now
+    -- the only visibility switch, so a stale `hidden = true` would be an unreachable setting that
+    -- silently suppressed every bar with no UI left to clear it. Swept from every profile.
+    if g.schemaVersion < 4 then
+        local dropped = dropKeyEverywhere("hidden")
+        if dropped > 0 then
+            NS.Debug("Migrate", "dropped `hidden` from %s profile(s)", dropped)
+        end
+        NS.Debug("Migrate", "v%s \226\134\146 v4", g.schemaVersion)
+        g.schemaVersion = 4
     end
 end

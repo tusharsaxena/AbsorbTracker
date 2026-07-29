@@ -55,9 +55,9 @@ NS.defaults.profile = {
     -- profile read as what it is: pre-v3.
     schemaVersion = 1,
 
-    -- Globals: one value shared by all three bars.
+    -- Globals: one value shared by all three bars. There is deliberately no `hidden` master
+    -- toggle — the three per-unit `enabled` flags ARE the visibility switch (dropped in v4).
     locked = false,
-    hidden = false,
     throttleWindow = 0.1,
     showOnlyInCombat = false,
 
@@ -73,8 +73,9 @@ NS.defaults.profile = {
 
 NS.defaults.global = {
     -- Persisted-DB schema version. NS:RunMigrations (core/Database.lua) reads/writes this once
-    -- at init — the idempotent seam future schema changes hook into. v3 introduced profile.units.
-    schemaVersion = 3,
+    -- at init — the idempotent seam future schema changes hook into. v3 introduced profile.units;
+    -- v4 dropped the dead `hidden` global.
+    schemaVersion = 4,
 }
 
 -- Flat alias for the no-AceDB fallback path: GetSetting reads this when NS.db is absent. It now

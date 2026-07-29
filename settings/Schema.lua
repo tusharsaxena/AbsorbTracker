@@ -97,7 +97,7 @@ end
 -- ---------------------------------------------------------------------
 --
 -- Per-unit settings live at `units.<unit>.<key>`, so the single read/write seam has to walk a
--- path rather than index a flat table. Flat keys ("hidden") pass through unchanged, so the four
+-- path rather than index a flat table. Flat keys ("locked") pass through unchanged, so the three
 -- globals keep working without a special case at every call site.
 
 function NS.ResolvePath(tbl, path)
