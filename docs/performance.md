@@ -61,6 +61,7 @@ when you explicitly ask for one. Everything also acknowledges in chat.
 | Command | Effect |
 |---------|--------|
 | `/at perf` | Status + usage |
+| `/at perf` | Open the panel. Start is clickable from it — this is the entry point |
 | `/at perf start [label]` | Begin a run. Records nothing until an experiment is armed. Captures character, spec, zone and group |
 | `/at perf measure a` | Arm **Experiment A** — addon active. Records while in combat |
 | `/at perf measure b` | Arm **Experiment B** — addon suspended (done for you). Same combat gating |
@@ -117,17 +118,18 @@ Run this when you want a defensible number rather than an impression.
 
 ### The step panel
 
-`/at perf start` opens a small panel listing the run's steps. It is **strictly linear** — only the
-next legal step is clickable, completed steps go green with a tick, and everything else is greyed
-out. An armed or recording experiment shows gold, so it is obvious mid-fight that a capture is
-running.
+**`/at perf` opens the panel, and the panel starts the run.** The first row is clickable whenever no
+run is in flight, so one command is all anyone has to remember — every other step is a click from
+there. It is **strictly linear** — only the next legal step is clickable, completed steps go green, and
+everything else is greyed out. An armed or recording experiment shows gold, so it is obvious
+mid-fight that a capture is running.
 
 ```
   Absorb Tracker — Perf Run                                            ×
   ──────────────────────────────────────────────────────────────────────
-  ●  Start perf run                                        /at perf start
-  ●  Measure A (with the addon)                       /at perf measure a
-  ●  Measure B (without the addon)                    /at perf measure b   ← clickable
+  ○  Start perf run                                        /at perf start   ← clickable
+  ○  Measure A (with the addon)                       /at perf measure a
+  ○  Measure B (without the addon)                    /at perf measure b
   ○  Finish perf run                                      /at perf finish
   ○  Report                                               /at perf report
   ○  JSON Dump                                              /at perf dump

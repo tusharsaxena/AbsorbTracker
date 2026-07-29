@@ -843,14 +843,46 @@ end)
 
 local function states() return P.Progress() end
 
-test("perf: before a run only Start reads done, everything else is locked", function()
+test("perf: before a run Start is the one offered step", function()
+  -- The panel is the entry point, not a mid-run companion: someone who remembers only `/at perf`
+  -- has to be able to get a run going from it.
   reset()
   local s = states()
-  assertEqual(s.start, "done", "start")
+  assertEqual(s.start, "ready", "start is clickable")
   assertEqual(s.measureA, "locked", "A")
   assertEqual(s.measureB, "locked", "B")
   assertEqual(s.finish, "locked", "finish")
   assertEqual(s.report, "locked", "report")
+  assertEqual(s.cancel, "locked", "and nothing to cancel")
+end)
+
+test("perf: Start reads done while a run is in flight", function()
+  reset()
+  P.Start("s")
+  assertEqual(states().start, "done", "already started")
+  P.Stop()
+end)
+
+test("perf: Start is offered again once a run has finished", function()
+  -- Running another is the obvious next thing, and it resets everything on the way in.
+  reset()
+  P.Start("s")
+  P.Measure("a"); tick(0.5, true); tick(0.5, false)
+  P.Stop()
+  assertEqual(states().start, "ready", "ready for the next run")
+  assertTrue(NS.PerfPanel.IsActionable("start"), "and clickable")
+end)
+
+test("perf: clicking Start from the panel begins a run", function()
+  reset()
+  NS.PerfPanel:Show()
+  local f = NS.PerfPanel.__frame()
+  assertFalse(P.run, "nothing running")
+  f.buttons.start:__fire("OnClick")
+  assertTrue(P.run, "the panel started one")
+  P.Cancel()
+  settle()
+  NS.PerfPanel:Hide()
 end)
 
 test("perf: starting a run makes exactly Measure A ready", function()

@@ -149,7 +149,10 @@ function P.Progress()
     end
 
     return {
-        start = "done",   -- the panel only exists once a run has started
+        -- Clickable whenever there is no run in flight, so the panel is the entry point rather than
+        -- something you can only reach once you already knew the command. `done` while a run is
+        -- active; ready again afterwards, since starting another is the obvious next thing.
+        start = P.run and "done" or "ready",
         measureA = a, measureB = b, finish = fin,
         report = review("report"), dump = review("dump"),
         -- Its own state, not "ready": it sits outside the linear progression and the panel colours

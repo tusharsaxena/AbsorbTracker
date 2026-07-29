@@ -4,7 +4,9 @@ local Panel = NS.PerfPanel
 
 -- core/PerfPanel.lua — the clickable step panel for a perf run (issue #17).
 --
--- Appears on `/at perf start` and walks the user through the run one step at a time. The ordering
+-- Opened by a bare `/at perf` (and by `/at perf start`), and walks the user through the run one
+-- step at a time — the first row starts the run, so the panel is the entry point rather than
+-- something you can only reach once you already knew the command. The ordering
 -- is the whole point: arming Experiment B before pulling, or forgetting `/reload`, silently ruins a
 -- capture, and a numbered list in chat scrolls away the moment combat starts. A panel that only
 -- offers the next legal step cannot be done out of order.

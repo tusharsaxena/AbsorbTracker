@@ -154,7 +154,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (112)
+### test_perf.lua (115)
 
 - perf: Note accumulates calls, total and max
 - perf: Note tracks unrelated buckets independently
@@ -231,7 +231,10 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - perf: experiments are named A and B, never active/suspended
 - perf: the run start is logged with its context
 - perf: arming logs which experiment and whether the addon is suspended
-- perf: before a run only Start reads done, everything else is locked
+- perf: before a run Start is the one offered step
+- perf: Start reads done while a run is in flight
+- perf: Start is offered again once a run has finished
+- perf: clicking Start from the panel begins a run
 - perf: starting a run makes exactly Measure A ready
 - perf: an armed or recording experiment reads busy, not ready
 - perf: completing A unlocks B and nothing else
@@ -413,7 +416,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
 
-### test_slashcmds.lua (99)
+### test_slashcmds.lua (100)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -504,7 +507,8 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at perf start opens the panel instead of listing the steps in chat
 - /at perf cancel abandons the run and closes the panel
 - /at perf show, hide and toggle drive the panel without touching the run
-- /at perf (bare) reports status without moving the panel
+- /at perf (bare) opens the panel — it is the entry point to a run
+- /at perf then clicking Start runs a whole run without another typed command
 - the perf usage block documents show/hide/toggle
 - /at perf cancel says so when there is nothing to cancel
 - the perf usage block documents cancel
@@ -578,12 +582,12 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
 | test_timer.lua | 11 |
-| test_perf.lua | 112 |
+| test_perf.lua | 115 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
 | test_display.lua | 39 |
 | test_helpers.lua | 40 |
-| test_slashcmds.lua | 99 |
+| test_slashcmds.lua | 100 |
 | test_widgets.lua | 48 |
-| **Total** | **516** |
+| **Total** | **520** |

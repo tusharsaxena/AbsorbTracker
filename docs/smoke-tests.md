@@ -107,7 +107,8 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### L. Performance probe (`/at perf`, issue #17)
 
-71. **Bare status + usage.** `/at perf` → a status line (`perf stopped, addon active`) then the usage block, with each sub-verb explaining what it does. `/at perf wibble` → the same block (unknown subs fall back to usage, never a silent no-op). **There is no `suspend` or `resume` verb** — `/at perf suspend` falls through to usage and suspends nothing.
+71. **Bare `/at perf` is the entry point.** With no run active, `/at perf` → the **Absorb Tracker — Perf Run** panel opens, **Start perf run** is the only clickable row, and a status line plus usage block print to chat. Click **Start perf run** → the run begins exactly as `/at perf start` would, and **Measure A** becomes the next clickable row. (What this pins: one command is all anyone has to remember.)
+71a. **Usage still explains each sub-verb.** The block lists each verb with what it does. `/at perf wibble` → the same block (unknown subs fall back to usage, never a silent no-op). **There is no `suspend` or `resume` verb** — `/at perf suspend` falls through to usage and suspends nothing.
 72. **`start` works with logging OFF.** With `/at debug off`, run `/at perf start` → the debug console **opens**, and chat *and* the console both show `perf run STARTED`, the who/where/group context, and the four numbered next steps. (What this pins: perf output writes to the console sink directly rather than through the gated `NS.Debug` — otherwise a run with logging off shows an empty console.)
 73. **Context is real.** The `who:` line names your character, realm, level, spec and class; `where:` names the zone and sub-zone; `group:` reads `solo` when alone, `party (5) / party` in a 5-man dungeon, `raid (N) / raid` in a raid. Check at least the solo and party cases.
 74. **An armed experiment waits for combat.** `/at perf measure a` → `Experiment A ARMED (addon active)`. Stand out of combat for 30s → **no** `RECORDING` line appears and `/at perf report` shows `active: (not sampled)`. (What this pins: the walk to the pull is never measured.)
@@ -127,7 +128,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 86. **Zero cost when idle.** With no run active, sit out of combat with a shield up → no `[Perf]` lines at all, and no repaint activity. (The brackets are gated on `Perf.on`, which is only true inside an open experiment.)
 
 
-**Pass criteria:** all 88 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
+**Pass criteria:** all 89 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
 and no combat-taint warning when the panel opens out of combat (step 13). On any failure, record the step number, observed vs.
 expected, and any error text.
 

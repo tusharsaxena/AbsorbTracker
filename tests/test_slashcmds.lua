@@ -951,14 +951,28 @@ test("/at perf show, hide and toggle drive the panel without touching the run", 
   NS.PerfPanel:Hide()
 end)
 
-test("/at perf (bare) reports status without moving the panel", function()
-  -- A status query should not shove a window onto the screen.
+test("/at perf (bare) opens the panel — it is the entry point to a run", function()
+  -- Reverses an earlier call that a status query should not move windows. With Start clickable in
+  -- the panel, `/at perf` is how someone who remembers one command reaches all of them.
   perfReset()
-  slash("perf start")
-  slash("perf hide")
+  NS.PerfPanel:Hide()
   slash("perf")
-  assertFalse(NS.PerfPanel:IsShown(), "still hidden")
+  assertTrue(NS.PerfPanel:IsShown(), "panel opened")
+  assertEqual(NS.PerfPanel.StateOf("start"), "ready", "with Start ready to click")
+  NS.PerfPanel:Hide()
+end)
+
+test("/at perf then clicking Start runs a whole run without another typed command", function()
   perfReset()
+  NS.PerfPanel:Hide()
+  slash("perf")
+  local f = NS.PerfPanel.__frame()
+  f.buttons.start:__fire("OnClick")
+  assertTrue(P.run, "started from the panel")
+  assertEqual(NS.PerfPanel.StateOf("measureA"), "ready", "and Measure A is next")
+  slash("perf cancel")
+  perfReset()
+  NS.PerfPanel:Hide()
 end)
 
 test("the perf usage block documents show/hide/toggle", function()

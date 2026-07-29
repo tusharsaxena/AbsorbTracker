@@ -271,7 +271,8 @@ local function emitPerfLines(lines)
 end
 
 local PERF_USAGE = {
-    "usage: |cFFFFFF00/at perf <start|measure|finish|cancel|report|dump|show|hide|toggle>|r",
+    "usage: |cFFFFFF00/at perf <start|measure|finish|cancel|report|dump|show|hide|toggle>|r"
+        .. " \226\128\148 or just click the panel",
     "  |cFFFFFF00start [label]|r  begin a run; zeroes the counters and records who/where you are.",
     "                 The label is appended to the timestamp so runs are tellable apart.",
     "  |cFFFFFF00measure a|r      arm Experiment A \226\128\148 addon ACTIVE. Recording starts the moment",
@@ -393,6 +394,9 @@ local function printPerfStatus(P)
     end
     print(("perf %s, addon %s"):format(phase,
         P.suspended and "|cffff4040SUSPENDED|r" or "|cff40ff40active|r"))
+    -- Bare `/at perf` IS the entry point: the panel's first row starts a run, so this is how someone
+    -- who remembers one command gets to all of them.
+    if NS.PerfPanel and NS.PerfPanel.Show then NS.PerfPanel:Show() end
     for _, line in ipairs(PERF_USAGE) do print(line) end
 end
 
