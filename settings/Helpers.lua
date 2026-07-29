@@ -318,6 +318,161 @@ function Helpers.Section(ctx, label)
 end
 
 -- ---------------------------------------------------------------------
+-- Per-unit panel rendering — Unit dropdown + mirror header
+-- ---------------------------------------------------------------------
+
+--- Release every AceGUI child out of ctx.scroll and reset the section-heading tracker, so the
+--- next Helpers.Section call starts a fresh group instead of treating the first re-rendered row
+--- as a continuation of whatever group was last drawn. Reuses the SAME ScrollFrame instance —
+--- AceGUI's ReleaseChildren tears down children, not the container.
+function Helpers.ClearScroll(ctx)
+    if ctx.scroll and ctx.scroll.ReleaseChildren then
+        ctx.scroll:ReleaseChildren()
+    end
+    ctx.lastGroup = nil
+    -- Every RenderField call appends a refresher closure (settings/Widgets.lua), and those
+    -- closures capture the widget instances just released above. Without this reset, a released
+    -- widget's refresher survives in ctx.refreshers forever, so /at set, RestoreDefaults, and
+    -- profile changes pcall an ever-growing pile of stale closures on every re-render. Reassigned
+    -- (not wiped in place): renderedPanels holds this ctx table itself, not a separate reference
+    -- to ctx.refreshers, so a fresh table here is observed by RefreshAllPanels immediately.
+    ctx.refreshers = {}
+end
+
+--- Render a per-unit appearance page (Bar / Border / Font): the Unit dropdown, the mirror header
+--- for target/focus, then the schema rows filtered to the selected unit.
+---
+--- Full rebuild on every call rather than a persistent header widget: ensureScroll's ScrollFrame
+--- anchors flush to ctx.body, so there is no free real estate above it to park a persistent
+--- dropdown without surgery on that anchor. AceGUI's widget pool exists exactly to make
+--- release-and-recreate cheap, so each call clears ctx.scroll and rebuilds from scratch.
+function Helpers.RenderUnitPanel(ctx, pageKey)
+    local AceGUI = NS.AceGUI
+    if not AceGUI then return end
+
+    -- Re-entrancy guard. The last thing this function does is register a refresher that re-renders
+    -- the whole panel (see the comment at the bottom), and a render registers a fresh refresher of
+    -- its own. Without this flag, any refresher pass fired from INSIDE a render — a widget's
+    -- onChange reaching RefreshAllPanels while the page is being built — would recurse. The flag
+    -- makes the inner call a no-op; the outer render finishes and leaves the panel correct.
+    if ctx.__rendering then return end
+    ctx.__rendering = true
+
+    ctx.unit = ctx.unit or "player"
+    Helpers.ClearScroll(ctx)
+    local scroll = ensureScroll(ctx)
+    Helpers.__lastUnitCtx = ctx   -- test seam: the harness has no other handle on a live ctx
+
+    -- Unit selector ---------------------------------------------------
+    local dd = AceGUI:Create("Dropdown")
+    dd:SetLabel("Unit")
+    dd:SetFullWidth(true)
+    local items, order = {}, {}
+    for i, u in ipairs(NS.Units.LIST) do
+        items[u] = NS.Units.LABEL[u]
+        order[i] = u
+    end
+    dd:SetList(items, order)
+    dd:SetValue(ctx.unit)
+    dd:SetCallback("OnValueChanged", function(_, _, value)
+        ctx.unit = value
+        Helpers.RenderUnitPanel(ctx, pageKey)
+    end)
+    scroll:AddChild(dd)
+    addSpacer(scroll, ROW_VSPACER)
+
+    local rows = NS.SchemaForPage(pageKey, ctx.unit)
+    local perUnitRows, styledRows = NS.PartitionUnitRows(rows)
+
+    -- Mirror header (target / focus only) ------------------------------
+    local mirrored = NS.Units.IsMirrored(ctx.unit)
+    local cb                                   -- hoisted: the refresher at the bottom re-syncs it
+    if ctx.unit ~= "player" then
+        local row = AceGUI:Create("SimpleGroup")
+        row:SetLayout("Flow")
+        row:SetFullWidth(true)
+
+        cb = AceGUI:Create("CheckBox")
+        cb:SetLabel("Use same styling as Player")
+        cb:SetValue(mirrored)
+        cb:SetRelativeWidth(0.5)
+        cb:SetCallback("OnValueChanged", function(_, _, value)
+            NS.SetByPath("units." .. ctx.unit .. ".mirror", value and true or false)
+            Helpers.RenderUnitPanel(ctx, pageKey)
+        end)
+        attachTooltip(cb, "Use same styling as Player",
+            "Mirror every Player bar appearance setting. Position and enable stay independent.")
+        row:AddChild(cb)
+
+        local btn = AceGUI:Create("Button")
+        btn:SetText("Copy styling from Player")
+        btn:SetRelativeWidth(0.5)
+        btn:SetCallback("OnClick", function()
+            NS.Units.CopyFromPlayer(ctx.unit)
+            NS.bus:SendMessage(NS.MSG.APPEARANCE)
+            Helpers.RenderUnitPanel(ctx, pageKey)
+        end)
+        attachTooltip(btn, "Copy styling from Player",
+            "Take a one-time snapshot of the Player bar's appearance. Unlinks this unit so you can then edit it freely.")
+        row:AddChild(btn)
+
+        scroll:AddChild(row)
+        addSpacer(scroll, ROW_VSPACER)
+
+        if mirrored then
+            local hint = AceGUI:Create("Label")
+            hint:SetText("Linked to Player \226\128\147 uncheck to customize.")
+            hint:SetFullWidth(true)
+            scroll:AddChild(hint)
+            addSpacer(scroll, ROW_VSPACER)
+        end
+    end
+
+    -- Body: the per-unit rows always render; the appearance rows only when unlinked. The mirror
+    -- row itself carries skipRender, so RenderRows leaves it to the header above.
+    Helpers.RenderRows(ctx, perUnitRows)
+    if not mirrored then
+        Helpers.RenderRows(ctx, styledRows)
+    end
+    if scroll.DoLayout then scroll:DoLayout() end
+
+    -- Register the HEADER's refresher. The mirror checkbox and the "Copy styling from Player"
+    -- button above are built inline here, not through RenderField, so neither appends a refresher
+    -- of its own — RefreshAllPanels structurally could not update them, and nothing re-ran the
+    -- mirrored/unmirrored row partition. Concretely: RestoreDefaults("bar", ctx) resets
+    -- units.focus.mirror to its default `true`, then runs only the refreshers, so the checkbox
+    -- still read unchecked and the appearance rows stayed on screen over a now-mirrored unit
+    -- (same stale state after `/at set units.focus.mirror true` and after a profile switch).
+    --
+    -- TWO-TIER, and the split matters. Every schema widget's `set` (settings/Widgets.lua) calls
+    -- RefreshAllPanels, so this closure runs on EVERY checkbox click, slider drag and LSM pick on
+    -- this page:
+    --
+    --   * Always — re-sync the checkbox in place. Cheap, tears nothing down.
+    --   * Only when the mirror state actually CHANGED since this render — re-render, because that
+    --     is the only thing that can invalidate the mirrored/unmirrored partition.
+    --
+    -- An unconditional re-render here would rebuild the whole page on every ordinary appearance
+    -- write, and the mechanism (not the waste) is the problem: ClearScroll releases the very
+    -- widget whose OnValueChanged is still on the stack — an LSM30_* dropdown with an open pullout,
+    -- a slider mid-drag — and destroys scroll position and tooltips with it. makeColorPicker
+    -- already declines to call RefreshAllPanels for exactly this class of reason.
+    --
+    -- Registered LAST so the row refreshers above have already run; RefreshAllPanels iterates the
+    -- pre-render table, so a closure registered by a re-render is not re-invoked in the same pass.
+    local renderedUnit, renderedMirrored = ctx.unit, mirrored
+    ctx.refreshers[#ctx.refreshers + 1] = function()
+        local nowMirrored = NS.Units.IsMirrored(renderedUnit)
+        if cb then cb:SetValue(nowMirrored) end
+        if nowMirrored ~= renderedMirrored then
+            Helpers.RenderUnitPanel(ctx, pageKey)
+        end
+    end
+
+    ctx.__rendering = false
+end
+
+-- ---------------------------------------------------------------------
 -- Inline action buttons (not settings)
 -- ---------------------------------------------------------------------
 
@@ -370,6 +525,22 @@ function Helpers.RestoreDefaults(pageKey, ctx)
     end
 end
 
+-- Clear EVERY unit's saved position and republish POSITION so all three bars re-anchor to their
+-- stacked defaults. This is the single "reset position" implementation: `/at resetposition`
+-- (settings/Slash.lua), the General page's "Reset Position" button (settings/General.lua) and
+-- RestoreAllDefaults below all call it, so the CLI and the panel can never diverge.
+--
+-- They diverged here once already: the panel button nil'd `db.profile.position`, the pre-v3 FLAT
+-- key that the v3 migration DELETES (it moves to units.player.position), so the assignment cleared
+-- an already-nil key and the POSITION publish re-anchored every bar from its untouched
+-- NS.Units.Position. The button was a silent no-op. Do not re-inline the loop at either call site.
+function Helpers.ResetAllPositions()
+    for _, unit in ipairs(NS.Units.LIST) do
+        NS.Units.SetPosition(unit, nil)
+    end
+    NS.bus:SendMessage(NS.MSG.POSITION)
+end
+
 -- Reset every schema-driven page (general / bar / border / font) to its
 -- per-row default, clear the saved bar position (recentering the bar),
 -- then refresh every open panel so live widgets reflect the new state.
@@ -383,13 +554,11 @@ function Helpers.RestoreAllDefaults()
             NS.ApplyDefault(row)
         end
     end
-    -- Clear the saved position and recenter. `position` is not a schema
-    -- row (it's set by dragging the bar), so ApplyDefault above never
-    -- touches it — it must be cleared explicitly.
-    if NS.db and NS.db.profile then
-        NS.db.profile.position = nil
-    end
-    NS.bus:SendMessage(NS.MSG.POSITION)
+    -- Clear every unit's saved position and recenter. `position` is not a schema row (it's set by
+    -- dragging), so ApplyDefault above never touches it — it must be cleared explicitly, once per
+    -- unit, or a target bar dragged off-screen would survive a Reset All. Delegated to the shared
+    -- helper above so this and `/at resetposition` stay one implementation.
+    Helpers.ResetAllPositions()
     Helpers.RefreshAllPanels()
 end
 

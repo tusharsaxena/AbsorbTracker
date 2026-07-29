@@ -72,24 +72,34 @@ test("clicking a checkbox writes through SetByPath", function()
   T.mocks.__fireTimers()
 end)
 
+-- `inverse` presents a bool as its opposite (the dropped "Show Bar" row rendered `hidden` that
+-- way: ticked meant NOT hidden). Getting it backwards ships a checkbox that reads the opposite of
+-- what it does. No production row uses it since schema v4 removed `hidden`, so these drive a
+-- SYNTHETIC row over the real `locked` path to keep the schema feature covered.
+local function renderInverse()
+  local ctx = newCtx()
+  local row = { path = "locked", type = "bool", label = "Unlocked", inverse = true,
+                desc = "synthetic inverse row" }
+  local parent = AceGUI:Create("SimpleGroup")
+  return Helpers.RenderField(ctx, row, parent, 0.5)
+end
+
 test("an `inverse` row displays the NEGATED value", function()
-  -- `hidden` is presented as "Show Bar": ticked means NOT hidden. Getting this backwards ships a
-  -- checkbox that reads the opposite of what it does.
-  withSetting("hidden", true, function()
-    assertFalse(render("hidden").value, "hidden = true renders as an UNticked 'Show Bar'")
+  withSetting("locked", true, function()
+    assertFalse(renderInverse().value, "locked = true renders as an UNticked 'Unlocked'")
   end)
-  withSetting("hidden", false, function()
-    assertTrue(render("hidden").value, "hidden = false renders as a ticked 'Show Bar'")
+  withSetting("locked", false, function()
+    assertTrue(renderInverse().value, "locked = false renders as a ticked 'Unlocked'")
   end)
 end)
 
 test("an `inverse` row writes the negated value back too", function()
-  withSetting("hidden", true, function()
-    local cb = render("hidden")
-    cb:__fire("OnValueChanged", true)          -- user ticks "Show Bar"
-    assertFalse(NS.GetSetting("hidden"), "ticking 'Show Bar' clears `hidden`")
+  withSetting("locked", true, function()
+    local cb = renderInverse()
+    cb:__fire("OnValueChanged", true)          -- user ticks "Unlocked"
+    assertFalse(NS.GetSetting("locked"), "ticking the inverse label clears the setting")
     cb:__fire("OnValueChanged", false)         -- user unticks it
-    assertTrue(NS.GetSetting("hidden"))
+    assertTrue(NS.GetSetting("locked"))
   end)
   T.mocks.__fireTimers()
 end)
@@ -151,7 +161,7 @@ end)
 -- ── Slider ─────────────────────────────────────────────────────────────────────────
 
 test("a number row renders a Slider carrying the schema's range and step", function()
-  local s, row = render("barWidth")
+  local s, row = render("units.player.barWidth")
   assertEqual(s.type, "Slider")
   assertEqual(s.min, row.min)
   assertEqual(s.max, row.max)
@@ -160,38 +170,38 @@ test("a number row renders a Slider carrying the schema's range and step", funct
 end)
 
 test("a slider shows the current value", function()
-  withSetting("barWidth", 275, function()
-    assertEqual(render("barWidth").value, 275)
+  withSetting("units.player.barWidth", 275, function()
+    assertEqual(render("units.player.barWidth").value, 275)
   end)
 end)
 
 test("a slider falls back to the row default when the stored value is not a number", function()
   -- A corrupt SavedVariable would otherwise hand AceGUI a nil/string and blow up the layout.
-  local saved = NS.db.profile.barWidth
-  NS.db.profile.barWidth = "not a number"
-  local s, row = render("barWidth")
-  NS.db.profile.barWidth = saved
+  local saved = NS.db.profile.units.player.barWidth
+  NS.db.profile.units.player.barWidth = "not a number"
+  local s, row = render("units.player.barWidth")
+  NS.db.profile.units.player.barWidth = saved
   assertEqual(s.value, row.default)
 end)
 
 test("releasing a slider snaps the value to the row's step", function()
-  local s, row = render("barWidth")
+  local s, row = render("units.player.barWidth")
   s:__fire("OnMouseUp", 217.4)
-  local v = NS.GetSetting("barWidth")
+  local v = NS.GetSetting("units.player.barWidth")
   assertEqual(v % row.step, 0, "the committed value sits on a step boundary")
   assertEqual(v, 217)
-  NS.SetByPath("barWidth", NS.flatDefaults.barWidth)
+  NS.SetByPath("units.player.barWidth", NS.unitDefaults.barWidth)
   T.mocks.__fireTimers()
 end)
 
 test("slider snapping is relative to the row's min, not to zero", function()
   -- snapToStep offsets by `min` before rounding; a step that does not divide `min` evenly would
   -- otherwise land the slider on values it can never reach by dragging.
-  local s, row = render("fontSize")
+  local s, row = render("units.player.fontSize")
   s:__fire("OnMouseUp", (row.min or 0) + (row.step or 1) * 2 + (row.step or 1) * 0.4)
-  local v = NS.GetSetting("fontSize")
+  local v = NS.GetSetting("units.player.fontSize")
   assertEqual((v - row.min) % row.step, 0)
-  NS.SetByPath("fontSize", NS.flatDefaults.fontSize)
+  NS.SetByPath("units.player.fontSize", NS.unitDefaults.fontSize)
   T.mocks.__fireTimers()
 end)
 
@@ -200,7 +210,7 @@ end)
 test("a string row falls back to a plain Dropdown when the LSM widget is absent", function()
   -- AceGUI-3.0-SharedMediaWidgets is an optional dependency; without it the option must still
   -- render (no media swatch, but usable) rather than erroring on an unknown widget type.
-  local dd, row = render("barTexture")
+  local dd, row = render("units.player.barTexture")
   assertEqual(row.dialogControl, "LSM30_Statusbar", "the row does ask for the LSM widget")
   assertEqual(dd.type, "Dropdown", "but falls back when it is not registered")
 end)
@@ -209,7 +219,7 @@ test("a string row uses its dialogControl widget when that IS registered", funct
   AceGUI:RegisterWidgetType("LSM30_Statusbar",
     function() return T.mocks.__makeAceGUIWidget("LSM30_Statusbar") end, 1)
   local ok, err = pcall(function()
-    assertEqual(render("barTexture").type, "LSM30_Statusbar")
+    assertEqual(render("units.player.barTexture").type, "LSM30_Statusbar")
   end)
   AceGUI.WidgetRegistry["LSM30_Statusbar"]   = nil
   AceGUI.__widgetVersions["LSM30_Statusbar"] = nil
@@ -217,7 +227,7 @@ test("a string row uses its dialogControl widget when that IS registered", funct
 end)
 
 test("a dropdown's list is alphabetically ordered by default", function()
-  local dd = render("font")
+  local dd = render("units.player.font")
   assertTrue(type(dd.list) == "table", "the values hash was applied")
   local order = dd.order
   for i = 2, #order do
@@ -228,7 +238,7 @@ end)
 test("a row with explicit `sorting` keeps that order instead of sorting", function()
   -- Font outline styles read in a deliberate order (None, Outline, Thick…); alphabetising them
   -- would scramble it.
-  local dd, row = render("fontFlags")
+  local dd, row = render("units.player.fontFlags")
   assertTrue(row.sorting ~= nil, "fontFlags declares an explicit order")
   assertEqual(#dd.order, #row.sorting)
   for i, key in ipairs(row.sorting) do
@@ -237,17 +247,17 @@ test("a row with explicit `sorting` keeps that order instead of sorting", functi
 end)
 
 test("a dropdown shows the current value and writes the chosen one", function()
-  local saved = NS.GetSetting("fontFlags")
-  local dd = render("fontFlags")
+  local saved = NS.GetSetting("units.player.fontFlags")
+  local dd = render("units.player.fontFlags")
   assertEqual(dd.value, saved)
   dd:__fire("OnValueChanged", "NONE")
-  assertEqual(NS.GetSetting("fontFlags"), "NONE")
-  NS.SetByPath("fontFlags", saved)
+  assertEqual(NS.GetSetting("units.player.fontFlags"), "NONE")
+  NS.SetByPath("units.player.fontFlags", saved)
   T.mocks.__fireTimers()
 end)
 
 test("a dropdown's refresher re-applies the list, so a grown LSM list appears", function()
-  local dd, _, ctx = render("fontFlags")
+  local dd, _, ctx = render("units.player.fontFlags")
   dd.list, dd.order = nil, nil
   for _, fn in ipairs(ctx.refreshers) do fn() end
   assertTrue(dd.list ~= nil, "the list was rebuilt, not just the value re-read")
@@ -257,8 +267,8 @@ end)
 -- ── ColorPicker ────────────────────────────────────────────────────────────────────
 
 test("a color row renders a ColorPicker seeded from the stored rgba", function()
-  withSetting("barColor", { r = 0.1, g = 0.2, b = 0.3, a = 0.4 }, function()
-    local cp, row = render("barColor")
+  withSetting("units.player.barColor", { r = 0.1, g = 0.2, b = 0.3, a = 0.4 }, function()
+    local cp, row = render("units.player.barColor")
     assertEqual(cp.type, "ColorPicker")
     assertEqual(cp.hasAlpha, row.hasAlpha and true or false)
     assertTrue(math.abs(cp.color.r - 0.1) < 1e-6)
@@ -267,50 +277,50 @@ test("a color row renders a ColorPicker seeded from the stored rgba", function()
 end)
 
 test("a color picker substitutes 1s for a missing/corrupt stored colour", function()
-  local saved = NS.db.profile.barColor
-  NS.db.profile.barColor = "not a table"
-  local cp = render("barColor")
-  NS.db.profile.barColor = saved
+  local saved = NS.db.profile.units.player.barColor
+  NS.db.profile.units.player.barColor = "not a table"
+  local cp = render("units.player.barColor")
+  NS.db.profile.units.player.barColor = saved
   assertEqual(cp.color.r, 1)
   assertEqual(cp.color.a, 1)
 end)
 
 test("disabledIf greys the swatch out while its sibling toggle is on", function()
-  withSetting("useClassColorBar", true, function()
-    assertTrue(render("barColor").disabled, "class colour on -> swatch disabled")
+  withSetting("units.player.useClassColorBar", true, function()
+    assertTrue(render("units.player.barColor").disabled, "class colour on -> swatch disabled")
   end)
-  withSetting("useClassColorBar", false, function()
-    assertFalse(render("barColor").disabled, "class colour off -> swatch live")
+  withSetting("units.player.useClassColorBar", false, function()
+    assertFalse(render("units.player.barColor").disabled, "class colour off -> swatch live")
   end)
 end)
 
 test("the refresher re-evaluates disabledIf, so the pair tracks on the same frame", function()
   -- This is what makes "Use Class Color" grey out its partner swatch immediately: set() calls
   -- RefreshAllPanels, which re-runs this refresher.
-  withSetting("useClassColorBar", false, function()
-    local cp, _, ctx = render("barColor")
+  withSetting("units.player.useClassColorBar", false, function()
+    local cp, _, ctx = render("units.player.barColor")
     assertFalse(cp.disabled)
-    NS.SetSetting("useClassColorBar", true)
+    NS.SetSetting("units.player.useClassColorBar", true)
     for _, fn in ipairs(ctx.refreshers) do fn() end
     assertTrue(cp.disabled)
   end)
 end)
 
 test("OnValueConfirmed commits the colour immediately (cancel must not wait on the throttle)", function()
-  local cp = render("barColor")
+  local cp = render("units.player.barColor")
   T.mocks.__fireTimers()
   cp:__fire("OnValueConfirmed", 0.5, 0.6, 0.7, 0.8)
-  local c = NS.GetSetting("barColor")
+  local c = NS.GetSetting("units.player.barColor")
   assertTrue(math.abs(c.r - 0.5) < 1e-6 and math.abs(c.a - 0.8) < 1e-6,
     "the confirmed colour is stored without a timer round-trip")
-  NS.ApplyDefault(NS.FindSchemaRow("barColor"))
+  NS.ApplyDefault(NS.FindSchemaRow("units.player.barColor"))
   T.mocks.__fireTimers()
 end)
 
 test("OnValueChanged throttles a drag to ONE timer and commits the latest value", function()
   -- A live-preview drag fires at up to 60 Hz. Without the single re-armed timer that is 60
   -- repaints and 60 closures a second.
-  local cp = render("barColor")
+  local cp = render("units.player.barColor")
   T.mocks.__fireTimers()
   assertEqual(#T.mocks.__timers, 0)
 
@@ -320,15 +330,15 @@ test("OnValueChanged throttles a drag to ONE timer and commits the latest value"
   assertEqual(#T.mocks.__timers, 1, "three drag frames arm exactly one timer")
 
   T.mocks.__fireTimers()
-  local c = NS.GetSetting("barColor")
+  local c = NS.GetSetting("units.player.barColor")
   assertTrue(math.abs(c.r - 0.3) < 1e-6, "the LAST drag value wins, not the first")
 
-  NS.ApplyDefault(NS.FindSchemaRow("barColor"))
+  NS.ApplyDefault(NS.FindSchemaRow("units.player.barColor"))
   T.mocks.__fireTimers()
 end)
 
 test("a drag that resumes after the timer fired arms a fresh one", function()
-  local cp = render("barColor")
+  local cp = render("units.player.barColor")
   T.mocks.__fireTimers()
   cp:__fire("OnValueChanged", 0.4, 0.4, 0.4, 1)
   assertEqual(#T.mocks.__timers, 1)
@@ -336,9 +346,9 @@ test("a drag that resumes after the timer fired arms a fresh one", function()
   cp:__fire("OnValueChanged", 0.5, 0.5, 0.5, 1)
   assertEqual(#T.mocks.__timers, 1, "the timer self-cleared, so the next frame re-arms")
   T.mocks.__fireTimers()
-  local c = NS.GetSetting("barColor")
+  local c = NS.GetSetting("units.player.barColor")
   assertTrue(math.abs(c.r - 0.5) < 1e-6)
-  NS.ApplyDefault(NS.FindSchemaRow("barColor"))
+  NS.ApplyDefault(NS.FindSchemaRow("units.player.barColor"))
   T.mocks.__fireTimers()
 end)
 
@@ -346,9 +356,9 @@ end)
 
 test("RenderField dispatches each schema type to its widget", function()
   assertEqual(render("showOnlyInCombat").type, "CheckBox")
-  assertEqual(render("barWidth").type, "Slider")
-  assertEqual(render("fontFlags").type, "Dropdown")
-  assertEqual(render("barColor").type, "ColorPicker")
+  assertEqual(render("units.player.barWidth").type, "Slider")
+  assertEqual(render("units.player.fontFlags").type, "Dropdown")
+  assertEqual(render("units.player.barColor").type, "ColorPicker")
 end)
 
 test("RenderField returns nil for an unrecognised type instead of erroring", function()
@@ -361,7 +371,7 @@ end)
 test("RenderField adds the widget to the parent it was given", function()
   local ctx = newCtx()
   local parent = AceGUI:Create("SimpleGroup")
-  local w = Helpers.RenderField(ctx, NS.FindSchemaRow("barWidth"), parent, 0.5)
+  local w = Helpers.RenderField(ctx, NS.FindSchemaRow("units.player.barWidth"), parent, 0.5)
   assertEqual(#parent.children, 1)
   assertEqual(parent.children[1], w)
 end)
@@ -409,7 +419,7 @@ test("a `solo` row is rendered alone on its own line", function()
   for _, child in ipairs(ctx.scroll.children) do
     if child.type == "SimpleGroup" and child.layout == "Flow" then
       for _, w in ipairs(child.children) do
-        if w.labelText == NS.FindSchemaRow("barTexture").label then soloRow = child end
+        if w.labelText == NS.FindSchemaRow("units.player.barTexture").label then soloRow = child end
       end
     end
   end
@@ -436,28 +446,79 @@ end)
 test("an afterGroup callback fires exactly once, after its group's last row", function()
   local ctx = newCtx()
   local fired = 0
-  local group = NS.FindSchemaRow("borderSize").group
+  local group = NS.FindSchemaRow("units.player.borderSize").group
   Helpers.RenderSchema(ctx, "border", { [group] = function() fired = fired + 1 end })
   assertEqual(fired, 1)
 end)
 
+-- The General page's Master controls run the three enable toggles down the LEFT column, each
+-- paired with a global on the right; Enable Focus Bar is the odd one out and takes the Debug
+-- console checkbox as its partner through the pairWith seam (asserted separately below).
+-- RenderRows fills left-then-right in schema order, so the pairing is entirely a product of row
+-- order — a re-numbered `order` silently re-columns the page, which is what these pin.
+test("each enable toggle leads its row, paired with a global on the right", function()
+  local ctx = newCtx()
+  Helpers.RenderSchema(ctx, "general")
+
+  local function rowContaining(label)
+    for _, child in ipairs(ctx.scroll.children) do
+      if child.type == "SimpleGroup" and child.layout == "Flow" then
+        for _, w in ipairs(child.children) do
+          if w.labelText == label then return child end
+        end
+      end
+    end
+  end
+
+  local pairs_ = {
+    { "Enable Player Bar", "Lock Position"       },
+    { "Enable Target Bar", "Show only in combat" },
+  }
+  for _, p in ipairs(pairs_) do
+    local row = rowContaining(p[1])
+    assertTrue(row ~= nil, "no row rendered for " .. p[1])
+    assertEqual(#row.children, 2, p[1] .. " must share its row with exactly one widget")
+    assertEqual(row.children[2].labelText, p[2], p[1] .. " must pair with " .. p[2])
+  end
+end)
+
+test("every tracked unit gets an enable toggle on the General page", function()
+  local ctx = newCtx()
+  Helpers.RenderSchema(ctx, "general")
+  local labels = {}
+  local function walk(w)
+    for _, child in ipairs(w.children or {}) do
+      if child.labelText then labels[child.labelText] = true end
+      walk(child)
+    end
+  end
+  walk(ctx.scroll)
+  for _, unit in ipairs(NS.Units.LIST) do
+    assertTrue(labels["Enable " .. NS.Units.LABEL[unit] .. " Bar"],
+      unit .. " has no enable toggle on the General page")
+  end
+end)
+
 test("a pairWith partner is attached to the named row and is one-shot", function()
-  -- `locked` is the production pairing site: the session-only "Debug console" checkbox rides
-  -- beside it as the right half of its row (settings/General.lua).
+  -- `units.focus.enabled` is the production pairing site: the session-only "Debug console"
+  -- checkbox rides beside Enable Focus Bar as the right half of its row (settings/General.lua).
+  -- It only works because the five schema rows above pair off as 2 + 2 + 1, leaving Enable Focus
+  -- Bar alone on its row — pairWith declines to fire otherwise, so this doubles as a guard that
+  -- the Master controls row count stays odd.
   local ctx = newCtx()
   local made = 0
   local partner = {
-    locked = function(_ctxRef, rowGroup)
+    ["units.focus.enabled"] = function(_ctxRef, rowGroup)
       made = made + 1
       rowGroup:AddChild(AceGUI:Create("CheckBox"))
     end,
   }
   Helpers.RenderSchema(ctx, "general", nil, partner)
   assertEqual(made, 1, "the partner was built once")
-  assertEqual(partner.locked, nil, "and the entry was consumed so it cannot repeat")
+  assertEqual(partner["units.focus.enabled"], nil, "and the entry was consumed so it cannot repeat")
 
-  -- It must land as the SECOND widget of the `locked` row, not on a line of its own.
-  local lockedLabel = NS.FindSchemaRow("locked").label
+  -- It must land as the SECOND widget of that row, not on a line of its own.
+  local lockedLabel = NS.FindSchemaRow("units.focus.enabled").label
   local row
   for _, child in ipairs(ctx.scroll.children) do
     if child.type == "SimpleGroup" and child.layout == "Flow" then
@@ -466,7 +527,7 @@ test("a pairWith partner is attached to the named row and is one-shot", function
       end
     end
   end
-  assertTrue(row ~= nil, "the locked row was found")
+  assertTrue(row ~= nil, "the Enable Focus Bar row was found")
   assertEqual(#row.children, 2, "the pair stays 50/50 and never overflows to three-wide")
 end)
 
@@ -519,32 +580,35 @@ end)
 test("the Defaults button restores just its own page", function()
   local panel = T.mocks.__subcategories["Font"]
   panel:__fire("OnShow")
-  NS.SetSetting("fontSize", 30)
-  NS.SetSetting("barWidth", 250)
+  NS.SetSetting("units.player.fontSize", 30)
+  NS.SetSetting("units.player.barWidth", 250)
   panel.defaultsBtn.callbacks.OnClick(panel.defaultsBtn, "OnClick")
-  assertEqual(NS.GetSetting("fontSize"), NS.flatDefaults.fontSize, "the Font page was reset")
-  assertEqual(NS.GetSetting("barWidth"), 250, "the Bar page was not")
-  NS.SetByPath("barWidth", NS.flatDefaults.barWidth)
+  assertEqual(NS.GetSetting("units.player.fontSize"), NS.unitDefaults.fontSize, "the Font page was reset")
+  assertEqual(NS.GetSetting("units.player.barWidth"), 250, "the Bar page was not")
+  NS.SetByPath("units.player.barWidth", NS.unitDefaults.barWidth)
   T.mocks.__fireTimers()
 end)
 
-test("a second OnShow is idempotent — no duplicate button, no re-render", function()
-  -- Blizzard fires OnShow every time the user returns to the page. Re-rendering would stack a
-  -- second full set of widgets on the scroll and re-register every refresher.
+test("a second OnShow rebuilds the panel body without stacking duplicate widgets", function()
+  -- Task 6: Bar/Border/Font dropped their `rendered` one-shot guard, because RenderUnitPanel must
+  -- re-render on every OnShow so the Unit dropdown and mirror header reflect ctx.unit. That is
+  -- only safe because Helpers.ClearScroll releases the old widgets first — so a second OnShow
+  -- must land back at the SAME child count, not a second full set stacked on top of the first.
+  -- The Defaults button is unaffected: EnsureDefaultsButton still only builds it once.
   local panel = T.mocks.__subcategories["Border"]
   panel:__fire("OnShow")               -- first show: builds
   local btn = panel.defaultsBtn
   assertTrue(btn ~= nil, "the first show built the button")
+  local ctx = NS.Helpers.__lastUnitCtx
+  local firstCount = #ctx.scroll.children
+  assertTrue(firstCount > 0, "the first show rendered something")
 
-  local created = 0
-  local origCreate = AceGUI.Create
-  AceGUI.Create = function(self, wtype) created = created + 1; return origCreate(self, wtype) end
-  local ok, err = pcall(function() panel:__fire("OnShow") end)
-  AceGUI.Create = origCreate
+  local ok, err = pcall(function() panel:__fire("OnShow") end)   -- second show: must not stack
   if not ok then error(err) end
 
-  assertEqual(created, 0, "a repeat show creates no widgets at all")
-  assertEqual(panel.defaultsBtn, btn, "and keeps the same button instance")
+  assertEqual(panel.defaultsBtn, btn, "the Defaults button is not rebuilt on a repeat show")
+  assertEqual(#ctx.scroll.children, firstCount,
+    "the scroll ends at the same child count as the first show, not a doubled/stacked set")
 end)
 
 test("showing every page builds it without error", function()

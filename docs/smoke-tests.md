@@ -8,7 +8,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### A. Load & bootstrap
 1. **Fresh login.** Delete `WTF/.../SavedVariables/AbsorbTrackerDB.lua`, log in → world reached, **zero Lua errors**.
-2. **Bar appears.** A single absorb bar is visible at screen center; shows the value / `0`. **Default look is Blizzard-stock media** — `Blizzard Raid Bar` fill + background, `Blizzard Tooltip` border, `Friz Quadrata TT` text; no custom media ships in the defaults.
+2. **Bar appears.** The **player** absorb bar is visible at screen center; shows the value / `0`. **Target and focus bars do not appear** — they ship disabled. **Default look is Blizzard-stock media** — `Blizzard Raid Bar` fill + background, `Blizzard Tooltip` border, `Friz Quadrata TT` text; no custom media ships in the defaults.
 3. **/reload clean.** `/reload` → no errors; bar reappears in the same spot.
 4. **Value tracks reality.** Gain an absorb (e.g. Power Word: Shield) → fill + text update to the abbreviated amount; consume it → drops toward `0`.
 5. **Secret-value safety.** With a big absorb, the number shows an abbreviated string (e.g. `1.2M`), never `nil`/error.
@@ -17,7 +17,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 ### B. Slash surface
 6. `/at` alone → help block (version line + command list).
 7. `/absorbtracker` → identical help block.
-8. `/at help` → gold command + em-dash + white desc for all 16 verbs: help, config, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, update, version, test, profile.
+8. `/at help` → gold command + em-dash + white desc for all 16 verbs: help, config, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, update, version, test, profile. `toggle` reads *"Toggle bars on or off — `/at toggle [player|target|focus]`"*.
 9. `/at wibble` → `unknown command 'wibble'` then help.
 10. `/at options` → opens the panel (back-compat alias for `config`).
 
@@ -28,8 +28,8 @@ that covers the pure logic; this suite covers everything that only runs against 
 13. **No auto-open on combat end.** Leave combat → the panel does **not** pop open by itself (nothing was queued). Then out of combat, `/at config` → opens immediately (tree expanded), **no taint warning**. *(`/run AbsorbTrackerNS and false` aside: the gate is inside `OpenOptionsPanel`, so a `/run`-triggered open in combat is refused too.)*
 
 ### D. Sub-pages render & edit live
-14. **General** — Show Bar / Show only in combat, Lock Position / Debug console, Reset Position + Reset All buttons, Update throttle slider (Performance group). Toggle Show Bar → bar hides/shows; Lock Position → drag disabled; shield gain/loss repaints the bar within ~0.1s; sitting idle with no shield produces no repaints.
-14a. **Debug console checkbox (window show/hide).** Sits beside Lock Position. Tick on → the debug console window opens; untick → it hides (identical to the bare `/at debug`). It does **not** change logging: if logging was off, ticking on shows the window but no new lines stream until you enable logging (the window's own **Debug** header toggle, or `/at debug on`). Open/close the window by other means — bare `/at debug`, the window's **Close** button, or **Esc** — with the panel open → the checkbox tracks the window's visibility live. `/reload` → window closed and checkbox unchecked.
+14. **General** — Master controls render as three paired rows — **[Enable Player Bar | Lock Position]**, **[Enable Target Bar | Show only in combat]**, **[Enable Focus Bar | Debug console]** — then the Reset Position + Reset All button pair; Update throttle slider sits in the Performance group. Check the pairing explicitly: a mis-ordered schema row silently re-columns this page, and the Debug console only lands beside Enable Focus Bar because the five schema rows above it pair off as 2 + 2 + 1. **There is no Show Bar checkbox** — the three enable toggles are the visibility switch. Untick Enable Player Bar → the player bar disappears; Lock Position → drag disabled; shield gain/loss repaints the bar within ~0.1s; sitting idle with no shield produces no repaints.
+14a. **Debug console checkbox (window show/hide).** Sits to the right of **Enable Focus Bar**. Tick on → the debug console window opens; untick → it hides (identical to the bare `/at debug`). It does **not** change logging: if logging was off, ticking on shows the window but no new lines stream until you enable logging (the window's own **Debug** header toggle, or `/at debug on`). Open/close the window by other means — bare `/at debug`, the window's **Close** button, or **Esc** — with the panel open → the checkbox tracks the window's visibility live. `/reload` → window closed and checkbox unchecked.
 15. **Bar** — Width/Height, Bar Texture (LSM), Bar Color, Use Class Color; Background Texture/Color/Use Class Color. Drag Width → widens live; change Texture/Color → live.
 16. **Border** — Style (LSM), Thickness, Use Class Color, Color. Change Style → edge changes; drag Thickness → grows/shrinks (inset recomputes, no glitch).
 17. **Font** — Face (LSM), Size, Outline (solo dropdown, 6 flags). Change Face/Outline → text updates live.
@@ -44,22 +44,22 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### F. Slash verbs — read/write/reset
 23. `/at list` → grouped `[general]/[bar]/[border]/[font]`, each `path = value` formatted. Colour scheme (slash-commands-§5): green `Available settings` header, azure `[page]` group headers, gold keys, white values; no trailing colon on any line.
-24. `/at get barWidth` → `barWidth = <n> px` (gold key, white value); `/at get bogus` → not found; `/at get` → usage.
-25. `/at set barWidth 260` → `barWidth = 260 px`, bar widens, open panel refreshes; path case preserved.
-26. `/at set barWidth abc` → `Invalid value for barWidth`; bar unchanged.
+24. `/at get units.player.barWidth` → `units.player.barWidth = <n> px` (gold key, white value); `/at get bogus` → not found; `/at get` → usage.
+25. `/at set units.player.barWidth 260` → `units.player.barWidth = 260 px`, bar widens, open panel refreshes; path case preserved.
+26. `/at set units.player.barWidth abc` → `Invalid value for units.player.barWidth`; bar unchanged.
 27. `/at reset bar` → `bar page reset to defaults`, reverts + repaints; `/at reset bogus` → unknown page.
 28. `/at resetall` → all pages revert **and** bar returns to center (position cleared) — same shared `RestoreAllDefaults` helper as the Reset All popup (step 20), so slash and button can never diverge.
 29. `/at resetposition` → bar snaps to center; other settings unchanged.
 30. `/at lock` / `/at unlock` → locks/unlocks dragging; dragged position persists across `/reload`.
-31. `/at toggle` → hides/shows the bar.
+31. `/at toggle` → turns **every** bar off (if any was on), then a second call turns all three on. `/at toggle target` flips only the target bar and leaves the others alone; `/at toggle wibble` → `unknown unit 'wibble'` and nothing changes.
 32. `/at update` → `Forced refresh`; repaints from live absorb.
 33. `/at test` → shows `50K` for 5s then reverts; `/at test 250000 3` → `250K` for 3s.
-34. `/at test` while hidden → `Bar is hidden; run /at toggle to show it…`.
+34. `/at test` with every bar disabled → `Every bar is disabled; run /at toggle to turn them on…`; no hold window is armed.
 
 ### G. Profiles — switch repaints the bar
 35. `/at profile list` / `current` → lists / prints current.
 36. `/at profile new SmokeTest` → switches to a defaults profile; bar repaints to default immediately.
-37. On SmokeTest `/at set barWidth 400`, then `/at profile use Default` → bar repaints to the original width (validates `OnProfileChanged`).
+37. On SmokeTest `/at set units.player.barWidth 400`, then `/at profile use Default` → bar repaints to the original width (validates `OnProfileChanged`).
 38. `/at profile copy SmokeTest` → copies + repaints.
 39. `/at profile delete <current>` → refused; switch away, delete SmokeTest → deleted.
 40. **Panel-driven switch** — Profiles page dropdown switch → bar repaints live.
@@ -78,7 +78,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### I. SavedVariables migration — no-op on existing profile
 50. Customize a profile (e.g. `barWidth=260`, custom texture), `/reload` → all customized values **survive** (backfill only fills missing keys).
-51. Logout to flush, inspect `AbsorbTrackerDB.lua` → `global.schemaVersion = 2` (the shipped v2 migration); `/reload` again → stays `2`, values unchanged.
+51. Logout to flush, inspect `AbsorbTrackerDB.lua` → `global.schemaVersion = 4` (the shipped v3 migration, which also lifted your old flat `barWidth`/etc. onto `profile.units.player`); `/reload` again → stays `4`, values unchanged. **No `hidden` key survives anywhere in the file** — the v4 step sweeps it from every profile, not just the active one, so check an inactive profile block too.
 52. *(Optional)* Hand-delete one profile key from the SV file, log in → that key restored to default, others untouched, no error.
 
 ### J. Class-color overrides
@@ -88,7 +88,24 @@ that covers the pure logic; this suite covers everything that only runs against 
 56. With all three on, `/reload` or profile switch → colors re-resolve with no manual refresh (getters read class color per-paint).
 57. Turn each Use Class Color off → manual RGBA picker re-enables; bar reverts to the stored manual color.
 
-**Pass criteria:** all 60 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
+### K. Multi-unit bars (player / target / focus)
+58. **Enable the target bar.** General page → Master controls → tick **Enable Target Bar** (no Unit dropdown involved — all three enable toggles are visible at once, and the Bar page no longer carries a "This bar" group at all). With no target selected, the target bar does **not** appear (the visibility ladder's `UnitExists` step). Target a friendly or enemy unit → the target bar appears at its stacked default position (above the player bar); clear target (Esc or `/cleartarget`) → the target bar disappears again; re-target → reappears, live.
+59. **Mirror toggle.** With the target bar enabled and still mirrored (the default), the Bar/Border/Font pages show only the **Unit** dropdown, the mirror header (**Use same styling as Player** checkbox, ticked, + **Copy styling from Player** button), and the hint *"Linked to Player – uncheck to customize."* — no appearance rows underneath. Untick **Use same styling as Player** → the hint disappears and the full appearance row set (Width/Height, Texture, Color, etc.) appears, editable and currently matching the player's values. Re-tick it → the rows hide again and the target bar visually snaps back to mirroring the player live (change a player Bar setting while target is mirrored → the target bar's appearance updates too).
+60. **Copy styling from Player.** With the target unlinked (mirror off) and its own custom Bar Width set, switch to **Player**, change its Bar Width, then back to **Target**, click **Copy styling from Player** → the target's rows immediately show the player's *current* values (a one-time snapshot, not a live link) and the mirror checkbox stays unticked. Change the player's Bar Width again afterward → the target's copied value does **not** follow (proving Copy is one-shot, not a second mirror).
+61. **Drag each bar independently.** Unlock (`/at unlock`), drag the player bar to one spot and the target bar to another → each bar moves independently and keeps its own position; `/reload` → both positions persist. Position is **not** shared even while the target mirrors the player's appearance (steps 59–60 do not move any bar).
+62. **The remaining global toggles govern all three.** With target (and optionally focus) enabled and visible, run `/at toggle` → **all** enabled bars hide together; run it again → all three come back on (including any you had left off — that is the documented all-on behaviour). Turn on **Show only in combat** → out of combat, every enabled bar hides (target/focus still additionally require a valid unit); entering combat shows them again.
+63. **`/at reset bar` resets all three units.** With player, target, and focus all customized (different widths/colors), run `/at reset bar` → **all three** units' Bar-page rows (width, height, textures, colors, class-color toggles) revert to default in one call, not just the currently-selected unit in the panel's Unit dropdown. `/at resetposition` similarly snaps **all three** bars back to their stacked default positions, not just the visible one. Note the enable toggles are **not** in scope: they live on General now, so an enabled target bar stays enabled across `/at reset bar`, and `/at reset general` is what restores them (Player on, Target and Focus off).
+64. **Reset Position resets every bar.** With at least the target bar enabled and visible, `/at unlock`, drag the player bar and the target bar to distinct off-centre spots, then General page → **Reset Position** → **both** bars snap back to their stacked default positions (not just the player's, and not neither). Repeat with `/at resetposition` → identical result. `/reload` → the reset positions persist.
+65. **The CLI says when a unit is mirrored.** With focus mirrored (default), run `/at get units.focus.barWidth` → the line reads `units.focus.barWidth = 200 px` followed by a subordinate grey `(mirrored — the bar shows Player's appearance)`. `/at set units.focus.barWidth 400` → the echo carries the same note and the focus bar does **not** change width. Untick **Use same styling as Player** for Focus → `/at get units.focus.barWidth` now reads `400 px` with **no** note, and the bar is 400 px wide. `/at get units.focus.enabled` never carries the note (it is honoured per-unit even while mirrored).
+66. **A second profile keeps its own layout across the upgrade.** (Upgrade check — only meaningful from a pre-v3 SavedVariables file.) With two profiles both saved before this version, log in on one, then `/at profile use <the other>` → the second profile's saved bar width / colors / position are intact, not factory defaults. Logout and inspect `AbsorbTrackerDB.lua`: **every** entry under `profiles` carries `schemaVersion = 3`, and none still has a flat `barWidth` / `position` at its root.
+
+67. **Every enabled bar tracks its own unit's absorb (regression).** Enable target and focus, set focus to yourself and target yourself, then gain and consume an absorb → **all three bars fill and empty together**, each showing the same abbreviated number. Then target another player (or a training dummy) with a shield on them → the target bar reads *their* absorb, not yours. Pre-fix the coalesced repaint painted the player only, so the target and focus StatusBars never had a value written at all and sat permanently full with no text (`modules/Timer.lua` called `NS.UpdateAbsorbBar()` bare, defaulting the unit to `"player"`).
+68. **Unit labels appear only while unlocked.** `/at unlock` → a small label sits just above each visible bar reading **Player** / **Target** / **Focus**, in that bar's own font face at a fixed small size. `/at lock` → every label disappears. Enable target/focus and confirm each label names the bar it sits on. Change a bar's Font Face on the Font page while unlocked → its label follows the new face; change its Font Size → the label does **not** grow (fixed 10pt by design). The label is a drag affordance with no schema row, so it appears on no settings page and in no `/at list` output.
+
+69. **A disabled bar receives no events (performance).** `/at debug on`, then untick **Enable Target Bar** and **Enable Focus Bar**. Target something with a shield on it and let it take damage → the debug console shows **no** `[Bar] target:` transition lines and no repaint activity attributable to the target. Tick **Enable Target Bar** back on → target-driven activity resumes immediately, with no `/reload` needed. (What this pins: `addon:SyncUnitEventFrames` unregisters a disabled unit's `UNIT_ABSORB_AMOUNT_CHANGED` / `UNIT_MAXHEALTH` entirely, and drops the `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` watch with it. The registration set follows the enable flags through the `UNITS` bus message, so switching profiles re-syncs it too — check that by switching to a profile with different enable flags.)
+70. **The enable flags survive a profile switch and re-sync the events.** On a profile with Target enabled, `/at profile new SmokeUnits` → the fresh profile has Target off (factory default) and the target bar disappears; `/at profile use Default` → Target comes back on and its bar tracks again without a `/reload`.
+
+**Pass criteria:** all 70 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
 and no combat-taint warning when the panel opens out of combat (step 13). On any failure, record the step number, observed vs.
 expected, and any error text.
 
@@ -102,3 +119,5 @@ expected, and any error text.
 - Debug console — `core/DebugLog.lua`
 - LSM border alignment fix — `core/LSMPatch.lua`
 - Class-color-aware getters — `core/Data.lua` (`GetBarColor`/`GetBgColor`/`GetBorderColor`)
+- Mirror resolution / `CopyFromPlayer` / per-unit position — `core/Units.lua`
+- Unit dropdown, mirror header, copy button — `settings/Helpers.lua` (`RenderUnitPanel`)

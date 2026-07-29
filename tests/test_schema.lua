@@ -15,8 +15,8 @@ test("ParseSchemaValue bool accepts truthy/falsey words, rejects junk", function
 end)
 
 test("ParseSchemaValue number clamps to the row's min/max", function()
-  local row = NS.FindSchemaRow("barWidth")  -- min 50, max 500
-  assertTrue(row ~= nil, "barWidth row must exist")
+  local row = NS.FindSchemaRow("units.player.barWidth")  -- min 50, max 500
+  assertTrue(row ~= nil, "units.player.barWidth row must exist")
   assertEqual(NS.ParseSchemaValue(row, "9999"), 500)
   assertEqual(NS.ParseSchemaValue(row, "10"), 50)
   assertEqual(NS.ParseSchemaValue(row, "200"), 200)
@@ -53,7 +53,10 @@ test("FormatSchemaValue formats by type", function()
 end)
 
 test("SchemaForPage keeps groups in registration order (Size, Bar, Background)", function()
-  local rows = NS.SchemaForPage("bar")
+  -- Filtered to one unit so the three units' rows don't interleave when checking group order.
+  -- The Bar page opens on Size now: the enable toggle that used to head it in a "This bar" group
+  -- lives on the General page, and the only row left group-less is the unrendered mirror flag.
+  local rows = NS.SchemaForPage("bar", "player")
   assertTrue(#rows >= 6, "bar page should have >= 6 rows")
   local order, seen = {}, {}
   for _, r in ipairs(rows) do
@@ -129,7 +132,7 @@ test("every row's default matches the value in defaults.profile", function()
   -- other than where a brand-new profile starts.
   local defaults = NS.defaults.profile
   for _, row in ipairs(NS.Schema) do
-    local want = defaults[row.path]
+    local want = NS.ResolvePath(defaults, row.path)
     if type(row.default) == "table" then
       assertEqual(type(want), "table", row.path .. " default should be a table in both places")
       for k, v in pairs(row.default) do
@@ -145,10 +148,29 @@ test("every persisted profile default is reachable from a schema row", function(
   -- The other direction: a default with no row is a setting the user can neither see in the panel
   -- nor reach via /at set. (`position` is exempt by construction — it defaults to nil, so it is
   -- not a key here; it is written by dragging and cleared explicitly by RestoreAllDefaults.)
+  -- Appearance defaults now live two levels deep, at profile.units.<unit>.<key>, so walk that one
+  -- extra level explicitly rather than a generic recursive walk (the shape is exactly two levels:
+  -- flat globals at the root, and per-unit tables under `units`).
+  -- `schemaVersion` is also exempt: it is the per-profile migration stamp (defaults/Profile.lua),
+  -- bookkeeping the migration seam owns, not a user-facing setting. A schema row for it would put
+  -- a "schema version" slider on a settings page and let `/at set schemaVersion 1` re-trigger the
+  -- v3 lift on a live profile.
+  local EXEMPT = { schemaVersion = true }
   local paths = {}
   for _, row in ipairs(NS.Schema) do paths[row.path] = true end
-  for key in pairs(NS.defaults.profile) do
-    assertTrue(paths[key], "profile default '" .. key .. "' has no schema row")
+  for key, val in pairs(NS.defaults.profile) do
+    if EXEMPT[key] then -- luacheck: ignore
+      -- bookkeeping, not a setting
+    elseif key == "units" then
+      for unitName, unitDefaults in pairs(val) do
+        for field in pairs(unitDefaults) do
+          local path = "units." .. unitName .. "." .. field
+          assertTrue(paths[path], "profile default '" .. path .. "' has no schema row")
+        end
+      end
+    else
+      assertTrue(paths[key], "profile default '" .. key .. "' has no schema row")
+    end
   end
 end)
 
@@ -189,7 +211,7 @@ test("`disabledIf` names a real sibling setting", function()
   -- a silent failure with no error to notice.
   for _, row in ipairs(NS.Schema) do
     if row.disabledIf then
-      assertTrue(NS.defaults.profile[row.disabledIf] ~= nil,
+      assertTrue(NS.ResolvePath(NS.defaults.profile, row.disabledIf) ~= nil,
         row.path .. " disabledIf='" .. row.disabledIf .. "' does not resolve")
     end
   end
@@ -205,37 +227,37 @@ end)
 -- ── SetByPath / ApplyDefault dispatch ──────────────────────────────────────────────
 
 test("FindSchemaRow returns the row for a known path and nil for an unknown one", function()
-  local row = NS.FindSchemaRow("barWidth")
-  assertTrue(row ~= nil and row.path == "barWidth")
+  local row = NS.FindSchemaRow("units.player.barWidth")
+  assertTrue(row ~= nil and row.path == "units.player.barWidth")
   assertEqual(NS.FindSchemaRow("nothingLikeThis"), nil)
 end)
 
 test("SetByPath writes the value and fires the row's own onChange with it", function()
-  local row = NS.FindSchemaRow("barWidth")
+  local row = NS.FindSchemaRow("units.player.barWidth")
   local saved = row.onChange
   local got
   row.onChange = function(v) got = v end
-  local ok, err = pcall(NS.SetByPath, "barWidth", 240)
+  local ok, err = pcall(NS.SetByPath, "units.player.barWidth", 240)
   row.onChange = saved
   if not ok then error(err) end
-  assertEqual(NS.GetSetting("barWidth"), 240)
+  assertEqual(NS.GetSetting("units.player.barWidth"), 240)
   assertEqual(got, 240, "the onChange receives the written value")
-  NS.SetByPath("barWidth", NS.flatDefaults.barWidth)
+  NS.SetByPath("units.player.barWidth", NS.unitDefaults.barWidth)
 end)
 
 test("SetByPath falls back to broadcasting APPEARANCE for a row with no onChange", function()
-  local row = NS.FindSchemaRow("barWidth")
+  local row = NS.FindSchemaRow("units.player.barWidth")
   local saved = row.onChange
   row.onChange = nil
   local seen = 0
   local target = NS.NewBusTarget()
   target:RegisterMessage(NS.MSG.APPEARANCE, function() seen = seen + 1 end)
-  local ok, err = pcall(NS.SetByPath, "barWidth", 210)
+  local ok, err = pcall(NS.SetByPath, "units.player.barWidth", 210)
   target:UnregisterMessage(NS.MSG.APPEARANCE)
   row.onChange = saved
   if not ok then error(err) end
   assertEqual(seen, 1, "the default onChange repaints the bar's appearance")
-  NS.SetByPath("barWidth", NS.flatDefaults.barWidth)
+  NS.SetByPath("units.player.barWidth", NS.unitDefaults.barWidth)
 end)
 
 test("SetByPath still writes a value that has no schema row at all", function()
@@ -248,10 +270,10 @@ end)
 test("ApplyDefault deep-copies a colour table so profiles never share one", function()
   -- Handing out the row's own table would let a ColorPicker drag in one profile mutate the schema
   -- default itself, and through it every other profile that was reset from it.
-  local row = NS.FindSchemaRow("barColor")
-  assertTrue(row ~= nil, "barColor is a colour row")
+  local row = NS.FindSchemaRow("units.player.barColor")
+  assertTrue(row ~= nil, "units.player.barColor is a colour row")
   NS.ApplyDefault(row)
-  local stored = NS.GetSetting("barColor")
+  local stored = NS.GetSetting("units.player.barColor")
   assertTrue(stored ~= row.default, "the stored table must be a copy, not the row's own")
   stored.r = 0.123
   assertTrue(row.default.r ~= 0.123, "mutating the stored colour must not reach the default")
@@ -263,4 +285,174 @@ test("ApplyDefault is a no-op for a row with no default", function()
   NS.ApplyDefault({ path = "barWidth", type = "number" })   -- no `default` key
   assertEqual(NS.GetSetting("barWidth"), 250, "nothing should have been written")
   NS.SetSetting("barWidth", NS.flatDefaults.barWidth)
+end)
+
+test("ResolvePath walks a dotted path", function()
+  local t = { units = { target = { barWidth = 275 } } }
+  assertEqual(NS.ResolvePath(t, "units.target.barWidth"), 275)
+end)
+
+test("ResolvePath returns nil for a missing branch instead of raising", function()
+  local t = { units = {} }
+  assertEqual(NS.ResolvePath(t, "units.focus.barWidth"), nil)
+  assertEqual(NS.ResolvePath(t, "nope.at.all"), nil)
+end)
+
+test("ResolvePath still handles a flat key", function()
+  assertEqual(NS.ResolvePath({ hidden = true }, "hidden"), true)
+end)
+
+test("SetPath writes through a dotted path and creates intermediate tables", function()
+  local t = {}
+  NS.SetPath(t, "units.focus.barWidth", 321)
+  assertEqual(t.units.focus.barWidth, 321)
+end)
+
+test("GetSetting and SetSetting round-trip a dotted path", function()
+  local saved = NS.GetSetting("units.target.barWidth")
+  NS.SetSetting("units.target.barWidth", 313)
+  assertEqual(NS.GetSetting("units.target.barWidth"), 313)
+  NS.SetSetting("units.target.barWidth", saved)
+end)
+
+test("ValidateSchema resolves nested paths against defaults.profile", function()
+  local errors, resolved, missing = NS.ValidateSchema()
+  assertEqual(errors, 0, "no malformed schema rows")
+  assertEqual(missing, 0, "every schema path must resolve against the defaults profile")
+  assertTrue(resolved > 0)
+end)
+
+test("SchemaForPage with no unit returns every unit's rows", function()
+  local rows = NS.SchemaForPage("bar")
+  local seen = {}
+  for _, r in ipairs(rows) do if r.unit then seen[r.unit] = true end end
+  assertTrue(seen.player and seen.target and seen.focus,
+    "resets and /at list need every unit's rows")
+end)
+
+test("SchemaForPage filtered to a unit excludes the other units' rows", function()
+  local all = NS.SchemaForPage("bar")
+  local focusRows = NS.SchemaForPage("bar", "focus")
+
+  -- Prove the unfiltered set actually contains other units' rows to exclude — otherwise this
+  -- test would pass vacuously even if the `unit` argument were ignored entirely.
+  local haveOther = false
+  for _, r in ipairs(all) do
+    if r.unit and r.unit ~= "focus" then haveOther = true end
+  end
+  assertTrue(haveOther, "the unfiltered bar page must contain player/target rows to prove against")
+
+  for _, r in ipairs(focusRows) do
+    assertTrue(r.unit == nil or r.unit == "focus",
+      "a unit-filtered page must not leak another unit's widgets")
+  end
+
+  -- Prove the filter actually filters: a no-op SchemaForPage(page, unit) that ignored `unit`
+  -- would return the same row count as the unfiltered call, and the assertion above would still
+  -- pass (every unit-tagged row on this page happens to be "focus" only if nothing else were
+  -- excluded — which is false here, so this also catches that no-op).
+  assertTrue(#focusRows < #all,
+    "the focus-filtered set must be strictly smaller than the unfiltered set")
+end)
+
+test("PartitionUnitRows splits alwaysPerUnit rows from the mirrored appearance rows", function()
+  local rows = {
+    { path = "units.focus.enabled",  alwaysPerUnit = true },
+    { path = "units.focus.barWidth" },
+    { path = "units.focus.barColor" },
+  }
+  local perUnit, styled = NS.PartitionUnitRows(rows)
+  assertEqual(#perUnit, 1)
+  assertEqual(perUnit[1].path, "units.focus.enabled")
+  assertEqual(#styled, 2)
+end)
+
+test("every appearance page carries a full row set for all three units", function()
+  for _, page in ipairs({ "bar", "border", "font" }) do
+    for _, unit in ipairs(NS.Units.LIST) do
+      local rows = NS.SchemaForPage(page, unit)
+      assertTrue(#rows > 0, page .. " page has no rows for " .. unit)
+      for _, r in ipairs(rows) do
+        assertTrue(r.path:match("^units%." .. unit .. "%."),
+          "row " .. r.path .. " on " .. page .. "/" .. unit .. " is not unit-scoped")
+      end
+    end
+  end
+end)
+
+test("each unit's row set for a page is the same size", function()
+  for _, page in ipairs({ "bar", "border", "font" }) do
+    local n = #NS.SchemaForPage(page, "target")
+    assertEqual(#NS.SchemaForPage(page, "focus"), n,
+      page .. ": target and focus must expose identical settings")
+  end
+end)
+
+test("the enable row is per-unit, lives on General, and survives mirroring", function()
+  for _, unit in ipairs(NS.Units.LIST) do
+    local row = NS.FindSchemaRow("units." .. unit .. ".enabled")
+    assertTrue(row ~= nil, unit .. " has no enable row")
+    -- alwaysPerUnit is what keeps `/at get units.<unit>.enabled` free of the "(mirrored)" note:
+    -- the flag is honoured per-unit whatever the mirror says.
+    assertEqual(row.alwaysPerUnit, true)
+    assertEqual(row.page, "general", "the enable toggles are master controls, not appearance")
+    assertEqual(row.group, "Master controls")
+    assertEqual(row.label, "Enable " .. NS.Units.LABEL[unit] .. " Bar")
+  end
+end)
+
+test("the enable toggles lead the left column, interleaved with the globals", function()
+  -- RenderRows fills left-then-right in schema order, so the rendered pairing IS the row order:
+  -- [Enable Player Bar | Lock Position], [Enable Target Bar | Show only in combat],
+  -- [Enable Focus Bar | <Debug console, via pairWith>]. Assert the sequence, not the orders.
+  --
+  -- The ODD count matters: it leaves Enable Focus Bar alone on its row, which is the only reason
+  -- the pairWith seam will attach the Debug console checkbox there.
+  local want = {
+    "units.player.enabled", "locked",
+    "units.target.enabled", "showOnlyInCombat",
+    "units.focus.enabled",
+  }
+  local got = {}
+  for _, r in ipairs(NS.SchemaForPage("general")) do
+    if r.group == "Master controls" then got[#got + 1] = r.path end
+  end
+  assertEqual(#got, #want, "unexpected Master controls row count")
+  for i, path in ipairs(want) do
+    assertEqual(got[i], path, "Master controls row " .. i)
+  end
+end)
+
+test("the mirror row exists for target and focus but not the player", function()
+  assertTrue(NS.FindSchemaRow("units.target.mirror") ~= nil)
+  assertTrue(NS.FindSchemaRow("units.focus.mirror") ~= nil)
+  assertEqual(NS.FindSchemaRow("units.player.mirror"), nil,
+    "the player is the mirror source; a player mirror row would be circular")
+end)
+
+test("the mirror row is kept out of the auto-rendered body", function()
+  -- The panel draws it bespoke in the header; it stays in the schema so /at set can reach it.
+  assertEqual(NS.FindSchemaRow("units.focus.mirror").skipRender, true)
+end)
+
+-- General carries the four flat globals plus exactly one enable toggle per unit. Nothing else
+-- unit-scoped belongs here: appearance is what the Bar/Border/Font Unit dropdown is for, and a
+-- second unit-scoped row would silently render all three units' copies at once (the General page
+-- renders with ctx.unit nil, so SchemaForPage does no unit filtering).
+test("General's rows are the flat globals plus one enable toggle per unit", function()
+  local enables = {}
+  for _, r in ipairs(NS.SchemaForPage("general")) do
+    if r.unit then
+      assertEqual(r.path, "units." .. r.unit .. ".enabled",
+        r.path .. " is unit-scoped but is not an enable toggle")
+      assertTrue(not enables[r.unit], "duplicate enable row for " .. r.unit)
+      enables[r.unit] = true
+    else
+      assertTrue(not r.path:match("^units%."),
+        r.path .. " writes a per-unit path but carries no unit tag")
+    end
+  end
+  for _, unit in ipairs(NS.Units.LIST) do
+    assertTrue(enables[unit], unit .. " has no enable toggle on General")
+  end
 end)

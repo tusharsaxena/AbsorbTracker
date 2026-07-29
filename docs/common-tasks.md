@@ -2,32 +2,35 @@
 
 Recipes for the routine modifications. For deeper context on any module, see [module-map.md](./module-map.md) and the per-topic docs.
 
-## Add a new setting
+## Add a new setting (General page — a flat, unit-agnostic global)
 
-The schema-driven design makes this a one-row change. The widget on the relevant Settings sub-page AND the `/at set <path>` CLI come for free.
+This recipe is for a **flat** setting like `locked` / `showOnlyInCombat` / `throttleWindow` — one that governs all three bars at once and belongs on the General page. For a Bar/Border/Font appearance setting that should exist per unit, see [Add a per-unit setting](#add-a-per-unit-setting) below instead.
 
-1. **Pick a `path` and a default.** The `path` is the `db.profile` key (and the `/at set <path>` argument). The default goes in `defaults/Profile.lua`'s `NS.defaults.profile`:
+The schema-driven design makes a flat setting a one-row change. The widget on the General sub-page AND the `/at set <path>` CLI come for free.
+
+1. **Pick a `path` and a default.** The `path` is the `db.profile` key (and the `/at set <path>` argument). The default goes in `defaults/Profile.lua`'s `NS.defaults.profile`, alongside the four existing flat globals (not inside `units`):
 
    ```lua
    -- defaults/Profile.lua
    NS.defaults.profile = {
-       -- ...
+       -- ... locked, showOnlyInCombat, throttleWindow ...
        myNewKnob = 42,
+       units = { ... },
    }
    ```
 
-   `NS.flatDefaults` is an alias for `NS.defaults.profile`, so every settings page can read per-key defaults from it. `NS:RunMigrations` (core/Database.lua) backfills any missing profile key from `flatDefaults` on load, so existing profiles pick up the new key automatically.
+   `NS.flatDefaults` is an alias for `NS.defaults.profile`, so General's schema rows can read per-key defaults from it. `NS:RunMigrations` (core/Database.lua) backfills any missing profile key from `NS.defaults.profile` on load, so existing profiles pick up the new key automatically.
 
-2. **Append a schema row** in the `settings/<page>.lua` file for the page where the widget should appear:
+2. **Append a schema row** in `settings/General.lua`:
 
    ```lua
-   -- settings/Bar.lua (for example)
+   -- settings/General.lua
    local addonName, NS = ...
    local flatDefaults = NS.flatDefaults
 
    NS.RegisterSchemaRows({
        -- ... existing rows ...
-       { path = "myNewKnob", page = "bar", group = "Size", order = 50,
+       { path = "myNewKnob", page = "general", group = "Master controls", order = 50,
          type = "number", label = "My New Knob", default = flatDefaults.myNewKnob,
          min = 0, max = 100, step = 1 },
    })
@@ -41,11 +44,60 @@ The schema-driven design makes this a one-row change. The widget on the relevant
    onChange = function(v) NS.SomeOtherReaction(v) end,
    ```
 
-That's it. The widget renders on the Bar sub-page on the next `/reload`; `/at set myNewKnob 75` works immediately; `/at get myNewKnob` and `/at list` show the new row; `/at reset bar` and `/at resetall` reset it via `ApplyDefault`. Every write — panel widget, `/at set`, and `/at reset` — funnels through `NS.SetByPath`, which calls `SetSetting` then fires the row's `onChange`.
+That's it. The widget renders on the General sub-page on the next `/reload`; `/at set myNewKnob 75` works immediately; `/at get myNewKnob` and `/at list` show the new row; `/at reset general` and `/at resetall` reset it via `ApplyDefault`. Every write — panel widget, `/at set`, and `/at reset` — funnels through `NS.SetByPath`, which calls `SetSetting` then fires the row's `onChange`.
 
 `NS.ValidateSchema` (run once at panel-registration time) will warn in chat if the new row's `path` doesn't resolve against `NS.defaults.profile` — a cheap guard against typos between step 1 and step 2.
 
 See [schema.md](./schema.md) for the full row grammar (knobs like `inverse`, `disabledIf`, `dialogControl`, `fmt`, `solo`).
+
+## Add a per-unit setting
+
+Bar/Border/Font settings are per-unit (player/target/focus) rather than a single flat schema row. Use this recipe instead of "Add a new setting" above when the new knob is a bar-appearance value that should exist for all three units (and mirror the same way the existing fifteen do).
+
+1. **Add the key to `defaults/Profile.lua`'s `appearance()` factory** (not `NS.defaults.profile` directly — `appearance()` is called once per unit so no table gets shared across units):
+
+   ```lua
+   -- defaults/Profile.lua
+   local function appearance()
+       return {
+           -- ... existing keys ...
+           myNewKnob = 42,
+       }
+   end
+   ```
+
+2. **Add the key to `NS.Units.APPEARANCE_KEYS`** (`core/Units.lua`) — mirror resolution (`NS.Units.Get`) and `CopyFromPlayer` both walk this list, so a key left off it silently never mirrors or copies:
+
+   ```lua
+   -- core/Units.lua
+   Units.APPEARANCE_KEYS = {
+       "barTexture", "bgTexture", "border", "borderSize", "borderColor",
+       "font", "fontSize", "fontFlags", "barWidth", "barHeight",
+       "barColor", "bgColor", "useClassColorBar", "useClassColorBg", "useClassColorBorder",
+       "myNewKnob",
+   }
+   ```
+
+3. **Add the row inside the relevant page's `addUnitRows(unit)`** (`settings/Bar.lua`, `Border.lua`, or `Font.lua`) — the loop that already calls it once per `NS.Units.LIST` entry picks the new row up automatically:
+
+   ```lua
+   -- settings/Bar.lua, inside addUnitRows(unit)
+   {
+       path    = p .. "myNewKnob",   -- p = "units." .. unit .. "."
+       page    = "bar",
+       unit    = unit,
+       group   = "Size",
+       order   = 50,
+       type    = "number",
+       label   = "My New Knob",
+       default = unitDefaults.myNewKnob,
+       min = 0, max = 100, step = 1,
+   },
+   ```
+
+That's it. `NS.Units.Get(unit, "myNewKnob")` reads it mirror-resolved; `/at set units.target.myNewKnob 10` and `/at get units.focus.myNewKnob` work immediately; `/at reset bar` and the panel's Bar-page Defaults button reset it across all three units; `Helpers.RenderUnitPanel` renders it on whichever unit is selected in the Unit dropdown, and hides it while that unit mirrors the player.
+
+`NS.ValidateSchema` will warn in chat if the path (`units.<unit>.myNewKnob`) doesn't resolve against `NS.defaults.profile` — a cheap guard against forgetting step 1 or getting the factory vs. `NS.defaults.profile` distinction backwards.
 
 ## Add a new sub-page
 
@@ -151,7 +203,7 @@ See also: the `/wow-addon:bump-interface` skill for the automated version of thi
 This addon has a headless test harness under `tests/` — any doc claiming "no automated tests" is stale. Run the green gate before you consider a change done:
 
 ```sh
-lua tests/run.lua      # suites: schema / database / compat / util / debuglog / slash / timer / visibility / bus (count: docs/test-cases.md)
+lua tests/run.lua      # suites: schema / database / compat / util / debuglog / slash / timer / visibility / bus / data / display / helpers / slashcmds / widgets / units (count: docs/test-cases.md)
 luacheck .             # must be 0 warnings / 0 errors
 luac -p <changed.lua>  # bytecode-parse each file you touched
 ```
@@ -163,19 +215,20 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 | Suite | Covers |
 |-------|--------|
 | `tests/test_schema.lua` | schema shape, `ValidateSchema` (errors / resolved / missing), `SetByPath`, `ApplyDefault`, formatters/parsers |
-| `tests/test_database.lua` | `InitDB`, `RunMigrations` idempotency, `flatDefaults` backfill, schemaVersion v1→v2 migration |
+| `tests/test_database.lua` | `InitDB`, `RunMigrations` idempotency, flat + per-unit backfill, schemaVersion v1→v2→v3 migration (v3 lifts pre-v3 flat keys onto `profile.units.player`), the per-profile lift across **every** saved profile, and the `OnProfileChanged` lift for a profile restored after the upgrade |
 | `tests/test_compat.lua` | `Compat.GetAddOnMetadata` wrapper + fallback |
 | `tests/test_util.lua` | `NS.Print` / `NS.Debug` (secret-safe sink) prefixing and gating, `NS.SafeToString` secret-value handling |
 | `tests/test_debuglog.lua` | `NS.Debug` sink, `FormatPlain` / `FormatColored`, on/off state |
 | `tests/test_slash.lua` | `NS.COMMANDS` dispatch, unknown-verb path, `/at` verbs |
 | `tests/test_timer.lua` | `NS.RequestRepaint` coalescing + `throttleWindow` delay, event-handler repaint wiring |
-| `tests/test_visibility.lua` | `NS.ShouldShowBar` / `NS.ApplyVisibility` combat gate (`showOnlyInCombat`), `OnEnterCombat` + `OnLeaveCombat` visibility+repaint, and the options-ui-§2 guarantee that `OnLeaveCombat` never auto-opens `/at config` (no defer-and-replay) |
-| `tests/test_bus.lua` | `NS.bus` / `NS.NewBusTarget` / `NS.MSG` catalogue, per-target subscribe + unregister, two receivers of one message both firing (anti-pattern #33), and `REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION` routing to their consumers |
-| `tests/test_data.lua` | `GetSetting` / `SetSetting` (profile read, `flatDefaults` fallback, no-DB degradation), the LSM texture/border/font fetchers and their fallbacks, `ClearLSMCache`, `Helpers.LSMValues`, and the class-colour resolvers |
-| `tests/test_display.lua` | `RestoreBarPosition`, `UpdateBarAppearance` (size, backdrop insets, nil-then-set refresh, lock, font), `UpdateAbsorbBar` (hidden / `testHoldUntil` early-outs, max-health scaling, `NoteRepaint`) |
-| `tests/test_helpers.lua` | `CreatePanel` + the panel registry, the lazy Defaults-button declaration, `RestoreDefaults` / `RestoreAllDefaults` / `RefreshAllPanels` |
-| `tests/test_slashcmds.lua` | The remaining `/at` verbs: lock/unlock/toggle, update, reset/resetall/resetposition, get/set failure paths, `test`, and the full `/at profile` sub-dispatcher |
-| `tests/test_widgets.lua` | Schema-row → AceGUI widget translation: the four widget makers, `SessionCheckbox`, `RenderField` dispatch, `RenderSchema` layout, and the real pages driven through their deferred `OnShow` |
+| `tests/test_visibility.lua` | `NS.ShouldShowBar` / `NS.ApplyVisibility` four-step ladder (per-unit `enabled` / `showOnlyInCombat` / target-focus `UnitExists`), `OnEnterCombat` + `OnLeaveCombat` + `OnUnitSwap` visibility+repaint, and the options-ui-§2 guarantee that `OnLeaveCombat` never auto-opens `/at config` (no defer-and-replay) |
+| `tests/test_bus.lua` | `NS.bus` / `NS.NewBusTarget` / `NS.MSG` catalogue, per-target subscribe + unregister, two receivers of one message both firing (anti-pattern #33), and `REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION` routing to their consumers (each fanning out over `NS.ForEachUnit`) |
+| `tests/test_data.lua` | `GetSetting` / `SetSetting` (profile read, dotted-path resolution, `flatDefaults` fallback, no-DB degradation), the per-unit LSM texture/border/font fetchers and their fallbacks, `ClearLSMCache`, `Helpers.LSMValues`, and the per-unit class-colour resolvers |
+| `tests/test_display.lua` | `NS.ForEachUnit`, `NS.DefaultPosition`, `RestoreBarPosition`, `UpdateBarAppearance` (size, backdrop insets, nil-then-set refresh, lock, font, mirror-resolved reads), `UpdateAbsorbBar` (hidden / `testHoldUntil` early-outs, max-health scaling, `NoteRepaint`) — all per unit |
+| `tests/test_helpers.lua` | `CreatePanel` + the panel registry, the lazy Defaults-button declaration, `RestoreDefaults` / `RestoreAllDefaults` (every unit's position cleared) / `RefreshAllPanels` |
+| `tests/test_slashcmds.lua` | The remaining `/at` verbs: lock/unlock/toggle, update, reset (all units)/resetall/resetposition (all units), get/set failure paths (fully-qualified only), `test`, and the full `/at profile` sub-dispatcher |
+| `tests/test_widgets.lua` | Schema-row → AceGUI widget translation: the four widget makers, `SessionCheckbox`, `RenderField` dispatch, `RenderRows`/`RenderSchema` layout (`skipRender` rows omitted), and the real pages driven through their deferred `OnShow` |
+| `tests/test_units.lua` | `core/Units.lua`: `LIST`/`LABEL`, `IsEnabled`/`IsMirrored`/`SourceUnit` (player never mirrored), the mirror-resolved `Get`, `Set` (writes the unit's own config), `Position`/`SetPosition` (never mirrored), `CopyFromPlayer` (deep-copy + mirror clear, `position`/`enabled` untouched), `DeepCopy` |
 
 Add a new setting or page? `test_schema.lua`'s integrity invariants already require a label, a desc, a
 default that agrees with `defaults.profile`, and (for numbers) a `min`/`max` bracketing that default —

@@ -46,6 +46,16 @@ local function stubFrame()
   function f:GetHeight() return 0 end
   function f:GetWidth() return 0 end
 
+  -- Record RegisterUnitEvent's (event -> unit tokens) instead of no-opping it through the
+  -- metatable below: core/AbsorbTracker.lua registers absorb / max-health events per unit and
+  -- ONLY for units whose bar is enabled, which is only trustworthy if a test can see exactly which
+  -- units each frame registered — a no-op would let a widened or dropped filter pass the whole
+  -- suite silently. UnregisterAllEvents is likewise explicit: the metatable's blanket no-op would
+  -- leave a disabled unit's registrations visibly in place and make the gating untestable.
+  f.__unitEvents = {}
+  function f:RegisterUnitEvent(event, ...) self.__unitEvents[event] = { ... }; return self end
+  function f:UnregisterAllEvents() self.__unitEvents = {}; return self end
+
   setmetatable(f, { __index = function(_, k)
     if type(k) == "string" and k:match("^%u") then
       return function() return f end
@@ -74,10 +84,15 @@ return function()
     for _, t in ipairs(due) do t.fn() end
   end
 
-  -- player / absorb / world
+  -- player / absorb / world. The unit-taking stubs accept a unit token so a test can vary
+  -- target/focus independently of the player.
   M.UnitClass = function() return "Mage", "MAGE", 8 end
-  M.UnitGetTotalAbsorbs = function() return 0 end
-  M.UnitHealthMax = function() return 100 end
+  M.__unitExists = { player = true, target = false, focus = false }
+  M.UnitExists = function(unit) return M.__unitExists[unit] == true end
+  M.__absorbs = {}
+  M.UnitGetTotalAbsorbs = function(unit) return M.__absorbs[unit] or 0 end
+  M.__maxHealth = {}
+  M.UnitHealthMax = function(unit) return M.__maxHealth[unit] or 100 end
   M.AbbreviateNumbers = function(n) return tostring(n) end
   M.C_ClassColor = { GetClassColor = function() return { r = 1, g = 1, b = 1 } end }
   M.InCombatLockdown = function() return false end
@@ -118,18 +133,66 @@ return function()
   -- OnProfileChanged / OnProfileCopied / OnProfileReset callbacks AceDB fires via CallbackHandler
   -- (which is what wires NS.OnProfileChanged in core/Database.lua).
   libs["AceDB-3.0"] = {
-    New = function(_, _name, defaults)
-      local db = {}
-      local profiles, current, callbacks = {}, "Default", {}
+    -- `tbl` is the real signature's first arg: either the STRING name of a global SavedVariables
+    -- table (what the addon passes: `AceDB:New("AbsorbTrackerDB", ...)`), or an actual table.
+    -- Resolving it against `_G` (rather than always starting fresh) is what lets a test seed
+    -- `_G.AbsorbTrackerDB` with a legacy profile and then drive the REAL NS:InitDB() path to
+    -- prove the v3 migration lift actually fires against real AceDB's merge-in-place semantics,
+    -- instead of only against a bespoke plain-table `NS.db` that never triggers them.
+    New = function(_, tbl, defaults)
+      local sv
+      if type(tbl) == "string" then
+        sv = _G[tbl]
+        if not sv then
+          sv = {}
+          _G[tbl] = sv
+        end
+      else
+        sv = tbl or {}
+      end
+      sv.profiles = sv.profiles or {}
+      sv.global = sv.global or {}
 
-      local function freshProfile() return deepcopy(defaults and defaults.profile or {}) end
+      local db = {}
+      local current, callbacks = "Default", {}
+
+      -- Faithful (if simplified) copy of AceDB-3.0's copyDefaults: recurse into every
+      -- TABLE-valued default, creating the dest sub-table if it's missing, but only ever fill a
+      -- SCALAR leaf when the dest doesn't already have it. An existing user value always wins —
+      -- this is the exact merge-in-place behavior that made the real v3 lift bug possible (a
+      -- bare read of db.profile silently pre-populates a brand-new `units` table from defaults
+      -- before RunMigrations' old `units == nil` guard ever got to look at it).
+      local function copyDefaults(dest, src)
+        for k, v in pairs(src or {}) do
+          if type(v) == "table" then
+            if type(dest[k]) ~= "table" then dest[k] = {} end
+            copyDefaults(dest[k], v)
+          elseif dest[k] == nil then
+            dest[k] = v
+          end
+        end
+      end
+
+      local function ensureProfile(name)
+        sv.profiles[name] = sv.profiles[name] or {}
+        copyDefaults(sv.profiles[name], defaults and defaults.profile)
+        return sv.profiles[name]
+      end
+
+      copyDefaults(sv.global, defaults and defaults.global)
+      -- Real AceDB-3.0 exposes the whole raw SavedVariables table as db.sv, and that is how
+      -- core/Database.lua reaches `sv.profiles` to lift EVERY saved profile (not just the active
+      -- one) at InitDB. Note the fidelity that matters: profiles are only merged with the defaults
+      -- by ensureProfile when they are actually activated, so a pre-seeded, never-activated
+      -- profile stays exactly as the SavedVariables file had it — un-stamped and pre-v3, which is
+      -- precisely the case the per-profile lift has to handle.
+      db.sv      = sv
+      db.global  = sv.global
+      db.profile = ensureProfile(current)
+
       local function fire(event)
         for _, cb in ipairs(callbacks[event] or {}) do cb(event, db, current) end
       end
-
-      profiles[current] = freshProfile()
-      db.global  = deepcopy(defaults and defaults.global or {})
-      db.profile = profiles[current]
 
       -- CallbackHandler shape: db.RegisterCallback(target, event, fn) — dot-called, so the
       -- registering object arrives as the first arg. core/Database.lua passes a function ref.
@@ -142,32 +205,31 @@ return function()
 
       db.GetProfiles = function()
         local names = {}
-        for name in pairs(profiles) do names[#names + 1] = name end
+        for name in pairs(sv.profiles) do names[#names + 1] = name end
         table.sort(names)
         return names
       end
 
       db.SetProfile = function(_, name)
         if name == current then return end
-        profiles[name] = profiles[name] or freshProfile()
         current = name
-        db.profile = profiles[name]
+        db.profile = ensureProfile(name)
         fire("OnProfileChanged")
       end
 
       db.ResetProfile = function()
         -- Wipe in place: the real lib keeps the profile table's identity across a reset, so
         -- anything holding a reference to db.profile keeps seeing the live table.
-        local p = profiles[current]
+        local p = sv.profiles[current]
         for k in pairs(p) do p[k] = nil end
-        for k, v in pairs(freshProfile()) do p[k] = v end
+        copyDefaults(p, defaults and defaults.profile)
         fire("OnProfileReset")
       end
 
       db.CopyProfile = function(_, name)
-        local src = profiles[name]
+        local src = sv.profiles[name]
         if not src or name == current then return end
-        local p = profiles[current]
+        local p = sv.profiles[current]
         for k in pairs(p) do p[k] = nil end
         for k, v in pairs(deepcopy(src)) do p[k] = v end
         fire("OnProfileCopied")
@@ -175,7 +237,7 @@ return function()
 
       db.DeleteProfile = function(_, name)
         if name == current then return end
-        profiles[name] = nil
+        sv.profiles[name] = nil
       end
 
       return db
@@ -185,8 +247,19 @@ return function()
     NewAddon = function(_, target)
       target = target or {}
       local noop = function() end
-      target.RegisterEvent = noop
-      target.UnregisterEvent = noop
+      -- Record AceEvent registrations rather than no-opping them: PLAYER_TARGET_CHANGED and
+      -- PLAYER_FOCUS_CHANGED are registered only while that unit's bar is enabled
+      -- (addon:SyncUnitEventFrames), and that gating is invisible to a test unless the mock
+      -- remembers what is currently registered.
+      target.__events = {}
+      target.RegisterEvent = function(self, event, handler)
+        self.__events[event] = handler or true
+        return self
+      end
+      target.UnregisterEvent = function(self, event)
+        self.__events[event] = nil
+        return self
+      end
       target.RegisterChatCommand = noop
       target.ScheduleTimer = function(_, fn, delay)
         local timer = { fn = fn, delay = delay }
@@ -296,10 +369,17 @@ return function()
     WidgetRegistry   = {},
     __widgetVersions = {},
   }
+  -- Every widget this factory hands out, in creation order. Harness-side only — no production
+  -- code knows it exists. It is the ONLY way a test can reach a widget on a page whose ctx is
+  -- private to settings/Helpers.lua's `renderedPanels` list (the General page has no
+  -- __lastUnitCtx equivalent), which is why the "Reset Position" button's onClick shipped
+  -- unreachable and therefore untested.
+  aceGUI.__created = {}
   function aceGUI:Create(wtype)
     local ctor = self.WidgetRegistry[wtype]
-    if ctor then return ctor() end
-    return makeWidget(wtype)
+    local w = ctor and ctor() or makeWidget(wtype)
+    self.__created[#self.__created + 1] = w
+    return w
   end
   function aceGUI:GetWidgetVersion(wtype) return self.__widgetVersions[wtype] end
   function aceGUI:RegisterWidgetType(wtype, ctor, version)

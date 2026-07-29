@@ -17,7 +17,10 @@ local function doRepaint()
     -- secret-value path), the next event still re-arms instead of the bar freezing until
     -- /reload — do not "tidy" this to after the paint call.
     pending = nil
-    NS.UpdateAbsorbBar()
+    -- Fan out over every tracked unit. UpdateAbsorbBar defaults its `unit` argument to "player",
+    -- so calling it bare here painted the player bar and left the target/focus StatusBars at their
+    -- untouched frame defaults (full fill, no text) however many absorb events arrived.
+    NS.ForEachUnit(function(unit) NS.UpdateAbsorbBar(unit) end)
 end
 
 function NS.RequestRepaint()

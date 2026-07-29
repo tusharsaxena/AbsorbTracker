@@ -48,25 +48,21 @@ function addon:OnEnable()
 
     -- UNIT_ABSORB_AMOUNT_CHANGED and UNIT_MAXHEALTH fire for EVERY unit the client knows about (all
     -- raid members, their pets, nameplates, target/focus) — a flood of events per second in combat,
-    -- of which we care about exactly one unit. The vendored AceEvent-3.0 (MINOR 4) registers on a
+    -- of which we care about exactly three units. The vendored AceEvent-3.0 (MINOR 4) registers on a
     -- shared frame with plain RegisterEvent and has no unit filtering, so routing these two through
-    -- AceEvent would pay a full C→Lua dispatch for every unit only to discard all but "player".
-    -- Register them on a private frame with RegisterUnitEvent("player") instead: the client filters
-    -- at the C level and OnEvent never fires for other units. (The rest are global, payload-free
-    -- events and stay on AceEvent.) Guard so a disable/enable cycle doesn't leak a second frame.
-    if not self.unitEventFrame then
-        local f = CreateFrame("Frame")
-        f:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "player")
-        f:RegisterUnitEvent("UNIT_MAXHEALTH", "player")
-        f:SetScript("OnEvent", function(_, event, unit)
-            if event == "UNIT_ABSORB_AMOUNT_CHANGED" then
-                addon:OnAbsorbChanged(event, unit)
-            else
-                addon:OnMaxHealthChanged(event, unit)
-            end
-        end)
-        self.unitEventFrame = f
-    end
+    -- AceEvent would pay a full C→Lua dispatch for every unit only to discard all but ours.
+    --
+    -- §9.1 deviation (see docs/ARCHITECTURE.md): register them on private frames via
+    -- RegisterUnitEvent instead, so the client filters at the C level and OnEvent never fires for
+    -- other units. (The rest are global, payload-free events and stay on AceEvent.)
+    --
+    -- Extracted to its own method (rather than inlined here, as the original brief had it) purely
+    -- so a test can call it directly without paying for the rest of OnEnable's side effects
+    -- (CreateOptionsPanel is not safely re-callable). Behaviour is identical either way.
+    -- Also registers PLAYER_TARGET_CHANGED / PLAYER_FOCUS_CHANGED, but only for units whose bar
+    -- is enabled — which is why those two are not registered unconditionally alongside the three
+    -- below. Re-runs on every UNITS message (subscribed at the bottom of this file).
+    self:SyncUnitEventFrames()
 
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
     self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnEnterCombat")
@@ -79,11 +75,78 @@ function addon:OnEnable()
     -- is emitted from DebugLog:SetEnabled on enable, the only point where it is current and visible.
 end
 
--- The absorb event drives a coalesced repaint (modules/Timer.lua). Gate the debug read so it
--- costs nothing when debug is off (§12.4).
+-- One private RegisterUnitEvent frame PER UNIT, registered only while that unit's bar is enabled.
+--
+-- Per-unit frames rather than the old two (RegisterUnitEvent accepts at most two unit tokens, so
+-- three units used to mean one frame for player+target and a second for focus): with a frame each,
+-- enabling or disabling one unit is a registration change on that unit's frame alone, with no
+-- token-packing to redo. The frames are created once and reused; only their registrations change.
+--
+-- Called from OnEnable and from the UNITS message (settings/Slash.lua and the General page's
+-- enable toggles publish it), so the registration set always matches the enabled set.
+--
+-- Honest note on the win: RegisterUnitEvent already filters at the C level, so the disabled-unit
+-- events were never reaching Lua for OTHER units anyway — this saves the dispatch for the two or
+-- three tokens we ourselves asked for. The material saving is PLAYER_TARGET_CHANGED /
+-- PLAYER_FOCUS_CHANGED below, which fire on every target and focus swap regardless of absorbs.
+function addon:SyncUnitEventFrames()
+    local frames = self.__unitEventFrames
+    if not frames then
+        local function onEvent(_, event, unit)
+            if event == "UNIT_ABSORB_AMOUNT_CHANGED" then
+                self:OnAbsorbChanged(event, unit)
+            elseif event == "UNIT_MAXHEALTH" then
+                self:OnMaxHealthChanged(event, unit)
+            end
+        end
+
+        frames = {}
+        for _, unit in ipairs(NS.Units.LIST) do
+            local f = CreateFrame("Frame")
+            f:SetScript("OnEvent", onEvent)
+            frames[unit] = f
+        end
+        self.__unitEventFrames = frames
+    end
+
+    for _, unit in ipairs(NS.Units.LIST) do
+        local f = frames[unit]
+        if NS.Units.IsEnabled(unit) then
+            -- RegisterUnitEvent replaces any prior registration for the same event on this frame,
+            -- so re-registering an already-registered unit is a harmless no-op.
+            f:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", unit)
+            f:RegisterUnitEvent("UNIT_MAXHEALTH", unit)
+        else
+            f:UnregisterAllEvents()
+        end
+    end
+
+    -- The swap events only matter while that unit's bar is enabled: they exist to re-evaluate the
+    -- UnitExists step of the visibility ladder and repaint the new unit's absorb. With the bar off
+    -- there is nothing to re-evaluate, and PLAYER_TARGET_CHANGED in particular fires constantly in
+    -- ordinary play. AceEvent's Unregister is safe to call when not registered.
+    if NS.Units.IsEnabled("target") then
+        self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnUnitSwap")
+    else
+        self:UnregisterEvent("PLAYER_TARGET_CHANGED")
+    end
+    if NS.Units.IsEnabled("focus") then
+        self:RegisterEvent("PLAYER_FOCUS_CHANGED", "OnUnitSwap")
+    else
+        self:UnregisterEvent("PLAYER_FOCUS_CHANGED")
+    end
+end
+
+-- The absorb event drives a coalesced repaint (modules/Timer.lua) for EVERY tracked unit (the
+-- RegisterUnitEvent frames above already filter dispatch to player/target/focus), so the repaint
+-- itself never branches on `unit`. The debug rollup below is deliberately narrower: it counts and
+-- reports only the PLAYER's own absorb events (dbgAbsorbEvents / the "[Combat] left: N events"
+-- line / the [Absorb] shield-up/shield-gone transitions all read UnitGetTotalAbsorbs("player")),
+-- so it stays gated on unit == "player" — counting target/focus events here would make the rollup
+-- report a number that doesn't match what it prints. Gate the debug read so it costs nothing when
+-- debug is off (§12.4).
 function addon:OnAbsorbChanged(_, unit)
-    if unit ~= "player" then return end
-    if NS.State and NS.State.debug then
+    if unit == "player" and NS.State and NS.State.debug then
         dbgAbsorbEvents = dbgAbsorbEvents + 1
         local v = UnitGetTotalAbsorbs("player") or 0
         -- Only compare when the value is NOT a combat secret (IsConcatSafe == readable).
@@ -101,13 +164,24 @@ function addon:OnAbsorbChanged(_, unit)
 end
 
 -- The bar shows absorb as a fraction of max health, so a max-health change (buffs, stamina,
--- level) must repaint too even when the absorb value itself is unchanged.
-function addon:OnMaxHealthChanged(_, unit)
-    if unit == "player" then NS.bus:SendMessage(NS.MSG.REPAINT) end
+-- level) must repaint too even when the absorb value itself is unchanged. Fires for player,
+-- target, or focus; the repaint stays a single coalesced all-bars pass regardless of which, so
+-- (unlike OnAbsorbChanged) there is no per-unit debug rollup here to keep in sync, and the unit
+-- argument itself is unused.
+function addon:OnMaxHealthChanged(_)
+    NS.bus:SendMessage(NS.MSG.REPAINT)
 end
 
 function addon:OnEnterWorld()
     NS.Debug("World", "entering world")
+    NS.bus:SendMessage(NS.MSG.VISIBILITY)
+    NS.bus:SendMessage(NS.MSG.REPAINT)
+end
+
+-- Target / focus swaps change both which bars should be visible (UnitExists gate) and what they
+-- should read, so re-evaluate visibility and repaint together — the same pair every other
+-- transition handler in this file sends.
+function addon:OnUnitSwap()
     NS.bus:SendMessage(NS.MSG.VISIBILITY)
     NS.bus:SendMessage(NS.MSG.REPAINT)
 end
@@ -145,10 +219,36 @@ end
 -- AceDB profile-change callback (registered in core/Database.lua). Repaint the bar from the new
 -- profile and refresh an open settings panel.
 function NS.OnProfileChanged()
+    -- Belt and braces for the per-profile v3 lift. NS:InitDB sweeps every profile in the saved
+    -- store, but a profile that only APPEARS afterwards — copied in from another character,
+    -- restored from a backup SavedVariables file, or reset back to the shipped defaults — never
+    -- passed through that sweep. Its own `schemaVersion` stamp still reads pre-v3, so lift it the
+    -- moment it becomes active. Composes with the InitDB sweep without double-applying: the stamp,
+    -- not the account-wide one, is the authority for "has THIS profile been lifted", and
+    -- MigrateProfileToV3 returns immediately once it is set (core/Database.lua).
+    if NS.MigrateProfileToV3 and NS.db then
+        NS.MigrateProfileToV3(NS.db.profile)
+    end
     NS.Debug("Profile", "changed \226\134\146 %s",
         (NS.db and NS.db.GetCurrentProfile and NS.db:GetCurrentProfile()) or "?")
+    -- The new profile carries its own enable flags, so the event registrations have to follow it.
+    NS.bus:SendMessage(NS.MSG.UNITS)
     NS.bus:SendMessage(NS.MSG.POSITION)
     NS.bus:SendMessage(NS.MSG.APPEARANCE)
     NS.bus:SendMessage(NS.MSG.REPAINT)
     if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
+end
+
+-- Bus subscription (architecture-§4). This module owns the SOLE subscription to UNITS, on its own
+-- target so no two receivers share a table (anti-pattern #32). Publishers are the General page's
+-- enable toggles, `/at toggle`, and the reset helpers — anything that can change which units are
+-- enabled. Looks the method up at dispatch time so a test can stub it.
+NS.Events = NS.Events or {}
+if NS.NewBusTarget then
+    NS.Events.__ev = NS.NewBusTarget()
+    NS.Events.__ev:RegisterMessage(NS.MSG.UNITS, function()
+        if NS.addon and NS.addon.SyncUnitEventFrames then
+            NS.addon:SyncUnitEventFrames()
+        end
+    end)
 end

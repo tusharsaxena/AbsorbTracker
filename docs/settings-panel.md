@@ -9,9 +9,9 @@ The settings UI is split across five toolkit files (all under `settings/`), plus
 | File | Role |
 |------|------|
 | `settings/Panel.lua` | Registration shell. Publishes empty `NS.Helpers = {}` and `NS.PARENT_TITLE`; owns `pendingPages`, `NS.RegisterOptionsPage`, `NS.CreateOptionsPanel`, `NS.OpenOptionsPanel`, `NS.RefreshOptionsPanel`. Stashes `NS.AceGUI` once (see below). |
-| `settings/Helpers.lua` | Toolkit core. `CreatePanel` / `Section` / `InlineButtonPair` / `EnsureScroll` / `AttachTooltip` / `AddSpacer` / `LSMValues` / `RestoreDefaults` / `RestoreAllDefaults` / `RefreshAllPanels`, plus the layout constants (`PADDING_X` / `HEADER_HEIGHT` / `ROW_VSPACER` / `SECTION_HEADING_H`) and the panel registry. |
+| `settings/Helpers.lua` | Toolkit core. `CreatePanel` / `Section` / `InlineButtonPair` / `EnsureScroll` / `AttachTooltip` / `AddSpacer` / `LSMValues` / `RestoreDefaults` / `RestoreAllDefaults` / `RefreshAllPanels`, plus the layout constants (`PADDING_X` / `HEADER_HEIGHT` / `ROW_VSPACER` / `SECTION_HEADING_H`) and the panel registry. `RenderUnitPanel(ctx, pageKey)` and `ClearScroll(ctx)` (full rebuild on unit switch / mirror toggle / copy) live here too — the Unit dropdown + mirror header for Bar/Border/Font. |
 | `settings/ScrollPatch.lua` | `Helpers.PatchAlwaysShowScrollbar` — the always-visible scrollbar override. |
-| `settings/Widgets.lua` | `Helpers.RenderField` (dispatches by `row.type`) + `Helpers.RenderSchema` (two-column layout) + the four widget makers (CheckBox / Slider / Dropdown / ColorPicker). |
+| `settings/Widgets.lua` | `Helpers.RenderField` (dispatches by `row.type`) + `Helpers.RenderRows` (two-column layout over an explicit row list, skipping `skipRender` rows) + the thin `Helpers.RenderSchema(ctx, pageKey, ...)` wrapper (`RenderRows(ctx, NS.SchemaForPage(pageKey, ctx.unit), ...)`) + the four widget makers (CheckBox / Slider / Dropdown / ColorPicker). |
 | `settings/About.lua` | `Helpers.BuildMainContent` — top-level "Ka0s Absorb Tracker" page (logo + Notes + slash command list). |
 
 Each `settings/*.lua` slice begins with `local addonName, NS = ...` then `local Helpers = NS.Helpers`, and decorates that shared table. The TOC loads them in order immediately after `settings/Panel.lua`, before any `settings/<page>.lua` (`General` / `Bar` / `Border` / `Font` / `Profiles`) consumes the toolkit.
@@ -36,6 +36,8 @@ Each `settings/*.lua` slice begins with `local addonName, NS = ...` then `local 
 
 The parent and every sub-page register as **canvas-layout categories**: a custom Blizzard `Frame` is registered with `Settings.RegisterCanvasLayoutCategory` (parent) / `Settings.RegisterCanvasLayoutSubcategory` (each sub-page) and Blizzard renders it in its own settings panel slot. The schema-driven sub-pages (General / Bar / Border / Font) lay out their schema rows as **AceGUI widgets** (`CheckBox` / `Slider` / `Dropdown` / `ColorPicker`) inside an AceGUI `ScrollFrame` parented to the page's `body` frame.
 
+**Bar / Border / Font are per-unit; General and About are not.** Bar/Border/Font render through `Helpers.RenderUnitPanel(ctx, pageKey)`, which draws a **Unit** dropdown (Player/Target/Focus) above the schema rows and filters them to the selected unit. General shows no Unit dropdown either — its three globals are unit-agnostic, and its three `units.<unit>.enabled` toggles are all rendered at once rather than filtered — and About has no settings at all.
+
 Profiles is the only page that still uses AceConfig — it routes `AceConfigDialog:Open("AbsorbTracker-Profiles", container)` into an AceGUI `SimpleGroup` parented to the canvas body, so the AceDBOptions UI lands inside our shell with the same header.
 
 ## Unified header
@@ -47,7 +49,7 @@ Every page (about + sub-pages) builds the same header via `Helpers.CreatePanel(n
 - Optional **Defaults** button (width `DEFAULTS_W = 110`) at TOPRIGHT — General / Bar / Border / Font opt in via `opts.defaultsButton = true`. About page and Profiles deliberately omit it (about page has no settings; Profiles has its own destructive controls inside the AceDBOptions UI).
 - Layout constants: `PADDING_X = 16`, `HEADER_TOP = 20`, `HEADER_HEIGHT = 54`. The body frame anchors `(0, -(HEADER_HEIGHT + 8))` below TOPLEFT.
 
-`CreatePanel` returns a `ctx` table threaded through the rest of the helpers: `{ panel, body, scroll = nil, refreshers = {}, lastGroup = nil, pageKey }`. Every ctx is appended to the `renderedPanels` registry so `RefreshAllPanels` can re-run its refreshers.
+`CreatePanel` returns a `ctx` table threaded through the rest of the helpers: `{ panel, body, scroll = nil, refreshers = {}, lastGroup = nil, pageKey }` (per-unit pages additionally carry `ctx.unit` and the transient `ctx.__rendering` re-entry guard). Every ctx is appended to the `renderedPanels` registry so `RefreshAllPanels` can re-run its refreshers.
 
 ## File-load registration vs. enable-time registration
 
@@ -75,14 +77,14 @@ NS.RegisterOptionsPage("bar", "Bar", function(mainCategory)
     -- OnShow (Helpers.EnsureDefaultsButton), which attaches this.
     ctx.panel.defaultsOnClick = function()
         H.RestoreDefaults("bar", ctx)
-        end)
     end
 
-    local rendered = false
+    -- No `rendered` one-shot guard: RenderUnitPanel does a full rebuild (ClearScroll +
+    -- re-render) every call — on first OnShow, AND every subsequent unit switch / mirror
+    -- toggle / copy — so re-running it on a later OnShow is intentional, not a bug.
     ctx.panel:SetScript("OnShow", function()
-        if rendered then return end
-        rendered = true
-        H.RenderSchema(ctx, "bar")
+        H.EnsureDefaultsButton(ctx.panel)
+        H.RenderUnitPanel(ctx, "bar")
     end)
 
     return Settings.RegisterCanvasLayoutSubcategory(mainCategory, ctx.panel, "Bar")
@@ -93,17 +95,51 @@ end)
 - `name` — display name shown in the Blizzard Settings tree AND used as the `<Page>` half of the breadcrumb header.
 - `builder(mainCategory)` — must return the sub-category from `Settings.RegisterCanvasLayoutSubcategory`, or `nil` to skip registration.
 
-## `Helpers.RenderSchema(ctx, pageKey, afterGroup?)`
+## `Helpers.RenderUnitPanel(ctx, pageKey)` — Bar / Border / Font
 
-The two-column layout engine. Walks `NS.SchemaForPage(pageKey)` and emits each row as an AceGUI widget through `Helpers.RenderField`, packing pairs of rows into 50%-width Flow rows (each pair wrapped in a full-width `SimpleGroup` so AceGUI gives both children exactly half the width). Section breaks (whenever `row.group` changes) emit a full-width `Heading` widget (`GameFontNormalLarge`) flanked by side dividers, with `SECTION_TOP_SPACER = 10` / `SECTION_BOTTOM_SPACER = 6` around it. Every two-column row is followed by a `ROW_VSPACER = 8` spacer for breathing room. A final `scroll:DoLayout()` runs after the last row.
+The per-unit page renderer. On every call (first `OnShow`, a unit-dropdown switch, a mirror-checkbox toggle, or a Copy click) it does a **full rebuild**: `Helpers.ClearScroll(ctx)` releases every AceGUI child and resets the section-heading tracker + `ctx.refreshers`, then:
+
+1. Draws a **Unit** dropdown (`AceGUI:Create("Dropdown")`, labeled "Unit", listing `NS.Units.LABEL` in `NS.Units.LIST` order). Changing it sets `ctx.unit` and re-runs `RenderUnitPanel` — the dropdown's own selection therefore also survives a rebuild.
+2. For target/focus (never for player, which is the mirror source and has no header), draws a mirror header row: a **"Use same styling as Player"** checkbox (writes `units.<unit>.mirror` via `NS.SetByPath`, re-renders on change) side-by-side with a **"Copy styling from Player"** button (`NS.Units.CopyFromPlayer(unit)` — a one-shot deep-copy of the fifteen appearance keys that also clears `mirror`, followed by publishing `NS.MSG.APPEARANCE` and a re-render). While mirrored, a hint label reads *"Linked to Player – uncheck to customize."* (en dash).
+3. Splits the page's rows for the selected unit via `NS.PartitionUnitRows(NS.SchemaForPage(pageKey, ctx.unit))` into `perUnitRows` (`alwaysPerUnit = true` — e.g. "Enable this bar") and `styledRows` (everything else). `perUnitRows` always render; `styledRows` render only when the unit is **not** mirrored — mirroring hides every appearance widget because editing them would silently edit the player's bar, not the mirrored unit's.
+
+Both row groups render through `Helpers.RenderRows` (below) — the same two-column layout engine General's unit-agnostic `Helpers.RenderSchema` uses.
+
+4. Registers one final **header refresher** on `ctx.refreshers`. **This is not decoration.** The mirror checkbox and the Copy button in step 2 are built inline, not through `Helpers.RenderField`, so neither registers a refresher of its own — without this one, `Helpers.RefreshAllPanels` structurally could not update them and nothing re-ran the step-3 partition. `Helpers.RestoreDefaults("bar", ctx)` resets `units.focus.mirror` to its default `true` and then runs only the refreshers, so the header checkbox would still read unchecked and the appearance rows would stay on screen over a now-mirrored unit (same after `/at set units.focus.mirror true`, and after a profile switch). It self-corrected on the next `OnShow`, which is what made it present as "the panel lied to me once".
+
+   The refresher is **two-tier**, and the split is the whole point. `settings/Widgets.lua`'s `set` calls `RefreshAllPanels` after *every* schema write, so this closure runs on every checkbox click, slider drag and LSM pick on the page:
+
+   - **Always** — re-sync the header checkbox in place via `cb:SetValue(NS.Units.IsMirrored(unit))`. Cheap; tears nothing down.
+   - **Only when the mirror state changed** since this render (`mirrored` is captured in a local at render time) — call `RenderUnitPanel` again, because a mirror flip is the only thing that can invalidate the step-3 partition.
+
+   An unconditional re-render would rebuild the entire page on every ordinary appearance write, and the *mechanism* is the risk rather than the waste: `ClearScroll` releases the very widget whose `OnValueChanged` / `OnMouseUp` is still on the stack — an `LSM30_*` dropdown with an open pullout, a slider mid-drag — and takes scroll position and tooltips with it. `makeColorPicker` already declines to call `RefreshAllPanels` for exactly this class of reason.
+
+   Registered **last**, so the row refreshers ahead of it have already run; `RefreshAllPanels` iterates the pre-render table, so a closure registered by a re-render is never re-invoked in the same pass. `RenderUnitPanel` additionally sets `ctx.__rendering` for the duration of a render and returns immediately if it is already set, so a refresh fired from *inside* a render cannot recurse.
+
+## `Helpers.RenderRows(ctx, rows, afterGroup?, pairWith?)` / `Helpers.RenderSchema(ctx, pageKey, afterGroup?, pairWith?)`
+
+The two-column layout engine. `RenderRows` takes an **explicit row list** (what `RenderUnitPanel` passes it, pre-filtered and partitioned) and emits each row — except any carrying `skipRender` (e.g. the mirror flag itself, drawn bespoke by the header above) — as an AceGUI widget through `Helpers.RenderField`, packing pairs of rows into 50%-width Flow rows (each pair wrapped in a full-width `SimpleGroup` so AceGUI gives both children exactly half the width). `RenderSchema` is a thin wrapper: `RenderRows(ctx, NS.SchemaForPage(pageKey, ctx.unit), afterGroup, pairWith)` — used by General, which has no per-unit rows and never sets `ctx.unit`, so the `unit` filter is a no-op there. Section breaks (whenever `row.group` changes) emit a full-width `Heading` widget (`GameFontNormalLarge`) flanked by side dividers, with `SECTION_TOP_SPACER = 10` / `SECTION_BOTTOM_SPACER = 6` around it. Every two-column row is followed by a `ROW_VSPACER = 8` spacer for breathing room. A final `scroll:DoLayout()` runs after the last row.
 
 A row marked `solo = true` flushes any in-progress two-column row first, then renders alone (left half of its own row, right half empty). Used for visually-grouping pivots like a texture row that sits above its color-picker pair.
 
 The optional `afterGroup` map is `{ [groupName] = function(ctx) ... end }`. Each callback fires once, immediately after the group's last schema row is rendered (and before the next group's heading), then is nilled out (one-shot). General uses this to inject `Helpers.InlineButtonPair` ("Reset Position" + "Reset All Settings") under the **Master controls** group.
 
-The optional `pairWith` map (fourth argument) is `{ [path] = function(ctx, rowGroup) ... end }`. It attaches a **non-schema** widget as the right partner of a named schema path's row, fired one-shot and only when that path is the lone widget on its current row (so the pair stays 50/50 and never overflows to three-wide). General uses this to inject the **Debug console** checkbox — `Helpers.SessionCheckbox` wired to `NS.DebugLog:ConsoleCheckbox()` — beside `locked`.
+The optional `pairWith` map (fourth argument) is `{ [path] = function(ctx, rowGroup) ... end }`. It attaches a **non-schema** widget as the right partner of a named schema path's row, fired one-shot and only when that path is the lone widget on its current row (so the pair stays 50/50 and never overflows to three-wide). General uses it to inject the **Debug console** checkbox — `Helpers.SessionCheckbox` wired to `NS.DebugLog:ConsoleCheckbox()` — beside `units.focus.enabled`.
 
-On the General page, the **Master controls** group renders three schema rows in order — `hidden` ("Show Bar", order 10), `showOnlyInCombat` ("Show only in combat", order 15), `locked` ("Lock Position", order 20) — plus the `pairWith`-injected Debug console checkbox and the `afterGroup`-injected button pair. The 50/50 pairing packs them as `[Show Bar] [Show only in combat]` on the first line; `locked` pairs with the injected `[Debug console]` checkbox on the next line; then `[Reset Position] [Reset All Settings]`.
+On the General page, the **Master controls** group renders **five** schema rows, interleaved so each per-unit enable toggle leads a row with a flat global on its right: `units.player.enabled` ("Enable Player Bar", 10), `locked` ("Lock Position", 15), `units.target.enabled` ("Enable Target Bar", 20), `showOnlyInCombat` ("Show only in combat", 25), `units.focus.enabled` ("Enable Focus Bar", 30). The 50/50 pairing therefore packs them as:
+
+```
+[Enable Player Bar]   [Lock Position]
+[Enable Target Bar]   [Show only in combat]
+[Enable Focus Bar]    [Debug console]            <- pairWith partner
+[Reset Position]      [Reset All Settings]       <- afterGroup, Helpers.InlineButtonPair
+```
+
+**The odd row count is load-bearing.** Five schema rows pair off as 2 + 2 + 1, leaving Enable Focus Bar alone on the third row — which is the only condition under which `pairWith` will attach the Debug console beside it. Add or remove a Master controls row and the console silently drops to a row of its own.
+
+**The pairing is a pure product of row order**, since `RenderRows` fills left-then-right in the order `SchemaForPage` returns. Re-numbering any one `order` re-columns the whole group; `tests/test_widgets.lua` asserts the pairs by label, and `tests/test_schema.lua` asserts the full five-path sequence, so a stray renumber fails the suite rather than the eye.
+
+The enable toggles are the only unit-scoped rows on General. They keep their `unit` tag but the page renders with `ctx.unit` nil, so `SchemaForPage(page, nil)` returns all three rather than filtering — which is exactly what puts all three on screen at once. They also keep `alwaysPerUnit = true`, which is what stops `/at get units.focus.enabled` from carrying the "(mirrored)" note.
 
 The **Debug console** checkbox toggles the **visibility of the console window only** — the same as the bare `/at debug`. It deliberately does **not** change the debug logging flag (`NS.State.debug`); that stays on `/at debug on|off` and the window's own header toggle. It is **not** a schema row: `Helpers.SessionCheckbox` reads/writes window visibility through `NS.DebugLog` (`get` = `D:IsShown()`, `set` = `D:Show()`/`D:Hide()`) rather than a persisted path, so ticking it never lands in the saved profile. Whenever the window's visibility changes by any route — this checkbox, bare `/at debug`, the header Close button, or Esc (`UISpecialFrames`) — the console frame's `OnShow`/`OnHide` hooks call `NS.Helpers.RefreshAllPanels`, so an open settings panel's checkbox stays in sync.
 

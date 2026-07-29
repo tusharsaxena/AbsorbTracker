@@ -23,10 +23,29 @@ local function FormatKV(path, valueStr)
     return ("|cFFFFFF00%s|r = |cFFFFFFFF%s|r"):format(path, valueStr)
 end
 
+-- Trailing note for a row whose unit is CURRENTLY mirroring the player.
+--
+-- Why it is needed: `/at get` and `/at set` resolve through NS.GetSetting, which walks the raw
+-- profile path and never consults NS.Units.Get — so they read and write the unit's STORED value,
+-- not the mirror-resolved one. That is deliberate and self-consistent (it is exactly what `/at
+-- set` would write; resolving on read would make get/set asymmetric), but it is silent: `/at set
+-- units.focus.barWidth 400` echoes a confident confirmation while the focus bar does not move,
+-- because it is rendering the player's width. The note says so.
+--
+-- Only appearance rows are annotated. `enabled` and `mirror` carry alwaysPerUnit and are honoured
+-- per-unit even while mirrored, so a note on them would be a lie. Grey (808080) keeps it visually
+-- subordinate to the gold key / white value of the Ka0s scheme (slash-commands-§5).
+local function MirrorNote(row)
+    if row and row.unit and not row.alwaysPerUnit and NS.Units.IsMirrored(row.unit) then
+        return "  |cff808080(mirrored \226\128\148 the bar shows Player's appearance)|r"
+    end
+    return ""
+end
+
 -- Forward declarations so the commands table can reference handlers defined below.
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
-local runDebug, runUpdate, runTest, runProfile
+local runDebug, runUpdate, runTest, runProfile, runToggle
 local getVersion
 
 NS.COMMANDS = {
@@ -40,11 +59,11 @@ NS.COMMANDS = {
         function(rest) getSetting(rest) end},
     {"set",           "Set a setting \226\128\148 `/at set <path> <value>` (try /at list)",
         function(rest) setSetting(rest) end},
-    {"reset",         "Reset a panel to defaults \226\128\148 `/at reset <general|bar|border|font>`",
+    {"reset",         "Reset a panel to defaults across every unit \226\128\148 `/at reset <general|bar|border|font>`",
         function(rest) runReset(rest) end},
     {"resetall",      "Reset every setting to defaults",
         function() runResetAll() end},
-    {"resetposition", "Move the bar back to the screen center",
+    {"resetposition", "Move every bar back to its default position",
         function() runResetPosition() end},
     {"lock",          "Lock the bar in place",
         function()
@@ -56,16 +75,8 @@ NS.COMMANDS = {
             NS.SetByPath("locked", false)
             print("Bar unlocked")
         end},
-    {"toggle",        "Toggle bar visibility",
-        function()
-            -- No explicit REPAINT here: SetByPath fires the `hidden` row's onChange
-            -- (settings/General.lua), which already publishes APPEARANCE and — when the bar is
-            -- becoming visible — REPAINT. Publishing again from this verb only duplicated what
-            -- the schema seam does, and left the CLI and the panel checkbox on different paths.
-            local hidden = not NS.GetSetting("hidden")
-            NS.SetByPath("hidden", hidden)
-            print(hidden and "Hidden" or "Shown")
-        end},
+    {"toggle",        "Toggle bars on or off \226\128\148 `/at toggle [player|target|focus]`",
+        function(rest) runToggle(rest) end},
     {"debug",         "Toggle the debug console \226\128\148 `on`/`off` enable/disable logging",
         function(rest) runDebug(rest) end},
     {"update",        "Force a bar refresh",
@@ -109,30 +120,33 @@ end
 
 -- Page order for /at list grouping. Profiles is omitted (its schema is supplied by AceDBOptions).
 local PAGE_ORDER = { "general", "bar", "border", "font" }
+-- Which pages carry per-unit rows and therefore list once per unit.
+local PER_UNIT_PAGES = { general = false, bar = true, border = true, font = true }
 
 function listSettings()
     if not NS.Schema or #NS.Schema == 0 then
         return print("No settings registered yet")
     end
-    -- Colour scheme for /at list (Ka0s standard, slash-commands-§5): header green (33ff99),
-    -- [page] group headers azure (3399ff), key/value via FormatKV. No trailing colons.
+    -- Colour scheme (Ka0s standard, slash-commands-§5): header green (33ff99), group headers
+    -- azure (3399ff), key/value via FormatKV. No trailing colons.
     print("|cff33ff99Available settings|r")
 
-    local byPage = {}
-    for _, row in ipairs(NS.Schema) do
-        local key = row.page or "?"
-        byPage[key] = byPage[key] or {}
-        byPage[key][#byPage[key] + 1] = row
+    local function printRows(header, rows)
+        if #rows == 0 then return end
+        print("  |cff3399ff[" .. header .. "]|r")
+        for _, row in ipairs(rows) do
+            local v = NS.GetSetting(row.path)
+            print("    " .. FormatKV(row.path, NS.FormatSchemaValue(row, v)) .. MirrorNote(row))
+        end
     end
 
     for _, page in ipairs(PAGE_ORDER) do
-        local rows = byPage[page]
-        if rows then
-            print("  |cff3399ff[" .. page .. "]|r")
-            for _, row in ipairs(rows) do
-                local v = NS.GetSetting(row.path)
-                print("    " .. FormatKV(row.path, NS.FormatSchemaValue(row, v)))
+        if PER_UNIT_PAGES[page] then
+            for _, unit in ipairs(NS.Units.LIST) do
+                printRows(page .. " / " .. unit, NS.SchemaForPage(page, unit))
             end
+        else
+            printRows(page, NS.SchemaForPage(page))
         end
     end
 end
@@ -147,7 +161,7 @@ function getSetting(rest)
         return print("Setting not found: " .. path)
     end
     local v = NS.GetSetting(row.path)
-    print(FormatKV(row.path, NS.FormatSchemaValue(row, v)))
+    print(FormatKV(row.path, NS.FormatSchemaValue(row, v)) .. MirrorNote(row))
 end
 
 function setSetting(rest)
@@ -168,7 +182,7 @@ function setSetting(rest)
     end
 
     NS.SetByPath(row.path, v)
-    print(FormatKV(row.path, NS.FormatSchemaValue(row, NS.GetSetting(row.path))))
+    print(FormatKV(row.path, NS.FormatSchemaValue(row, NS.GetSetting(row.path))) .. MirrorNote(row))
     if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
 end
 
@@ -208,11 +222,17 @@ function runResetAll()
 end
 
 function runResetPosition()
-    if NS.db and NS.db.profile then
-        NS.db.profile.position = nil
+    -- Delegate to the single shared helper so this verb and the General page's "Reset Position"
+    -- button can never diverge — same per-unit clear, same POSITION publish.
+    -- The acknowledgement lives INSIDE the guard: printing it unconditionally would claim success
+    -- on a load where settings/Helpers.lua never ran — the same silent-lie shape as the Reset
+    -- Position button that nil'd an already-nil key and reported nothing.
+    if NS.Helpers and NS.Helpers.ResetAllPositions then
+        NS.Helpers.ResetAllPositions()
+        print("Bar positions reset")
+    else
+        print("Cannot reset positions \226\128\148 the settings helpers failed to load")
     end
-    NS.bus:SendMessage(NS.MSG.POSITION)
-    print("Bar position reset")
 end
 
 -- ---------------------------------------------------------------------
@@ -240,6 +260,43 @@ function runDebug(rest)
     end
 end
 
+-- ---------------------------------------------------------------------
+-- /at toggle [unit]
+-- ---------------------------------------------------------------------
+--
+-- Bare: flips EVERY bar at once — off if any is currently on, otherwise all on. That asymmetry is
+-- deliberate: a plain flip of each unit independently would invert the user's mix (player on,
+-- target off becomes player off, target on), which is not what "toggle the bars" means to anyone.
+--
+-- With a unit token: flips that one unit only, leaving the others alone.
+--
+-- Both write through NS.SetByPath, so the enable row's onChange fires exactly as it does from the
+-- panel checkbox — publishing UNITS (re-syncing event registrations), APPEARANCE and REPAINT.
+-- The CLI and the checkbox therefore can never drift onto different code paths.
+function runToggle(rest)
+    local token = (rest or ""):match("^(%S*)"):lower()
+
+    if token ~= "" then
+        if not NS.Units.LABEL[token] then
+            local names = table.concat(NS.Units.LIST, ", ")
+            return print(("unknown unit '%s' \226\128\148 expected one of: %s"):format(token, names))
+        end
+        local on = not NS.Units.IsEnabled(token)
+        NS.SetByPath("units." .. token .. ".enabled", on)
+        return print(("%s bar %s"):format(NS.Units.LABEL[token], on and "shown" or "hidden"))
+    end
+
+    local anyEnabled = false
+    for _, unit in ipairs(NS.Units.LIST) do
+        if NS.Units.IsEnabled(unit) then anyEnabled = true break end
+    end
+    local on = not anyEnabled
+    for _, unit in ipairs(NS.Units.LIST) do
+        NS.SetByPath("units." .. unit .. ".enabled", on)
+    end
+    print(on and "All bars shown" or "All bars hidden")
+end
+
 function runUpdate()
     NS.bus:SendMessage(NS.MSG.REPAINT)
     print("Forced refresh")
@@ -251,16 +308,25 @@ function runTest(rest)
     local n    = tonumber(args[1]) or 50000
     local hold = tonumber(args[2]) or 5
 
-    if NS.GetSetting("hidden") then
-        print("Bar is hidden; run /at toggle to show it before testing")
+    -- Nothing to paint if every bar is off. Checks `enabled` per unit rather than a master
+    -- toggle — there is no `hidden` global any more (schema v4).
+    local anyEnabled = false
+    for _, unit in ipairs(NS.Units.LIST) do
+        if NS.Units.IsEnabled(unit) then anyEnabled = true break end
+    end
+    if not anyEnabled then
+        print("Every bar is disabled; run /at toggle to turn them on before testing")
         return
     end
 
     print(("Testing display with value: %s for %d s"):format(AbbreviateNumbers(n), hold))
-    if NS.valueText and NS.statusBar then
-        NS.valueText:SetText(AbbreviateNumbers(n))
-        NS.statusBar:SetMinMaxValues(0, math.max(n, 100000))
-        NS.statusBar:SetValue(n)
+    for _, unit in ipairs(NS.Units.LIST) do
+        local bar = NS.bars[unit]
+        if bar and NS.ShouldShowBar(unit) then
+            bar.valueText:SetText(AbbreviateNumbers(n))
+            bar.statusBar:SetMinMaxValues(0, math.max(n, 100000))
+            bar.statusBar:SetValue(n)
+        end
     end
     NS.testHoldUntil = GetTime() + hold
 end

@@ -23,6 +23,12 @@ local addonName, NS = ...
 --       consumer: modules/Display.lua — NS.ApplyVisibility (the show/hide gate).
 --   Ka0s_AbsorbTracker_PositionChanged    sender: slash / lifecycle / reset layer.
 --       consumer: modules/Display.lua — NS.RestoreBarPosition (restore from profile).
+--   Ka0s_AbsorbTracker_UnitsChanged       sender: settings / slash / reset layer, whenever a
+--       per-unit `enabled` flag changes. consumer: core/AbsorbTracker.lua —
+--       addon:SyncUnitEventFrames, which registers absorb/max-health events ONLY for units that
+--       are currently enabled, so a disabled unit costs no event dispatch. Distinct from
+--       VISIBILITY on purpose: VISIBILITY also fires on combat and target-swap transitions, which
+--       must not churn event registrations.
 
 local AceEvent = LibStub("AceEvent-3.0")
 
@@ -46,4 +52,5 @@ NS.MSG = {
     APPEARANCE = "Ka0s_AbsorbTracker_AppearanceChanged",
     VISIBILITY = "Ka0s_AbsorbTracker_VisibilityChanged",
     POSITION   = "Ka0s_AbsorbTracker_PositionChanged",
+    UNITS      = "Ka0s_AbsorbTracker_UnitsChanged",
 }

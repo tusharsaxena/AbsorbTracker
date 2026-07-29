@@ -84,9 +84,11 @@ test("APPEARANCE / VISIBILITY / POSITION route to their Display consumers", func
   NS.UpdateBarAppearance, NS.ApplyVisibility, NS.RestoreBarPosition =
     origA, origV, origP
 
-  assertEqual(appearance, 1, "APPEARANCE -> UpdateBarAppearance")
-  assertEqual(visibility, 1, "VISIBILITY -> ApplyVisibility")
-  assertEqual(position,   1, "POSITION -> RestoreBarPosition")
+  -- Task 4: Display's bus handlers fan each message out over all three tracked units
+  -- (NS.ForEachUnit), so each consumer now fires once per bar rather than once total.
+  assertEqual(appearance, 3, "APPEARANCE -> UpdateBarAppearance, once per unit")
+  assertEqual(visibility, 3, "VISIBILITY -> ApplyVisibility, once per unit")
+  assertEqual(position,   3, "POSITION -> RestoreBarPosition, once per unit")
 end)
 
 test("sending a message with no subscribers is a harmless no-op", function()

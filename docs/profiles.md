@@ -29,7 +29,12 @@ The third arg to `AceDB:New` is `defaultProfile` — `true` means use the WoW-su
 
 `RegisterCallback` is guarded (`if NS.db.RegisterCallback`) so the headless AceDB mock — which has no CallbackHandler — doesn't error during tests.
 
-Defaults come from `defaults/Profile.lua`: `NS.defaults.profile` (per-bar appearance + `position`), `NS.defaults.global.schemaVersion = 1` (account-wide DB-version stamp), and `NS.flatDefaults` as a flat alias of `NS.defaults.profile` used by the fallback read path and the Options pages.
+Defaults come from `defaults/Profile.lua`:
+
+- `NS.defaults.profile` — the three flat globals (`locked`, `throttleWindow`, `showOnlyInCombat`), a per-profile `schemaVersion` stamp, and `units.<player|target|focus>` carrying that unit's fifteen appearance keys plus `enabled`, `mirror` and `position`.
+- `NS.defaults.global.schemaVersion = 4` — the account-wide DB-version stamp.
+- `NS.defaults.profile.schemaVersion = 1` — the **per-profile** stamp. Its default is `1` ("legacy — not yet lifted"), *not* the current `3`, and that is load-bearing; see [Migrations](#migrations-and-the-flatprofile-backfill) below.
+- `NS.flatDefaults` — a flat alias of `NS.defaults.profile` used by the fallback read path; `NS.unitDefaults` — an alias of `NS.defaults.profile.units.player`, the one canonical default every unit's schema rows share.
 
 ## OnProfileChanged refresh chain
 
@@ -38,16 +43,20 @@ All three AceDB callbacks (`OnProfileChanged`, `OnProfileCopied`, `OnProfileRese
 ```
 NS.OnProfileChanged()
     │
-    ├─▶ RestoreBarPosition()       -- new profile may have a different saved position
-    ├─▶ UpdateBarAppearance()      -- size, textures, colors, border, font
-    ├─▶ UpdateAbsorbBar()          -- repaint absorb value against new profile (direct paint)
+    ├─▶ NS.MigrateProfileToV3(db.profile)   -- lift this profile if its own stamp predates v3
     │
-    └─▶ RefreshOptionsPanel()      -- push new values into an open settings panel
+    ├─▶ bus: MSG.POSITION      -- Display: RestoreBarPosition(unit) for every unit
+    ├─▶ bus: MSG.APPEARANCE    -- Display: UpdateBarAppearance(unit) for every unit
+    ├─▶ bus: MSG.REPAINT       -- Timer:   coalesced RequestRepaint -> UpdateAbsorbBar
+    │
+    └─▶ RefreshOptionsPanel()  -- push new values into an open settings panel
 ```
 
-`UpdateAbsorbBar()` is called directly (not via `NS.RequestRepaint()`) so the profile switch paints immediately rather than waiting on the throttle window. There is no ticker to restart — repaints are event-driven; see [data-flow.md](./data-flow.md).
+The three messages are payload-free; `modules/Display.lua` owns the sole subscription to each and fans it out over all three units via `NS.ForEachUnit`, and `modules/Timer.lua` owns the sole `REPAINT` subscription. Nothing here calls a Display function across the module boundary — see [data-flow.md](./data-flow.md).
 
-`RefreshOptionsPanel` re-reads each row's value from the newly active `db.profile` and pushes it into its AceGUI widget. The Profiles sub-page itself re-`Open()`s its AceConfigDialog tree on next show, so it reflects the current profile after a switch. See [settings-panel.md](./settings-panel.md).
+The **migration call leads the chain on purpose.** A profile that only appears *after* the upgrade — copied in from another character, restored from a backup SavedVariables file, or reset back to the shipped defaults — never passed through `InitDB`'s sweep, so its own `schemaVersion` still reads pre-v3. Lifting it here, before anything reads its appearance, is what stops it rendering with factory defaults. It cannot double-apply: `MigrateProfileToV3` returns immediately once the profile carries the stamp.
+
+`RefreshOptionsPanel` re-runs each rendered panel's refreshers, which re-read every row's value from the newly active `db.profile` and push it into its AceGUI widget. On the per-unit pages (Bar / Border / Font) the last refresher re-renders the page outright, so the mirror header checkbox and the mirrored/unmirrored row partition follow the new profile too. The Profiles sub-page re-`Open()`s its AceConfigDialog tree on next show. See [settings-panel.md](./settings-panel.md).
 
 ## `/at profile` subcommands
 
@@ -76,52 +85,55 @@ AbsorbTrackerDB = AbsorbTrackerDB or {}
 NS.db = { profile = AbsorbTrackerDB, global = {} }
 ```
 
-`NS:RunMigrations` then does the flat→profile backfill (see below), so `db.profile` ends up carrying every default key. In this mode:
+`NS:RunMigrations` then runs the v3 lift and the flat→profile backfill (see below), so `db.profile` ends up carrying every default key, including a fully-populated `units` table. There is no `db.sv` on this path, so the multi-profile sweep simply finds nothing to walk — the single profile *is* the whole store. In this mode:
 
 - `GetSetting` / `SetSetting` (`core/Data.lua`) work normally — they read / write `db.profile`, falling back to `NS.flatDefaults` for any still-missing key.
 - **Profile management is disabled.** `/at profile` short-circuits on the missing `db.SetProfile` and prints `Profile system requires AceDB-3.0`. `settings/Profiles.lua`'s builder returns `nil` (its `LibStub("AceDBOptions-3.0", true)` / AceConfigDialog / AceGUI guards fail) so the Profiles sub-page is skipped at registration.
 - `OnProfileChanged` is never fired — no callbacks are registered (the `RegisterCallback` block is inside the AceDB branch).
-- The single profile lives directly in `AbsorbTrackerDB`; the AceDB-shaped `profiles` / `profileKeys` / `char` keys don't exist. `db.global` is an ephemeral empty table, so `schemaVersion` isn't persisted across sessions.
+- The single profile lives directly in `AbsorbTrackerDB`; the AceDB-shaped `sv` / `profiles` / `profileKeys` / `char` keys don't exist. `db.global` is an ephemeral empty table, so the **account-wide** `schemaVersion` isn't persisted across sessions — the **per-profile** stamp, which lives in `AbsorbTrackerDB` itself, is.
 
 The shim isn't exercised in-game (AceDB ships in-tree), but the migration/backfill path it feeds is covered by the headless harness (`tests/test_database.lua`).
 
 ## Migrations and the flat→profile backfill
 
-`NS:RunMigrations` (`core/Database.lua`) is the single idempotent schema-upgrade seam, invoked once at the end of `InitDB`:
+`NS:RunMigrations` (`core/Database.lua`) is the single idempotent schema-upgrade seam, invoked once at the end of `InitDB`. It does three things, in order:
 
-```lua
-function NS:RunMigrations()
-    local g = NS.db and NS.db.global
-    if not g then return end
-    g.schemaVersion = g.schemaVersion or 1
+1. **Lift every profile to v3** (`migrateAllProfiles` → `NS.MigrateProfileToV3`). Logs one `[Migrate] lifted N profile(s) to v3` line, and only when a flat key was actually moved — a factory-fresh profile is unstamped and so passes the gate and gets stamped, but has nothing to lift, so a fresh install logs nothing.
+2. **Backfill** any key still missing from the active profile — flat globals at the root, and every unit's keys under `units.<unit>` — from the defaults, deep-copying table values so a saved-variable mutation can never reach back into `NS.defaults`.
+3. **Stamp** the account-wide version: the v2 step (retiring the dead `profile.updateInterval` key, orphaned when the poll ticker became event-driven), the v3 stamp, then the v4 step (dropping the dead `hidden` master toggle from every profile in the store, replaced by the per-unit `enabled` flags) landing on `global.schemaVersion = 4`. Each step logs one `[Migrate]` debug line only when the bump actually happens.
 
-    local profile = NS.db.profile
-    if profile then
-        for key, defaultVal in pairs(NS.flatDefaults) do
-            if profile[key] == nil then
-                -- table defaults deep-copied so a saved-var mutation can't corrupt flatDefaults
-                ...
-                profile[key] = <copy or value>
-            end
-        end
-    end
-    -- v2: the poll ticker became event-driven; drop the dead poll-interval key.
-    if g.schemaVersion < 2 then
-        if profile then profile.updateInterval = nil end
-        g.schemaVersion = 2
-    end
-end
-```
+It is a safe no-op when the DB is absent (no `db.global` to touch).
 
-The v1 step stamps `db.global.schemaVersion = 1` and backfills any missing `profile` key from `NS.flatDefaults`. This absorbs both the legacy pre-AceDB flat-SavedVariables shape (the old inline migration) and the no-AceDB fallback: keys already present are left untouched, so running it twice is a no-op. Table defaults (e.g. `barColor`) are shallow-copied into a fresh table so an in-place mutation of a saved variable can't reach back and corrupt `flatDefaults`. It is a safe no-op when the DB is absent (no `db.global` to touch).
+### The v3 lift, and why the gate is per-profile
 
-The **v2 step (shipped)** stamps `schemaVersion = 2` and retires the dead `profile.updateInterval` key — the repaint path moved from a poll ticker to the event-driven coalescing scheduler (`throttleWindow`, seeded by the backfill above), so the old interval key is an orphan. It logs one `[Migrate] v<n> → v2` debug line only when the bump actually happens. Each future schema change hooks the same function with another `if g.schemaVersion < N then ...; g.schemaVersion = N end` block.
+v3 moved bar appearance from flat `db.profile.<key>` to `db.profile.units.<unit>.<key>`. `NS.MigrateProfileToV3(profile)` seeds any missing unit table from the defaults, moves the pre-v3 flat appearance keys (and the saved `position`) onto the **player** unit, clears the flat originals, and stamps `profile.schemaVersion = 3`. A user upgrading sees an identical bar in an identical spot.
 
-## Bar position is per-profile
+Three things about that function are deliberate and load-bearing:
 
-The saved bar position lives at `db.profile.position = { point, relPoint, x, y }`. Switching profiles re-applies the new profile's `position` (or centers the bar via `RestoreBarPosition` if the new profile has none). The `/at resetposition` slash command (`runResetPosition`) and `/at resetall` (`runResetAll`) both clear the active profile's `position` and re-center; the Reset Position execute button on the General page does the same.
+- **It is gated on a version stamp, never on `profile.units == nil`.** Under real AceDB-3.0 the mere act of reading `db.profile` triggers the library's own `copyDefaults`, which fills every missing key — including the whole new `units` table — from `NS.defaults` before any migration code runs. `profile.units` is therefore *never* nil on an upgrading install, and a `units == nil` guard would make the lift permanently dead code: the user's saved `barWidth` / `barColor` / `position` would be silently orphaned.
+- **The gate is the *per-profile* stamp, `profile.schemaVersion`.** The lift is a per-profile mutation, so the account-wide stamp cannot gate it: a user with "Default" and "Raid" both pre-v3 who upgrades while on Default would migrate Default, flip the account-wide stamp to 3, and strand Raid's flat keys forever. This is a recorded, deliberate deviation from Ka0s standard §5.1 (which puts the stamp account-wide) — see the **Standards Deviations** section of [ARCHITECTURE.md](./ARCHITECTURE.md). The account-wide stamp still exists and still drives the v2 step.
+- **The per-profile default is `1`, not `3`.** `copyDefaults` fills every absent key before `RunMigrations` reads the profile, so a default of `3` would stamp every pre-v3 profile as already-migrated on first touch — the exact failure mode the `units == nil` guard had. A default of `1` makes an unstamped profile read as what it is: pre-v3.
 
-This is the entire reason `RestoreBarPosition` leads the `OnProfileChanged` refresh chain — without it, switching profiles would update colors / sizes / textures but leave the bar at the old position.
+### Where the lift is applied
+
+Two mechanisms, composing on the one stamp so they cannot double-apply:
+
+| When | What it covers |
+|------|----------------|
+| `NS:InitDB` → `RunMigrations` → `migrateAllProfiles` | The active profile, **plus every profile in the raw saved store** (`db.sv.profiles`, AceDB's name → profile-table map), before the account-wide stamp flips to 3. The `db.sv` lookup is guarded, so the no-AceDB fallback — which has no such store — simply migrates its single profile. |
+| `NS.OnProfileChanged` | Any profile that only *appears* after that sweep: copied in from another character, restored from a backup SavedVariables file, or reset back to defaults. Lifted the moment it becomes active. |
+
+`MigrateProfileToV3` returns `false` immediately for a profile that already carries the stamp, so running both is a no-op on the second pass; it also returns `false` when it stamped a profile that had nothing to move, which is what keeps the `[Migrate]` count honest. `tests/test_database.lua` covers all three cases — two pre-v3 profiles both lifted at `InitDB`, a profile appearing after the upgrade lifted on profile change, and proof the two do not double-apply.
+
+## Bar position is per-profile *and* per-unit
+
+Each bar's saved position lives at `db.profile.units.<unit>.position = { point, relPoint, x, y }`, read and written only through `NS.Units.Position` / `NS.Units.SetPosition` (`core/Units.lua`). It is **not** a schema row — it is written by dragging — and it is **never mirrored**: a mirrored position would stack all three bars on one spot, so `position` (like `enabled`) stays per-unit even while a unit mirrors the player's appearance.
+
+There is no flat `db.profile.position` any more; the v3 lift moves the pre-v3 key to `units.player.position` and deletes it.
+
+Switching profiles re-applies each unit's new `position` — or centres that bar at its stacked default when the new profile has none — via the `MSG.POSITION` fan-out to `RestoreBarPosition(unit)`. That is the entire reason `POSITION` leads the `OnProfileChanged` refresh chain: without it, switching profiles would update colors / sizes / textures but leave every bar at the old position.
+
+Clearing positions goes through **one** implementation, `Helpers.ResetAllPositions` (`settings/Helpers.lua`): it calls `NS.Units.SetPosition(unit, nil)` for every unit in `NS.Units.LIST` and republishes `MSG.POSITION`. All three entry points delegate to it — `/at resetposition`, the **Reset Position** button on the General page, and `Helpers.RestoreAllDefaults` (which backs both `/at resetall` and the Reset All Settings popup). They diverged here once: the panel button used to nil the pre-v3 flat `db.profile.position`, a key the v3 migration deletes, so it cleared an already-nil key and every bar re-anchored from its untouched `units.<unit>.position` — a silent no-op. Do not re-inline the loop at either call site.
 
 ## See also
 
