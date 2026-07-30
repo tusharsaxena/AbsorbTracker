@@ -25,7 +25,7 @@ Set it all up in the WoW Settings panel, or with the `/at` slash command.
 
 ### Breaking change: slash paths
 
-Every `/at set` and `/at get` path is now **fully qualified** with a unit — `/at set units.player.barWidth 250`, not the old `/at set barWidth 250`. If you have a macro or keybind using the old unqualified form, update it to the `units.player.<setting>` form (or `units.target.<setting>` / `units.focus.<setting>` for those bars). `/at list`, `/at reset`, and the settings panel are unaffected.
+Every `/at set` and `/at get` path is now **fully qualified** with a unit — `/at set units.player.barWidth 250`, not the old `/at set barWidth 250`. If you have a macro or keybind using the old unqualified form, update it to the `units.player.setting` form (or `units.target.setting` / `units.focus.setting` for those bars). `/at list`, `/at reset`, and the settings panel are unaffected.
 
 ## Screenshots
 
@@ -53,8 +53,8 @@ chat with a cyan `[AT]` tag.
 | `/at` or `/at help` | Show the list of commands |
 | `/at config` | Open the settings panel |
 | `/at list` | Show every setting and its current value (Bar/Border/Font settings list once per bar — Player/Target/Focus) |
-| `/at get <name>` | Show one setting's value. Bar/Border/Font settings need the full path, e.g. `/at get units.player.barWidth` |
-| `/at set <name> <value>` | Change one setting. Examples: `/at set units.player.barWidth 250`, `/at set units.target.useClassColorBar true`, `/at set showOnlyInCombat true` |
+| `/at get name` | Show one setting's value. Bar/Border/Font settings need the full path, e.g. `/at get units.player.barWidth` |
+| `/at set name value` | Change one setting. Examples: `/at set units.player.barWidth 250`, `/at set units.target.useClassColorBar true`, `/at set showOnlyInCombat true` |
 | `/at reset <general\|bar\|border\|font>` | Reset one settings page to its defaults — for Bar/Border/Font, this resets **all three bars** (Player/Target/Focus), not just the one currently shown in the panel |
 | `/at resetall` | Reset every setting and move every bar back to center |
 | `/at resetposition` | Move every bar back to its default screen position |
@@ -64,9 +64,9 @@ chat with a cyan `[AT]` tag.
 | `/at version` | Show the addon version |
 | `/at test [value] [seconds]` | Fill the visible bars with a test value so you can preview your styling (default 50000 for 5 seconds) |
 | `/at debug` | Toggle the debug window; `/at debug on` / `off` turns logging on or off |
-| `/at profile <subcommand>` | Manage profiles: `list`, `current`, `use <name>`, `new <name>`, `copy <name>`, `delete <name>`, `reset` |
+| `/at profile subcommand` | Manage profiles: `list`, `current`, `use name`, `new name`, `copy name`, `delete name`, `reset` |
 
-Global settings (`showOnlyInCombat`, `locked`, `throttleWindow`) use their plain name — `/at set locked true`. Only the per-bar appearance settings on the Bar/Border/Font pages need the `units.<player|target|focus>.` prefix.
+Global settings (`showOnlyInCombat`, `locked`, `throttleWindow`) use their plain name — `/at set locked true`. Only the per-bar appearance settings on the Bar/Border/Font pages need the `units.player|target|focus.` prefix.
 
 ### Settings panel
 
@@ -148,7 +148,7 @@ Please file new reports there rather than in comments, so nothing gets lost.
 | Version | Date | Highlights |
 |---------|------|------------|
 | 1.9.0 | 2026-07-20 | Added a **Show only in combat** option that hides the bar out of combat<br>The bar now redraws the instant a shield changes instead of on a fixed timer, for smoother tracking<br>Added an on-screen debug window — `/at debug` opens it, `/at debug on`/`off` turns logging on or off (no more chat spam), with each line tagged by what triggered it<br>Added a **Debug console** toggle on the General page to show or hide that window |
-| 1.8.0 | 2026-05-03 | Redesigned the settings panel with breadcrumb navigation and an About page<br>Added a hold-time to `/at test` (`/at test <value> <seconds>`) and reshaped the Bar and Border pages |
+| 1.8.0 | 2026-05-03 | Redesigned the settings panel with breadcrumb navigation and an About page<br>Added a hold-time to `/at test` (`/at test value seconds`) and reshaped the Bar and Border pages |
 | 1.7.0 | 2026-04-24 | Rebranded to **Ka0s Absorb Tracker** with new artwork<br>Split the settings into separate pages<br>Chat messages now use a cyan `[AT]` tag |
 | 1.6.0 | 2026-02-14 | Added `/at` commands for the class-color options |
 | 1.5.0 | 2026-02-14 | Added class colors for the bar fill, background, and border |
