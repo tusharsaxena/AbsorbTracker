@@ -1,6 +1,6 @@
 # Test Cases
 
-_Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > docs/test-cases.md`._
+_Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list | sed 's/$/\r/' > docs/test-cases.md` — the plain `--list > ...` redirect writes LF, and this repo's `*.md text eol=crlf` (`.gitattributes`) means the committed file is CRLF._
 
 ### test_schema.lua (40)
 

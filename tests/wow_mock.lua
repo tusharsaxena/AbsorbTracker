@@ -102,8 +102,8 @@ return function()
   M.C_ClassColor = { GetClassColor = function() return { r = 1, g = 1, b = 1 } end }
   M.InCombatLockdown = function() return false end
 
-  -- Capture-context lookups (libs/LibKa0s/Perf.lua). Settable so a test can assert the recorded context is
-  -- the character's rather than a hard-coded string.
+  -- Capture-context lookups (libs/LibKa0s/Perf.lua). Settable so a test can assert the recorded
+  -- context is the character's rather than a hard-coded string.
   M.__context = {
     name = "Testchar", realm = "Testrealm", level = 80,
     spec = "Blood", zone = "Silvermoon City", subZone = "Falconwing Square",

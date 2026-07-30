@@ -80,9 +80,9 @@ end
 
 -- The three always-on, unit-agnostic registrations. Extracted from OnEnable so the perf probe's
 -- Resume() restores exactly the set Suspend() tore down, rather than a hand-maintained copy of it
--- that could drift the moment a fourth event is added here (core/PerfSetup.lua). The per-unit and swap
--- registrations are NOT part of this set — SyncUnitEventFrames owns those, because they depend on
--- which units are currently enabled.
+-- that could drift the moment a fourth event is added here (core/PerfSetup.lua). The per-unit and
+-- swap registrations are NOT part of this set — SyncUnitEventFrames owns those, because they
+-- depend on which units are currently enabled.
 function addon:RegisterLifecycleEvents()
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
     self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnEnterCombat")

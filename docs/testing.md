@@ -53,27 +53,27 @@ there is nothing here to drift. Read `docs/test-cases.md` (or its `## Totals` ta
 enumerates every registered case grouped by its originating `test_*.lua` suite:
 
 ```sh
-lua tests/run.lua --list > docs/test-cases.md
+lua tests/run.lua --list | sed 's/$/\r/' > docs/test-cases.md
 ```
 
-Verify it is in sync (regenerate first, then diff — the two must be identical):
+Verify it is in sync (the plain `--list` output is LF, so strip the file's `\r` before diffing):
 
 ```sh
-diff <(lua tests/run.lua --list) docs/test-cases.md   # no output == in sync
+diff <(lua tests/run.lua --list) <(tr -d '\r' < docs/test-cases.md)   # no output == in sync
 ```
 
-Note on line endings: this repo pins `*.md text eol=crlf` (`.gitattributes`), and the `--list`
-redirect writes LF. Always **regenerate before diffing** — the redirect rewrites the working copy
-to LF so the diff compares like-for-like; Git re-normalizes the committed blob to LF and the
-checked-out working tree to CRLF, exactly as it does for every other `.md`. This is expected and
-harmless.
+Note on line endings: this repo pins `*.md text eol=crlf` (`.gitattributes`), so the committed file
+is CRLF throughout. `lua tests/run.lua --list` on its own only writes LF; piping it through
+`sed 's/$/\r/'` before the redirect is what keeps the regenerated file byte-identical to the one
+already checked in, instead of leaving a whitespace-only diff for the next `.md`-aware tool to
+trip over.
 
 ## Keeping the inventory & badge in sync
 
 When the suite changes — a case added, removed, or renamed, or the pass count moves (i.e. **whenever
 a failing test is resolved**) — do **both** of these **in the same change**, never as a follow-up:
 
-1. Regenerate the inventory: `lua tests/run.lua --list > docs/test-cases.md`.
+1. Regenerate the inventory: `lua tests/run.lua --list | sed 's/$/\r/' > docs/test-cases.md`.
 2. Update the README `Tests` badge count (`![Tests](…/badge/Tests-X%2FY_passing-green)`) to the new
    passed / total.
 
