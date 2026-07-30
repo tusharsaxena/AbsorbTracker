@@ -140,7 +140,13 @@ NS.Perf = lib and lib:New({
     suspend = function() ... end,  -- makes the addon inert WITHOUT a /reload
     resume  = function() ... end,  -- restores events, registrations and bars
     log = ..., print = ..., showLog = ..., decorate = ...,
-}) or { on = false, suspended = false, Note = function() end }  -- degrades cleanly if absent
+}) or {
+    -- Degrades cleanly when the lib is absent. Covers everything the addon calls: the bracket
+    -- idiom, the show ladder, and — because `/at perf` is registered either way — an OnCommand
+    -- that says why there is nothing to run.
+    on = false, suspended = false, Note = function() end,
+    OnCommand = function() return { "...the LibKa0s library is missing..." } end,
+}
 ```
 
 `NS.Perf` is the returned instance — same shape as before extraction (`on`, `suspended`, `Note`,
@@ -155,9 +161,10 @@ and no later publish — a combat transition, a target swap, a settings edit —
 mid-measurement. The descriptor's `suspend` also cancels any pending repaint.
 
 The clickable step panel is drawn and refreshed entirely inside the library, off the instance's own
-state (`RefreshPanel`) — there is no addon-side `NS.PerfPanel` and no bus message for it; buttons
-dispatch through `NS.Slash:OnSlash` (via the lib's `OnCommand`) so a click and a typed command are
-one code path.
+state (`RefreshPanel`) — there is no addon-side `NS.PerfPanel` and no bus message for it. Buttons
+call the lib's own `P.OnCommand` directly, not this addon's slash layer, so a click and a typed
+command run one code path; the lib prints the returned lines through the descriptor's `print` hook,
+which is what makes a click say in chat exactly what typing says.
 
 The full descriptor contract and public surface `lib:New` returns are documented in the library
 itself, not duplicated here: see the

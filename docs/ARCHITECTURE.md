@@ -225,7 +225,8 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
   and serialises every global it declares into that one file, so a separate file would require
   shipping a companion addon in its own sibling folder — a two-addon repo, with packaging and
   CurseForge knock-ons, for isolation a distinct global already provides.
-  **Pending promotion:** the LibKa0s perf-extraction spec (`2026-07-30-libka0s-perf-extraction`)
+  **Pending promotion:** the LibKa0s perf-extraction spec (the LibKa0s repo's
+  `docs/superpowers/specs/2026-07-29-libka0s-perf-extraction-design.md`)
   proposes lifting this pattern into WowAddonStandards v2.12.0; that rollout step is not part of
   this plan.
 
@@ -234,7 +235,8 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
   (`lua tests/run.lua` + `luacheck .`) and nothing fails without it. Issue #17 assigns the
   standard's definition of a complexity rule to WowAddonStandards; this addon adopts whatever
   lands there.
-  **Pending promotion:** the LibKa0s perf-extraction spec (`2026-07-30-libka0s-perf-extraction`)
+  **Pending promotion:** the LibKa0s perf-extraction spec (the LibKa0s repo's
+  `docs/superpowers/specs/2026-07-29-libka0s-perf-extraction-design.md`)
   proposes promoting this into WowAddonStandards v2.12.0; that rollout step is not part of this
   plan.
 
@@ -243,7 +245,8 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
   is off this is an upvalue read, a field read and a boolean test — no call, no allocation. The
   claim is enforced, not asserted: `tests/perf.lua`'s `probeOverheadOff` / `probeOverheadOn`
   scenarios fail if a dormant bracket ever allocates more than an armed one.
-  **Pending promotion:** the LibKa0s perf-extraction spec (`2026-07-30-libka0s-perf-extraction`)
+  **Pending promotion:** the LibKa0s perf-extraction spec (the LibKa0s repo's
+  `docs/superpowers/specs/2026-07-29-libka0s-perf-extraction-design.md`)
   proposes promoting this frozen bracket idiom into WowAddonStandards v2.12.0; that rollout step is
   not part of this plan.
 

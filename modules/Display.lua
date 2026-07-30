@@ -2,8 +2,9 @@ local addonName, NS = ...
 
 local floor, max = NS.floor, NS.max
 
--- Perf probe (core/Perf.lua), taken as a load-time upvalue so a bracket costs an upvalue read plus
--- a field read when capture is off. Perf loads before this file (see the TOC), so it is never nil.
+-- Perf probe (the LibKa0s-Perf instance built in core/PerfSetup.lua), taken as a load-time upvalue
+-- so a bracket costs an upvalue read plus a field read when capture is off. PerfSetup loads before
+-- this file (see the TOC), so it is never nil.
 local Perf = NS.Perf
 
 -- Gap between stacked default bar positions, in pixels.

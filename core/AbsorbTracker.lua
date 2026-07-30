@@ -1,9 +1,9 @@
 local addonName, NS = ...
 
--- Perf probe (core/Perf.lua), taken as a load-time upvalue for the same reason modules/Display.lua
--- and modules/Timer.lua do: OnAbsorbChanged is the addon's highest-frequency entry point, and a
--- dormant bracket should cost an upvalue read rather than a table lookup through NS. Perf loads
--- earlier in the TOC, so this is never nil.
+-- Perf probe (the LibKa0s-Perf instance built in core/PerfSetup.lua), taken as a load-time upvalue
+-- for the same reason modules/Display.lua and modules/Timer.lua do: OnAbsorbChanged is the addon's
+-- highest-frequency entry point, and a dormant bracket should cost an upvalue read rather than a
+-- table lookup through NS. PerfSetup loads earlier in the TOC, so this is never nil.
 local Perf = NS.Perf
 
 -- AceAddon promotion (Ka0s standard §4.2). Pass NS as the first arg so the bootstrap table and
@@ -80,7 +80,7 @@ end
 
 -- The three always-on, unit-agnostic registrations. Extracted from OnEnable so the perf probe's
 -- Resume() restores exactly the set Suspend() tore down, rather than a hand-maintained copy of it
--- that could drift the moment a fourth event is added here (core/Perf.lua). The per-unit and swap
+-- that could drift the moment a fourth event is added here (core/PerfSetup.lua). The per-unit and swap
 -- registrations are NOT part of this set — SyncUnitEventFrames owns those, because they depend on
 -- which units are currently enabled.
 function addon:RegisterLifecycleEvents()
