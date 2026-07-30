@@ -286,8 +286,10 @@ end)
 -- point is a load with the library absent, which cannot be simulated after the fact. Nothing here
 -- calls InitDB or CreateOptionsPanel, so the shared suite's SavedVariables globals are untouched.
 local function loadDegraded()
-  local Loader     = dofile("tests/loader.lua")
+  local Loader     = dofile("tests/_kit/loader.lua")
   local buildMocks = dofile("tests/wow_mock.lua")
+  -- A fresh loader table per dofile, so this environment sets its own addonName.
+  Loader.addonName = "AbsorbTracker"
   local mocks2, NS2 = buildMocks(), {}
   -- libs/LibKa0s/*.lua deliberately not in this list: unloaded, nothing registers the perf major,
   -- and the mock's LibStub returns nil for it exactly as the real client would.

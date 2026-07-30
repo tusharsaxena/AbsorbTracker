@@ -19,8 +19,13 @@
 -- NS.Perf.EncodeJSON the in-game probe uses — the instance mirrors the library's encoder and schema
 -- number, so an offline record and an in-game record are guaranteed to be the same shape.
 
-local Loader     = dofile("tests/loader.lua")
+local Loader     = dofile("tests/_kit/loader.lua")
 local buildMocks = dofile("tests/wow_mock.lua")
+
+-- Each dofile of the kit loader returns a FRESH table, so this runner sets its own addonName rather
+-- than inheriting one from tests/run.lua. Addon chunks are called as ("AbsorbTracker", NS) to match
+-- the client's `local addonName, NS = ...` header — core/PerfSetup.lua reads that first argument.
+Loader.addonName = "AbsorbTracker"
 
 -- ── arguments ───────────────────────────────────────────────────────────────────────────────
 
@@ -44,18 +49,11 @@ end
 local mocks = buildMocks()
 local NS = {}
 
-Loader.loadAll({
-  "libs/LibKa0s/Perf.lua", "libs/LibKa0s/PerfPanel.lua",
-  "locales/enUS.lua",
-  "core/Compat.lua", "core/Constants.lua", "core/Namespace.lua", "core/State.lua",
-  "core/Bus.lua", "core/Util.lua", "core/PerfSetup.lua", "core/Data.lua", "core/Units.lua",
-  "core/Database.lua", "core/LSMPatch.lua", "core/DebugLog.lua", "core/AbsorbTracker.lua",
-  "defaults/Profile.lua",
-  "modules/Bar.lua", "modules/Display.lua", "modules/Timer.lua",
-  "settings/Schema.lua", "settings/Slash.lua", "settings/Panel.lua", "settings/Helpers.lua",
-  "settings/ScrollPatch.lua", "settings/Widgets.lua", "settings/About.lua", "settings/General.lua",
-  "settings/Bar.lua", "settings/Border.lua", "settings/Font.lua", "settings/Profiles.lua",
-}, NS, mocks)
+-- Derived from the TOC, not copied from it. This runner is NOT executed by `lua tests/run.lua`, so
+-- a hand-maintained list here rots silently while the allocation figures it produces are still
+-- treated as the extraction's parity gate. tests/test_loadorder.lua asserts this file still derives.
+Loader.loadAll({ "libs/LibKa0s/Perf.lua", "libs/LibKa0s/PerfPanel.lua" }, NS, mocks)
+Loader.loadAll(Loader.tocFiles("AbsorbTracker.toc"), NS, mocks)
 
 NS:InitDB()
 

@@ -1,6 +1,22 @@
 # Test Cases
 
-_Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list | sed 's/$/\r/' > docs/test-cases.md` — the plain `--list > ...` redirect writes LF, and this repo's `*.md text eol=crlf` (`.gitattributes`) means the committed file is CRLF._
+The full inventory of every headless test case in this repo, grouped by the suite file it
+lives in. The `## Totals` table below is the **authoritative pass count** — the README test
+badge and any count quoted in the docs must agree with it.
+
+**Generated — do not hand-edit.** Regenerate with `lua tests/run.lua --list > docs/test-cases.md`.
+
+### test_loadorder.lua (9)
+
+- loadorder: tocFiles returns every addon lua file, in TOC order
+- loadorder: tocFiles skips libs, directives and comments
+- loadorder: tocFiles converts backslashes to forward slashes
+- loadorder: every derived path exists on disk
+- loadorder: the runner loaded exactly the TOC's files, in the TOC's order
+- loadorder: tests/perf.lua derives its list from the TOC too
+- loadorder: LibStub raises for a missing major without the silent flag
+- loadorder: LibStub returns nil for a missing major with the silent flag
+- loadorder: LibStub keeps the higher minor when a major registers twice
 
 ### test_schema.lua (40)
 
@@ -482,8 +498,9 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list | sed
 
 ## Totals
 
-| Suite | Count |
-|-------|-------|
+| Suite | Cases |
+|-------|------:|
+| test_loadorder.lua | 9 |
 | test_schema.lua | 40 |
 | test_database.lua | 27 |
 | test_units.lua | 14 |
@@ -500,4 +517,4 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list | sed
 | test_helpers.lua | 40 |
 | test_slashcmds.lua | 103 |
 | test_widgets.lua | 48 |
-| **Total** | **430** |
+| **Total** | **439** |
