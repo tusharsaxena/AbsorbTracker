@@ -138,7 +138,7 @@ expected, and any error text.
 - Combat gate — `settings/Panel.lua` (`OpenOptionsPanel`)
 - Bar paint / secret value / test-hold — `modules/Display.lua`
 - Repaint throttle / coalescing — `modules/Timer.lua`
-- Perf probe / suspend / capture ring — `core/Perf.lua`; step panel — `core/PerfPanel.lua`; protocol in `docs/performance.md`
+- Perf probe / suspend / capture ring / step panel — `LibKa0s-Perf-1.0` (`libs/LibKa0s/`), wired up by `core/PerfSetup.lua`; protocol in `docs/performance.md`
 - DB init + idempotent migration — `core/Database.lua`
 - Debug console — `core/DebugLog.lua`
 - LSM border alignment fix — `core/LSMPatch.lua`

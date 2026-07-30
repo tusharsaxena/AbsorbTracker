@@ -124,69 +124,45 @@ NS.SafeToString(v)  -- secret-safe stringifier; renders a secret as "<secret>"
 -- State.debug is on; zero-cost when off.
 ```
 
-### Perf (`core/Perf.lua`)
+### PerfSetup (`core/PerfSetup.lua`)
 
-The performance probe (issue #17). Session-only, off by default, reached only through
-`/at perf`. Costs an upvalue read, a field read and a boolean test when capture is off.
+Wires the addon into `LibKa0s-Perf-1.0` (issue #17) — the probe, its record schema, and the
+clickable step panel are all library code now (`libs/LibKa0s/Perf.lua` /
+`libs/LibKa0s/PerfPanel.lua`), vendored the same way Ace3 is. This file supplies only the part
+that's ours: a **descriptor** passed to `lib:New(descriptor)`.
 
 ```lua
-NS.Perf.on            -- capture running? read directly by every bracket call site
-NS.Perf.suspended     -- addon inert? checked as step 0 of NS.ShouldShowBar
-NS.Perf.SCHEMA        -- record schema version (1)
-NS.Perf.RING_MAX      -- captures kept in AbsorbTrackerPerfDB (10)
-NS.Perf.BUCKET_ORDER  -- report order; the buckets NEST (repaintPass contains paintBar)
-
-NS.Perf.Note(key, ms)      -- accumulate one bracketed measurement (calls / totalMs / maxMs)
-NS.Perf.Reset()            -- zero every bucket and both FPS arms
-NS.Perf.Start(label)       -- reset, arm the OnUpdate FPS sampler, flip the brackets on
-NS.Perf.Stop()             -> record   -- stop the sampler, return the assembled record
-NS.Perf.BuildRecord(label) -> record   -- snapshot without stopping
-NS.Perf.FormatReport(rec)  -> {string} -- plain lines (no frames), so it is testable headlessly
-NS.Perf.EncodeJSON(value)  -> string   -- sorted keys, shared with tests/perf.lua
-NS.Perf.Save(record)       -- append to the AbsorbTrackerPerfDB ring, trimming oldest-first
-NS.Perf.Suspend()          -> bool     -- make the addon inert WITHOUT a /reload
-NS.Perf.Resume()           -> bool     -- restore events, registrations and bars
-
--- The bracket idiom at every call site (modules/Display.lua, modules/Timer.lua,
--- core/AbsorbTracker.lua):
-local t0 = Perf.on and debugprofilestop()
--- ... work ...
-if t0 then Perf.Note("paintBar", debugprofilestop() - t0) end
+local lib = LibStub and LibStub("LibKa0s-Perf-1.0", true)
+NS.Perf = lib and lib:New({
+    name = addonName, sv = "AbsorbTrackerPerfDB", version = NS.version, slash = "/at",
+    buckets = { {key="absorbEvent"}, {key="repaintPass"},
+                {key="paintBar", within="repaintPass"}, ... },
+    suspend = function() ... end,  -- makes the addon inert WITHOUT a /reload
+    resume  = function() ... end,  -- restores events, registrations and bars
+    log = ..., print = ..., showLog = ..., decorate = ...,
+}) or { on = false, suspended = false, Note = function() end }  -- degrades cleanly if absent
 ```
+
+`NS.Perf` is the returned instance — same shape as before extraction (`on`, `suspended`, `Note`,
+`Reset`, `Start`, `Stop`, `Suspend`, `Resume`, `BuildRecord`, `FormatReport`, `EncodeJSON`, `Save`,
+`ShowPanel`/`HidePanel`/`TogglePanel`/`RefreshPanel`, `OnCommand`, …). This file must load before any
+module takes `local Perf = NS.Perf` as an upvalue — hence its position immediately after
+`core/Util.lua` in the TOC, same slot the old `core/Perf.lua` held.
 
 Suspend enforces visibility **at the source** rather than hiding frames imperatively: because
-`NS.ShouldShowBar` checks `Perf.suspended` first, suspend only has to publish `VISIBILITY` once and
-no later publish — a combat transition, a target swap, a settings edit — can re-show a bar
-mid-measurement. `NS.RequestRepaint` bails while suspended, and `NS.CancelPendingRepaint()` drops
-any pass armed a moment before.
+`NS.ShouldShowBar` checks `NS.Perf.suspended` first, `suspend` only has to publish `VISIBILITY` once
+and no later publish — a combat transition, a target swap, a settings edit — can re-show a bar
+mid-measurement. The descriptor's `suspend` also cancels any pending repaint.
 
-Protocol and how to read the output: [performance.md](./performance.md).
+The clickable step panel is drawn and refreshed entirely inside the library, off the instance's own
+state (`RefreshPanel`) — there is no addon-side `NS.PerfPanel` and no bus message for it; buttons
+dispatch through `NS.Slash:OnSlash` (via the lib's `OnCommand`) so a click and a typed command are
+one code path.
 
-### PerfPanel (`core/PerfPanel.lua`)
-
-The clickable step panel for a perf run, shown by `/at perf start`.
-
-```lua
-NS.PerfPanel.STEPS            -- ordered {key, label, command}; the order IS the workflow
-NS.PerfPanel.StateOf(key)     -> "done" | "ready" | "busy" | "locked" | "cancel" | "used"
-NS.PerfPanel.IsActionable(key)-> the one `ready` step, plus `cancel` while a run is in flight and
-                              -- `used` review actions (which stay repeatable)
-NS.PerfPanel:Show()  / :Hide()  / :Toggle()  / :IsShown()
-NS.PerfPanel:Refresh()    -- idempotent repaint from NS.Perf.Progress()
-```
-
-A dumb renderer. The progression lives in `NS.Perf.Progress()` — pure state, no frames, testable
-headlessly — and the panel draws whatever that returns. Strictly linear: exactly one step is
-`ready` at a time, so a run cannot be done out of order. The slash verbs are deliberately **not**
-gated this way, so a run that cannot complete Experiment B can still be closed with
-`/at perf finish`.
-
-Buttons dispatch through `NS.Slash:OnSlash(step.command)` rather than calling the probe directly,
-so a click and a typed command are one code path. The click handler re-checks `StateOf` instead of
-trusting `Disable()` — a step run out of order corrupts the run the panel exists to protect.
-
-Refreshes off the `PERF` bus message (sole subscriber, own target), which `core/Perf.lua` publishes
-on every phase transition.
+The full descriptor contract and public surface `lib:New` returns are documented in the library
+itself, not duplicated here: see the
+[LibKa0s README](https://github.com/tusharsaxena/LibKa0s/blob/master/README.md). Protocol and how to
+read the output from this addon's side: [performance.md](./performance.md).
 
 ### Data (`core/Data.lua`)
 
@@ -606,9 +582,9 @@ In practice the calls always succeed because all files are loaded synchronously 
 
 `AbsorbTracker.toc` is the source of truth. Order is dependency order, not alphabetical. The load groups are **Libraries → Locales → Core → Defaults → Modules → Settings**:
 
-1. `libs/` — LibStub, CallbackHandler-1.0, then the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB / AceGUI / AceConfig / AceDBOptions), LibSharedMedia-3.0, and the vendored upstream `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets) — all inside the `#@no-lib-strip@` block. Vendored **folder-per-lib** at `libs/` root (not `libs/Ace3/…`).
+1. `libs/` — LibStub, CallbackHandler-1.0, then the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB / AceGUI / AceConfig / AceDBOptions), `LibKa0s` (`LibKa0s-Perf-1.0` — the shared perf-instrumentation harness, issue #17), LibSharedMedia-3.0, and the vendored upstream `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets) — all inside the `#@no-lib-strip@` block. Vendored **folder-per-lib** at `libs/` root (not `libs/Ace3/…`).
 2. **Locales** — `locales/enUS.lua` (`NS.L` metatable seam; loads directly after Libraries per `toc-file-§5` — no dependency on `core/*`).
-3. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Bus.lua` (the closed message bus — `NS.bus` / `NS.NewBusTarget` / `NS.MSG`), `Util.lua`, `Data.lua`, `Units.lua` (unit identity + mirror resolution — loads after `Data.lua`, before `Database.lua` since migration needs `NS.Units.LIST`/`APPEARANCE_KEYS`), `Database.lua`, `LSMPatch.lua`, `DebugLog.lua`, `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
+3. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Bus.lua` (the closed message bus — `NS.bus` / `NS.NewBusTarget` / `NS.MSG`), `Util.lua`, `PerfSetup.lua` (wires `NS.Perf` to `LibKa0s-Perf-1.0` — must load before any module takes `NS.Perf` as an upvalue), `Data.lua`, `Units.lua` (unit identity + mirror resolution — loads after `Data.lua`, before `Database.lua` since migration needs `NS.Units.LIST`/`APPEARANCE_KEYS`), `Database.lua`, `LSMPatch.lua`, `DebugLog.lua`, `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
 4. **Defaults** — `defaults/Profile.lua` (AceDB defaults; runs at file-load).
 5. **Modules** — `modules/Bar.lua` (bar frame creation at file-load), `Display.lua` (render functions + `NS.Display.__ev` bus consumer), `Timer.lua` (coalescing repaint scheduler + `NS.Timer.__ev` bus consumer).
 6. **Settings** (last — depend on everything else being initialized) — `settings/Schema.lua` (registry), `Slash.lua` (`/at` dispatcher), `Panel.lua` (registration shell; publishes empty `NS.Helpers` + `NS.PARENT_TITLE`), then the toolkit slices `Helpers.lua` → `ScrollPatch.lua` → `Widgets.lua` → `About.lua` (each decorates `NS.Helpers`; order matters only between `Helpers` (defines `EnsureScroll`) and `ScrollPatch` (defines `PatchAlwaysShowScrollbar` that `EnsureScroll` references)), then the page builders `General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` (each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load; LSM-backed rows call `NS.Helpers.LSMValues(mediaType)`).

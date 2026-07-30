@@ -12,6 +12,24 @@ Two harnesses, one record format. Issue
 The second exists because the first cannot answer the question that matters. Almost all of a WoW
 addon's real cost is on the far side of an API call.
 
+## Where the in-game probe actually lives
+
+The in-game harness — the probe, its record schema, and the clickable step panel — is
+`LibKa0s-Perf-1.0`, a Ka0s-owned shared library vendored into `libs/LibKa0s/` the same way Ace3 is
+(copied in, not depended on at runtime; the addon degrades to a no-op `NS.Perf` stub if the vendored
+copy is ever absent). This addon supplies only a **descriptor**: `core/PerfSetup.lua` calls
+`lib:New(descriptor)` with this addon's name, its `AbsorbTrackerPerfDB` SavedVariables global, the
+ordered bucket declarations (nesting via `within` — `paintBar` runs inside `repaintPass`), and what
+"suspend"/"resume" mean for *this* addon's events and frames. That call returns the `NS.Perf`
+instance every bracket and slash verb below reads.
+
+The descriptor contract and the full public surface `lib:New` returns are documented in the
+library's own repo, not duplicated here:
+[LibKa0s README](https://github.com/tusharsaxena/LibKa0s/blob/master/README.md). What follows on
+this page — the protocol, the A/B methodology, how to read a report — is unchanged by the extraction
+and is still this addon's own to explain, since it is about how *this* addon should be measured, not
+about the library's mechanics.
+
 ---
 
 ## 1. Offline
@@ -261,8 +279,10 @@ addon's, and the investigation should move elsewhere.
 
 ## 4. Where the numbers go
 
-Records land in [`docs/perf-runs/`](perf-runs/README.md) — schema, naming, and field meanings are
-documented there.
+Records land in [`docs/perf-runs/`](perf-runs/README.md) — naming and field meanings for what this
+addon captures are documented there. The record shape itself is now **schema 2**, defined by
+`LibKa0s-Perf-1.0`; the authoritative field-by-field contract is
+[LibKa0s docs/record-schema.md](https://github.com/tusharsaxena/LibKa0s/blob/master/docs/record-schema.md).
 
 In-game captures persist to the `AbsorbTrackerPerfDB` SavedVariables global (a ring of the last 10),
 written to `_retail_/WTF/Account/<ACCOUNT>/SavedVariables/AbsorbTracker.lua` on `/reload` or logout.

@@ -35,8 +35,7 @@ Modules → Settings.
 | `core/State.lua` | `NS.State` — session-only runtime state (the debug flag; never persisted). |
 | `core/Bus.lua` | The closed cross-module message bus: `NS.bus` (shared publish target), `NS.NewBusTarget()` (one per receiver), and the `NS.MSG` catalogue (`REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION`). |
 | `core/Util.lua` | `NS.Print` (prefixed chat) only. The secret-safe debug sink is `NS.Debug` (`core/DebugLog.lua`); every debug arg routes through `NS.SafeToString`. |
-| `core/Perf.lua` | `NS.Perf` — the performance probe (issue #17). `debugprofilestop()` brackets (`Note`/`Reset`), the suspend-state-bucketed FPS sampler (`Start`/`Stop`), `Suspend`/`Resume`, the shared `EncodeJSON`, and the `AbsorbTrackerPerfDB` capture ring (`Save`). Session-only; zero cost when capture is off. |
-| `core/PerfPanel.lua` | `NS.PerfPanel` — the clickable step panel for a perf run. A dumb renderer over `NS.Perf.Progress()`; buttons dispatch through `NS.Slash:OnSlash` so a click and a typed command share one code path. Sole subscriber to the `PERF` bus message. |
+| `core/PerfSetup.lua` | Wires the addon into `LibKa0s-Perf-1.0` (issue #17) — the probe itself is a vendored library, not addon code. Builds `NS.Perf` via `lib:New{...}`: the addon's name/version/SavedVariables global, the bucket declarations (order + nesting), and the `suspend`/`resume` pair that makes the addon inert without a `/reload`. Loads immediately after `core/Util.lua`, before any module takes `local Perf = NS.Perf` as an upvalue. See [Performance & Profiler Attribution](#performance--profiler-attribution) below. |
 | `core/Data.lua` | The AceDB read/write seam (`GetSetting`/`SetSetting` — dotted-path aware, so `units.target.barWidth` and flat `locked` both work), LSM fetchers with fallbacks (each takes a `unit`, resolved through `NS.Units.Get`), and the class-color-aware color resolvers (each takes a `unit`; the class color itself is always the player's). |
 | `core/Database.lua` | `NS:InitDB` (AceDB + profile callbacks) and `NS:RunMigrations` (schema-version seam). |
 | `core/Units.lua` | `NS.Units` — unit identity (`LIST`/`LABEL`), mirror resolution (`IsMirrored`/`SourceUnit`/`Get`), per-unit position read/write, and `CopyFromPlayer`. The only file that reads `db.profile.units` for appearance. |
@@ -86,7 +85,11 @@ absorbs) when it fires.
 | `Ka0s_AbsorbTracker_VisibilityChanged` (`VISIBILITY`) | event / settings layer | `modules/Display.lua` (`NS.Display.__ev`) | `NS.ApplyVisibility` (the show/hide gate) |
 | `Ka0s_AbsorbTracker_PositionChanged` (`POSITION`) | slash / lifecycle / reset layer | `modules/Display.lua` (`NS.Display.__ev`) | `NS.RestoreBarPosition` (restore from profile) |
 | `Ka0s_AbsorbTracker_UnitsChanged` (`UNITS`) | settings / slash / profile layer, whenever a per-unit `enabled` flag changes | `core/AbsorbTracker.lua` (`NS.Events.__ev`) | `addon:SyncUnitEventFrames` — registers the absorb / max-health / swap events only for enabled units. Deliberately distinct from `VISIBILITY`, which also fires on combat and target-swap transitions and must not churn registrations |
-| `Ka0s_AbsorbTracker_PerfStateChanged` (`PERF`) | `core/Perf.lua`, on every phase transition of a perf run — started, experiment armed, recording opened/closed, finished | `core/PerfPanel.lua` (`Panel.__ev`) | The step panel re-reads `NS.Perf.Progress()` and re-renders, so the clickable step always matches the run's actual phase |
+
+The perf run panel is **not** on this bus. `LibKa0s-Perf-1.0` repaints its own panel directly off the
+instance's state (`RefreshPanel`, called at the end of every phase transition inside the lib) rather
+than publishing a message this addon's bus would have to carry — the panel and the state it renders
+both live inside the vendored library. See [Performance & Profiler Attribution](#performance--profiler-attribution) below.
 
 Each Display handler fans out over `NS.ForEachUnit`, repainting/re-appearancing/re-positioning all
 three bars per message — this is what keeps the bus messages payload-free (no "which unit" to
@@ -128,7 +131,7 @@ schema paths survive) and looks it up in the ordered `NS.COMMANDS` table. Unknow
 | `/at lock` / `/at unlock` | Flip the drag lock |
 | `/at toggle [player\|target\|focus]` | Bare: flip **every** bar — all off if any is on, otherwise all on. With a unit token: flip that one bar only. Writes `units.<unit>.enabled` through `SetByPath`, so it travels the same path as the General page checkbox |
 | `/at debug` (`on`/`off`) | Toggle the debug console window; `on`/`off` enable/disable logging |
-| `/at perf <sub>` | The performance probe (`core/Perf.lua`). Bare `/at perf` opens the step panel, whose first row starts a run — the entry point. `start [label]`/`finish` bracket a run, `measure a\|b` arm a combat-gated experiment, `report` print it, `dump` emit JSON, `cancel` abandon it unsaved, `show`/`hide`/`toggle` drive the step panel. `measure b` owns the suspend; there is no manual verb for it. Its own `NS.COMMANDS` verb. See [performance.md](./performance.md) |
+| `/at perf <sub>` | The performance probe — `LibKa0s-Perf-1.0` (vendored, `libs/LibKa0s/`), wired up by `core/PerfSetup.lua`. Bare `/at perf` opens the step panel, whose first row starts a run — the entry point. `start [label]`/`finish` bracket a run, `measure a\|b` arm a combat-gated experiment, `report` print it, `dump` emit JSON, `cancel` abandon it unsaved, `show`/`hide`/`toggle` drive the step panel. `measure b` owns the suspend; there is no manual verb for it. Its own `NS.COMMANDS` verb — a thin dispatch to `NS.Perf.OnCommand`. See [performance.md](./performance.md) |
 | `/at update` | Force a bar refresh |
 | `/at version` | Print the addon version |
 | `/at test [value] [hold-secs]` | Paint a fake value for visual tweaking |
@@ -222,18 +225,27 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
   and serialises every global it declares into that one file, so a separate file would require
   shipping a companion addon in its own sibling folder — a two-addon repo, with packaging and
   CurseForge knock-ons, for isolation a distinct global already provides.
+  **Pending promotion:** the LibKa0s perf-extraction spec (`2026-07-30-libka0s-perf-extraction`)
+  proposes lifting this pattern into WowAddonStandards v2.12.0; that rollout step is not part of
+  this plan.
 
 - **`lizard` as an optional dev dependency (complexity reporting).** Python tooling in a Lua repo,
   used to generate `docs/complexity.md`. It is **not** part of the green gate
   (`lua tests/run.lua` + `luacheck .`) and nothing fails without it. Issue #17 assigns the
   standard's definition of a complexity rule to WowAddonStandards; this addon adopts whatever
   lands there.
+  **Pending promotion:** the LibKa0s perf-extraction spec (`2026-07-30-libka0s-perf-extraction`)
+  proposes promoting this into WowAddonStandards v2.12.0; that rollout step is not part of this
+  plan.
 
 - **Instrumentation hooks in hot paths.** `modules/Display.lua`, `modules/Timer.lua` and
   `core/AbsorbTracker.lua` carry `local t0 = Perf.on and debugprofilestop()` brackets. When capture
   is off this is an upvalue read, a field read and a boolean test — no call, no allocation. The
   claim is enforced, not asserted: `tests/perf.lua`'s `probeOverheadOff` / `probeOverheadOn`
   scenarios fail if a dormant bracket ever allocates more than an armed one.
+  **Pending promotion:** the LibKa0s perf-extraction spec (`2026-07-30-libka0s-perf-extraction`)
+  proposes promoting this frozen bracket idiom into WowAddonStandards v2.12.0; that rollout step is
+  not part of this plan.
 
 - **§9.1 — private `CreateFrame` event frames for the `UNIT_*` events, one per unit.**
   `addon:SyncUnitEventFrames()` (called from `OnEnable` and from the `UNITS` bus message,
@@ -328,10 +340,27 @@ shared-frame problem above, the addon ships its own harnesses:
 - `lua tests/perf.lua` — offline, headless, over the real addon code. Asserts deterministic counters
   (repaints per event burst, API calls per pass, bytes allocated per pass) and reports timings.
   **Outside the green gate** — wall-clock numbers are not stable enough to gate a commit on.
-- `/at perf` — in-game. `debugprofilestop()` brackets on the addon's own entry points, plus an
-  FPS sampler bucketed by suspend state so one session yields both arms of an A/B. `suspend` makes
-  the addon inert **without a reload**, holding load order and shared-frame ownership fixed — the
-  one thing the July 14 confound cannot reach.
+- `/at perf` — in-game, via `LibKa0s-Perf-1.0` (vendored, `libs/LibKa0s/`), wired to this addon by
+  `core/PerfSetup.lua`'s descriptor. `debugprofilestop()` brackets on the addon's own entry points,
+  plus an FPS sampler bucketed by suspend state so one session yields both arms of an A/B. `suspend`
+  makes the addon inert **without a reload**, holding load order and shared-frame ownership fixed —
+  the one thing the July 14 confound cannot reach.
+
+### The instrumentation harness lives in a shared library
+
+`LibKa0s-Perf-1.0` is a Ka0s-owned library, vendored into `libs/LibKa0s/` the same way Ace3 is —
+copied in, not depended on at runtime, so the addon still works with the library absent (`core/PerfSetup.lua`
+degrades `NS.Perf` to a no-op stub if `LibStub("LibKa0s-Perf-1.0", true)` fails). The probe, the
+record schema, and the step panel are all lib code now; this addon supplies only a **descriptor** —
+its name, its SavedVariables global, the bucket declarations, and what "suspend"/"resume" mean for
+*this* addon — to `lib:New(descriptor)` in `core/PerfSetup.lua`. The descriptor contract, the full
+public surface `lib:New` returns, and the record schema (now schema 2 — see below) are documented in
+the library's own repo, not duplicated here:
+[LibKa0s README](https://github.com/tusharsaxena/LibKa0s/blob/master/README.md) and
+[LibKa0s docs/record-schema.md](https://github.com/tusharsaxena/LibKa0s/blob/master/docs/record-schema.md).
+The frozen hot-path bracket idiom itself (`local t0 = Perf.on and debugprofilestop()` /
+`if t0 then Perf.Note(k, debugprofilestop()-t0) end`) is unchanged at every call site — that
+byte-identity is what proves the extraction didn't change what is measured.
 
 Protocol, caveats and how to read the numbers: [docs/performance.md](./performance.md). Captured
 records: [docs/perf-runs/](./perf-runs/README.md). Complexity: [docs/complexity.md](./complexity.md).

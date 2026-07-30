@@ -3,6 +3,14 @@
 _Generated — do not hand-edit._ Measured 2026-07-29 against **v1.9.0**, addon source only
 (`libs/` and `tests/` excluded).
 
+**Stale since the `LibKa0s-Perf-1.0` extraction (issue #17):** `core/Perf.lua` and
+`core/PerfPanel.lua` are gone (deleted, moved into the vendored library) and `core/PerfSetup.lua`
+(~111 lines) has taken their place, but `lizard` is not available in this environment to regenerate
+the numbers below. The `core/Perf.lua` row has been hand-removed so the table doesn't cite a deleted
+file; everything else below (including `core/PerfPanel.lua`'s absence, which predates this table)
+is un-regenerated and should be treated as informative rather than current until the next
+`lizard` run. **Regeneration is pending.**
+
 Part of issue [#17](https://github.com/tusharsaxena/AbsorbTracker/issues/17). This report is
 **advisory**: it is not part of the green gate (`lua tests/run.lua` + `luacheck .`) and no build
 fails on a number here. The Ka0s WoW Addon Standard does not yet define a complexity rule — that is
@@ -77,7 +85,6 @@ code that runs at combat frequency — is entirely in the low single digits:
 | core/Database.lua | 121 | 7 | 7.9 |
 | core/DebugLog.lua | 296 | 41 | 2.3 |
 | core/LSMPatch.lua | 26 | 2 | 6.0 |
-| core/Perf.lua | 229 | 18 | 3.9 |
 | core/Units.lua | 71 | 12 | 3.2 |
 | core/Util.lua | 22 | 4 | 2.2 |
 | modules/Bar.lua | 57 | 2 | 1.5 |

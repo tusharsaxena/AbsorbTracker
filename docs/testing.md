@@ -29,8 +29,10 @@ luacheck`).
 The suite list (see [common-tasks.md](./common-tasks.md#run-the-test-gate) for the full table) now
 includes `tests/test_units.lua` — `core/Units.lua`'s unit identity, mirror resolution
 (`IsEnabled`/`IsMirrored`/`SourceUnit`/`Get`/`Set`), per-unit position, and `CopyFromPlayer` — and
-`tests/test_perf.lua`, covering `core/Perf.lua`'s bucket accounting, JSON encoding, capture ring,
-report formatting, and the suspend/resume state machine.
+`tests/test_perf.lua`, covering this addon's side of the `LibKa0s-Perf-1.0` harness (issue #17) —
+`core/PerfSetup.lua`'s descriptor, the bracket call sites, and the suspend/resume state machine. The
+probe itself (buckets, JSON, the record schema, report formatting, the capture ring) is tested in the
+LibKa0s repo, not duplicated here.
 
 **A note for anyone adding tests that touch suspend or the repaint timer.** `NS.Perf.Resume()`
 republishes `REPAINT`, which arms a coalescing timer. Left armed, `pending` in `modules/Timer.lua`

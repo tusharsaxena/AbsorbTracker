@@ -20,12 +20,16 @@ write-up that interprets it.
 
 ## Schema
 
-One shape for both sources, so a single reader handles either. `schema` is the version stamp;
-increment it on any breaking field change.
+One shape for both sources, so a single reader handles either. `schema` is the version stamp. As of
+the `LibKa0s-Perf-1.0` extraction (issue #17) this addon emits **schema 2** — the library's own
+schema, defined and versioned in the library, not here. Full field-by-field contract:
+[LibKa0s docs/record-schema.md](https://github.com/tusharsaxena/LibKa0s/blob/master/docs/record-schema.md).
+The shape below is a summary for orientation; that document is the source of truth.
 
 ```jsonc
 {
-  "schema": 1,
+  "schema": 2,
+  "addon": "AbsorbTracker",     // NEW in schema 2 — which host produced this record
   "source": "offline" | "ingame",
   "version": "1.9.0",          // addon version
   "interface": 120007,          // TOC interface; 0 for offline runs
@@ -41,12 +45,14 @@ increment it on any breaking field change.
   },
 
   // Per-bucket totals. In-game buckets are the probe's brackets; offline buckets are the
-  // runner's scenarios. THESE NEST — repaintPass contains paintBar. Never sum the column.
+  // runner's scenarios. THESE MAY NEST — see `within`. Never sum a parent and its children.
   "buckets": {
+    "repaintPass": { "calls": 118, "totalMs": 42.6, "maxMs": 1.8 },
     "paintBar": {
       "calls": 1869,
       "totalMs": 98.1,
       "maxMs": 0.92,
+      "within": "repaintPass",  // NEW in schema 2 — nesting is now on the record, not just prose
       "apiPerIter": 12.0,       // offline only
       "bytesPerIter": 312.0     // offline only
     }
@@ -66,6 +72,12 @@ increment it on any breaking field change.
 ```
 
 Object keys are emitted in sorted order so two records diff cleanly.
+
+**The committed `2026-07-29-offline-baseline.json` is a schema-1 capture, kept as history.** It
+predates the `LibKa0s-Perf-1.0` extraction and is not re-read or re-migrated by the addon — `Save`
+discards and rebuilds the `AbsorbTrackerPerfDB` ring on any schema mismatch rather than converting it
+(see the library's record-schema doc, "Clean break, no migration"). Treat that one file as a fixed
+point-in-time reference, not a live record a schema-2 reader will ever open.
 
 One encoding wart worth knowing: Lua has a single table type, so an **empty** list and an empty map
 are indistinguishable to the encoder and both come out as `{}`. A run with no failures therefore
