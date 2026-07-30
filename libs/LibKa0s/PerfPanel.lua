@@ -19,6 +19,11 @@ if lib.__panelMinor and lib.__panelMinor >= PANEL_MINOR
 lib.__panelMinor = PANEL_MINOR
 lib.__panelProbeMinor = lib.MINOR
 
+-- Publish the live panel version next to the probe's (Perf.lua's MODULES table). The dunder fields
+-- above are the guard's own bookkeeping; this is the readable answer to "what am I running?".
+lib.MODULES = lib.MODULES or {}
+lib.MODULES.PerfPanel = PANEL_MINOR
+
 -- Three columns: status dot, step, slash command. The command column is the point — it teaches the
 -- typed form while you click, so the panel is a crutch you can stop needing.
 local ROW_W, ROW_H, GAP = 360, 22, 4

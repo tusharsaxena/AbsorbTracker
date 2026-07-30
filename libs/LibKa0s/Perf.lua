@@ -19,6 +19,16 @@ if not lib then return end
 
 lib.MAJOR, lib.MINOR = MAJOR, MINOR
 
+-- Which version of each FILE in this major is actually live, so version skew is discoverable at
+-- runtime rather than by reading source. LibStub resolves one winner per major, but a major spanning
+-- several files can end up with files from different vendored copies — and with six addons each
+-- carrying their own copy, "which panel is attached to which probe?" is a question someone will need
+-- answered from in-game. Not reset on upgrade: a newer file writes its own key over the old value.
+-- Every file in this major MUST register here, and its number MUST rise on every released change to
+-- that file. See docs/releasing.md.
+lib.MODULES = lib.MODULES or {}
+lib.MODULES.Perf = MINOR
+
 -- Record schema emitted by BuildRecord. See docs/record-schema.md.
 lib.SCHEMA = 2
 
