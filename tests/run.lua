@@ -24,6 +24,8 @@ local mocks = buildMocks()
 local NS = {}
 
 Loader.loadAll({
+  "libs/LibKa0s/Perf.lua",
+  "libs/LibKa0s/PerfPanel.lua",
   "locales/enUS.lua",
   "core/Compat.lua",
   "core/Constants.lua",

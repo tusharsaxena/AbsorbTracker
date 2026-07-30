@@ -416,13 +416,21 @@ return function()
   libs["AceTimer-3.0"] = { Embed = function(_, obj) return obj end }
   libs["AceConsole-3.0"] = { Embed = function(_, obj) return obj end }
 
-  -- LibStub("X") and LibStub("X", true) both resolve to the mock (or nil when absent). The
-  -- second silent arg is ignored — a missing lib returns nil either way, mirroring the addon's
+  -- LibStub. The Ace libraries are mocks looked up from `libs`; the vendored LibKa0s modules
+  -- register for real through NewLibrary, exactly as they do in the client. LibStub("X") and
+  -- LibStub("X", true) both resolve to whatever is registered, or nil — mirroring the addon's
   -- soft-optional lib usage (LibSharedMedia / AceGUI are absent headlessly).
-  M.LibStub = setmetatable(
-    { GetLibrary = function(_, n) return libs[n] end },
-    { __call = function(_, n) return libs[n] end }
-  )
+  local minors = {}
+  M.LibStub = setmetatable({
+    GetLibrary = function(_, n) return libs[n], minors[n] end,
+    NewLibrary = function(_, major, minor)
+      minor = tonumber(minor)
+      if minors[major] and minors[major] >= minor then return nil end
+      libs[major] = libs[major] or {}
+      minors[major] = minor
+      return libs[major], minors[major]
+    end,
+  }, { __call = function(self, n) return self:GetLibrary(n) end })
 
   return M
 end
