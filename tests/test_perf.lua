@@ -67,12 +67,34 @@ test("perf: records identify this addon and land in its own global", function()
   assertEqual(_G.AbsorbTrackerPerfDB.schema, 2, "schema 2")
 end)
 
-test("perf: the ring is outside the AceDB tree", function()
+-- Identity search: is `needle` reachable anywhere under `root`? Cycle-safe, and keys count as much
+-- as values — a ring parked as `db.profile[someTable]` would hide from a value-only walk.
+local function reaches(root, needle, seen)
+  if root == needle then return true end
+  if type(root) ~= "table" then return false end
+  seen = seen or {}
+  if seen[root] then return false end
+  seen[root] = true
+  for k, v in pairs(root) do
+    if reaches(k, needle, seen) or reaches(v, needle, seen) then return true end
+  end
+  return false
+end
+
+test("perf: the ring is reachable through its own global and nowhere in AceDB", function()
+  -- Naming one field AceDB might hold (`profile.perf`) tests almost nothing — nothing writes that
+  -- name. What actually matters is that no path at all leads from the AceDB tree to the ring or to
+  -- a saved run, because anything inside a profile rides copy, reset and profile switch.
   reset()
   P.Save(P.BuildRecord("cap"))
-  local profile = NS.db and NS.db.profile
-  assertTrue(profile == nil or profile.perf == nil,
-    "a perf ring inside a profile would ride copy, reset and switch")
+  local ring = _G.AbsorbTrackerPerfDB
+  local record = ring.runs[1]
+  assertTrue(reaches(ring, record), "sanity: the walk can find a record it is pointed at")
+  for _, where in ipairs({ "profile", "global" }) do
+    local tree = NS.db and NS.db[where]
+    assertFalse(reaches(tree, ring), "the ring is reachable from db." .. where)
+    assertFalse(reaches(tree, record), "a saved run is reachable from db." .. where)
+  end
 end)
 
 -- ── the brackets ────────────────────────────────────────────────────────────────────────────
@@ -251,4 +273,71 @@ test("perf: the slash verb dispatches into the lib", function()
   assertTrue(P.run, "typed command reached the lib")
   P.Cancel()
   settle()
+end)
+
+-- ── the degraded install (no LibKa0s) ───────────────────────────────────────────────────────
+--
+-- LibKa0s is vendored, so it can go missing: a partial unzip, a user pruning libs/, a packager that
+-- dropped the folder. core/PerfSetup.lua substitutes a stub for the probe in that case, and the stub
+-- has to answer for every member the addon calls — including OnCommand, because `/at perf` is
+-- registered unconditionally in settings/Slash.lua.
+--
+-- Built as a SECOND, self-contained environment rather than by poking at the shared one: the whole
+-- point is a load with the library absent, which cannot be simulated after the fact. Nothing here
+-- calls InitDB or CreateOptionsPanel, so the shared suite's SavedVariables globals are untouched.
+local function loadDegraded()
+  local Loader     = dofile("tests/loader.lua")
+  local buildMocks = dofile("tests/wow_mock.lua")
+  local mocks2, NS2 = buildMocks(), {}
+  -- libs/LibKa0s/*.lua deliberately not in this list: unloaded, nothing registers the perf major,
+  -- and the mock's LibStub returns nil for it exactly as the real client would.
+  Loader.loadAll({
+    "locales/enUS.lua", "core/Compat.lua", "core/Constants.lua", "core/Namespace.lua",
+    "core/State.lua", "core/Bus.lua", "core/Util.lua", "core/PerfSetup.lua", "core/Data.lua",
+    "core/Units.lua", "core/Database.lua", "core/LSMPatch.lua", "core/DebugLog.lua",
+    "core/AbsorbTracker.lua", "defaults/Profile.lua", "modules/Bar.lua", "modules/Display.lua",
+    "modules/Timer.lua", "settings/Schema.lua", "settings/Slash.lua",
+  }, NS2, mocks2)
+  return NS2, mocks2
+end
+
+local function chatOf(mocks2, fn)
+  local out = {}
+  mocks2.DEFAULT_CHAT_FRAME.AddMessage = function(_, msg) out[#out + 1] = msg end
+  fn()
+  return out
+end
+
+test("perf: the addon loads with LibKa0s absent", function()
+  local NS2 = loadDegraded()
+  assertEqual(NS2.Perf.on, false, "the bracket gate is off and stays off")
+  assertEqual(NS2.Perf.suspended, false, "and the show ladder sees a running addon")
+  assertEqual(type(NS2.Perf.Note), "function", "Note")
+end)
+
+test("perf: /at perf explains itself instead of erroring with LibKa0s absent", function()
+  local NS2, mocks2 = loadDegraded()
+  for _, line in ipairs({ "perf", "perf start", "perf finish", "perf dump" }) do
+    local out = chatOf(mocks2, function() NS2.Slash:OnSlash(line) end)
+    assertTrue(#out > 0, "/at " .. line .. " said nothing")
+    assertTrue(table.concat(out, "\n"):find("LibKa0s", 1, true) ~= nil,
+      "/at " .. line .. " should name the missing library: " .. table.concat(out, "\n"))
+  end
+end)
+
+test("perf: the brackets and the show ladder survive LibKa0s being absent", function()
+  -- The degraded env needs its own database to paint anything, and AceDB resolves the SavedVariables
+  -- global by name — so the shared suite's is swapped out and put back rather than merged into.
+  local NS2 = loadDegraded()
+  local saved = _G.AbsorbTrackerDB
+  _G.AbsorbTrackerDB = nil
+  local ok, err = pcall(function()
+    NS2:InitDB()
+    NS2.SetByPath("units.player.enabled", true)
+    assertTrue(NS2.ShouldShowBar("player"), "the ladder still reaches a decision")
+    NS2.UpdateAbsorbBar("player")
+    NS2.bus:SendMessage(NS2.MSG.APPEARANCE)
+  end)
+  _G.AbsorbTrackerDB = saved
+  assertTrue(ok, "a bracket site errored without the probe: " .. tostring(err))
 end)

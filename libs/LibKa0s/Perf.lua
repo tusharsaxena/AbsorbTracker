@@ -179,26 +179,41 @@ function lib:New(descriptor)
   local noop     = function() end
   local hostLog  = type(d.log)     == "function" and d.log     or function(line) print(line) end
   local hostPrint= type(d.print)   == "function" and d.print   or function(line) print(line) end
-  local showLog  = type(d.showLog) == "function" and d.showLog or noop -- luacheck: ignore (Task 5's panel)
+  local showLog  = type(d.showLog) == "function" and d.showLog or noop
   local onChange = type(d.onChange)== "function" and d.onChange or noop
   local L        = d.L or {}
-  local function tr(key) return L[key] or self.STRINGS[key] or key end
+  local function tr(key) return L[key] or lib.STRINGS[key] or key end
+
+  -- Everything below reads `lib`, never `self`. A LibStub minor upgrade mutates the shared library
+  -- table in place, so an instance that cached `self.SCHEMA` at :New() time would keep reporting the
+  -- old number while BuildRecord (which reads lib.SCHEMA) emitted the new one.
 
   -- Mirrored onto the instance as a convenience: call sites that hold only `NS.Perf` should not
   -- have to reach back through LibStub for the schema number or the encoder.
-  P.SCHEMA     = self.SCHEMA
-  P.EncodeJSON = self.EncodeJSON
+  P.SCHEMA     = lib.SCHEMA
+  P.EncodeJSON = lib.EncodeJSON
 
   P.descriptor = d
   P.name    = d.name
   P.slash   = d.slash or ("/" .. d.name:lower())
   P.title   = d.title or d.name
-  P.ringMax = tonumber(d.ring) or self.DEFAULT_RING
+
+  -- Clamped to at least one record. A ring of 0 would empty itself on the very Save that wrote the
+  -- record, while `finish` still announced the capture as saved — the one failure mode where the
+  -- user has no reason to look for the data until it is long gone.
+  local ring = tonumber(d.ring) or lib.DEFAULT_RING
+  P.ringMax = ring >= 1 and ring or 1
 
   -- Report order, and the declared nesting. Membership controls only PRESENTATION — Note() accepts
   -- any key, so a bracket nobody declared still records, it just does not print.
+  --
+  -- Validated per entry rather than trusted: an entry with no `key` used to raise a raw "table index
+  -- is nil" from inside the loop, which tells a host nothing about which of its buckets is wrong.
   P.BUCKET_ORDER, P.BUCKET_WITHIN = {}, {}
-  for _, b in ipairs(d.buckets or {}) do
+  for i, b in ipairs(d.buckets or {}) do
+    if type(b) ~= "table" or type(b.key) ~= "string" then
+      error(("LibKa0s-Perf: descriptor.buckets[%d].key must be a string"):format(i), 2)
+    end
     P.BUCKET_ORDER[#P.BUCKET_ORDER + 1] = b.key
     if b.within then P.BUCKET_WITHIN[b.key] = b.within end
   end
@@ -672,6 +687,12 @@ function lib:New(descriptor)
 
   --- End the experiment and hand back the assembled record. Detaches the sampler so the OnUpdate cost
   --- goes away entirely rather than idling.
+  ---
+  --- DOES NOT RESUME. If Experiment B ran, the host is still inert when this returns, and a Stop()
+  --- with no Resume() after it leaves the addon dead until a /reload. That is deliberate rather than
+  --- an oversight: SUBS.finish resumes BEFORE it saves, so an error in Save or FormatReport cannot
+  --- strand the host — and it can only order it that way if Stop() leaves the suspend state alone.
+  --- A host driving this API directly instead of through OnCommand owns the matching Resume().
   function P.Stop()
     if P.recording then closeWindow() end
     P.run = false
@@ -907,7 +928,18 @@ function lib:New(descriptor)
 
   -- The panel is part of this module; a copy of the lib without PerfPanel.lua loaded still works,
   -- it just has no panel. Hosts reach it through P.ShowPanel and friends.
-  if lib.__AttachPanel then lib.__AttachPanel(P, d, tr, function(cmd) return P.OnCommand(cmd) end) end
+  --
+  -- The click path PRINTS what OnCommand returns. A typed command reaches the user through the
+  -- host's slash layer, which prints those lines; the panel has no slash layer behind it, so
+  -- discarding them made a click quietly produce less output than typing the same thing — the
+  -- "ARMED" acknowledgement above all, which is the line telling the user the window is live.
+  if lib.__AttachPanel then
+    lib.__AttachPanel(P, d, tr, function(cmd)
+      local lines = P.OnCommand(cmd)
+      for _, line in ipairs(lines) do hostPrint(line) end
+      return lines
+    end)
+  end
 
   return P
 end

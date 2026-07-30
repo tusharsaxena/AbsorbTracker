@@ -4,8 +4,8 @@ local addonName, NS = ...
 --
 -- The probe itself lives in libs/LibKa0s/Perf.lua and is shared across every Ka0s addon; this file
 -- is only the part that is ours: which hot paths get buckets, what "suspended" means here, and where
--- the output goes. See libs/LibKa0s/README-less note: the contract is documented in the LibKa0s
--- repo, docs/record-schema.md and the README's descriptor table.
+-- the output goes. The descriptor contract is documented in the LibKa0s repo (its README's
+-- descriptor table, and docs/record-schema.md for what a saved run looks like).
 --
 -- The instance is created at LOAD TIME, before any module takes `local Perf = NS.Perf` as an
 -- upvalue — this file sits immediately after core/Util.lua in the TOC for exactly that reason.
@@ -13,9 +13,20 @@ local addonName, NS = ...
 local lib = LibStub and LibStub("LibKa0s-Perf-1.0", true)
 if not lib then
     -- A missing vendored lib must degrade, not error at load: the addon's own function is unaffected
-    -- by the absence of a diagnostics harness. The stub carries just enough surface for the bracket
-    -- idiom and the show-decision ladder to keep working.
-    NS.Perf = { on = false, suspended = false, Note = function() end }
+    -- by the absence of a diagnostics harness. The stub therefore has to cover EVERY member the
+    -- addon calls, not just the bracket idiom (`on`/`Note`) and the show-decision ladder
+    -- (`suspended`) — `/at perf` is registered unconditionally, so OnCommand has to answer too, and
+    -- an honest "it is not installed" beats a Lua error in exactly the install this branch exists
+    -- for.
+    NS.Perf = {
+        on        = false,
+        suspended = false,
+        Note      = function() end,
+        OnCommand = function()
+            return { "Performance measurement is unavailable: the LibKa0s library is missing from " ..
+                "this installation of Absorb Tracker (expected in libs/LibKa0s)." }
+        end,
+    }
     return
 end
 

@@ -251,13 +251,13 @@ if opts.out then
   for _, r in ipairs(results) do
     -- Map the scenario table onto the shared bucket shape: `calls` is the iteration count and
     -- `totalMs` / `maxMs` carry the same meaning as in-game, so one reader handles both sources.
-    -- `within` comes from the descriptor rather than a second hand-written nesting list, so a
-    -- scenario named after a real bucket inherits that bucket's nesting and the rest carry nil.
+    -- No `within`, deliberately: these scenarios are entry points driven one at a time, each timing
+    -- only its own loop, so no scenario's total is contained in another's. The record schema treats
+    -- a missing `within` as exactly that — a top-level total, safe to sum.
     buckets[r.name] = {
       calls        = r.iterations,
       totalMs      = r.totalMs,
       maxMs        = r.msPerIter,
-      within       = NS.Perf.BUCKET_WITHIN[r.name],
       apiPerIter   = r.apiPerIter,
       bytesPerIter = r.bytesPerIter,
     }

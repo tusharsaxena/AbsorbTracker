@@ -645,9 +645,8 @@ end)
 -- ── /at perf ──────────────────────────────────────────────────────────────────────────
 --
 -- The perf probe's slash surface (LibKa0s-Perf, wired up in core/PerfSetup.lua, issue #17). These
--- assert the DISPATCH — that each
--- sub-verb reaches the right probe call and says so — rather than re-testing the probe's accounting,
--- which tests/test_perf.lua owns.
+-- assert the DISPATCH — that each sub-verb reaches the right probe call and says so — rather than
+-- re-testing the probe's accounting, which tests/test_perf.lua owns.
 
 local P = NS.Perf
 
@@ -745,9 +744,6 @@ test("/at perf finish lifts a suspend left over from the capture", function()
   perfReset()
   _G.AbsorbTrackerPerfDB = nil
 end)
-
-
-
 
 test("/at perf report prints without stopping the capture", function()
   perfReset()
@@ -854,6 +850,38 @@ test("/at perf start label reaches the saved record", function()
   local rec = _G.AbsorbTrackerPerfDB.runs[1]
   assertTrue(rec.label:find("full addon set", 1, true) ~= nil, "label persisted: " .. rec.label)
   _G.AbsorbTrackerPerfDB = nil
+end)
+
+test("/at perf start records who and where the capture happened", function()
+  -- A ring of archived runs is unreadable if a record cannot say which character, spec and zone
+  -- produced it. The snapshot is taken by `start`, so it has to survive all the way into the saved
+  -- record — the lib pins BuildRecord, this pins the addon's whole start → finish → SavedVariables
+  -- path.
+  perfReset()
+  _G.AbsorbTrackerPerfDB = nil
+  slash("perf start")
+  slash("perf finish")
+  local ctx = _G.AbsorbTrackerPerfDB.runs[1].context
+  assertTrue(ctx ~= nil, "the saved run carries a context")
+  assertEqual(ctx.character, "Testchar", "the character, not a placeholder")
+  assertEqual(ctx.zone, "Silvermoon City", "and where it was captured")
+  _G.AbsorbTrackerPerfDB = nil
+  perfReset()
+end)
+
+test("/at perf report prints the capture's context, not just the numbers", function()
+  -- Someone reading a pasted report has to be able to tell whose it is. FormatReport folding the
+  -- context in is the seam that makes that true.
+  perfReset()
+  slash("perf start")
+  slash("perf finish")
+  NS.DebugLog:Clear()
+  slash("perf report")
+  local logged = table.concat(NS.DebugLog.buffer, "\n")
+  assertTrue(logged:find("Testchar", 1, true) ~= nil, "the character is in the report: " .. logged)
+  assertTrue(logged:find("Silvermoon City", 1, true) ~= nil, "and the zone")
+  _G.AbsorbTrackerPerfDB = nil
+  perfReset()
 end)
 
 test("/at perf measure a arms Experiment A", function()
@@ -971,6 +999,25 @@ test("/at perf then clicking Start runs a whole run without another typed comman
   f.buttons.start:__fire("OnClick")
   assertTrue(P.run, "started from the panel")
   assertEqual(P.PanelStateOf("measureA"), "ready", "and Measure A is next")
+  slash("perf cancel")
+  perfReset()
+  P.HidePanel()
+end)
+
+test("a panel click reaches chat through this addon's print sink, like typing does", function()
+  -- The panel has no slash layer behind it, so the lib prints OnCommand's lines itself — through
+  -- the `print` hook core/PerfSetup.lua hands it. Wired to the wrong sink (or to none) a click
+  -- would silently produce less chat than the identical typed command; here Start's whole
+  -- acknowledgement went missing.
+  perfReset()
+  P.HidePanel()
+  local typed = slash("perf start")
+  perfReset()
+  P.HidePanel()
+  slash("perf")
+  local clicked = capture(function() P.__panel().buttons.start:__fire("OnClick") end)
+  for i, line in ipairs(clicked) do clicked[i] = stripColor(line) end
+  assertEqual(joined(clicked), joined(typed), "click and type must say the same thing")
   slash("perf cancel")
   perfReset()
   P.HidePanel()

@@ -154,12 +154,12 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (19)
+### test_perf.lua (22)
 
 - perf: the addon holds a real LibKa0s-Perf instance
 - perf: the descriptor declares this addon's buckets, with their nesting
 - perf: records identify this addon and land in its own global
-- perf: the ring is outside the AceDB tree
+- perf: the ring is reachable through its own global and nowhere in AceDB
 - perf: brackets record nothing while capture is off
 - perf: paintBar records when capture is on
 - perf: paintBar does not count a bar that early-outed
@@ -175,6 +175,9 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - perf: the suspended state is session-only, never persisted
 - perf: lifecycle lines appear even with debug logging OFF
 - perf: the slash verb dispatches into the lib
+- perf: the addon loads with LibKa0s absent
+- perf: /at perf explains itself instead of erroring with LibKa0s absent
+- perf: the brackets and the show ladder survive LibKa0s being absent
 
 ### test_visibility.lua (17)
 
@@ -320,7 +323,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
 
-### test_slashcmds.lua (100)
+### test_slashcmds.lua (103)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -402,6 +405,8 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at perf start accepts an optional label, appended to the timestamp
 - /at perf start without a label still stamps the capture
 - /at perf start label reaches the saved record
+- /at perf start records who and where the capture happened
+- /at perf report prints the capture's context, not just the numbers
 - /at perf measure a arms Experiment A
 - /at perf measure b arms Experiment B and suspends
 - /at perf measure refuses outside an experiment
@@ -413,6 +418,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at perf show, hide and toggle drive the panel without touching the run
 - /at perf (bare) opens the panel — it is the entry point to a run
 - /at perf then clicking Start runs a whole run without another typed command
+- a panel click reaches chat through this addon's print sink, like typing does
 - the perf usage block documents show/hide/toggle
 - /at perf cancel says so when there is nothing to cancel
 - the perf usage block documents cancel
@@ -486,12 +492,12 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
 | test_timer.lua | 11 |
-| test_perf.lua | 19 |
+| test_perf.lua | 22 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
 | test_display.lua | 39 |
 | test_helpers.lua | 40 |
-| test_slashcmds.lua | 100 |
+| test_slashcmds.lua | 103 |
 | test_widgets.lua | 48 |
-| **Total** | **424** |
+| **Total** | **430** |
