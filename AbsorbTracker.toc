@@ -39,8 +39,7 @@ core\Namespace.lua
 core\State.lua
 core\Bus.lua
 core\Util.lua
-core\Perf.lua
-core\PerfPanel.lua
+core\PerfSetup.lua
 core\Data.lua
 core\Units.lua
 core\Database.lua

@@ -15,9 +15,9 @@
 -- Timings are printed for orientation only. Read them as ratios between scenarios in one run, never
 -- as absolute numbers to compare across machines.
 --
--- Output is the shared record schema documented in docs/perf-runs/README.md, encoded by the SAME
--- NS.Perf.EncodeJSON the in-game probe uses — one encoder, so an offline record and an in-game
--- record are guaranteed to be the same shape.
+-- Output is the shared record schema documented in the LibKa0s repo, encoded by the SAME
+-- NS.Perf.EncodeJSON the in-game probe uses — the instance mirrors the library's encoder and schema
+-- number, so an offline record and an in-game record are guaranteed to be the same shape.
 
 local Loader     = dofile("tests/loader.lua")
 local buildMocks = dofile("tests/wow_mock.lua")
@@ -45,9 +45,10 @@ local mocks = buildMocks()
 local NS = {}
 
 Loader.loadAll({
+  "libs/LibKa0s/Perf.lua", "libs/LibKa0s/PerfPanel.lua",
   "locales/enUS.lua",
   "core/Compat.lua", "core/Constants.lua", "core/Namespace.lua", "core/State.lua",
-  "core/Bus.lua", "core/Util.lua", "core/Perf.lua", "core/PerfPanel.lua", "core/Data.lua", "core/Units.lua",
+  "core/Bus.lua", "core/Util.lua", "core/PerfSetup.lua", "core/Data.lua", "core/Units.lua",
   "core/Database.lua", "core/LSMPatch.lua", "core/DebugLog.lua", "core/AbsorbTracker.lua",
   "defaults/Profile.lua",
   "modules/Bar.lua", "modules/Display.lua", "modules/Timer.lua",
@@ -250,10 +251,13 @@ if opts.out then
   for _, r in ipairs(results) do
     -- Map the scenario table onto the shared bucket shape: `calls` is the iteration count and
     -- `totalMs` / `maxMs` carry the same meaning as in-game, so one reader handles both sources.
+    -- `within` comes from the descriptor rather than a second hand-written nesting list, so a
+    -- scenario named after a real bucket inherits that bucket's nesting and the rest carry nil.
     buckets[r.name] = {
       calls        = r.iterations,
       totalMs      = r.totalMs,
       maxMs        = r.msPerIter,
+      within       = NS.Perf.BUCKET_WITHIN[r.name],
       apiPerIter   = r.apiPerIter,
       bytesPerIter = r.bytesPerIter,
     }
@@ -261,6 +265,8 @@ if opts.out then
 
   local record = {
     schema    = NS.Perf.SCHEMA,
+    -- Self-identifying, exactly as BuildRecord's in-game record is: one reader, one shape.
+    addon     = "AbsorbTracker",
     source    = "offline",
     version   = NS.version,
     interface = 0,          -- no client involved

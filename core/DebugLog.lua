@@ -42,10 +42,11 @@ local function makeTextButton(parent, text, width, onClick)
     return b
 end
 
--- Exported as D.MakeCloseButton below: core/PerfPanel.lua builds the same control, and two inline
--- copies of "the addon's close button" is exactly how two windows that should look identical drift
--- apart. Safe to share despite PerfPanel loading first in the TOC — both are called at frame-build
--- time, which is lazy and long after every file has loaded.
+-- Exported as D.MakeCloseButton below: the perf panel hands it to LibKa0s-Perf through the
+-- `decorate` hook in core/PerfSetup.lua, and two inline copies of "the addon's close button" is
+-- exactly how two windows that should look identical drift apart. Safe to share despite PerfSetup
+-- loading first in the TOC — both are called at frame-build time, which is lazy and long after
+-- every file has loaded.
 local function makeCloseButton(parent, onClick)
     local b = CreateFrame("Button", nil, parent)
     b:SetSize(18, 18)

@@ -154,40 +154,18 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (115)
+### test_perf.lua (19)
 
-- perf: Note accumulates calls, total and max
-- perf: Note tracks unrelated buckets independently
-- perf: Reset clears every bucket and both fps arms
-- perf: EncodeJSON emits object keys in sorted order
-- perf: EncodeJSON renders integral numbers without a decimal point
-- perf: EncodeJSON renders fractional numbers to four places
-- perf: EncodeJSON escapes quotes, backslashes and control characters
-- perf: EncodeJSON emits arrays for sequence tables
-- perf: EncodeJSON emits an empty table as an object
-- perf: EncodeJSON coerces non-finite numbers rather than emitting invalid JSON
-- perf: EncodeJSON round-trips a full record without error
-- perf: BuildRecord carries schema, source and label
-- perf: BuildRecord derives avgFps and msPerFrame from the arms
-- perf: BuildRecord reports zero delta when only one arm was sampled
-- perf: BuildRecord computes the delta when both arms were sampled
-- perf: BuildRecord snapshots buckets rather than aliasing them
-- perf: Save creates the perf global and appends the run
-- perf: Save stamps the schema on the store
-- perf: Save trims the ring to RING_MAX, dropping the oldest
-- perf: Save is outside the AceDB tree
-- perf: FormatReport marks an unsampled arm rather than printing zeros
-- perf: FormatReport prints both arms and the delta when both ran
-- perf: FormatReport derives ms/s from the active seconds only
-- perf: FormatReport warns that buckets nest
-- perf: FormatReport omits buckets that never fired
+- perf: the addon holds a real LibKa0s-Perf instance
+- perf: the descriptor declares this addon's buckets, with their nesting
+- perf: records identify this addon and land in its own global
+- perf: the ring is outside the AceDB tree
 - perf: brackets record nothing while capture is off
 - perf: paintBar records when capture is on
 - perf: paintBar does not count a bar that early-outed
 - perf: repaintPass records one note per coalesced pass
+- perf: every declared bucket is reached by a real bracket
 - perf: suspend hides bars through the visibility ladder
-- perf: suspend returns false when already suspended
-- perf: resume returns false when not suspended
 - perf: suspend unregisters every unit event frame
 - perf: suspend unregisters the lifecycle events
 - perf: resume restores the lifecycle set from one definition
@@ -195,82 +173,8 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - perf: CancelPendingRepaint drops a queued pass
 - perf: suspend leaves no repaint queued behind it
 - perf: the suspended state is session-only, never persisted
-- perf: starting an experiment logs it
-- perf: stopping an experiment logs both arm durations
-- perf: suspend and resume are logged
-- perf: a no-op suspend or resume logs nothing
 - perf: lifecycle lines appear even with debug logging OFF
-- perf: nothing is logged when no run is happening
-- perf: an armed window samples nothing until combat begins
-- perf: a window opens on combat and accumulates
-- perf: a window closes when combat ends and stops accumulating
-- perf: the walk between windows is never measured
-- perf: measure b suspends the addon and measure a resumes it
-- perf: window B still samples while the addon is suspended
-- perf: re-arming a window zeroes it rather than averaging in
-- perf: arming a window mid-combat closes the one already open
-- perf: Measure is rejected outside an experiment
-- perf: Measure rejects an unknown window token
-- perf: Measure accepts either case
-- perf: Stop closes an open window rather than discarding it
-- perf: Stop detaches the sampler so an idle client pays nothing
-- perf: the sampler ignores ticks once the experiment is over
-- perf: two completed windows produce a delta
-- perf: Context captures character, spec, zone and group
-- perf: Context reports solo when ungrouped
-- perf: Context reports party size and instance type
-- perf: Context reports raid size
-- perf: a run records its context
-- perf: ContextLines folds the sub-zone into the location
-- perf: ContextLines omits an empty sub-zone cleanly
-- perf: ContextLines tolerates a record with no context
-- perf: FormatReport includes the context
-- perf: recording start and end are announced to chat AND the debug log
-- perf: the end announcement carries the duration and frame rate
-- perf: the console log is plain text, free of colour escapes
-- perf: experiments are named A and B, never active/suspended
-- perf: the run start is logged with its context
-- perf: arming logs which experiment and whether the addon is suspended
-- perf: before a run Start is the one offered step
-- perf: Start reads done while a run is in flight
-- perf: Start is offered again once a run has finished
-- perf: clicking Start from the panel begins a run
-- perf: starting a run makes exactly Measure A ready
-- perf: an armed or recording experiment reads busy, not ready
-- perf: completing A unlocks B and nothing else
-- perf: completing B unlocks Finish
-- perf: finishing unlocks Report and Dump
-- perf: exactly one step is ready at any point in a run
-- perf: re-arming a completed experiment sends it back to busy
-- perf: a window that caught no frames still counts as completed
-- perf: Reset clears completion, so a fresh run starts from step one
-- perf: the panel renders every step and tracks their states
-- perf: a locked panel button refuses to act when clicked
-- perf: a ready panel button runs its slash command
-- perf: the panel refreshes off the bus, not by polling
-- perf: every step row carries a status dot, drawn not glyphed
-- perf: labels are plain text with no decoration baked in
-- perf: cancel is offered throughout a run and nowhere else
-- perf: cancel has its own state, so it never reads as the next step
-- perf: cancelling discards the run without saving it
-- perf: cancelling restores a suspended addon
-- perf: cancelling mid-recording does not announce the experiment as ended
-- perf: cancelling detaches the sampler
-- perf: cancel returns false when there is nothing to cancel
-- perf: a cancelled run leaves the next one clean
-- perf: every row shows its slash command
-- perf: cancel stays clickable while a run is mid-experiment
-- perf: cancel is not clickable once the run is finished
-- perf: hiding the panel never touches the run
-- perf: Toggle flips visibility both ways
-- perf: the close button hides the panel and leaves the run alone
-- perf: clicking the cancel row abandons the run
-- perf: report and dump stay clickable after use, but read as done
-- perf: marking a review action twice is a no-op
-- perf: MarkReviewed ignores keys that are not review actions
-- perf: a fresh run clears the review marks
-- perf: the panel titles itself like the debug console
-- perf: every step label names what it acts on
+- perf: the slash verb dispatches into the lib
 
 ### test_visibility.lua (17)
 
@@ -582,7 +486,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
 | test_timer.lua | 11 |
-| test_perf.lua | 115 |
+| test_perf.lua | 19 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
@@ -590,4 +494,4 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_helpers.lua | 40 |
 | test_slashcmds.lua | 100 |
 | test_widgets.lua | 48 |
-| **Total** | **520** |
+| **Total** | **424** |

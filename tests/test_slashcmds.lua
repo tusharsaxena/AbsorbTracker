@@ -644,7 +644,8 @@ end)
 
 -- ── /at perf ──────────────────────────────────────────────────────────────────────────
 --
--- The perf probe's slash surface (core/Perf.lua, issue #17). These assert the DISPATCH — that each
+-- The perf probe's slash surface (LibKa0s-Perf, wired up in core/PerfSetup.lua, issue #17). These
+-- assert the DISPATCH — that each
 -- sub-verb reaches the right probe call and says so — rather than re-testing the probe's accounting,
 -- which tests/test_perf.lua owns.
 
@@ -773,7 +774,7 @@ test("/at perf dump writes to the console, not the copy window", function()
   NS.DebugLog:Clear()
   slash("perf dump")
   local logged = table.concat(NS.DebugLog.buffer, "\n")
-  assertTrue(logged:find('{"buckets"', 1, true) ~= nil, "JSON is in the console: " .. logged)
+  assertTrue(logged:find('"buckets"', 1, true) ~= nil, "JSON is in the console: " .. logged)
   perfReset()
 end)
 
@@ -783,7 +784,7 @@ test("/at perf dump emits parseable JSON carrying the schema stamp", function()
   slash("perf dump")
   local line = NS.DebugLog.buffer[#NS.DebugLog.buffer]
   assertTrue(#NS.DebugLog.buffer > 0, "something was written")
-  assertTrue(line:find('"schema":1', 1, true) ~= nil, "carries the schema: " .. line)
+  assertTrue(line:find('"schema":2', 1, true) ~= nil, "carries the schema: " .. line)
   assertTrue(line:find('"source":"ingame"', 1, true) ~= nil, "and the source")
 end)
 
@@ -905,7 +906,7 @@ test("the perf usage block documents the measure workflow", function()
   assertTrue(contains(out, "measure a"), "lists measure a")
   assertTrue(contains(out, "measure b"), "lists measure b")
   assertTrue(contains(out, "suspends the addon first"), "explains what measure b changes")
-  assertTrue(contains(out, "opens the debug console"), "and what report does")
+  assertTrue(contains(out, "opens the log window"), "and what report does")
 end)
 
 test("/at perf start opens the panel instead of listing the steps in chat", function()
@@ -916,10 +917,10 @@ test("/at perf start opens the panel instead of listing the steps in chat", func
   local out = slash("perf start")
   assertEqual(joined(out):find("next steps", 1, true), nil, "no step list: " .. joined(out))
   assertTrue(contains(out, "STARTED"), "still acknowledges the run")
-  assertTrue(NS.PerfPanel:IsShown(), "and the panel is up")
+  assertTrue(P.IsPanelShown(), "and the panel is up")
   assertTrue(#NS.DebugLog.buffer > 0, "with the run start in the console")
   perfReset()
-  NS.PerfPanel:Hide()
+  P.HidePanel()
 end)
 
 test("/at perf cancel abandons the run and closes the panel", function()
@@ -939,40 +940,40 @@ test("/at perf show, hide and toggle drive the panel without touching the run", 
   perfReset()
   slash("perf start")
   slash("perf hide")
-  assertFalse(NS.PerfPanel:IsShown(), "hidden")
+  assertFalse(P.IsPanelShown(), "hidden")
   assertTrue(P.run, "run untouched")
   slash("perf show")
-  assertTrue(NS.PerfPanel:IsShown(), "shown")
+  assertTrue(P.IsPanelShown(), "shown")
   slash("perf toggle")
-  assertFalse(NS.PerfPanel:IsShown(), "toggled off")
+  assertFalse(P.IsPanelShown(), "toggled off")
   slash("perf toggle")
-  assertTrue(NS.PerfPanel:IsShown(), "toggled back on")
+  assertTrue(P.IsPanelShown(), "toggled back on")
   perfReset()
-  NS.PerfPanel:Hide()
+  P.HidePanel()
 end)
 
 test("/at perf (bare) opens the panel — it is the entry point to a run", function()
   -- Reverses an earlier call that a status query should not move windows. With Start clickable in
   -- the panel, `/at perf` is how someone who remembers one command reaches all of them.
   perfReset()
-  NS.PerfPanel:Hide()
+  P.HidePanel()
   slash("perf")
-  assertTrue(NS.PerfPanel:IsShown(), "panel opened")
-  assertEqual(NS.PerfPanel.StateOf("start"), "ready", "with Start ready to click")
-  NS.PerfPanel:Hide()
+  assertTrue(P.IsPanelShown(), "panel opened")
+  assertEqual(P.PanelStateOf("start"), "ready", "with Start ready to click")
+  P.HidePanel()
 end)
 
 test("/at perf then clicking Start runs a whole run without another typed command", function()
   perfReset()
-  NS.PerfPanel:Hide()
+  P.HidePanel()
   slash("perf")
-  local f = NS.PerfPanel.__frame()
+  local f = P.__panel()
   f.buttons.start:__fire("OnClick")
   assertTrue(P.run, "started from the panel")
-  assertEqual(NS.PerfPanel.StateOf("measureA"), "ready", "and Measure A is next")
+  assertEqual(P.PanelStateOf("measureA"), "ready", "and Measure A is next")
   slash("perf cancel")
   perfReset()
-  NS.PerfPanel:Hide()
+  P.HidePanel()
 end)
 
 test("the perf usage block documents show/hide/toggle", function()
