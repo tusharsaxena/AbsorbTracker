@@ -185,11 +185,12 @@ function lib:New(descriptor)
   local function tr(key) return L[key] or lib.STRINGS[key] or key end
 
   -- Everything below reads `lib`, never `self`. A LibStub minor upgrade mutates the shared library
-  -- table in place, so an instance that cached `self.SCHEMA` at :New() time would keep reporting the
-  -- old number while BuildRecord (which reads lib.SCHEMA) emitted the new one.
+  -- table in place, so `lib` is the one source of truth inside this closure — every internal read
+  -- (BuildRecord's schema stamp included) goes through it rather than through a per-instance copy.
 
-  -- Mirrored onto the instance as a convenience: call sites that hold only `NS.Perf` should not
-  -- have to reach back through LibStub for the schema number or the encoder.
+  -- Mirrored onto the instance as a convenience snapshot: call sites that hold only `NS.Perf` should
+  -- not have to reach back through LibStub for the schema number or the encoder. It is taken once,
+  -- at :New() time — a minor upgrade after that point changes `lib.SCHEMA` but not this copy.
   P.SCHEMA     = lib.SCHEMA
   P.EncodeJSON = lib.EncodeJSON
 
@@ -918,13 +919,16 @@ function lib:New(descriptor)
     return out
   end
 
-  -- No-panel fallbacks: a host can call these unconditionally, whether or not PerfPanel.lua was
-  -- loaded alongside this file. lib.__AttachPanel overwrites every one of them when it runs.
+  -- No-panel fallbacks: a host can call or index these unconditionally, whether or not PerfPanel.lua
+  -- was loaded alongside this file. lib.__AttachPanel overwrites every one of them when it runs.
   P.ShowPanel     = function() end
   P.HidePanel     = function() end
   P.TogglePanel   = function() end
   P.RefreshPanel  = function() end
   P.IsPanelShown  = function() return false end
+  P.STEPS             = {}
+  P.PanelStateOf      = function() return "locked" end
+  P.PanelIsActionable = function() return false end
 
   -- The panel is part of this module; a copy of the lib without PerfPanel.lua loaded still works,
   -- it just has no panel. Hosts reach it through P.ShowPanel and friends.
