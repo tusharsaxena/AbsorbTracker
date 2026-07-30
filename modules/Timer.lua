@@ -6,6 +6,8 @@ local addonName, NS = ...
 -- to one per `throttleWindow` so a burst of UNIT_ABSORB_AMOUNT_CHANGED events during combat can't
 -- cause a repaint storm. Idle = zero repaints; there is no polling fallback.
 
+local Perf = NS.Perf
+
 local pending
 
 -- Hoisted to module scope so RequestRepaint reuses ONE callback instead of allocating a fresh
@@ -17,6 +19,7 @@ local function doRepaint()
     -- secret-value path), the next event still re-arms instead of the bar freezing until
     -- /reload — do not "tidy" this to after the paint call.
     pending = nil
+    local t0 = Perf.on and debugprofilestop()
     -- Fan out over every tracked unit. UpdateAbsorbBar defaults its `unit` argument to "player",
     -- so calling it bare here painted the player bar and left the target/focus StatusBars at their
     -- untouched frame defaults (full fill, no text) however many absorb events arrived.
@@ -31,11 +34,29 @@ local function doRepaint()
         if NS.UpdateAbsorbBar(unit) then painted = true end
     end)
     if painted and NS.NoteRepaint then NS.NoteRepaint() end
+    -- One `repaintPass` note per coalesced pass, painted or not: the bucket measures what the
+    -- throttle actually costs when it fires, and a pass that early-outs on every bar is still a
+    -- pass that ran. This is the same accounting rule NoteRepaint follows one line above, for the
+    -- same reason — see the comment on NS.UpdateAbsorbBar.
+    if t0 then Perf.Note("repaintPass", debugprofilestop() - t0) end
 end
 
 function NS.RequestRepaint()
+    -- Suspended = inert. Bail before arming rather than inside doRepaint: an armed timer would
+    -- still allocate, still fire, and still show up as work in the very capture that suspend
+    -- exists to zero out.
+    if Perf.suspended then return end
     if pending then return end            -- a repaint is already queued; coalesce into it
     pending = NS.addon:ScheduleTimer(doRepaint, NS.GetSetting("throttleWindow"))
+end
+
+--- Drop any queued repaint. Used by the perf probe's suspend path so a pass armed a moment before
+--- suspending cannot land in the middle of the suspended measurement arm.
+function NS.CancelPendingRepaint()
+    if not pending then return false end
+    if NS.addon and NS.addon.CancelTimer then NS.addon:CancelTimer(pending) end
+    pending = nil
+    return true
 end
 
 -- Bus subscription (architecture-§4). This module owns the SOLE subscription to

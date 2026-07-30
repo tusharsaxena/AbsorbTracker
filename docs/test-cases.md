@@ -1,6 +1,6 @@
 # Test Cases
 
-_Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > docs/test-cases.md`._
+_Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list | sed 's/$/\r/' > docs/test-cases.md` — the plain `--list > ...` redirect writes LF, and this repo's `*.md text eol=crlf` (`.gitattributes`) means the committed file is CRLF._
 
 ### test_schema.lua (40)
 
@@ -154,6 +154,31 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
+### test_perf.lua (22)
+
+- perf: the addon holds a real LibKa0s-Perf instance
+- perf: the descriptor declares this addon's buckets, with their nesting
+- perf: records identify this addon and land in its own global
+- perf: the ring is reachable through its own global and nowhere in AceDB
+- perf: brackets record nothing while capture is off
+- perf: paintBar records when capture is on
+- perf: paintBar does not count a bar that early-outed
+- perf: repaintPass records one note per coalesced pass
+- perf: every declared bucket is reached by a real bracket
+- perf: suspend hides bars through the visibility ladder
+- perf: suspend unregisters every unit event frame
+- perf: suspend unregisters the lifecycle events
+- perf: resume restores the lifecycle set from one definition
+- perf: RequestRepaint no-ops while suspended
+- perf: CancelPendingRepaint drops a queued pass
+- perf: suspend leaves no repaint queued behind it
+- perf: the suspended state is session-only, never persisted
+- perf: lifecycle lines appear even with debug logging OFF
+- perf: the slash verb dispatches into the lib
+- perf: the addon loads with LibKa0s absent
+- perf: /at perf explains itself instead of erroring with LibKa0s absent
+- perf: the brackets and the show ladder survive LibKa0s being absent
+
 ### test_visibility.lua (17)
 
 - ShouldShowBar: a disabled unit wins even in combat
@@ -298,7 +323,7 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
 
-### test_slashcmds.lua (60)
+### test_slashcmds.lua (103)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -360,6 +385,49 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 - /at set echoes the mirrored note alongside the value it just stored
 - /at list annotates only the mirrored units' appearance rows
 - the mirrored note keeps the Ka0s colour scheme intact and stays subordinate
+- /at perf (bare) reports status and prints usage
+- /at perf start starts a capture
+- /at perf start resets the counters from the previous capture
+- /at perf finish refuses when no run is active
+- /at perf finish does not print the summary
+- /at perf report still prints the summary on demand
+- /at perf finish saves the record to the perf ring
+- /at perf finish lifts a suspend left over from the capture
+- /at perf report prints without stopping the capture
+- /at perf routes output to the debug console, not chat
+- /at perf dump writes to the console, not the copy window
+- /at perf dump emits parseable JSON carrying the schema stamp
+- /at perf with an unknown sub falls back to the usage block
+- /at debug on|off still toggles logging with perf present
+- perf is a top-level verb in the help index
+- perf is registered in NS.COMMANDS, so the About page lists it too
+- /at debug no longer swallows a perf argument
+- /at perf start accepts an optional label, appended to the timestamp
+- /at perf start without a label still stamps the capture
+- /at perf start label reaches the saved record
+- /at perf start records who and where the capture happened
+- /at perf report prints the capture's context, not just the numbers
+- /at perf measure a arms Experiment A
+- /at perf measure b arms Experiment B and suspends
+- /at perf measure refuses outside an experiment
+- /at perf measure rejects an unknown window
+- /at perf bare reports the armed window
+- the perf usage block documents the measure workflow
+- /at perf start opens the panel instead of listing the steps in chat
+- /at perf cancel abandons the run and closes the panel
+- /at perf show, hide and toggle drive the panel without touching the run
+- /at perf (bare) opens the panel — it is the entry point to a run
+- /at perf then clicking Start runs a whole run without another typed command
+- a panel click reaches chat through this addon's print sink, like typing does
+- the perf usage block documents show/hide/toggle
+- /at perf cancel says so when there is nothing to cancel
+- the perf usage block documents cancel
+- /at perf start announces to the console with debug logging OFF
+- /at perf no longer offers suspend or resume
+- /at perf finish resumes before it saves, so a later error cannot strand the addon
+- /at perf report opens the debug console when it is hidden
+- /at perf dump opens the debug console when it is hidden
+- /at perf dump marks itself reviewed exactly once
 
 ### test_widgets.lua (48)
 
@@ -424,11 +492,12 @@ _Generated — do not hand-edit. Regenerate with `lua tests/run.lua --list > doc
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
 | test_timer.lua | 11 |
+| test_perf.lua | 22 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
 | test_display.lua | 39 |
 | test_helpers.lua | 40 |
-| test_slashcmds.lua | 60 |
+| test_slashcmds.lua | 103 |
 | test_widgets.lua | 48 |
-| **Total** | **365** |
+| **Total** | **430** |

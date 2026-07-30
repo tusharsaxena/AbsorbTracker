@@ -124,6 +124,53 @@ NS.SafeToString(v)  -- secret-safe stringifier; renders a secret as "<secret>"
 -- State.debug is on; zero-cost when off.
 ```
 
+### PerfSetup (`core/PerfSetup.lua`)
+
+Wires the addon into `LibKa0s-Perf-1.0` (issue #17) — the probe, its record schema, and the
+clickable step panel are all library code now (`libs/LibKa0s/Perf.lua` /
+`libs/LibKa0s/PerfPanel.lua`), vendored the same way Ace3 is. This file supplies only the part
+that's ours: a **descriptor** passed to `lib:New(descriptor)`.
+
+```lua
+local lib = LibStub and LibStub("LibKa0s-Perf-1.0", true)
+NS.Perf = lib and lib:New({
+    name = addonName, sv = "AbsorbTrackerPerfDB", version = NS.version, slash = "/at",
+    buckets = { {key="absorbEvent"}, {key="repaintPass"},
+                {key="paintBar", within="repaintPass"}, ... },
+    suspend = function() ... end,  -- makes the addon inert WITHOUT a /reload
+    resume  = function() ... end,  -- restores events, registrations and bars
+    log = ..., print = ..., showLog = ..., decorate = ...,
+}) or {
+    -- Degrades cleanly when the lib is absent. Covers everything the addon calls: the bracket
+    -- idiom, the show ladder, and — because `/at perf` is registered either way — an OnCommand
+    -- that says why there is nothing to run.
+    on = false, suspended = false, Note = function() end,
+    OnCommand = function() return { "...the LibKa0s library is missing..." } end,
+}
+```
+
+`NS.Perf` is the returned instance — same shape as before extraction (`on`, `suspended`, `Note`,
+`Reset`, `Start`, `Stop`, `Suspend`, `Resume`, `BuildRecord`, `FormatReport`, `EncodeJSON`, `Save`,
+`ShowPanel`/`HidePanel`/`TogglePanel`/`RefreshPanel`, `OnCommand`, …). This file must load before any
+module takes `local Perf = NS.Perf` as an upvalue — hence its position immediately after
+`core/Util.lua` in the TOC, same slot the old `core/Perf.lua` held.
+
+Suspend enforces visibility **at the source** rather than hiding frames imperatively: because
+`NS.ShouldShowBar` checks `NS.Perf.suspended` first, `suspend` only has to publish `VISIBILITY` once
+and no later publish — a combat transition, a target swap, a settings edit — can re-show a bar
+mid-measurement. The descriptor's `suspend` also cancels any pending repaint.
+
+The clickable step panel is drawn and refreshed entirely inside the library, off the instance's own
+state (`RefreshPanel`) — there is no addon-side `NS.PerfPanel` and no bus message for it. Buttons
+call the lib's own `P.OnCommand` directly, not this addon's slash layer, so a click and a typed
+command run one code path; the lib prints the returned lines through the descriptor's `print` hook,
+which is what makes a click say in chat exactly what typing says.
+
+The full descriptor contract and public surface `lib:New` returns are documented in the library
+itself, not duplicated here: see the
+[LibKa0s README](https://github.com/tusharsaxena/LibKa0s/blob/master/README.md). Protocol and how to
+read the output from this addon's side: [performance.md](./performance.md).
+
 ### Data (`core/Data.lua`)
 
 The AceDB read/write seam plus the LSM fetchers and the class-color-aware color resolvers. `NS.db` is declared here (nil until `InitDB`).
@@ -542,9 +589,9 @@ In practice the calls always succeed because all files are loaded synchronously 
 
 `AbsorbTracker.toc` is the source of truth. Order is dependency order, not alphabetical. The load groups are **Libraries → Locales → Core → Defaults → Modules → Settings**:
 
-1. `libs/` — LibStub, CallbackHandler-1.0, then the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB / AceGUI / AceConfig / AceDBOptions), LibSharedMedia-3.0, and the vendored upstream `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets) — all inside the `#@no-lib-strip@` block. Vendored **folder-per-lib** at `libs/` root (not `libs/Ace3/…`).
+1. `libs/` — LibStub, CallbackHandler-1.0, then the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB / AceGUI / AceConfig / AceDBOptions), `LibKa0s` (`LibKa0s-Perf-1.0` — the shared perf-instrumentation harness, issue #17), LibSharedMedia-3.0, and the vendored upstream `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets) — all inside the `#@no-lib-strip@` block. Vendored **folder-per-lib** at `libs/` root (not `libs/Ace3/…`).
 2. **Locales** — `locales/enUS.lua` (`NS.L` metatable seam; loads directly after Libraries per `toc-file-§5` — no dependency on `core/*`).
-3. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Bus.lua` (the closed message bus — `NS.bus` / `NS.NewBusTarget` / `NS.MSG`), `Util.lua`, `Data.lua`, `Units.lua` (unit identity + mirror resolution — loads after `Data.lua`, before `Database.lua` since migration needs `NS.Units.LIST`/`APPEARANCE_KEYS`), `Database.lua`, `LSMPatch.lua`, `DebugLog.lua`, `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
+3. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Bus.lua` (the closed message bus — `NS.bus` / `NS.NewBusTarget` / `NS.MSG`), `Util.lua`, `PerfSetup.lua` (wires `NS.Perf` to `LibKa0s-Perf-1.0` — must load before any module takes `NS.Perf` as an upvalue), `Data.lua`, `Units.lua` (unit identity + mirror resolution — loads after `Data.lua`, before `Database.lua` since migration needs `NS.Units.LIST`/`APPEARANCE_KEYS`), `Database.lua`, `LSMPatch.lua`, `DebugLog.lua`, `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
 4. **Defaults** — `defaults/Profile.lua` (AceDB defaults; runs at file-load).
 5. **Modules** — `modules/Bar.lua` (bar frame creation at file-load), `Display.lua` (render functions + `NS.Display.__ev` bus consumer), `Timer.lua` (coalescing repaint scheduler + `NS.Timer.__ev` bus consumer).
 6. **Settings** (last — depend on everything else being initialized) — `settings/Schema.lua` (registry), `Slash.lua` (`/at` dispatcher), `Panel.lua` (registration shell; publishes empty `NS.Helpers` + `NS.PARENT_TITLE`), then the toolkit slices `Helpers.lua` → `ScrollPatch.lua` → `Widgets.lua` → `About.lua` (each decorates `NS.Helpers`; order matters only between `Helpers` (defines `EnsureScroll`) and `ScrollPatch` (defines `PatchAlwaysShowScrollbar` that `EnsureScroll` references)), then the page builders `General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` (each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load; LSM-backed rows call `NS.Helpers.LSMValues(mediaType)`).

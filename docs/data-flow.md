@@ -216,6 +216,11 @@ There is no repeating ticker to guard: the one-shot timer self-clears (`pending 
 
 `UpdateBarAppearance` is heavier (calls `SetBackdrop(nil)` + `SetBackdrop(info)` + texture / font sets) but only runs on settings change or profile change — never per repaint.
 
+The `/at perf` step panel is **not** on this addon's bus and has no flow of its own to draw here: it
+repaints itself directly off `LibKa0s-Perf-1.0`'s own instance state (`RefreshPanel`, called at the
+end of every phase transition inside the library, wired up by `core/PerfSetup.lua`). See
+[performance.md](./performance.md).
+
 ## Saved variables
 
 Only `AbsorbTrackerDB` is declared in the TOC. With AceDB it holds the full profile structure (`profiles`, `profileKeys`, `char` map, etc.); `db.profile` holds the four flat globals plus `units.{player,target,focus}` (each unit's own appearance + position table), and the persisted schema-version stamp lives at `db.global.schemaVersion` (account-wide, the DB-wide marker — currently `3`, the version that introduced `profile.units`) with a second, **per-profile** stamp at `db.profile.schemaVersion` gating the per-profile v3 lift (a documented §5.1 deviation — see [profiles.md](./profiles.md)). Without AceDB, `NS:InitDB` builds a minimal `{ profile = AbsorbTrackerDB, global = {} }` shim so `GetSetting` / `SetSetting` reads and writes stay consistent across the two modes. Either way, `NS:RunMigrations` runs once at init and backfills any missing profile key (flat or per-unit) from `NS.defaults.profile`.

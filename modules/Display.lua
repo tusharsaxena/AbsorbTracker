@@ -2,6 +2,11 @@ local addonName, NS = ...
 
 local floor, max = NS.floor, NS.max
 
+-- Perf probe (the LibKa0s-Perf instance built in core/PerfSetup.lua), taken as a load-time upvalue
+-- so a bracket costs an upvalue read plus a field read when capture is off. PerfSetup loads before
+-- this file (see the TOC), so it is never nil.
+local Perf = NS.Perf
+
 -- Gap between stacked default bar positions, in pixels.
 local STACK_GAP = 8
 
@@ -51,6 +56,7 @@ function NS.UpdateBarAppearance(unit)
     unit = unit or "player"
     local bar = NS.bars[unit]
     if not bar then return end
+    local t0 = Perf.on and debugprofilestop()
     local statusBar = bar.statusBar
     local valueText = bar.valueText
     local backdropInfo = bar.backdropInfo
@@ -92,12 +98,23 @@ function NS.UpdateBarAppearance(unit)
     if locked then unitLabel:Hide() else unitLabel:Show() end
 
     NS.ApplyVisibility(unit)
+    -- Closed AFTER ApplyVisibility on purpose: the appearance bucket is meant to answer "what does
+    -- one full restyle of a bar cost", and in production a restyle always ends by re-evaluating
+    -- visibility. Excluding it would understate the real call. `visibility` still records its own
+    -- nested figure, so the two are separable in the report.
+    if t0 then Perf.Note("appearance", debugprofilestop() - t0) end
 end
 
 -- Effective bar visibility, composed in order — the first false wins:
+--   0. the perf probe's suspend switch
 --   1. the per-unit `enabled` flag
 --   2. the global `showOnlyInCombat` gate
 --   3. for target/focus only, whether the unit exists
+--
+-- Step 0 is what makes `/at debug perf suspend` airtight. Suspend could have hidden the bars
+-- imperatively, but then any later VISIBILITY publish — a combat transition, a target swap, a
+-- settings edit — would quietly re-show them mid-measurement and corrupt the capture. Gating at
+-- the source means suspend only has to publish VISIBILITY once and nothing can undo it.
 --
 -- There is no master `hidden` toggle above these any more (dropped in schema v4): `enabled` is the
 -- visibility switch, and `/at toggle` flips all three at once rather than a separate global.
@@ -112,10 +129,25 @@ end
 -- zero raises — the same constraint recorded in docs/scope.md for the audio-alert feature.
 function NS.ShouldShowBar(unit)
     unit = unit or "player"
+    if Perf.suspended then return false end
     if not NS.Units.IsEnabled(unit) then return false end
     if NS.GetSetting("showOnlyInCombat") and not UnitAffectingCombat("player") then return false end
     if unit ~= "player" and not UnitExists(unit) then return false end
     return true
+end
+
+-- Which rung of the ShouldShowBar ladder decided the outcome, as a debug string. Extracted from
+-- ApplyVisibility rather than left inline: the and/or chain is one branch per rung, and inlining it
+-- put ApplyVisibility over `lizard`'s complexity threshold for what is only ever debug narration.
+-- Mirrors the ladder's order exactly — if a rung is added there, add it here.
+local function visibilityReason(unit)
+    if Perf.suspended then return "perf suspended" end
+    if not NS.Units.IsEnabled(unit) then return "unit disabled" end
+    if NS.GetSetting("showOnlyInCombat") and not UnitAffectingCombat("player") then
+        return "showOnlyInCombat"
+    end
+    if unit ~= "player" and not UnitExists(unit) then return "no unit" end
+    return "always"
 end
 
 local dbgLastShown = {}   -- module-local: last applied visibility per unit, for transition logging
@@ -123,17 +155,14 @@ function NS.ApplyVisibility(unit)
     unit = unit or "player"
     local bar = NS.bars[unit]
     if not bar then return end
+    local t0 = Perf.on and debugprofilestop()
     local show = NS.ShouldShowBar(unit)
     if NS.State and NS.State.debug and show ~= dbgLastShown[unit] then
-        local reason = (not NS.Units.IsEnabled(unit)) and "unit disabled"
-            or (NS.GetSetting("showOnlyInCombat") and not UnitAffectingCombat("player")
-                and "showOnlyInCombat")
-            or (unit ~= "player" and not UnitExists(unit) and "no unit")
-            or "always"
-        NS.Debug("Bar", "%s: %s (%s)", unit, show and "shown" or "hidden", reason)
+        NS.Debug("Bar", "%s: %s (%s)", unit, show and "shown" or "hidden", visibilityReason(unit))
     end
     dbgLastShown[unit] = show
     if show then bar:Show() else bar:Hide() end
+    if t0 then Perf.Note("visibility", debugprofilestop() - t0) end
 end
 
 -- Repaint one bar's absorb value. Reads the raw (possibly "secret") UnitGetTotalAbsorbs value and
@@ -158,6 +187,8 @@ function NS.UpdateAbsorbBar(unit)
         return false
     end
 
+    local t0 = Perf.on and debugprofilestop()
+
     local totalAbsorb = UnitGetTotalAbsorbs(unit) or 0
     local maxHealth = UnitHealthMax(unit) or 1
 
@@ -166,6 +197,9 @@ function NS.UpdateAbsorbBar(unit)
     bar.statusBar:SetValue(totalAbsorb)
     bar.valueText:SetText(AbbreviateNumbers(totalAbsorb))
 
+    -- Bracket opened AFTER the early-outs, so `paintBar` counts only passes that actually painted.
+    -- A bucket whose call count included skipped bars would make ms/call meaningless.
+    if t0 then Perf.Note("paintBar", debugprofilestop() - t0) end
     return true
 end
 

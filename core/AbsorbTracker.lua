@@ -1,5 +1,11 @@
 local addonName, NS = ...
 
+-- Perf probe (the LibKa0s-Perf instance built in core/PerfSetup.lua), taken as a load-time upvalue
+-- for the same reason modules/Display.lua and modules/Timer.lua do: OnAbsorbChanged is the addon's
+-- highest-frequency entry point, and a dormant bracket should cost an upvalue read rather than a
+-- table lookup through NS. PerfSetup loads earlier in the TOC, so this is never nil.
+local Perf = NS.Perf
+
 -- AceAddon promotion (Ka0s standard §4.2). Pass NS as the first arg so the bootstrap table and
 -- the AceAddon object are one and the same; the AceEvent/AceTimer/AceConsole mixins are stamped
 -- onto NS.addon.
@@ -63,16 +69,24 @@ function addon:OnEnable()
     -- is enabled — which is why those two are not registered unconditionally alongside the three
     -- below. Re-runs on every UNITS message (subscribed at the bottom of this file).
     self:SyncUnitEventFrames()
-
-    self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
-    self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnEnterCombat")
-    self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnLeaveCombat")
+    self:RegisterLifecycleEvents()
 
     -- Create the options panel (defined in settings/Panel.lua).
     if NS.CreateOptionsPanel then NS.CreateOptionsPanel() end
     -- No [Init] boot summary here: the debug flag is session-only and off at login, so a
     -- login-time NS.Debug line would always be gated off. Per debug-logging §5 the session summary
     -- is emitted from DebugLog:SetEnabled on enable, the only point where it is current and visible.
+end
+
+-- The three always-on, unit-agnostic registrations. Extracted from OnEnable so the perf probe's
+-- Resume() restores exactly the set Suspend() tore down, rather than a hand-maintained copy of it
+-- that could drift the moment a fourth event is added here (core/PerfSetup.lua). The per-unit and
+-- swap registrations are NOT part of this set — SyncUnitEventFrames owns those, because they
+-- depend on which units are currently enabled.
+function addon:RegisterLifecycleEvents()
+    self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
+    self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnEnterCombat")
+    self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnLeaveCombat")
 end
 
 -- One private RegisterUnitEvent frame PER UNIT, registered only while that unit's bar is enabled.
@@ -146,6 +160,7 @@ end
 -- report a number that doesn't match what it prints. Gate the debug read so it costs nothing when
 -- debug is off (§12.4).
 function addon:OnAbsorbChanged(_, unit)
+    local t0 = Perf.on and debugprofilestop()
     if unit == "player" and NS.State and NS.State.debug then
         dbgAbsorbEvents = dbgAbsorbEvents + 1
         local v = UnitGetTotalAbsorbs("player") or 0
@@ -161,6 +176,10 @@ function addon:OnAbsorbChanged(_, unit)
         end
     end
     NS.bus:SendMessage(NS.MSG.REPAINT)
+    -- Measures the handler only — bus publish included, the repaint itself NOT (that is deferred
+    -- into `repaintPass` by the throttle). This bucket is what answers "does the addon cost
+    -- anything per absorb event", which at a training dummy is the highest-frequency path it has.
+    if t0 then Perf.Note("absorbEvent", debugprofilestop() - t0) end
 end
 
 -- The bar shows absorb as a fraction of max health, so a max-health change (buffs, stamina,

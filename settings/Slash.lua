@@ -45,7 +45,7 @@ end
 -- Forward declarations so the commands table can reference handlers defined below.
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
-local runDebug, runUpdate, runTest, runProfile, runToggle
+local runDebug, runUpdate, runTest, runProfile, runToggle, runPerf
 local getVersion
 
 NS.COMMANDS = {
@@ -79,6 +79,8 @@ NS.COMMANDS = {
         function(rest) runToggle(rest) end},
     {"debug",         "Toggle the debug console \226\128\148 `on`/`off` enable/disable logging",
         function(rest) runDebug(rest) end},
+    {"perf",          "Measure performance \226\128\148 try `/at perf` for the workflow",
+        function(rest) runPerf(rest) end},
     {"update",        "Force a bar refresh",
         function() runUpdate() end},
     {"version",       "Print the addon version",
@@ -241,6 +243,13 @@ end
 --
 -- /at debug        toggles the on-screen debug console window (state unchanged).
 -- /at debug on|off enables / disables session logging (§12.5).
+
+-- The whole guided run lives in LibKa0s-Perf; this is only the dispatch. The lib deliberately
+-- registers no slash command of its own (slash-commands-§: every verb goes through this table with
+-- the cyan tag), so it hands back lines and we print them.
+function runPerf(rest)
+    for _, line in ipairs(NS.Perf.OnCommand(rest or "")) do print(line) end
+end
 
 function runDebug(rest)
     local sub = (rest or ""):match("^(%S*)") or ""

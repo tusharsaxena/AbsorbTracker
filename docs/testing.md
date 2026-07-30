@@ -14,12 +14,31 @@ section.
 | Syntax-check one file | `luac -p <path/to/file.lua>` | no output (clean parse) |
 | In-game smoke tests | manual | see [smoke-tests.md](./smoke-tests.md) |
 
+**Not part of the gate**, and deliberately so:
+
+| Check | Command | Why it is not gated |
+|-------|---------|---------------------|
+| Offline perf | `lua tests/perf.lua` | Wall-clock numbers on a developer machine are not stable enough to fail a build on, and a perf suite that fails spuriously gets switched off within a week. It *does* hard-assert the deterministic half (repaint counts, API calls per pass, bytes per pass) and exits non-zero on a real regression, so it is CI-usable later. |
+| Complexity | `lizard -l lua core modules settings defaults locales` | Optional Python dev dependency; the Ka0s standard does not yet define a complexity rule. Report: [complexity.md](./complexity.md). |
+
+Both are documented in [performance.md](./performance.md).
+
 Toolchain: Lua 5.1 + luacheck (`sudo apt-get install -y lua5.1 luarocks && sudo luarocks install
 luacheck`).
 
 The suite list (see [common-tasks.md](./common-tasks.md#run-the-test-gate) for the full table) now
 includes `tests/test_units.lua` — `core/Units.lua`'s unit identity, mirror resolution
-(`IsEnabled`/`IsMirrored`/`SourceUnit`/`Get`/`Set`), per-unit position, and `CopyFromPlayer`.
+(`IsEnabled`/`IsMirrored`/`SourceUnit`/`Get`/`Set`), per-unit position, and `CopyFromPlayer` — and
+`tests/test_perf.lua`, covering this addon's side of the `LibKa0s-Perf-1.0` harness (issue #17) —
+`core/PerfSetup.lua`'s descriptor, the bracket call sites, and the suspend/resume state machine. The
+probe itself (buckets, JSON, the record schema, report formatting, the capture ring) is tested in the
+LibKa0s repo, not duplicated here.
+
+**A note for anyone adding tests that touch suspend or the repaint timer.** `NS.Perf.Resume()`
+republishes `REPAINT`, which arms a coalescing timer. Left armed, `pending` in `modules/Timer.lua`
+stays set for the rest of the **process**, and every later suite's `RequestRepaint` quietly
+coalesces into a pass that never fires — surfacing as unrelated failures three suites away.
+`tests/test_perf.lua` drains it via a local `settle()` helper after every resume. Do the same.
 
 ## Current status
 
@@ -34,27 +53,27 @@ there is nothing here to drift. Read `docs/test-cases.md` (or its `## Totals` ta
 enumerates every registered case grouped by its originating `test_*.lua` suite:
 
 ```sh
-lua tests/run.lua --list > docs/test-cases.md
+lua tests/run.lua --list | sed 's/$/\r/' > docs/test-cases.md
 ```
 
-Verify it is in sync (regenerate first, then diff — the two must be identical):
+Verify it is in sync (the plain `--list` output is LF, so strip the file's `\r` before diffing):
 
 ```sh
-diff <(lua tests/run.lua --list) docs/test-cases.md   # no output == in sync
+diff <(lua tests/run.lua --list) <(tr -d '\r' < docs/test-cases.md)   # no output == in sync
 ```
 
-Note on line endings: this repo pins `*.md text eol=crlf` (`.gitattributes`), and the `--list`
-redirect writes LF. Always **regenerate before diffing** — the redirect rewrites the working copy
-to LF so the diff compares like-for-like; Git re-normalizes the committed blob to LF and the
-checked-out working tree to CRLF, exactly as it does for every other `.md`. This is expected and
-harmless.
+Note on line endings: this repo pins `*.md text eol=crlf` (`.gitattributes`), so the committed file
+is CRLF throughout. `lua tests/run.lua --list` on its own only writes LF; piping it through
+`sed 's/$/\r/'` before the redirect is what keeps the regenerated file byte-identical to the one
+already checked in, instead of leaving a whitespace-only diff for the next `.md`-aware tool to
+trip over.
 
 ## Keeping the inventory & badge in sync
 
 When the suite changes — a case added, removed, or renamed, or the pass count moves (i.e. **whenever
 a failing test is resolved**) — do **both** of these **in the same change**, never as a follow-up:
 
-1. Regenerate the inventory: `lua tests/run.lua --list > docs/test-cases.md`.
+1. Regenerate the inventory: `lua tests/run.lua --list | sed 's/$/\r/' > docs/test-cases.md`.
 2. Update the README `Tests` badge count (`![Tests](…/badge/Tests-X%2FY_passing-green)`) to the new
    passed / total.
 

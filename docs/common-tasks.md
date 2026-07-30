@@ -203,7 +203,7 @@ See also: the `/wow-addon:bump-interface` skill for the automated version of thi
 This addon has a headless test harness under `tests/` — any doc claiming "no automated tests" is stale. Run the green gate before you consider a change done:
 
 ```sh
-lua tests/run.lua      # suites: schema / database / compat / util / debuglog / slash / timer / visibility / bus / data / display / helpers / slashcmds / widgets / units (count: docs/test-cases.md)
+lua tests/run.lua      # suites: schema / database / compat / util / debuglog / slash / timer / perf / visibility / bus / data / display / helpers / slashcmds / widgets / units (count: docs/test-cases.md)
 luacheck .             # must be 0 warnings / 0 errors
 luac -p <changed.lua>  # bytecode-parse each file you touched
 ```
@@ -228,12 +228,56 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 | `tests/test_helpers.lua` | `CreatePanel` + the panel registry, the lazy Defaults-button declaration, `RestoreDefaults` / `RestoreAllDefaults` (every unit's position cleared) / `RefreshAllPanels` |
 | `tests/test_slashcmds.lua` | The remaining `/at` verbs: lock/unlock/toggle, update, reset (all units)/resetall/resetposition (all units), get/set failure paths (fully-qualified only), `test`, and the full `/at profile` sub-dispatcher |
 | `tests/test_widgets.lua` | Schema-row → AceGUI widget translation: the four widget makers, `SessionCheckbox`, `RenderField` dispatch, `RenderRows`/`RenderSchema` layout (`skipRender` rows omitted), and the real pages driven through their deferred `OnShow` |
+| `tests/test_perf.lua` | This addon's side of the `LibKa0s-Perf-1.0` harness (issue #17): `core/PerfSetup.lua`'s descriptor is well-formed, the bracket call sites (silent when off), and suspend/resume (the `ShouldShowBar` step-0 gate, event teardown/restore, `RequestRepaint` no-op, `CancelPendingRepaint`). The probe's own bucket accounting, `EncodeJSON`, `BuildRecord`, the capture ring, and `FormatReport` are tested in the LibKa0s repo, not here |
 | `tests/test_units.lua` | `core/Units.lua`: `LIST`/`LABEL`, `IsEnabled`/`IsMirrored`/`SourceUnit` (player never mirrored), the mirror-resolved `Get`, `Set` (writes the unit's own config), `Position`/`SetPosition` (never mirrored), `CopyFromPlayer` (deep-copy + mirror clear, `position`/`enabled` untouched), `DeepCopy` |
 
 Add a new setting or page? `test_schema.lua`'s integrity invariants already require a label, a desc, a
 default that agrees with `defaults.profile`, and (for numbers) a `min`/`max` bracketing that default —
 so a half-wired row fails the gate on its own. New slash verb? Add a `test_slash.lua` (core dispatch) or
 `test_slashcmds.lua` (verb behaviour) case. New core behavior? Prefer a new `tests/test_<area>.lua` wired into `tests/run.lua`.
+
+## Measure performance
+
+Neither harness is part of the green gate. Full protocol and caveats: [performance.md](./performance.md).
+
+```sh
+lua tests/perf.lua                                   # offline: counters asserted, timings reported
+lua tests/perf.lua --label after-my-change \
+    --out docs/perf-runs/2026-08-01-offline-mine.json
+```
+
+In-game, as a sub-verb of the debug suite:
+
+```
+/at perf             # opens the step panel - Start is clickable from it
+/at perf start       # or begin a run directly (works with logging off)
+/at perf measure a   # arm Experiment A - records while in combat
+/at perf measure b   # arm Experiment B - same, and suspends the addon for you
+/at perf finish      # end the run, save to AbsorbTrackerPerfDB, print the summary
+/at perf cancel      # or abandon it - discards the run unsaved and restores the addon
+/at perf show|hide|toggle   # drive the step panel; never touches the run
+/reload                    # flush SavedVariables
+```
+
+Experiments are combat-gated, so the walk between pulls is never measured. There is no manual
+suspend verb: `measure b` owns it, which is what keeps the two experiments differing by the addon
+and nothing else.
+
+Captures land in the `AbsorbTrackerPerfDB` global inside
+`WTF/Account/<ACCOUNT>/SavedVariables/AbsorbTracker.lua` (note: the file is named after the **addon**,
+not after the saved-variable globals). Record schema: [perf-runs/README.md](./perf-runs/README.md).
+
+**If you add a bracket to a hot path**, use the gated idiom exactly — anything else costs work when
+capture is off, and `tests/perf.lua`'s `probeOverhead*` scenarios will fail:
+
+```lua
+local Perf = NS.Perf                       -- load-time upvalue, at the top of the file
+local t0 = Perf.on and debugprofilestop()
+-- ... work ...
+if t0 then Perf.Note("myBucket", debugprofilestop() - t0) end
+```
+
+Add the bucket name to `NS.Perf.BUCKET_ORDER` or it records but never prints.
 
 ## See also
 

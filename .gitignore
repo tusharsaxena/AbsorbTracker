@@ -10,3 +10,6 @@ Thumbs.db
 # Claude
 .claude/
 .claude/settings.local.json
+
+# Subagent-driven-development scratch (ledger, briefs, review packages)
+.superpowers/

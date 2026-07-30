@@ -164,3 +164,5 @@ Topic-specific detail lives in `docs/`. Read on demand.
 | Midnight quirks (secret values, backdrop refresh, combat lockdown) | [midnight-quirks.md](./midnight-quirks.md) |
 | Recipes (add a setting, add a sub-page, bump Interface) | [common-tasks.md](./common-tasks.md) |
 | Manual QA / smoke-test recipe | [smoke-tests.md](./smoke-tests.md) |
+| Measuring performance (offline runner + `/at perf`) | [performance.md](./performance.md) |
+| Cyclomatic complexity report | [complexity.md](./complexity.md) |

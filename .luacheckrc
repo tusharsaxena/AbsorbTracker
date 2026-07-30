@@ -13,11 +13,15 @@ read_globals = {
   "UnitClass", "UnitHealthMax", "UnitGetTotalAbsorbs", "UnitExists", "AbbreviateNumbers", "C_ClassColor",
   "InCombatLockdown", "UnitAffectingCombat", "Settings", "SettingsPanel", "C_Timer", "C_AddOns",
   "GetAddOnMetadata",
+  -- ms CPU clock backing the perf brackets in core/AbsorbTracker.lua, modules/Display.lua and
+  -- modules/Timer.lua. The probe they feed lives in libs/LibKa0s/Perf.lua, which this lint excludes.
+  "debugprofilestop",
   "hooksecurefunc", "GameTooltip", "DEFAULT_CHAT_FRAME", "UISpecialFrames",
   "StaticPopup_Show", "CreateColor", "PlaySound",
   "wipe", "strsplit", "strtrim", "tinsert", "tremove", "select",
 }
 globals = {
   "AbsorbTrackerDB",     -- the SavedVariables write target
+  "AbsorbTrackerPerfDB", -- second SavedVariables global: the perf capture ring (core/PerfSetup.lua)
   "StaticPopupDialogs",  -- the Reset-All confirm dialog registers here
 }

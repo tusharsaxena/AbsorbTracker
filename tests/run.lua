@@ -24,6 +24,8 @@ local mocks = buildMocks()
 local NS = {}
 
 Loader.loadAll({
+  "libs/LibKa0s/Perf.lua",
+  "libs/LibKa0s/PerfPanel.lua",
   "locales/enUS.lua",
   "core/Compat.lua",
   "core/Constants.lua",
@@ -31,6 +33,7 @@ Loader.loadAll({
   "core/State.lua",
   "core/Bus.lua",
   "core/Util.lua",
+  "core/PerfSetup.lua",
   "core/Data.lua",
   "core/Units.lua",
   "core/Database.lua",
@@ -79,6 +82,7 @@ local SUITES = {
   "test_debuglog",
   "test_slash",
   "test_timer",
+  "test_perf",
   "test_visibility",
   "test_bus",
   "test_data",
