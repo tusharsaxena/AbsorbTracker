@@ -32,7 +32,7 @@ The shape below is a summary for orientation; that document is the source of tru
   "addon": "AbsorbTracker",     // NEW in schema 2 — which host produced this record
   "source": "offline" | "ingame",
   "version": "1.9.0",          // addon version
-  "interface": 120007,          // TOC interface; 0 for offline runs
+  "interface": 0,               // TOC interface — reads 0 in practice, see the note below
   "timestamp": 1785110400,      // epoch seconds
   "label": "baseline-v1.9.0",
 
@@ -101,7 +101,14 @@ as "none" regardless of which bracket it wears.
 - **`buckets[*].bytesPerIter`** (offline) is garbage produced per iteration, isolated by a full
   collect either side. Allocation in a path that runs at combat frequency matters more than its
   wall time.
-- **`interface`** is `0` for offline runs — there is no client involved.
+- **`interface`** reads `0` in every record, in-game ones included, and always has. WoW's
+  `GetAddOnMetadata` does not expose the `Interface` TOC field, so the lookup returns nil and the
+  record stamps 0. Offline runs have no client at all, so 0 is correct there. The
+  `LibKa0s-Perf-1.0` extraction reproduced the behaviour faithfully rather than fixing it, because
+  the parity gate asked for identical measurements; see
+  [2026-07-30-extraction-parity](../investigations/2026-07-30-extraction-parity/analysis.md). Do not
+  read this field as the client version — `select(4, GetBuildInfo())` is the fix, upstream in the
+  library.
 - **Frame limiters are not recorded.** They were, briefly, and it was removed: `maxFPS` retains its
   last slider value whether or not the limiter is enabled, so the reading proved nothing (a client
   reporting `maxFPS=120` measured 200 fps). Judge a capped run from the arms — two arms at the same
