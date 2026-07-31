@@ -291,11 +291,12 @@ local function loadDegraded()
   -- A fresh loader table per dofile, so this environment sets its own addonName.
   Loader.addonName = "AbsorbTracker"
   local mocks2, NS2 = buildMocks(), {}
-  -- libs/LibKa0s/*.lua deliberately not in this list: unloaded, nothing registers the perf major,
-  -- and the mock's LibStub returns nil for it exactly as the real client would.
+  -- libs/LibKa0s/*.lua deliberately not in this list: unloaded, nothing registers the perf or core
+  -- majors, and the mock's LibStub returns nil for both exactly as the real client would. So this
+  -- environment exercises core/CoreSetup.lua's fallbacks as well as core/PerfSetup.lua's stub.
   Loader.loadAll({
     "locales/enUS.lua", "core/Compat.lua", "core/Constants.lua", "core/Namespace.lua",
-    "core/State.lua", "core/Bus.lua", "core/Util.lua", "core/PerfSetup.lua", "core/Data.lua",
+    "core/State.lua", "core/Bus.lua", "core/CoreSetup.lua", "core/PerfSetup.lua", "core/Data.lua",
     "core/Units.lua", "core/Database.lua", "core/LSMPatch.lua", "core/DebugLog.lua",
     "core/AbsorbTracker.lua", "defaults/Profile.lua", "modules/Bar.lua", "modules/Display.lua",
     "modules/Timer.lua", "settings/Schema.lua", "settings/Slash.lua",

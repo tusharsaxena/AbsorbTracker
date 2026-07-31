@@ -67,7 +67,8 @@ User-facing reference: [../README.md](../README.md). Subsystems + invariants:
   display — never run it through `tonumber` first, and never compare it with `<`/`>`. A secret
   survives `tostring()` **and the `..` operator** but **raises in `table.concat`/`string.format`**,
   so **never build a chat/debug line from a raw combat value** — every arg to `NS.Print` /
-  `NS.Debug` goes through `NS.SafeToString` (`core/Util.lua`), which renders a secret as
+  `NS.Debug` goes through `NS.SafeToString` (`LibKa0s-Core-1.0`, `libs/LibKa0s/Core.lua` — the
+  addon takes it off the library in `core/CoreSetup.lua`), which renders a secret as
   `<secret>`. Its detector probes `table.concat`, not `..` (a `..` probe passes secrets through).
   This is Ka0s standard **§9.8**. Detail in [midnight-quirks.md](./midnight-quirks.md).
 - **Deprecated APIs go through `core/Compat.lua`.** `Compat.GetAddOnMetadata` is the only metadata
@@ -118,7 +119,8 @@ modules subscribe on their own `NS.NewBusTarget()` targets (architecture-§4; se
   `AceGUI-3.0-SharedMediaWidgets` r65. The displayButton tile is suppressed by
   `core/LSMPatch.lua` (addon-side, not a lib edit), so `r66+` refreshes are a clean drop-in.
 - **Headless tests (`tests/`) + lint gate.** `lua tests/run.lua` (schema parse/format/validate plus
-  the build-time schema-integrity invariants, DB migrations, Compat, Util, DebugLog, the full `/at`
+  the build-time schema-integrity invariants, DB migrations, Compat, the `LibKa0s-Core-1.0` wiring
+  in `core/CoreSetup.lua` (including the degraded load with the library absent), DebugLog, the full `/at`
   surface including `/at profile`, repaint-throttle coalescing, combat-visibility, message-bus
   dispatch, the `core/Data.lua` settings/media/colour seam, the `modules/Display.lua` paint path,
   the `settings/Helpers.lua` panel toolkit, the schema → AceGUI widget layer, and `core/Units.lua`

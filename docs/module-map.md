@@ -109,14 +109,33 @@ NS.MSG                 -- catalogue (all Ka0s_AbsorbTracker_*, payload-free):
 
 Senders: `core/AbsorbTracker.lua` (event/lifecycle), `settings/Slash.lua`, `settings/General.lua`, `settings/Schema.lua`, `settings/Helpers.lua`. Consumers register at file load in `modules/Timer.lua` (`NS.Timer.__ev`), `modules/Display.lua` (`NS.Display.__ev`) and `core/AbsorbTracker.lua` (`NS.Events.__ev`, which owns the sole `UNITS` subscription). Full catalogue (sender/consumer/effect) in [ARCHITECTURE.md → Message Bus](./ARCHITECTURE.md#message-bus).
 
-### Util (`core/Util.lua`)
+### CoreSetup (`core/CoreSetup.lua`)
+
+Wires the addon into `LibKa0s-Core-1.0` — the secret guard, the stringifier and the prefixed chat
+printer are library code now (`libs/LibKa0s/Core.lua`), vendored the same way Ace3 is. They were
+identical in every Ka0s addon and wrong in slightly different ways in several of them. This file
+supplies only the part that's ours: which tag the lines carry, and what happens when the library is
+not there.
 
 ```lua
+local lib = LibStub and LibStub("LibKa0s-Core-1.0", true)
+local printer = lib:New({ prefix = function() return NS.PREFIX end })
+-- The prefix goes in as a FUNCTION, not as the value of NS.PREFIX: the printer is built once at
+-- load, and the function form keeps a later change to NS.PREFIX from being frozen out.
+
 NS.Print(...)       -- prepends NS.PREFIX and prints via DEFAULT_CHAT_FRAME; every arg routes
-                    -- through NS.SafeToString, so a secret value never kills the line
-NS.Util.print       -- alias of NS.Print
-NS.IsConcatSafe(v)  -- probes table.concat({v}) to detect a WoW "secret" value (12.0 combat guard)
-NS.SafeToString(v)  -- secret-safe stringifier; renders a secret as "<secret>"
+                    -- through SafeToString, so a secret value never kills the line
+NS.Util.print       -- THE SAME function object as NS.Print, not a second wrapper: AceAddon:NewAddon
+                    -- stamps AceConsole's :Print over NS.Print, and core/AbsorbTracker.lua reclaims
+                    -- it by repointing NS.Print at NS.Util.print. That only restores what the
+                    -- settings files captured at load because it is the identical object.
+NS.IsConcatSafe(v)  -- lib.IsConcatSafe: probes table.concat({v}) to detect a WoW "secret" value
+NS.SafeToString(v)  -- lib.SafeToString: renders a secret as "<secret>"
+
+-- With the library absent this file falls back to the pre-library implementations rather than to
+-- a no-op — five settings files do `local print = NS.Print` at load, so a nil printer takes the
+-- settings UI down and a silent one makes /at answer nothing — and says the "LibKa0s is missing"
+-- line ONCE, on the first line the addon prints.
 
 -- The debug sink itself, NS.Debug(tag, fmt, ...), is defined in core/DebugLog.lua: it routes
 -- every vararg through NS.SafeToString then fmt:format(...), so call sites use %s-only format
@@ -153,7 +172,7 @@ NS.Perf = lib and lib:New({
 `Reset`, `Start`, `Stop`, `Suspend`, `Resume`, `BuildRecord`, `FormatReport`, `EncodeJSON`, `Save`,
 `ShowPanel`/`HidePanel`/`TogglePanel`/`RefreshPanel`, `OnCommand`, …). This file must load before any
 module takes `local Perf = NS.Perf` as an upvalue — hence its position immediately after
-`core/Util.lua` in the TOC, same slot the old `core/Perf.lua` held.
+`core/CoreSetup.lua` in the TOC, same slot the old `core/Perf.lua` held.
 
 Suspend enforces visibility **at the source** rather than hiding frames imperatively: because
 `NS.ShouldShowBar` checks `NS.Perf.suspended` first, `suspend` only has to publish `VISIBILITY` once
@@ -589,9 +608,9 @@ In practice the calls always succeed because all files are loaded synchronously 
 
 `AbsorbTracker.toc` is the source of truth. Order is dependency order, not alphabetical. The load groups are **Libraries → Locales → Core → Defaults → Modules → Settings**:
 
-1. `libs/` — LibStub, CallbackHandler-1.0, then the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB / AceGUI / AceConfig / AceDBOptions), `LibKa0s` (`LibKa0s-Perf-1.0` — the shared perf-instrumentation harness, issue #17), LibSharedMedia-3.0, and the vendored upstream `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets) — all inside the `#@no-lib-strip@` block. Vendored **folder-per-lib** at `libs/` root (not `libs/Ace3/…`).
+1. `libs/` — LibStub, CallbackHandler-1.0, then the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB / AceGUI / AceConfig / AceDBOptions), `LibKa0s` (`LibKa0s-Core-1.0` — the shared secret guard + chat printer + window chrome — then `LibKa0s-Perf-1.0`, the shared perf-instrumentation harness, issue #17; `Core.lua` loads first, since `Perf` needs it), LibSharedMedia-3.0, and the vendored upstream `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets) — all inside the `#@no-lib-strip@` block. Vendored **folder-per-lib** at `libs/` root (not `libs/Ace3/…`).
 2. **Locales** — `locales/enUS.lua` (`NS.L` metatable seam; loads directly after Libraries per `toc-file-§5` — no dependency on `core/*`).
-3. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Bus.lua` (the closed message bus — `NS.bus` / `NS.NewBusTarget` / `NS.MSG`), `Util.lua`, `PerfSetup.lua` (wires `NS.Perf` to `LibKa0s-Perf-1.0` — must load before any module takes `NS.Perf` as an upvalue), `Data.lua`, `Units.lua` (unit identity + mirror resolution — loads after `Data.lua`, before `Database.lua` since migration needs `NS.Units.LIST`/`APPEARANCE_KEYS`), `Database.lua`, `LSMPatch.lua`, `DebugLog.lua`, `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
+3. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Bus.lua` (the closed message bus — `NS.bus` / `NS.NewBusTarget` / `NS.MSG`), `CoreSetup.lua` (wires `NS.Print` / `NS.SafeToString` / `NS.IsConcatSafe` to `LibKa0s-Core-1.0`, in the slot the old `Util.lua` held — `Namespace.lua` defines `NS.PREFIX` above it and everything below it prints), `PerfSetup.lua` (wires `NS.Perf` to `LibKa0s-Perf-1.0` — must load before any module takes `NS.Perf` as an upvalue), `Data.lua`, `Units.lua` (unit identity + mirror resolution — loads after `Data.lua`, before `Database.lua` since migration needs `NS.Units.LIST`/`APPEARANCE_KEYS`), `Database.lua`, `LSMPatch.lua`, `DebugLog.lua`, `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
 4. **Defaults** — `defaults/Profile.lua` (AceDB defaults; runs at file-load).
 5. **Modules** — `modules/Bar.lua` (bar frame creation at file-load), `Display.lua` (render functions + `NS.Display.__ev` bus consumer), `Timer.lua` (coalescing repaint scheduler + `NS.Timer.__ev` bus consumer).
 6. **Settings** (last — depend on everything else being initialized) — `settings/Schema.lua` (registry), `Slash.lua` (`/at` dispatcher), `Panel.lua` (registration shell; publishes empty `NS.Helpers` + `NS.PARENT_TITLE`), then the toolkit slices `Helpers.lua` → `ScrollPatch.lua` → `Widgets.lua` → `About.lua` (each decorates `NS.Helpers`; order matters only between `Helpers` (defines `EnsureScroll`) and `ScrollPatch` (defines `PatchAlwaysShowScrollbar` that `EnsureScroll` references)), then the page builders `General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` (each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load; LSM-backed rows call `NS.Helpers.LSMValues(mediaType)`).
@@ -604,4 +623,4 @@ Modules that own a sub-surface publish it with the `NS.X = NS.X or {}` guard (`N
 
 ## Test harness
 
-There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` loads the runtime files in TOC order through `tests/loader.lua` against `tests/wow_mock.lua`, then runs `test_schema.lua`, `test_database.lua`, `test_compat.lua`, `test_util.lua`, `test_debuglog.lua`, `test_slash.lua`, `test_timer.lua`, `test_visibility.lua`, `test_bus.lua`, `test_data.lua`, `test_display.lua`, `test_helpers.lua`, `test_slashcmds.lua`, `test_widgets.lua`, and `test_units.lua` (authoritative case count in the generated [test-cases.md](./test-cases.md)). The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.
+There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` derives the runtime file list from the TOC and loads it — after the vendored `libs/LibKa0s/*.lua` — through `tests/_kit/loader.lua`, against `tests/_kit/mock_base.lua` plus this addon's `tests/wow_mock.lua` overlay. It then runs `test_loadorder.lua`, `test_schema.lua`, `test_database.lua`, `test_units.lua`, `test_compat.lua`, `test_coresetup.lua`, `test_util.lua`, `test_debuglog.lua`, `test_slash.lua`, `test_timer.lua`, `test_perf.lua`, `test_visibility.lua`, `test_bus.lua`, `test_data.lua`, `test_display.lua`, `test_helpers.lua`, `test_slashcmds.lua`, and `test_widgets.lua` (authoritative case count in the generated [test-cases.md](./test-cases.md)). The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.

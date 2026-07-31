@@ -6,7 +6,7 @@ badge and any count quoted in the docs must agree with it.
 
 **Generated — do not hand-edit.** Regenerate with `lua tests/run.lua --list > docs/test-cases.md`.
 
-### test_loadorder.lua (9)
+### test_loadorder.lua (10)
 
 - loadorder: tocFiles returns every addon lua file, in TOC order
 - loadorder: tocFiles skips libs, directives and comments
@@ -14,6 +14,7 @@ badge and any count quoted in the docs must agree with it.
 - loadorder: every derived path exists on disk
 - loadorder: the runner loaded exactly the TOC's files, in the TOC's order
 - loadorder: tests/perf.lua derives its list from the TOC too
+- loadorder: both runners load every LibKa0s file the vendored XML lists, in its order
 - loadorder: LibStub raises for a missing major without the silent flag
 - loadorder: LibStub returns nil for a missing major with the silent flag
 - loadorder: LibStub keeps the higher minor when a major registers twice
@@ -115,14 +116,17 @@ badge and any count quoted in the docs must agree with it.
 - Compat.GetAddOnMetadata returns nil when neither API is present
 - No inline GetAddOnMetadata leaks: Compat is the only metadata accessor
 
-### test_util.lua (6)
+### test_coresetup.lua (4)
 
-- IsConcatSafe: true for plain number/string, false for an un-concatenable value
-- SafeToString: passes normal values through tostring
-- SafeToString: renders a secret value as <secret> instead of raising
+- core: the secret seam is the library's, not a private copy
+- core: NS.Print carries the [AT] tag and survives a secret arg
+- core: NS.Print and NS.Util.print are the same object after the AceConsole reclaim
+- core: the addon still prints, tagged, with LibKa0s absent
+
+### test_util.lua (2)
+
 - NS.Debug routes the first arg as the [tag] and tolerates a secret arg
 - NS.Debug is a no-op when debug is off
-- Print tolerates a secret arg (no concat crash)
 
 ### test_debuglog.lua (14)
 
@@ -500,12 +504,13 @@ badge and any count quoted in the docs must agree with it.
 
 | Suite | Cases |
 |-------|------:|
-| test_loadorder.lua | 9 |
+| test_loadorder.lua | 10 |
 | test_schema.lua | 40 |
 | test_database.lua | 27 |
 | test_units.lua | 14 |
 | test_compat.lua | 4 |
-| test_util.lua | 6 |
+| test_coresetup.lua | 4 |
+| test_util.lua | 2 |
 | test_debuglog.lua | 14 |
 | test_slash.lua | 12 |
 | test_timer.lua | 11 |
@@ -517,4 +522,4 @@ badge and any count quoted in the docs must agree with it.
 | test_helpers.lua | 40 |
 | test_slashcmds.lua | 103 |
 | test_widgets.lua | 48 |
-| **Total** | **439** |
+| **Total** | **440** |

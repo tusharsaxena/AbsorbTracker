@@ -8,7 +8,8 @@ local addonName, NS = ...
 -- descriptor table, and docs/record-schema.md for what a saved run looks like).
 --
 -- The instance is created at LOAD TIME, before any module takes `local Perf = NS.Perf` as an
--- upvalue — this file sits immediately after core/Util.lua in the TOC for exactly that reason.
+-- upvalue — this file sits immediately after core/CoreSetup.lua in the TOC for exactly that reason,
+-- and because the descriptor's `log` and `print` sinks below both go through NS.Print.
 
 local lib = LibStub and LibStub("LibKa0s-Perf-1.0", true)
 if not lib then

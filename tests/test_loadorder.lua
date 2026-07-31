@@ -79,6 +79,31 @@ test("loadorder: tests/perf.lua derives its list from the TOC too", function()
     "tests/perf.lua must derive its load list from the TOC, not carry a copy")
 end)
 
+test("loadorder: both runners load every LibKa0s file the vendored XML lists, in its order", function()
+  -- The library half of each runner's list CANNOT be derived from the TOC: the TOC reaches it
+  -- through libs\LibKa0s\LibKa0s.xml, which Loader.tocFiles deliberately skips. So it is hand
+  -- maintained, and it has already rotted once — omitting Core.lua raises nothing at all, because
+  -- Perf simply refuses to register, NS.Perf falls back to its degradation stub, and tests/perf.lua
+  -- goes on reporting a probeOverhead figure measured on a stub with no probe in it.
+  local raw = readFile("libs/LibKa0s/LibKa0s.xml")
+  local want = {}
+  for f in raw:gmatch('<Script%s+file="([^"]+)"%s*/>') do
+    want[#want + 1] = "libs/LibKa0s/" .. f
+  end
+  assertTrue(#want > 0, "the vendored LibKa0s.xml lists at least one script")
+
+  for _, runner in ipairs({ "tests/run.lua", "tests/perf.lua" }) do
+    local src = readFile(runner)
+    local at = 0
+    for _, p in ipairs(want) do
+      local pos = src:find(p, at + 1, true)
+      assertTrue(pos ~= nil, runner .. " does not load " .. p ..
+        " in LibKa0s.xml's order — a missing library file degrades silently rather than failing")
+      at = pos or at
+    end
+  end
+end)
+
 test("loadorder: LibStub raises for a missing major without the silent flag", function()
   local ok = pcall(function() return mocks.LibStub("LibKa0s-NoSuchModule-1.0") end)
   assertFalse(ok, "a bare LibStub() on a missing major must raise, as the real LibStub does")

@@ -24,7 +24,8 @@ end
 
 test("NS.Print survives AceConsole's embed and stays the [AT]-prefixed printer", function()
   -- Regression (real in-game bug): NewAddon(NS, …, "AceConsole-3.0") embeds AceConsole's :Print
-  -- mixin onto NS, clobbering the custom NS.Print from core/Util.lua. core/AbsorbTracker.lua must
+  -- mixin onto NS, clobbering the custom NS.Print core/CoreSetup.lua took off LibKa0s-Core.
+  -- core/AbsorbTracker.lua must
   -- reclaim it from the pristine NS.Util.print. Without that, every /at line loses the [AT] tag and
   -- gains a trailing colon (AceConsole renders the message as "|cff33ff99<msg>|r:").
   assertTrue(NS.Print == NS.Util.print,

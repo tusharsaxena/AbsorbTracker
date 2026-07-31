@@ -7,7 +7,10 @@
 
 local lib = LibStub and LibStub("LibKa0s-Perf-1.0", true)
 if not lib then return end
-local PANEL_MINOR = 1
+-- Core is guaranteed present here: Perf.lua refuses to register without it, so reaching this line
+-- at all means the lookup above already succeeded on a Core-backed probe.
+local core = LibStub("LibKa0s-Core-1.0", true)
+local PANEL_MINOR = 2
 -- Paired on the PROBE's minor as well as the panel's own. The panel counter alone is not enough:
 -- two vendored copies can ship the same panel minor over different Perf.lua minors, and then the
 -- higher probe wins the LibStub race while the first-loaded copy's panel stays attached to it —
@@ -32,14 +35,6 @@ local LABEL_X   = 26           -- column 2: step name
 local CMD_PAD   = 10           -- column 3: slash command, right-aligned
 local TITLE_H = 24
 local PAD = 8
-
--- Same shape as a debug console's skin, so a host's windows read as one addon.
-local BACKDROP = {
-    bgFile = "Interface\\Buttons\\WHITE8x8",
-    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-    edgeSize = 12,
-    insets = { left = 3, right = 3, top = 3, bottom = 3 },
-}
 
 -- Per-state colour, used for both the row's text and its status dot. `busy` deliberately shares the
 -- gold of an interactive control: the step IS happening, and greying it out would read as "nothing
@@ -174,14 +169,22 @@ function lib.__AttachPanel(P, d, tr, runCommand)
     title:SetText(P.title .. tr("PANEL_TITLE_SUFFIX"))
     frame.title = title
 
-    -- The close button, the divider and the backdrop skin are the host's to draw — this library
-    -- knows nothing about a host's chrome. `decorate` gets the frame plus a small API to wire a
-    -- close control to; a host that passes none still gets a working, if undecorated, panel.
+    -- A host that draws its own chrome keeps drawing it: `decorate` gets the frame plus a small API
+    -- to wire a close control to, and takes precedence. A host that passes none now gets Core's
+    -- close button rather than nothing — the same × the debug console wears, from the same factory,
+    -- so the two windows cannot drift. The two paths are exclusive: running both would leave a host
+    -- with its own close button and ours stacked on the same corner.
     if decorate then
       decorate(frame, {
         Show = P.ShowPanel, Hide = P.HidePanel, Toggle = P.TogglePanel,
         TITLE_H = TITLE_H, PAD = PAD, ROW_W = ROW_W,
       })
+    else
+      local close = core.MakeCloseButton(frame, P.HidePanel)
+      if close then
+        close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -6, -(TITLE_H - 18) / 2)
+        frame.closeButton = close
+      end
     end
 
     frame.buttons = {}
@@ -189,11 +192,7 @@ function lib.__AttachPanel(P, d, tr, runCommand)
       frame.buttons[step.key] = makeStepButton(frame, step, i)
     end
 
-    if frame.SetBackdrop then
-      frame:SetBackdrop(BACKDROP)
-      frame:SetBackdropColor(0.06, 0.06, 0.07, 0.95)
-      frame:SetBackdropBorderColor(0, 0, 0, 1)
-    end
+    core.ApplySkin(frame)
 
     frame:Hide()
     -- Esc closes it, like a debug console. Hiding is non-destructive, so this is safe to wire.

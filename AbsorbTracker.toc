@@ -38,7 +38,7 @@ core\Constants.lua
 core\Namespace.lua
 core\State.lua
 core\Bus.lua
-core\Util.lua
+core\CoreSetup.lua
 core\PerfSetup.lua
 core\Data.lua
 core\Units.lua

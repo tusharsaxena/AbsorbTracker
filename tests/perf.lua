@@ -52,7 +52,14 @@ local NS = {}
 -- Derived from the TOC, not copied from it. This runner is NOT executed by `lua tests/run.lua`, so
 -- a hand-maintained list here rots silently while the allocation figures it produces are still
 -- treated as the extraction's parity gate. tests/test_loadorder.lua asserts this file still derives.
-Loader.loadAll({ "libs/LibKa0s/Perf.lua", "libs/LibKa0s/PerfPanel.lua" }, NS, mocks)
+--
+-- The library half IS hand-maintained (the TOC reaches it through an XML the loader cannot read),
+-- and it has already rotted once: omitting Core.lua does not fail — Perf simply refuses to register,
+-- NS.Perf becomes the degradation stub, and probeOverheadOn quietly measures a stub with no probe in
+-- it. Keep this list in LibKa0s.xml's order, and read the figures as suspect if they move without a
+-- change that should have moved them.
+Loader.loadAll({ "libs/LibKa0s/Core.lua", "libs/LibKa0s/Perf.lua", "libs/LibKa0s/PerfPanel.lua" },
+  NS, mocks)
 Loader.loadAll(Loader.tocFiles("AbsorbTracker.toc"), NS, mocks)
 
 NS:InitDB()

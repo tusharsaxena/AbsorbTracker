@@ -18,6 +18,7 @@ Loader.addonName = "AbsorbTracker"
 -- The vendored library files, which the TOC pulls in through libs\LibKa0s\LibKa0s.xml and so are
 -- invisible to Loader.tocFiles. Listed here explicitly, in the same dependency order the XML uses.
 local LIB_FILES = {
+  "libs/LibKa0s/Core.lua",
   "libs/LibKa0s/Perf.lua",
   "libs/LibKa0s/PerfPanel.lua",
 }
@@ -56,6 +57,7 @@ Kit.run{
     "test_database",
     "test_units",
     "test_compat",
+    "test_coresetup",
     "test_util",
     "test_debuglog",
     "test_slash",

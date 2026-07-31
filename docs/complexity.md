@@ -11,6 +11,12 @@ file; everything else below (including `core/PerfPanel.lua`'s absence, which pre
 is un-regenerated and should be treated as informative rather than current until the next
 `lizard` run. **Regeneration is pending.**
 
+**Stale for the same reason since the `LibKa0s-Core-1.0` extraction:** `core/Util.lua` is gone
+(deleted, its secret guard / stringifier / chat printer moved into the vendored library) and
+`core/CoreSetup.lua` (~70 lines) has taken its TOC slot. Its row has likewise been hand-removed
+rather than renamed — the numbers would not carry over, since what is left in the addon is the
+descriptor and the fallback, not the algorithms.
+
 Part of issue [#17](https://github.com/tusharsaxena/AbsorbTracker/issues/17). This report is
 **advisory**: it is not part of the green gate (`lua tests/run.lua` + `luacheck .`) and no build
 fails on a number here. The Ka0s WoW Addon Standard does not yet define a complexity rule — that is
@@ -86,7 +92,6 @@ code that runs at combat frequency — is entirely in the low single digits:
 | core/DebugLog.lua | 296 | 41 | 2.3 |
 | core/LSMPatch.lua | 26 | 2 | 6.0 |
 | core/Units.lua | 71 | 12 | 3.2 |
-| core/Util.lua | 22 | 4 | 2.2 |
 | modules/Bar.lua | 57 | 2 | 1.5 |
 | modules/Display.lua | 130 | 14 | 4.2 |
 | modules/Timer.lua | 29 | 5 | 3.0 |

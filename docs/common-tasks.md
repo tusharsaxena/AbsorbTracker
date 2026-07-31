@@ -203,21 +203,23 @@ See also: the `/wow-addon:bump-interface` skill for the automated version of thi
 This addon has a headless test harness under `tests/` — any doc claiming "no automated tests" is stale. Run the green gate before you consider a change done:
 
 ```sh
-lua tests/run.lua      # suites: schema / database / compat / util / debuglog / slash / timer / perf / visibility / bus / data / display / helpers / slashcmds / widgets / units (count: docs/test-cases.md)
+lua tests/run.lua      # suites: loadorder / schema / database / units / compat / coresetup / util / debuglog / slash / timer / perf / visibility / bus / data / display / helpers / slashcmds / widgets (count: docs/test-cases.md)
 luacheck .             # must be 0 warnings / 0 errors
 luac -p <changed.lua>  # bytecode-parse each file you touched
 ```
 
-`tests/run.lua` loads every source file in TOC order through `tests/loader.lua` against the `tests/wow_mock.lua` WoW stub, runs `NS:InitDB()`, then executes the `test_*.lua` suites.
+`tests/run.lua` derives the addon's load list from `AbsorbTracker.toc` and loads it — after the vendored `libs/LibKa0s/*.lua` — through `tests/_kit/loader.lua`, against `tests/_kit/mock_base.lua` plus this addon's own `tests/wow_mock.lua` overlay. Then `NS:InitDB()`, then the `test_*.lua` suites. `tests/_kit/` is the shared harness vendored from LibKa0s and must stay byte-identical to it.
 
 **When behavior changes, extend the suite.** The existing suites are:
 
 | Suite | Covers |
 |-------|--------|
+| `tests/test_loadorder.lua` | The four load lists cannot drift from the TOC — `tocFiles()`'s derivation, the runner's list, `tests/perf.lua` still deriving, and (because the TOC reaches the library through an XML the loader cannot read) that both runners load every file `libs/LibKa0s/LibKa0s.xml` lists, in its order. Plus the strict LibStub mock. |
 | `tests/test_schema.lua` | schema shape, `ValidateSchema` (errors / resolved / missing), `SetByPath`, `ApplyDefault`, formatters/parsers |
 | `tests/test_database.lua` | `InitDB`, `RunMigrations` idempotency, flat + per-unit backfill, schemaVersion v1→v2→v3 migration (v3 lifts pre-v3 flat keys onto `profile.units.player`), the per-profile lift across **every** saved profile, and the `OnProfileChanged` lift for a profile restored after the upgrade |
 | `tests/test_compat.lua` | `Compat.GetAddOnMetadata` wrapper + fallback |
-| `tests/test_util.lua` | `NS.Print` / `NS.Debug` (secret-safe sink) prefixing and gating, `NS.SafeToString` secret-value handling |
+| `tests/test_coresetup.lua` | `core/CoreSetup.lua`: `NS.IsConcatSafe` / `NS.SafeToString` really are `LibKa0s-Core-1.0`'s own functions, `NS.Print` carries the `[AT]` tag and survives a secret arg, `NS.Print` is `NS.Util.print` (one object), and the degraded load with `libs/LibKa0s/` absent |
+| `tests/test_util.lua` | `NS.Debug` (the secret-safe console sink): the `[tag]`, `<secret>` rendering, and the debug-off no-op |
 | `tests/test_debuglog.lua` | `NS.Debug` sink, `FormatPlain` / `FormatColored`, on/off state |
 | `tests/test_slash.lua` | `NS.COMMANDS` dispatch, unknown-verb path, `/at` verbs |
 | `tests/test_timer.lua` | `NS.RequestRepaint` coalescing + `throttleWindow` delay, event-handler repaint wiring |

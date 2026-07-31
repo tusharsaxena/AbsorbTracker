@@ -10,10 +10,19 @@
 -- Every instance owns its own frames. A lib-level shared frame would reproduce that exact
 -- attribution pathology: the measuring instrument corrupting the attribution it exists to fix.
 --
--- Depends on LibStub and nothing else, deliberately — no Ace3, so the lib is adoptable by addons
--- that are not on the Ace substrate.
+-- Depends on LibStub and LibKa0s-Core-1.0, and on NO ADDON FRAMEWORK — that second half is the part
+-- worth protecting. Core embeds nothing either, so an addon that is not on the Ace substrate can
+-- still adopt this probe; what the Core dependency costs is one vendored sibling file, and
+-- re-vendoring is whole-folder, so it is never separately missing in practice.
 
-local MAJOR, MINOR = "LibKa0s-Perf-1.0", 1
+-- Refuse rather than degrade when Core is missing or too old. Failing here means the host's own
+-- setup stub reports "perf is not installed" honestly, instead of the probe registering and then
+-- nil-erroring mid-run in whichever addon the user happened to be using.
+local core = LibStub and LibStub("LibKa0s-Core-1.0", true)
+local NEEDS_CORE = 1
+if not core or (core.MINOR or 0) < NEEDS_CORE then return end   -- no NewLibrary; module absent
+
+local MAJOR, MINOR = "LibKa0s-Perf-1.0", 2
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
 
@@ -126,20 +135,14 @@ local function stripColors(s)
     return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
 end
 
--- 12.0 secret values raise on tostring in some paths; never let a log line error a capture.
-local function safeToString(v)
-  if v == nil then return "nil" end
-  local t = type(v)
-  if t == "string" then return v end
-  if t == "number" or t == "boolean" then return tostring(v) end
-  local ok, s = pcall(tostring, v)
-  return ok and s or "?"
-end
-
+-- Arguments are rendered through Core rather than a private stringifier. The one this file used to
+-- carry branched on type(), and a combat-protected "secret" value IS a string or a number — so it
+-- returned the secret untouched and the line raised much later, inside the host's
+-- table.concat(buffer, "\n") when someone pressed Copy. One implementation, one place to be wrong.
 local function render(fmt, ...)
     if select("#", ...) == 0 then return fmt end
     local parts = {}
-    for i = 1, select("#", ...) do parts[i] = safeToString((select(i, ...))) end
+    for i = 1, select("#", ...) do parts[i] = core.SafeToString((select(i, ...))) end
     return fmt:format(unpack(parts))
 end
 
