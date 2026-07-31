@@ -1,6 +1,8 @@
 std = "lua51"
 max_line_length = false
 codes = true
+-- libs/ holds vendored code, including libs/LibKa0s/ whose upstream is the LibKa0s repo; the
+-- blanket tests/ exclude likewise covers the vendored tests/_kit/. Neither is ours to lint here.
 exclude_files = { "libs/", "docs/", "_dev/", "tests/" }
 ignore = {
   "212/self",       -- unused argument self
@@ -9,16 +11,16 @@ ignore = {
   "431",            -- shadowing `print` with the prefixed `local print = NS.Print` is intentional
 }
 read_globals = {
-  "_G", "LibStub", "CreateFrame", "UIParent", "GetTime", "format", "time", "date",
+  "_G", "LibStub", "CreateFrame", "UIParent", "GetTime", "format", "time",
   "UnitClass", "UnitHealthMax", "UnitGetTotalAbsorbs", "UnitExists", "AbbreviateNumbers", "C_ClassColor",
-  "InCombatLockdown", "UnitAffectingCombat", "Settings", "SettingsPanel", "C_Timer", "C_AddOns",
+  "InCombatLockdown", "UnitAffectingCombat", "Settings", "C_Timer", "C_AddOns",
   "GetAddOnMetadata",
   -- ms CPU clock backing the perf brackets in core/AbsorbTracker.lua, modules/Display.lua and
   -- modules/Timer.lua. The probe they feed lives in libs/LibKa0s/Perf.lua, which this lint excludes.
   "debugprofilestop",
-  "hooksecurefunc", "GameTooltip", "DEFAULT_CHAT_FRAME", "UISpecialFrames",
+  "hooksecurefunc", "DEFAULT_CHAT_FRAME",
   "StaticPopup_Show", "CreateColor", "PlaySound",
-  "wipe", "strsplit", "strtrim", "tinsert", "tremove", "select",
+  "strsplit", "strtrim", "tinsert", "tremove", "select",
 }
 globals = {
   "AbsorbTrackerDB",     -- the SavedVariables write target

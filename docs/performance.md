@@ -16,8 +16,10 @@ addon's real cost is on the far side of an API call.
 
 The in-game harness — the probe, its record schema, and the clickable step panel — is
 `LibKa0s-Perf-1.0`, a Ka0s-owned shared library vendored into `libs/LibKa0s/` the same way Ace3 is
-(copied in, not depended on at runtime; the addon degrades to a no-op `NS.Perf` stub if the vendored
-copy is ever absent). This addon supplies only a **descriptor**: `core/PerfSetup.lua` calls
+(copied in, not depended on at runtime). If the vendored copy is ever absent, `core/PerfSetup.lua`
+degrades to a stub whose `Note` is a no-op but whose `OnCommand` answers honestly — one line naming
+the missing library and where it is expected — which is the same degradation philosophy every setup
+file in this addon follows. This addon supplies only a **descriptor**: `core/PerfSetup.lua` calls
 `lib:New(descriptor)` with this addon's name, its `AbsorbTrackerPerfDB` SavedVariables global, the
 ordered bucket declarations (nesting via `within` — `paintBar` runs inside `repaintPass`), and what
 "suspend"/"resume" mean for *this* addon's events and frames. That call returns the `NS.Perf`
@@ -78,8 +80,7 @@ when you explicitly ask for one. Everything also acknowledges in chat.
 
 | Command | Effect |
 |---------|--------|
-| `/at perf` | Status + usage |
-| `/at perf` | Open the panel. Start is clickable from it — this is the entry point |
+| `/at perf` | Status + usage, **and** shows the step panel — Start is clickable from it, so this is the entry point. Any unrecognised sub-verb lands here too |
 | `/at perf start [label]` | Begin a run. Records nothing until an experiment is armed. Captures character, spec, zone and group |
 | `/at perf measure a` | Arm **Experiment A** — addon active. Records while in combat |
 | `/at perf measure b` | Arm **Experiment B** — addon suspended (done for you). Same combat gating |
@@ -175,12 +176,13 @@ JSON costs nothing and is regularly wanted twice.
 Cancel's job alone.
 
 It exists because the *ordering* is what makes a run valid, and a numbered list in chat scrolls away
-the moment combat starts. The buttons dispatch through the slash layer, so a click and a typed
-command are the same code path.
+the moment combat starts. Each button hands its own full command string back to `LibKa0s-Perf-1.0`'s
+`OnCommand` — the same entry point a typed `/at perf …` reaches, and *not* this addon's slash layer —
+so a click and a typed command produce identical output and identical panel state by construction.
 
-The panel is draggable and has no close button — a half-finished run is the failure it exists to
-prevent. `/at perf` re-shows it if it ends up somewhere forgotten. The slash verbs are **not** gated
-this way: if a run cannot complete Experiment B, `/at perf finish` still closes it from chat.
+The panel is draggable. `/at perf` re-shows it if it ends up somewhere forgotten. The slash verbs are
+**not** gated by the panel: if a run cannot complete Experiment B, `/at perf finish` still closes it
+from chat.
 
 ### Capture
 
@@ -222,7 +224,7 @@ not.
 ### Reading the result
 
 ```
-capture:   2026-07-29 21:14 solo  (schema 1, v1.9.0)
+capture:   2026-07-29 21:14 solo  (schema 2, v1.9.0)
 who:       Kaosdk-Silvermoon, level 80 Blood Death Knight
 where:     Nexus-Point Xenas — The Approach
 group:     party (5) / party

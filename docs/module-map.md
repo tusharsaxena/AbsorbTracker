@@ -27,11 +27,12 @@ State that lives on `NS` (rather than as a global):
 - The AceAddon object (`addon`) and the database reference (`db`).
 - Defaults (`defaults`, `flatDefaults`).
 - Session state (`State` — `State.debug`, never persisted).
-- Sub-tables that namespace a module's surface (`Constants`, `Compat`, `Util`, `Slash`, `DebugLog`, `Helpers`).
+- Sub-tables that namespace a module's surface (`Constants`, `Compat`, `Util`, `Slash`).
+- Library instances published under an addon-owned name: `DebugLog` (`LibKa0s-DebugLog-1.0`'s console), `Helpers` (`LibKa0s-Options-1.0`'s options instance), `Perf` (`LibKa0s-Perf-1.0`'s probe). These are not addon sub-tables — they are what `lib:New(descriptor)` returned, assigned outright.
 - Helper functions attached directly (`Print`, `Debug`, `GetSetting`, `SetSetting`, `GetBarColor`, ...).
 - The schema registry (`Schema`) and the localized-string table (`L`).
 - The slash command list (`COMMANDS`, aliased `SlashCommands`) — also rendered on the about page.
-- The stashed AceGUI reference (`AceGUI`), set once in `CreateOptionsPanel`.
+- The stashed AceGUI reference (`AceGUI`), handed over by `LibKa0s-Options-1.0` through the descriptor's `onAceGUI` callback, which fires once during `CreateOptionsPanel`.
 
 The only WoW-required global is the SavedVariables table `AbsorbTrackerDB`. The bar frame is named `AbsorbTrackerFrame`; the debug console frames are `AbsorbTrackerDebugWindow` / `AbsorbTrackerDebugCopyWindow`. There are **no** `SLASH_*` / `SlashCmdList` globals — slash registration is AceConsole (`RegisterChatCommand`).
 
@@ -107,7 +108,7 @@ NS.MSG                 -- catalogue (all Ka0s_AbsorbTracker_*, payload-free):
                        --                 registers events only for enabled units)
 ```
 
-Senders: `core/AbsorbTracker.lua` (event/lifecycle), `settings/Slash.lua`, `settings/General.lua`, `settings/Schema.lua`, `settings/Helpers.lua`. Consumers register at file load in `modules/Timer.lua` (`NS.Timer.__ev`), `modules/Display.lua` (`NS.Display.__ev`) and `core/AbsorbTracker.lua` (`NS.Events.__ev`, which owns the sole `UNITS` subscription). Full catalogue (sender/consumer/effect) in [ARCHITECTURE.md → Message Bus](./ARCHITECTURE.md#message-bus).
+Senders: `core/AbsorbTracker.lua` (event/lifecycle), `settings/Slash.lua`, `settings/General.lua`, `settings/Schema.lua`, `settings/UnitPanel.lua` (`Helpers.ResetAllPositions` publishes `POSITION`). Consumers register at file load in `modules/Timer.lua` (`NS.Timer.__ev`), `modules/Display.lua` (`NS.Display.__ev`) and `core/AbsorbTracker.lua` (`NS.Events.__ev`, which owns the sole `UNITS` subscription). Full catalogue (sender/consumer/effect) in [ARCHITECTURE.md → Message Bus](./ARCHITECTURE.md#message-bus).
 
 ### CoreSetup (`core/CoreSetup.lua`)
 
@@ -203,15 +204,17 @@ NS.SetSetting(key, value)     -- writes to db.profile (no-op if db unset)
 -- LibSharedMedia
 NS.GetLSM()                   -> LSM | nil     -- cached LibStub lookup
 NS.ClearLSMCache()            -- reset the cached LSM ref; called on enable
-NS.GetBarTexture()            -> texturePath   -- falls back to FALLBACK_TEXTURE
-NS.GetBgTexture()             -> texturePath
-NS.GetBorder()                -> borderPath    -- falls back to FALLBACK_BORDER
-NS.GetFont()                  -> fontPath      -- falls back to FALLBACK_FONT
+NS.GetBarTexture(unit)        -> texturePath   -- falls back to FALLBACK_TEXTURE
+NS.GetBgTexture(unit)         -> texturePath
+NS.GetBorder(unit)            -> borderPath    -- falls back to FALLBACK_BORDER
+NS.GetFont(unit)              -> fontPath      -- falls back to FALLBACK_FONT
+                              -- all four resolve the unit through NS.Units.Get, so a mirrored
+                              -- bar reads the player's media live
 
 -- Color resolution (re-reads useClassColor* at call time)
-NS.GetBarColor()              -> r, g, b, a
-NS.GetBgColor()               -> r, g, b, a
-NS.GetBorderColor()           -> r, g, b, a
+NS.GetBarColor(unit)          -> r, g, b, a   -- the class colour itself is ALWAYS the player's
+NS.GetBgColor(unit)           -> r, g, b, a
+NS.GetBorderColor(unit)       -> r, g, b, a
 ```
 
 `GetPlayerClassColor` / `GetBgClassColor` are private upvalues used internally by the color getters. They're not exposed on `NS`.
@@ -315,7 +318,7 @@ NS.DebugLog = lib:New({
                                                -- by /at debug moves the General page's checkbox
 })
 
--- Bound bare, which is why all sixteen NS.Debug call sites across five files are unchanged.
+-- Bound bare, which is why all fifteen NS.Debug call sites across five files are unchanged.
 NS.Debug = NS.DebugLog.Debug
 ```
 
@@ -558,64 +561,81 @@ NS.Slash:Register()    -- NS.addon:RegisterChatCommand("at", ...) + ("absorbtrac
 
 `/at list` groups Bar/Border/Font rows once per unit (`[bar / player]`, `[bar / target]`, `[bar / focus]`, etc. — `PER_UNIT_PAGES` in `settings/Slash.lua`); General has no per-unit rows. `/at reset <path>` resets ONE setting; there is no page-shaped form (a page is reset by its own Defaults button, `NS.Helpers.RestoreDefaults`). `/at resetposition` clears all three units' saved positions. No `SLASH_*` globals, no `SlashCmdList`. `/at options` is a back-compat alias for `/at config`. Profile subcommands are handled inline in `runProfile`. The mirror note is handed to the library as a row annotator, so it is appended on `list` / `get` / `set` and never on a reset. With the vendored library absent a stub keeps the host verbs working and each schema verb names the missing library instead of going quiet. Detail in [profiles.md](./profiles.md).
 
-### OptionsPanel (`settings/Panel.lua`)
+### Options (`settings/OptionsSetup.lua` + `settings/UnitPanel.lua`)
 
-The settings UI is split across `settings/Panel.lua` (registration shell) and the toolkit/widget/about slices (`settings/Helpers.lua`, `settings/ScrollPatch.lua`, `settings/Widgets.lua`, `settings/About.lua`) that decorate the same shared `NS.Helpers` table, plus the five `settings/<page>.lua` builders. `Panel.lua` publishes the empty `NS.Helpers` before those slices load; each slice extends it; the page files consume the toolkit at enable time.
+The settings UI is `LibKa0s-Options-1.0` (`libs/LibKa0s/Options.lua` + `OptionsWidgets.lua` + `OptionsScroll.lua`, vendored) driven by a descriptor. `settings/OptionsSetup.lua` **assigns** `NS.Helpers = lib:New(descriptor)` — the library instance *itself*, not a table decorated from it. `settings/UnitPanel.lua` and `settings/About.lua` then decorate that same instance with the three members that did not generalise, which is what lets a page file call `H.RenderUnitPanel` and `H.RenderSchema` without knowing or caring which side of the boundary each lives on. There is no empty-table-published-first step and there are no toolkit slices; `settings/Panel.lua`, `Helpers.lua`, `ScrollPatch.lua` and `Widgets.lua` are gone.
 
 ```lua
--- Registration shell (settings/Panel.lua)
+-- The addon's half: the wrappers (settings/OptionsSetup.lua)
 NS.PARENT_TITLE            -- "Ka0s Absorb Tracker" — single source of truth for the top-level
-                           -- canvas title and the buildHeader breadcrumb prefix
+                           -- canvas title and the breadcrumb prefix. Set BEFORE the lib check,
+                           -- so it exists on the degraded path too.
 NS.RegisterOptionsPage(key, name, builder)
     -- key:     "general" / "bar" / "border" / "font" / "profiles"
     -- name:    display name shown in the Blizzard Settings tree (and breadcrumb header)
     -- builder: function(mainCategory) -> sub-category | nil   (called at enable time)
 
-NS.CreateOptionsPanel()    -- called from OnEnable once db is ready. Stashes NS.AceGUI once,
-                           -- runs ValidateSchema, registers the main canvas category, then drains
-                           -- the pending page builders.
+NS.CreateOptionsPanel()    -- called from OnEnable once db is ready. The library runs the
+                           -- descriptor's validate, publishes AceGUI through onAceGUI, registers
+                           -- the main canvas category, defers buildMain to first OnShow, then
+                           -- drains the pending page builders.
 NS.RefreshOptionsPanel()   -- routes to Helpers.RefreshAllPanels (re-runs every refresher)
 NS.OpenOptionsPanel()      -- Settings.OpenToCategory(mainCategoryID) + expandMainCategory();
-                           -- combat-lockdown gated: in combat it REFUSES with a grey [AT] notice
-                           -- and returns (options-ui-§2) — no defer-and-replay.
+                           -- combat-lockdown gated INSIDE the library: in combat it REFUSES with
+                           -- a grey notice (lib.STRINGS.COMBAT_REFUSED), printed through the
+                           -- descriptor's print so it still carries [AT], and logged through its
+                           -- debug under tag "Cfg" (options-ui-§2) — no defer-and-replay.
 
-NS.AceGUI                  -- the AceGUI-3.0 handle, stashed once in CreateOptionsPanel; the
-                           -- toolkit / widget / about builders read this upvalue instead of
-                           -- re-LibStub-ing.
+NS.AceGUI                  -- the AceGUI-3.0 handle. The library resolves it and hands it over via
+                           -- the descriptor's onAceGUI callback during CreateOptionsPanel, so the
+                           -- page builders and settings/About.lua read this upvalue rather than
+                           -- re-LibStub-ing (§3.4).
 ```
 
+The descriptor is the whole of what this addon tells the library. Everything else is the library's:
+
+| Field | What the addon supplies |
+|---|---|
+| `parentTitle`, `mainPanelName` | the brand string, and `"AbsorbTrackerMainPanel"` so `/framestack` attributes the canvas |
+| `print`, `debug` | `NS.Print` and `NS.Debug`, so library output carries this addon's tag and its debug lines land in this addon's console |
+| `get`, `set` | `NS.GetSetting` / `NS.SetByPath` — `SetByPath` rather than a bare write, so a panel change takes exactly the path a `/at set` takes: the `[Set]` debug line, the row's `onChange`, and the refresh |
+| `applyDefault`, `allRows` | `NS.ApplyDefault`, and `NS.Schema` itself |
+| `rowsForPage(pageKey, filter)` | `NS.SchemaForPage`. `filter` is `ctx.unit`, passed through uninterpreted — that is what makes a per-unit page render one unit's rows while General, whose `ctx.unit` is nil, gets every unit's |
+| `skipRestoreAll(row)` | `row.page == "profiles"` — those rows are AceDBOptions-supplied and resetting them is data loss, not a restore |
+| `afterRestoreAll` | delegates to `Helpers.ResetAllPositions`, because `position` is written by dragging and no schema row owns it, so `ApplyDefault` never touches it |
+| `scheduleTimer` | `NS.addon:ScheduleTimer` (AceTimer per §3.1, not a raw `C_Timer`); backs the colour picker's 50 ms drag throttle. Optional at the library level — without it the library commits every drag frame |
+| `getLSM`, `validate` | `NS.GetLSM`, `NS.ValidateSchema` |
+| `onAceGUI`, `buildMain` | publishes `NS.AceGUI`; hands back `Helpers.BuildMainContent` under a nil-guard, because `settings/About.lua` loads *after* this file |
+| `colorDecode`, `colorEncode` | the `{r=, g=, b=, a=}` named-key shape `core/Data.lua`'s colour getters read. Written out rather than omitted even though it matches the library default, because the shape is a real contract with the rest of the addon |
+
 ```lua
--- Panel toolkit, decorated across settings/*.lua and exposed as NS.Helpers:
+-- What NS.Helpers answers, and where each member comes from:
 NS.Helpers
-    -- settings/Helpers.lua
+    -- libs/LibKa0s/Options.lua — the shell
     Helpers.CreatePanel(name, title, opts)         -- canvas frame + header; records wantsDefaultsButton
     Helpers.EnsureDefaultsButton(panel)            -- builds that Defaults button once, on the panel's
                                                    -- first OnShow, wiring the parked defaultsOnClick
                                                    -- (options-ui-§5: a widget created at load keeps
                                                    -- Blizzard's stock art — skins hook later)
     Helpers.EnsureScroll(ctx)                      -- lazy AceGUI ScrollFrame; calls PatchAlwaysShowScrollbar
+    Helpers.ClearScroll(ctx)                       -- releases every AceGUI child + resets the
+                                                   -- section-heading tracker and ctx.refreshers
+    Helpers.LSMValues(mediaType)                   -- deferred LSM hash factory for schema rows
+    Helpers.RestoreDefaults(pageKey, ctx)
+    Helpers.RestoreAllDefaults()                   -- every schema-driven page; skipRestoreAll drops
+                                                   -- profiles; afterRestoreAll clears the positions
+    Helpers.RefreshAllPanels()                     -- run every panel ctx's refresher closures
+    Helpers.RegisterOptionsPage / CreateOptionsPanel / OpenOptionsPanel  -- what the NS.* wrappers call
+    Helpers.ROW_VSPACER                            -- layout constants exposed for host use
+    Helpers.SECTION_HEADING_H                      -- (read by settings/About.lua)
+    Helpers.BUTTON_PAIR_REL                        -- 0.492 — inline button-pair relative width
+    Helpers.__panels() / __panelFor(pageKey)       -- test seams: the registered panel ctx tables
+
+    -- libs/LibKa0s/OptionsWidgets.lua — the makers and the flow engine
     Helpers.Section(ctx, label)                    -- AceGUI Heading row
     Helpers.InlineButtonPair(ctx, leftSpec, rightSpec)
     Helpers.AttachTooltip(widget, label, tooltip)
     Helpers.AddSpacer(scroll, height)              -- invisible full-width SimpleGroup
-    Helpers.LSMValues(mediaType)                   -- deferred LSM hash factory for schema rows
-    Helpers.ClearScroll(ctx)                       -- releases every AceGUI child + resets the
-                                                   -- section-heading tracker and ctx.refreshers
-    Helpers.RenderUnitPanel(ctx, pageKey)          -- Bar/Border/Font: Unit dropdown + mirror
-                                                   -- header (checkbox + copy button), full
-                                                   -- rebuild via ClearScroll on every call
-    Helpers.RestoreDefaults(pageKey, ctx)
-    Helpers.RestoreAllDefaults()                   -- every schema-driven page; skips profiles;
-                                                   -- clears every unit's saved position too
-    Helpers.RefreshAllPanels()                     -- run every panel ctx's refresher closures
-    Helpers.ROW_VSPACER                            -- layout constants exposed for cross-slice use
-    Helpers.SECTION_HEADING_H                      -- (read by settings/Widgets.lua and settings/About.lua)
-    Helpers.BUTTON_PAIR_REL                        -- 0.492 — inline button-pair relative width
-
-    -- settings/ScrollPatch.lua
-    Helpers.PatchAlwaysShowScrollbar(scroll)       -- always-visible scrollbar override
-
-    -- settings/Widgets.lua
     Helpers.RenderField(ctx, row, parent, w)       -- dispatches by row.type
     Helpers.SessionCheckbox(ctx, parent, w, spec)  -- non-schema checkbox (caller get/set)
     Helpers.RenderRows(ctx, rows, afterGroup?, pairWith?)      -- two-column layout over an
@@ -623,7 +643,7 @@ NS.Helpers
                                                                -- skipRender rows
     Helpers.RenderSchema(ctx, pageKey, afterGroup?, pairWith?) -- thin wrapper:
                                                                -- RenderRows(ctx,
-                                                               -- NS.SchemaForPage(pageKey,
+                                                               -- rowsForPage(pageKey,
                                                                -- ctx.unit), ...) — used by
                                                                -- General, which never sets
                                                                -- ctx.unit, so its three
@@ -633,27 +653,43 @@ NS.Helpers
                                                                -- console beside the lone
                                                                -- Enable Focus Bar row
 
-    -- settings/About.lua
+    -- libs/LibKa0s/OptionsScroll.lua
+    Helpers.PatchAlwaysShowScrollbar(scroll)       -- always-visible scrollbar override
+
+    -- settings/UnitPanel.lua — ours, because neither piece generalises
+    Helpers.RenderUnitPanel(ctx, pageKey)          -- Bar/Border/Font: Unit dropdown + mirror
+                                                   -- header (checkbox + copy button), full
+                                                   -- rebuild via ClearScroll on every call.
+                                                   -- Reads NS.Units and the mirror partition,
+                                                   -- which no other Ka0s addon has.
+    Helpers.ResetAllPositions()                    -- THE single reset-position implementation:
+                                                   -- clears every unit's saved position, then
+                                                   -- publishes POSITION. /at resetposition, the
+                                                   -- General page button and afterRestoreAll all
+                                                   -- call it. Do not re-inline the loop.
+
+    -- settings/About.lua — ours
     Helpers.BuildMainContent(ctx)                  -- top-level "Ka0s Absorb Tracker" page builder;
                                                    -- renders logo, Notes, a "Slash Commands"
                                                    -- heading, then one Label per
-                                                   -- NS.Slash:LandingRows() entry
+                                                   -- NS.Slash:LandingRows() entry. Invoked through
+                                                   -- the descriptor's buildMain hook.
 ```
 
-The color-picker drag throttle in `settings/Widgets.lua` uses `NS.addon:ScheduleTimer` (AceTimer one-shot), not `C_Timer.NewTimer`. Detail in [settings-panel.md](./settings-panel.md).
+The colour-picker drag throttle is library code (`COLOR_THROTTLE = 0.05` in `OptionsWidgets.lua`); the timer behind it arrives through the descriptor's `scheduleTimer` — `NS.addon:ScheduleTimer` (AceTimer one-shot), not `C_Timer.NewTimer`. Detail in [settings-panel.md](./settings-panel.md).
 
 ### Options pages (`settings/General|Bar|Border|Font|Profiles.lua`)
 
-Each runs at file-load time and calls `NS.RegisterOptionsPage(key, name, build)`. General calls `NS.RegisterSchemaRows({...})` once for its four unit-agnostic globals; Bar/Border/Font instead define `addUnitRows(unit)` and call it once per `NS.Units.LIST` entry, so each registers its appearance keys three times (path prefixed `units.<unit>.`, tagged `unit = unit`) — plus a `mirror` row (`skipRender = true`) for target/focus only. Profiles registers no rows; its UI is AceDBOptions-supplied. At enable time, the `build` closure calls `Helpers.RenderSchema(ctx, pageKey)` (General — no dropdown) or `Helpers.RenderUnitPanel(ctx, pageKey)` (Bar/Border/Font — Unit dropdown + mirror header), with **no** `rendered` one-shot guard on the latter (`RenderUnitPanel` does a full rebuild every call, by design — unit switches and mirror toggles need it). The LSM-backed rows in Bar/Border/Font set `dialogControl = "LSM30_Statusbar" | "LSM30_Border" | "LSM30_Font"` and `values = NS.Helpers.LSMValues(mediaType)`. `Profiles.build` returns nil (opting the page out) when AceDBOptions / AceConfigDialog / AceConfig / AceGUI aren't all present.
+Each runs at file-load time and calls `NS.RegisterOptionsPage(key, name, build)`. General calls `NS.RegisterSchemaRows({...})` once for its three unit-agnostic globals (`showOnlyInCombat`, `locked`, `throttleWindow` — the fourth was `hidden`, dropped by schema v4). Its per-unit `units.<unit>.enabled` rows are registered separately and are not unit-agnostic; Bar/Border/Font instead define `addUnitRows(unit)` and call it once per `NS.Units.LIST` entry, so each registers its appearance keys three times (path prefixed `units.<unit>.`, tagged `unit = unit`) — plus a `mirror` row (`skipRender = true`) for target/focus only. Profiles registers no rows; its UI is AceDBOptions-supplied. At enable time, the `build` closure calls `Helpers.RenderSchema(ctx, pageKey)` (General — no dropdown) or `Helpers.RenderUnitPanel(ctx, pageKey)` (Bar/Border/Font — Unit dropdown + mirror header), with **no** `rendered` one-shot guard on the latter (`RenderUnitPanel` does a full rebuild every call, by design — unit switches and mirror toggles need it). The LSM-backed rows in Bar/Border/Font set `dialogControl = "LSM30_Statusbar" | "LSM30_Border" | "LSM30_Font"` and `values = NS.Helpers.LSMValues(mediaType)`. `Profiles.build` returns nil (opting the page out) when AceDBOptions / AceConfigDialog / AceConfig / AceGUI aren't all present.
 
 ## Forward references
 
 A small number of call sites reach across load order — the runtime modules (Core / Modules) load before the Settings group:
 
-- `core/AbsorbTracker.lua` (`OnEnable`) calls `NS.CreateOptionsPanel()` (defined in `settings/Panel.lua`, loaded later).
+- `core/AbsorbTracker.lua` (`OnEnable`) calls `NS.CreateOptionsPanel()` (defined in `settings/OptionsSetup.lua`, loaded later).
 - `core/AbsorbTracker.lua` (`OnEnable`) calls `NS.ApplyLSMBorderPatch()` (defined in `core/LSMPatch.lua`).
-- `NS.OnProfileChanged` calls `NS.RefreshOptionsPanel()` (defined in `settings/Panel.lua`).
-- `settings/Slash.lua` handlers call `NS.RefreshOptionsPanel` directly, and publish bus messages for display work (`update` → `REPAINT`, `resetposition` → `POSITION`). `toggle` publishes nothing itself — it writes `hidden` via `NS.SetByPath` and that row's `onChange` does the republishing.
+- `NS.OnProfileChanged` calls `NS.RefreshOptionsPanel()` (defined in `settings/OptionsSetup.lua`).
+- `settings/Slash.lua` handlers call `NS.RefreshOptionsPanel` directly, and publish bus messages for display work (`update` → `REPAINT`, `resetposition` → `POSITION`). `toggle` publishes nothing itself — it writes `units.<unit>.enabled` via `NS.SetByPath`, and that row's `onChange` (`settings/General.lua`) does the republishing: `UNITS` → `APPEARANCE` → `REPAINT`-when-on. There is no `hidden` key; schema v4 dropped it.
 
 These are guarded with runtime nil checks:
 
@@ -667,19 +703,19 @@ In practice the calls always succeed because all files are loaded synchronously 
 
 `AbsorbTracker.toc` is the source of truth. Order is dependency order, not alphabetical. The load groups are **Libraries → Locales → Core → Defaults → Modules → Settings**:
 
-1. `libs/` — LibStub, CallbackHandler-1.0, then the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB / AceGUI / AceConfig / AceDBOptions), `LibKa0s` (four majors across five files: `LibKa0s-Core-1.0` — the shared secret guard + chat printer + window chrome — then `LibKa0s-DebugLog-1.0`, the shared on-screen debug console, then `LibKa0s-Slash-1.0`, the shared slash dispatcher + schema CLI, then `LibKa0s-Perf-1.0`, the shared perf-instrumentation harness, issue #17; `Core.lua` loads first, since the other three each declare `NEEDS_CORE` and refuse to register below it — `LibKa0s.xml` fixes the order `Core.lua` → `DebugLog.lua` → `Slash.lua` → `Perf.lua` → `PerfPanel.lua`), LibSharedMedia-3.0, and the vendored upstream `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets) — all inside the `#@no-lib-strip@` block. Vendored **folder-per-lib** at `libs/` root (not `libs/Ace3/…`).
+1. `libs/` — LibStub, CallbackHandler-1.0, then the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB / AceGUI / AceConfig / AceDBOptions), `LibKa0s` (**five majors across eight files**: `LibKa0s-Core-1.0` — the shared secret guard + chat printer + window chrome — then `LibKa0s-DebugLog-1.0`, the shared on-screen debug console, `LibKa0s-Slash-1.0`, the shared slash dispatcher + schema CLI, `LibKa0s-Options-1.0`, the shared settings-panel toolkit across three files, and `LibKa0s-Perf-1.0`, the shared perf-instrumentation harness across two, issue #17; `Core.lua` loads first, since the other four each declare `NEEDS_CORE` and refuse to register below it — `LibKa0s.xml` fixes the order `Core.lua` → `DebugLog.lua` → `Slash.lua` → `Options.lua` → `OptionsWidgets.lua` → `OptionsScroll.lua` → `Perf.lua` → `PerfPanel.lua`), LibSharedMedia-3.0, and the vendored upstream `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets) — all inside the `#@no-lib-strip@` block. Vendored **folder-per-lib** at `libs/` root (not `libs/Ace3/…`).
 2. **Locales** — `locales/enUS.lua` (`NS.L` metatable seam; loads directly after Libraries per `toc-file-§5` — no dependency on `core/*`).
 3. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Bus.lua` (the closed message bus — `NS.bus` / `NS.NewBusTarget` / `NS.MSG`), `CoreSetup.lua` (wires `NS.Print` / `NS.SafeToString` / `NS.IsConcatSafe` to `LibKa0s-Core-1.0`, in the slot the old `Util.lua` held — `Namespace.lua` defines `NS.PREFIX` above it and everything below it prints), `PerfSetup.lua` (wires `NS.Perf` to `LibKa0s-Perf-1.0` — must load before any module takes `NS.Perf` as an upvalue), `Data.lua`, `Units.lua` (unit identity + mirror resolution — loads after `Data.lua`, before `Database.lua` since migration needs `NS.Units.LIST`/`APPEARANCE_KEYS`), `Database.lua`, `LSMPatch.lua`, `DebugLogSetup.lua` (wires `NS.DebugLog` / `NS.Debug` to `LibKa0s-DebugLog-1.0`, in the slot the old `DebugLog.lua` held — it needs `Constants` (FONT_MONO), `State` (the flag) and `CoreSetup` above it, and everything below it calls `NS.Debug`), `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
 4. **Defaults** — `defaults/Profile.lua` (AceDB defaults; runs at file-load).
 5. **Modules** — `modules/Bar.lua` (bar frame creation at file-load), `Display.lua` (render functions + `NS.Display.__ev` bus consumer), `Timer.lua` (coalescing repaint scheduler + `NS.Timer.__ev` bus consumer).
-6. **Settings** (last — depend on everything else being initialized) — `settings/Schema.lua` (registry), `Slash.lua` (`/at` dispatcher), `Panel.lua` (registration shell; publishes empty `NS.Helpers` + `NS.PARENT_TITLE`), then the toolkit slices `Helpers.lua` → `ScrollPatch.lua` → `Widgets.lua` → `About.lua` (each decorates `NS.Helpers`; order matters only between `Helpers` (defines `EnsureScroll`) and `ScrollPatch` (defines `PatchAlwaysShowScrollbar` that `EnsureScroll` references)), then the page builders `General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` (each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load; LSM-backed rows call `NS.Helpers.LSMValues(mediaType)`).
+6. **Settings** (last — depend on everything else being initialized) — `settings/Schema.lua` (registry), `Slash.lua` (`/at` dispatcher), `OptionsSetup.lua` (assigns `NS.Helpers` = the `LibKa0s-Options-1.0` instance, and sets `NS.PARENT_TITLE` before the lib check so it exists on both paths), `UnitPanel.lua` and `About.lua` (each decorates that instance), then the page builders `General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` (each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load; LSM-backed rows call `NS.Helpers.LSMValues(mediaType)`). The order rule that carries weight here is that **`OptionsSetup.lua` must precede every `settings/<page>.lua`**, because `Bar`/`Border`/`Font` call `NS.Helpers.LSMValues(...)` inside schema-row literals at file load and a nil there aborts the file — taking that page's `RegisterSchemaRows` with it. `UnitPanel.lua` must follow `OptionsSetup.lua` for the same class of reason: it takes `local Helpers = NS.Helpers` at load.
 
 If you add a new runtime file, put it in the right load group in `AbsorbTracker.toc`.
 
 ## Module publishing pattern (idiom)
 
-Modules that own a sub-surface publish it with the `NS.X = NS.X or {}` guard (`NS.Constants`, `NS.Compat`, `NS.Util`, `NS.State`, `NS.Slash`, `NS.Helpers`, `NS.Schema`), then alias it to a file-local upvalue (`local C = NS.Constants`). The two library seams are the exception: `core/PerfSetup.lua` and `core/DebugLogSetup.lua` **assign** `NS.Perf` and `NS.DebugLog` outright, because the value is a library instance built by `lib:New(descriptor)` (or a degradation stub) — there is nothing for an earlier file to have half-populated. Modules that mostly attach top-level functions (`Data`, `Display`, `Timer`) write straight to `NS` — `Display` and `Timer` additionally publish a small `NS.Display` / `NS.Timer` table to hold their `__ev` bus target, and `core/Bus.lua` publishes `NS.bus` / `NS.NewBusTarget` / `NS.MSG`. The closest thing to a load-order guard is the import-as-locals pattern at the top of each file plus the `if NS.X then ... end` nil check around forward references.
+Modules that own a sub-surface publish it with the `NS.X = NS.X or {}` guard (`NS.Constants`, `NS.Compat`, `NS.Util`, `NS.State`, `NS.Slash`, `NS.Schema`), then alias it to a file-local upvalue (`local C = NS.Constants`). The **three library seams are the exception**: `core/PerfSetup.lua`, `core/DebugLogSetup.lua` and `settings/OptionsSetup.lua` **assign** `NS.Perf`, `NS.DebugLog` and `NS.Helpers` outright, because the value is a library instance built by `lib:New(descriptor)` (or a degradation stub) — there is nothing for an earlier file to have half-populated, and an `or {}` guard would quietly keep a half-built table alive instead. `NS.Helpers` is the one of the three that is then *decorated* by later files (`settings/UnitPanel.lua`, `settings/About.lua`); they add members to the library's own instance rather than to a copy. Modules that mostly attach top-level functions (`Data`, `Display`, `Timer`) write straight to `NS` — `Display` and `Timer` additionally publish a small `NS.Display` / `NS.Timer` table to hold their `__ev` bus target, and `core/Bus.lua` publishes `NS.bus` / `NS.NewBusTarget` / `NS.MSG`. The closest thing to a load-order guard is the import-as-locals pattern at the top of each file plus the `if NS.X then ... end` nil check around forward references.
 
 ## Test harness
 
-There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` derives the runtime file list from the TOC and loads it — after the vendored `libs/LibKa0s/*.lua` — through `tests/_kit/loader.lua`, against `tests/_kit/mock_base.lua` plus this addon's `tests/wow_mock.lua` overlay. It then runs `test_loadorder.lua`, `test_schema.lua`, `test_database.lua`, `test_units.lua`, `test_compat.lua`, `test_coresetup.lua`, `test_debuglog.lua`, `test_slash.lua`, `test_timer.lua`, `test_perf.lua`, `test_visibility.lua`, `test_bus.lua`, `test_data.lua`, `test_display.lua`, `test_helpers.lua`, `test_slashcmds.lua`, and `test_widgets.lua` (authoritative case count in the generated [test-cases.md](./test-cases.md)). The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.
+There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` derives the runtime file list from the TOC and loads it — after the vendored `libs/LibKa0s/*.lua` — through `tests/_kit/loader.lua`, against `tests/_kit/mock_base.lua` plus this addon's `tests/wow_mock.lua` overlay. It then runs `test_loadorder.lua`, `test_schema.lua`, `test_database.lua`, `test_units.lua`, `test_compat.lua`, `test_coresetup.lua`, `test_debuglog.lua`, `test_slash.lua`, `test_timer.lua`, `test_perf.lua`, `test_visibility.lua`, `test_bus.lua`, `test_data.lua`, `test_display.lua`, `test_helpers.lua`, `test_slashcmds.lua`, and `test_widgets.lua` (authoritative case count in the generated [test-cases.md](./test-cases.md)). `test_helpers` and `test_widgets` kept their names through the Options extraction: what they exercise is now `LibKa0s-Options-1.0` driven through this addon's descriptor, plus `settings/UnitPanel.lua`. The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.

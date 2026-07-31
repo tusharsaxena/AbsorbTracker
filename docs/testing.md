@@ -53,6 +53,25 @@ library so the seams this addon supplies — `get`/`set`/`findRow`/`applyDefault
 proven wired. The degradation stub in `settings/Slash.lua` has no case of its own yet;
 `tests/test_coresetup.lua` covers that shape for Core, and this is the obvious gap to close next.
 
+`tests/test_helpers.lua` and `tests/test_widgets.lua` are the shape again, and the least obviously
+so. The panel shell, the widget makers, the two-column flow engine and the always-shown scrollbar
+patch are `LibKa0s-Options-1.0` and are tested in the LibKa0s repo. What these two suites assert is
+the seam: that `NS.Helpers` answers each member this addon calls, that a write through a widget
+lands on `NS.SetByPath` and comes back through a refresher, that the Defaults button reverts a page
+across all three units, and that the per-unit page in `settings/UnitPanel.lua` — the Unit dropdown,
+the mirror partition, and the two-tier header refresher — behaves. They exercise library-backed
+members through `NS.Helpers` on purpose: that table **is** the library instance, so a case that
+swaps a member out to spy on it swaps the one the library's own callers see.
+
+The degradation stub in `settings/OptionsSetup.lua` is the one that could fail silently, and it has
+its own guard. It is deliberately **load-completing** rather than member-answering — page files call
+`NS.Helpers.LSMValues` inside schema-row literals at file load, so a nil there aborts the file and
+takes its schema rows with it. `tests/test_perf.lua`'s `loadDegraded()` builds a second, complete
+environment from the TOC with `libs/LibKa0s/` absent and asserts `#NS.Schema` against the
+fully-loaded one, then names `units.player.barTexture` / `.border` / `.font` explicitly, because an
+equal count could in principle be reached by a different set of rows. It is a comparison rather than
+a fixed number, so it cannot rot as pages are added. Do not weaken either half.
+
 **A note for anyone adding tests that touch suspend or the repaint timer.** `NS.Perf.Resume()`
 republishes `REPAINT`, which arms a coalescing timer. Left armed, `pending` in `modules/Timer.lua`
 stays set for the rest of the **process**, and every later suite's `RequestRepaint` quietly

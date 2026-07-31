@@ -8,7 +8,7 @@ This recipe is for a **flat** setting like `locked` / `showOnlyInCombat` / `thro
 
 The schema-driven design makes a flat setting a one-row change. The widget on the General sub-page AND the `/at set <path>` CLI come for free.
 
-1. **Pick a `path` and a default.** The `path` is the `db.profile` key (and the `/at set <path>` argument). The default goes in `defaults/Profile.lua`'s `NS.defaults.profile`, alongside the four existing flat globals (not inside `units`):
+1. **Pick a `path` and a default.** The `path` is the `db.profile` key (and the `/at set <path>` argument). The default goes in `defaults/Profile.lua`'s `NS.defaults.profile`, alongside the three existing flat globals (not inside `units`):
 
    ```lua
    -- defaults/Profile.lua
@@ -132,7 +132,6 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
        -- OnShow (Helpers.EnsureDefaultsButton), which attaches this.
        ctx.panel.defaultsOnClick = function()
            H.RestoreDefaults("newpage", ctx)
-           end)
        end
 
        -- Defer the AceGUI render until the panel is visible: build runs at
@@ -154,7 +153,7 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
    end
    ```
 
-2. **Add the file to `AbsorbTracker.toc`** in the `# Settings` block, after `settings/Panel.lua` and the toolkit files it depends on (`Helpers`, `ScrollPatch`, `Widgets`). Registration order in the queue determines tree order, so place the line where the page should appear in the Settings tree:
+2. **Add the file to `AbsorbTracker.toc`** in the `# Settings` block, after `settings/OptionsSetup.lua` (which publishes `NS.Helpers`) and `settings/UnitPanel.lua`. **This is a hazard, not a preference**: a page file evaluates `NS.Helpers.LSMValues(...)` inside its schema-row literals at *file load*, so a page placed above `OptionsSetup.lua` aborts mid-load and takes its whole schema block with it — `/at list`, `/at set`, `/at reset` and the profile defaults all silently lose those paths. That is the exact failure `tests/test_perf.lua`'s `loadDegraded()` guards against. Registration order in the queue determines tree order, so place the line where the page should appear in the Settings tree:
 
    ```
    settings\General.lua
@@ -229,9 +228,9 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 | `tests/test_bus.lua` | `NS.bus` / `NS.NewBusTarget` / `NS.MSG` catalogue, per-target subscribe + unregister, two receivers of one message both firing (anti-pattern #33), and `REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION` routing to their consumers (each fanning out over `NS.ForEachUnit`) |
 | `tests/test_data.lua` | `GetSetting` / `SetSetting` (profile read, dotted-path resolution, `flatDefaults` fallback, no-DB degradation), the per-unit LSM texture/border/font fetchers and their fallbacks, `ClearLSMCache`, `Helpers.LSMValues`, and the per-unit class-colour resolvers |
 | `tests/test_display.lua` | `NS.ForEachUnit`, `NS.DefaultPosition`, `RestoreBarPosition`, `UpdateBarAppearance` (size, backdrop insets, nil-then-set refresh, lock, font, mirror-resolved reads), `UpdateAbsorbBar` (hidden / `testHoldUntil` early-outs, max-health scaling, `NoteRepaint`) — all per unit |
-| `tests/test_helpers.lua` | `CreatePanel` + the panel registry, the lazy Defaults-button declaration, `RestoreDefaults` / `RestoreAllDefaults` (every unit's position cleared) / `RefreshAllPanels` |
+| `tests/test_helpers.lua` | This addon's side of the `LibKa0s-Options-1.0` seam, driven through `NS.Helpers` (which *is* the library instance): `CreatePanel` + the panel registry, the lazy Defaults-button declaration, `RestoreDefaults` / `RestoreAllDefaults` (every unit's position cleared, via the descriptor's `afterRestoreAll`) / `RefreshAllPanels`, and `settings/UnitPanel.lua`'s per-unit page. The shell's own algorithms are tested in the LibKa0s repo |
 | `tests/test_slashcmds.lua` | The remaining `/at` verbs: lock/unlock/toggle, update, `reset` (one setting path — usage, an unknown path, one row reverted with its neighbours untouched, and the argument NOT lower-cased)/resetall/resetposition (all units), get/set failure paths (fully-qualified only), `test`, the mirror note, the About page's rows going through the same formatter as `/at help`, and the full `/at profile` sub-dispatcher |
-| `tests/test_widgets.lua` | Schema-row → AceGUI widget translation: the four widget makers, `SessionCheckbox`, `RenderField` dispatch, `RenderRows`/`RenderSchema` layout (`skipRender` rows omitted), and the real pages driven through their deferred `OnShow` |
+| `tests/test_widgets.lua` | Schema-row → AceGUI widget translation as this addon's rows exercise it: the widget makers reached by `RenderField` dispatch, `SessionCheckbox`, `RenderRows`/`RenderSchema` layout (`skipRender` rows omitted), and the real pages driven through their deferred `OnShow`. The flow engine itself belongs to `LibKa0s-Options-1.0`; what this asserts is that our rows drive it into the layout we expect |
 | `tests/test_perf.lua` | This addon's side of the `LibKa0s-Perf-1.0` harness (issue #17): `core/PerfSetup.lua`'s descriptor is well-formed, the bracket call sites (silent when off), and suspend/resume (the `ShouldShowBar` step-0 gate, event teardown/restore, `RequestRepaint` no-op, `CancelPendingRepaint`). The probe's own bucket accounting, `EncodeJSON`, `BuildRecord`, the capture ring, and `FormatReport` are tested in the LibKa0s repo, not here |
 | `tests/test_units.lua` | `core/Units.lua`: `LIST`/`LABEL`, `IsEnabled`/`IsMirrored`/`SourceUnit` (player never mirrored), the mirror-resolved `Get`, `Set` (writes the unit's own config), `Position`/`SetPosition` (never mirrored), `CopyFromPlayer` (deep-copy + mirror clear, `position`/`enabled` untouched), `DeepCopy` |
 

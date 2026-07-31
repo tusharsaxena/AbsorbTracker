@@ -58,21 +58,15 @@ Gating on `InCombatLockdown()` therefore hid the bar at the exact moment it shou
 
 `Settings.OpenToCategory(categoryID)` is part of the protected Settings API. Calling it during combat would taint the panel — even after combat ends, the tainted panel can refuse to open or break unrelated UI behavior.
 
-`NS.OpenOptionsPanel` (`settings/Panel.lua`) therefore **refuses** the open when `InCombatLockdown()` is true, per Ka0s standard options-ui-§2 (refuse-with-notice, *not* defer-and-replay). It prints a single grey, `[AT]`-tagged notice and returns — it never calls the protected `Settings.OpenToCategory` under lockdown, and never queues the open:
+`NS.OpenOptionsPanel` (`settings/OptionsSetup.lua`) is a one-line delegate to `LibKa0s-Options-1.0`'s `O.OpenOptionsPanel` (`libs/LibKa0s/Options.lua`), which therefore **refuses** the open when `InCombatLockdown()` is true, per Ka0s standard options-ui-§2 (refuse-with-notice, *not* defer-and-replay). It emits a `Cfg` debug line, prints a single grey, `[AT]`-tagged notice, and returns — it never calls the protected `Settings.OpenToCategory` under lockdown, and never queues the open. Out of combat it guards `Settings.OpenToCategory` and the captured `mainCategoryID` before opening, then expands the tree.
 
-```lua
-function NS.OpenOptionsPanel()
-    if InCombatLockdown() then
-        -- Refuse: grey NS.PREFIX notice, then return. No PLAYER_REGEN_ENABLED replay.
-        print("|cffaaaaaacannot open settings during combat \226\128\148 Blizzard's category-switch is protected|r")
-        return
-    end
-    Settings.OpenToCategory(mainCategoryID)
-    expandMainCategory()
-end
+The refusal string is `lib.STRINGS.COMBAT_REFUSED`, byte-fixed by options-ui-§2:
+
+```
+|cffaaaaaacannot open settings during combat \226\128\148 Blizzard's category-switch is protected|r
 ```
 
-(The `print` is the `local print = NS.Print` shadow at the top of `settings/Panel.lua`, so the line still carries the cyan `[AT]` prefix; the message body is grey — hex `aaaaaa`. The canonical text is fixed by options-ui-§2.)
+(The em dash is a byte escape, so no editor between the library and a client can break it. The line reaches chat through the descriptor's `print` hook — `settings/OptionsSetup.lua` points it at `NS.Print` — so it still carries the cyan `[AT]` prefix; the message body is grey, hex `aaaaaa`. This catalogue deliberately quotes the string and not the function body: a quirks file quoting a code body it does not own is exactly how the next drift starts.)
 
 The gate lives **inside** `OpenOptionsPanel` (not just the `/at config` slash dispatcher), so every caller — the slash verb, `/run` scripts, any future internal caller — is refused. The house behaviour is an explicit, greppable refusal rather than a panel that auto-opens the instant combat ends and steals focus during post-pull recovery; the user re-runs `/at config` when they choose. `addon:OnLeaveCombat` (`core/AbsorbTracker.lua`) now only re-applies visibility and repaints — there is no combat-deferred open to replay. (This reverses the earlier defer-and-replay behaviour, which conformed to the pre-v1.10.0 §6.2. A deferred **secure frame write** may legitimately still queue on `PLAYER_REGEN_ENABLED` (per the standard's events-frames-taint-§2), but a taint-prone *protected* path like the category-switch must not be touched at all under lockdown.)
 
@@ -80,7 +74,7 @@ The gate lives **inside** `OpenOptionsPanel` (not just the `/at config` slash di
 
 `Settings.RegisterCanvasLayoutCategory(panel, name)` returns a category *object* with a `:GetID()` method; `Settings.RegisterCanvasLayoutSubcategory(parent, panel, name)` returns the same shape. `Settings.OpenToCategory` accepts the numeric ID directly — passing the object produces a range error.
 
-`settings/Panel.lua` captures `mainCategory:GetID()` at parent registration into `mainCategoryID`; `OpenOptionsPanel` calls `Settings.OpenToCategory(mainCategoryID)` so `/at config` always lands on the parent (about page) and then calls `expandMainCategory()` to expand the sub-page tree so every sub-page is visible at once. `expandMainCategory` reaches into `SettingsPanel:GetCategoryList()` private API; the whole call is wrapped in `pcall` so a future Blizzard refactor that renames or removes those internals degrades gracefully (the panel still opens, the tree just doesn't auto-expand).
+`libs/LibKa0s/Options.lua` captures `mainCategory:GetID()` at parent registration into `mainCategoryID`; `OpenOptionsPanel` calls `Settings.OpenToCategory(mainCategoryID)` so `/at config` always lands on the parent (about page) and then calls `expandMainCategory()` to expand the sub-page tree so every sub-page is visible at once. `expandMainCategory` reaches into `SettingsPanel:GetCategoryList()` private API; the whole call is wrapped in `pcall` so a future Blizzard refactor that renames or removes those internals degrades gracefully (the panel still opens, the tree just doesn't auto-expand).
 
 ## Interface line — track the current retail build
 
@@ -102,7 +96,7 @@ WoW retail (10.0+) split backdrop functionality off the base Frame and into the 
 CreateFrame("Frame", "AbsorbTrackerFrame", UIParent, "BackdropTemplate")
 ```
 
-`modules/Bar.lua` does this for the bar; the canonical upstream `AceGUI-3.0-SharedMediaWidgets` lib at `libs/AceGUI-3.0-SharedMediaWidgets/` does the same for the LSM dropdown widgets. If a future custom widget needs a backdrop and forgets the template, the addon will error on `SetBackdrop`.
+`modules/Bar.lua` does this for the bar; the canonical upstream `AceGUI-3.0-SharedMediaWidgets` lib at `libs/AceGUI-3.0-SharedMediaWidgets/` does the same for the LSM dropdown widgets. The vendored `LibKa0s` windows carry it too — `libs/LibKa0s/DebugLog.lua` (the console and its Copy window) and `libs/LibKa0s/PerfPanel.lua` (the step panel) all pass `"BackdropTemplate"` at `CreateFrame`, because `LibKa0s-Core-1.0`'s `ApplySkin` calls `SetBackdrop` on them. (`libs/LibKa0s/Options.lua`'s settings canvases do **not** — they never set a backdrop; Blizzard draws that panel.) If a future custom widget needs a backdrop and forgets the template, the addon will error on `SetBackdrop`.
 
 ## Class color sources
 
@@ -117,7 +111,7 @@ Both paths resolve at *call* time inside `NS.GetBarColor` / `NS.GetBgColor` / `N
 
 ## `UNIT_ABSORB_AMOUNT_CHANGED` fires often during heavy combat
 
-The event can fire many times per second during raid encounters with stacking absorbs (Power Word: Shield + trinket procs + Discipline absorbs + …). The `OnAbsorbChanged` handler in `core/AbsorbTracker.lua` records a debug line (gated behind `NS.State.debug`) then publishes the `REPAINT` message on the bus — it does not repaint directly. `modules/Timer.lua` owns the sole `REPAINT` subscriber and funnels it through `NS.RequestRepaint()` (below), so a burst of events can't over-render the StatusBar and the string-format calls.
+The event can fire many times per second during raid encounters with stacking absorbs (Power Word: Shield + trinket procs + Discipline absorbs + …). The `OnAbsorbChanged` handler in `core/AbsorbTracker.lua` bumps a counter rather than logging a line per event, and logs only on the up/gone transitions — and those go through `NS.IsConcatSafe` first, because a raw combat value can be a secret and an unrenderable one is dropped rather than printed. It then publishes the `REPAINT` message on the bus — it does not repaint directly. `modules/Timer.lua` owns the sole `REPAINT` subscriber and funnels it through `NS.RequestRepaint()` (below), so a burst of events can't over-render the StatusBar and the string-format calls.
 
 `NS.RequestRepaint()` (`modules/Timer.lua`) is the coalescing repaint scheduler and the source of truth for visual updates. It runs on **AceTimer** — a trailing-edge one-shot: if a repaint is already queued, further calls are a no-op; otherwise it schedules `NS.addon:ScheduleTimer(NS.UpdateAbsorbBar, throttleWindow)` (Ka0s standard §3.1 — a one-shot AceTimer, not a raw `C_Timer`), which self-clears once it fires. `throttleWindow` is user-configurable (0.05 – 1 s; default 0.1 s). There is no repeating ticker and no polling — idle = zero repaints. See [data-flow.md](./data-flow.md#absorb-update-path).
 

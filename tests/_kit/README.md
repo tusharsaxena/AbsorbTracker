@@ -22,13 +22,20 @@ the source loader, and the universal half of the WoW-API mock.
 Same discipline as the library itself:
 
 ```sh
-cp -r LibKa0s/testkit/. <Addon>/tests/_kit/
-diff -r LibKa0s/testkit <Addon>/tests/_kit     # must be empty
+cp -r testkit/. <Addon>/tests/_kit/
+diff -r testkit <Addon>/tests/_kit             # must be empty
 cd <Addon> && lua tests/run.lua && luacheck .
 ```
 
+Run the first two from the library repo's root, the same cwd `docs/releasing.md` assumes — the two
+files give the same commands and must not disagree about where you are standing.
+
 Never edit `tests/_kit/` in a consumer. A kit problem is a finding to fix here and re-vendor; a
 local patch is a fork nobody knows about, and the next re-vendor silently reverts it.
+
+LibKa0s is a consumer on the same terms as every addon: it reaches its own kit through
+`tests/_kit/` rather than into `testkit/` directly, so `diff -r testkit tests/_kit` is the same gate
+here as it is downstream, and a kit change that would break a consumer breaks this repo first.
 
 ## What a consuming `tests/run.lua` looks like
 
@@ -42,7 +49,9 @@ local mocks  = dofile("tests/wow_mock.lua")()   -- the addon's own extender
 
 Loader.addonName = "AbsorbTracker"
 local NS = {}
-Loader.loadAll({ "libs/LibKa0s/Core.lua", ... }, NS, mocks)   -- libs first
+-- Libs first, and every file of LibKa0s.xml spelled out in XML order: the TOC pulls them through
+-- the XML, so Loader.tocFiles cannot see them.
+Loader.loadAll({ "libs/LibKa0s/Core.lua", ... , "libs/LibKa0s/PerfPanel.lua" }, NS, mocks)
 Loader.loadAll(Loader.tocFiles("AbsorbTracker.toc"), NS, mocks)
 
 NS:InitDB()

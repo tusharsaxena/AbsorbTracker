@@ -34,7 +34,8 @@ User-facing reference: [../README.md](../README.md). Subsystems + invariants:
   See the root [CLAUDE.md](../CLAUDE.md) "Standards compliance" section.
 - **Schema is the single source of truth for settings.** `NS.Schema` is a flat array; each
   `settings/<page>.lua` calls `NS.RegisterSchemaRows({ ... })` at file-load time. The same array
-  drives both the AceGUI panel widgets (via `Helpers.RenderSchema` / `Widgets.RenderField`) AND
+  drives both the AceGUI panel widgets (via `NS.Helpers.RenderSchema` / `NS.Helpers.RenderField` —
+  `LibKa0s-Options-1.0`, `libs/LibKa0s/OptionsWidgets.lua`) AND
   the `/at list/get/set/reset/resetall` CLI. Adding a new option = one schema row in some
   `settings/<page>.lua`. Don't add per-setting code in `settings/Slash.lua`; the row grammar
   covers it. Those five verbs are implemented by `LibKa0s-Slash-1.0` (`libs/LibKa0s/Slash.lua`),
@@ -59,8 +60,16 @@ User-facing reference: [../README.md](../README.md). Subsystems + invariants:
   clears first, then re-applies. Don't optimize this away.
 - **Combat-lockdown gate on `/at config` (refuse, options-ui-§2).** `Settings.OpenToCategory` is
   protected; calling it during combat taints the panel for the rest of the session.
-  `NS.OpenOptionsPanel` (`settings/Panel.lua`) **refuses** while `InCombatLockdown()` is true —
-  prints a grey `[AT]` notice and returns, never deferring/replaying on `PLAYER_REGEN_ENABLED`.
+  `NS.OpenOptionsPanel` (`settings/OptionsSetup.lua`) is a one-line delegate to
+  `LibKa0s-Options-1.0`'s `O.OpenOptionsPanel` (`libs/LibKa0s/Options.lua`), which **refuses**
+  while `InCombatLockdown()` is true — prints a grey `[AT]` notice and returns, never
+  deferring/replaying on `PLAYER_REGEN_ENABLED`. The gate is the library's; the behaviour is
+  unchanged.
+- **`NS.Helpers` IS the `LibKa0s-Options-1.0` instance** (`settings/OptionsSetup.lua`), not a table
+  decorated from a copy of it. `settings/UnitPanel.lua` and `settings/About.lua` hang their members
+  on that same table. Don't replace it with a wrapper: a test that swaps a member out to spy on it
+  must swap the one the library's own callers see, and a page file has to be able to call
+  `H.RenderUnitPanel` and `H.RenderSchema` without knowing which side owns which.
 - **Cyan `[AT]` chat prefix on all addon output.** Routes through `NS.Print(...)` which prepends
   `NS.PREFIX` (`|cFF00FFFF[AT]|r`, defined in `core/Namespace.lua`). Files that emit chat shadow
   the global `print` with `local print = NS.Print`. Debug output does NOT go to chat — it routes
@@ -119,13 +128,15 @@ modules subscribe on their own `NS.NewBusTarget()` targets (architecture-§4; se
   text file, convert with `sed -i 's/\r$//; s/$/\r/'` if the tool wrote LF.
 - **Libs vendored folder-per-lib in `libs/`** (`libs/LibStub/`, `libs/AceAddon-3.0/`, …): LibStub,
   CallbackHandler-1.0, the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB /
-  AceGUI / AceConfig / AceDBOptions), `LibKa0s` (four majors across five files, loaded in this
+  AceGUI / AceConfig / AceDBOptions), `LibKa0s` (five majors across eight files, loaded in this
   order through `libs/LibKa0s/LibKa0s.xml`: `LibKa0s-Core-1.0` = `Core.lua`,
-  `LibKa0s-DebugLog-1.0` = `DebugLog.lua`, `LibKa0s-Slash-1.0` = `Slash.lua`, and
-  `LibKa0s-Perf-1.0` = `Perf.lua` + `PerfPanel.lua`; DebugLog, Slash and Perf each declare
+  `LibKa0s-DebugLog-1.0` = `DebugLog.lua`, `LibKa0s-Slash-1.0` = `Slash.lua`,
+  `LibKa0s-Options-1.0` = `Options.lua` + `OptionsWidgets.lua` + `OptionsScroll.lua`, and
+  `LibKa0s-Perf-1.0` = `Perf.lua` + `PerfPanel.lua`; DebugLog, Slash, Options and Perf each declare
   `NEEDS_CORE` and refuse to register below it, so a stale Core drops the module rather than
-  half-registering it; ours, and the only one of these re-vendored whole-folder from a sibling
-  repo on every release), LibSharedMedia-3.0,
+  half-registering it — and a multi-file major's attach files bail on their own
+  `LibStub(…, true)` lookup when the shell never registered; ours, and the only one of these
+  re-vendored whole-folder from a sibling repo on every release), LibSharedMedia-3.0,
   and the upstream `AceGUI-3.0-SharedMediaWidgets` r65. The displayButton tile is suppressed by
   `core/LSMPatch.lua` (addon-side, not a lib edit), so `r66+` refreshes are a clean drop-in.
 - **Headless tests (`tests/`) + lint gate.** `lua tests/run.lua` (schema parse/format/validate plus
@@ -134,7 +145,9 @@ modules subscribe on their own `NS.NewBusTarget()` targets (architecture-§4; se
   `LibKa0s-DebugLog-1.0` wiring in `core/DebugLogSetup.lua`, the full `/at`
   surface including `/at profile`, repaint-throttle coalescing, combat-visibility, message-bus
   dispatch, the `core/Data.lua` settings/media/colour seam, the `modules/Display.lua` paint path,
-  the `settings/Helpers.lua` panel toolkit, the schema → AceGUI widget layer, and `core/Units.lua`
+  the `LibKa0s-Options-1.0` wiring in `settings/OptionsSetup.lua` (including the load-completing
+  degraded stub), the per-unit page in `settings/UnitPanel.lua`, the schema → AceGUI widget layer,
+  and `core/Units.lua`
   unit identity + mirror resolution)
   must be green and `luacheck .` clean
   (0/0) before every commit. Syntax-check one file with `luac -p <file>`. Toolchain: Lua 5.1 +

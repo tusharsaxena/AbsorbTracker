@@ -17,7 +17,7 @@ local lib = LibStub and LibStub("LibKa0s-Core-1.0", true)
 
 if not lib then
     -- A missing vendored lib must degrade, not error at load. Silence is not an option here the way
-    -- it is for a diagnostics harness: five settings files do `local print = NS.Print` at load, so a
+    -- it is for a diagnostics harness: four settings files do `local print = NS.Print` at load, so a
     -- nil printer takes the whole settings UI down with it, and a no-op one makes /at answer nothing
     -- at all. So the fallbacks work — they are the pre-library implementations, kept short — and the
     -- honest "it is not installed" line is said ONCE, on the first line the addon prints, rather

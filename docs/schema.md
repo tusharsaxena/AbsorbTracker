@@ -29,6 +29,8 @@ The array itself and its helpers live in `settings/Schema.lua` (`NS.Schema`). Th
     -- type-specific:
     min, max, step,                                  -- number
     values        = NS.Helpers.LSMValues("statusbar"),  -- string (select); k=v map or fn
+                                  -- NOTE: evaluated at FILE LOAD, so settings/OptionsSetup.lua
+                                  -- must load first — see settings-panel.md, "The degradation stub"
     dialogControl = "LSM30_Statusbar",              -- string (LSM swatch dropdown)
     sorting       = { "", "OUTLINE", ... },         -- string: explicit option order
     hasAlpha      = true,                           -- color
@@ -78,10 +80,15 @@ Each call generates three rows per appearance key — one per `NS.Units.LIST` en
 ```
                   NS.Schema (flat array, settings/Schema.lua)
                           │
+      the addon hands the rows out through two descriptors
             ┌─────────────┴──────────────┐
             ▼                            ▼
-   Helpers.RenderSchema(page)      settings/Slash.lua
-   (settings/Widgets.lua)                 │
+   settings/OptionsSetup.lua      settings/Slash.lua
+   (rowsForPage / allRows)        (findRow / allRows)
+            │                            │
+            ▼                            ▼
+   LibKa0s-Options-1.0            LibKa0s-Slash-1.0
+   (OptionsWidgets.lua)           (Slash.lua)
             │                            │ walks the array
             │ section break on           │ for /at list / get / set / reset
             │   row.group change         │
@@ -115,7 +122,7 @@ Greys out the picker when the named sibling toggle is on. Used by the class-colo
   disabledIf = "useClassColorBar" },
 ```
 
-The ColorPicker maker (`settings/Widgets.lua`) reads `disabledIf` inside its refresher closure and calls `cp:SetDisabled(GetSetting(sibling))`. The refresh runs at file-load (initial state), after any panel widget write (every checkbox/slider/dropdown `set()` ends with `Helpers.RefreshAllPanels`), and on profile change — so flipping `useClassColorBar` greys / un-greys the matching color picker on the same frame.
+The ColorPicker maker (`libs/LibKa0s/OptionsWidgets.lua`) reads `disabledIf` inside its refresher closure and calls `cp:SetDisabled(GetSetting(sibling))`. The refresh runs at file-load (initial state), after any panel widget write (every checkbox/slider/dropdown `set()` ends with `Helpers.RefreshAllPanels`), and on profile change — so flipping `useClassColorBar` greys / un-greys the matching color picker on the same frame.
 
 ### `onChange` (any type)
 
@@ -180,7 +187,7 @@ NS.ValidateSchema()                     -> errors, resolved, missing
 
 ### `NS.ValidateSchema()`
 
-Called once from `NS.CreateOptionsPanel` (`settings/Panel.lua:79`), which runs at `OnEnable` (PLAYER_LOGIN timing) after every `settings/<page>.lua` has registered its rows. It walks `NS.Schema` and, for each row, checks:
+Called once through the descriptor's `validate` hook (`settings/OptionsSetup.lua`, `validate = function() NS.ValidateSchema() end`), which `LibKa0s-Options-1.0`'s `CreateOptionsPanel` runs before the page builders — at `OnEnable` (PLAYER_LOGIN timing), after every `settings/<page>.lua` has registered its rows. It walks `NS.Schema` and, for each row, checks:
 
 - the row is a table with a non-empty string `path`,
 - `page` is one of `general`, `bar`, `border`, `font`, `profiles`,

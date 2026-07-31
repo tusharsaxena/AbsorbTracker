@@ -27,6 +27,14 @@ The addon is an **AceAddon** (`core/AbsorbTracker.lua`) mixing in AceEvent / Ace
 Load order is dependency order (see `AbsorbTracker.toc`): Libraries → Locales → Core → Defaults →
 Modules → Settings.
 
+Four of the rows below are *setup* files rather than implementation: `core/CoreSetup.lua`,
+`core/DebugLogSetup.lua`, `core/PerfSetup.lua` and `settings/OptionsSetup.lua` each hand a
+**descriptor** to one of the five LibKa0s majors — `LibKa0s-Core-1.0`, `-DebugLog-1.0`, `-Slash-1.0`,
+`-Options-1.0`, `-Perf-1.0`, **five majors across eight files** in `libs/LibKa0s/` — and publish what
+comes back under the `NS.*` name the addon already used, plus a degradation stub for when the library
+is absent. `settings/Slash.lua` does the same thing without a separate setup file. See
+[Five extracted libraries, one descriptor each](#five-extracted-libraries-one-descriptor-each).
+
 | File | Responsibility |
 |------|----------------|
 | `core/Compat.lua` | The only file that calls deprecated APIs. `Compat.GetAddOnMetadata` (C_AddOns → `_G` fallback). |
@@ -40,27 +48,26 @@ Modules → Settings.
 | `core/Database.lua` | `NS:InitDB` (AceDB + profile callbacks) and `NS:RunMigrations` (schema-version seam). |
 | `core/Units.lua` | `NS.Units` — unit identity (`LIST`/`LABEL`), mirror resolution (`IsMirrored`/`SourceUnit`/`Get`), per-unit position read/write, and `CopyFromPlayer`. The only file that reads `db.profile.units` for appearance. |
 | `core/LSMPatch.lua` | `NS.ApplyLSMBorderPatch` — collapses the upstream LSM30_Border preview tile; run once on enable. |
-| `core/DebugLogSetup.lua` | Wires the addon into `LibKa0s-DebugLog-1.0` — the on-screen console (§12) is a vendored library, not addon code. Builds `NS.DebugLog` via `lib:New{...}` and binds `NS.Debug` bare off it. What this file supplies: the frame-name prefix, the title, the monospace font, the `/at` slash name, the call-time `print`/`safeToString` hooks, the `onVisibilityChanged` panel refresh, the `[Init]` session summary, and — the part that must not move — `isEnabled`/`setEnabled` over `NS.State.debug`, so the logging flag stays this addon's single truth. Degrades to a stub that still flips the flag when the library is absent. The library's surface is unchanged: `FormatPlain`/`FormatColored`, `SetEnabled`, `Show`/`Hide`/`Toggle`/`IsShown`, the §11 always-shown scrollbar (`UpdateScrollBar`) + bottom line counter (`UpdateStatus`), and `ConsoleCheckbox()` — the General page's checkbox spec that shows/hides the window (not the logging flag). |
+| `core/DebugLogSetup.lua` | Wires the addon into `LibKa0s-DebugLog-1.0` — the on-screen console (§12) is a vendored library, not addon code. Builds `NS.DebugLog` via `lib:New{...}` and binds `NS.Debug` bare off it. What this file supplies: the frame-name prefix, the title, the monospace font, the `/at` slash name, the call-time `print`/`safeToString` hooks, the `onVisibilityChanged` panel refresh, the `[Init]` session summary, and — the part that must not move — `isEnabled`/`setEnabled` over `NS.State.debug`, so the logging flag stays this addon's single truth. Degrades to a stub that still flips the flag when the library is absent. The library's surface is unchanged: `FormatPlain`/`FormatColored`, `SetEnabled`, `Show`/`Hide`/`Toggle`/`IsShown`, the §11 always-shown scrollbar (`UpdateScrollBar`) + bottom line counter (`UpdateStatus`, `lib.MAX_BUFFER = 500`), `ConsoleCheckbox()` — the General page's checkbox spec that shows/hides the window (not the logging flag) — and the harness-facing `CopyText`/`FindLine`/`BufferSize`/`LastLine` plus the raw `buffer` array. |
 | `core/AbsorbTracker.lua` | AceAddon promotion; `OnInitialize` (font register, InitDB, slash register), `OnEnable` (the login sequence), event handlers, `OnProfileChanged`. |
-| `defaults/Profile.lua` | Three flat globals (`locked`/`showOnlyInCombat`/`throttleWindow` — there is no `hidden` master toggle; the per-unit `enabled` flags are the visibility switch) + `NS.defaults.profile.units.{player,target,focus}` (each unit's own appearance table, built by a factory so no table is shared across units) + `NS.defaults.global.schemaVersion = 3`; `NS.flatDefaults` alias, `NS.unitDefaults` (= `defaults.profile.units.player`, the canonical per-row default source for `settings/{Bar,Border,Font}.lua`). |
+| `defaults/Profile.lua` | Three flat globals (`locked`/`showOnlyInCombat`/`throttleWindow` — there is no `hidden` master toggle; the per-unit `enabled` flags are the visibility switch) + `NS.defaults.profile.units.{player,target,focus}` (each unit's own appearance table, built by a factory so no table is shared across units) + `NS.defaults.global.schemaVersion = 4` (v3 introduced `profile.units`; v4 dropped the dead `hidden` toggle); `NS.flatDefaults` alias, `NS.unitDefaults` (= `defaults.profile.units.player`, the canonical per-row default source for `settings/{Bar,Border,Font}.lua`). |
 | `locales/enUS.lua` | `NS.L` metatable-fallback locale (English source keys; nothing wrapped yet). |
 | `modules/Bar.lua` | `NS.CreateBar(unit, globalName)` builds one bar frame; `NS.bars` (keyed `player`/`target`/`focus`, frames `AbsorbTrackerFrame`/`AbsorbTrackerTargetFrame`/`AbsorbTrackerFocusFrame`) at file load, plus `NS.bar`/`statusBar`/`valueText`/`backdropInfo` as player aliases for pre-multi-unit call sites. Each bar owns its own `backdropInfo` table (border size differs per unit; `SetBackdrop` keys off table identity) and a `unitLabel` FontString above the frame naming its unit, shown only while unlocked. |
 | `modules/Display.lua` | Every function takes a `unit` (defaulting to `"player"`): `RestoreBarPosition`, `UpdateBarAppearance`, `ShouldShowBar`/`ApplyVisibility` (the four-step visibility ladder), `UpdateAbsorbBar` (the paint path). `NS.ForEachUnit(fn)` and `NS.DefaultPosition(unit)` (stacks target/focus above the player bar) also live here. Subscribes to `APPEARANCE`/`VISIBILITY`/`POSITION` on its own `NS.Display.__ev` bus target, fanning each handler out over `NS.ForEachUnit` so the bus messages stay payload-free. |
 | `modules/Timer.lua` | Coalescing repaint scheduler (`NS.RequestRepaint`) — a trailing-edge one-shot AceTimer throttle. |
 | `settings/Schema.lua` | The schema registry + read/write seam (`SetByPath`), value formatting, and `ValidateSchema`. `NS.FormatSchemaValue` is a thin delegate to `LibKa0s-Slash-1.0`'s `lib.FormatValue`, so the `/at get` echo and the `[Set]` debug line cannot disagree about how a colour or an empty string reads; the type-aware parser is the library's `lib.ParseValue` (`NS.ParseSchemaValue` and the private `parseBool`/`parseNumber`/`parseString`/`parseColor` helpers are gone). Rows carry `unit`, `alwaysPerUnit`, and `skipRender` fields; `SchemaForPage(page, unit)` filters to one unit's rows (or all, when `unit` is omitted); `PartitionUnitRows` splits a unit page into always-editable rows vs. mirror-hidden appearance rows; `ResolvePath`/`SetPath` walk dotted paths (`units.<unit>.<key>`) so flat globals and per-unit keys share one seam. |
 | `settings/Slash.lua` | AceConsole registration, the ordered `NS.COMMANDS` verb table (17 verbs), and the host verbs that reach into this addon's own state (`lock`/`unlock`/`toggle`/`update`/`test`/`profile`/`debug`/`perf`/`resetall`/`resetposition`) plus the mirror note. The dispatcher itself, the help renderer, the row and key/value formatters, the value renderer, the `/at list` builder and the type-aware value parser are `LibKa0s-Slash-1.0` (vendored, `libs/LibKa0s/Slash.lua`); this file builds the CLI with `SlashLib:New{...}` and passes `NS.COMMANDS` in. Degrades to a stub that keeps the host verbs working — and names the missing library on each schema verb — when the library is absent. |
-| `settings/Panel.lua` | Settings-category registration shell; publishes `NS.Helpers`; combat-gated `OpenOptionsPanel`. |
-| `settings/Helpers.lua` | Panel toolkit: layout constants, `CreatePanel`, `EnsureDefaultsButton` (builds the header Defaults button lazily on first OnShow), section/scroll/tooltip, defaults/refresh registry, `LSMValues`. `RenderUnitPanel(ctx, pageKey)` draws the Unit dropdown + mirror header (checkbox + copy button, hidden-while-mirrored hint) via `Helpers.ClearScroll` (full rebuild) + `Widgets.lua`'s `RenderRows` for the filtered rows. |
-| `settings/ScrollPatch.lua` | Always-visible scrollbar override for the AceGUI ScrollFrame. |
-| `settings/Widgets.lua` | Schema-row → AceGUI widget translation (`RenderField`/`RenderSchema`, four schema widget makers), plus non-schema `SessionCheckbox` and the `RenderSchema` `pairWith` seam (the session Debug console checkbox, attached beside Enable Focus Bar). |
+| `settings/OptionsSetup.lua` | Wires the addon into `LibKa0s-Options-1.0` — the canvas shell, the schema-row → AceGUI translation, the two-column flow engine and the always-visible scrollbar patch are vendored library code (`libs/LibKa0s/{Options,OptionsWidgets,OptionsScroll}.lua`), not addon code. It replaces four files that used to be this addon's own toolkit (`Panel.lua`, `Helpers.lua`, `ScrollPatch.lua`, `Widgets.lua`). Sets `NS.PARENT_TITLE` **before** the lib check so the brand exists on both paths, then assigns `NS.Helpers = lib:New(descriptor)` — the library instance **itself**, not a decorated copy, so every existing `NS.Helpers.*` call site keeps working — plus thin `NS.RegisterOptionsPage` / `NS.CreateOptionsPanel` / `NS.OpenOptionsPanel` / `NS.RefreshOptionsPanel`. What this file supplies is the part that is ours: `get`/`set` (through `NS.GetSetting`/`NS.SetByPath`, so a panel change takes exactly the path `/at set` takes), `applyDefault`, `allRows`, `rowsForPage`, `skipRestoreAll` (excludes the Profiles page — its rows are AceDBOptions-supplied and resetting them is data loss), `afterRestoreAll` (→ `Helpers.ResetAllPositions`, because `position` is written by dragging and no schema row owns it), `scheduleTimer`, `getLSM`, `validate`, `onAceGUI`, `buildMain`, `colorDecode`/`colorEncode`, `print` and `debug`. Its stub is **load-completing, not member-answering** — the one setup file that breaks the addon's honest-line-per-member pattern, because `settings/{Bar,Border,Font}.lua` call `NS.Helpers.LSMValues` inside schema-row literals at *file load* and a nil there would abort the file, taking a third of `NS.Schema` with it. |
+| `settings/UnitPanel.lua` | The two pieces of the old toolkit that did not generalise. **Decorates** `NS.Helpers` — which *is* the library instance — rather than sitting beside it, so page files call `H.RenderUnitPanel` and `H.RenderSchema` interchangeably. `Helpers.RenderUnitPanel(ctx, pageKey)` draws the Unit dropdown + mirror header (checkbox + copy button, hidden-while-mirrored hint) as a full rebuild via the library's `ClearScroll` + `RenderRows`, with a re-entrancy guard and a two-tier refresher: always re-sync the mirror checkbox in place, re-render only when mirror state actually changed (an unconditional re-render would `ClearScroll` the very widget whose `OnValueChanged` is still on the stack). `Helpers.ResetAllPositions()` is the single reset-position implementation, shared by `/at resetposition`, the General page button and the descriptor's `afterRestoreAll`. Loads after `settings/OptionsSetup.lua` (it takes `local Helpers = NS.Helpers` at load). |
 | `settings/About.lua` | The parent page (logo + Notes + slash-command list). |
-| `settings/{General,Bar,Border,Font,Profiles}.lua` | The five sub-pages; each registers schema rows + a deferred page builder — except Profiles, which registers no rows and renders AceDBOptions directly. Bar/Border/Font each generate their rows once per unit in `NS.Units.LIST` (path prefixed `units.<unit>.`, tagged `unit = unit`) and defer their page render to `Helpers.RenderUnitPanel` instead of `Helpers.RenderSchema`; General has no Unit dropdown, but does carry the three `units.<unit>.enabled` toggles — the one place a per-unit path is edited outside that dropdown. |
+| `settings/{General,Bar,Border,Font,Profiles}.lua` | The five sub-pages; each registers schema rows + a deferred page builder — except Profiles, which registers no rows and renders AceDBOptions directly. Bar/Border/Font each generate their rows once per unit in `NS.Units.LIST` (path prefixed `units.<unit>.`, tagged `unit = unit`) and defer their page render to `Helpers.RenderUnitPanel` instead of `Helpers.RenderSchema` — the two reach the same `NS.Helpers` table from opposite sides, one addon code (`settings/UnitPanel.lua`), the other library code (`libs/LibKa0s/OptionsWidgets.lua`); General has no Unit dropdown, but does carry the three `units.<unit>.enabled` toggles — the one place a per-unit path is edited outside that dropdown. |
 
 ## Settings Schema
 
 `NS.Schema` is a flat array; each `settings/<page>.lua` calls `NS.RegisterSchemaRows({...})` at
 file-load time. The same array drives both the AceGUI panel widgets (via
-`Helpers.RenderSchema` / `Widgets.RenderField`) and the `/at list|get|set|reset|resetall` CLI —
+`NS.Helpers.RenderSchema` / `NS.Helpers.RenderField`, both supplied by `LibKa0s-Options-1.0` and fed
+the rows through the descriptor's `rowsForPage`) and the `/at list|get|set|reset|resetall` CLI —
 adding an option is one schema row. All writes funnel through the single seam **`NS.SetByPath`**
 (`SetSetting` + `fireOnChange`), whose `onChange` defaults to `UpdateBarAppearance`. Boot-time
 `NS.ValidateSchema` checks each row's shape (`page`/`type` enums, non-empty `path`) **and** that
@@ -72,7 +79,8 @@ the test harness to assert. Row grammar detail: [schema.md](./schema.md).
 Cross-module communication runs through a closed, named message bus (`core/Bus.lua`,
 architecture-§4), not direct `NS.X` calls. Producers — the event layer (`core/AbsorbTracker.lua`),
 the slash surface (`settings/Slash.lua`), the settings pages (`settings/{General,Schema}.lua`) and
-the reset helpers (`settings/Helpers.lua`) — publish via `NS.bus:SendMessage(...)`. Each consumer
+the reset helper `Helpers.ResetAllPositions` (`settings/UnitPanel.lua`) — publish via
+`NS.bus:SendMessage(...)`. Each consumer
 subscribes on its **own** target from `NS.NewBusTarget()` (never two receivers on one shared object;
 CallbackHandler keys callbacks by `(message, target)`, so a shared target would silently overwrite —
 anti-pattern #32). All messages are payload-free: the consumer re-reads live state (settings,
@@ -106,7 +114,8 @@ in `tests/wow_mock.lua` models real `(message, target)` dispatch so `tests/test_
 two receivers of one message both fire (anti-pattern #33).
 
 Other cross-cutting refresh stays as explicit calls: `Helpers.RefreshAllPanels` (after `/at set` or
-a profile change) walks per-widget refresher closures. The other callback bus is **AceDB**:
+a profile change) walks per-widget refresher closures — the implementation is the library's, walking
+`ctx.refreshers` on library-owned ctx tables. The other callback bus is **AceDB**:
 `NS.OnProfileChanged` is registered for `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset` in
 `NS:InitDB`; it republishes `POSITION` / `APPEARANCE` / `REPAINT` on the bus and refreshes an open
 panel.
@@ -141,8 +150,8 @@ other is a real dependency cycle. The table crossing as plain data is what keeps
 | `/at get <path>` | Print one setting's current value |
 | `/at set <path> <value>` | Set one setting (typed: bool/number/string/color) |
 | `/at reset <path>` | Reset one setting to its default (a whole page is the panel's Defaults button) |
-| `/at resetall` | Reset every setting, clear the saved position, and recenter the bar (shared `Helpers.RestoreAllDefaults` — the panel's Reset All button calls the same path) |
-| `/at resetposition` | Clear **every** unit's saved position and re-anchor all three bars to their stacked defaults (shared `Helpers.ResetAllPositions` — the General page's Reset Position button calls the same path) |
+| `/at resetall` | Reset every setting, clear the saved position, and recenter the bar (shared `Helpers.RestoreAllDefaults` — the panel's Reset All button calls the same path). The walk is the library's; the addon supplies the two policy hooks — `skipRestoreAll` (leave the Profiles page alone) and `afterRestoreAll` (clear the saved positions, which no schema row owns) |
+| `/at resetposition` | Clear **every** unit's saved position and re-anchor all three bars to their stacked defaults (shared `Helpers.ResetAllPositions`, `settings/UnitPanel.lua` — the General page's Reset Position button and the options descriptor's `afterRestoreAll` call the same path) |
 | `/at lock` / `/at unlock` | Flip the drag lock |
 | `/at toggle [player\|target\|focus]` | Bare: flip **every** bar — all off if any is on, otherwise all on. With a unit token: flip that one bar only. Writes `units.<unit>.enabled` through `SetByPath`, so it travels the same path as the General page checkbox |
 | `/at debug` (`on`/`off`) | Toggle the debug console window; `on`/`off` enable/disable logging |
@@ -206,9 +215,11 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
 
 - **Combat-lockdown gate on `/at config` (refuse, options-ui-§2).** `Settings.OpenToCategory` is
   protected; calling it in combat taints the panel for the session. When `InCombatLockdown()` is
-  true, `NS.OpenOptionsPanel` (`settings/Panel.lua`) **refuses** — it prints a single grey,
-  `[AT]`-tagged notice (*"cannot open settings during combat — Blizzard's category-switch is
-  protected"*) and returns, never touching the protected call. It does **not** defer-and-replay on
+  true, `NS.OpenOptionsPanel` **refuses** — the wrapper is `settings/OptionsSetup.lua`'s, the check
+  and the notice are `libs/LibKa0s/Options.lua`'s (`lib.STRINGS.COMBAT_REFUSED`), printed through the
+  descriptor's `print` so the line still carries `[AT]` and logged through its `debug` under tag
+  `"Cfg"`. One grey, `[AT]`-tagged notice (*"cannot open settings during combat — Blizzard's
+  category-switch is protected"*), then a return, never touching the protected call. It does **not** defer-and-replay on
   `PLAYER_REGEN_ENABLED`; the user re-runs `/at config` after combat. The gate lives inside the
   open function, so every caller (slash verb, `/run`, internal) is refused.
 - **Bar visibility Show/Hide is taint-free.** All three bar frames (`AbsorbTrackerFrame` /
@@ -303,15 +314,18 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
   every upgrading profile as already-migrated and make the gate dead code. See
   [profiles.md](./profiles.md).
 
-- **A production test seam: `Helpers.__lastUnitCtx` (`settings/Helpers.lua`).**
+- **A production test seam: `Helpers.__lastUnitCtx` (`settings/UnitPanel.lua`).**
   `Helpers.RenderUnitPanel` stashes the ctx it just rendered on `NS.Helpers.__lastUnitCtx`.
-  **Why:** the per-page `ctx` tables are private to the `renderedPanels` list inside
-  `settings/Helpers.lua`, so the headless harness has no other handle on a *live* rendered panel;
-  without it, the entire per-unit render path (Unit dropdown, mirror header, row partition) would
-  be reachable only through in-game smoke tests. It is a single dunder-prefixed field, written on
-  every render and read by nothing in production — no behaviour depends on it. Recorded here rather
-  than removed because the coverage it buys is worth more than the purity; if a public
-  panel-registry accessor is ever added, this should collapse into it.
+  **Why, now that the library has its own seams:** `LibKa0s-Options-1.0` does expose `O.__panels()`
+  and `O.__panelFor(pageKey)`, so the panel registry is no longer unreachable. What those do not
+  answer is *which unit was rendered* — `RenderUnitPanel` is the only renderer that sets `ctx.unit`,
+  and a page key alone cannot distinguish the ctx of a Bar page showing `target` from the same page
+  showing `player`. `__lastUnitCtx` hands the harness the live ctx of the last unit render, `ctx.unit`
+  included, which is what makes the per-unit path (Unit dropdown, mirror header, row partition)
+  assertable headlessly instead of only through in-game smoke tests. It is a single dunder-prefixed
+  field, written on every render and read by nothing in production — no behaviour depends on it.
+  Recorded here rather than removed because the coverage it buys is worth more than the purity; if
+  the library ever grows a unit-aware panel accessor, this should collapse into it.
 
 - **Non-Blizzard media that is intentionally fixed (no LSM selector).** The bar-appearance media —
   `barTexture`, `bgTexture` (both default `"Blizzard Raid Bar"`), `border` (`"Blizzard Tooltip"`) and
@@ -366,21 +380,47 @@ shared-frame problem above, the addon ships its own harnesses:
   makes the addon inert **without a reload**, holding load order and shared-frame ownership fixed —
   the one thing the July 14 confound cannot reach.
 
-### The instrumentation harness lives in a shared library
+### Five extracted libraries, one descriptor each
 
-`LibKa0s-Perf-1.0` is a Ka0s-owned library, vendored into `libs/LibKa0s/` the same way Ace3 is —
-copied in, not depended on at runtime, so the addon still works with the library absent (`core/PerfSetup.lua`
-degrades `NS.Perf` to a no-op stub if `LibStub("LibKa0s-Perf-1.0", true)` fails). The probe, the
-record schema, and the step panel are all lib code now; this addon supplies only a **descriptor** —
-its name, its SavedVariables global, the bucket declarations, and what "suspend"/"resume" mean for
-*this* addon — to `lib:New(descriptor)` in `core/PerfSetup.lua`. The descriptor contract, the full
-public surface `lib:New` returns, and the record schema (now schema 2 — see below) are documented in
-the library's own repo, not duplicated here:
+The instrumentation harness was the first thing to leave this addon for a shared library; it is now
+one of five. `LibKa0s` is a Ka0s-owned library, vendored into `libs/LibKa0s/` the same way Ace3 is —
+copied in, not depended on at runtime — and ships **five majors across eight files**, load-ordered by
+`libs/LibKa0s/LibKa0s.xml`: `Core.lua`, `DebugLog.lua`, `Slash.lua`, `Options.lua`,
+`OptionsWidgets.lua`, `OptionsScroll.lua`, `Perf.lua`, `PerfPanel.lua`. `LibKa0s-Core-1.0` is the
+root; the other four each declare a `NEEDS_CORE` guard and, if Core is absent or too old, `return`
+before `LibStub:NewLibrary` — the major is simply never registered, which is what the addon's setup
+files detect.
+
+Every one of them follows the same shape: the algorithms are lib code, and this addon supplies only a
+**descriptor** naming what is genuinely its own.
+
+| Major | Wired by | What the descriptor carries | Published as |
+|---|---|---|---|
+| `LibKa0s-Core-1.0` | `core/CoreSetup.lua` | the `[AT]` prefix, passed as a **function** so a later `NS.PREFIX` change is not frozen in | `NS.Print`, `NS.Util.print`, `NS.IsConcatSafe`, `NS.SafeToString` |
+| `LibKa0s-DebugLog-1.0` | `core/DebugLogSetup.lua` | frame-name prefix, title, monospace font, `/at`, call-time `print`/`safeToString`, the `[Init]` summary, and `isEnabled`/`setEnabled` over `NS.State.debug` | `NS.DebugLog`, `NS.Debug` |
+| `LibKa0s-Slash-1.0` | `settings/Slash.lua` (no separate setup file) | `NS.COMMANDS`, the schema read/write/default seams, `groupKey`, the mirror annotator | `NS.Slash`, an addon-owned table wrapping the private dispatcher instance |
+| `LibKa0s-Options-1.0` | `settings/OptionsSetup.lua` | the brand, the schema seams, the reset policy hooks, the colour codec, AceTimer, LSM | `NS.Helpers` (the instance itself), `NS.AceGUI`, the four `NS.*OptionsPanel*` wrappers |
+| `LibKa0s-Perf-1.0` | `core/PerfSetup.lua` | name, SavedVariables global, bucket declarations, and what "suspend"/"resume" mean for *this* addon | `NS.Perf` |
+
+Each setup file also carries a degradation stub, so the addon still loads and runs with the library
+absent. The stubs are honest rather than silent: they answer each member the addon calls with a line
+naming what is missing. `settings/OptionsSetup.lua` is the one exception, and deliberately so — it is
+load-completing rather than member-answering, because its members are reached at *file load* by the
+page files rather than at click time.
+
+The descriptor contracts, the full public surface each `lib:New` returns, and the perf record schema
+(now schema 2 — see below) are documented in the library's own repo, not duplicated here:
 [LibKa0s README](https://github.com/tusharsaxena/LibKa0s/blob/master/README.md) and
 [LibKa0s docs/record-schema.md](https://github.com/tusharsaxena/LibKa0s/blob/master/docs/record-schema.md).
-The frozen hot-path bracket idiom itself (`local t0 = Perf.on and debugprofilestop()` /
+The design work sits in that repo too, as
+`docs/superpowers/specs/2026-07-29-libka0s-perf-extraction-design.md` (Perf) and
+`docs/superpowers/specs/2026-07-30-libka0s-five-module-extraction-design.md` (the other four).
+
+For Perf specifically, the frozen hot-path bracket idiom (`local t0 = Perf.on and debugprofilestop()` /
 `if t0 then Perf.Note(k, debugprofilestop()-t0) end`) is unchanged at every call site — that
-byte-identity is what proves the extraction didn't change what is measured.
+byte-identity is what proves the extraction didn't change what is measured. The same rule was applied
+to the other four: `NS.Print`, `NS.Debug`, `NS.Slash` and `NS.Helpers` all kept their names and their
+member lists, so the call sites did not move either.
 
 Protocol, caveats and how to read the numbers: [docs/performance.md](./performance.md). Captured
 records: [docs/perf-runs/](./perf-runs/README.md). Complexity: [docs/complexity.md](./complexity.md).

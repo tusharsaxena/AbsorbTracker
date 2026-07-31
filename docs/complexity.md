@@ -3,25 +3,21 @@
 _Generated — do not hand-edit._ Measured 2026-07-29 against **v1.9.0**, addon source only
 (`libs/` and `tests/` excluded).
 
-**Stale since the `LibKa0s-Perf-1.0` extraction (issue #17):** `core/Perf.lua` and
-`core/PerfPanel.lua` are gone (deleted, moved into the vendored library) and `core/PerfSetup.lua`
-(~111 lines) has taken their place, but `lizard` is not available in this environment to regenerate
-the numbers below. The `core/Perf.lua` row has been hand-removed so the table doesn't cite a deleted
-file; everything else below (including `core/PerfPanel.lua`'s absence, which predates this table)
-is un-regenerated and should be treated as informative rather than current until the next
-`lizard` run. **Regeneration is pending.**
+**Regeneration has been pending since the five-module LibKa0s extraction (issue #17); every number
+below predates it.** `lizard` is not available in this environment, so the numbers cannot be
+re-derived here. Five extractions have moved code out of the addon since the measurement:
 
-**Stale for the same reason since the `LibKa0s-Core-1.0` extraction:** `core/Util.lua` is gone
-(deleted, its secret guard / stringifier / chat printer moved into the vendored library) and
-`core/CoreSetup.lua` (~70 lines) has taken its TOC slot. Its row has likewise been hand-removed
-rather than renamed — the numbers would not carry over, since what is left in the addon is the
-descriptor and the fallback, not the algorithms.
+| Extraction | Deleted from the addon | What took its place |
+|---|---|---|
+| `LibKa0s-Core-1.0` | `core/Util.lua` | `core/CoreSetup.lua` (70 lines) |
+| `LibKa0s-DebugLog-1.0` | `core/DebugLog.lua` | `core/DebugLogSetup.lua` (111 lines) |
+| `LibKa0s-Slash-1.0` | — (`settings/Slash.lua` gutted in place) | `settings/Slash.lua`, now the verb table and host verbs only |
+| `LibKa0s-Options-1.0` | `settings/Panel.lua`, `Helpers.lua`, `ScrollPatch.lua`, `Widgets.lua` | `settings/OptionsSetup.lua` (182 lines) + `settings/UnitPanel.lua` (173 lines) |
+| `LibKa0s-Perf-1.0` | `core/Perf.lua`, `core/PerfPanel.lua` | `core/PerfSetup.lua` (131 lines) |
 
-**Stale for the same reason since the `LibKa0s-DebugLog-1.0` extraction:** `core/DebugLog.lua` is
-gone (deleted, the console window, the two formatters, the buffer and the enable seam moved into
-the vendored library) and `core/DebugLogSetup.lua` (114 lines) has taken its TOC slot. Its row has
-likewise been hand-removed rather than renamed: the old row's 296 NLOC across 41 functions measured
-the console, and what is left in the addon is a descriptor plus a degradation stub.
+Rows for the deleted files have been hand-removed rather than renamed. The numbers would not carry
+over: what is left in the addon is a descriptor plus a degradation stub, not the algorithms. The
+extracted code's complexity is the LibKa0s repo's to report, not this file's.
 
 Part of issue [#17](https://github.com/tusharsaxena/AbsorbTracker/issues/17). This report is
 **advisory**: it is not part of the green gate (`lua tests/run.lua` + `luacheck .`) and no build
@@ -58,25 +54,30 @@ PYTHONPATH=/tmp/lz/x python3 -m lizard -l lua core modules settings defaults loc
 | **Average CCN** | **3.6** |
 | Functions over CCN 15 | 7 (2.4%) |
 
+The only figure here re-verified by hand is the file count: addon source is now **28** `.lua` files
+across `core/ modules/ settings/ defaults/ locales/`, not 30. The rest await a `lizard` run.
+
 An average CCN of 3.6 is low. The addon is overwhelmingly made of small, single-purpose functions;
 the outliers below are concentrated in a handful of places and are all structural rather than
-algorithmic.
+algorithmic. That shape survives regeneration even where the number moves.
 
 ## Functions over the default threshold (CCN > 15)
 
 | CCN | NLOC | Function | Why |
 |-----|------|----------|-----|
-| 21 | 68 | `runProfile` — `settings/Slash.lua:434` | Sub-verb dispatch ladder for `/at profile` |
-| 20 | 38 | `Helpers.RenderRows` — `settings/Widgets.lua:275` | Row pairing / layout decisions |
-| 19 | 44 | `NS:InitDB` — `core/Database.lua:138` | Schema migration branches (v2 → v3 → v4) |
-| 18 | 21 | `setEnabled` — `settings/ScrollPatch.lua:36` | Blizzard scrollbar state permutations |
-| 17 | 25 | `Helpers.PatchAlwaysShowScrollbar` — `settings/ScrollPatch.lua:20` | Defensive nil-guards over Blizzard internals |
-| 16 | 48 | `Helpers.BuildMainContent` — `settings/About.lua:36` | Optional metadata fields, each guarded |
+| 21 | 68 | `runProfile` — `settings/Slash.lua:296` | Sub-verb dispatch ladder for `/at profile` |
+| 20 | 38 | ~~`Helpers.RenderRows`~~ — `settings/Widgets.lua:275` | Moved to `LibKa0s-Options-1.0`'s `OptionsWidgets.lua` |
+| 19 | 44 | `NS:InitDB` — `core/Database.lua:5` | Schema migration branches (v2 → v3 → v4) |
+| 18 | 21 | ~~`setEnabled`~~ — `settings/ScrollPatch.lua:36` | Moved to `LibKa0s-Options-1.0`'s `OptionsScroll.lua` |
+| 17 | 25 | ~~`Helpers.PatchAlwaysShowScrollbar`~~ — `settings/ScrollPatch.lua:20` | Moved to `LibKa0s-Options-1.0`'s `OptionsScroll.lua` |
+| 16 | 48 | `Helpers.BuildMainContent` — `settings/About.lua:38` | Optional metadata fields, each guarded |
 | 16 | 18 | ~~`NS.FormatSchemaValue`~~ — now a five-line delegate | The branching moved to `LibKa0s-Slash-1.0`'s `lib.FormatValue` |
 
-None is a hot path. `runProfile` runs on user command; the `ScrollPatch` and
-`About` functions run once at panel build; `InitDB` runs once at load. The repaint path — the only
-code that runs at combat frequency — is entirely in the low single digits:
+The struck rows are kept visible rather than deleted so the record of what the addon used to carry
+survives; they are the library's to report now, not this file's. Of the three live rows, none is a
+hot path: `runProfile` runs on user command, the `About` function runs once at panel build, `InitDB`
+runs once at load. The repaint path — the only code that runs at combat frequency — is entirely in
+the low single digits:
 
 | CCN | Function |
 |-----|----------|
@@ -105,18 +106,22 @@ code that runs at combat frequency — is entirely in the low single digits:
 | settings/Border.lua | 81 | 4 | 1.5 |
 | settings/Font.lua | 83 | 4 | 1.5 |
 | settings/General.lua | 125 | 10 | 1.9 |
-| settings/Helpers.lua | 302 | 24 | 3.7 |
-| settings/Panel.lua | 78 | 8 | 3.6 |
 | settings/Schema.lua | 209 | 18 | 5.7 |
-| settings/ScrollPatch.lua | 97 | 5 | 11.4 |
 | settings/Slash.lua | 392 | 38 | 3.9 |
-| settings/Widgets.lua | 221 | 32 | 3.2 |
 | defaults/Profile.lua | 44 | 2 | 1.0 |
 | locales/enUS.lua | 2 | 1 | 1.0 |
 
-`settings/ScrollPatch.lua` has the highest per-file average (11.4) by a wide margin. That is
-expected and hard to avoid: it patches Blizzard's scrollbar internals and is mostly defensive
-branching against fields that may or may not exist on a given client build.
+Nineteen rows for twenty-eight files. Six rows were removed with their files (`core/Util.lua`,
+`core/DebugLog.lua`, `settings/Helpers.lua`, `Panel.lua`, `ScrollPatch.lua`, `Widgets.lua`); the
+other nine addon files — `core/Constants.lua`,
+`Namespace.lua`, `State.lua`, `CoreSetup.lua`, `PerfSetup.lua`, `DebugLogSetup.lua`,
+`settings/OptionsSetup.lua`, `UnitPanel.lua`, `Profiles.lua` — have never had one, some because they
+postdate the measurement and some because they predate it and were missed. A `lizard` run fixes both.
+
+The highest per-file average used to belong to `settings/ScrollPatch.lua` (11.4) by a wide margin.
+That was expected and hard to avoid — it patched Blizzard's scrollbar internals and was mostly
+defensive branching against fields that may or may not exist on a given client build. The same code,
+and the same shape, now lives in `LibKa0s-Options-1.0`'s `OptionsScroll.lua`.
 
 ## Note on this change
 

@@ -64,6 +64,7 @@ chat with a cyan `[AT]` tag.
 | `/at version` | Show the addon version |
 | `/at test [value] [seconds]` | Fill the visible bars with a test value so you can preview your styling (default 50000 for 5 seconds) |
 | `/at debug` | Toggle the debug window; `/at debug on` / `off` turns logging on or off |
+| `/at perf` | Measure what the addon costs your CPU — run it on its own and it prints the workflow |
 | `/at profile subcommand` | Manage profiles: `list`, `current`, `use name`, `new name`, `copy name`, `delete name`, `reset` |
 
 Global settings (`showOnlyInCombat`, `locked`, `throttleWindow`) use their plain name — `/at set locked true`. Only the per-bar appearance settings on the Bar/Border/Font pages need the `units.player|target|focus.` prefix.
@@ -118,7 +119,7 @@ or focus and its bar disappears until you have one again.
 | Can I show the bars only while I'm fighting? | Yes. Turn on **Show only in combat** on the General page. Every enabled bar hides out of combat and reappears the instant you enter combat. |
 | Can I have different setups? | Yes. Use the Profiles page in the settings panel to save and switch between setups. New characters start on the shared **Default** profile, so your changes carry over until you choose a separate setup. |
 | Why is my bar empty? | The fill only shows a value when that unit has an active absorb shield — Power Word: Shield, Ice Barrier, a trinket proc, and so on. With no shield the fill sits empty, but you'll still see the bar's background and border where you placed it. |
-| Why won't the settings panel open in combat? | WoW doesn't let addons change settings screens while you're fighting, so `/at config` is ignored until combat ends. Run it again once you're out of combat and it opens normally. |
+| Why won't the settings panel open in combat? | WoW doesn't let addons change settings screens while you're fighting, so `/at config` answers with a grey "cannot open settings during combat" line instead. Run it again once you're out of combat and it opens normally. |
 | What is the "Update throttle" setting for? | The bar redraws the moment a shield changes rather than on a timer. The throttle only caps how fast it can repaint during a burst of rapid changes — the default suits almost everyone, so you rarely need to touch it. |
 | How do I see debug logs? | `/at debug` toggles the on-screen debug window; `/at debug on` / `off` starts and stops logging there instead of in chat. You can also toggle the window with the **Debug console** checkbox on the General page. Logging resets to off every reload. |
 | An addon CPU profiler shows Absorb Tracker using a lot of CPU — is that real? | Almost certainly not. Its actual cost is tiny (~0.18% of one core). Wow addon profilers blame all of a shared library's work on whichever addon loaded it first, and because `AbsorbTracker` sorts near the top alphabetically it "owns" the shared Ace event frame and gets billed for *every* Ace addon's event traffic. Disabling Absorb Tracker just moves that CPU to the next addon in line. [Read the full investigation](https://github.com/tusharsaxena/absorbtracker/blob/master/docs/investigations/2026-07-14-addon-profiler-attribution/analysis.md). |
