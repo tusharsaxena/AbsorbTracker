@@ -123,27 +123,17 @@ badge and any count quoted in the docs must agree with it.
 - core: NS.Print and NS.Util.print are the same object after the AceConsole reclaim
 - core: the addon still prints, tagged, with LibKa0s absent
 
-### test_util.lua (2)
-
-- NS.Debug routes the first arg as the [tag] and tolerates a secret arg
-- NS.Debug is a no-op when debug is off
-
-### test_debuglog.lua (14)
+### test_debuglog.lua (9)
 
 - FONT_MONO constant is a JetBrains Mono TTF path
-- FormatPlain wraps the tag in brackets with single-space separators
-- FormatPlain tolerates a nil tag
-- FormatColored colours the timestamp and tag; pipe and content default
+- the debug flag the library reads and writes is NS.State.debug
+- NS.Debug is published and reaches the console buffer
+- our title and our font reach the descriptor
+- the console checkbox the General page renders is wired to this addon
 - /at debug on enables session state
 - /at debug off disables session state
 - /at debug (no arg) toggles the window, not the state
-- header toggle click flips debug state
-- /at debug on: green-ON ack, then '[Debug] logging enabled' bracket + [Init] summary (§5)
-- /at debug off: red-OFF ack, and '[Debug] logging disabled' is the last console line (§5)
-- NS.Debug is a no-op (no console write) when debug is off
-- ConsoleCheckbox spec: get() reflects the console window visibility, not the debug flag
-- ConsoleCheckbox spec: set(true) shows the console window without changing the debug flag
-- ConsoleCheckbox spec: set(false) hides the console window without changing the debug flag
+- /at debug on writes an [Init] summary naming our version, schema and profile
 
 ### test_slash.lua (12)
 
@@ -174,7 +164,7 @@ badge and any count quoted in the docs must agree with it.
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (22)
+### test_perf.lua (25)
 
 - perf: the addon holds a real LibKa0s-Perf instance
 - perf: the descriptor declares this addon's buckets, with their nesting
@@ -195,6 +185,9 @@ badge and any count quoted in the docs must agree with it.
 - perf: the suspended state is session-only, never persisted
 - perf: lifecycle lines appear even with debug logging OFF
 - perf: the slash verb dispatches into the lib
+- debug: the flag still flips and acks with LibKa0s absent
+- debug: /at debug names the missing library instead of erroring
+- debug: every member the addon reaches for answers with LibKa0s absent
 - perf: the addon loads with LibKa0s absent
 - perf: /at perf explains itself instead of erroring with LibKa0s absent
 - perf: the brackets and the show ladder survive LibKa0s being absent
@@ -510,11 +503,10 @@ badge and any count quoted in the docs must agree with it.
 | test_units.lua | 14 |
 | test_compat.lua | 4 |
 | test_coresetup.lua | 4 |
-| test_util.lua | 2 |
-| test_debuglog.lua | 14 |
+| test_debuglog.lua | 9 |
 | test_slash.lua | 12 |
 | test_timer.lua | 11 |
-| test_perf.lua | 22 |
+| test_perf.lua | 25 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
@@ -522,4 +514,4 @@ badge and any count quoted in the docs must agree with it.
 | test_helpers.lua | 40 |
 | test_slashcmds.lua | 103 |
 | test_widgets.lua | 48 |
-| **Total** | **440** |
+| **Total** | **436** |

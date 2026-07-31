@@ -62,7 +62,9 @@ User-facing reference: [../README.md](../README.md). Subsystems + invariants:
 - **Cyan `[AT]` chat prefix on all addon output.** Routes through `NS.Print(...)` which prepends
   `NS.PREFIX` (`|cFF00FFFF[AT]|r`, defined in `core/Namespace.lua`). Files that emit chat shadow
   the global `print` with `local print = NS.Print`. Debug output does NOT go to chat — it routes
-  to the on-screen console via `NS.Debug` / `core/DebugLog.lua`.
+  to the on-screen console via `NS.Debug` — `LibKa0s-DebugLog-1.0` (`libs/LibKa0s/DebugLog.lua`,
+  vendored), wired up by `core/DebugLogSetup.lua`, which keeps the `NS.State.debug` flag on our
+  side of the seam.
 - **`UnitGetTotalAbsorbs` may return a "secret" value.** Use `AbbreviateNumbers` directly for
   display — never run it through `tonumber` first, and never compare it with `<`/`>`. A secret
   survives `tostring()` **and the `..` operator** but **raises in `table.concat`/`string.format`**,
@@ -120,7 +122,8 @@ modules subscribe on their own `NS.NewBusTarget()` targets (architecture-§4; se
   `core/LSMPatch.lua` (addon-side, not a lib edit), so `r66+` refreshes are a clean drop-in.
 - **Headless tests (`tests/`) + lint gate.** `lua tests/run.lua` (schema parse/format/validate plus
   the build-time schema-integrity invariants, DB migrations, Compat, the `LibKa0s-Core-1.0` wiring
-  in `core/CoreSetup.lua` (including the degraded load with the library absent), DebugLog, the full `/at`
+  in `core/CoreSetup.lua` (including the degraded load with the library absent), the
+  `LibKa0s-DebugLog-1.0` wiring in `core/DebugLogSetup.lua`, the full `/at`
   surface including `/at profile`, repaint-throttle coalescing, combat-visibility, message-bus
   dispatch, the `core/Data.lua` settings/media/colour seam, the `modules/Display.lua` paint path,
   the `settings/Helpers.lua` panel toolkit, the schema → AceGUI widget layer, and `core/Units.lua`

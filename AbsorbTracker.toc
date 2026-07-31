@@ -44,7 +44,7 @@ core\Data.lua
 core\Units.lua
 core\Database.lua
 core\LSMPatch.lua
-core\DebugLog.lua
+core\DebugLogSetup.lua
 core\AbsorbTracker.lua
 
 # Defaults

@@ -203,7 +203,7 @@ See also: the `/wow-addon:bump-interface` skill for the automated version of thi
 This addon has a headless test harness under `tests/` — any doc claiming "no automated tests" is stale. Run the green gate before you consider a change done:
 
 ```sh
-lua tests/run.lua      # suites: loadorder / schema / database / units / compat / coresetup / util / debuglog / slash / timer / perf / visibility / bus / data / display / helpers / slashcmds / widgets (count: docs/test-cases.md)
+lua tests/run.lua      # suites: loadorder / schema / database / units / compat / coresetup / debuglog / slash / timer / perf / visibility / bus / data / display / helpers / slashcmds / widgets (count: docs/test-cases.md)
 luacheck .             # must be 0 warnings / 0 errors
 luac -p <changed.lua>  # bytecode-parse each file you touched
 ```
@@ -219,8 +219,7 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 | `tests/test_database.lua` | `InitDB`, `RunMigrations` idempotency, flat + per-unit backfill, schemaVersion v1→v2→v3 migration (v3 lifts pre-v3 flat keys onto `profile.units.player`), the per-profile lift across **every** saved profile, and the `OnProfileChanged` lift for a profile restored after the upgrade |
 | `tests/test_compat.lua` | `Compat.GetAddOnMetadata` wrapper + fallback |
 | `tests/test_coresetup.lua` | `core/CoreSetup.lua`: `NS.IsConcatSafe` / `NS.SafeToString` really are `LibKa0s-Core-1.0`'s own functions, `NS.Print` carries the `[AT]` tag and survives a secret arg, `NS.Print` is `NS.Util.print` (one object), and the degraded load with `libs/LibKa0s/` absent |
-| `tests/test_util.lua` | `NS.Debug` (the secret-safe console sink): the `[tag]`, `<secret>` rendering, and the debug-off no-op |
-| `tests/test_debuglog.lua` | `NS.Debug` sink, `FormatPlain` / `FormatColored`, on/off state |
+| `tests/test_debuglog.lua` | This addon's side of the debug console: `FONT_MONO`, the descriptor's flag seam (`NS.State.debug`, with no second copy inside the library), `NS.Debug` reaching the shared buffer, the window title, the three `/at debug` forms, and the `[Init]` summary. The console itself — formatters, buffer cap, enable seam, window, checkbox contract — is `LibKa0s-DebugLog-1.0` and is tested in the LibKa0s repo |
 | `tests/test_slash.lua` | `NS.COMMANDS` dispatch, unknown-verb path, `/at` verbs |
 | `tests/test_timer.lua` | `NS.RequestRepaint` coalescing + `throttleWindow` delay, event-handler repaint wiring |
 | `tests/test_visibility.lua` | `NS.ShouldShowBar` / `NS.ApplyVisibility` four-step ladder (per-unit `enabled` / `showOnlyInCombat` / target-focus `UnitExists`), `OnEnterCombat` + `OnLeaveCombat` + `OnUnitSwap` visibility+repaint, and the options-ui-§2 guarantee that `OnLeaveCombat` never auto-opens `/at config` (no defer-and-replay) |

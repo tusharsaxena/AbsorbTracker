@@ -17,6 +17,12 @@ is un-regenerated and should be treated as informative rather than current until
 rather than renamed — the numbers would not carry over, since what is left in the addon is the
 descriptor and the fallback, not the algorithms.
 
+**Stale for the same reason since the `LibKa0s-DebugLog-1.0` extraction:** `core/DebugLog.lua` is
+gone (deleted, the console window, the two formatters, the buffer and the enable seam moved into
+the vendored library) and `core/DebugLogSetup.lua` (114 lines) has taken its TOC slot. Its row has
+likewise been hand-removed rather than renamed: the old row's 296 NLOC across 41 functions measured
+the console, and what is left in the addon is a descriptor plus a degradation stub.
+
 Part of issue [#17](https://github.com/tusharsaxena/AbsorbTracker/issues/17). This report is
 **advisory**: it is not part of the green gate (`lua tests/run.lua` + `luacheck .`) and no build
 fails on a number here. The Ka0s WoW Addon Standard does not yet define a complexity rule — that is
@@ -89,7 +95,6 @@ code that runs at combat frequency — is entirely in the low single digits:
 | core/Compat.lua | 12 | 1 | 4.0 |
 | core/Data.lua | 136 | 14 | 2.9 |
 | core/Database.lua | 121 | 7 | 7.9 |
-| core/DebugLog.lua | 296 | 41 | 2.3 |
 | core/LSMPatch.lua | 26 | 2 | 6.0 |
 | core/Units.lua | 71 | 12 | 3.2 |
 | modules/Bar.lua | 57 | 2 | 1.5 |

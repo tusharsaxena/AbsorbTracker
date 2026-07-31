@@ -19,6 +19,7 @@ Loader.addonName = "AbsorbTracker"
 -- invisible to Loader.tocFiles. Listed here explicitly, in the same dependency order the XML uses.
 local LIB_FILES = {
   "libs/LibKa0s/Core.lua",
+  "libs/LibKa0s/DebugLog.lua",
   "libs/LibKa0s/Perf.lua",
   "libs/LibKa0s/PerfPanel.lua",
 }
@@ -58,7 +59,6 @@ Kit.run{
     "test_units",
     "test_compat",
     "test_coresetup",
-    "test_util",
     "test_debuglog",
     "test_slash",
     "test_timer",

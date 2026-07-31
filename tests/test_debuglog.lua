@@ -1,3 +1,12 @@
+-- tests/test_debuglog.lua — this addon's side of the debug console.
+--
+-- The console itself is LibKa0s-DebugLog and is tested in that repo: the two formatters, the buffer
+-- and its cap, the enable seam's write path and ordering, the window, and the checkbox contract all
+-- have cases there. Duplicating them here would mean two places to fix one bug.
+--
+-- What is ours, and what this file covers: the descriptor is wired to the right places, `/at debug`
+-- reaches the right member, and the [Init] summary says what only this addon can know.
+
 local T = _G.AT_TEST
 local NS = T.NS
 local test, assertEqual, assertTrue, assertFalse =
@@ -7,20 +16,6 @@ test("FONT_MONO constant is a JetBrains Mono TTF path", function()
   assertTrue(type(NS.Constants.FONT_MONO) == "string", "FONT_MONO must be a string")
   assertTrue(NS.Constants.FONT_MONO:match("JetBrainsMono.-%.ttf$") ~= nil,
     "FONT_MONO must point at the vendored JetBrainsMono TTF")
-end)
-
-test("FormatPlain wraps the tag in brackets with single-space separators", function()
-  assertEqual(NS.DebugLog.FormatPlain("15:04:43", "Absorb", "player=1234"),
-    "15:04:43 | [Absorb] player=1234")
-end)
-
-test("FormatPlain tolerates a nil tag", function()
-  assertEqual(NS.DebugLog.FormatPlain("15:04:43", nil, "hi"), "15:04:43 | [] hi")
-end)
-
-test("FormatColored colours the timestamp and tag; pipe and content default", function()
-  assertEqual(NS.DebugLog.FormatColored("15:04:43", "Absorb", "player=1234"),
-    "|cff6f8faf15:04:43|r || |cffc9a66b[Absorb]|r player=1234")
 end)
 
 local function debugCmd(rest)
@@ -43,10 +38,62 @@ local function captureChat(fn)
   return table.concat(out, "\n")
 end
 
+-- ── the descriptor's seams ─────────────────────────────────────────────────────────────────
+
+test("the debug flag the library reads and writes is NS.State.debug", function()
+  -- The library keeps no copy: NS.ShouldShowBar's ladder and the settings panel both read this one.
+  NS.State.debug = false
+  NS.DebugLog:SetEnabled(true)
+  assertTrue(NS.State.debug == true, "setEnabled writes our flag")
+  assertTrue(NS.DebugLog:IsEnabled() == true, "and isEnabled reads it back")
+  NS.State.debug = false
+  assertFalse(NS.DebugLog:IsEnabled(), "a change made behind the library is seen immediately")
+end)
+
+test("NS.Debug is published and reaches the console buffer", function()
+  NS.State.debug = true
+  NS.DebugLog:Clear()
+  NS.Debug("Absorb", "value=%s", 1234)
+  NS.State.debug = false
+  assertEqual(NS.DebugLog:BufferSize(), 1)
+  assertTrue(NS.DebugLog:LastLine():find("[Absorb] value=1234", 1, true) ~= nil,
+    "the sixteen NS.Debug call sites reach the shared console unchanged")
+end)
+
+test("our title and our font reach the descriptor", function()
+  -- The title is ours; the " — Debug" suffix is the library's. Asserted on the recorded string
+  -- rather than the font string, which cannot be read back through the frame API.
+  NS.DebugLog:Show()
+  local f = NS.DebugLog._frameForTest
+  assertTrue(f ~= nil, "the window was built")
+  assertEqual(f.titleText, "Absorb Tracker \226\128\148 Debug")
+  NS.DebugLog:Hide()
+end)
+
+test("the console checkbox the General page renders is wired to this addon", function()
+  -- settings/General.lua guards with `if NS.DebugLog and NS.DebugLog.ConsoleCheckbox`, so a broken
+  -- wiring drops the checkbox silently. What the spec table DOES is the library's and is tested
+  -- there; that it exists at all, and carries OUR slash verb, is ours.
+  local spec = NS.DebugLog:ConsoleCheckbox()
+  assertEqual(type(spec.label), "string")
+  assertEqual(type(spec.get), "function")
+  assertEqual(type(spec.set), "function")
+  assertTrue(spec.tooltip:find("/at debug", 1, true) ~= nil,
+    "slash = \"/at\" reached the descriptor: " .. spec.tooltip)
+  NS.DebugLog:Hide()
+  assertFalse(spec.get(), "get tracks the window this addon owns")
+  NS.DebugLog:Show()
+  assertTrue(spec.get())
+  NS.DebugLog:Hide()
+end)
+
+-- ── the slash verb ─────────────────────────────────────────────────────────────────────────
+
 test("/at debug on enables session state", function()
   NS.State.debug = false
   debugCmd("on")
   assertTrue(NS.State.debug == true, "state should be on")
+  NS.State.debug = false
 end)
 
 test("/at debug off disables session state", function()
@@ -64,80 +111,23 @@ test("/at debug (no arg) toggles the window, not the state", function()
   assertTrue(NS.State.debug == false, "bare toggle must not change state")
 end)
 
-test("header toggle click flips debug state", function()
-  NS.State.debug = false
-  NS.DebugLog:Show()
-  local click = NS.DebugLog._toggleClickForTest
-  assertTrue(type(click) == "function", "toggle click closure must be exposed")
-  click(); assertTrue(NS.State.debug == true, "click should turn state on")
-  click(); assertTrue(NS.State.debug == false, "second click should turn state off")
-end)
+-- ── the [Init] summary ─────────────────────────────────────────────────────────────────────
 
-test("/at debug on: green-ON ack, then '[Debug] logging enabled' bracket + [Init] summary (§5)", function()
+test("/at debug on writes an [Init] summary naming our version, schema and profile", function()
+  -- The library decides WHEN this lands (on enable, because the flag is off at login); only this
+  -- addon can know what it says.
   NS.State.debug = false
+  NS.DebugLog:Clear()
   local ack = captureChat(function() debugCmd("on") end)
-  -- §5: the chat ack colour-codes the state word — ON in green (40ff40).
-  assertTrue(ack:find("|cff40ff40ON|r", 1, true) ~= nil, "enable ack colours ON green: " .. ack)
-  -- On enable the [Init] session summary follows the bracket, so the bracket is second-to-last.
-  local n = #NS.DebugLog.buffer
-  local bracket, initLine = NS.DebugLog.buffer[n - 1], NS.DebugLog.buffer[n]
-  assertTrue(bracket and bracket:find("[Debug] logging enabled", 1, true) ~= nil,
-    "the bracket line is written on enable")
-  assertTrue(initLine and initLine:find("[Init]", 1, true) ~= nil,
-    "an [Init] session summary follows the bracket on enable")
+  -- That an ack was printed proves the descriptor's `print` seam reaches NS.Print. What it SAYS,
+  -- colour codes included, is the library's and is pinned in the LibKa0s suite — asserting it here
+  -- too would make one hex change fail two suites in two repos.
+  assertTrue(#ack > 0, "the print seam reaches NS.Print and so the chat frame")
+  local initLine = NS.DebugLog:FindLine("[Init]")
+  assertTrue(initLine ~= nil, "an [Init] summary follows the bracket on enable")
+  assertTrue(initLine:find(NS.name, 1, true) ~= nil, "it names the addon")
+  assertTrue(initLine:find("v" .. NS.version, 1, true) ~= nil, "and its version")
   assertTrue(initLine:find("schema v", 1, true) ~= nil and initLine:find("profile", 1, true) ~= nil,
-    "the [Init] summary names the schema version and active profile: " .. tostring(initLine))
-  NS.State.debug = false
-end)
-
-test("/at debug off: red-OFF ack, and '[Debug] logging disabled' is the last console line (§5)", function()
-  NS.State.debug = true
-  local before = #NS.DebugLog.buffer
-  local ack = captureChat(function() debugCmd("off") end)
-  -- §5: OFF in red (ff4040). No [Init] summary on disable, so the bracket stays last.
-  assertTrue(ack:find("|cffff4040OFF|r", 1, true) ~= nil, "disable ack colours OFF red: " .. ack)
-  assertTrue(#NS.DebugLog.buffer > before, "disabling should still append a console line")
-  local last = NS.DebugLog.buffer[#NS.DebugLog.buffer]
-  assertTrue(last and last:find("[Debug] logging disabled", 1, true) ~= nil,
-    "disabling should log '[Debug] logging disabled' as the last line")
-end)
-
-test("NS.Debug is a no-op (no console write) when debug is off", function()
-  NS.State.debug = false
-  local before = #NS.DebugLog.buffer
-  NS.Debug("Absorb", "should not append")
-  assertEqual(#NS.DebugLog.buffer, before)
-end)
-
--- --- "Debug console" settings checkbox (settings/General.lua) ---
--- ConsoleCheckbox() is the get/set spec the General page's checkbox is wired to. It toggles the
--- console *window's visibility* only — never the debug logging flag (NS.State.debug). This is the
--- headless seam for that wiring (the AceGUI widget itself isn't built without AceGUI).
-
-test("ConsoleCheckbox spec: get() reflects the console window visibility, not the debug flag", function()
-  local spec = NS.DebugLog:ConsoleCheckbox()
-  NS.DebugLog:Show()
-  assertTrue(spec.get() == true, "get() is true when the console window is shown")
-  NS.DebugLog:Hide()
-  assertFalse(spec.get(), "get() is false when the console window is hidden")
-end)
-
-test("ConsoleCheckbox spec: set(true) shows the console window without changing the debug flag", function()
-  NS.DebugLog:Hide()
-  NS.State.debug = false
-  local spec = NS.DebugLog:ConsoleCheckbox()
-  spec.set(true)
-  assertTrue(NS.DebugLog:IsShown(), "set(true) shows the console window")
-  assertFalse(NS.State.debug, "set(true) must NOT enable debug logging")
-  NS.DebugLog:Hide()
-end)
-
-test("ConsoleCheckbox spec: set(false) hides the console window without changing the debug flag", function()
-  NS.DebugLog:Show()
-  NS.State.debug = true
-  local spec = NS.DebugLog:ConsoleCheckbox()
-  spec.set(false)
-  assertFalse(NS.DebugLog:IsShown(), "set(false) hides the console window")
-  assertTrue(NS.State.debug == true, "set(false) must NOT disable debug logging")
+    "and the schema version and active profile: " .. tostring(initLine))
   NS.State.debug = false
 end)

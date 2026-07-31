@@ -137,8 +137,9 @@ NS.SafeToString(v)  -- lib.SafeToString: renders a secret as "<secret>"
 -- settings UI down and a silent one makes /at answer nothing — and says the "LibKa0s is missing"
 -- line ONCE, on the first line the addon prints.
 
--- The debug sink itself, NS.Debug(tag, fmt, ...), is defined in core/DebugLog.lua: it routes
--- every vararg through NS.SafeToString then fmt:format(...), so call sites use %s-only format
+-- The debug sink itself, NS.Debug(tag, fmt, ...), is LibKa0s-DebugLog-1.0's, published under
+-- that name by core/DebugLogSetup.lua: it routes every vararg through NS.SafeToString (handed to
+-- the library as a call-time hook) then fmt:format(...), so call sites use %s-only format
 -- strings and can never raise on a secret. Routes to the on-screen console (never chat) when
 -- State.debug is on; zero-cost when off.
 ```
@@ -281,15 +282,55 @@ Wraps whatever constructor `AceGUI.WidgetRegistry["LSM30_Border"]` currently hol
 
 No-ops cleanly if AceGUI isn't loaded or no `LSM30_Border` is registered. `LSM30_Font` / `LSM30_Statusbar` use `AGSMW:GetBaseFrame` (no displayButton), so this is Border-specific. The suppressor lives in addon code rather than a lib edit so future `AceGUI-3.0-SharedMediaWidgets` refreshes are a clean drop-in.
 
-### DebugLog (`core/DebugLog.lua`)
+### DebugLogSetup (`core/DebugLogSetup.lua`)
 
-The on-screen debug console (a `ScrollingMessageFrame` in the vendored monospace font), replacing chat-based debug spam. Session-only.
+Wires the addon into `LibKa0s-DebugLog-1.0` — the console window, its Copy window, the two
+formatters, the 500-line buffer and the enable seam are all library code now
+(`libs/LibKa0s/DebugLog.lua`), vendored the same way Ace3 is. This file supplies only the part
+that's ours: a **descriptor** passed to `lib:New(descriptor)`.
+
+```lua
+local lib = LibStub and LibStub("LibKa0s-DebugLog-1.0", true)
+NS.DebugLog = lib:New({
+    name  = addonName,              -- seeds AbsorbTrackerDebugWindow / …DebugCopyWindow / …Scroll
+    title = "Absorb Tracker",       -- the library appends " — Debug"
+    font  = NS.Constants.FONT_MONO, -- the fixed monospace face is ours to choose
+    slash = "/at",                  -- composes the console checkbox's tooltip
+
+    -- THE FLAG STAYS OURS. The library keeps no copy: NS.ShouldShowBar's ladder and the settings
+    -- panel both read NS.State.debug, so a second copy would be a second truth.
+    isEnabled  = function() return NS.State and NS.State.debug or false end,
+    setEnabled = function(on) NS.State.debug = on end,
+
+    -- Resolved at CALL time, not captured: core/AbsorbTracker.lua reclaims NS.Print from
+    -- AceConsole's embed AFTER this file loads, and a captured reference would freeze.
+    print        = function(line) NS.Print(line) end,
+    safeToString = function(v) return NS.SafeToString(v) end,
+
+    initSummary = function() ... end,          -- the [Init] line: name+version, schema, profile.
+                                               -- The library owns WHEN it lands (on enable —
+                                               -- the flag is off at login); only we know what
+                                               -- it says.
+    onVisibilityChanged = function() ... end,  -- NS.Helpers.RefreshAllPanels, so a console opened
+                                               -- by /at debug moves the General page's checkbox
+})
+
+-- Bound bare, which is why all sixteen NS.Debug call sites across five files are unchanged.
+NS.Debug = NS.DebugLog.Debug
+```
+
+With the library absent this file degrades to a stub covering **every** member the addon calls
+(`/at debug`, the General page's checkbox, `core/PerfSetup.lua`'s log sink) — and the stub still
+flips `NS.State.debug`, because the flag is ours and a user who types `/at debug on` should not be
+told nothing happened. What is lost is the window, and the stub says so once.
+
+The instance's surface, unchanged from before the extraction:
 
 ```lua
 NS.Debug(tag, fmt, ...)   -- the global debug sink; no-op (zero alloc) when State.debug is off,
                           -- otherwise appends a formatted line to the console.
 
-NS.DebugLog.Show() / Hide() / Toggle()   -- the console window
+NS.DebugLog:Show() / :Hide() / :Toggle() -- the console window
 NS.DebugLog:IsShown()                    -- window visibility; read-only, never builds the frame
 NS.DebugLog:ConsoleCheckbox()            -- {label,tooltip,get,set} spec for the General page's
                                          -- Debug console checkbox (window visibility only —
@@ -305,10 +346,18 @@ NS.DebugLog:SetEnabled(on)               -- single seam for flipping State.debug
 NS.DebugLog:RefreshHeader()              -- resync the ON/OFF toggle label + colour
 NS.DebugLog.FormatPlain(ts, tag, msg)    -- pure formatter: "<ts> | [<tag>] <msg>" (Copy buffer)
 NS.DebugLog.FormatColored(ts, tag, msg)  -- pure colour-coded formatter (console view)
-NS.DebugLog.buffer                       -- capped plain-text mirror of the log
+NS.DebugLog.buffer                       -- capped plain-text mirror of the log (dense array)
+NS.DebugLog:BufferSize() / :LastLine()   -- read seams over that buffer
+NS.DebugLog:FindLine(substr)             -- newest buffered line containing substr, or nil
+NS.DebugLog:IsEnabled()                  -- reads OUR flag back through the descriptor
+NS.DebugLog.MakeCloseButton(parent, fn)  -- re-exported from LibKa0s-Core-1.0, so the console and
+                                         -- the perf panel share ONE close-button factory
 ```
 
 Both console + copy frames register in `UISpecialFrames` (Esc-closable). Detail in [midnight-quirks.md](./midnight-quirks.md).
+The full descriptor contract and the surface `lib:New` returns are documented in the library
+itself: see the
+[LibKa0s README](https://github.com/tusharsaxena/LibKa0s/blob/master/README.md).
 
 ### AbsorbTracker (`core/AbsorbTracker.lua`)
 
@@ -608,9 +657,9 @@ In practice the calls always succeed because all files are loaded synchronously 
 
 `AbsorbTracker.toc` is the source of truth. Order is dependency order, not alphabetical. The load groups are **Libraries → Locales → Core → Defaults → Modules → Settings**:
 
-1. `libs/` — LibStub, CallbackHandler-1.0, then the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB / AceGUI / AceConfig / AceDBOptions), `LibKa0s` (`LibKa0s-Core-1.0` — the shared secret guard + chat printer + window chrome — then `LibKa0s-Perf-1.0`, the shared perf-instrumentation harness, issue #17; `Core.lua` loads first, since `Perf` needs it), LibSharedMedia-3.0, and the vendored upstream `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets) — all inside the `#@no-lib-strip@` block. Vendored **folder-per-lib** at `libs/` root (not `libs/Ace3/…`).
+1. `libs/` — LibStub, CallbackHandler-1.0, then the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB / AceGUI / AceConfig / AceDBOptions), `LibKa0s` (`LibKa0s-Core-1.0` — the shared secret guard + chat printer + window chrome — then `LibKa0s-DebugLog-1.0`, the shared on-screen debug console, then `LibKa0s-Perf-1.0`, the shared perf-instrumentation harness, issue #17; `Core.lua` loads first, since both of the others need it — `LibKa0s.xml` fixes the order `Core.lua` → `DebugLog.lua` → `Perf.lua` → `PerfPanel.lua`), LibSharedMedia-3.0, and the vendored upstream `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets) — all inside the `#@no-lib-strip@` block. Vendored **folder-per-lib** at `libs/` root (not `libs/Ace3/…`).
 2. **Locales** — `locales/enUS.lua` (`NS.L` metatable seam; loads directly after Libraries per `toc-file-§5` — no dependency on `core/*`).
-3. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Bus.lua` (the closed message bus — `NS.bus` / `NS.NewBusTarget` / `NS.MSG`), `CoreSetup.lua` (wires `NS.Print` / `NS.SafeToString` / `NS.IsConcatSafe` to `LibKa0s-Core-1.0`, in the slot the old `Util.lua` held — `Namespace.lua` defines `NS.PREFIX` above it and everything below it prints), `PerfSetup.lua` (wires `NS.Perf` to `LibKa0s-Perf-1.0` — must load before any module takes `NS.Perf` as an upvalue), `Data.lua`, `Units.lua` (unit identity + mirror resolution — loads after `Data.lua`, before `Database.lua` since migration needs `NS.Units.LIST`/`APPEARANCE_KEYS`), `Database.lua`, `LSMPatch.lua`, `DebugLog.lua`, `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
+3. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Bus.lua` (the closed message bus — `NS.bus` / `NS.NewBusTarget` / `NS.MSG`), `CoreSetup.lua` (wires `NS.Print` / `NS.SafeToString` / `NS.IsConcatSafe` to `LibKa0s-Core-1.0`, in the slot the old `Util.lua` held — `Namespace.lua` defines `NS.PREFIX` above it and everything below it prints), `PerfSetup.lua` (wires `NS.Perf` to `LibKa0s-Perf-1.0` — must load before any module takes `NS.Perf` as an upvalue), `Data.lua`, `Units.lua` (unit identity + mirror resolution — loads after `Data.lua`, before `Database.lua` since migration needs `NS.Units.LIST`/`APPEARANCE_KEYS`), `Database.lua`, `LSMPatch.lua`, `DebugLogSetup.lua` (wires `NS.DebugLog` / `NS.Debug` to `LibKa0s-DebugLog-1.0`, in the slot the old `DebugLog.lua` held — it needs `Constants` (FONT_MONO), `State` (the flag) and `CoreSetup` above it, and everything below it calls `NS.Debug`), `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
 4. **Defaults** — `defaults/Profile.lua` (AceDB defaults; runs at file-load).
 5. **Modules** — `modules/Bar.lua` (bar frame creation at file-load), `Display.lua` (render functions + `NS.Display.__ev` bus consumer), `Timer.lua` (coalescing repaint scheduler + `NS.Timer.__ev` bus consumer).
 6. **Settings** (last — depend on everything else being initialized) — `settings/Schema.lua` (registry), `Slash.lua` (`/at` dispatcher), `Panel.lua` (registration shell; publishes empty `NS.Helpers` + `NS.PARENT_TITLE`), then the toolkit slices `Helpers.lua` → `ScrollPatch.lua` → `Widgets.lua` → `About.lua` (each decorates `NS.Helpers`; order matters only between `Helpers` (defines `EnsureScroll`) and `ScrollPatch` (defines `PatchAlwaysShowScrollbar` that `EnsureScroll` references)), then the page builders `General.lua` → `Bar.lua` → `Border.lua` → `Font.lua` → `Profiles.lua` (each calls `RegisterSchemaRows` + `RegisterOptionsPage` at file-load; LSM-backed rows call `NS.Helpers.LSMValues(mediaType)`).
@@ -619,8 +668,8 @@ If you add a new runtime file, put it in the right load group in `AbsorbTracker.
 
 ## Module publishing pattern (idiom)
 
-Modules that own a sub-surface publish it with the `NS.X = NS.X or {}` guard (`NS.Constants`, `NS.Compat`, `NS.Util`, `NS.State`, `NS.Slash`, `NS.DebugLog`, `NS.Helpers`, `NS.Schema`), then alias it to a file-local upvalue (`local C = NS.Constants`). Modules that mostly attach top-level functions (`Data`, `Display`, `Timer`) write straight to `NS` — `Display` and `Timer` additionally publish a small `NS.Display` / `NS.Timer` table to hold their `__ev` bus target, and `core/Bus.lua` publishes `NS.bus` / `NS.NewBusTarget` / `NS.MSG`. The closest thing to a load-order guard is the import-as-locals pattern at the top of each file plus the `if NS.X then ... end` nil check around forward references.
+Modules that own a sub-surface publish it with the `NS.X = NS.X or {}` guard (`NS.Constants`, `NS.Compat`, `NS.Util`, `NS.State`, `NS.Slash`, `NS.Helpers`, `NS.Schema`), then alias it to a file-local upvalue (`local C = NS.Constants`). The two library seams are the exception: `core/PerfSetup.lua` and `core/DebugLogSetup.lua` **assign** `NS.Perf` and `NS.DebugLog` outright, because the value is a library instance built by `lib:New(descriptor)` (or a degradation stub) — there is nothing for an earlier file to have half-populated. Modules that mostly attach top-level functions (`Data`, `Display`, `Timer`) write straight to `NS` — `Display` and `Timer` additionally publish a small `NS.Display` / `NS.Timer` table to hold their `__ev` bus target, and `core/Bus.lua` publishes `NS.bus` / `NS.NewBusTarget` / `NS.MSG`. The closest thing to a load-order guard is the import-as-locals pattern at the top of each file plus the `if NS.X then ... end` nil check around forward references.
 
 ## Test harness
 
-There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` derives the runtime file list from the TOC and loads it — after the vendored `libs/LibKa0s/*.lua` — through `tests/_kit/loader.lua`, against `tests/_kit/mock_base.lua` plus this addon's `tests/wow_mock.lua` overlay. It then runs `test_loadorder.lua`, `test_schema.lua`, `test_database.lua`, `test_units.lua`, `test_compat.lua`, `test_coresetup.lua`, `test_util.lua`, `test_debuglog.lua`, `test_slash.lua`, `test_timer.lua`, `test_perf.lua`, `test_visibility.lua`, `test_bus.lua`, `test_data.lua`, `test_display.lua`, `test_helpers.lua`, `test_slashcmds.lua`, and `test_widgets.lua` (authoritative case count in the generated [test-cases.md](./test-cases.md)). The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.
+There **is** a headless test harness at `tests/` — any doc claiming "there are no automated tests" is stale. `tests/run.lua` derives the runtime file list from the TOC and loads it — after the vendored `libs/LibKa0s/*.lua` — through `tests/_kit/loader.lua`, against `tests/_kit/mock_base.lua` plus this addon's `tests/wow_mock.lua` overlay. It then runs `test_loadorder.lua`, `test_schema.lua`, `test_database.lua`, `test_units.lua`, `test_compat.lua`, `test_coresetup.lua`, `test_debuglog.lua`, `test_slash.lua`, `test_timer.lua`, `test_perf.lua`, `test_visibility.lua`, `test_bus.lua`, `test_data.lua`, `test_display.lua`, `test_helpers.lua`, `test_slashcmds.lua`, and `test_widgets.lua` (authoritative case count in the generated [test-cases.md](./test-cases.md)). The green gate is `lua tests/run.lua` + `luacheck .` (0/0) + `luac -p <file>`. See [smoke-tests.md](./smoke-tests.md) for the manual in-game QA recipe that complements it.

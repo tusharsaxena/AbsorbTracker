@@ -34,6 +34,13 @@ includes `tests/test_units.lua` — `core/Units.lua`'s unit identity, mirror res
 probe itself (buckets, JSON, the record schema, report formatting, the capture ring) is tested in the
 LibKa0s repo, not duplicated here.
 
+`tests/test_debuglog.lua` is the same shape. The console itself — the two formatters, the buffer and
+its cap, the enable seam's write path, the window, and the checkbox contract — is
+`LibKa0s-DebugLog-1.0` and is tested in the LibKa0s repo; what stays here is this addon's wiring,
+plus the degradation stub that answers when the vendored library is missing. `tests/test_util.lua`
+went with it: its last two cases were the shared sink's, and a suite with nothing left in it is
+worse than no suite at all, because the runner skips a listed file that does not exist.
+
 **A note for anyone adding tests that touch suspend or the repaint timer.** `NS.Perf.Resume()`
 republishes `REPAINT`, which arms a coalescing timer. Left armed, `pending` in `modules/Timer.lua`
 stays set for the rest of the **process**, and every later suite's `RequestRepaint` quietly

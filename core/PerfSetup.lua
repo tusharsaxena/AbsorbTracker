@@ -115,9 +115,17 @@ NS.Perf = lib:New({
     -- not erroring over.
     decorate = function(frame, api)
         if NS.DebugLog and NS.DebugLog.MakeCloseButton then
+            -- Resolved HERE rather than into a local at load time. `decorate` fires at frame-build
+            -- time, long after every file has loaded, which is the only reason this file may reach
+            -- for a member of a module that loads after it. Hoisting the lookup reintroduces the
+            -- ordering hazard.
             local close = NS.DebugLog.MakeCloseButton(frame, api.Hide)
-            close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -6, -(api.TITLE_H - 18) / 2)
-            frame.closeButton = close
+            -- The factory answers nil where CreateFrame is unavailable — a close button is worth
+            -- degrading over, not erroring over.
+            if close then
+                close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -6, -(api.TITLE_H - 18) / 2)
+                frame.closeButton = close
+            end
         end
     end,
 })

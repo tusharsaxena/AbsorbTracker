@@ -140,7 +140,7 @@ expected, and any error text.
 - Repaint throttle / coalescing — `modules/Timer.lua`
 - Perf probe / suspend / capture ring / step panel — `LibKa0s-Perf-1.0` (`libs/LibKa0s/`), wired up by `core/PerfSetup.lua`; protocol in `docs/performance.md`
 - DB init + idempotent migration — `core/Database.lua`
-- Debug console — `core/DebugLog.lua`
+- Debug console — `LibKa0s-DebugLog-1.0` (`libs/LibKa0s/`), wired up by `core/DebugLogSetup.lua`
 - LSM border alignment fix — `core/LSMPatch.lua`
 - Class-color-aware getters — `core/Data.lua` (`GetBarColor`/`GetBgColor`/`GetBorderColor`)
 - Mirror resolution / `CopyFromPlayer` / per-unit position — `core/Units.lua`

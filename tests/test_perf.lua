@@ -296,8 +296,11 @@ local function loadDegraded()
   -- environment exercises core/CoreSetup.lua's fallbacks as well as core/PerfSetup.lua's stub.
   Loader.loadAll({
     "locales/enUS.lua", "core/Compat.lua", "core/Constants.lua", "core/Namespace.lua",
+    -- In the TOC's own order: PerfSetup loads BEFORE DebugLogSetup, which is exactly why its
+    -- NS.DebugLog lookups have to stay lazy. A list that inverted the pair would let a hoisted
+    -- lookup pass here and fail in the client.
     "core/State.lua", "core/Bus.lua", "core/CoreSetup.lua", "core/PerfSetup.lua", "core/Data.lua",
-    "core/Units.lua", "core/Database.lua", "core/LSMPatch.lua", "core/DebugLog.lua",
+    "core/Units.lua", "core/Database.lua", "core/LSMPatch.lua", "core/DebugLogSetup.lua",
     "core/AbsorbTracker.lua", "defaults/Profile.lua", "modules/Bar.lua", "modules/Display.lua",
     "modules/Timer.lua", "settings/Schema.lua", "settings/Slash.lua",
   }, NS2, mocks2)
@@ -310,6 +313,50 @@ local function chatOf(mocks2, fn)
   fn()
   return out
 end
+
+-- The degradation stub in core/DebugLogSetup.lua is a second implementation of the debug surface,
+-- reached only when the vendored library is missing. Before the extraction there was one
+-- implementation of `/at debug` and the suite pinned it; there are two now, and this is what keeps
+-- the second one honest. Driven by loading the addon without the library, never by hand-stubbing.
+
+test("debug: the flag still flips and acks with LibKa0s absent", function()
+  local NS2, mocks2 = loadDegraded()
+  NS2.State.debug = false
+  local out = chatOf(mocks2, function() NS2.Slash:OnSlash("debug on") end)
+  assertTrue(NS2.State.debug == true, "the flag is ours, so it works with or without the library")
+  assertTrue(#out > 0, "and the user is told")
+  chatOf(mocks2, function() NS2.Slash:OnSlash("debug off") end)
+  assertFalse(NS2.State.debug, "and off again")
+end)
+
+test("debug: /at debug names the missing library instead of erroring", function()
+  local NS2, mocks2 = loadDegraded()
+  local out = chatOf(mocks2, function() NS2.Slash:OnSlash("debug") end)
+  assertTrue(table.concat(out, "\n"):find("LibKa0s", 1, true) ~= nil,
+    "the bare verb should say why there is no window: " .. table.concat(out, "\n"))
+end)
+
+test("debug: every member the addon reaches for answers with LibKa0s absent", function()
+  -- settings/General.lua, settings/Slash.lua and core/PerfSetup.lua between them touch all of
+  -- these. A member missing from the stub is a Lua error in exactly the install it exists for.
+  local NS2 = loadDegraded()
+  local D = NS2.DebugLog
+  assertTrue(type(D) == "table", "NS.DebugLog exists")
+  local spec = D:ConsoleCheckbox()
+  assertEqual(type(spec.label), "string")
+  assertEqual(type(spec.tooltip), "string")
+  assertFalse(spec.get(), "there is no window to be shown")
+  local ok, err = pcall(function()
+    spec.set(true)
+    D:Add("Perf", "a line")
+    D:Show(); D:Hide(); D:Toggle()
+    D:IsShown(); D:IsEnabled(); D:Clear(); D:ShowCopy(); D:RefreshHeader()
+    D:BufferSize(); D:LastLine(); D:FindLine("x")
+    D.MakeCloseButton(nil, function() end)
+    NS2.Debug("Absorb", "value=%s", 1)
+  end)
+  assertTrue(ok, "nothing the addon calls may raise: " .. tostring(err))
+end)
 
 test("perf: the addon loads with LibKa0s absent", function()
   local NS2 = loadDegraded()
