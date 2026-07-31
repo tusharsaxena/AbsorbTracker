@@ -1,7 +1,7 @@
 local addonName, NS = ...
 
 -- Single source of truth for every user-facing setting. Each settings/<page>.lua file populates
--- this array via NS.RegisterSchemaRows({...}); the panel renderer (settings/Widgets.lua:
+-- this array via NS.RegisterSchemaRows({...}); the panel renderer (LibKa0s-Options-1.0:
 -- RenderSchema) and the slash dispatcher (/at list, /at get, /at set, /at reset) both walk it.
 --
 -- Adding a new option is one schema row — the AceGUI widget on the relevant sub-page and the

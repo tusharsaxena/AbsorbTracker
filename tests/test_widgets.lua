@@ -3,7 +3,9 @@ local NS = T.NS
 local test, assertEqual, assertTrue, assertFalse =
   T.test, T.assertEqual, T.assertTrue, T.assertFalse
 
--- settings/Widgets.lua — the schema-row → AceGUI widget translation layer.
+-- The schema-row → AceGUI widget translation layer, as THIS addon is wired to it. The makers
+-- themselves are LibKa0s-Options-1.0 and are tested in that repo; these cases pin the pages this
+-- addon actually builds, through the real ctx the real builders produced.
 --
 -- These run against the AceGUI mock in tests/wow_mock.lua: widgets are inert recorders that
 -- remember what was set on them and expose __fire(event, ...) so a test can drive a callback
@@ -510,7 +512,10 @@ test("EnsureScroll is lazy, created once, and patched for an always-visible scro
   assertEqual(ctx.scroll, nil, "no scroll frame until something is rendered")
   local first = Helpers.EnsureScroll(ctx)
   assertEqual(Helpers.EnsureScroll(ctx), first, "subsequent calls reuse it")
-  assertTrue(first._atAlwaysScrollbar, "settings/ScrollPatch.lua patched it")
+  -- The marker moved with the patch: it is `_ka0sAlwaysScrollbar` now, not `_atAlwaysScrollbar`.
+  -- AceGUI pools ScrollFrames across every addon in a session, so a per-addon marker name would let
+  -- two LibKa0s-consuming addons each patch a widget the other had already patched.
+  assertTrue(first._ka0sAlwaysScrollbar, "LibKa0s-Options-1.0's scrollbar patch was applied")
   assertTrue(first.scrollBarShown, "the scrollbar and its gutter stay shown across pages")
   assertEqual(first.content.width, first.content.original_width - 20,
     "the content is inset by the scrollbar gutter so every page's right edge lines up")

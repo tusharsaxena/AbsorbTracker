@@ -176,7 +176,7 @@ function runResetPosition()
     -- Delegate to the single shared helper so this verb and the General page's "Reset Position"
     -- button can never diverge — same per-unit clear, same POSITION publish.
     -- The acknowledgement lives INSIDE the guard: printing it unconditionally would claim success
-    -- on a load where settings/Helpers.lua never ran — the same silent-lie shape as the Reset
+    -- on a load where settings/UnitPanel.lua never ran — the same silent-lie shape as the Reset
     -- Position button that nil'd an already-nil key and reported nothing.
     if NS.Helpers and NS.Helpers.ResetAllPositions then
         NS.Helpers.ResetAllPositions()

@@ -291,19 +291,21 @@ local function loadDegraded()
   -- A fresh loader table per dofile, so this environment sets its own addonName.
   Loader.addonName = "AbsorbTracker"
   local mocks2, NS2 = buildMocks(), {}
-  -- libs/LibKa0s/*.lua deliberately not in this list: unloaded, nothing registers the perf or core
-  -- majors, and the mock's LibStub returns nil for both exactly as the real client would. So this
-  -- environment exercises core/CoreSetup.lua's fallbacks as well as core/PerfSetup.lua's stub.
-  Loader.loadAll({
-    "locales/enUS.lua", "core/Compat.lua", "core/Constants.lua", "core/Namespace.lua",
-    -- In the TOC's own order: PerfSetup loads BEFORE DebugLogSetup, which is exactly why its
-    -- NS.DebugLog lookups have to stay lazy. A list that inverted the pair would let a hoisted
-    -- lookup pass here and fail in the client.
-    "core/State.lua", "core/Bus.lua", "core/CoreSetup.lua", "core/PerfSetup.lua", "core/Data.lua",
-    "core/Units.lua", "core/Database.lua", "core/LSMPatch.lua", "core/DebugLogSetup.lua",
-    "core/AbsorbTracker.lua", "defaults/Profile.lua", "modules/Bar.lua", "modules/Display.lua",
-    "modules/Timer.lua", "settings/Schema.lua", "settings/Slash.lua",
-  }, NS2, mocks2)
+  -- libs/LibKa0s/*.lua deliberately not loaded: nothing registers any of the majors, and the mock's
+  -- LibStub returns nil for each exactly as the real client would. So this environment exercises
+  -- every setup file's degradation path at once, as a load rather than as a hand-stub.
+  --
+  -- The list is the TOC's, in the TOC's order, and it is the WHOLE list. Both halves matter:
+  --
+  --   * Whole, because the load-order hazard this environment exists to catch is a page file that
+  --     calls a helper at FILE LOAD (settings/Bar.lua evaluates LSMValues inside a schema-row
+  --     literal). A list that stopped before the page files — as this one did until M6 — would
+  --     stay green straight through a total load failure, because the schema simply would not be
+  --     built and nothing here looked at it. The count assertion below is the guard.
+  --   * The TOC's own order, because core/PerfSetup.lua loads BEFORE core/DebugLogSetup.lua, which
+  --     is exactly why PerfSetup's NS.DebugLog lookups have to stay lazy. A list that inverted the
+  --     pair would let a hoisted lookup pass here and fail in the client.
+  Loader.loadAll(Loader.tocFiles("AbsorbTracker.toc"), NS2, mocks2)
   return NS2, mocks2
 end
 
@@ -356,6 +358,35 @@ test("debug: every member the addon reaches for answers with LibKa0s absent", fu
     NS2.Debug("Absorb", "value=%s", 1)
   end)
   assertTrue(ok, "nothing the addon calls may raise: " .. tostring(err))
+end)
+
+-- R1. The single highest-value case in the extraction, and it is not about perf at all — it lives
+-- here because this is where the library-absent environment is built.
+--
+-- settings/Bar.lua, Border.lua and Font.lua each evaluate NS.Helpers.LSMValues("...") inside a
+-- schema-row literal, at FILE LOAD. With LSMValues nil that is `attempt to call field 'LSMValues'
+-- (a nil value)`, so the file never finishes loading, so NS.RegisterSchemaRows never runs for that
+-- page, so a third of the schema silently vanishes — taking /at list, /at set, /at reset and the
+-- profile defaults with it. The addon does not degrade; it half-loads.
+--
+-- That is why settings/OptionsSetup.lua's stub is LOAD-COMPLETING rather than member-answering
+-- like the other four: it must publish every member a page file touches at load time. This case is
+-- what proves it does, and it is a count comparison against the fully-loaded environment rather
+-- than a fixed number, so it cannot rot as pages are added.
+test("perf: the schema is COMPLETE with LibKa0s absent (the pages still finish loading)", function()
+  local NS2 = loadDegraded()
+  assertEqual(#NS2.Schema, #NS.Schema,
+    "a page file that aborts at load takes its rows with it and nothing else notices")
+  -- Named explicitly as well as counted: an equal count could in principle be reached by a
+  -- different set of rows, and the LSM-backed pages are precisely the ones at risk.
+  for _, path in ipairs({ "units.player.barTexture", "units.player.border",
+                          "units.player.font" }) do
+    local found = false
+    for _, row in ipairs(NS2.Schema) do
+      if row.path == path then found = true break end
+    end
+    assertTrue(found, path .. " is missing, so its page aborted at load")
+  end
 end)
 
 test("perf: the addon loads with LibKa0s absent", function()

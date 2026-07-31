@@ -4,8 +4,9 @@
 -- one-liner, "Slash Commands" heading, and one row per NS.Slash:LandingRows()
 -- entry — the same formatter /at help prints through, minus the chat indent,
 -- so the about page and the help block cannot drift. Decorates
--- NS.Helpers.BuildMainContent; settings/Panel.lua's registerMain
--- calls it on first OnShow of the main panel.
+-- NS.Helpers.BuildMainContent, which settings/OptionsSetup.lua hands
+-- the library as its `buildMain` callback; it fires on the main panel's
+-- first OnShow.
 
 local addonName, NS = ...
 

@@ -59,6 +59,7 @@ local NS = {}
 -- it. Keep this list in LibKa0s.xml's order, and read the figures as suspect if they move without a
 -- change that should have moved them.
 Loader.loadAll({ "libs/LibKa0s/Core.lua", "libs/LibKa0s/DebugLog.lua", "libs/LibKa0s/Slash.lua",
+  "libs/LibKa0s/Options.lua", "libs/LibKa0s/OptionsWidgets.lua", "libs/LibKa0s/OptionsScroll.lua",
   "libs/LibKa0s/Perf.lua",
   "libs/LibKa0s/PerfPanel.lua" }, NS, mocks)
 Loader.loadAll(Loader.tocFiles("AbsorbTracker.toc"), NS, mocks)

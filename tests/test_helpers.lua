@@ -3,7 +3,9 @@ local NS = T.NS
 local test, assertEqual, assertTrue, assertFalse =
   T.test, T.assertEqual, T.assertTrue, T.assertFalse
 
--- settings/Helpers.lua — the panel toolkit's non-AceGUI half: the CreatePanel factory + registry,
+-- The panel toolkit as THIS addon is wired to it. The toolkit itself is LibKa0s-Options-1.0 and is
+-- tested in that repo; what these cases pin is that AbsorbTracker still reaches it correctly through
+-- NS.Helpers (settings/OptionsSetup.lua) — the CreatePanel factory + registry,
 -- and the reset/refresh trio (RestoreDefaults / RestoreAllDefaults / RefreshAllPanels) that both
 -- the Defaults buttons and the /at reset* verbs run through.
 --
@@ -78,10 +80,15 @@ end)
 
 test("EnsureDefaultsButton is a safe no-op without AceGUI, and on a nil panel", function()
   local ctx = Helpers.CreatePanel("ATTestPanelG2", "Test G2", { defaultsButton = true })
-  local saved = NS.AceGUI
-  NS.AceGUI = nil
+  -- Nils the handle the toolkit itself reads, not NS.AceGUI. Since the extraction NS.Helpers IS
+  -- the LibKa0s-Options instance and it stashes AceGUI on itself (Ka0s standard §3.4, one lookup
+  -- rather than one per builder); NS.AceGUI is the copy it hands the host for its own page files.
+  -- In game the two are always the same object, so this is the same scenario read at the seam the
+  -- code under test actually uses.
+  local saved = Helpers.AceGUI
+  Helpers.AceGUI = nil
   local ok = pcall(Helpers.EnsureDefaultsButton, ctx.panel)
-  NS.AceGUI = saved
+  Helpers.AceGUI = saved
   assertTrue(ok, "must not raise when AceGUI is absent")
   assertEqual(ctx.panel.defaultsBtn, nil, "and must not half-build anything")
   assertTrue(pcall(Helpers.EnsureDefaultsButton, nil), "must not raise on a nil panel")
@@ -583,7 +590,7 @@ test("the header refresher cannot recurse: a refresh fired mid-render is a no-op
 end)
 
 test("an ordinary schema write does NOT re-render the whole unit page", function()
-  -- settings/Widgets.lua's `set` calls RefreshAllPanels after EVERY schema write, so the header
+  -- The library's schema `set` calls RefreshAllPanels after EVERY schema write, so the header
   -- refresher runs on every checkbox click, slider drag and LSM pick on this page. It must only
   -- re-render when the mirror state actually changed: an unconditional re-render has ClearScroll
   -- release the very widget whose OnValueChanged is still on the stack (an LSM dropdown with an

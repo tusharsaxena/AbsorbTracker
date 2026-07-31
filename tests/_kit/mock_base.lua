@@ -15,8 +15,9 @@
 -- 1. A stub that silently succeeds is worse than no stub. If production code branches on a return
 --    value, the mock must return something a branch can distinguish — not the frame, not nil.
 -- 2. Getters used in ARITHMETIC or CONCATENATION must return real numbers and strings.
---    settings/ScrollPatch.lua multiplies GetHeight() and concatenates GetName(); both raise on a
---    table, and the metatable's blanket "return the frame" would supply exactly that.
+--    LibKa0s-Options-1.0's scrollbar patch multiplies GetHeight() and concatenates GetName();
+--    both raise on a table, and the metatable's blanket "return the frame" would supply
+--    exactly that.
 -- 3. Anything a test needs to OBSERVE must be recorded, not no-opped. Event registration, script
 --    handlers and widget creation order are all load-bearing for at least one suite: a no-op
 --    RegisterUnitEvent would let a widened or dropped per-unit filter pass the entire suite.

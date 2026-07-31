@@ -58,10 +58,8 @@ modules\Timer.lua
 # Settings (last — depend on everything else being initialized)
 settings\Schema.lua
 settings\Slash.lua
-settings\Panel.lua
-settings\Helpers.lua
-settings\ScrollPatch.lua
-settings\Widgets.lua
+settings\OptionsSetup.lua
+settings\UnitPanel.lua
 settings\About.lua
 settings\General.lua
 settings\Bar.lua

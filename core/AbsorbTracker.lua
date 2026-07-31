@@ -73,7 +73,7 @@ function addon:OnEnable()
     self:SyncUnitEventFrames()
     self:RegisterLifecycleEvents()
 
-    -- Create the options panel (defined in settings/Panel.lua).
+    -- Create the options panel (defined in settings/OptionsSetup.lua).
     if NS.CreateOptionsPanel then NS.CreateOptionsPanel() end
     -- No [Init] boot summary here: the debug flag is session-only and off at login, so a
     -- login-time NS.Debug line would always be gated off. Per debug-logging §5 the session summary
@@ -209,7 +209,8 @@ end
 
 -- Combat transitions re-evaluate bar visibility (the `showOnlyInCombat` gate) and repaint so the
 -- bar is fresh if it just appeared. That is all these handlers do: per Ka0s standard options-ui-§2
--- the settings panel REFUSES to open in combat (settings/Panel.lua) rather than deferring, so there
+-- the settings panel REFUSES to open in combat (LibKa0s-Options-1.0, wired in
+-- settings/OptionsSetup.lua) rather than deferring, so there
 -- is no combat-deferred /at config for OnLeaveCombat to replay — it only handles visibility now.
 function addon:OnEnterCombat()
     NS.bus:SendMessage(NS.MSG.VISIBILITY)
