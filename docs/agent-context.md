@@ -37,7 +37,9 @@ User-facing reference: [../README.md](../README.md). Subsystems + invariants:
   drives both the AceGUI panel widgets (via `Helpers.RenderSchema` / `Widgets.RenderField`) AND
   the `/at list/get/set/reset/resetall` CLI. Adding a new option = one schema row in some
   `settings/<page>.lua`. Don't add per-setting code in `settings/Slash.lua`; the row grammar
-  covers it.
+  covers it. Those five verbs are implemented by `LibKa0s-Slash-1.0` (`libs/LibKa0s/Slash.lua`),
+  which walks the rows `settings/Slash.lua` hands it; `settings/Slash.lua` itself keeps only
+  `NS.COMMANDS`, the host verbs, and the mirror note.
 - **Color getters resolve at call time.** `NS.GetBarColor(unit)` / `GetBgColor(unit)` /
   `GetBorderColor(unit)` (`core/Data.lua:146,155,164`) take a `unit` argument and re-read that
   unit's `useClassColor*` on every paint (the resolved class color itself is always the player's).
@@ -117,9 +119,13 @@ modules subscribe on their own `NS.NewBusTarget()` targets (architecture-§4; se
   text file, convert with `sed -i 's/\r$//; s/$/\r/'` if the tool wrote LF.
 - **Libs vendored folder-per-lib in `libs/`** (`libs/LibStub/`, `libs/AceAddon-3.0/`, …): LibStub,
   CallbackHandler-1.0, the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB /
-  AceGUI / AceConfig / AceDBOptions), `LibKa0s` (`LibKa0s-Core-1.0` / `LibKa0s-DebugLog-1.0` /
-  `LibKa0s-Perf-1.0`, all four files loaded through `libs/LibKa0s/LibKa0s.xml`; ours, and the only
-  one of these re-vendored whole-folder from a sibling repo on every release), LibSharedMedia-3.0,
+  AceGUI / AceConfig / AceDBOptions), `LibKa0s` (four majors across five files, loaded in this
+  order through `libs/LibKa0s/LibKa0s.xml`: `LibKa0s-Core-1.0` = `Core.lua`,
+  `LibKa0s-DebugLog-1.0` = `DebugLog.lua`, `LibKa0s-Slash-1.0` = `Slash.lua`, and
+  `LibKa0s-Perf-1.0` = `Perf.lua` + `PerfPanel.lua`; DebugLog, Slash and Perf each declare
+  `NEEDS_CORE` and refuse to register below it, so a stale Core drops the module rather than
+  half-registering it; ours, and the only one of these re-vendored whole-folder from a sibling
+  repo on every release), LibSharedMedia-3.0,
   and the upstream `AceGUI-3.0-SharedMediaWidgets` r65. The displayButton tile is suppressed by
   `core/LSMPatch.lua` (addon-side, not a lib edit), so `r66+` refreshes are a clean drop-in.
 - **Headless tests (`tests/`) + lint gate.** `lua tests/run.lua` (schema parse/format/validate plus

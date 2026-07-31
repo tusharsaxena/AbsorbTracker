@@ -6,21 +6,31 @@ local Sl = NS.Slash
 -- SLASH_* globals). /at list, /at get and /at set walk NS.Schema directly, so adding an option is
 -- one schema row (in some settings/<page>.lua) and the slash surface picks it up automatically.
 --
--- NS.COMMANDS is an ordered {name, desc, fn} table; PrintHelp and the About page both iterate it,
--- so the help block and the panel command list stay in lockstep with the dispatcher.
+-- NS.COMMANDS is an ordered {name, desc, fn} table; the help block and the About page both iterate
+-- it, so they stay in lockstep with the dispatcher.
+--
+-- The dispatcher, the help renderer, the key/value formatters, the list builder and the type-aware
+-- value parser are LibKa0s-Slash-1.0 (libs/LibKa0s/Slash.lua), shared across every Ka0s addon. What
+-- stays here is what is genuinely ours: the verb table, the host verbs that reach into this addon's
+-- own state, and the mirror note.
+--
+-- NS.COMMANDS is passed INTO the library rather than owned by it. The About page renders the same
+-- table, so a library that owned it would force the options library to consume this one, and two
+-- libraries reaching for each other is a real dependency cycle.
 
 local print = NS.Print
 
--- Help row formatter — gold command + em-dash + white description.
-local function PrintCmd(cmd, desc)
-    print(("  |cFFFFFF00%s|r \226\128\148 |cFFFFFFFF%s|r"):format(cmd, desc))
-end
+-- The dispatcher, the help renderer, the formatters, the list builder and the parser.
+local SlashLib = LibStub and LibStub("LibKa0s-Slash-1.0", true)
+-- Built at the bottom of this file, once NS.COMMANDS exists to pass in. Every handler below
+-- reaches it at CALL time, which is why a forward-declared local is enough.
+local cli
 
--- Shared `key = value` formatter for schema output (Ka0s standard, slash-commands-§5): setting
--- key gold (ffff00), value white (ffffff). Used by /at list rows and the /at get / /at set
--- single-line echo so the `key = value` shape reads identically everywhere. No trailing colon.
-local function FormatKV(path, valueStr)
-    return ("|cFFFFFF00%s|r = |cFFFFFFFF%s|r"):format(path, valueStr)
+-- Help row formatter — gold command + em-dash + white description. The colouring and the spacing
+-- are the library's one formatter; the two-space indent belongs to this renderer, because a chat
+-- line sits under a header and a settings-panel label does not.
+local function PrintCmd(cmd, desc)
+    print("  " .. SlashLib.FormatRow(cmd, desc))
 end
 
 -- Trailing note for a row whose unit is CURRENTLY mirroring the player.
@@ -59,7 +69,7 @@ NS.COMMANDS = {
         function(rest) getSetting(rest) end},
     {"set",           "Set a setting \226\128\148 `/at set <path> <value>` (try /at list)",
         function(rest) setSetting(rest) end},
-    {"reset",         "Reset a panel to defaults across every unit \226\128\148 `/at reset <general|bar|border|font>`",
+    {"reset",        "Reset one setting to its default \226\128\148 `/at reset <path>`",
         function(rest) runReset(rest) end},
     {"resetall",      "Reset every setting to defaults",
         function() runResetAll() end},
@@ -94,12 +104,6 @@ NS.COMMANDS = {
 -- Alias kept for the About page, which renders the same list (settings/About.lua).
 NS.SlashCommands = NS.COMMANDS
 
-local function findCommand(name)
-    for _, entry in ipairs(NS.COMMANDS) do
-        if entry[1] == name then return entry end
-    end
-end
-
 -- ---------------------------------------------------------------------
 -- /at help
 -- ---------------------------------------------------------------------
@@ -108,13 +112,7 @@ function getVersion()
     return NS.Compat.GetAddOnMetadata(NS.name, "Version") or NS.version or "?"
 end
 
-function printHelp()
-    print(("v%s \226\128\148 slash commands (|cFFFFFF00/absorbtracker|r is an alias for |cFFFFFF00/at|r)")
-        :format(getVersion()))
-    for _, entry in ipairs(NS.COMMANDS) do
-        PrintCmd("/at " .. entry[1], entry[2])
-    end
-end
+function printHelp() cli:PrintHelp() end
 
 -- ---------------------------------------------------------------------
 -- Schema-driven /at list / /at get / /at set
@@ -125,93 +123,44 @@ local PAGE_ORDER = { "general", "bar", "border", "font" }
 -- Which pages carry per-unit rows and therefore list once per unit.
 local PER_UNIT_PAGES = { general = false, bar = true, border = true, font = true }
 
-function listSettings()
-    if not NS.Schema or #NS.Schema == 0 then
-        return print("No settings registered yet")
-    end
-    -- Colour scheme (Ka0s standard, slash-commands-§5): header green (33ff99), group headers
-    -- azure (3399ff), key/value via FormatKV. No trailing colons.
-    print("|cff33ff99Available settings|r")
+-- The three schema verbs are the library's: it walks the rows, formats the key/value pairs, parses
+-- the typed value and re-reads what was stored so a clamp is visible. What stays ours is WHICH rows
+-- exist and in what order, and the mirror note appended to each — both handed over as descriptor
+-- functions below.
 
-    local function printRows(header, rows)
-        if #rows == 0 then return end
-        print("  |cff3399ff[" .. header .. "]|r")
-        for _, row in ipairs(rows) do
-            local v = NS.GetSetting(row.path)
-            print("    " .. FormatKV(row.path, NS.FormatSchemaValue(row, v)) .. MirrorNote(row))
-        end
-    end
+function listSettings() cli:CliList() end
+function getSetting(rest) cli:CliGet(rest) end
+function setSetting(rest) cli:CliSet(rest) end
 
+--- Every schema row, in the order /at list should print them: page by page, and for a per-unit
+--- page once per unit. The library groups on whatever key it is given and preserves this order, so
+--- the listing still matches the panel's page order rather than the schema's declaration order.
+local function allRows()
+    local out = {}
+    local function add(rows)
+        for _, row in ipairs(rows) do out[#out + 1] = row end
+    end
     for _, page in ipairs(PAGE_ORDER) do
         if PER_UNIT_PAGES[page] then
-            for _, unit in ipairs(NS.Units.LIST) do
-                printRows(page .. " / " .. unit, NS.SchemaForPage(page, unit))
-            end
+            for _, unit in ipairs(NS.Units.LIST) do add(NS.SchemaForPage(page, unit)) end
         else
-            printRows(page, NS.SchemaForPage(page))
+            add(NS.SchemaForPage(page))
         end
     end
+    return out
 end
 
-function getSetting(rest)
-    local path = (rest or ""):match("^(%S+)")
-    if not path or path == "" then
-        return print("Usage: /at get <path>")
-    end
-    local row = NS.FindSchemaRow(path)
-    if not row then
-        return print("Setting not found: " .. path)
-    end
-    local v = NS.GetSetting(row.path)
-    print(FormatKV(row.path, NS.FormatSchemaValue(row, v)) .. MirrorNote(row))
-end
-
-function setSetting(rest)
-    local path, value = (rest or ""):match("^(%S+)%s*(.*)$")
-    if not path or path == "" then
-        return print("Usage: /at set <path> <value>  (try /at list)")
-    end
-    local row = NS.FindSchemaRow(path)
-    if not row then
-        return print("Setting not found: " .. path)
-    end
-
-    local v, err = NS.ParseSchemaValue(row, value or "")
-    if v == nil then
-        print("Invalid value for " .. row.path)
-        if err and err ~= "" then print("  " .. err) end
-        return
-    end
-
-    NS.SetByPath(row.path, v)
-    print(FormatKV(row.path, NS.FormatSchemaValue(row, NS.GetSetting(row.path))) .. MirrorNote(row))
-    if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
-end
 
 -- ---------------------------------------------------------------------
 -- /at reset / /at resetall / /at resetposition
 -- ---------------------------------------------------------------------
 
-local RESET_PAGES = {
-    general = true, bar = true, border = true, font = true,
-}
+-- `/at reset <path>` resets ONE setting, which is the shape the whole collection uses. The
+-- page-shaped form this addon used to carry is gone: a page is a property of a settings panel,
+-- and every schema-driven page already has a Defaults button that resets it across every unit.
+-- That path is untouched — see NS.Helpers.RestoreDefaults and tests/test_helpers.lua.
+function runReset(rest) cli:CliReset(rest) end
 
-function runReset(rest)
-    local page = (rest or ""):match("^(%S+)")
-    page = page and page:lower() or ""
-    if page == "" then
-        return print("Usage: /at reset <general|bar|border|font>")
-    end
-    if not RESET_PAGES[page] then
-        return print("Unknown page '" .. page .. "'. Valid: general, bar, border, font")
-    end
-    local rows = NS.SchemaForPage(page)
-    for _, row in ipairs(rows) do
-        NS.ApplyDefault(row)
-    end
-    if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
-    print(page .. " page reset to defaults")
-end
 
 function runResetAll()
     -- Delegate to the single shared helper so the slash command and the
@@ -420,25 +369,101 @@ end
 -- Registration + dispatch (AceConsole)
 -- ---------------------------------------------------------------------
 
-function Sl:OnSlash(msg)
-    local raw = (msg or ""):match("^%s*(.-)%s*$") or ""
-    if raw == "" then return printHelp() end
+-- A missing vendored lib must degrade, not error at load. `/at` is registered unconditionally, so
+-- something has to answer it. Note what is NOT here: no copy of the row formatter, no copy of the
+-- parser, no copy of the key/value shape. Hand-copying the strings whose drift the extraction
+-- exists to end is the one duplicate testing-§8 most specifically forbids, so a degraded help row
+-- renders plainly and says so instead.
+--
+-- The host verbs never went to the library, so they keep working untouched. What is lost is the
+-- schema CLI, and each of those verbs names the missing library rather than going quiet.
+if not SlashLib then
+    local missing = " is unavailable: the LibKa0s library is missing from this installation of " ..
+        "Absorb Tracker (expected in libs/LibKa0s)."
+    SlashLib = { FormatRow = function(cmd, desc) return cmd .. " \226\128\148 " .. desc end }
 
-    -- Lowercase only the command name; preserve case in `rest` so schema paths like `barTexture`
-    -- survive `/at set ...`.
-    local cmd, rest = raw:match("^(%S+)%s*(.*)$")
-    cmd  = (cmd or ""):lower()
-    rest = rest or ""
-
-    -- Backward-compat alias: `/at options` -> `/at config`.
-    if cmd == "options" then cmd = "config" end
-
-    local entry = findCommand(cmd)
-    if entry then return entry[3](rest) end
-
-    print("unknown command '" .. cmd .. "'")
-    printHelp()
+    function SlashLib:New(d)
+        local stub = { SetRowAnnotator = function() end }
+        local function absent(verb)
+            return function() print("/at " .. verb .. missing) end
+        end
+        for _, verb in ipairs({ "List", "Get", "Set", "Reset", "ResetAll" }) do
+            stub["Cli" .. verb] = absent(verb:lower())
+        end
+        stub.CliVersion  = function() print(("v%s"):format(d.version())) end
+        stub.LandingRows = function()
+            local out = {}
+            for _, e in ipairs(d.commands) do
+                out[#out + 1] = SlashLib.FormatRow("/at " .. e[1], e[2])
+            end
+            return out
+        end
+        stub.PrintHelp = function()
+            print(("v%s \226\128\148 slash commands"):format(d.version()))
+            for _, row in ipairs(stub.LandingRows()) do print("  " .. row) end
+        end
+        stub.OnSlash = function(_, msg)
+            local raw = (msg or ""):match("^%s*(.-)%s*$") or ""
+            if raw == "" then return stub.PrintHelp() end
+            local cmd, rest = raw:match("^(%S+)%s*(.*)$")
+            cmd = (cmd or ""):lower()
+            cmd = (d.aliases or {})[cmd] or cmd
+            for _, e in ipairs(d.commands) do
+                if e[1] == cmd then return e[3](rest or "") end
+            end
+            print("unknown command '" .. cmd .. "'")
+            stub.PrintHelp()
+        end
+        return stub
+    end
 end
+
+-- Build the dispatcher now that NS.COMMANDS exists. The table is passed IN, not owned: the About
+-- page renders the same one, and a library that owned it would drag the options library into
+-- depending on this one.
+cli = SlashLib:New({
+    slash        = "/at",
+    slashAliases = { "/absorbtracker" },
+    commands     = NS.COMMANDS,
+    aliases      = { options = "config" },   -- backward-compat: `/at options` -> `/at config`
+
+    print   = function(line) print(line) end,
+    version = getVersion,
+
+    -- The schema seams. SetByPath rather than a bare write, so a CLI change takes the same path a
+    -- panel change does: the [Set] debug line, the row's onChange, and the panel refresh.
+    get          = function(path) return NS.GetSetting(path) end,
+    set          = function(path, v)
+        NS.SetByPath(path, v)
+        if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
+    end,
+    findRow      = function(path) return NS.FindSchemaRow(path) end,
+    applyDefault = function(row)
+        NS.ApplyDefault(row)
+        if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
+    end,
+    allRows      = allRows,
+
+    -- `[bar / player]` for a per-unit page, a bare `[general]` otherwise.
+    groupKey = function(row)
+        if row.unit and PER_UNIT_PAGES[row.page] then return row.page .. " / " .. row.unit end
+        return row.page
+    end,
+})
+
+-- The mirror note is ours, not the library's: it reads NS.Units.IsMirrored and the row's
+-- alwaysPerUnit flag, neither of which a generic dispatcher knows about. The library decides only
+-- WHERE an annotation may appear — after the coloured pair, on list/get/set and never on a reset.
+cli:SetRowAnnotator(MirrorNote)
+
+--- The command list the About page renders. Same colouring and spacing as `/at help`, without the
+--- chat indent: each row there is its own label, where a leading indent reads as a mistake.
+function Sl:LandingRows() return cli:LandingRows() end
+
+function Sl:OnSlash(msg)
+    cli:OnSlash(msg)
+end
+
 
 function Sl:Register()
     NS.addon:RegisterChatCommand("at", function(msg) Sl:OnSlash(msg) end)

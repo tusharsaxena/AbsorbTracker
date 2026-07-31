@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 [![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)](https://github.com/tusharsaxena/WowAddonStandards)
-![Tests](https://img.shields.io/badge/Tests-432%2F432_passing-green)
+![Tests](https://img.shields.io/badge/Tests-433%2F433_passing-green)
 
 ![Logo](https://media.forgecdn.net/attachments/1659/653/absorbracker-logo-v2-jpg.jpg)
 
@@ -25,7 +25,7 @@ Set it all up in the WoW Settings panel, or with the `/at` slash command.
 
 ### Breaking change: slash paths
 
-Every `/at set` and `/at get` path is now **fully qualified** with a unit — `/at set units.player.barWidth 250`, not the old `/at set barWidth 250`. If you have a macro or keybind using the old unqualified form, update it to the `units.player.setting` form (or `units.target.setting` / `units.focus.setting` for those bars). `/at list`, `/at reset`, and the settings panel are unaffected.
+Every `/at set` and `/at get` path is now **fully qualified** with a unit — `/at set units.player.barWidth 250`, not the old `/at set barWidth 250`. If you have a macro or keybind using the old unqualified form, update it to the `units.player.setting` form (or `units.target.setting` / `units.focus.setting` for those bars). `/at list` and the settings panel are unaffected. `/at reset` takes a path of the same shape — `/at reset units.player.barWidth`.
 
 ## Screenshots
 
@@ -55,7 +55,7 @@ chat with a cyan `[AT]` tag.
 | `/at list` | Show every setting and its current value (Bar/Border/Font settings list once per bar — Player/Target/Focus) |
 | `/at get name` | Show one setting's value. Bar/Border/Font settings need the full path, e.g. `/at get units.player.barWidth` |
 | `/at set name value` | Change one setting. Examples: `/at set units.player.barWidth 250`, `/at set units.target.useClassColorBar true`, `/at set showOnlyInCombat true` |
-| `/at reset <general\|bar\|border\|font>` | Reset one settings page to its defaults — for Bar/Border/Font, this resets **all three bars** (Player/Target/Focus), not just the one currently shown in the panel |
+| `/at reset <path>` | Reset one setting to its default — e.g. `/at reset units.player.barWidth`. To reset a whole page across all three bars, use that page's **Defaults** button in the settings panel |
 | `/at resetall` | Reset every setting and move every bar back to center |
 | `/at resetposition` | Move every bar back to its default screen position |
 | `/at lock` / `/at unlock` | Lock or unlock the bars so you can drag them |

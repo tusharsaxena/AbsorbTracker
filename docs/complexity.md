@@ -72,9 +72,9 @@ algorithmic.
 | 18 | 21 | `setEnabled` — `settings/ScrollPatch.lua:36` | Blizzard scrollbar state permutations |
 | 17 | 25 | `Helpers.PatchAlwaysShowScrollbar` — `settings/ScrollPatch.lua:20` | Defensive nil-guards over Blizzard internals |
 | 16 | 48 | `Helpers.BuildMainContent` — `settings/About.lua:36` | Optional metadata fields, each guarded |
-| 16 | 18 | `NS.FormatSchemaValue` — `settings/Schema.lua:173` | One branch per schema value type |
+| 16 | 18 | ~~`NS.FormatSchemaValue`~~ — now a five-line delegate | The branching moved to `LibKa0s-Slash-1.0`'s `lib.FormatValue` |
 
-None is a hot path. `runProfile` and `FormatSchemaValue` run on user command; the `ScrollPatch` and
+None is a hot path. `runProfile` runs on user command; the `ScrollPatch` and
 `About` functions run once at panel build; `InitDB` runs once at load. The repaint path — the only
 code that runs at combat frequency — is entirely in the low single digits:
 

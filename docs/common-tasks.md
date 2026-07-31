@@ -44,7 +44,7 @@ The schema-driven design makes a flat setting a one-row change. The widget on th
    onChange = function(v) NS.SomeOtherReaction(v) end,
    ```
 
-That's it. The widget renders on the General sub-page on the next `/reload`; `/at set myNewKnob 75` works immediately; `/at get myNewKnob` and `/at list` show the new row; `/at reset general` and `/at resetall` reset it via `ApplyDefault`. Every write — panel widget, `/at set`, and `/at reset` — funnels through `NS.SetByPath`, which calls `SetSetting` then fires the row's `onChange`.
+That's it. The widget renders on the General sub-page on the next `/reload`; `/at set myNewKnob 75` works immediately; `/at get myNewKnob` and `/at list` show the new row; `/at reset myNewKnob` and `/at resetall` reset it via `ApplyDefault`. Every write — panel widget, `/at set`, and `/at reset` — funnels through `NS.SetByPath`, which calls `SetSetting` then fires the row's `onChange`.
 
 `NS.ValidateSchema` (run once at panel-registration time) will warn in chat if the new row's `path` doesn't resolve against `NS.defaults.profile` — a cheap guard against typos between step 1 and step 2.
 
@@ -95,7 +95,7 @@ Bar/Border/Font settings are per-unit (player/target/focus) rather than a single
    },
    ```
 
-That's it. `NS.Units.Get(unit, "myNewKnob")` reads it mirror-resolved; `/at set units.target.myNewKnob 10` and `/at get units.focus.myNewKnob` work immediately; `/at reset bar` and the panel's Bar-page Defaults button reset it across all three units; `Helpers.RenderUnitPanel` renders it on whichever unit is selected in the Unit dropdown, and hides it while that unit mirrors the player.
+That's it. `NS.Units.Get(unit, "myNewKnob")` reads it mirror-resolved; `/at set units.target.myNewKnob 10` and `/at get units.focus.myNewKnob` work immediately; `/at reset units.target.myNewKnob` resets that one unit's copy, and the panel's Bar-page Defaults button resets it across all three; `Helpers.RenderUnitPanel` renders it on whichever unit is selected in the Unit dropdown, and hides it while that unit mirrors the player.
 
 `NS.ValidateSchema` will warn in chat if the path (`units.<unit>.myNewKnob`) doesn't resolve against `NS.defaults.profile` — a cheap guard against forgetting step 1 or getting the factory vs. `NS.defaults.profile` distinction backwards.
 
@@ -167,9 +167,12 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
 
 3. **Add the corresponding defaults** to `defaults/Profile.lua`'s `NS.defaults.profile`.
 
-4. **Update the two allowed-page sets so the new key is valid.**
-   - `RESET_PAGES` in `settings/Slash.lua` (currently `general / bar / border / font`) — add `newpage` so `/at reset newpage` works. Also add it to the `PAGE_ORDER` list there if you want `/at list` to group its rows.
-   - `_validPages` in `settings/Schema.lua` — add `newpage`, otherwise `ValidateSchema` warns that every row on the page has an "invalid `page`".
+4. **Update the allowed-page set so the new key is valid.**
+   - `_validPages` in `settings/Schema.lua` — add `newpage`, otherwise `ValidateSchema` warns that
+     every row on the page has an "invalid `page`".
+   - Add it to `PAGE_ORDER` in `settings/Slash.lua` if you want `/at list` to group its rows. (There
+     is no `RESET_PAGES` any more: `/at reset` takes a setting path, not a page. A page is reset by
+     its own Defaults button.)
 
 The Blizzard Settings tree shows the new sub-page under "Ka0s Absorb Tracker" on next `/reload`.
 
@@ -220,14 +223,14 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 | `tests/test_compat.lua` | `Compat.GetAddOnMetadata` wrapper + fallback |
 | `tests/test_coresetup.lua` | `core/CoreSetup.lua`: `NS.IsConcatSafe` / `NS.SafeToString` really are `LibKa0s-Core-1.0`'s own functions, `NS.Print` carries the `[AT]` tag and survives a secret arg, `NS.Print` is `NS.Util.print` (one object), and the degraded load with `libs/LibKa0s/` absent |
 | `tests/test_debuglog.lua` | This addon's side of the debug console: `FONT_MONO`, the descriptor's flag seam (`NS.State.debug`, with no second copy inside the library), `NS.Debug` reaching the shared buffer, the window title, the three `/at debug` forms, and the `[Init]` summary. The console itself — formatters, buffer cap, enable seam, window, checkbox contract — is `LibKa0s-DebugLog-1.0` and is tested in the LibKa0s repo |
-| `tests/test_slash.lua` | `NS.COMMANDS` dispatch, unknown-verb path, `/at` verbs |
+| `tests/test_slash.lua` | `NS.COMMANDS` dispatch through `LibKa0s-Slash-1.0`: the help index, the unknown-verb path, `/at version`, the schema verbs' wiring (`get`/`set`/`list`, the mandated colour scheme, path case preserved, out-of-range clamping), the `/at options` alias, and the `/at config` combat gate. The dispatch algorithm, the formatters and the parser are the library's and are tested in the LibKa0s repo |
 | `tests/test_timer.lua` | `NS.RequestRepaint` coalescing + `throttleWindow` delay, event-handler repaint wiring |
 | `tests/test_visibility.lua` | `NS.ShouldShowBar` / `NS.ApplyVisibility` four-step ladder (per-unit `enabled` / `showOnlyInCombat` / target-focus `UnitExists`), `OnEnterCombat` + `OnLeaveCombat` + `OnUnitSwap` visibility+repaint, and the options-ui-§2 guarantee that `OnLeaveCombat` never auto-opens `/at config` (no defer-and-replay) |
 | `tests/test_bus.lua` | `NS.bus` / `NS.NewBusTarget` / `NS.MSG` catalogue, per-target subscribe + unregister, two receivers of one message both firing (anti-pattern #33), and `REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION` routing to their consumers (each fanning out over `NS.ForEachUnit`) |
 | `tests/test_data.lua` | `GetSetting` / `SetSetting` (profile read, dotted-path resolution, `flatDefaults` fallback, no-DB degradation), the per-unit LSM texture/border/font fetchers and their fallbacks, `ClearLSMCache`, `Helpers.LSMValues`, and the per-unit class-colour resolvers |
 | `tests/test_display.lua` | `NS.ForEachUnit`, `NS.DefaultPosition`, `RestoreBarPosition`, `UpdateBarAppearance` (size, backdrop insets, nil-then-set refresh, lock, font, mirror-resolved reads), `UpdateAbsorbBar` (hidden / `testHoldUntil` early-outs, max-health scaling, `NoteRepaint`) — all per unit |
 | `tests/test_helpers.lua` | `CreatePanel` + the panel registry, the lazy Defaults-button declaration, `RestoreDefaults` / `RestoreAllDefaults` (every unit's position cleared) / `RefreshAllPanels` |
-| `tests/test_slashcmds.lua` | The remaining `/at` verbs: lock/unlock/toggle, update, reset (all units)/resetall/resetposition (all units), get/set failure paths (fully-qualified only), `test`, and the full `/at profile` sub-dispatcher |
+| `tests/test_slashcmds.lua` | The remaining `/at` verbs: lock/unlock/toggle, update, `reset` (one setting path — usage, an unknown path, one row reverted with its neighbours untouched, and the argument NOT lower-cased)/resetall/resetposition (all units), get/set failure paths (fully-qualified only), `test`, the mirror note, the About page's rows going through the same formatter as `/at help`, and the full `/at profile` sub-dispatcher |
 | `tests/test_widgets.lua` | Schema-row → AceGUI widget translation: the four widget makers, `SessionCheckbox`, `RenderField` dispatch, `RenderRows`/`RenderSchema` layout (`skipRender` rows omitted), and the real pages driven through their deferred `OnShow` |
 | `tests/test_perf.lua` | This addon's side of the `LibKa0s-Perf-1.0` harness (issue #17): `core/PerfSetup.lua`'s descriptor is well-formed, the bracket call sites (silent when off), and suspend/resume (the `ShouldShowBar` step-0 gate, event teardown/restore, `RequestRepaint` no-op, `CancelPendingRepaint`). The probe's own bucket accounting, `EncodeJSON`, `BuildRecord`, the capture ring, and `FormatReport` are tested in the LibKa0s repo, not here |
 | `tests/test_units.lua` | `core/Units.lua`: `LIST`/`LABEL`, `IsEnabled`/`IsMirrored`/`SourceUnit` (player never mirrored), the mirror-resolved `Get`, `Set` (writes the unit's own config), `Position`/`SetPosition` (never mirrored), `CopyFromPlayer` (deep-copy + mirror clear, `position`/`enabled` untouched), `DeepCopy` |

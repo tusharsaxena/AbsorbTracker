@@ -525,9 +525,11 @@ NS.SetByPath(path, value)          -- SetSetting + fires row.onChange — the si
 NS.ApplyDefault(row)               -- resets row to row.default (deep-copying color tables) + onChange
 
 -- Slash IO
-NS.FormatSchemaValue(row, value)   -> string
-NS.ParseSchemaValue(row, text)     -> value | nil, errMsg   -- type-aware parser (bool/number/
-                                                            -- string/color)
+NS.FormatSchemaValue(row, value)   -> string   -- thin delegate to LibKa0s-Slash-1.0's
+                                               -- lib.FormatValue; kept under this name because
+                                               -- the schema layer is where callers look for it
+-- There is no NS.ParseSchemaValue: the type-aware parser is the library's lib.ParseValue, and
+-- settings/Slash.lua hands the library the rows to parse against.
 
 -- Validation (called once from CreateOptionsPanel)
 NS.ValidateSchema()                -> errors, resolved, missing
@@ -537,19 +539,24 @@ NS.ValidateSchema()                -> errors, resolved, missing
 
 ### Slash (`settings/Slash.lua`)
 
-The AceConsole-registered `/at` dispatcher. `/at list` / `get` / `set` walk `NS.Schema` directly, using **fully-qualified** dotted paths only — `/at set units.target.barWidth 250` works, the pre-1.9 unqualified `/at set barWidth 250` does not (a deliberate breaking change; see [scope.md](./scope.md)).
+The AceConsole-registered `/at` surface. The dispatcher itself, the help renderer, the `cmd — desc` row formatter, the `key = value` formatter, the value renderer, the `/at list` builder and the type-aware value parser are `LibKa0s-Slash-1.0` (`libs/LibKa0s/Slash.lua`, vendored); this file supplies the descriptor. `/at list` / `get` / `set` walk `NS.Schema` through that descriptor's `allRows` / `findRow` / `get` / `set` seams, using **fully-qualified** dotted paths only — `/at set units.target.barWidth 250` works, the pre-1.9 unqualified `/at set barWidth 250` does not (a deliberate breaking change; see [scope.md](./scope.md)).
 
 ```lua
-NS.COMMANDS         -- ordered { name, desc, fn } array of 16 verbs: help, config, list, get,
-                    -- set, reset, resetall, resetposition, lock, unlock, toggle, debug, update,
-                    -- version, test, profile. printHelp and the about page both iterate it.
+NS.COMMANDS         -- ordered { name, desc, fn } array of 17 verbs: help, config, list, get,
+                    -- set, reset, resetall, resetposition, lock, unlock, toggle, debug, perf,
+                    -- update, version, test, profile. Passed INTO the library rather than owned
+                    -- by it — the about page renders the same table, so a library that owned it
+                    -- would drag the options library into depending on the slash one.
 NS.SlashCommands    -- alias of NS.COMMANDS (kept for settings/About.lua)
 
-NS.Slash:OnSlash(msg)  -- parse + dispatch; unknown verb prints "unknown command '<verb>'" then help
+NS.Slash:LandingRows() -- the formatted command rows settings/About.lua renders: the same
+                       -- library formatter /at help uses, without the chat indent
+NS.Slash:OnSlash(msg)  -- hands the line to the library dispatcher; unknown verb prints
+                       -- "unknown command '<verb>'" then help
 NS.Slash:Register()    -- NS.addon:RegisterChatCommand("at", ...) + ("absorbtracker", ...)
 ```
 
-`/at list` groups Bar/Border/Font rows once per unit (`[bar / player]`, `[bar / target]`, `[bar / focus]`, etc. — `PER_UNIT_PAGES` in `settings/Slash.lua`); General has no per-unit rows. `/at reset <page>` spans all three units (`SchemaForPage(page)` with no unit filter). `/at resetposition` clears all three units' saved positions. No `SLASH_*` globals, no `SlashCmdList`. `/at options` is a back-compat alias for `/at config`. Profile subcommands are handled inline in `runProfile`. Detail in [profiles.md](./profiles.md).
+`/at list` groups Bar/Border/Font rows once per unit (`[bar / player]`, `[bar / target]`, `[bar / focus]`, etc. — `PER_UNIT_PAGES` in `settings/Slash.lua`); General has no per-unit rows. `/at reset <path>` resets ONE setting; there is no page-shaped form (a page is reset by its own Defaults button, `NS.Helpers.RestoreDefaults`). `/at resetposition` clears all three units' saved positions. No `SLASH_*` globals, no `SlashCmdList`. `/at options` is a back-compat alias for `/at config`. Profile subcommands are handled inline in `runProfile`. The mirror note is handed to the library as a row annotator, so it is appended on `list` / `get` / `set` and never on a reset. With the vendored library absent a stub keeps the host verbs working and each schema verb names the missing library instead of going quiet. Detail in [profiles.md](./profiles.md).
 
 ### OptionsPanel (`settings/Panel.lua`)
 
@@ -627,7 +634,10 @@ NS.Helpers
                                                                -- Enable Focus Bar row
 
     -- settings/About.lua
-    Helpers.BuildMainContent(ctx)                  -- top-level "Ka0s Absorb Tracker" page builder
+    Helpers.BuildMainContent(ctx)                  -- top-level "Ka0s Absorb Tracker" page builder;
+                                                   -- renders logo, Notes, a "Slash Commands"
+                                                   -- heading, then one Label per
+                                                   -- NS.Slash:LandingRows() entry
 ```
 
 The color-picker drag throttle in `settings/Widgets.lua` uses `NS.addon:ScheduleTimer` (AceTimer one-shot), not `C_Timer.NewTimer`. Detail in [settings-panel.md](./settings-panel.md).
@@ -657,7 +667,7 @@ In practice the calls always succeed because all files are loaded synchronously 
 
 `AbsorbTracker.toc` is the source of truth. Order is dependency order, not alphabetical. The load groups are **Libraries → Locales → Core → Defaults → Modules → Settings**:
 
-1. `libs/` — LibStub, CallbackHandler-1.0, then the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB / AceGUI / AceConfig / AceDBOptions), `LibKa0s` (`LibKa0s-Core-1.0` — the shared secret guard + chat printer + window chrome — then `LibKa0s-DebugLog-1.0`, the shared on-screen debug console, then `LibKa0s-Perf-1.0`, the shared perf-instrumentation harness, issue #17; `Core.lua` loads first, since both of the others need it — `LibKa0s.xml` fixes the order `Core.lua` → `DebugLog.lua` → `Perf.lua` → `PerfPanel.lua`), LibSharedMedia-3.0, and the vendored upstream `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets) — all inside the `#@no-lib-strip@` block. Vendored **folder-per-lib** at `libs/` root (not `libs/Ace3/…`).
+1. `libs/` — LibStub, CallbackHandler-1.0, then the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB / AceGUI / AceConfig / AceDBOptions), `LibKa0s` (four majors across five files: `LibKa0s-Core-1.0` — the shared secret guard + chat printer + window chrome — then `LibKa0s-DebugLog-1.0`, the shared on-screen debug console, then `LibKa0s-Slash-1.0`, the shared slash dispatcher + schema CLI, then `LibKa0s-Perf-1.0`, the shared perf-instrumentation harness, issue #17; `Core.lua` loads first, since the other three each declare `NEEDS_CORE` and refuse to register below it — `LibKa0s.xml` fixes the order `Core.lua` → `DebugLog.lua` → `Slash.lua` → `Perf.lua` → `PerfPanel.lua`), LibSharedMedia-3.0, and the vendored upstream `AceGUI-3.0-SharedMediaWidgets` (LSM30_* swatch widgets) — all inside the `#@no-lib-strip@` block. Vendored **folder-per-lib** at `libs/` root (not `libs/Ace3/…`).
 2. **Locales** — `locales/enUS.lua` (`NS.L` metatable seam; loads directly after Libraries per `toc-file-§5` — no dependency on `core/*`).
 3. **Core** — `core/Compat.lua` (loads first: the deprecated-API shim), `Constants.lua`, `Namespace.lua`, `State.lua`, `Bus.lua` (the closed message bus — `NS.bus` / `NS.NewBusTarget` / `NS.MSG`), `CoreSetup.lua` (wires `NS.Print` / `NS.SafeToString` / `NS.IsConcatSafe` to `LibKa0s-Core-1.0`, in the slot the old `Util.lua` held — `Namespace.lua` defines `NS.PREFIX` above it and everything below it prints), `PerfSetup.lua` (wires `NS.Perf` to `LibKa0s-Perf-1.0` — must load before any module takes `NS.Perf` as an upvalue), `Data.lua`, `Units.lua` (unit identity + mirror resolution — loads after `Data.lua`, before `Database.lua` since migration needs `NS.Units.LIST`/`APPEARANCE_KEYS`), `Database.lua`, `LSMPatch.lua`, `DebugLogSetup.lua` (wires `NS.DebugLog` / `NS.Debug` to `LibKa0s-DebugLog-1.0`, in the slot the old `DebugLog.lua` held — it needs `Constants` (FONT_MONO), `State` (the flag) and `CoreSetup` above it, and everything below it calls `NS.Debug`), `AbsorbTracker.lua` (AceAddon promotion + lifecycle).
 4. **Defaults** — `defaults/Profile.lua` (AceDB defaults; runs at file-load).

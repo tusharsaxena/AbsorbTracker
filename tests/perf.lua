@@ -58,7 +58,8 @@ local NS = {}
 -- NS.Perf becomes the degradation stub, and probeOverheadOn quietly measures a stub with no probe in
 -- it. Keep this list in LibKa0s.xml's order, and read the figures as suspect if they move without a
 -- change that should have moved them.
-Loader.loadAll({ "libs/LibKa0s/Core.lua", "libs/LibKa0s/DebugLog.lua", "libs/LibKa0s/Perf.lua",
+Loader.loadAll({ "libs/LibKa0s/Core.lua", "libs/LibKa0s/DebugLog.lua", "libs/LibKa0s/Slash.lua",
+  "libs/LibKa0s/Perf.lua",
   "libs/LibKa0s/PerfPanel.lua" }, NS, mocks)
 Loader.loadAll(Loader.tocFiles("AbsorbTracker.toc"), NS, mocks)
 

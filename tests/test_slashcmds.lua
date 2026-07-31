@@ -62,8 +62,29 @@ test("COMMANDS verbs are unique and already lower-case", function()
   end
 end)
 
-test("NS.SlashCommands is the same table the About page renders", function()
-  assertEqual(NS.SlashCommands, NS.COMMANDS, "the two must not drift apart")
+test("the About page renders one row per verb, through the same formatter as /at help", function()
+  -- The property this has always been about: the panel's command list and `/at help` cannot drift.
+  -- It used to be asserted as table identity, but About.lua renders NS.Slash:LandingRows() now, so
+  -- identity alone no longer carries it — the rows themselves do.
+  local rows = NS.Slash:LandingRows()
+  assertEqual(#rows, #NS.COMMANDS, "one row per verb")
+  for i, entry in ipairs(NS.COMMANDS) do
+    assertTrue(rows[i]:find("/at " .. entry[1], 1, true) ~= nil, entry[1] .. ": " .. rows[i])
+  end
+  assertEqual(NS.SlashCommands, NS.COMMANDS, "and the alias still points at the same table")
+end)
+
+test("the About rows carry the help colours, without the chat indent", function()
+  -- Decision D3, and the only place in this repo where its visible change is pinned at all: the
+  -- panel rows are the gold/white pair `/at help` prints, minus the indent a chat line needs to sit
+  -- under a header.
+  local rows = NS.Slash:LandingRows()
+  assertEqual(rows[1], "|cFFFFFF00/at help|r \226\128\148 |cFFFFFFFFList available commands|r")
+  assertTrue(rows[1]:sub(1, 1) ~= " ", "a panel row starts at the margin")
+  -- The chat form is the same row with the indent, after the [AT] tag every line carries.
+  local want = "  " .. rows[1]
+  local help = capture(function() NS.Slash:OnSlash("") end)
+  assertEqual(help[2]:sub(-#want), want, "the chat form is that row, indented: " .. help[2])
 end)
 
 -- ── lock / unlock / toggle ─────────────────────────────────────────────────────────
@@ -167,35 +188,47 @@ end)
 
 -- ── reset / resetall / resetposition ───────────────────────────────────────────────
 
-test("/at reset with no page prints usage rather than resetting anything", function()
-  NS.SetSetting("barWidth", 250)
+-- `/at reset` takes a PATH and resets one setting. The page-shaped form this addon used to carry
+-- was removed deliberately (a user-visible change, not an extraction artefact), so these describe
+-- the new behaviour rather than being retargeted onto it. The capability did not go anywhere: the
+-- Bar page's Defaults button still resets that page across every unit, pinned in test_helpers.lua.
+
+test("/at reset with no path prints usage rather than resetting anything", function()
+  NS.SetByPath("units.player.barWidth", 250)
   local out = slash("reset")
-  assertTrue(contains(out, "Usage: /at reset"), joined(out))
-  assertEqual(NS.GetSetting("barWidth"), 250, "nothing was reset")
-  NS.SetSetting("barWidth", 200)
+  assertTrue(contains(out, "Usage: /at reset <path>"), joined(out))
+  assertEqual(NS.GetSetting("units.player.barWidth"), 250, "nothing was reset")
+  NS.Helpers.RestoreDefaults("bar")
 end)
 
-test("/at reset rejects an unknown page and names the valid ones", function()
-  local out = slash("reset bogus")
-  assertTrue(contains(out, "Unknown page 'bogus'"), joined(out))
-  assertTrue(contains(out, "general, bar, border, font"), joined(out))
-end)
-
-test("/at reset <page> restores just that page", function()
-  -- Retargeted (spec §9): reset now applies per-unit dotted paths, not the old flat keys.
-  NS.SetSetting("units.player.barWidth", 250)
-  NS.SetSetting("units.player.borderSize", 20)
+test("/at reset rejects a path that is not a setting", function()
+  -- A page name is simply an unknown path now, and says so in the same words any other typo does.
   local out = slash("reset bar")
-  assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth)
-  assertEqual(NS.GetSetting("units.player.borderSize"), 20, "the border page is untouched")
-  assertTrue(contains(out, "bar page reset to defaults"), joined(out))
-  slash("reset border")
+  assertTrue(contains(out, "Setting not found: bar"), joined(out))
 end)
 
-test("/at reset lower-cases the page name", function()
-  NS.SetSetting("units.player.barWidth", 250)
-  slash("reset BAR")
-  assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth)
+test("/at reset restores one setting and leaves its neighbours alone", function()
+  NS.SetByPath("units.player.barWidth", 250)
+  NS.SetByPath("units.target.barWidth", 300)
+  NS.SetByPath("units.player.borderSize", 20)
+  slash("reset units.player.barWidth")
+  assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth, "the named one")
+  assertEqual(NS.GetSetting("units.target.barWidth"), 300, "not the same key on another unit")
+  assertEqual(NS.GetSetting("units.player.borderSize"), 20, "nor another key on the same unit")
+  NS.Helpers.RestoreDefaults("bar")
+  NS.Helpers.RestoreDefaults("border")
+end)
+
+test("/at reset does NOT lower-case its argument", function()
+  -- The inverse of the rule the page form had. Pages were a closed lower-case set; a path is
+  -- case-sensitive, so folding case here would reset a setting the user never named.
+  NS.SetByPath("units.player.barWidth", 250)
+  local out = slash("reset UNITS.PLAYER.BARWIDTH")
+  assertEqual(NS.GetSetting("units.player.barWidth"), 250, "nothing was reset")
+  -- Asserted on the ECHOED path, not just the prefix: a reset that lower-cased its argument would
+  -- still print "Setting not found" for this input, so a prefix match cannot tell the two apart.
+  assertTrue(contains(out, "Setting not found: UNITS.PLAYER.BARWIDTH"), joined(out))
+  NS.Helpers.RestoreDefaults("bar")
 end)
 
 test("/at resetall goes through the one shared RestoreAllDefaults helper", function()
@@ -276,7 +309,7 @@ test("/at set writes a colour from `r g b a` and echoes the STORED value", funct
   assertTrue(math.abs(c.r - 0.1) < 1e-6 and math.abs(c.a - 0.4) < 1e-6,
     "the parsed colour was stored")
   assertTrue(contains(out, "{0.10, 0.20, 0.30, 0.40}"), joined(out))
-  slash("reset bar")
+  NS.Helpers.RestoreDefaults("bar")
   T.mocks.__fireTimers()
 end)
 
@@ -395,7 +428,7 @@ test("/at profile new creates a profile carrying the defaults, not the old value
     "a new profile starts from defaults")
   assertTrue(contains(out, "Created and switched to new profile 'Fresh'"), joined(out))
   backToDefault()
-  slash("reset bar")
+  NS.Helpers.RestoreDefaults("bar")
   T.mocks.__fireTimers()
 end)
 
@@ -417,7 +450,7 @@ test("/at profile copy pulls another profile's values into the current one", fun
     "the source's value landed in the current profile")
   assertEqual(NS.db:GetCurrentProfile(), "Default", "copy does not switch profiles")
   assertTrue(contains(out, "Copied settings from profile 'Source'"), joined(out))
-  slash("reset bar")
+  NS.Helpers.RestoreDefaults("bar")
   T.mocks.__fireTimers()
 end)
 
@@ -536,16 +569,23 @@ test("list groups the appearance pages by unit", function()
   assertTrue(contains(out, "[bar / target]"), "no target group header")
   assertTrue(contains(out, "[bar / focus]"),  "no focus group header")
   assertTrue(contains(out, "[general]"), "globals must still list under a plain page header")
+  -- All four pages, not just the two the per-unit assertions happen to touch: PAGE_ORDER is what
+  -- decides which pages `/at list` shows at all, and trimming it would silently drop ~30 rows.
+  assertTrue(contains(out, "[border / player]"), "the border page lists too")
+  assertTrue(contains(out, "[font / player]"), "and the font page")
 end)
 
-test("reset bar resets every unit", function()
-  NS.db.profile.units.player.barWidth = 111
-  NS.db.profile.units.target.barWidth = 222
-  NS.db.profile.units.focus.barWidth  = 333
-  slash("reset bar")
-  assertEqual(NS.db.profile.units.player.barWidth, NS.unitDefaults.barWidth)
-  assertEqual(NS.db.profile.units.target.barWidth, NS.unitDefaults.barWidth)
-  assertEqual(NS.db.profile.units.focus.barWidth,  NS.unitDefaults.barWidth)
+test("reset takes one fully-qualified path, not a page", function()
+  -- What the page form used to do across every unit now belongs to the page's Defaults button;
+  -- what the verb does is reset exactly the setting it was handed.
+  for _, unit in ipairs(NS.Units.LIST) do
+    NS.SetByPath("units." .. unit .. ".barWidth", 111)
+  end
+  slash("reset units.target.barWidth")
+  assertEqual(NS.GetSetting("units.target.barWidth"), NS.unitDefaults.barWidth, "the named unit")
+  assertEqual(NS.GetSetting("units.player.barWidth"), 111, "and only that unit")
+  assertEqual(NS.GetSetting("units.focus.barWidth"), 111)
+  NS.Helpers.RestoreDefaults("bar")
 end)
 
 test("resetposition clears all three positions", function()

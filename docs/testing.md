@@ -41,6 +41,18 @@ plus the degradation stub that answers when the vendored library is missing. `te
 went with it: its last two cases were the shared sink's, and a suite with nothing left in it is
 worse than no suite at all, because the runner skips a listed file that does not exist.
 
+`tests/test_slash.lua` and `tests/test_slashcmds.lua` are the same shape again. The slash
+algorithm itself — the verb lookup, the help renderer, the row and key/value formatters, the
+value renderer, the `/at list` builder, and the type-aware parser with its clamping, its enum
+check and its colour rescale — is `LibKa0s-Slash-1.0` and is tested in the LibKa0s repo. What
+stays here is this addon's side: that `NS.COMMANDS` is a well-formed, unique, lower-case verb
+table, the host verbs that reach into this addon's own state (lock/unlock/toggle/update/test/
+profile/resetall/resetposition), the mirror note the annotator appends, the About page rendering
+the same rows through the same formatter, and the schema verbs driven end to end through the
+library so the seams this addon supplies — `get`/`set`/`findRow`/`applyDefault`/`allRows` — are
+proven wired. The degradation stub in `settings/Slash.lua` has no case of its own yet;
+`tests/test_coresetup.lua` covers that shape for Core, and this is the obvious gap to close next.
+
 **A note for anyone adding tests that touch suspend or the repaint timer.** `NS.Perf.Resume()`
 republishes `REPAINT`, which arms a coalescing timer. Left armed, `pending` in `modules/Timer.lua`
 stays set for the rest of the **process**, and every later suite's `RequestRepaint` quietly

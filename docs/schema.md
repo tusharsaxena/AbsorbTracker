@@ -23,7 +23,8 @@ The array itself and its helpers live in `settings/Schema.lua` (`NS.Schema`). Th
     type    = "bool" | "number" | "string" | "color",
     label   = "Bar Width",       -- widget label + `/at list`/`get` display
     desc    = "...",             -- tooltip text (rendered via Helpers.AttachTooltip)
-    default = 200,               -- used by `/at reset` and `/at resetall`
+    default = 200,               -- restored by `/at reset <path>`, `/at resetall`, and
+                                  -- a page's Defaults button
 
     -- type-specific:
     min, max, step,                                  -- number
@@ -100,7 +101,7 @@ Each call generates three rows per appearance key — one per `NS.Units.LIST` en
                                    like disabledIf greying)
 ```
 
-`NS.SetByPath` (in `settings/Schema.lua`) is the single write seam: it calls `NS.SetSetting` then fires the row's `onChange`. It does **not** itself refresh the panel — the slash handlers call `NS.RefreshOptionsPanel` afterward, and the panel widgets' own `set()` closures end with `Helpers.RefreshAllPanels`.
+`NS.SetByPath` (in `settings/Schema.lua`) is the single write seam: it calls `NS.SetSetting` then fires the row's `onChange`. It does **not** itself refresh the panel — the slash path calls `NS.RefreshOptionsPanel` afterward (inside the `set` / `applyDefault` closures `settings/Slash.lua` hands the library), and the panel widgets' own `set()` closures end with `Helpers.RefreshAllPanels`.
 
 ## Behavior knobs
 
@@ -125,7 +126,7 @@ Defaults to `NS.UpdateBarAppearance`. Override when the row's side effect differ
 
 ### `fmt = "%.1f sec"` (number only)
 
-Formatting hint for `/at list` / `/at get` output, applied by `NS.FormatSchemaValue`. Without `fmt`, a number renders via `tostring(v)`.
+Formatting hint for `/at list` / `/at get` output, applied by `lib.FormatValue` (LibKa0s-Slash-1.0), which `NS.FormatSchemaValue` delegates to. Without `fmt`, a number renders via `tostring(v)`.
 
 ### `sorting = { ... }` (string select)
 
@@ -152,7 +153,7 @@ NS.SchemaForPage(pageKey, unit)         -> { rows }   -- groups kept in first-se
                                                               -- rows (General's); omit `unit` to
                                                               -- get every unit's rows (what
                                                               -- RestoreDefaults / RestoreAllDefaults
-                                                              -- / `/at list` / `/at reset` want).
+                                                              -- / `/at list` want).
 NS.PartitionUnitRows(rows)              -> perUnit, styled   -- splits a unit page's rows into
                                                               -- alwaysPerUnit rows (stay editable
                                                               -- while mirrored) vs. the appearance
@@ -170,9 +171,8 @@ NS.ApplyDefault(row)                    -- reset to row.default + onChange (deep
                                                 -- defaults; used by /at reset, /at resetall,
                                                 -- and per-page Defaults buttons)
 
--- Slash IO
-NS.FormatSchemaValue(row, value)        -> string    -- display formatting
-NS.ParseSchemaValue(row, text)          -> value | nil, errMsg
+-- Slash IO (formatting only — the type-aware parser is LibKa0s-Slash-1.0's lib.ParseValue)
+NS.FormatSchemaValue(row, value)        -> string    -- thin delegate to lib.FormatValue
 
 -- Validation
 NS.ValidateSchema()                     -> errors, resolved, missing
@@ -193,14 +193,14 @@ This is exercised headlessly by `tests/test_schema.lua`, which asserts the live 
 
 ## Slash CLI mapping
 
-The slash surface is `settings/Slash.lua`, registered via AceConsole (`NS.addon:RegisterChatCommand("at", ...)` and `("absorbtracker", ...)`). The value-shaped verbs walk `NS.Schema`:
+The slash surface is `settings/Slash.lua`, registered via AceConsole (`NS.addon:RegisterChatCommand("at", ...)` and `("absorbtracker", ...)`). The dispatcher itself — the help renderer, the `key = value` and value formatters, the list builder and the type-aware parser — is **LibKa0s-Slash-1.0** (`libs/LibKa0s/Slash.lua`), shared across every Ka0s addon. `settings/Slash.lua` hands it a descriptor: the verb table, the schema seams (`get` / `set` / `findRow` / `applyDefault`), the row order (`allRows`), and the `[bar / player]` group key. The value-shaped verbs walk `NS.Schema` through that descriptor:
 
 | Command | What it does |
 |---------|--------------|
-| `/at list` | Walks `NS.Schema` grouped by page (general, bar, border, font); Bar/Border/Font list **once per unit** (`bar / player`, `bar / target`, `bar / focus`, etc. — `PER_UNIT_PAGES` in `settings/Slash.lua`), prints each row's full dotted path with the current value rendered through `FormatSchemaValue`. |
-| `/at get <path>` | Looks up one row via `FindSchemaRow` (the path must be the full dotted form, e.g. `units.target.barWidth`) and prints the same formatted value. |
-| `/at set <path> <value>` | Calls `ParseSchemaValue(row, text)` to coerce the tail into the typed value, then `SetByPath` to write + fire `onChange`, then `RefreshOptionsPanel`. Invalid input prints a type-specific error (`expected true/false/on/off/1/0/yes/no`, `expected a number`, `allowed values: A, B, C`, `expected: r g b [a] (each 0-1 or 0-255)`). **Fully-qualified paths only** — `/at set units.target.barWidth 250` works, `/at set barWidth 250` does not (the unqualified pre-1.9 form is gone; `FindSchemaRow` has no per-unit rows registered under the bare key). |
-| `/at reset <page>` | Walks the schema rows for `<page>` (general / bar / border / font) via `SchemaForPage(page)` with **no unit filter**, so it resets that page across **all three units** at once, then `RefreshOptionsPanel`. |
+| `/at list` | Walks the descriptor's `allRows` — page by page (general, bar, border, font), with Bar/Border/Font listed **once per unit** (`bar / player`, `bar / target`, `bar / focus`, etc. — `PER_UNIT_PAGES` in `settings/Slash.lua`) — and prints each row's full dotted path with the current value, rendered by `lib.FormatValue` and paired by `lib.FormatKV`. |
+| `/at get <path>` | Looks up one row via `FindSchemaRow` (the path must be the full dotted form, e.g. `units.target.barWidth`) and prints the same formatted pair. |
+| `/at set <path> <value>` | Calls `lib.ParseValue(row, text)` (LibKa0s-Slash-1.0) to coerce the tail into the typed value, then `SetByPath` to write + fire `onChange`, then `RefreshOptionsPanel`. Invalid input prints a type-specific error (`expected true/false/on/off/1/0/yes/no`, `expected a number`, `allowed values: A, B, C`, `expected: r g b [a] (each 0-1 or 0-255)`). **Fully-qualified paths only** — `/at set units.target.barWidth 250` works, `/at set barWidth 250` does not (the unqualified pre-1.9 form is gone; `FindSchemaRow` has no per-unit rows registered under the bare key). |
+| `/at reset <path>` | Resolves one row via `FindSchemaRow(path)` and calls `ApplyDefault` on it, then `RefreshOptionsPanel`. One setting, not a page — a whole page across all three units is that page's **Defaults** button (`NS.Helpers.RestoreDefaults`). |
 | `/at resetall` | Runs `ApplyDefault` on every row (all pages, all units). Also clears every unit's saved position (`NS.Units.SetPosition(unit, nil)` for each of `NS.Units.LIST`) and republishes `POSITION`. |
 
 Per-setting subcommands like `/at width 250` or `/at color classcolor on` were removed in favor of `/at set <path> <value>` — today that path is fully qualified: `/at set units.player.barWidth 250` and `/at set units.player.useClassColorBar true`.
@@ -236,12 +236,12 @@ Two consequences worth remembering:
 
 - **Action buttons** like Reset Position. They're rendered via `Helpers.InlineButtonPair`, attached to a sub-page through `Helpers.RenderSchema`'s `afterGroup` callback. `settings/General.lua` wires the **Reset Position** + **Reset All Settings** pair under the **Master controls** group via `RenderSchema(ctx, "general", { ["Master controls"] = function(ctxRef) H.InlineButtonPair(ctxRef, ...) end })`. Each page's **Defaults** button (`Helpers.RestoreDefaults(pageKey, ctx)`) is likewise not a row.
 - **The Debug console checkbox** (General page, beside Enable Focus Bar). Shows/hides the debug console *window* (same as the bare `/at debug`) — deliberately *not* a schema row (window visibility is transient UI, never persisted), and it does **not** change the debug logging flag (`NS.State.debug`). It's rendered via `Helpers.SessionCheckbox` wired to `NS.DebugLog:ConsoleCheckbox()` (`get` = `D:IsShown()`, `set` = `D:Show()`/`D:Hide()`) and injected through `RenderSchema`'s `pairWith` seam as **Enable Focus Bar's** right partner.
-- **The non-key/value verbs.** `config`, `lock`, `unlock`, `toggle`, `debug`, `update`, `version`, `test`, `resetposition`, and `profile` live as dedicated entries in the ordered `NS.COMMANDS` table in `settings/Slash.lua` (16 verbs total; `NS.SlashCommands` is an alias the About page renders). An unknown verb prints `unknown command '<verb>'` then the help list.
+- **The non-key/value verbs.** `help`, `config`, `lock`, `unlock`, `toggle`, `debug`, `perf`, `update`, `version`, `test`, `resetposition`, and `profile` live as dedicated entries in the ordered `NS.COMMANDS` table in `settings/Slash.lua` — 17 verbs in all, counting the five schema-driven ones (`list`, `get`, `set`, `reset`, `resetall`). The table is passed **into** LibKa0s-Slash-1.0 rather than owned by it: the About page renders the same rows (via `NS.Slash:LandingRows()`, the library's formatted list), and a library that owned the table would drag the options surface into depending on it. An unknown verb prints `unknown command '<verb>'` then the help list.
 - **The Profiles sub-page.** `AceDBOptions:GetOptionsTable(db)` builds its own options table; no schema rows.
 
 ## Settings reference (every schema row)
 
-Defaults live in `defaults/Profile.lua`'s `NS.defaults.profile`. The three globals below are flat, single rows on the General page, which also carries the three per-unit `enabled` toggles (the one place a `units.<unit>.*` path is edited outside the Bar/Border/Font Unit dropdown — so `/at reset general` resets them, and `/at reset bar` does not). Every other setting is **per-unit**: `settings/{Bar,Border,Font}.lua` register the same fifteen appearance keys three times each — once per `NS.Units.LIST` entry (`player`, `target`, `focus`) — at the dotted path `units.<unit>.<key>`, all sharing one canonical `default` from `NS.unitDefaults` (= `defaults.profile.units.player`). `/at get units.target.barWidth` reads the target bar's width; `/at get barWidth` (the pre-1.9 unqualified form) finds nothing.
+Defaults live in `defaults/Profile.lua`'s `NS.defaults.profile`. The three globals below are flat, single rows on the General page, which also carries the three per-unit `enabled` toggles (the one place a `units.<unit>.*` path is edited outside the Bar/Border/Font Unit dropdown — so the General page's Defaults button resets them and the Bar page's does not). Every other setting is **per-unit**: `settings/{Bar,Border,Font}.lua` register the same fifteen appearance keys three times each — once per `NS.Units.LIST` entry (`player`, `target`, `focus`) — at the dotted path `units.<unit>.<key>`, all sharing one canonical `default` from `NS.unitDefaults` (= `defaults.profile.units.player`). `/at get units.target.barWidth` reads the target bar's width; `/at get barWidth` (the pre-1.9 unqualified form) finds nothing.
 
 ### General page (flat globals + the per-unit enable toggles)
 

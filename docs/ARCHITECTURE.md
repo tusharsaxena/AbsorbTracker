@@ -47,8 +47,8 @@ Modules → Settings.
 | `modules/Bar.lua` | `NS.CreateBar(unit, globalName)` builds one bar frame; `NS.bars` (keyed `player`/`target`/`focus`, frames `AbsorbTrackerFrame`/`AbsorbTrackerTargetFrame`/`AbsorbTrackerFocusFrame`) at file load, plus `NS.bar`/`statusBar`/`valueText`/`backdropInfo` as player aliases for pre-multi-unit call sites. Each bar owns its own `backdropInfo` table (border size differs per unit; `SetBackdrop` keys off table identity) and a `unitLabel` FontString above the frame naming its unit, shown only while unlocked. |
 | `modules/Display.lua` | Every function takes a `unit` (defaulting to `"player"`): `RestoreBarPosition`, `UpdateBarAppearance`, `ShouldShowBar`/`ApplyVisibility` (the four-step visibility ladder), `UpdateAbsorbBar` (the paint path). `NS.ForEachUnit(fn)` and `NS.DefaultPosition(unit)` (stacks target/focus above the player bar) also live here. Subscribes to `APPEARANCE`/`VISIBILITY`/`POSITION` on its own `NS.Display.__ev` bus target, fanning each handler out over `NS.ForEachUnit` so the bus messages stay payload-free. |
 | `modules/Timer.lua` | Coalescing repaint scheduler (`NS.RequestRepaint`) — a trailing-edge one-shot AceTimer throttle. |
-| `settings/Schema.lua` | The schema registry + read/write seam (`SetByPath`), parse/format, and `ValidateSchema`. Rows carry `unit`, `alwaysPerUnit`, and `skipRender` fields; `SchemaForPage(page, unit)` filters to one unit's rows (or all, when `unit` is omitted); `PartitionUnitRows` splits a unit page into always-editable rows vs. mirror-hidden appearance rows; `ResolvePath`/`SetPath` walk dotted paths (`units.<unit>.<key>`) so flat globals and per-unit keys share one seam. |
-| `settings/Slash.lua` | AceConsole registration + the schema-driven `/at` dispatcher (`NS.COMMANDS`). |
+| `settings/Schema.lua` | The schema registry + read/write seam (`SetByPath`), value formatting, and `ValidateSchema`. `NS.FormatSchemaValue` is a thin delegate to `LibKa0s-Slash-1.0`'s `lib.FormatValue`, so the `/at get` echo and the `[Set]` debug line cannot disagree about how a colour or an empty string reads; the type-aware parser is the library's `lib.ParseValue` (`NS.ParseSchemaValue` and the private `parseBool`/`parseNumber`/`parseString`/`parseColor` helpers are gone). Rows carry `unit`, `alwaysPerUnit`, and `skipRender` fields; `SchemaForPage(page, unit)` filters to one unit's rows (or all, when `unit` is omitted); `PartitionUnitRows` splits a unit page into always-editable rows vs. mirror-hidden appearance rows; `ResolvePath`/`SetPath` walk dotted paths (`units.<unit>.<key>`) so flat globals and per-unit keys share one seam. |
+| `settings/Slash.lua` | AceConsole registration, the ordered `NS.COMMANDS` verb table (17 verbs), and the host verbs that reach into this addon's own state (`lock`/`unlock`/`toggle`/`update`/`test`/`profile`/`debug`/`perf`/`resetall`/`resetposition`) plus the mirror note. The dispatcher itself, the help renderer, the row and key/value formatters, the value renderer, the `/at list` builder and the type-aware value parser are `LibKa0s-Slash-1.0` (vendored, `libs/LibKa0s/Slash.lua`); this file builds the CLI with `SlashLib:New{...}` and passes `NS.COMMANDS` in. Degrades to a stub that keeps the host verbs working — and names the missing library on each schema verb — when the library is absent. |
 | `settings/Panel.lua` | Settings-category registration shell; publishes `NS.Helpers`; combat-gated `OpenOptionsPanel`. |
 | `settings/Helpers.lua` | Panel toolkit: layout constants, `CreatePanel`, `EnsureDefaultsButton` (builds the header Defaults button lazily on first OnShow), section/scroll/tooltip, defaults/refresh registry, `LSMValues`. `RenderUnitPanel(ctx, pageKey)` draws the Unit dropdown + mirror header (checkbox + copy button, hidden-while-mirrored hint) via `Helpers.ClearScroll` (full rebuild) + `Widgets.lua`'s `RenderRows` for the filtered rows. |
 | `settings/ScrollPatch.lua` | Always-visible scrollbar override for the AceGUI ScrollFrame. |
@@ -114,9 +114,24 @@ panel.
 ## Slash Commands
 
 Registered via AceConsole in `settings/Slash.lua`: `/at` and the alias `/absorbtracker` both
-dispatch to `Sl:OnSlash`, which lower-cases only the verb (preserving case in the remainder so
-schema paths survive) and looks it up in the ordered `NS.COMMANDS` table. Unknown verb →
+dispatch to `Sl:OnSlash`, which hands the line straight to `LibKa0s-Slash-1.0`. The library
+lower-cases only the verb (preserving case in the remainder so schema paths survive) and looks it
+up in the ordered `NS.COMMANDS` table this addon passed in. Unknown verb →
 `unknown command '<verb>'` then the help index (generated from `NS.COMMANDS`).
+
+**What is library code and what is ours.** The dispatcher, the help renderer, the row formatter
+(gold command — em dash — white description), the key/value formatter, the value renderer, the
+`/at list` builder and the type-aware value parser (clamping, the case-sensitive enum check, the
+0-1 / 0-255 colour rescale) all live in `libs/LibKa0s/Slash.lua`, shared across every Ka0s addon.
+`settings/Slash.lua` keeps `NS.COMMANDS`, the host verbs, and the mirror note attached through
+`cli:SetRowAnnotator` — a `(mirrored — the bar shows Player's appearance)` tail on the
+appearance rows of a unit that is currently mirroring, which reads `NS.Units.IsMirrored` and the
+row's `alwaysPerUnit` flag, neither of which a generic dispatcher knows about.
+
+`NS.COMMANDS` is passed **into** the library rather than owned by it, deliberately:
+`settings/About.lua` renders the same table via `NS.Slash:LandingRows()`, so a library that owned
+the verbs would force an options layer to consume this one — and two libraries reaching for each
+other is a real dependency cycle. The table crossing as plain data is what keeps them independent.
 
 | Command | What it does |
 |---------|--------------|
@@ -125,7 +140,7 @@ schema paths survive) and looks it up in the ordered `NS.COMMANDS` table. Unknow
 | `/at list` | List every setting and its current value |
 | `/at get <path>` | Print one setting's current value |
 | `/at set <path> <value>` | Set one setting (typed: bool/number/string/color) |
-| `/at reset <general\|bar\|border\|font>` | Reset one panel to defaults |
+| `/at reset <path>` | Reset one setting to its default (a whole page is the panel's Defaults button) |
 | `/at resetall` | Reset every setting, clear the saved position, and recenter the bar (shared `Helpers.RestoreAllDefaults` — the panel's Reset All button calls the same path) |
 | `/at resetposition` | Clear **every** unit's saved position and re-anchor all three bars to their stacked defaults (shared `Helpers.ResetAllPositions` — the General page's Reset Position button calls the same path) |
 | `/at lock` / `/at unlock` | Flip the drag lock |

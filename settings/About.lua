@@ -1,8 +1,9 @@
 -- AbsorbTracker: settings/About.lua
 --
 -- Top-level "Ka0s Absorb Tracker" page builder. Logo, addon Notes
--- one-liner, "Slash Commands" heading, and a row per NS.SlashCommands
--- entry so the about page stays in lockstep with /at help. Decorates
+-- one-liner, "Slash Commands" heading, and one row per NS.Slash:LandingRows()
+-- entry — the same formatter /at help prints through, minus the chat indent,
+-- so the about page and the help block cannot drift. Decorates
 -- NS.Helpers.BuildMainContent; settings/Panel.lua's registerMain
 -- calls it on first OnShow of the main panel.
 
@@ -86,14 +87,12 @@ function Helpers.BuildMainContent(ctx)
 
     addBlock(scroll, MAIN_GAP_BELOW_HEAD)
 
-    -- 4) Slash-command rows pulled from NS.SlashCommands so
-    -- this list stays in lockstep with /at help — adding a command in
-    -- SlashCommands.lua surfaces here automatically.
-    for _, entry in ipairs(NS.SlashCommands or {}) do
+    -- 4) Slash-command rows, rendered by the same formatter `/at help` uses so the two can never
+    -- drift. Adding a command to NS.COMMANDS surfaces here automatically.
+    for _, row in ipairs(NS.Slash:LandingRows()) do
         local r = AceGUI:Create("Label")
         r:SetFullWidth(true)
-        r:SetText(("|cffffff00/at %s|r  |cffffffff—|r  %s")
-            :format(entry[1], entry[2]))
+        r:SetText(row)
         if r.label and r.label.SetJustifyH then
             r.label:SetJustifyH("LEFT")
         end

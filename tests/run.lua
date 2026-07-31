@@ -20,6 +20,7 @@ Loader.addonName = "AbsorbTracker"
 local LIB_FILES = {
   "libs/LibKa0s/Core.lua",
   "libs/LibKa0s/DebugLog.lua",
+  "libs/LibKa0s/Slash.lua",
   "libs/LibKa0s/Perf.lua",
   "libs/LibKa0s/PerfPanel.lua",
 }

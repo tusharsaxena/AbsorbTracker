@@ -124,8 +124,8 @@ UNIT_ABSORB_AMOUNT_CHANGED           UNIT_MAXHEALTH          PLAYER_TARGET_CHANG
 Slash:  /at set <path> <value>             Panel widget OnValueChanged
             │                                          │
             ▼                                          ▼
-setSetting(rest) → ParseSchemaValue      local set(row, value)
-            │                          (settings/Widgets.lua — file-local)
+cli:CliSet(rest) → lib.ParseValue        local set(row, value)
+            │  (LibKa0s-Slash-1.0)     (settings/Widgets.lua — file-local)
             │                                          │
             └────────────────┬─────────────────────────┘
                              ▼
@@ -153,7 +153,7 @@ setSetting(rest) → ParseSchemaValue      local set(row, value)
                    (no caching — class color toggles "just work")
 ```
 
-The slash and panel paths converge on `NS.SetByPath` (`settings/Schema.lua`) — the single write seam that does `SetSetting` + `fireOnChange`. `fireOnChange` runs `row.onChange` or, absent one, the default handler that publishes `NS.MSG.APPEARANCE` on the bus (so the write path signals the display module instead of calling `UpdateBarAppearance` across the module boundary). The panel's local `set(row, value)` (in `settings/Widgets.lua`) calls `SetByPath` then `Helpers.RefreshAllPanels`; the slash dispatcher (`settings/Slash.lua`, `setSetting`) calls `SetByPath` then `NS.RefreshOptionsPanel` (which itself routes to `Helpers.RefreshAllPanels`). Color getters resolve `useClassColor*` at call time, so no explicit "switch class color on" wiring is needed — the next paint reads the current toggle state and produces the right color.
+The slash and panel paths converge on `NS.SetByPath` (`settings/Schema.lua`) — the single write seam that does `SetSetting` + `fireOnChange`. `fireOnChange` runs `row.onChange` or, absent one, the default handler that publishes `NS.MSG.APPEARANCE` on the bus (so the write path signals the display module instead of calling `UpdateBarAppearance` across the module boundary). The panel's local `set(row, value)` (in `settings/Widgets.lua`) calls `SetByPath` then `Helpers.RefreshAllPanels`; the slash path (LibKa0s-Slash-1.0's `CliSet`, through the `set` closure in the descriptor `settings/Slash.lua` hands it) calls `SetByPath` then `NS.RefreshOptionsPanel` (which itself routes to `Helpers.RefreshAllPanels`). Color getters resolve `useClassColor*` at call time, so no explicit "switch class color on" wiring is needed — the next paint reads the current toggle state and produces the right color.
 
 The color-picker widget takes a separate throttled route: mid-drag it writes through `SetByPath` on an `NS.addon:ScheduleTimer` (AceTimer one-shot) window and deliberately skips `RefreshAllPanels` to avoid churning the panel every frame of a drag.
 

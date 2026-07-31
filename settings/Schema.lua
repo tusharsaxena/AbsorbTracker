@@ -170,22 +170,14 @@ end
 -- /at list / /at get value formatting
 -- ---------------------------------------------------------------------
 
+-- Rendering a stored value for display is LibKa0s-Slash-1.0's, so `/at get`'s echo and the [Set]
+-- debug line above can never disagree about how a colour or an empty string reads. Kept under this
+-- name because the schema layer is where callers look for it; the fallback exists only for a build
+-- with the library missing.
 function NS.FormatSchemaValue(row, v)
+    local lib = LibStub and LibStub("LibKa0s-Slash-1.0", true)
+    if lib then return lib.FormatValue(row, v) end
     if v == nil then return "nil" end
-    if row.type == "color" and type(v) == "table" then
-        return ("{%.2f, %.2f, %.2f, %.2f}"):format(
-            v.r or 0, v.g or 0, v.b or 0, v.a or 1)
-    end
-    if row.type == "number" then
-        if row.fmt then return row.fmt:format(v) end
-        return tostring(v)
-    end
-    if row.type == "bool" then
-        return v and "true" or "false"
-    end
-    if row.type == "string" and (v == nil or v == "") then
-        return "(none)"
-    end
     return tostring(v)
 end
 
@@ -257,62 +249,8 @@ function NS.ValidateSchema()
     return errors, resolved, missing
 end
 
--- ---------------------------------------------------------------------
--- /at set type-aware parser
--- ---------------------------------------------------------------------
-
-local function parseBool(args)
-    local s = (args[1] or ""):lower()
-    if s == "true"  or s == "1" or s == "on"  or s == "yes" then return true  end
-    if s == "false" or s == "0" or s == "off" or s == "no"  then return false end
-    return nil, "expected true/false/on/off/1/0/yes/no"
-end
-
-local function parseNumber(args, row)
-    local n = tonumber(args[1])
-    if not n then return nil, "expected a number" end
-    if row.min then n = math.max(row.min, n) end
-    if row.max then n = math.min(row.max, n) end
-    return n
-end
-
-local function allowedValues(row)
-    local v = type(row.values) == "function" and row.values() or row.values or {}
-    local keys = {}
-    for k in pairs(v) do keys[#keys + 1] = k end
-    table.sort(keys)
-    return keys
-end
-
-local function parseString(args, row)
-    local v = args[1]
-    if not v then return nil, "expected a value" end
-    local allowed = allowedValues(row)
-    for _, a in ipairs(allowed) do
-        if a == v then return v end
-    end
-    return nil, "allowed values: " .. table.concat(allowed, ", ")
-end
-
-local function parseColor(args)
-    local r, g, b = tonumber(args[1]), tonumber(args[2]), tonumber(args[3])
-    local a = tonumber(args[4]) or 1
-    if not (r and g and b) then return nil, "expected: r g b [a] (each 0-1 or 0-255)" end
-    if r > 1 or g > 1 or b > 1 then
-        r, g, b = r / 255, g / 255, b / 255
-    end
-    if a > 1 then a = a / 255 end
-    local function clamp01(n) return math.max(0, math.min(1, n)) end
-    return { r = clamp01(r), g = clamp01(g), b = clamp01(b), a = clamp01(a) }
-end
-
-function NS.ParseSchemaValue(row, text)
-    local args = {}
-    for w in (text or ""):gmatch("%S+") do args[#args + 1] = w end
-
-    if row.type == "bool"   then return parseBool(args)        end
-    if row.type == "number" then return parseNumber(args, row) end
-    if row.type == "string" then return parseString(args, row) end
-    if row.type == "color"  then return parseColor(args)       end
-    return nil, "unknown setting type '" .. tostring(row.type) .. "'"
-end
+-- The type-aware value parser moved to LibKa0s-Slash-1.0 (`lib.ParseValue`): clamping, the
+-- case-sensitive enum check, the 0-1 / 0-255 colour rescale and the nil-plus-reason failure
+-- contract all live there, and settings/Slash.lua hands the library the schema rows to parse
+-- against. Nothing here called it once the dispatcher was extracted, and a second copy of a parser
+-- is precisely the drift the extraction exists to end.

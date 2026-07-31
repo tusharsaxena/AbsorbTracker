@@ -19,12 +19,8 @@ badge and any count quoted in the docs must agree with it.
 - loadorder: LibStub returns nil for a missing major with the silent flag
 - loadorder: LibStub keeps the higher minor when a major registers twice
 
-### test_schema.lua (40)
+### test_schema.lua (36)
 
-- ParseSchemaValue bool accepts truthy/falsey words, rejects junk
-- ParseSchemaValue number clamps to the row's min/max
-- ParseSchemaValue color accepts 0-1 and 0-255 and clamps to 0..1
-- ParseSchemaValue string validates against allowed values
 - FormatSchemaValue formats by type
 - SchemaForPage keeps groups in registration order (Size, Bar, Background)
 - ValidateSchema resolves every real path against defaults (0 errors, 0 missing)
@@ -336,21 +332,22 @@ badge and any count quoted in the docs must agree with it.
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
 
-### test_slashcmds.lua (103)
+### test_slashcmds.lua (104)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
-- NS.SlashCommands is the same table the About page renders
+- the About page renders one row per verb, through the same formatter as /at help
+- the About rows carry the help colours, without the chat indent
 - /at lock and /at unlock write the `locked` setting and acknowledge
 - /at toggle turns every bar off, then every bar back on
 - /at toggle <unit> flips only that unit
 - /at toggle rejects an unknown unit and changes nothing
 - /at toggle requests a repaint when SHOWING, not when hiding
 - /at update publishes REPAINT and acknowledges
-- /at reset with no page prints usage rather than resetting anything
-- /at reset rejects an unknown page and names the valid ones
-- /at reset <page> restores just that page
-- /at reset lower-cases the page name
+- /at reset with no path prints usage rather than resetting anything
+- /at reset rejects a path that is not a setting
+- /at reset restores one setting and leaves its neighbours alone
+- /at reset does NOT lower-case its argument
 - /at resetall goes through the one shared RestoreAllDefaults helper
 - /at resetall really does restore the defaults end to end
 - /at resetposition clears the saved anchor and republishes POSITION
@@ -389,7 +386,7 @@ badge and any count quoted in the docs must agree with it.
 - a global key still uses its flat path
 - get echoes a dotted path
 - list groups the appearance pages by unit
-- reset bar resets every unit
+- reset takes one fully-qualified path, not a page
 - resetposition clears all three positions
 - toggle round-trips the enabled set
 - /at get annotates a row whose unit is currently mirroring the player
@@ -498,7 +495,7 @@ badge and any count quoted in the docs must agree with it.
 | Suite | Cases |
 |-------|------:|
 | test_loadorder.lua | 10 |
-| test_schema.lua | 40 |
+| test_schema.lua | 36 |
 | test_database.lua | 27 |
 | test_units.lua | 14 |
 | test_compat.lua | 4 |
@@ -512,6 +509,6 @@ badge and any count quoted in the docs must agree with it.
 | test_data.lua | 26 |
 | test_display.lua | 39 |
 | test_helpers.lua | 40 |
-| test_slashcmds.lua | 103 |
+| test_slashcmds.lua | 104 |
 | test_widgets.lua | 48 |
-| **Total** | **436** |
+| **Total** | **433** |
