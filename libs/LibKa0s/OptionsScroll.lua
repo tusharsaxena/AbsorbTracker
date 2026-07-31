@@ -3,7 +3,7 @@
 -- AceGUI's stock ScrollFrame.FixScroll auto-hides the scrollbar when the content fits inside the
 -- viewport. Across a settings panel's tabs that means a short page shows no scrollbar while a long
 -- one does, and the body's right edge jumps sideways by the 20px gutter as you click between them.
--- This override always keeps the bar and its gutter shown, greys it out with the thumb parked at
+-- This override always keeps the bar and its gutter shown, grays it out with the thumb parked at
 -- the top when there is nothing to scroll, and persists the gutter so every page's content ends at
 -- the same x.
 --
@@ -15,7 +15,7 @@
 local lib = LibStub and LibStub("LibKa0s-Options-1.0", true)
 if not lib then return end
 
-local SCROLL_MINOR = 1
+local SCROLL_MINOR = 2
 -- Paired on the SHELL's minor as well as this file's own. The scroll counter alone is not enough:
 -- two vendored copies can ship the same scroll minor over different Options.lua minors, and then
 -- the higher shell wins the LibStub race while the first-loaded copy's patch stays attached to it.
@@ -33,7 +33,7 @@ lib.MODULES.OptionsScroll = SCROLL_MINOR
 -- bar were always visible, which is the whole point.
 local GUTTER = 20
 
--- Thumb tints. Full white when the bar is live; a dimmed grey when there is nothing to scroll, so
+-- Thumb tints. Full white when the bar is live; a dimmed gray when there is nothing to scroll, so
 -- "shown but inert" reads differently from "shown and usable".
 local THUMB_ON  = { 1, 1, 1, 1 }
 local THUMB_OFF = { 0.5, 0.5, 0.5, 0.6 }
@@ -54,7 +54,7 @@ function lib.PatchAlwaysShowScrollbar(scroll)
   -- Kept on the widget as well as in the closure. OnRelease restores from the upvalues, but a test
   -- (and a developer with /dump) has no way to see whether the stock implementation was preserved
   -- at all, and "the patch quietly lost the original" fails silently — the widget just never gets
-  -- its own behaviour back when AceGUI recycles it.
+  -- its own behavior back when AceGUI recycles it.
   scroll.__stockFixScroll = origFixScroll
 
   local scrollbar = scroll.scrollbar

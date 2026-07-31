@@ -19,7 +19,7 @@ badge and any count quoted in the docs must agree with it.
 - loadorder: LibStub returns nil for a missing major with the silent flag
 - loadorder: LibStub keeps the higher minor when a major registers twice
 
-### test_schema.lua (36)
+### test_schema.lua (38)
 
 - FormatSchemaValue formats by type
 - SchemaForPage keeps groups in registration order (Size, Bar, Background)
@@ -39,7 +39,7 @@ badge and any count quoted in the docs must agree with it.
 - SetByPath writes the value and fires the row's own onChange with it
 - SetByPath falls back to broadcasting APPEARANCE for a row with no onChange
 - SetByPath still writes a value that has no schema row at all
-- ApplyDefault deep-copies a colour table so profiles never share one
+- ApplyDefault deep-copies a color table so profiles never share one
 - ApplyDefault is a no-op for a row with no default
 - ResolvePath walks a dotted path
 - ResolvePath returns nil for a missing branch instead of raising
@@ -57,6 +57,8 @@ badge and any count quoted in the docs must agree with it.
 - the mirror row exists for target and focus but not the player
 - the mirror row is kept out of the auto-rendered body
 - General's rows are the flat globals plus one enable toggle per unit
+- FormatSchemaValue resolves the Slash major at load, never per call
+- a build without LibKa0s-Slash-1.0 falls back to a minimal FormatSchemaValue
 
 ### test_database.lua (27)
 
@@ -138,11 +140,11 @@ badge and any count quoted in the docs must agree with it.
 - unknown verb prints 'unknown command' then the help index
 - /at version prints the addon version (slash-commands-§3)
 - /at get <path> dispatches to the schema read
-- /at list uses the mandated colour scheme (slash-commands-§5)
+- /at list uses the mandated color scheme (slash-commands-§5)
 - /at set <path> <value> writes through the schema and preserves path case
 - /at set clamps out-of-range numbers to the row max
 - /at options is aliased to /at config (no unknown-command error)
-- /at config in combat refuses with a grey notice (options-ui-§2)
+- /at config in combat refuses with a gray notice (options-ui-§2)
 - OpenOptionsPanel logs [Cfg] refused in combat
 - SetByPath logs one [Set] path = value line (§10)
 
@@ -211,7 +213,7 @@ badge and any count quoted in the docs must agree with it.
 
 ### test_bus.lua (7)
 
-- bus, NewBusTarget, and the message catalogue are published
+- bus, NewBusTarget, and the message catalog are published
 - a receiver on its own target hears a message, then is silent after unregister
 - two receivers of one message both fire (no (message,target) clobber)
 - a message payload reaches the receiver after the message name
@@ -233,13 +235,13 @@ badge and any count quoted in the docs must agree with it.
 - media fetchers fall back when LSM is present but the key does not resolve
 - ClearLSMCache lets a late-loading LSM be picked up
 - LSMValues yields a self-keyed map of the live LSM hash table
-- GetBarColor returns the stored colour when useClassColorBar is off
-- GetBarColor substitutes the class colour but KEEPS the stored alpha
-- GetBorderColor honours useClassColorBorder and keeps its own alpha
-- GetBorderColor returns the stored colour when the toggle is off
-- GetBgColor uses the DIMMED class colour, not the raw one
-- GetBgColor returns the stored colour when the toggle is off
-- the three class-colour toggles are independent of each other
+- GetBarColor returns the stored color when useClassColorBar is off
+- GetBarColor substitutes the class color but KEEPS the stored alpha
+- GetBorderColor honors useClassColorBorder and keeps its own alpha
+- GetBorderColor returns the stored color when the toggle is off
+- GetBgColor uses the DIMMED class color, not the raw one
+- GetBgColor returns the stored color when the toggle is off
+- the three class-color toggles are independent of each other
 - media getters read through the unit's mirror resolution
 - a media getter with no unit still resolves the player
 - with LSM present, the media getter resolves the REQUESTED unit's own key, not the player's
@@ -250,7 +252,7 @@ badge and any count quoted in the docs must agree with it.
 
 ### test_display.lua (39)
 
-- RestoreBarPosition centres the bar when no position is saved
+- RestoreBarPosition centers the bar when no position is saved
 - RestoreBarPosition restores the saved anchor verbatim
 - RestoreBarPosition clears the old anchors before re-anchoring
 - UpdateBarAppearance sizes the bar from the profile
@@ -286,11 +288,11 @@ badge and any count quoted in the docs must agree with it.
 - UpdateAbsorbBar reads the absorb of the unit it is painting
 - UpdateBarAppearance sizes the bar it is given, not always the player's
 - a mirrored unit paints with the player's size
-- the player bar defaults to dead centre
+- the player bar defaults to dead center
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_helpers.lua (40)
+### test_helpers.lua (42)
 
 - CreatePanel returns a ctx wired to a panel, a body and an empty refresher list
 - CreatePanel names the panel with the plain title for the Blizzard left tree
@@ -329,16 +331,25 @@ badge and any count quoted in the docs must agree with it.
 - a page refresh re-syncs the mirror checkbox and re-runs the row partition
 - `/at set units.<unit>.mirror` re-syncs an open panel's mirror header
 - the header refresher cannot recurse: a refresh fired mid-render is a no-op
+- a raise mid-render must not latch the re-entrancy flag for the session
+- a failed unit-panel render is reported in chat, never swallowed
 - an ordinary schema write does NOT re-render the whole unit page
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
 
-### test_slashcmds.lua (104)
+### test_optionssetup.lua (4)
+
+- the live and degraded builds veto exactly the same rows from Reset All
+- the degraded stub publishes LSMValues, the one member reached at file load
+- the degraded stub keeps no private copy of the library's layout constants
+- PARENT_TITLE reaches the library through the descriptor, not the namespace
+
+### test_slashcmds.lua (109)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
 - the About page renders one row per verb, through the same formatter as /at help
-- the About rows carry the help colours, without the chat indent
+- the About rows carry the help colors, without the chat indent
 - /at lock and /at unlock write the `locked` setting and acknowledge
 - /at toggle turns every bar off, then every bar back on
 - /at toggle <unit> flips only that unit
@@ -351,6 +362,7 @@ badge and any count quoted in the docs must agree with it.
 - /at reset does NOT lower-case its argument
 - /at resetall goes through the one shared RestoreAllDefaults helper
 - /at resetall really does restore the defaults end to end
+- /at resetall says the helpers are missing instead of claiming success
 - /at resetposition clears the saved anchor and republishes POSITION
 - /at get with no path prints usage
 - /at get on an unknown path says so instead of printing nil
@@ -358,7 +370,7 @@ badge and any count quoted in the docs must agree with it.
 - /at set on an unknown path says so
 - /at set rejects a junk boolean and lists the words it accepts
 - /at set rejects a non-numeric value for a number setting
-- /at set writes a colour from `r g b a` and echoes the STORED value
+- /at set writes a color from `r g b a` and echoes the STORED value
 - /at set accepts a bool written as a human word
 - /at test refuses while every bar is disabled and tells the user how to fix it
 - /at test paints the given value and arms the hold window
@@ -395,7 +407,7 @@ badge and any count quoted in the docs must agree with it.
 - /at get does NOT annotate the per-unit rows a mirror never covers
 - /at set echoes the mirrored note alongside the value it just stored
 - /at list annotates only the mirrored units' appearance rows
-- the mirrored note keeps the Ka0s colour scheme intact and stays subordinate
+- the mirrored note keeps the Ka0s color scheme intact and stays subordinate
 - /at perf (bare) reports status and prints usage
 - /at perf start starts a capture
 - /at perf start resets the counters from the previous capture
@@ -439,11 +451,15 @@ badge and any count quoted in the docs must agree with it.
 - /at perf report opens the debug console when it is hidden
 - /at perf dump opens the debug console when it is hidden
 - /at perf dump marks itself reviewed exactly once
+- parity: both dispatchers fold the verb and preserve the rest's case
+- parity: both dispatchers resolve the `options` alias to `config`
+- parity: an unknown verb reaches no handler and prints the same shape in both
+- parity: a bare /at reaches no handler and prints help in both
 
 ### test_widgets.lua (48)
 
 - NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
-- a bool row renders a CheckBox labelled from the schema
+- a bool row renders a CheckBox labeled from the schema
 - a checkbox reads its initial state from the current setting
 - clicking a checkbox writes through SetByPath
 - a checkbox registers a refresher that re-reads after an external change
@@ -463,10 +479,10 @@ badge and any count quoted in the docs must agree with it.
 - a dropdown shows the current value and writes the chosen one
 - a dropdown's refresher re-applies the list, so a grown LSM list appears
 - a color row renders a ColorPicker seeded from the stored rgba
-- a color picker substitutes 1s for a missing/corrupt stored colour
-- disabledIf greys the swatch out while its sibling toggle is on
+- a color picker substitutes 1s for a missing/corrupt stored color
+- disabledIf grays the swatch out while its sibling toggle is on
 - the refresher re-evaluates disabledIf, so the pair tracks on the same frame
-- OnValueConfirmed commits the colour immediately (cancel must not wait on the throttle)
+- OnValueConfirmed commits the color immediately (cancel must not wait on the throttle)
 - OnValueChanged throttles a drag to ONE timer and commits the latest value
 - a drag that resumes after the timer fired arms a fresh one
 - RenderField dispatches each schema type to its widget
@@ -491,12 +507,17 @@ badge and any count quoted in the docs must agree with it.
 - showing every page builds it without error
 - the main page's About content renders on its first OnShow
 
+### test_docs.lua (2)
+
+- README.md carries no angle-bracket argument placeholders
+- the addon's own files use US spellings
+
 ## Totals
 
 | Suite | Cases |
 |-------|------:|
 | test_loadorder.lua | 10 |
-| test_schema.lua | 36 |
+| test_schema.lua | 38 |
 | test_database.lua | 27 |
 | test_units.lua | 14 |
 | test_compat.lua | 4 |
@@ -509,7 +530,9 @@ badge and any count quoted in the docs must agree with it.
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
 | test_display.lua | 39 |
-| test_helpers.lua | 40 |
-| test_slashcmds.lua | 104 |
+| test_helpers.lua | 42 |
+| test_optionssetup.lua | 4 |
+| test_slashcmds.lua | 109 |
 | test_widgets.lua | 48 |
-| **Total** | **434** |
+| test_docs.lua | 2 |
+| **Total** | **449** |

@@ -140,7 +140,7 @@ Run this when you want a defensible number rather than an impression.
 **`/at perf` opens the panel, and the panel starts the run.** The first row is clickable whenever no
 run is in flight, so one command is all anyone has to remember — every other step is a click from
 there. It is **strictly linear** — only the next legal step is clickable, completed steps go green, and
-everything else is greyed out. An armed or recording experiment shows gold, so it is obvious
+everything else is grayed out. An armed or recording experiment shows gold, so it is obvious
 mid-fight that a capture is running.
 
 ```
@@ -158,7 +158,7 @@ mid-fight that a capture is running.
 Three columns: status dot, step, slash command. The command column is the point — it teaches the
 typed form while you click, so the panel is a crutch you can stop needing.
 
-The dot is green behind you, gold on the step actually happening, dim grey ahead. It is drawn with
+The dot is green behind you, gold on the step actually happening, dim gray ahead. It is drawn with
 `SetColorTexture` rather than a text glyph or an art path: a tick character renders as tofu in the
 default font, and an `Interface\…` path that does not exist fails silently as a green box.
 

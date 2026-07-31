@@ -44,7 +44,7 @@ worse than no suite at all, because the runner skips a listed file that does not
 `tests/test_slash.lua` and `tests/test_slashcmds.lua` are the same shape again. The slash
 algorithm itself — the verb lookup, the help renderer, the row and key/value formatters, the
 value renderer, the `/at list` builder, and the type-aware parser with its clamping, its enum
-check and its colour rescale — is `LibKa0s-Slash-1.0` and is tested in the LibKa0s repo. What
+check and its color rescale — is `LibKa0s-Slash-1.0` and is tested in the LibKa0s repo. What
 stays here is this addon's side: that `NS.COMMANDS` is a well-formed, unique, lower-case verb
 table, the host verbs that reach into this addon's own state (lock/unlock/toggle/update/test/
 profile/resetall/resetposition), the mirror note the annotator appends, the About page rendering

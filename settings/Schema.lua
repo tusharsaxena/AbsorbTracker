@@ -22,7 +22,7 @@ local addonName, NS = ...
 --     dialogControl = "LSM30_Statusbar",              -- string (LSM swatch dropdown)
 --     hasAlpha      = true,                           -- color
 --     onChange   = function(v) ... end,               -- defaults to UpdateBarAppearance
---     disabledIf = "useClassColorBar",                -- color only: greys out when sibling on
+--     disabledIf = "useClassColorBar",                -- color only: grays out when sibling on
 --     fmt        = "%.1f sec",                        -- /at list/get formatting hint
 --     solo       = true,                              -- panel only: render alone in a row
 --   }
@@ -171,12 +171,23 @@ end
 -- ---------------------------------------------------------------------
 
 -- Rendering a stored value for display is LibKa0s-Slash-1.0's, so `/at get`'s echo and the [Set]
--- debug line above can never disagree about how a colour or an empty string reads. Kept under this
--- name because the schema layer is where callers look for it; the fallback exists only for a build
--- with the library missing.
+-- debug line above can never disagree about how a color or an empty string reads. Kept under this
+-- name because the schema layer is where callers look for it.
+--
+-- Resolved once, here at file load, and stashed (library-stack-§4). The TOC loads
+-- libs\LibKa0s\LibKa0s.xml (which pulls in Slash.lua) in the lib block, long before
+-- settings\Schema.lua, so by this line the major is either registered or permanently absent —
+-- re-asking per call could never find it later. It mattered because this sits on the write seam
+-- every panel widget and every `/at set` goes through.
+local SlashLib = LibStub and LibStub("LibKa0s-Slash-1.0", true)
+
+-- The library-absent fallback is deliberately minimal, and stays that way: its only caller is the
+-- [Set] debug line above, which is gated behind NS.State.debug and in that build is handed to a
+-- NS.DebugLog stub that swallows it. Nothing renders these strings to a user, so re-growing the
+-- typed branches here would be a second copy of a formatter this extraction exists to delete
+-- (testing-§8). tests/test_schema.lua pins both arms.
 function NS.FormatSchemaValue(row, v)
-    local lib = LibStub and LibStub("LibKa0s-Slash-1.0", true)
-    if lib then return lib.FormatValue(row, v) end
+    if SlashLib then return SlashLib.FormatValue(row, v) end
     if v == nil then return "nil" end
     return tostring(v)
 end
@@ -250,7 +261,7 @@ function NS.ValidateSchema()
 end
 
 -- The type-aware value parser moved to LibKa0s-Slash-1.0 (`lib.ParseValue`): clamping, the
--- case-sensitive enum check, the 0-1 / 0-255 colour rescale and the nil-plus-reason failure
+-- case-sensitive enum check, the 0-1 / 0-255 color rescale and the nil-plus-reason failure
 -- contract all live there, and settings/Slash.lua hands the library the schema rows to parse
 -- against. Nothing here called it once the dispatcher was extracted, and a second copy of a parser
 -- is precisely the drift the extraction exists to end.

@@ -74,7 +74,7 @@ test("the About page renders one row per verb, through the same formatter as /at
   assertEqual(NS.SlashCommands, NS.COMMANDS, "and the alias still points at the same table")
 end)
 
-test("the About rows carry the help colours, without the chat indent", function()
+test("the About rows carry the help colors, without the chat indent", function()
   -- Decision D3, and the only place in this repo where its visible change is pinned at all: the
   -- panel rows are the gold/white pair `/at help` prints, minus the indent a chat line needs to sit
   -- under a header.
@@ -189,8 +189,8 @@ end)
 -- ── reset / resetall / resetposition ───────────────────────────────────────────────
 
 -- `/at reset` takes a PATH and resets one setting. The page-shaped form this addon used to carry
--- was removed deliberately (a user-visible change, not an extraction artefact), so these describe
--- the new behaviour rather than being retargeted onto it. The capability did not go anywhere: the
+-- was removed deliberately (a user-visible change, not an extraction artifact), so these describe
+-- the new behavior rather than being retargeted onto it. The capability did not go anywhere: the
 -- Bar page's Defaults button still resets that page across every unit, pinned in test_helpers.lua.
 
 test("/at reset with no path prints usage rather than resetting anything", function()
@@ -252,6 +252,20 @@ test("/at resetall really does restore the defaults end to end", function()
   T.mocks.__fireTimers()
 end)
 
+test("/at resetall says the helpers are missing instead of claiming success", function()
+  -- The other half of the guard the case above exercises. On a build where settings/OptionsSetup
+  -- never ran, RestoreAllDefaults is absent and the verb resets nothing -- printing the
+  -- acknowledgement anyway would claim success for work that did not happen. Same rule, same
+  -- shape, as the resetposition verb immediately below.
+  local orig = NS.Helpers.RestoreAllDefaults
+  NS.Helpers.RestoreAllDefaults = nil
+  local out = slash("resetall")
+  NS.Helpers.RestoreAllDefaults = orig
+  assertEqual(joined(out):find("All settings reset to defaults", 1, true), nil,
+    "must NOT acknowledge a reset it could not perform: " .. joined(out))
+  assertTrue(contains(out, "Cannot reset settings"), joined(out))
+end)
+
 test("/at resetposition clears the saved anchor and republishes POSITION", function()
   -- Retargeted (spec §9): position now lives per-unit; the guarantee this pins — clear +
   -- republish exactly once — is unchanged, just against the player unit's dotted path.
@@ -303,11 +317,11 @@ test("/at set rejects a non-numeric value for a number setting", function()
   assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth)
 end)
 
-test("/at set writes a colour from `r g b a` and echoes the STORED value", function()
+test("/at set writes a color from `r g b a` and echoes the STORED value", function()
   local out = slash("set units.player.barColor 0.1 0.2 0.3 0.4")
   local c = NS.GetSetting("units.player.barColor")
   assertTrue(math.abs(c.r - 0.1) < 1e-6 and math.abs(c.a - 0.4) < 1e-6,
-    "the parsed colour was stored")
+    "the parsed color was stored")
   assertTrue(contains(out, "{0.10, 0.20, 0.30, 0.40}"), joined(out))
   NS.Helpers.RestoreDefaults("bar")
   T.mocks.__fireTimers()
@@ -639,7 +653,7 @@ test("/at get does NOT annotate an unmirrored unit, or the player", function()
 end)
 
 test("/at get does NOT annotate the per-unit rows a mirror never covers", function()
-  -- `enabled` and `mirror` carry alwaysPerUnit: they are honoured per-unit even while mirrored,
+  -- `enabled` and `mirror` carry alwaysPerUnit: they are honored per-unit even while mirrored,
   -- so a note on them would be a lie in the other direction.
   NS.db.profile.units.focus.mirror = true
   assertTrue(not contains(slash("get units.focus.enabled"), NOTE))
@@ -672,13 +686,13 @@ test("/at list annotates only the mirrored units' appearance rows", function()
   NS.db.profile.units.target.mirror = true
 end)
 
-test("the mirrored note keeps the Ka0s colour scheme intact and stays subordinate", function()
+test("the mirrored note keeps the Ka0s color scheme intact and stays subordinate", function()
   NS.db.profile.units.focus.mirror = true
   local out = capture(function() NS.Slash:OnSlash("get units.focus.barWidth") end)
   local line = out[1]
-  -- Gold key + white value untouched (slash-commands-§5), note in subordinate grey, no colon.
+  -- Gold key + white value untouched (slash-commands-§5), note in subordinate gray, no colon.
   assertTrue(line:find("|cFFFFFF00units.focus.barWidth|r = |cFFFFFFFF", 1, true) ~= nil, line)
-  assertTrue(line:find("|cff808080(mirrored", 1, true) ~= nil, "the note is grey: " .. line)
+  assertTrue(line:find("|cff808080(mirrored", 1, true) ~= nil, "the note is gray: " .. line)
   assertTrue(stripColor(line):find(":%s*$") == nil, "no trailing colon: " .. line)
 end)
 
@@ -1147,4 +1161,93 @@ test("/at perf dump marks itself reviewed exactly once", function()
   assertTrue(P.__reviewed().dump, "marked")
   assertFalse(P.MarkReviewed("dump"), "and only once")
   perfReset()
+end)
+
+
+-- ── degraded / live dispatcher parity ───────────────────────────────────────
+--
+-- settings/Slash.lua substitutes a stub for LibKa0s-Slash-1.0 when the vendored library is missing,
+-- and that stub carries its own copy of the DISPATCHER: trimmed parsing, verb lowercasing with a
+-- case-preserved rest, the alias map, the unknown-verb fallback. Two dispatchers can drift with
+-- nothing to notice -- the library's suite covers the library, this file covers the live path, and
+-- the degraded cases elsewhere only assert "does not raise".
+--
+-- So these drive the SAME input through both builds and compare the dispatch OUTCOME: which verb
+-- ran, with what rest, and how many lines were printed when no verb ran. Never the formatted
+-- strings -- the degraded rows are deliberately plainer, and the library's formatting is pinned
+-- upstream (testing-§8: an integration suite over our own wiring, not a copy of the library's).
+
+-- A second, library-free environment, built as a load rather than a hand-stub -- same recipe as
+-- tests/test_perf.lua's, which cannot be shared because both are file-local by design. Built once:
+-- nothing below mutates it beyond swapping handlers back and forth.
+local degradedNS, degradedMocks
+local function degradedBuild()
+  if not degradedNS then
+    local Loader     = dofile("tests/_kit/loader.lua")
+    local buildMocks = dofile("tests/wow_mock.lua")
+    Loader.addonName = "AbsorbTracker"
+    degradedMocks, degradedNS = buildMocks(), {}
+    -- libs/ deliberately not loaded, so every LibStub lookup returns nil exactly as it would in an
+    -- install whose libs/LibKa0s folder never arrived.
+    Loader.loadAll(Loader.tocFiles("AbsorbTracker.toc"), degradedNS, degradedMocks)
+    -- Burn the one-shot "the LibKa0s library is missing" banner core/CoreSetup.lua emits on the
+    -- build's FIRST chat line. It is a property of the install, not of the dispatch, so counting it
+    -- would make every outcome below off by one against the live build.
+    local cf = degradedMocks.DEFAULT_CHAT_FRAME
+    local old = rawget(cf, "AddMessage")
+    cf.AddMessage = function() end
+    degradedNS.Slash:OnSlash("")
+    cf.AddMessage = old
+  end
+  return degradedNS, degradedMocks
+end
+
+-- Drive one slash line through `env` with every verb handler replaced by a recorder, and describe
+-- what the dispatcher DID: the verb it reached, the rest it handed over, and the number of chat
+-- lines it printed on its own (help, unknown-verb). Handlers are restored before returning.
+local function outcome(env, envMocks, line)
+  local saved, ran, gotRest = {}, nil, nil
+  for i, entry in ipairs(env.COMMANDS) do
+    saved[i] = entry[3]
+    entry[3] = function(rest) ran, gotRest = entry[1], rest end
+  end
+  local out = {}
+  local cf  = envMocks.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function(_, msg) out[#out + 1] = msg end
+  local ok, err = pcall(function() env.Slash:OnSlash(line) end)
+  cf.AddMessage = old
+  for i, entry in ipairs(env.COMMANDS) do entry[3] = saved[i] end
+  if not ok then error(err) end
+  return ("verb=%s rest=%q lines=%d"):format(tostring(ran), tostring(gotRest), #out)
+end
+
+-- Both builds, one input, one comparison.
+local function assertParity(line, expected)
+  local NS2, mocks2 = degradedBuild()
+  local live     = outcome(NS, T.mocks, line)
+  local degraded = outcome(NS2, mocks2, line)
+  assertEqual(live, expected, "live build, input " .. ("%q"):format(line))
+  assertEqual(degraded, live, "degraded build must dispatch identically, input "
+    .. ("%q"):format(line))
+end
+
+test("parity: both dispatchers fold the verb and preserve the rest's case", function()
+  -- The rule that makes `/at set units.Player.barWidth` work: only the verb is case-insensitive.
+  assertParity("TOGGLE Target", 'verb=toggle rest="Target" lines=0')
+end)
+
+test("parity: both dispatchers resolve the `options` alias to `config`", function()
+  -- The alias map is passed into whichever dispatcher answers, but each applies it itself.
+  assertParity("options", 'verb=config rest="" lines=0')
+end)
+
+test("parity: an unknown verb reaches no handler and prints the same shape in both", function()
+  -- One error line plus the help block (header + one row per verb) in either build.
+  assertParity("nosuchverb", ("verb=nil rest=\"nil\" lines=%d"):format(#NS.COMMANDS + 2))
+end)
+
+test("parity: a bare /at reaches no handler and prints help in both", function()
+  assertParity("", ("verb=nil rest=\"nil\" lines=%d"):format(#NS.COMMANDS + 1))
+  assertParity("   ", ("verb=nil rest=\"nil\" lines=%d"):format(#NS.COMMANDS + 1))
 end)

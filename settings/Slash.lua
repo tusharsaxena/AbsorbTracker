@@ -26,7 +26,7 @@ local SlashLib = LibStub and LibStub("LibKa0s-Slash-1.0", true)
 -- reaches it at CALL time, which is why a forward-declared local is enough.
 local cli
 
--- Help row formatter — gold command + em-dash + white description. The colouring and the spacing
+-- Help row formatter — gold command + em-dash + white description. The coloring and the spacing
 -- are the library's one formatter; the two-space indent belongs to this renderer, because a chat
 -- line sits under a header and a settings-panel label does not.
 local function PrintCmd(cmd, desc)
@@ -42,8 +42,8 @@ end
 -- units.focus.barWidth 400` echoes a confident confirmation while the focus bar does not move,
 -- because it is rendering the player's width. The note says so.
 --
--- Only appearance rows are annotated. `enabled` and `mirror` carry alwaysPerUnit and are honoured
--- per-unit even while mirrored, so a note on them would be a lie. Grey (808080) keeps it visually
+-- Only appearance rows are annotated. `enabled` and `mirror` carry alwaysPerUnit and are honored
+-- per-unit even while mirrored, so a note on them would be a lie. Gray (808080) keeps it visually
 -- subordinate to the gold key / white value of the Ka0s scheme (slash-commands-§5).
 local function MirrorNote(row)
     if row and row.unit and not row.alwaysPerUnit and NS.Units.IsMirrored(row.unit) then
@@ -166,10 +166,15 @@ function runResetAll()
     -- Delegate to the single shared helper so the slash command and the
     -- "Reset All Settings" popup can never diverge — same rows reset,
     -- same position clear + recenter, same panel refresh.
+    -- The acknowledgement lives INSIDE the guard, for the reason runResetPosition spells out
+    -- below: on a load where settings/OptionsSetup.lua never ran there is nothing to delegate to,
+    -- and printing the ack anyway would claim success for work that did not happen.
     if NS.Helpers and NS.Helpers.RestoreAllDefaults then
         NS.Helpers.RestoreAllDefaults()
+        print("All settings reset to defaults")
+    else
+        print("Cannot reset settings \226\128\148 the settings helpers failed to load")
     end
-    print("All settings reset to defaults")
 end
 
 function runResetPosition()
@@ -453,10 +458,10 @@ cli = SlashLib:New({
 
 -- The mirror note is ours, not the library's: it reads NS.Units.IsMirrored and the row's
 -- alwaysPerUnit flag, neither of which a generic dispatcher knows about. The library decides only
--- WHERE an annotation may appear — after the coloured pair, on list/get/set and never on a reset.
+-- WHERE an annotation may appear — after the colored pair, on list/get/set and never on a reset.
 cli:SetRowAnnotator(MirrorNote)
 
---- The command list the About page renders. Same colouring and spacing as `/at help`, without the
+--- The command list the About page renders. Same coloring and spacing as `/at help`, without the
 --- chat indent: each row there is its own label, where a leading indent reads as a mistake.
 function Sl:LandingRows() return cli:LandingRows() end
 

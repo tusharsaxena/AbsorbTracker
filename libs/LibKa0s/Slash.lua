@@ -2,8 +2,8 @@
 --
 -- Four-plus copies across the collection in two different shapes, and the divergence is not
 -- cosmetic: one shape parses values by bare coercion, so `set barWidth 99999` stores 99999 and
--- `set` on a colour prints a table address. This library takes the type-aware shape — clamping,
--- enum validation, colour tuples — because a CLI that silently accepts a value it cannot honour is
+-- `set` on a color prints a table address. This library takes the type-aware shape — clamping,
+-- enum validation, color tuples — because a CLI that silently accepts a value it cannot honor is
 -- worse than one that refuses.
 --
 -- What the host keeps, and why it is not squeamishness: the COMMANDS table itself. A host owns its
@@ -18,7 +18,7 @@ local core = LibStub and LibStub("LibKa0s-Core-1.0", true)
 local NEEDS_CORE = 1
 if not core or (core.MINOR or 0) < NEEDS_CORE then return end   -- no NewLibrary; module absent
 
-local MAJOR, MINOR = "LibKa0s-Slash-1.0", 1
+local MAJOR, MINOR = "LibKa0s-Slash-1.0", 2
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
 
@@ -76,13 +76,26 @@ function lib.FormatKV(path, valueStr)
 end
 
 --- Render a stored value for display, by the row's declared type.
+---
+--- Every branch guards its input through the Core seam BEFORE the value reaches a format. The
+--- invariant that would make that unnecessary, that a stored settings value is never a
+--- combat-protected value, is true of every host today, but it is written down nowhere and
+--- enforced nowhere: a host whose `d.get` returns a derived or live value (an absorb total, a
+--- health fraction) hands us a secret, and a secret RAISES inside `string.format` exactly as it
+--- does inside `table.concat`. Guarding the input rather than the output keeps every rendered
+--- byte of an ordinary value identical.
 function lib.FormatValue(row, v)
   row = row or {}
   if v == nil then return "nil" end
   if row.type == "color" and type(v) == "table" then
-    return ("{%.2f, %.2f, %.2f, %.2f}"):format(v.r or 0, v.g or 0, v.b or 0, v.a or 1)
+    -- The table itself is never concat-safe; it is the four COMPONENTS that reach %.2f.
+    local r, g, b, a = v.r or 0, v.g or 0, v.b or 0, v.a or 1
+    if not (core.IsConcatSafe(r) and core.IsConcatSafe(g)
+            and core.IsConcatSafe(b) and core.IsConcatSafe(a)) then return core.SECRET end
+    return ("{%.2f, %.2f, %.2f, %.2f}"):format(r, g, b, a)
   end
   if row.type == "number" then
+    if not core.IsConcatSafe(v) then return core.SECRET end
     if row.fmt then return row.fmt:format(v) end
     return tostring(v)
   end
@@ -140,7 +153,7 @@ local function parseColor(args)
   local r, g, b = tonumber(args[1]), tonumber(args[2]), tonumber(args[3])
   local a = tonumber(args[4]) or 1
   if not (r and g and b) then return nil, lib.STRINGS.ERR_COLOR end
-  -- Rescaled JOINTLY, not per channel: "255 128 0" is one colour expressed in one scale, and
+  -- Rescaled JOINTLY, not per channel: "255 128 0" is one color expressed in one scale, and
   -- dividing only the channels that happen to exceed 1 would mangle the others.
   if r > 1 or g > 1 or b > 1 then r, g, b = r / 255, g / 255, b / 255 end
   if a > 1 then a = a / 255 end
@@ -241,7 +254,7 @@ function lib:New(d)
   --- The chat form: indented, because each row sits under a header.
   function Sl:HelpRows() return rows("  ") end
 
-  --- The panel form: identical colours and spacing, no indent. A landing page renders each row as
+  --- The panel form: identical colors and spacing, no indent. A landing page renders each row as
   --- its own label, where a leading indent reads as a mistake rather than as structure.
   function Sl:LandingRows() return rows("") end
 
@@ -368,7 +381,7 @@ function lib:New(d)
     if raw == "" then return self:PrintHelp() end
 
     -- Only the verb is lowercased. `rest` keeps its case because schema paths are case-sensitive,
-    -- and its internal spacing because a colour is several tokens.
+    -- and its internal spacing because a color is several tokens.
     local cmd, rest = raw:match("^(%S+)%s*(.*)$")
     cmd  = (cmd or ""):lower()
     rest = rest or ""

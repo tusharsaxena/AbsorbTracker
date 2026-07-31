@@ -24,7 +24,7 @@ local core = LibStub and LibStub("LibKa0s-Core-1.0", true)
 local NEEDS_CORE = 1
 if not core or (core.MINOR or 0) < NEEDS_CORE then return end   -- no NewLibrary; module absent
 
-local MAJOR, MINOR = "LibKa0s-DebugLog-1.0", 1
+local MAJOR, MINOR = "LibKa0s-DebugLog-1.0", 2
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
 
@@ -43,7 +43,17 @@ lib.MAX_BUFFER = 500
 -- Re-exported rather than left for the host to reach into Core for. A host that draws a close
 -- button on its own windows should get the same one its console wears, from one factory — three
 -- copies of "the addon's close button" is exactly how two windows that should look identical drift.
-lib.MakeCloseButton = core.MakeCloseButton
+--
+-- A forwarder rather than `lib.MakeCloseButton = core.MakeCloseButton`, and the indirection is the
+-- point: LibStub upgrades a major IN PLACE, so the `core` TABLE stashed above survives a Core minor
+-- bump while the FUNCTION on it is replaced. A host carrying a newer Core.lua beside an unchanged
+-- DebugLog.lua returns early at the guard and never re-snapshots — so a copied value would leave this
+-- console drawing the older Core's button while lib.MODULES.Core truthfully reports the newer minor.
+-- Resolving through the table at CALL time keeps the two halves honest, and costs one call frame
+-- once per window built. Same shape PerfPanel.lua already uses.
+function lib.MakeCloseButton(parent, onClick)
+  return core.MakeCloseButton(parent, onClick)
+end
 
 -- ── strings ────────────────────────────────────────────────────────────────────────────────
 --
@@ -79,14 +89,14 @@ lib.STRINGS = {
 -- rendered line that depends on which instance rendered it.
 
 --- Plain-text line: "<ts> | [<tag>] <msg>". This is what the buffer holds and what the copy window
---- mirrors — clean text, tag rendered verbatim, no colour codes to strip.
+--- mirrors — clean text, tag rendered verbatim, no color codes to strip.
 function lib.FormatPlain(ts, tag, msg)
   return ("%s | [%s] %s"):format(tostring(ts), tostring(tag or ""), tostring(msg))
 end
 
---- Colour-coded line for the console view: timestamp muted steel-blue (6f8faf), [tag] muted
+--- Color-coded line for the console view: timestamp muted steel-blue (6f8faf), [tag] muted
 --- tan/gold (c9a66b); the separator and the message stay default white. The `||` renders ONE
---- literal pipe inside a colour-coded string — it is an escape, not a typo, and "simplifying" it
+--- literal pipe inside a color-coded string — it is an escape, not a typo, and "simplifying" it
 --- to a single pipe silently breaks the separator.
 function lib.FormatColored(ts, tag, msg)
   return ("|cff6f8faf%s|r || |cffc9a66b[%s]|r %s"):format(
@@ -181,7 +191,7 @@ function lib:New(d)
     return lib.STRINGS[key]
   end
 
-  -- The colour arrays are guarded separately from the backdrop table. `skin` is documented as
+  -- The color arrays are guarded separately from the backdrop table. `skin` is documented as
   -- "overrides Core.SKIN", and the obvious reading of that is a plain WoW backdrop table — which
   -- has no `bg` or `border`, those being Core's own additions. Indexing them blind would raise
   -- midway through building a window that is not yet hidden or Esc-wired, leaving a visible console
@@ -257,8 +267,8 @@ function lib:New(d)
     local copyBtn = makeTextButton(titleBar, D:Text("COPY"), 40, function() D:ShowCopy() end)
     copyBtn:SetPoint("RIGHT", titleBar, "RIGHT", -78, 0)
 
-    -- The header toggle. OnLeave restores the resting colour by re-running RefreshHeader, so the
-    -- label's colour is always the flag's colour rather than whatever the last hover left behind.
+    -- The header toggle. OnLeave restores the resting color by re-running RefreshHeader, so the
+    -- label's color is always the flag's color rather than whatever the last hover left behind.
     local toggleBtn = CreateFrame("Button", nil, titleBar)
     toggleBtn:SetSize(80, 18)
     toggleBtn:SetPoint("LEFT", titleBar, "LEFT", 8, 0)
@@ -405,6 +415,11 @@ function lib:New(d)
   --- Append one line. UNGATED on purpose: the enable seam's own bracket lines and a host's perf
   --- output both have to land whatever the flag says. The gate lives in D.Debug.
   function D:Add(tag, msg)
+    -- Through the seam even though the two formatters end in string.format rather than
+    -- table.concat: a WoW secret raises inside format just as it does inside concat, and Add is
+    -- PUBLIC and ungated — it is the path a host's perf output and the enable brackets take. The
+    -- gated sink already guards its varargs; a caller reaching Add directly got no such cover.
+    msg = safeToString(msg)
     local f = EnsureFrame()
     local ts = date("%H:%M:%S")
     if f and f.log then f.log:AddMessage(lib.FormatColored(ts, tag, msg)) end
@@ -523,7 +538,7 @@ function lib:New(d)
     on = not not on
     d.setEnabled(on)
     D:RefreshHeader()
-    -- Colour-coded chat ack: the state word is ON green (40ff40) / OFF red (ff4040), mirroring the
+    -- Color-coded chat ack: the state word is ON green (40ff40) / OFF red (ff4040), mirroring the
     -- title-bar toggle so the flag reads identically in chat and on the console header.
     local state = on and ("|cff40ff40" .. D:Text("STATE_ON") .. "|r")
       or ("|cffff4040" .. D:Text("STATE_OFF") .. "|r")

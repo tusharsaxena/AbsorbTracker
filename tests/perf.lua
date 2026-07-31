@@ -82,7 +82,7 @@ mocks.__unitExists.focus  = true
 
 local apiCalls = 0
 
--- One proxy per underlying frame, memoised. The memo is not an optimisation — it is required for
+-- One proxy per underlying frame, memoized. The memo is not an optimization — it is required for
 -- correctness under the mock, where `statusBar:CreateFontString(...)` returns the PARENT frame, so
 -- `bar.valueText` and `bar.statusBar` are the same table. Wrapping them independently would hand
 -- one of them the raw frame and silently drop every call made through it, which is exactly the bug

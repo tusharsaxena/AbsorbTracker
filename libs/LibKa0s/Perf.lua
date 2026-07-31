@@ -22,7 +22,7 @@ local core = LibStub and LibStub("LibKa0s-Core-1.0", true)
 local NEEDS_CORE = 1
 if not core or (core.MINOR or 0) < NEEDS_CORE then return end   -- no NewLibrary; module absent
 
-local MAJOR, MINOR = "LibKa0s-Perf-1.0", 2
+local MAJOR, MINOR = "LibKa0s-Perf-1.0", 3
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
 
@@ -127,8 +127,8 @@ lib.STRINGS = {
 -- That gate exists to keep the addon quiet while idle, and a perf run is explicit user action —
 -- none of this executes unless someone typed the host's perf command.
 --
--- The console form is stripped of colour escapes: the Copy window mirrors the buffer verbatim, and
--- colour codes in a log destined for analysis are noise. Stateless, so these live above :New()
+-- The console form is stripped of color escapes: the Copy window mirrors the buffer verbatim, and
+-- color codes in a log destined for analysis are noise. Stateless, so these live above :New()
 -- alongside the JSON encoder.
 
 local function stripColors(s)
@@ -344,7 +344,7 @@ function lib:New(descriptor)
         start = P.run and "done" or "ready",
         measureA = a, measureB = b, finish = fin,
         report = review("report"), dump = review("dump"),
-        -- Its own state, not "ready": it sits outside the linear progression and the panel colours
+        -- Its own state, not "ready": it sits outside the linear progression and the panel colors
         -- it separately, so it never reads as the next step to take. Only offered while there is
         -- actually a run to abandon — after `finish` the run is saved and there is nothing left to
         -- cancel, and a live-looking button that discards nothing is just a way to worry someone.
@@ -781,7 +781,7 @@ function lib:New(descriptor)
   --
   -- The lib MUST NOT register a slash command of its own — the Ka0s standard mandates schema-driven
   -- dispatch through each addon's own COMMANDS table, and third-party hosts do not use that pattern
-  -- at all. What the lib supplies is behaviour and help text; the host owns its slash surface and
+  -- at all. What the lib supplies is behavior and help text; the host owns its slash surface and
   -- decides how `perf` is reached. OnCommand returns lines rather than printing them, which is also
   -- what lets a panel click and a typed command run the identical code path.
 

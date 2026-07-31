@@ -48,7 +48,7 @@ end)
 
 -- ── Checkbox ───────────────────────────────────────────────────────────────────────
 
-test("a bool row renders a CheckBox labelled from the schema", function()
+test("a bool row renders a CheckBox labeled from the schema", function()
   local cb, row = render("showOnlyInCombat")
   assertEqual(cb.type, "CheckBox")
   assertEqual(cb.labelText, row.label)
@@ -246,7 +246,7 @@ test("a color row renders a ColorPicker seeded from the stored rgba", function()
   end)
 end)
 
-test("a color picker substitutes 1s for a missing/corrupt stored colour", function()
+test("a color picker substitutes 1s for a missing/corrupt stored color", function()
   local saved = NS.db.profile.units.player.barColor
   NS.db.profile.units.player.barColor = "not a table"
   local cp = render("units.player.barColor")
@@ -255,17 +255,17 @@ test("a color picker substitutes 1s for a missing/corrupt stored colour", functi
   assertEqual(cp.color.a, 1)
 end)
 
-test("disabledIf greys the swatch out while its sibling toggle is on", function()
+test("disabledIf grays the swatch out while its sibling toggle is on", function()
   withSetting("units.player.useClassColorBar", true, function()
-    assertTrue(render("units.player.barColor").disabled, "class colour on -> swatch disabled")
+    assertTrue(render("units.player.barColor").disabled, "class color on -> swatch disabled")
   end)
   withSetting("units.player.useClassColorBar", false, function()
-    assertFalse(render("units.player.barColor").disabled, "class colour off -> swatch live")
+    assertFalse(render("units.player.barColor").disabled, "class color off -> swatch live")
   end)
 end)
 
 test("the refresher re-evaluates disabledIf, so the pair tracks on the same frame", function()
-  -- This is what makes "Use Class Color" grey out its partner swatch immediately: set() calls
+  -- This is what makes "Use Class Color" gray out its partner swatch immediately: set() calls
   -- RefreshAllPanels, which re-runs this refresher.
   withSetting("units.player.useClassColorBar", false, function()
     local cp, _, ctx = render("units.player.barColor")
@@ -276,13 +276,13 @@ test("the refresher re-evaluates disabledIf, so the pair tracks on the same fram
   end)
 end)
 
-test("OnValueConfirmed commits the colour immediately (cancel must not wait on the throttle)", function()
+test("OnValueConfirmed commits the color immediately (cancel must not wait on the throttle)", function()
   local cp = render("units.player.barColor")
   T.mocks.__fireTimers()
   cp:__fire("OnValueConfirmed", 0.5, 0.6, 0.7, 0.8)
   local c = NS.GetSetting("units.player.barColor")
   assertTrue(math.abs(c.r - 0.5) < 1e-6 and math.abs(c.a - 0.8) < 1e-6,
-    "the confirmed colour is stored without a timer round-trip")
+    "the confirmed color is stored without a timer round-trip")
   NS.ApplyDefault(NS.FindSchemaRow("units.player.barColor"))
   T.mocks.__fireTimers()
 end)
@@ -485,7 +485,14 @@ test("a pairWith partner is attached to the named row and is one-shot", function
   }
   Helpers.RenderSchema(ctx, "general", nil, partner)
   assertEqual(made, 1, "the partner was built once")
-  assertEqual(partner["units.focus.enabled"], nil, "and the entry was consumed so it cannot repeat")
+  -- One-shot is per RENDER, and the bookkeeping is the library's: LibKa0s-Options-1.0 used to
+  -- implement it by writing nil into THIS table, which silently lost the pairing on any second
+  -- render -- what a per-unit page does on every unit switch. The caller's table is now left
+  -- alone, so a host may hoist it to a file-level constant.
+  assertTrue(partner["units.focus.enabled"] ~= nil, "the caller's table is not written to")
+  local ctx2 = newCtx()
+  Helpers.RenderSchema(ctx2, "general", nil, partner)
+  assertEqual(made, 2, "and a second render pairs it again rather than dropping it")
 
   -- It must land as the SECOND widget of that row, not on a line of its own.
   local lockedLabel = NS.FindSchemaRow("units.focus.enabled").label

@@ -10,7 +10,7 @@ if not lib then return end
 -- Core is guaranteed present here: Perf.lua refuses to register without it, so reaching this line
 -- at all means the lookup above already succeeded on a Core-backed probe.
 local core = LibStub("LibKa0s-Core-1.0", true)
-local PANEL_MINOR = 2
+local PANEL_MINOR = 3
 -- Paired on the PROBE's minor as well as the panel's own. The panel counter alone is not enough:
 -- two vendored copies can ship the same panel minor over different Perf.lua minors, and then the
 -- higher probe wins the LibStub race while the first-loaded copy's panel stays attached to it —
@@ -36,8 +36,8 @@ local CMD_PAD   = 10           -- column 3: slash command, right-aligned
 local TITLE_H = 24
 local PAD = 8
 
--- Per-state colour, used for both the row's text and its status dot. `busy` deliberately shares the
--- gold of an interactive control: the step IS happening, and greying it out would read as "nothing
+-- Per-state color, used for both the row's text and its status dot. `busy` deliberately shares the
+-- gold of an interactive control: the step IS happening, and graying it out would read as "nothing
 -- is going on" during the one phase where the user most needs to know the addon is recording.
 local COLORS = {
     done   = { 0.30, 0.85, 0.30 },
@@ -113,7 +113,7 @@ function lib.__AttachPanel(P, d, tr, runCommand)
 
     -- Status dot drawn with SetColorTexture rather than a glyph or an art file. A text tick (U+2713)
     -- rendered as tofu in the default font, and any Interface\\... path is a guess that fails
-    -- silently as a green box. A solid colour texture has no dependency and cannot not render.
+    -- silently as a green box. A solid color texture has no dependency and cannot not render.
     local dot = b:CreateTexture(nil, "ARTWORK")
     dot:SetSize(DOT, DOT)
     dot:SetPoint("LEFT", b, "LEFT", DOT_X, 0)
@@ -214,7 +214,7 @@ function lib.__AttachPanel(P, d, tr, runCommand)
         b.text:SetText(step.label)
         setColor(b.text, state)
         -- The dot carries the state at a glance: green behind you, gold on the step that is
-        -- actually happening, grey ahead. Dimmed while locked so the eye skips it.
+        -- actually happening, gray ahead. Dimmed while locked so the eye skips it.
         local c = COLORS[state] or COLORS.locked
         if b.dot.SetColorTexture then
           b.dot:SetColorTexture(c[1], c[2], c[3], state == "locked" and 0.35 or 1)

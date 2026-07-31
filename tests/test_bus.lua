@@ -8,11 +8,11 @@ local test, assertEqual, assertTrue, assertFalse =
 -- against the harness's (message, target)-keyed AceEvent mock (tests/wow_mock.lua),
 -- which fans a SendMessage out to every registered target exactly like the live lib.
 
-test("bus, NewBusTarget, and the message catalogue are published", function()
+test("bus, NewBusTarget, and the message catalog are published", function()
   assertTrue(NS.bus ~= nil, "NS.bus published")
   assertTrue(type(NS.bus.SendMessage) == "function", "NS.bus can SendMessage")
   assertTrue(type(NS.NewBusTarget) == "function", "NS.NewBusTarget published")
-  assertTrue(NS.MSG ~= nil, "NS.MSG catalogue published")
+  assertTrue(NS.MSG ~= nil, "NS.MSG catalog published")
   assertEqual(NS.MSG.REPAINT,    "Ka0s_AbsorbTracker_RepaintRequested")
   assertEqual(NS.MSG.APPEARANCE, "Ka0s_AbsorbTracker_AppearanceChanged")
   assertEqual(NS.MSG.VISIBILITY, "Ka0s_AbsorbTracker_VisibilityChanged")
@@ -59,7 +59,7 @@ test("a message payload reaches the receiver after the message name", function()
   target:UnregisterMessage("AT_TEST_Payload")
 end)
 
--- Integration: the production catalogue routes to the right consumer.
+-- Integration: the production catalog routes to the right consumer.
 test("REPAINT routes through Timer to one coalesced repaint", function()
   local mocks = T.mocks
   mocks.__timers = {}

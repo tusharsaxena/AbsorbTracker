@@ -62,8 +62,8 @@ User-facing reference: [../README.md](../README.md). Subsystems + invariants:
   protected; calling it during combat taints the panel for the rest of the session.
   `NS.OpenOptionsPanel` (`settings/OptionsSetup.lua`) is a one-line delegate to
   `LibKa0s-Options-1.0`'s `O.OpenOptionsPanel` (`libs/LibKa0s/Options.lua`), which **refuses**
-  while `InCombatLockdown()` is true — prints a grey `[AT]` notice and returns, never
-  deferring/replaying on `PLAYER_REGEN_ENABLED`. The gate is the library's; the behaviour is
+  while `InCombatLockdown()` is true — prints a gray `[AT]` notice and returns, never
+  deferring/replaying on `PLAYER_REGEN_ENABLED`. The gate is the library's; the behavior is
   unchanged.
 - **`NS.Helpers` IS the `LibKa0s-Options-1.0` instance** (`settings/OptionsSetup.lua`), not a table
   decorated from a copy of it. `settings/UnitPanel.lua` and `settings/About.lua` hang their members
@@ -144,7 +144,7 @@ modules subscribe on their own `NS.NewBusTarget()` targets (architecture-§4; se
   in `core/CoreSetup.lua` (including the degraded load with the library absent), the
   `LibKa0s-DebugLog-1.0` wiring in `core/DebugLogSetup.lua`, the full `/at`
   surface including `/at profile`, repaint-throttle coalescing, combat-visibility, message-bus
-  dispatch, the `core/Data.lua` settings/media/colour seam, the `modules/Display.lua` paint path,
+  dispatch, the `core/Data.lua` settings/media/color seam, the `modules/Display.lua` paint path,
   the `LibKa0s-Options-1.0` wiring in `settings/OptionsSetup.lua` (including the load-completing
   degraded stub), the per-unit page in `settings/UnitPanel.lua`, the schema → AceGUI widget layer,
   and `core/Units.lua`

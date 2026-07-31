@@ -19,7 +19,7 @@ return function()
   M.__maxHealth = {}
   M.UnitHealthMax = function(unit) return M.__maxHealth[unit] or 100 end
 
-  -- Bar text formatting and the class-coloured bar option.
+  -- Bar text formatting and the class-colored bar option.
   M.AbbreviateNumbers = function(n) return tostring(n) end
   M.C_ClassColor = { GetClassColor = function() return { r = 1, g = 1, b = 1 } end }
 

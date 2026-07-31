@@ -72,7 +72,9 @@ Kit.run{
     "test_data",
     "test_display",
     "test_helpers",
+    "test_optionssetup",
     "test_slashcmds",
     "test_widgets",
+    "test_docs",
   },
 }

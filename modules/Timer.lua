@@ -12,7 +12,7 @@ local pending
 
 -- Hoisted to module scope so RequestRepaint reuses ONE callback instead of allocating a fresh
 -- closure on every arm (up to ~1/throttleWindow ≈ 10/s in sustained combat). Reduces per-repaint
--- garbage; behaviour is identical. (AceTimer still allocates its own timer table per schedule
+-- garbage; behavior is identical. (AceTimer still allocates its own timer table per schedule
 -- internally — that's inside the lib and bounded by the coalescing guard below.)
 local function doRepaint()
     -- Clear `pending` BEFORE painting (not after): if UpdateAbsorbBar throws (e.g. the combat

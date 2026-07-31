@@ -4,7 +4,7 @@ How the addon registers its multi-page Blizzard Settings UI. The schema-driven c
 
 ## Source layout
 
-**The shell is not this addon's code any more.** `LibKa0s-Options-1.0` — three vendored files, one major — owns the canvas panel factory, the unified header, the page registry, the widget makers, the two-column flow engine and the always-visible scrollbar patch. What stays here is the part that is ours: where a value lives, which rows belong to which page, what a colour looks like on disk, and the two pieces that did not generalise.
+**The shell is not this addon's code any more.** `LibKa0s-Options-1.0` — three vendored files, one major — owns the canvas panel factory, the unified header, the page registry, the widget makers, the two-column flow engine and the always-visible scrollbar patch. What stays here is the part that is ours: where a value lives, which rows belong to which page, what a color looks like on disk, and the two pieces that did not generalize.
 
 | File | Role |
 |------|------|
@@ -12,7 +12,7 @@ How the addon registers its multi-page Blizzard Settings UI. The schema-driven c
 | `libs/LibKa0s/OptionsWidgets.lua` | `RenderField` (dispatches by `row.type`) + `RenderRows` (two-column layout over an explicit row list, skipping `skipRender` rows) + the thin `RenderSchema(ctx, pageKey, ...)` wrapper + the five widget makers (CheckBox / Slider / Dropdown / EditBox / ColorPicker) + `Section` / `AddSpacer` / `AttachTooltip` / `InlineButtonPair` / `SessionCheckbox`. |
 | `libs/LibKa0s/OptionsScroll.lua` | `PatchAlwaysShowScrollbar` — the always-visible scrollbar override. |
 | `settings/OptionsSetup.lua` | The descriptor, and the degradation stub. Sets `NS.PARENT_TITLE`, builds `NS.Helpers = lib:New(descriptor)`, and publishes the four thin wrappers `NS.RegisterOptionsPage` / `NS.CreateOptionsPanel` / `NS.OpenOptionsPanel` / `NS.RefreshOptionsPanel`. |
-| `settings/UnitPanel.lua` | The two pieces that did not generalise: `Helpers.RenderUnitPanel(ctx, pageKey)` (Unit dropdown + mirror header for Bar/Border/Font, full rebuild per call) and `Helpers.ResetAllPositions()`. |
+| `settings/UnitPanel.lua` | The two pieces that did not generalize: `Helpers.RenderUnitPanel(ctx, pageKey)` (Unit dropdown + mirror header for Bar/Border/Font, full rebuild per call) and `Helpers.ResetAllPositions()`. |
 | `settings/About.lua` | `Helpers.BuildMainContent` — top-level "Ka0s Absorb Tracker" page (logo + Notes + slash command list). |
 
 `NS.Helpers` **is** the library instance, not a table decorated from a copy of it. `settings/UnitPanel.lua` and `settings/About.lua` begin with `local addonName, NS = ...` then `local Helpers = NS.Helpers` and hang their members on that same table, so a page file calls `H.RenderUnitPanel` and `H.RenderSchema` without knowing or caring which side owns which. That identity is deliberate twice over: decoration only works because the library's own members live on the table being decorated, and a test that swaps a member out to spy on it (`tests/test_helpers.lua` does exactly that with `ResetAllPositions`) is swapping the one the library's own callers see.
@@ -31,11 +31,11 @@ TOC order under `# Settings` is `settings/Schema.lua` → `Slash.lua` → `Optio
 | `rowsForPage(pageKey, filter)` / `allRows` | `NS.SchemaForPage` and `NS.Schema`. `filter` is `ctx.unit`, passed through uninterpreted — that is what makes a per-unit page render only the selected unit's rows while General (`ctx.unit` nil) gets every unit's. |
 | `skipRestoreAll` | Skips `row.page == "profiles"`: those rows are AceDBOptions-supplied and resetting them would delete user data, which is not what "restore defaults" means to anyone. |
 | `afterRestoreAll` | `Helpers.ResetAllPositions` — `position` is written by dragging, not by a schema row, so `ApplyDefault` never touches it and a target bar dragged off-screen would survive a Reset All. |
-| `scheduleTimer` | `NS.addon:ScheduleTimer` (Ka0s standard §3.1, not a raw `C_Timer`), backing the colour picker's 50 ms drag throttle. The library takes it as a descriptor field because embedding AceTimer would be its second dependency-budget breach. |
+| `scheduleTimer` | `NS.addon:ScheduleTimer` (Ka0s standard §3.1, not a raw `C_Timer`), backing the color picker's 50 ms drag throttle. The library takes it as a descriptor field because embedding AceTimer would be its second dependency-budget breach. |
 | `getLSM` / `validate` | `NS.GetLSM` and `NS.ValidateSchema`. |
 | `onAceGUI` | `function(AceGUI) NS.AceGUI = AceGUI end` — see below. |
 | `buildMain` | Forwards to `NS.Helpers.BuildMainContent`, resolved at call time because `settings/About.lua` loads *after* `OptionsSetup.lua`. |
-| `colorDecode` / `colorEncode` | The `{r=, g=, b=, a=}` named-key shape `core/Data.lua`'s colour resolvers read. Written out rather than left to the library's identical default, because the shape is a real contract with the rest of the addon and a silent default is a poor place for it to live. |
+| `colorDecode` / `colorEncode` | The `{r=, g=, b=, a=}` named-key shape `core/Data.lua`'s color resolvers read. Written out rather than left to the library's identical default, because the shape is a real contract with the rest of the addon and a silent default is a poor place for it to live. |
 
 ### The `NS.AceGUI` upvalue
 
@@ -130,7 +130,7 @@ end)
 
 ## `Helpers.RenderUnitPanel(ctx, pageKey)` — Bar / Border / Font
 
-The per-unit page renderer, and one of the two things `settings/UnitPanel.lua` keeps. It did not generalise: it reads `NS.Units` and the mirror partition, which no other Ka0s addon has. Everything it stands on — `ClearScroll`, `EnsureScroll`, `RenderRows`, `AttachTooltip` — is the library's, reached through the same `NS.Helpers` table.
+The per-unit page renderer, and one of the two things `settings/UnitPanel.lua` keeps. It did not generalize: it reads `NS.Units` and the mirror partition, which no other Ka0s addon has. Everything it stands on — `ClearScroll`, `EnsureScroll`, `RenderRows`, `AttachTooltip` — is the library's, reached through the same `NS.Helpers` table.
 
 On every call (first `OnShow`, a unit-dropdown switch, a mirror-checkbox toggle, or a Copy click) it does a **full rebuild**: `Helpers.ClearScroll(ctx)` releases every AceGUI child and resets the section-heading tracker + `ctx.refreshers`, then:
 
@@ -187,11 +187,11 @@ Each row dispatches to a maker by `row.type`:
 | `bool` | `CheckBox` | Reads and writes the stored value directly. |
 | `number` | `Slider` | Snaps to `step` on `OnMouseUp`. |
 | `string` | `Dropdown` (or `LSM30_Statusbar` / `_Border` / `_Font` when `dialogControl` is set and the LSM widget is loaded) | Falls back to plain `Dropdown` if the LSM widget didn't load. |
-| `color` | `ColorPicker` | Honors `hasAlpha`; greys out when `disabledIf`'s sibling toggle is on. |
+| `color` | `ColorPicker` | Honors `hasAlpha`; grays out when `disabledIf`'s sibling toggle is on. |
 
 The library has a fifth maker — `EditBox`, selected by `dialogControl = "EditBox"` on a string row, committing on `OnEnterPressed` only. No schema row in this addon uses it.
 
-Each maker reads via `NS.GetSetting(row.path)` and writes via `NS.SetByPath(row.path, value)` — the documented single-write seam (`SetSetting` + `fireOnChange` in one call; see [schema.md](./schema.md)). Every maker also registers a **refresher closure** in `ctx.refreshers`. The closure re-reads the value and pushes it back into the widget (via `widget:SetValue` / `SetColor`, which AceGUI does NOT fire `OnValueChanged` for — so no recursion). After every widget write, `Helpers.RefreshAllPanels()` runs every refresher on every panel ctx, so paired controls re-sync immediately (e.g. flipping `useClassColorBar` greys the `barColor` picker on the same frame).
+Each maker reads via `NS.GetSetting(row.path)` and writes via `NS.SetByPath(row.path, value)` — the documented single-write seam (`SetSetting` + `fireOnChange` in one call; see [schema.md](./schema.md)). Every maker also registers a **refresher closure** in `ctx.refreshers`. The closure re-reads the value and pushes it back into the widget (via `widget:SetValue` / `SetColor`, which AceGUI does NOT fire `OnValueChanged` for — so no recursion). After every widget write, `Helpers.RefreshAllPanels()` runs every refresher on every panel ctx, so paired controls re-sync immediately (e.g. flipping `useClassColorBar` grays the `barColor` picker on the same frame).
 
 Tooltips on every widget go through `Helpers.AttachTooltip`, which `SetCallback`s `OnEnter` / `OnLeave` (or `HookScript`s them on a plain Blizzard frame) to drive `GameTooltip` anchored on `widget.frame`. Label = `row.label`, body = `row.desc`.
 
@@ -203,7 +203,7 @@ The throttle is a single re-armed **AceTimer** one-shot — `timer = NS.addon:Sc
 
 ## Always-visible scrollbar
 
-`Helpers.PatchAlwaysShowScrollbar(scroll)` (in `libs/LibKa0s/OptionsScroll.lua`, called from `Helpers.EnsureScroll` right after the AceGUI `ScrollFrame` is created) rebinds the AceGUI `ScrollFrame`'s `FixScroll` / `MoveScroll` / `OnRelease` so the scrollbar never auto-hides. Short pages (General) keep the same right-edge gutter as long pages (Bar) — the thumb just greys out (vertex color `0.5,0.5,0.5,0.6`) and locks at value 0 when content fits the viewport. The patch restores stock behavior on widget release so the AceGUI pool returns to a clean state for the next acquirer.
+`Helpers.PatchAlwaysShowScrollbar(scroll)` (in `libs/LibKa0s/OptionsScroll.lua`, called from `Helpers.EnsureScroll` right after the AceGUI `ScrollFrame` is created) rebinds the AceGUI `ScrollFrame`'s `FixScroll` / `MoveScroll` / `OnRelease` so the scrollbar never auto-hides. Short pages (General) keep the same right-edge gutter as long pages (Bar) — the thumb just grays out (vertex color `0.5,0.5,0.5,0.6`) and locks at value 0 when content fits the viewport. The patch restores stock behavior on widget release so the AceGUI pool returns to a clean state for the next acquirer.
 
 ## Profile change refresh
 
@@ -213,12 +213,12 @@ The same `RefreshAllPanels` runs after every `/at set`, `/at reset`, and `/at re
 
 ## `OpenOptionsPanel` and the combat-lockdown gate
 
-`NS.OpenOptionsPanel` (`settings/OptionsSetup.lua`) is a one-line delegate to `O.OpenOptionsPanel` in `libs/LibKa0s/Options.lua`. The gate is the library's, and the behaviour is unchanged from when this addon owned it:
+`NS.OpenOptionsPanel` (`settings/OptionsSetup.lua`) is a one-line delegate to `O.OpenOptionsPanel` in `libs/LibKa0s/Options.lua`. The gate is the library's, and the behavior is unchanged from when this addon owned it:
 
 1. Under `InCombatLockdown()` — emit a `Cfg` debug line, print `lib.STRINGS.COMBAT_REFUSED`, return. Nothing else runs.
 2. Otherwise — guard `Settings and Settings.OpenToCategory` and the captured `mainCategoryID`, then `Settings.OpenToCategory(mainCategoryID)` followed by `expandMainCategory()`.
 
-`Settings.OpenToCategory` is part of Blizzard's protected Settings API. Calling it during combat would taint the panel — even after combat ends, the tainted panel can refuse to open or break unrelated UI. Per Ka0s standard options-ui-§2 the gate **refuses** rather than defers: it prints a single grey, `[AT]`-tagged notice (canonical text *"cannot open settings during combat — Blizzard's category-switch is protected"*, grey hex `aaaaaa`) and returns, never touching the protected category-switch under lockdown. It does **not** defer-and-replay — `addon:OnLeaveCombat` (`core/AbsorbTracker.lua`) only re-applies visibility and repaints now, with no queued open to replay — because a panel that auto-opens the instant combat ends steals focus during post-pull recovery; the user re-runs `/at config` when ready. The gate lives inside `OpenOptionsPanel` (not just the slash dispatcher), so `/run` scripts and any internal caller are refused too. The notice reaches chat through the descriptor's `print` hook, which routes to `NS.Print`, so it still carries the cyan `[AT]` prefix.
+`Settings.OpenToCategory` is part of Blizzard's protected Settings API. Calling it during combat would taint the panel — even after combat ends, the tainted panel can refuse to open or break unrelated UI. Per Ka0s standard options-ui-§2 the gate **refuses** rather than defers: it prints a single gray, `[AT]`-tagged notice (canonical text *"cannot open settings during combat — Blizzard's category-switch is protected"*, gray hex `aaaaaa`) and returns, never touching the protected category-switch under lockdown. It does **not** defer-and-replay — `addon:OnLeaveCombat` (`core/AbsorbTracker.lua`) only re-applies visibility and repaints now, with no queued open to replay — because a panel that auto-opens the instant combat ends steals focus during post-pull recovery; the user re-runs `/at config` when ready. The gate lives inside `OpenOptionsPanel` (not just the slash dispatcher), so `/run` scripts and any internal caller are refused too. The notice reaches chat through the descriptor's `print` hook, which routes to `NS.Print`, so it still carries the cyan `[AT]` prefix.
 
 `/at config` (dispatched through `NS.COMMANDS` in `settings/Slash.lua`) always opens the **parent** category (the about page) and then calls `expandMainCategory()` to expand the Blizzard Settings left-tree entry so every sub-page is visible. `expandMainCategory` walks `SettingsPanel:GetCategoryList():GetCategoryEntry(mainCategory):SetExpanded(true)` — `SettingsPanel` internals are private API, so the whole call is wrapped in `pcall`; if any of those calls disappears in a future patch, the panel still opens, just without the tree-expansion side effect.
 

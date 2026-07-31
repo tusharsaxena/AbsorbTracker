@@ -4,7 +4,7 @@ local test, assertEqual, assertTrue, assertFalse =
   T.test, T.assertEqual, T.assertTrue, T.assertFalse
 
 -- core/Data.lua — the AceDB read/write seam, the LibSharedMedia fetchers and the
--- class-colour-aware colour resolvers. LSM is absent headlessly (the addon treats it as a soft
+-- class-color-aware color resolvers. LSM is absent headlessly (the addon treats it as a soft
 -- optional), so the fallback branch is what runs by default; `withLSM` swaps a stub in through
 -- the mock LibStub so the resolved branch is exercised too.
 
@@ -169,9 +169,9 @@ test("LSMValues yields a self-keyed map of the live LSM hash table", function()
   end)
 end)
 
--- ── Colour resolvers ───────────────────────────────────────────────────────────────
+-- ── Color resolvers ───────────────────────────────────────────────────────────────
 
-test("GetBarColor returns the stored colour when useClassColorBar is off", function()
+test("GetBarColor returns the stored color when useClassColorBar is off", function()
   withSetting("units.player.useClassColorBar", false, function()
     withSetting("units.player.barColor", { r = 0.1, g = 0.2, b = 0.3, a = 0.4 }, function()
       local r, g, b, a = NS.GetBarColor()
@@ -180,20 +180,20 @@ test("GetBarColor returns the stored colour when useClassColorBar is off", funct
   end)
 end)
 
-test("GetBarColor substitutes the class colour but KEEPS the stored alpha", function()
-  -- The class-colour toggles only override RGB; alpha stays user-controlled (the panel leaves the
-  -- alpha slider live while the swatch is greyed out via `disabledIf`).
+test("GetBarColor substitutes the class color but KEEPS the stored alpha", function()
+  -- The class-color toggles only override RGB; alpha stays user-controlled (the panel leaves the
+  -- alpha slider live while the swatch is grayed out via `disabledIf`).
   withSetting("units.player.useClassColorBar", true, function()
     withSetting("units.player.barColor", { r = 0.1, g = 0.2, b = 0.3, a = 0.37 }, function()
       local r, g, b, a = NS.GetBarColor()
       local mock = T.mocks.C_ClassColor.GetClassColor("MAGE")
       approx(r, mock.r); approx(g, mock.g); approx(b, mock.b)
-      approx(a, 0.37, "alpha is NOT overridden by the class colour")
+      approx(a, 0.37, "alpha is NOT overridden by the class color")
     end)
   end)
 end)
 
-test("GetBorderColor honours useClassColorBorder and keeps its own alpha", function()
+test("GetBorderColor honors useClassColorBorder and keeps its own alpha", function()
   withSetting("units.player.useClassColorBorder", true, function()
     withSetting("units.player.borderColor", { r = 0, g = 0, b = 0, a = 0.55 }, function()
       local r, g, b, a = NS.GetBorderColor()
@@ -204,7 +204,7 @@ test("GetBorderColor honours useClassColorBorder and keeps its own alpha", funct
   end)
 end)
 
-test("GetBorderColor returns the stored colour when the toggle is off", function()
+test("GetBorderColor returns the stored color when the toggle is off", function()
   withSetting("units.player.useClassColorBorder", false, function()
     withSetting("units.player.borderColor", { r = 0.9, g = 0.8, b = 0.7, a = 0.6 }, function()
       local r, g, b, a = NS.GetBorderColor()
@@ -213,8 +213,8 @@ test("GetBorderColor returns the stored colour when the toggle is off", function
   end)
 end)
 
-test("GetBgColor uses the DIMMED class colour, not the raw one", function()
-  -- The background palette is its own table scaled by 0.2 so a class-coloured backdrop reads as a
+test("GetBgColor uses the DIMMED class color, not the raw one", function()
+  -- The background palette is its own table scaled by 0.2 so a class-colored backdrop reads as a
   -- dark tint behind the bar rather than a second bright fill. Player class is MAGE in the mock.
   withSetting("units.player.useClassColorBg", true, function()
     withSetting("units.player.bgColor", { r = 1, g = 1, b = 1, a = 0.8 }, function()
@@ -225,7 +225,7 @@ test("GetBgColor uses the DIMMED class colour, not the raw one", function()
   end)
 end)
 
-test("GetBgColor returns the stored colour when the toggle is off", function()
+test("GetBgColor returns the stored color when the toggle is off", function()
   withSetting("units.player.useClassColorBg", false, function()
     withSetting("units.player.bgColor", { r = 0.2, g = 0.2, b = 0.2, a = 0.8 }, function()
       local r, g, b, a = NS.GetBgColor()
@@ -234,7 +234,7 @@ test("GetBgColor returns the stored colour when the toggle is off", function()
   end)
 end)
 
-test("the three class-colour toggles are independent of each other", function()
+test("the three class-color toggles are independent of each other", function()
   withSetting("units.player.useClassColorBar", true, function()
     withSetting("units.player.useClassColorBg", false, function()
       withSetting("units.player.useClassColorBorder", false, function()
@@ -307,9 +307,9 @@ test("class color on a target bar is still the PLAYER's class color", function()
   -- Spec decision: resolving the tracked unit's class would need a PLAYER_TARGET_CHANGED recolor
   -- for a cosmetic gain. All three bars use your own class color.
   -- Note: the brief's test compares straight to NS.GetBarColor("player"), which only reflects the
-  -- class colour when the PLAYER row's own toggle is also on — its default is false. Flip it here
-  -- too so both sides genuinely take the class-colour branch; otherwise the assertion would
-  -- compare a resolved class colour against an unrelated stored RGB and fail for the wrong reason.
+  -- class color when the PLAYER row's own toggle is also on — its default is false. Flip it here
+  -- too so both sides genuinely take the class-color branch; otherwise the assertion would
+  -- compare a resolved class color against an unrelated stored RGB and fail for the wrong reason.
   local savedMirror = NS.db.profile.units.target.mirror
   local savedPlayerToggle = NS.db.profile.units.player.useClassColorBar
   NS.db.profile.units.target.mirror = false

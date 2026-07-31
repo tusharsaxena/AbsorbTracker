@@ -21,7 +21,7 @@ function NS.ForEachUnit(fn)
     for _, unit in ipairs(NS.Units.LIST) do fn(unit) end
 end
 
---- Where a bar sits before the user has ever dragged it. Player is dead centre; target and focus
+--- Where a bar sits before the user has ever dragged it. Player is dead center; target and focus
 --- stack upward from it, one player-bar-height plus a gap apart, so a newly-enabled bar lands
 --- somewhere visible and non-overlapping instead of on top of the player's.
 function NS.DefaultPosition(unit)

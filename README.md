@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 [![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)](https://github.com/tusharsaxena/WowAddonStandards)
-![Tests](https://img.shields.io/badge/Tests-434%2F434_passing-green)
+![Tests](https://img.shields.io/badge/Tests-449%2F449_passing-green)
 
 ![Logo](https://media.forgecdn.net/attachments/1659/653/absorbracker-logo-v2-jpg.jpg)
 
@@ -55,7 +55,7 @@ chat with a cyan `[AT]` tag.
 | `/at list` | Show every setting and its current value (Bar/Border/Font settings list once per bar — Player/Target/Focus) |
 | `/at get name` | Show one setting's value. Bar/Border/Font settings need the full path, e.g. `/at get units.player.barWidth` |
 | `/at set name value` | Change one setting. Examples: `/at set units.player.barWidth 250`, `/at set units.target.useClassColorBar true`, `/at set showOnlyInCombat true` |
-| `/at reset <path>` | Reset one setting to its default — e.g. `/at reset units.player.barWidth`. To reset a whole page across all three bars, use that page's **Defaults** button in the settings panel |
+| `/at reset path` | Reset one setting to its default — e.g. `/at reset units.player.barWidth`. To reset a whole page across all three bars, use that page's **Defaults** button in the settings panel |
 | `/at resetall` | Reset every setting and move every bar back to center |
 | `/at resetposition` | Move every bar back to its default screen position |
 | `/at lock` / `/at unlock` | Lock or unlock the bars so you can drag them |
@@ -90,7 +90,7 @@ To move a bar, type `/at unlock`, drag it into place, then `/at lock` to fix it 
 **Class colors.** The bar fill, background, and border can each follow your class color instead of a
 fixed color — just turn on the matching **Use Class Color** toggle on the Bar or Border page (this
 follows *your* class regardless of which unit's bar you're styling — Target/Focus don't get their
-own class colors). While a toggle is on, its color picker greys out; turn the toggle off to pick a
+own class colors). While a toggle is on, its color picker grays out; turn the toggle off to pick a
 color by hand again.
 
 ## How the bar works
@@ -119,7 +119,7 @@ or focus and its bar disappears until you have one again.
 | Can I show the bars only while I'm fighting? | Yes. Turn on **Show only in combat** on the General page. Every enabled bar hides out of combat and reappears the instant you enter combat. |
 | Can I have different setups? | Yes. Use the Profiles page in the settings panel to save and switch between setups. New characters start on the shared **Default** profile, so your changes carry over until you choose a separate setup. |
 | Why is my bar empty? | The fill only shows a value when that unit has an active absorb shield — Power Word: Shield, Ice Barrier, a trinket proc, and so on. With no shield the fill sits empty, but you'll still see the bar's background and border where you placed it. |
-| Why won't the settings panel open in combat? | WoW doesn't let addons change settings screens while you're fighting, so `/at config` answers with a grey "cannot open settings during combat" line instead. Run it again once you're out of combat and it opens normally. |
+| Why won't the settings panel open in combat? | WoW doesn't let addons change settings screens while you're fighting, so `/at config` answers with a gray "cannot open settings during combat" line instead. Run it again once you're out of combat and it opens normally. |
 | What is the "Update throttle" setting for? | The bar redraws the moment a shield changes rather than on a timer. The throttle only caps how fast it can repaint during a burst of rapid changes — the default suits almost everyone, so you rarely need to touch it. |
 | How do I see debug logs? | `/at debug` toggles the on-screen debug window; `/at debug on` / `off` starts and stops logging there instead of in chat. You can also toggle the window with the **Debug console** checkbox on the General page. Logging resets to off every reload. |
 | An addon CPU profiler shows Absorb Tracker using a lot of CPU — is that real? | Almost certainly not. Its actual cost is tiny (~0.18% of one core). Wow addon profilers blame all of a shared library's work on whichever addon loaded it first, and because `AbsorbTracker` sorts near the top alphabetically it "owns" the shared Ace event frame and gets billed for *every* Ace addon's event traffic. Disabling Absorb Tracker just moves that CPU to the next addon in line. [Read the full investigation](https://github.com/tusharsaxena/absorbtracker/blob/master/docs/investigations/2026-07-14-addon-profiler-attribution/analysis.md). |
@@ -133,7 +133,7 @@ or focus and its bar disappears until you have one again.
 | The bar(s) disappear when I leave combat | You have **Show only in combat** turned on. Turn it off on the General settings page. |
 | `/at test` does nothing | A bar has to be enabled to preview a test value on it. If every bar is off, run `/at toggle` (or tick an **Enable ... Bar** box) first, then try `/at test` again. |
 | A bar won't stay where I put it | Lock it after positioning: `/at lock`, or turn on **Lock Position** on the General page. Unlock again whenever you want to drag it. |
-| My class color isn't showing | The bar has to be visible and have an active shield for the color to appear. Check that the matching **Use Class Color** toggle is on. When it's on the color picker greys out — that's normal. |
+| My class color isn't showing | The bar has to be visible and have an active shield for the color to appear. Check that the matching **Use Class Color** toggle is on. When it's on the color picker grays out — that's normal. |
 | Custom textures or fonts aren't in the dropdowns | Install a media pack addon (one that includes SharedMedia). Without one, only WoW's built-in options show. |
 | A bar's position resets after I log out | WoW only saves your settings on a clean logout. A crash or a force-quit can drop the last position. Log out through the menu and it will stick. |
 | I want detailed logs | `/at debug` toggles a log window; `/at debug on` starts logging there instead of in chat. You can also open it from the **Debug console** checkbox on the General page. It resets to off every time you reload. |

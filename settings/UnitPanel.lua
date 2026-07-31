@@ -4,7 +4,7 @@
 -- upstream: the per-unit appearance page (the Unit dropdown, the mirror header, and the two-tier
 -- refresher that keeps them honest) and the single reset-position implementation.
 --
--- Neither generalises. RenderUnitPanel reads NS.Units and the mirror partition, which no other Ka0s
+-- Neither generalizes. RenderUnitPanel reads NS.Units and the mirror partition, which no other Ka0s
 -- addon has; ResetAllPositions clears a per-unit saved frame position, which is this addon's data
 -- model. Everything they stand on — ClearScroll, EnsureScroll, RenderRows, AttachTooltip — is
 -- LibKa0s-Options-1.0's, reached through the same NS.Helpers table, which IS the library instance
@@ -47,17 +47,11 @@ end
 --- anchors flush to ctx.body, so there is no free real estate above it to park a persistent
 --- dropdown without surgery on that anchor. AceGUI's widget pool exists exactly to make
 --- release-and-recreate cheap, so each call clears ctx.scroll and rebuilds from scratch.
-function Helpers.RenderUnitPanel(ctx, pageKey)
+---
+--- The body is a private local so the public entry point below can pcall it — see the re-entrancy
+--- guard there. Call Helpers.RenderUnitPanel, never this.
+local function renderUnitPanelBody(ctx, pageKey)
     local AceGUI = NS.AceGUI
-    if not AceGUI then return end
-
-    -- Re-entrancy guard. The last thing this function does is register a refresher that re-renders
-    -- the whole panel (see the comment at the bottom), and a render registers a fresh refresher of
-    -- its own. Without this flag, any refresher pass fired from INSIDE a render — a widget's
-    -- onChange reaching RefreshAllPanels while the page is being built — would recurse. The flag
-    -- makes the inner call a no-op; the outer render finishes and leaves the panel correct.
-    if ctx.__rendering then return end
-    ctx.__rendering = true
 
     ctx.unit = ctx.unit or "player"
     Helpers.ClearScroll(ctx)
@@ -155,7 +149,7 @@ function Helpers.RenderUnitPanel(ctx, pageKey)
     -- An unconditional re-render here would rebuild the whole page on every ordinary appearance
     -- write, and the mechanism (not the waste) is the problem: ClearScroll releases the very
     -- widget whose OnValueChanged is still on the stack — an LSM30_* dropdown with an open pullout,
-    -- a slider mid-drag — and destroys scroll position and tooltips with it. The library's colour
+    -- a slider mid-drag — and destroys scroll position and tooltips with it. The library's color
     -- picker already declines to call RefreshAllPanels for exactly this class of reason.
     --
     -- Registered LAST so the row refreshers above have already run; RefreshAllPanels iterates the
@@ -168,6 +162,32 @@ function Helpers.RenderUnitPanel(ctx, pageKey)
             Helpers.RenderUnitPanel(ctx, pageKey)
         end
     end
+end
 
+--- The public entry point. Every caller — the page files' OnShow, the Unit dropdown, the mirror
+--- checkbox, the header refresher — goes through here.
+---
+--- Re-entrancy guard. The last thing a render does is register a refresher that re-renders the
+--- whole panel, and a render registers a fresh refresher of its own. Without this flag, any
+--- refresher pass fired from INSIDE a render — a widget's onChange reaching RefreshAllPanels while
+--- the page is being built — would recurse. The flag makes the inner call a no-op; the outer render
+--- finishes and leaves the panel correct.
+---
+--- The flag is cleared on BOTH paths, which is why the body is pcall'd. Cleared only on the normal
+--- exit, a single raise anywhere inside the render — an AceGUI widget error, a malformed schema
+--- row, a nil NS.Units.LABEL entry — latches it, and every later render returns silently at the
+--- guard: the page looks frozen for the rest of the session and only /reload recovers it. The
+--- library pcalls each refresher for the same reason. The failure is reported rather than
+--- swallowed, because a page that silently declines to draw is the same bug wearing a hat.
+function Helpers.RenderUnitPanel(ctx, pageKey)
+    if not NS.AceGUI then return end
+    if ctx.__rendering then return end
+
+    ctx.__rendering = true
+    local ok, err = pcall(renderUnitPanelBody, ctx, pageKey)
     ctx.__rendering = false
+
+    if not ok then
+        NS.Print(("Unit panel render failed: %s"):format(NS.SafeToString(err)))
+    end
 end

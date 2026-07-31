@@ -285,29 +285,9 @@ end)
 -- Built as a SECOND, self-contained environment rather than by poking at the shared one: the whole
 -- point is a load with the library absent, which cannot be simulated after the fact. Nothing here
 -- calls InitDB or CreateOptionsPanel, so the shared suite's SavedVariables globals are untouched.
-local function loadDegraded()
-  local Loader     = dofile("tests/_kit/loader.lua")
-  local buildMocks = dofile("tests/wow_mock.lua")
-  -- A fresh loader table per dofile, so this environment sets its own addonName.
-  Loader.addonName = "AbsorbTracker"
-  local mocks2, NS2 = buildMocks(), {}
-  -- libs/LibKa0s/*.lua deliberately not loaded: nothing registers any of the majors, and the mock's
-  -- LibStub returns nil for each exactly as the real client would. So this environment exercises
-  -- every setup file's degradation path at once, as a load rather than as a hand-stub.
-  --
-  -- The list is the TOC's, in the TOC's order, and it is the WHOLE list. Both halves matter:
-  --
-  --   * Whole, because the load-order hazard this environment exists to catch is a page file that
-  --     calls a helper at FILE LOAD (settings/Bar.lua evaluates LSMValues inside a schema-row
-  --     literal). A list that stopped before the page files — as this one did until M6 — would
-  --     stay green straight through a total load failure, because the schema simply would not be
-  --     built and nothing here looked at it. The count assertion below is the guard.
-  --   * The TOC's own order, because core/PerfSetup.lua loads BEFORE core/DebugLogSetup.lua, which
-  --     is exactly why PerfSetup's NS.DebugLog lookups have to stay lazy. A list that inverted the
-  --     pair would let a hoisted lookup pass here and fail in the client.
-  Loader.loadAll(Loader.tocFiles("AbsorbTracker.toc"), NS2, mocks2)
-  return NS2, mocks2
-end
+-- Built by tests/degraded_env.lua, which more than one suite now needs (tests/test_optionssetup.lua
+-- drives the settings stub through the same load), so the environment is defined once.
+local loadDegraded = dofile("tests/degraded_env.lua")
 
 local function chatOf(mocks2, fn)
   local out = {}

@@ -589,6 +589,62 @@ test("the header refresher cannot recurse: a refresh fired mid-render is a no-op
   NS.Helpers.RenderUnitPanel(ctx, "bar")
 end)
 
+test("a raise mid-render must not latch the re-entrancy flag for the session", function()
+  -- ctx.__rendering is set on the way in. Cleared only on the normal exit path, ANY raise inside
+  -- the render -- a widget error, a malformed schema row, a nil NS.Units.LABEL entry -- leaves it
+  -- latched, and every later render (dropdown switch, mirror toggle, refresher, re-OnShow) returns
+  -- silently at the guard. The page then looks frozen with no error after the first, and only
+  -- /reload recovers it.
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+
+  local AceGUI    = NS.AceGUI
+  local savedCtor = AceGUI.WidgetRegistry["Dropdown"]
+  AceGUI.WidgetRegistry["Dropdown"] = function() error("planted widget failure") end
+  local ok = pcall(NS.Helpers.RenderUnitPanel, ctx, "bar")
+  AceGUI.WidgetRegistry["Dropdown"] = savedCtor
+
+  assertTrue(ok, "a failed render must be contained, not thrown at the caller")
+  assertFalse(ctx.__rendering, "the flag must clear on the failure path too")
+
+  -- The claim that actually matters: the page still renders after a failed one.
+  local before = #NS.AceGUI.__created
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  assertTrue(#NS.AceGUI.__created > before,
+    "the render after a failed one must actually rebuild the page, not return at the guard")
+
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+end)
+
+test("a failed unit-panel render is reported in chat, never swallowed", function()
+  -- Containing the raise must not trade a session-killing latch for a silent one: the user has to
+  -- be told the page did not draw, and told why.
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+
+  local out = {}
+  local cf  = T.mocks.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function(_, msg) out[#out + 1] = msg end
+
+  local AceGUI    = NS.AceGUI
+  local savedCtor = AceGUI.WidgetRegistry["Dropdown"]
+  AceGUI.WidgetRegistry["Dropdown"] = function() error("planted widget failure") end
+  pcall(NS.Helpers.RenderUnitPanel, ctx, "bar")
+  AceGUI.WidgetRegistry["Dropdown"] = savedCtor
+  cf.AddMessage = old
+
+  local joined = table.concat(out, "\n")
+  assertTrue(joined:find("planted widget failure", 1, true) ~= nil,
+    "the render failure must reach the user, with its cause: " .. joined)
+
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+end)
+
 test("an ordinary schema write does NOT re-render the whole unit page", function()
   -- The library's schema `set` calls RefreshAllPanels after EVERY schema write, so the header
   -- refresher runs on every checkbox click, slider drag and LSM pick on this page. It must only

@@ -15,7 +15,7 @@
 -- Depends on LibStub and nothing else, deliberately — no Ace3, so the lib is adoptable by addons
 -- that are not on the Ace substrate.
 
-local MAJOR, MINOR = "LibKa0s-Core-1.0", 1
+local MAJOR, MINOR = "LibKa0s-Core-1.0", 2
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
 
@@ -75,7 +75,7 @@ end
 
 -- The one skin every Ka0s window wears. `bg` and `border` travel in the same table as the backdrop
 -- fields because the three calls are one decision: a copy that took the backdrop but not the
--- colours is exactly the drift this exists to prevent. WoW's backdrop system reads only the fields
+-- colors is exactly the drift this exists to prevent. WoW's backdrop system reads only the fields
 -- it knows, so the two extra keys are inert when the table is handed to SetBackdrop.
 lib.SKIN = {
   bgFile = "Interface\\Buttons\\WHITE8x8",
@@ -120,7 +120,7 @@ end
 ---
 --- Descriptor:
 ---   prefix  string|function  required. The tag, VERBATIM — never synthesised from an abbreviation,
----                            because the collection's tags differ in case, colour and trailing
+---                            because the collection's tags differ in case, color and trailing
 ---                            space. A function is re-read on EVERY call, which is what lets a host
 ---                            whose prefix constant is defined in a file that loads later pass
 ---                            `function() return NS.PREFIX end` instead of capturing nil forever.

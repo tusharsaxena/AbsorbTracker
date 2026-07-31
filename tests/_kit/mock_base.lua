@@ -23,7 +23,7 @@
 --    RegisterUnitEvent would let a widened or dropped per-unit filter pass the entire suite.
 -- 4. Anything a test needs to DRIVE must be fireable. `__fire` on frames and on AceGUI widgets is
 --    what makes the lazy first-OnShow render and the OnValueChanged write path reachable at all.
--- 5. Model the awkward real behaviour, not the convenient one. AceDB's copyDefaults merges in place
+-- 5. Model the awkward real behavior, not the convenient one. AceDB's copyDefaults merges in place
 --    and AceConsole's Embed clobbers a same-named custom Print — both are reproduced here, because
 --    both have already caused a real bug that a friendlier mock would have hidden.
 --
@@ -128,7 +128,7 @@ return function()
   -- `strsplit` and `strtrim` are deliberately absent. Neither consumer of this kit calls them, and a
   -- hand-rolled reimplementation of a WoW string function that nothing exercises is a subtly-wrong
   -- shared helper waiting to be adopted. The addon that first needs one adds it to its own extender
-  -- with a test, and it graduates here once a second addon wants the same behaviour.
+  -- with a test, and it graduates here once a second addon wants the same behavior.
 
   -- Scheduled one-shot timers, recorded so tests can inspect coalescing and fire them on demand.
   M.__timers = {}
@@ -267,7 +267,7 @@ return function()
       -- Faithful (if simplified) copy of AceDB-3.0's copyDefaults: recurse into every TABLE-valued
       -- default, creating the dest sub-table if it is missing, but only ever fill a SCALAR leaf
       -- when the dest does not already have it. An existing user value always wins — this is the
-      -- exact merge-in-place behaviour that makes a naive `if profile.x == nil then migrate()`
+      -- exact merge-in-place behavior that makes a naive `if profile.x == nil then migrate()`
       -- guard unreachable, because a bare read of db.profile has already populated it.
       local function copyDefaults(dest, src)
         for k, v in pairs(src or {}) do

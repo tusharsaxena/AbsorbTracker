@@ -12,7 +12,7 @@
 local lib = LibStub and LibStub("LibKa0s-Options-1.0", true)
 if not lib then return end
 
-local WIDGETS_MINOR = 1
+local WIDGETS_MINOR = 2
 -- Paired on the SHELL's minor as well as this file's own — see OptionsScroll.lua for why the
 -- file's own counter is not enough.
 if lib.__widgetsMinor and lib.__widgetsMinor >= WIDGETS_MINOR
@@ -25,7 +25,7 @@ lib.MODULES.OptionsWidgets = WIDGETS_MINOR
 
 local L = lib.LAYOUT
 
--- Live-preview colour drags fire at up to 60 Hz. 50 ms is slow enough that a sustained drag costs
+-- Live-preview color drags fire at up to 60 Hz. 50 ms is slow enough that a sustained drag costs
 -- a handful of writes a second rather than sixty, and fast enough that the preview still tracks
 -- the cursor.
 local COLOR_THROTTLE = 0.05
@@ -56,14 +56,14 @@ function lib.__AttachWidgets(O, d)
 
   -- Write a row's value through the host's single write seam, then refresh every widget on every
   -- panel. The refresh is what makes paired controls just work: a "Use Class Color" toggle flips
-  -- and its matching swatch greys out on the same frame. AceGUI's SetValue does not fire
+  -- and its matching swatch grays out on the same frame. AceGUI's SetValue does not fire
   -- OnValueChanged, so this cannot recurse.
   local function set(row, value)
     d.set(row.path, value)
     O.RefreshAllPanels()
   end
 
-  -- Colour storage is the HOST's shape, not the library's. AbsorbTracker stores {r=,g=,b=,a=};
+  -- Color storage is the HOST's shape, not the library's. AbsorbTracker stores {r=,g=,b=,a=};
   -- KickCD stores arrays. Picking a winner would force one of them to translate at every read site
   -- in the addon, so the codec is a descriptor option with the named-key form as the default.
   local function decodeColor(c)
@@ -328,9 +328,9 @@ function lib.__AttachWidgets(O, d)
     end
 
     -- AceGUI's ColorPicker fires OnValueChanged during a drag (live preview) and OnValueConfirmed
-    -- on confirm or cancel (with the original colour). The drag is throttled so a sustained one
+    -- on confirm or cancel (with the original color). The drag is throttled so a sustained one
     -- does not repaint at 60 Hz; the confirm commits immediately, so a cancel snaps back to the
-    -- pre-drag colour without waiting on the throttle window.
+    -- pre-drag color without waiting on the throttle window.
     --
     -- Deliberately does NOT call RefreshAllPanels: a sustained drag would re-traverse every widget
     -- on every panel every 50 ms. This is the one maker that declines the refresh.
@@ -414,10 +414,12 @@ function lib.__AttachWidgets(O, d)
   --   solo        render this row alone in the left half of its own line. For visual pivots.
   --   skipRender  keep the row in the schema (so resets and the CLI still see it) but let the host
   --               draw it bespoke — a header checkbox, say.
-  --   afterGroup  { [groupName] = fn(ctx) } fired once, after that group's last row is flushed, so
-  --               inline action buttons always start on a fresh line.
+  --   afterGroup  { [groupName] = fn(ctx) } fired once PER RENDER, after that group's last row is
+  --               flushed, so inline action buttons always start on a fresh line. The table is
+  --               read-only to the library: hoist it to a constant and re-render freely.
   --   pairWith    { [path] = maker(ctx, rowGroup) } attaches a non-schema widget as the RIGHT half
-  --               of a named path's row. One-shot, and only when that path is currently the lone
+  --               of a named path's row. Once per render (and, like afterGroup, never mutated),
+  --               and only when that path is currently the lone
   --               widget on its row — attaching to a row that already has two would make it
   --               three-wide and break the 50/50 split for the rest of the page.
 
@@ -427,6 +429,12 @@ function lib.__AttachWidgets(O, d)
     local scroll = O.EnsureScroll(ctx)
     if not scroll then return end
     local pendingRow, pendingCount = nil, 0
+
+    -- The one-shot bookkeeping below is the LIBRARY's, and it lives in these two call-local sets
+    -- rather than in the caller's tables. Consuming the caller's entries would make a second render
+    -- of the same page \226\128\148 a unit switch, a ClearScroll + re-render \226\128\148 silently drop every inline
+    -- button and every paired widget, for any host that hoisted its table to a file-level constant.
+    local firedAfter, firedPair = {}, {}
 
     local function flushRow()
       if pendingRow then
@@ -458,9 +466,10 @@ function lib.__AttachWidgets(O, d)
         if not pendingRow then pendingRow = startRow() end
         O.RenderField(ctx, row, pendingRow, HALF)
         pendingCount = pendingCount + 1
-        if pairWith and row.path and pairWith[row.path] and pendingCount == 1 then
+        if pairWith and row.path and pairWith[row.path] and not firedPair[row.path]
+           and pendingCount == 1 then
           pairWith[row.path](ctx, pendingRow)
-          pairWith[row.path] = nil       -- one-shot
+          firedPair[row.path] = true     -- one-shot, per RenderRows call
           pendingCount = pendingCount + 1
         end
         if row.solo or pendingCount >= 2 then flushRow() end
@@ -469,10 +478,10 @@ function lib.__AttachWidgets(O, d)
       local nextRow = rows[i + 1]
       if afterGroup and row.group
          and (not nextRow or nextRow.group ~= row.group)
-         and afterGroup[row.group] then
+         and afterGroup[row.group] and not firedAfter[row.group] then
         flushRow()                 -- afterGroup buttons start on a fresh line
         afterGroup[row.group](ctx)
-        afterGroup[row.group] = nil  -- one-shot
+        firedAfter[row.group] = true -- one-shot, per RenderRows call
       end
     end
     flushRow()

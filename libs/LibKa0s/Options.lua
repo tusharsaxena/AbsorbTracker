@@ -21,7 +21,7 @@ local core = LibStub and LibStub("LibKa0s-Core-1.0", true)
 local NEEDS_CORE = 1
 if not core or (core.MINOR or 0) < NEEDS_CORE then return end   -- no NewLibrary; module absent
 
-local MAJOR, MINOR = "LibKa0s-Options-1.0", 1
+local MAJOR, MINOR = "LibKa0s-Options-1.0", 2
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
 
@@ -71,7 +71,7 @@ local L = lib.LAYOUT
 lib.STRINGS = {
   DEFAULTS_LABEL = "Defaults",
   NO_ACEGUI      = "AceGUI-3.0 not available; settings panel unavailable.",
-  -- Grey, because a refusal is not an error the user caused. The em dash is a byte escape: a
+  -- Gray, because a refusal is not an error the user caused. The em dash is a byte escape: a
   -- literal would depend on the file's encoding surviving every editor between here and a client.
   COMBAT_REFUSED = "|cffaaaaaacannot open settings during combat \226\128\148 Blizzard's " ..
                    "category-switch is protected|r",
@@ -101,7 +101,7 @@ lib.STRINGS = {
 ---                              refreshed, for state no schema row owns (a dragged frame's
 ---                              position). Ordering matters: a refresh first would paint the
 ---                              pre-hook values.
----   scheduleTimer(fn, delay)   optional. Backs the colour picker's 50 ms drag throttle. A
+---   scheduleTimer(fn, delay)   optional. Backs the color picker's 50 ms drag throttle. A
 ---                              descriptor field rather than an AceTimer embed, because embedding
 ---                              would be this library's second dependency-budget breach.
 ---   getLSM()                   optional. Returns LibSharedMedia-3.0, for LSMValues.
@@ -113,8 +113,26 @@ lib.STRINGS = {
 ---   colorEncode(r, g, b, a)    optional. -> stored. Defaults to the same.
 ---   debug(tag, fmt, ...)       optional. Developer log line.
 function lib:New(d)
+  -- The one field validated here, deliberately and alone. The rest of the descriptor surfaces a
+  -- page-build away with a stack that names the missing callback, whereas a nil mainPanelName just
+  -- yields CreateFrame("Frame", nil): an anonymous canvas that /framestack cannot attribute to the
+  -- host and that two addons can collide on, with no error and nothing visible in game. Silence is
+  -- what makes it worth a raise; the README documents the rest of the gap as intentional.
+  d = type(d) == "table" and d or {}
+  if type(d.mainPanelName) ~= "string" then
+    error(MAJOR .. ":New requires descriptor.mainPanelName (a string)", 2)
+  end
+
   local O = {}
-  local print = d.print or function() end
+  -- Defaulted to the chat frame, like Core, DebugLog and Slash, because the two lines that reach
+  -- this sink — the combat refusal (options-ui-§2) and the missing-AceGUI notice — are the whole
+  -- explanation for a panel that will not open, and discarding them leaves nothing to grep for.
+  -- The library cannot supply the host's cyan tag (that is the host's PREFIX, not ours), so the
+  -- descriptor's `print` stays the intended path: this fallback exists to make the line VISIBLE,
+  -- not to make it tagged.
+  local print = type(d.print) == "function" and d.print or function(line)
+    if DEFAULT_CHAT_FRAME then DEFAULT_CHAT_FRAME:AddMessage(line) end
+  end
 
   -- Every ctx CreatePanel hands out. Per INSTANCE, never per library: a lib-level registry would
   -- have one addon's Defaults button run another addon's refreshers.
@@ -157,7 +175,7 @@ function lib:New(d)
     divider:SetAtlas("Options_HorizontalDivider", true)
     divider:SetPoint("TOPLEFT",  panel, "TOPLEFT",   L.PADDING_X, -L.HEADER_HEIGHT)
     divider:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -L.PADDING_X, -L.HEADER_HEIGHT)
-    -- Tint to the title's own font colour rather than a hardcoded gold, so a future theme retune
+    -- Tint to the title's own font color rather than a hardcoded gold, so a future theme retune
     -- carries the divider with it.
     divider:SetVertexColor(titleFS:GetTextColor())
 
@@ -231,7 +249,12 @@ function lib:New(d)
     btn.frame:ClearAllPoints()
     btn.frame:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -L.PADDING_X, -L.HEADER_TOP)
     btn.frame:Show()
-    O.AttachTooltip(btn, lib.STRINGS.DEFAULTS_LABEL, panel.defaultsTooltip)
+    -- Guarded like the scroll patch below, and for the same reason: AttachTooltip arrives from
+    -- OptionsWidgets.lua, and a copy vendored without that file must degrade (a button with no
+    -- tooltip) rather than raise from inside the library's own shell on the first panel OnShow.
+    if O.AttachTooltip then
+      O.AttachTooltip(btn, lib.STRINGS.DEFAULTS_LABEL, panel.defaultsTooltip)
+    end
 
     panel.defaultsBtn = btn
 
@@ -298,6 +321,12 @@ function lib:New(d)
   --- refreshes only the ctx it was given: a page-scoped button that swept every open panel would
   --- re-read values the user never asked about.
   function O.RestoreDefaults(pageKey, ctx)
+    -- The page filter (ctx.unit) is omitted ON PURPOSE, and this is the asymmetry with
+    -- O.RenderSchema, which passes it. A Defaults button resets the whole PAGE — every filter
+    -- value — while rendering shows one filter value at a time. Pass ctx.unit through here and a
+    -- host's page reset silently narrows to the unit that happens to be on screen: AbsorbTracker
+    -- pins the current behavior across all three units in its tests/test_helpers.lua, and it is
+    -- where /at reset <page> went when the CLI form was removed. Pinned here too.
     for _, row in ipairs(d.rowsForPage(pageKey) or {}) do
       d.applyDefault(row)
     end
@@ -385,6 +414,13 @@ function lib:New(d)
   --- Build the whole options surface: resolve AceGUI, validate, register the main canvas, then run
   --- every page builder.
   function O.CreateOptionsPanel()
+    -- Idempotent: a second call is a no-op. The function is public and cheap to reach twice (a
+    -- login plus a profile change), and re-running it would register a SECOND Blizzard category
+    -- for the same addon and append a second ctx per page to renderedPanels, permanently doubling
+    -- the RefreshAllPanels fan-out. The guard is on RE-registration only; the lazy body render at
+    -- first OnShow is untouched.
+    if mainCategory then return end
+
     -- Re-resolved rather than trusting the handle taken at New time. A host builds its panel at
     -- PLAYER_LOGIN, by which point an AceGUI that was absent at load may be present (and vice
     -- versa on a broken install), and this is the one place that can report it.
@@ -404,6 +440,9 @@ function lib:New(d)
     for _, page in ipairs(pendingPages) do
       page.builder(mainCategory)
     end
+    -- Drained, so a page registered before the build cannot be built twice. REASSIGNED rather than
+    -- wiped in place: nothing outside this closure holds the table.
+    pendingPages = {}
   end
 
   -- Expand the parent category in the Blizzard left tree so every sub-page is visible. Wrapped in

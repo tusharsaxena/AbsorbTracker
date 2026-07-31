@@ -43,7 +43,7 @@ them in five seams: **`core/CoreSetup.lua`**, **`core/DebugLogSetup.lua`**, **`c
 **`settings/OptionsSetup.lua`** and **`settings/Slash.lua`** — the last being the one major wired
 without a separate setup file, because `NS.COMMANDS` has to stay host-owned anyway
 (`settings/UnitPanel.lua` then decorates `NS.Helpers` with the two pieces that did not
-generalise). Each seam MUST publish the same `NS` names whether the library
+generalize). Each seam MUST publish the same `NS` names whether the library
 loaded or not — that symmetry is what the rest of the addon codes against.
 
 `settings/OptionsSetup.lua`'s no-library stub is deliberately **load-completing, not

@@ -37,7 +37,7 @@ The array itself and its helpers live in `settings/Schema.lua` (`NS.Schema`). Th
 
     -- behavior:
     onChange      = function(v) ... end,    -- defaults to UpdateBarAppearance
-    disabledIf    = "useClassColorBar",     -- color only: greys out when sibling toggle is on
+    disabledIf    = "useClassColorBar",     -- color only: grays out when sibling toggle is on
     fmt           = "%.1f sec",             -- /at list/get formatting hint
     solo          = true,                   -- panel only: render alone in its own row
     alwaysPerUnit = true,                   -- per-unit rows only: stays editable even while this
@@ -105,7 +105,7 @@ Each call generates three rows per appearance key — one per `NS.Units.LIST` en
    widget callback → SetByPath → fires row.onChange
                                 → Helpers.RefreshAllPanels
                                   (re-syncs paired controls
-                                   like disabledIf greying)
+                                   like disabledIf graying)
 ```
 
 `NS.SetByPath` (in `settings/Schema.lua`) is the single write seam: it calls `NS.SetSetting` then fires the row's `onChange`. It does **not** itself refresh the panel — the slash path calls `NS.RefreshOptionsPanel` afterward (inside the `set` / `applyDefault` closures `settings/Slash.lua` hands the library), and the panel widgets' own `set()` closures end with `Helpers.RefreshAllPanels`.
@@ -114,7 +114,7 @@ Each call generates three rows per appearance key — one per `NS.Units.LIST` en
 
 ### `disabledIf = "<sibling-path>"` (color only)
 
-Greys out the picker when the named sibling toggle is on. Used by the class-color overrides on `barColor` / `bgColor` / `borderColor`:
+Grays out the picker when the named sibling toggle is on. Used by the class-color overrides on `barColor` / `bgColor` / `borderColor`:
 
 ```lua
 { path = "barColor", page = "bar", type = "color",
@@ -122,7 +122,7 @@ Greys out the picker when the named sibling toggle is on. Used by the class-colo
   disabledIf = "useClassColorBar" },
 ```
 
-The ColorPicker maker (`libs/LibKa0s/OptionsWidgets.lua`) reads `disabledIf` inside its refresher closure and calls `cp:SetDisabled(GetSetting(sibling))`. The refresh runs at file-load (initial state), after any panel widget write (every checkbox/slider/dropdown `set()` ends with `Helpers.RefreshAllPanels`), and on profile change — so flipping `useClassColorBar` greys / un-greys the matching color picker on the same frame.
+The ColorPicker maker (`libs/LibKa0s/OptionsWidgets.lua`) reads `disabledIf` inside its refresher closure and calls `cp:SetDisabled(GetSetting(sibling))`. The refresh runs at file-load (initial state), after any panel widget write (every checkbox/slider/dropdown `set()` ends with `Helpers.RefreshAllPanels`), and on profile change — so flipping `useClassColorBar` grays / un-grays the matching color picker on the same frame.
 
 ### `onChange` (any type)
 
@@ -225,9 +225,9 @@ here instead of being rediscovered from three files.
 | **The panel** (`Helpers.RenderUnitPanel`) | **Hidden** — while a unit is mirrored its appearance rows are not rendered at all; only the mirror header and the `alwaysPerUnit` rows (`enabled`) are shown. | The stored value is not what the user would see on screen, so offering a widget for it would be a lie. `NS.PartitionUnitRows` does the split. |
 
 The seam is only dangerous where it is **silent**, so the slash surface says so out loud: `/at get`,
-`/at set` and `/at list` append a subordinate grey `(mirrored — the bar shows Player's appearance)`
+`/at set` and `/at list` append a subordinate gray `(mirrored — the bar shows Player's appearance)`
 note to any row whose unit is currently mirroring (`MirrorNote` in `settings/Slash.lua`). Only
-appearance rows are annotated — `enabled` and `mirror` carry `alwaysPerUnit = true` and are honoured
+appearance rows are annotated — `enabled` and `mirror` carry `alwaysPerUnit = true` and are honored
 per-unit even while mirrored, so a note on them would be wrong in the other direction.
 
 Two consequences worth remembering:
@@ -256,7 +256,7 @@ Defaults live in `defaults/Profile.lua`'s `NS.defaults.profile`. The three globa
 |------|------|---------|----------------|-------------|
 | `locked` | bool | `false` | — | If true, no bar is movable, and the per-bar unit labels are hidden with it. `/at lock` / `/at unlock` flip this. Governs every unit. Master controls, order 15. |
 | `showOnlyInCombat` | bool | `false` | — | When true, every *enabled* bar is hidden except while in combat (the second step of `NS.ShouldShowBar`'s ladder, after the per-unit `enabled` flag). Label "Show only in combat". `onChange` publishes `NS.MSG.VISIBILITY` (and `REPAINT` when the change makes a bar visible). Master controls, order 25. |
-| `units.<unit>.enabled` | bool | `true` (player) / `false` (target, focus) | — | Track and display absorbs for that unit. **The visibility switch** — there is no master `hidden` toggle. One row per `NS.Units.LIST` entry, labelled "Enable Player/Target/Focus Bar", orders 10 / 20 / 30 so each leads a row with a global on its right. The **only** unit-scoped rows on this page: `alwaysPerUnit = true`, so they stay honoured — and free of the `/at get` "(mirrored)" note — even while that unit mirrors the player. Target and focus additionally need `UnitExists` before the bar appears. |
+| `units.<unit>.enabled` | bool | `true` (player) / `false` (target, focus) | — | Track and display absorbs for that unit. **The visibility switch** — there is no master `hidden` toggle. One row per `NS.Units.LIST` entry, labeled "Enable Player/Target/Focus Bar", orders 10 / 20 / 30 so each leads a row with a global on its right. The **only** unit-scoped rows on this page: `alwaysPerUnit = true`, so they stay honored — and free of the `/at get` "(mirrored)" note — even while that unit mirrors the player. Target and focus additionally need `UnitExists` before the bar appears. |
 | `throttleWindow` | number | `0.1` | 0.05 – 1 s (step 0.05) | Fastest any bar repaints during a burst of changes, via `NS.RequestRepaint`'s trailing-edge one-shot AceTimer. Label "Update throttle (in sec)". Display hint `"%.2f sec"`. Performance group, `solo`. |
 
 ### Bar / Border / Font pages (per-unit, path = `units.<unit>.<key>`)
@@ -268,14 +268,14 @@ Defaults live in `defaults/Profile.lua`'s `NS.defaults.profile`. The three globa
 | `barHeight` | number | `20` | 10 – 100 px | Bar height. Hint `"%d px"`. Bar page, Size. |
 | `barTexture` | string | `"Blizzard Raid Bar"` | LSM `statusbar` catalog | Status-bar fill texture. `dialogControl = "LSM30_Statusbar"`, `solo`. Bar page, Bar. |
 | `barColor` | color | `{r=0.4, g=0.7, b=1.0, a=0.8}` | 0 – 1 each | Bar-fill color. `hasAlpha = true`. `disabledIf = "units.<unit>.useClassColorBar"`. Bar page, Bar. |
-| `useClassColorBar` | bool | `false` | — | When true, bar fill uses the **player's** class color (always, on all three bars) and `barColor` is greyed out. Bar page, Bar. |
+| `useClassColorBar` | bool | `false` | — | When true, bar fill uses the **player's** class color (always, on all three bars) and `barColor` is grayed out. Bar page, Bar. |
 | `bgTexture` | string | `"Blizzard Raid Bar"` | LSM `statusbar` catalog | Bar-background texture. `dialogControl = "LSM30_Statusbar"`, `solo`. Bar page, Background. |
 | `bgColor` | color | `{r=0.2, g=0.2, b=0.2, a=0.8}` | 0 – 1 each | Background color. `hasAlpha = true`. `disabledIf = "units.<unit>.useClassColorBg"`. Bar page, Background. |
-| `useClassColorBg` | bool | `false` | — | When true, background uses a darkened class-color variant (player's) and `bgColor` is greyed out. Bar page, Background. |
+| `useClassColorBg` | bool | `false` | — | When true, background uses a darkened class-color variant (player's) and `bgColor` is grayed out. Bar page, Background. |
 | `border` | string | `"Blizzard Tooltip"` | LSM `border` catalog | Border style. `dialogControl = "LSM30_Border"`. Border page. |
 | `borderSize` | number | `12` | 1 – 32 px | Border thickness. Hint `"%d px"`. Border page. |
 | `borderColor` | color | `{r=0.5, g=0.5, b=0.5, a=1.0}` | 0 – 1 each | Border color. `hasAlpha = true`. `disabledIf = "units.<unit>.useClassColorBorder"`. Border page. |
-| `useClassColorBorder` | bool | `false` | — | When true, border uses the player's class color and `borderColor` is greyed out. Border page. |
+| `useClassColorBorder` | bool | `false` | — | When true, border uses the player's class color and `borderColor` is grayed out. Border page. |
 | `font` | string | `"Friz Quadrata TT"` | LSM `font` catalog | Font face. `dialogControl = "LSM30_Font"`. Font page. |
 | `fontSize` | number | `12` | 6 – 32 pt | Font size. Font page. |
 | `fontFlags` | string | `"OUTLINE"` | `""` / `OUTLINE` / `THICKOUTLINE` / `MONOCHROME` / `MONOCHROME, OUTLINE` / `MONOCHROME, THICKOUTLINE` | Font outline flags. `select` widget with explicit `sorting`, `solo`. Font page. |

@@ -120,7 +120,7 @@ test("/at debug on writes an [Init] summary naming our version, schema and profi
   NS.DebugLog:Clear()
   local ack = captureChat(function() debugCmd("on") end)
   -- That an ack was printed proves the descriptor's `print` seam reaches NS.Print. What it SAYS,
-  -- colour codes included, is the library's and is pinned in the LibKa0s suite — asserting it here
+  -- color codes included, is the library's and is pinned in the LibKa0s suite — asserting it here
   -- too would make one hex change fail two suites in two repos.
   assertTrue(#ack > 0, "the print seam reaches NS.Print and so the chat frame")
   local initLine = NS.DebugLog:FindLine("[Init]")

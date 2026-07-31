@@ -91,7 +91,7 @@ for i, unit in ipairs(NS.Units.LIST) do
             path    = "units." .. unit .. ".enabled",
             page    = "general",
             unit    = unit,
-            -- Honoured per-unit even while that unit mirrors the player, so settings/Slash.lua
+            -- Honored per-unit even while that unit mirrors the player, so settings/Slash.lua
             -- must not tag `/at get units.focus.enabled` with the "(mirrored)" note. Still load
             -- bearing after the move off the Bar page — that note is keyed off this flag.
             alwaysPerUnit = true,

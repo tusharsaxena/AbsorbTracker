@@ -66,7 +66,7 @@ function addon:OnEnable()
     --
     -- Extracted to its own method (rather than inlined here, as the original brief had it) purely
     -- so a test can call it directly without paying for the rest of OnEnable's side effects
-    -- (CreateOptionsPanel is not safely re-callable). Behaviour is identical either way.
+    -- (CreateOptionsPanel is not safely re-callable). Behavior is identical either way.
     -- Also registers PLAYER_TARGET_CHANGED / PLAYER_FOCUS_CHANGED, but only for units whose bar
     -- is enabled — which is why those two are not registered unconditionally alongside the three
     -- below. Re-runs on every UNITS message (subscribed at the bottom of this file).

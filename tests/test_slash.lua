@@ -16,8 +16,8 @@ local function capture(fn)
   return out
 end
 
--- Strip WoW colour escapes (`|cAARRGGBB` … `|r`) so assertions match the plain text regardless
--- of the schema-output colour scheme (slash-commands-§5): gold key + white value, etc.
+-- Strip WoW color escapes (`|cAARRGGBB` … `|r`) so assertions match the plain text regardless
+-- of the schema-output color scheme (slash-commands-§5): gold key + white value, etc.
 local function stripColor(s)
   return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
 end
@@ -75,7 +75,7 @@ test("/at get <path> dispatches to the schema read", function()
   assertTrue(stripColor(out[1]):find("units.player.barWidth = 200 px") ~= nil, out[1])
 end)
 
-test("/at list uses the mandated colour scheme (slash-commands-§5)", function()
+test("/at list uses the mandated color scheme (slash-commands-§5)", function()
   local out = capture(function() NS.Slash:OnSlash("list") end)
   -- Header: green (33ff99), no trailing colon.
   assertTrue(out[1]:find("|cff33ff99Available settings|r", 1, true) ~= nil, out[1])
@@ -111,14 +111,14 @@ test("/at options is aliased to /at config (no unknown-command error)", function
   end
 end)
 
-test("/at config in combat refuses with a grey notice (options-ui-§2)", function()
+test("/at config in combat refuses with a gray notice (options-ui-§2)", function()
   local saved = T.mocks.InCombatLockdown
   T.mocks.InCombatLockdown = function() return true end
   NS.State.panelOpenPending = nil
 
   local out = capture(function() NS.Slash:OnSlash("config") end)
   assertTrue(out[1] ~= nil and out[1]:find("cannot open settings during combat", 1, true) ~= nil,
-    "in combat the open must REFUSE with the canonical grey notice, not defer")
+    "in combat the open must REFUSE with the canonical gray notice, not defer")
   assertTrue(NS.State.panelOpenPending == nil,
     "refusal must NOT defer-and-replay (no pending flag set)")
 

@@ -5,7 +5,7 @@ local test, assertEqual, assertTrue, assertFalse =
 
 -- The type-aware parser is LibKa0s-Slash-1.0's now (`lib.ParseValue`), and its cases live in that
 -- repo's tests/test_slash.lua — the bool vocabulary, the clamp, the case-sensitive enum, the
--- 0-255 colour rescale and the unknown-type message. Keeping copies here would be two places to
+-- 0-255 color rescale and the unknown-type message. Keeping copies here would be two places to
 -- fix one bug, which is what testing-§8 forbids.
 
 test("FormatSchemaValue formats by type", function()
@@ -163,7 +163,7 @@ test("every string row supplies a values source", function()
 end)
 
 test("`disabledIf` names a real sibling setting", function()
-  -- A typo'd disabledIf reads nil, which is falsey, so the widget would simply never grey out —
+  -- A typo'd disabledIf reads nil, which is falsey, so the widget would simply never gray out —
   -- a silent failure with no error to notice.
   for _, row in ipairs(NS.Schema) do
     if row.disabledIf then
@@ -223,16 +223,16 @@ test("SetByPath still writes a value that has no schema row at all", function()
   NS.db.profile.someInternalKey = nil
 end)
 
-test("ApplyDefault deep-copies a colour table so profiles never share one", function()
+test("ApplyDefault deep-copies a color table so profiles never share one", function()
   -- Handing out the row's own table would let a ColorPicker drag in one profile mutate the schema
   -- default itself, and through it every other profile that was reset from it.
   local row = NS.FindSchemaRow("units.player.barColor")
-  assertTrue(row ~= nil, "units.player.barColor is a colour row")
+  assertTrue(row ~= nil, "units.player.barColor is a color row")
   NS.ApplyDefault(row)
   local stored = NS.GetSetting("units.player.barColor")
   assertTrue(stored ~= row.default, "the stored table must be a copy, not the row's own")
   stored.r = 0.123
-  assertTrue(row.default.r ~= 0.123, "mutating the stored colour must not reach the default")
+  assertTrue(row.default.r ~= 0.123, "mutating the stored color must not reach the default")
   NS.ApplyDefault(row)
 end)
 
@@ -349,7 +349,7 @@ test("the enable row is per-unit, lives on General, and survives mirroring", fun
     local row = NS.FindSchemaRow("units." .. unit .. ".enabled")
     assertTrue(row ~= nil, unit .. " has no enable row")
     -- alwaysPerUnit is what keeps `/at get units.<unit>.enabled` free of the "(mirrored)" note:
-    -- the flag is honoured per-unit whatever the mirror says.
+    -- the flag is honored per-unit whatever the mirror says.
     assertEqual(row.alwaysPerUnit, true)
     assertEqual(row.page, "general", "the enable toggles are master controls, not appearance")
     assertEqual(row.group, "Master controls")
@@ -411,4 +411,51 @@ test("General's rows are the flat globals plus one enable toggle per unit", func
   for _, unit in ipairs(NS.Units.LIST) do
     assertTrue(enables[unit], unit .. " has no enable toggle on General")
   end
+end)
+
+-- ── FormatSchemaValue's library seam ───────────────────────────────────────────────
+--
+-- The formatter itself is LibKa0s-Slash-1.0's and is covered in that repo. What this addon owns is
+-- the seam: the major is resolved once at file load (library-stack-§4 — settings/Schema.lua loads
+-- long after libs\LibKa0s\LibKa0s.xml, so the answer can never change later), and the branch taken
+-- when that resolution came back empty.
+
+test("FormatSchemaValue resolves the Slash major at load, never per call", function()
+  local savedLibStub = T.mocks.LibStub
+  local calls = 0
+  T.mocks.LibStub = setmetatable({}, {
+    __call = function(_, name, silent)
+      calls = calls + 1
+      return savedLibStub(name, silent)
+    end,
+  })
+  local ok, err = pcall(function()
+    NS.FormatSchemaValue({ type = "bool" }, true)
+    NS.FormatSchemaValue({ type = "color" }, { r = 1, g = 0, b = 0, a = 1 })
+  end)
+  T.mocks.LibStub = savedLibStub
+  if not ok then error(err) end
+  assertEqual(calls, 0)
+end)
+
+test("a build without LibKa0s-Slash-1.0 falls back to a minimal FormatSchemaValue", function()
+  -- Re-load settings/Schema.lua into a scratch namespace with the Slash major absent, which is the
+  -- only way to reach the fallback now that the lookup happens once at load. The fallback is
+  -- deliberately minimal: its sole caller is the debug-gated [Set] line, inert in that build.
+  local Loader = dofile("tests/_kit/loader.lua")
+  Loader.addonName = "AbsorbTracker"
+  local savedLibStub = T.mocks.LibStub
+  local mocks = setmetatable({
+    LibStub = setmetatable({}, {
+      __call = function(_, name, silent)
+        if name == "LibKa0s-Slash-1.0" then return nil end
+        return savedLibStub(name, silent)
+      end,
+    }),
+  }, { __index = T.mocks })
+  local NS2 = {}
+  Loader.load("settings/Schema.lua", NS2, mocks)
+  assertEqual(NS2.FormatSchemaValue({ type = "bool" }, nil), "nil")
+  assertEqual(NS2.FormatSchemaValue({ type = "bool" }, true), "true")
+  assertEqual(NS2.FormatSchemaValue({ type = "number", fmt = "%d px" }, 200), "200")
 end)

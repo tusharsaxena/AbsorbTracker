@@ -10,7 +10,7 @@ local addonName, NS = ...
 -- callbacks by (message, target), so a second RegisterMessage on a *shared* object
 -- would silently overwrite the first; a per-receiver target makes that impossible.
 --
--- Message catalogue (also documented in docs/ARCHITECTURE.md → Message Bus). Every
+-- Message catalog (also documented in docs/ARCHITECTURE.md → Message Bus). Every
 -- message is payload-free: the consumer re-reads live state (settings / absorbs)
 -- when it fires, so there is nothing to pass.
 --   Ka0s_AbsorbTracker_RepaintRequested   sender: event / slash / lifecycle layer.
@@ -46,7 +46,7 @@ function NS.NewBusTarget()
     return t
 end
 
--- Message-name catalogue. Prefixed Ka0s_<Addon>_ to avoid cross-addon collision.
+-- Message-name catalog. Prefixed Ka0s_<Addon>_ to avoid cross-addon collision.
 NS.MSG = {
     REPAINT    = "Ka0s_AbsorbTracker_RepaintRequested",
     APPEARANCE = "Ka0s_AbsorbTracker_AppearanceChanged",

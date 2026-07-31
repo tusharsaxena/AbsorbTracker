@@ -50,7 +50,7 @@ local function addUnitRows(unit)
             order   = 40,
             type    = "bool",
             label   = "Use Class Color",
-            desc    = "Use your class color for the border. Greys out the Border Color picker.",
+            desc    = "Use your class color for the border. Grays out the Border Color picker.",
             default = unitDefaults.useClassColorBorder,
         },
         {

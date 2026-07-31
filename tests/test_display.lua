@@ -45,7 +45,7 @@ end
 
 -- ── RestoreBarPosition ─────────────────────────────────────────────────────────────
 
-test("RestoreBarPosition centres the bar when no position is saved", function()
+test("RestoreBarPosition centers the bar when no position is saved", function()
   local saved = NS.db.profile.units.player.position
   NS.db.profile.units.player.position = nil
   local calls = record(NS.bar, "SetPoint", NS.RestoreBarPosition)
@@ -511,7 +511,7 @@ end)
 
 -- ── default positions ──────────────────────────────────────────────────────────────
 
-test("the player bar defaults to dead centre", function()
+test("the player bar defaults to dead center", function()
   local point, relPoint, x, y = NS.DefaultPosition("player")
   assertEqual(point, "CENTER"); assertEqual(relPoint, "CENTER")
   assertEqual(x, 0); assertEqual(y, 0)

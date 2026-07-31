@@ -5,7 +5,7 @@ local addonName, NS = ...
 -- The settings-canvas shell, the schema-row to AceGUI translation and the two-column flow engine
 -- live in libs/LibKa0s/{Options,OptionsWidgets,OptionsScroll}.lua and are shared across every Ka0s
 -- addon. This file is only the part that is ours: where a value lives, which rows belong to which
--- page, what a colour looks like on disk, and what "reset everything" has to clear that no schema
+-- page, what a color looks like on disk, and what "reset everything" has to clear that no schema
 -- row owns.
 --
 -- It replaces four files that used to be this addon's own toolkit — settings/Panel.lua,
@@ -19,8 +19,19 @@ local addonName, NS = ...
 
 local print = NS.Print
 
--- Brand string, read by the library's header builder and by the top-level canvas registration.
-NS.PARENT_TITLE = "Ka0s Absorb Tracker"
+-- Brand string, read by the library's header builder and by the top-level canvas registration. A
+-- file-scope local, not an NS export: it reaches the library as descriptor.parentTitle, and the two
+-- files that used to read it off the namespace (settings/Panel.lua, settings/Helpers.lua) are inside
+-- the library now.
+local PARENT_TITLE = "Ka0s Absorb Tracker"
+
+-- The one rule about what a global reset must not touch. Profiles rows are AceDBOptions-supplied and
+-- resetting them deletes user data, which is not what "restore defaults" means to anyone. Named once
+-- because it is enforced TWICE: by the library, through descriptor.skipRestoreAll below, and by the
+-- degradation stub's own reset loop, which has to keep working with no library at all. Two literal
+-- copies of the rule — which is what this file used to carry, in opposite polarity — is one added
+-- page away from a degraded `/at resetall` that deletes profiles.
+local function vetoedFromResetAll(row) return row.page == "profiles" end
 
 local lib = LibStub and LibStub("LibKa0s-Options-1.0", true)
 
@@ -29,7 +40,7 @@ local lib = LibStub and LibStub("LibKa0s-Options-1.0", true)
 -- ---------------------------------------------------------------------
 
 local descriptor = {
-    parentTitle   = NS.PARENT_TITLE,
+    parentTitle   = PARENT_TITLE,
     mainPanelName = "AbsorbTrackerMainPanel",
 
     print = function(line) print(line) end,
@@ -47,9 +58,8 @@ local descriptor = {
     -- (General) gets every unit's.
     rowsForPage  = function(pageKey, filter) return NS.SchemaForPage(pageKey, filter) end,
 
-    -- Profiles is skipped on purpose: its rows are AceDBOptions-supplied and resetting them would
-    -- delete user data, which is not what "restore defaults" means to anyone.
-    skipRestoreAll = function(row) return row.page == "profiles" end,
+    -- The veto, named once above and shared with the stub's own reset loop.
+    skipRestoreAll = vetoedFromResetAll,
 
     -- `position` is written by dragging, not by a schema row, so ApplyDefault never touches it. It
     -- must be cleared explicitly, once per unit, or a target bar dragged off-screen would survive a
@@ -61,7 +71,7 @@ local descriptor = {
     end,
 
     -- AceTimer through the addon object (Ka0s standard §3.1) rather than a raw C_Timer. Backs the
-    -- colour picker's 50 ms drag throttle; the library takes it as a descriptor field because
+    -- color picker's 50 ms drag throttle; the library takes it as a descriptor field because
     -- embedding AceTimer would be its second dependency-budget breach.
     scheduleTimer = function(fn, delay) return NS.addon:ScheduleTimer(fn, delay) end,
 
@@ -78,7 +88,7 @@ local descriptor = {
         if NS.Helpers and NS.Helpers.BuildMainContent then NS.Helpers.BuildMainContent(ctx) end
     end,
 
-    -- Colours are stored as {r=, g=, b=, a=} named keys (core/Data.lua's GetBarColor / GetBgColor /
+    -- Colors are stored as {r=, g=, b=, a=} named keys (core/Data.lua's GetBarColor / GetBgColor /
     -- GetBorderColor read that shape). That is also the library's default, so these two are written
     -- out rather than omitted only because the shape is a real contract with the rest of the addon
     -- and a silent default is a poor place for it to live.
@@ -104,15 +114,25 @@ local descriptor = {
 -- `/at set units.player.barWidth`, `/at reset` and the profile defaults all break with it. The
 -- addon would not degrade; it would half-load, and nothing would say so.
 --
--- So this stub publishes every member a page file touches AT LOAD TIME. Verified to be exactly
--- three: LSMValues, SECTION_HEADING_H (settings/About.lua) and RestoreAllDefaults (the
--- StaticPopup body in settings/General.lua, which is a table literal evaluated at load). Everything
--- else is reached from CreateOptionsPanel or from a page builder, both of which are user-triggered,
--- so those are no-ops.
+-- So this stub publishes every member a page file touches AT LOAD TIME. Measured, one member at a
+-- time, by deleting it and re-running the library-absent load (tests/degraded_env.lua) to see
+-- whether #NS.Schema still matches the fully-loaded environment: LSMValues is the ONLY load-time
+-- member. Dropping it gives `settings/Bar.lua:60: attempt to call field 'LSMValues' (a nil value)`
+-- and takes the bar, border and font rows out of the schema; dropping anything else changed nothing.
 --
--- tests/test_perf.lua's `loadDegraded()` loads the whole TOC without the library and asserts
--- #NS.Schema against the fully-loaded environment. That case is the only thing standing between
--- this stub and a silent half-load, so do not weaken either.
+-- RestoreAllDefaults is kept even though it measured as call-time, because the call it answers is
+-- `/at resetall` and the StaticPopup's OnAccept closure in settings/General.lua — a recovery path,
+-- and a user whose panel will not open is exactly the user who needs it.
+--
+-- What used to sit here and no longer does: SECTION_HEADING_H, ROW_VSPACER and BUTTON_PAIR_REL.
+-- They are copies of lib.LAYOUT's values, and their only readers (settings/About.lua's
+-- BuildMainContent, settings/UnitPanel.lua's render body) both sit behind an AceGUI a degraded build
+-- never gets, so nothing in that build ever read them. A host copy of a library constant is the copy
+-- that goes stale.
+--
+-- tests/test_optionssetup.lua pins that member set, and tests/test_perf.lua asserts #NS.Schema
+-- against the fully-loaded environment over a whole library-absent load. Those cases are the only
+-- thing standing between this stub and a silent half-load, so do not weaken either.
 --
 -- Note what is NOT here: no copy of a widget maker, no copy of the flow engine, no copy of the
 -- header. Hand-copying the code whose drift the extraction exists to end is the one duplicate
@@ -124,16 +144,14 @@ if not lib then
     local Helpers = {}
     NS.Helpers = Helpers
 
-    -- Reached at load, so they must be real enough for the file to finish.
-    Helpers.LSMValues         = function() return function() return {} end end
-    Helpers.SECTION_HEADING_H = 26
-    Helpers.ROW_VSPACER       = 8
-    Helpers.BUTTON_PAIR_REL   = 0.492
+    -- Reached at load, so it must be real enough for the page files to finish.
+    Helpers.LSMValues = function() return function() return {} end end
+
     Helpers.RestoreAllDefaults = function()
         -- The rows are the schema's and the schema loaded fine, so a reset still works without any
         -- panel at all. Losing the panel is survivable; losing the reset would not be.
         for _, row in ipairs(NS.Schema or {}) do
-            if row.page ~= "profiles" then NS.ApplyDefault(row) end
+            if not vetoedFromResetAll(row) then NS.ApplyDefault(row) end
         end
         if Helpers.ResetAllPositions then Helpers.ResetAllPositions() end
     end

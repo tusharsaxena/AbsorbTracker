@@ -99,7 +99,7 @@ The closed cross-module message bus (architecture-§4). Producers publish; each 
 ```lua
 NS.bus                 -- AceEvent-embedded shared publish target (NS.bus:SendMessage(...))
 NS.NewBusTarget()      -- returns a fresh AceEvent-embedded table; one per receiver
-NS.MSG                 -- catalogue (all Ka0s_AbsorbTracker_*, payload-free):
+NS.MSG                 -- catalog (all Ka0s_AbsorbTracker_*, payload-free):
                        --   REPAINT    -> modules/Timer.lua   (coalesced repaint via RequestRepaint)
                        --   APPEARANCE -> modules/Display.lua (UpdateBarAppearance)
                        --   VISIBILITY -> modules/Display.lua (ApplyVisibility)
@@ -108,7 +108,7 @@ NS.MSG                 -- catalogue (all Ka0s_AbsorbTracker_*, payload-free):
                        --                 registers events only for enabled units)
 ```
 
-Senders: `core/AbsorbTracker.lua` (event/lifecycle), `settings/Slash.lua`, `settings/General.lua`, `settings/Schema.lua`, `settings/UnitPanel.lua` (`Helpers.ResetAllPositions` publishes `POSITION`). Consumers register at file load in `modules/Timer.lua` (`NS.Timer.__ev`), `modules/Display.lua` (`NS.Display.__ev`) and `core/AbsorbTracker.lua` (`NS.Events.__ev`, which owns the sole `UNITS` subscription). Full catalogue (sender/consumer/effect) in [ARCHITECTURE.md → Message Bus](./ARCHITECTURE.md#message-bus).
+Senders: `core/AbsorbTracker.lua` (event/lifecycle), `settings/Slash.lua`, `settings/General.lua`, `settings/Schema.lua`, `settings/UnitPanel.lua` (`Helpers.ResetAllPositions` publishes `POSITION`). Consumers register at file load in `modules/Timer.lua` (`NS.Timer.__ev`), `modules/Display.lua` (`NS.Display.__ev`) and `core/AbsorbTracker.lua` (`NS.Events.__ev`, which owns the sole `UNITS` subscription). Full catalog (sender/consumer/effect) in [ARCHITECTURE.md → Message Bus](./ARCHITECTURE.md#message-bus).
 
 ### CoreSetup (`core/CoreSetup.lua`)
 
@@ -212,7 +212,7 @@ NS.GetFont(unit)              -> fontPath      -- falls back to FALLBACK_FONT
                               -- bar reads the player's media live
 
 -- Color resolution (re-reads useClassColor* at call time)
-NS.GetBarColor(unit)          -> r, g, b, a   -- the class colour itself is ALWAYS the player's
+NS.GetBarColor(unit)          -> r, g, b, a   -- the class color itself is ALWAYS the player's
 NS.GetBgColor(unit)           -> r, g, b, a
 NS.GetBorderColor(unit)       -> r, g, b, a
 ```
@@ -343,12 +343,12 @@ NS.DebugLog:Clear()                      -- clear the log + buffer
 NS.DebugLog:UpdateScrollBar()            -- resync the §11 scrollbar thumb/range to the log offset
 NS.DebugLog:UpdateStatus()               -- resync the bottom "N / 500 lines" counter
 NS.DebugLog:ShowCopy()                   -- read-through EditBox with the whole log as plain text
-NS.DebugLog:SetEnabled(on)               -- single seam for flipping State.debug: colour-coded chat
+NS.DebugLog:SetEnabled(on)               -- single seam for flipping State.debug: color-coded chat
                                          -- ack (ON green/OFF red, §5) + header + [Debug] bracket +
                                          -- [Init] session summary on enable
-NS.DebugLog:RefreshHeader()              -- resync the ON/OFF toggle label + colour
+NS.DebugLog:RefreshHeader()              -- resync the ON/OFF toggle label + color
 NS.DebugLog.FormatPlain(ts, tag, msg)    -- pure formatter: "<ts> | [<tag>] <msg>" (Copy buffer)
-NS.DebugLog.FormatColored(ts, tag, msg)  -- pure colour-coded formatter (console view)
+NS.DebugLog.FormatColored(ts, tag, msg)  -- pure color-coded formatter (console view)
 NS.DebugLog.buffer                       -- capped plain-text mirror of the log (dense array)
 NS.DebugLog:BufferSize() / :LastLine()   -- read seams over that buffer
 NS.DebugLog:FindLine(substr)             -- newest buffered line containing substr, or nil
@@ -563,7 +563,7 @@ NS.Slash:Register()    -- NS.addon:RegisterChatCommand("at", ...) + ("absorbtrac
 
 ### Options (`settings/OptionsSetup.lua` + `settings/UnitPanel.lua`)
 
-The settings UI is `LibKa0s-Options-1.0` (`libs/LibKa0s/Options.lua` + `OptionsWidgets.lua` + `OptionsScroll.lua`, vendored) driven by a descriptor. `settings/OptionsSetup.lua` **assigns** `NS.Helpers = lib:New(descriptor)` — the library instance *itself*, not a table decorated from it. `settings/UnitPanel.lua` and `settings/About.lua` then decorate that same instance with the three members that did not generalise, which is what lets a page file call `H.RenderUnitPanel` and `H.RenderSchema` without knowing or caring which side of the boundary each lives on. There is no empty-table-published-first step and there are no toolkit slices; `settings/Panel.lua`, `Helpers.lua`, `ScrollPatch.lua` and `Widgets.lua` are gone.
+The settings UI is `LibKa0s-Options-1.0` (`libs/LibKa0s/Options.lua` + `OptionsWidgets.lua` + `OptionsScroll.lua`, vendored) driven by a descriptor. `settings/OptionsSetup.lua` **assigns** `NS.Helpers = lib:New(descriptor)` — the library instance *itself*, not a table decorated from it. `settings/UnitPanel.lua` and `settings/About.lua` then decorate that same instance with the three members that did not generalize, which is what lets a page file call `H.RenderUnitPanel` and `H.RenderSchema` without knowing or caring which side of the boundary each lives on. There is no empty-table-published-first step and there are no toolkit slices; `settings/Panel.lua`, `Helpers.lua`, `ScrollPatch.lua` and `Widgets.lua` are gone.
 
 ```lua
 -- The addon's half: the wrappers (settings/OptionsSetup.lua)
@@ -582,7 +582,7 @@ NS.CreateOptionsPanel()    -- called from OnEnable once db is ready. The library
 NS.RefreshOptionsPanel()   -- routes to Helpers.RefreshAllPanels (re-runs every refresher)
 NS.OpenOptionsPanel()      -- Settings.OpenToCategory(mainCategoryID) + expandMainCategory();
                            -- combat-lockdown gated INSIDE the library: in combat it REFUSES with
-                           -- a grey notice (lib.STRINGS.COMBAT_REFUSED), printed through the
+                           -- a gray notice (lib.STRINGS.COMBAT_REFUSED), printed through the
                            -- descriptor's print so it still carries [AT], and logged through its
                            -- debug under tag "Cfg" (options-ui-§2) — no defer-and-replay.
 
@@ -603,10 +603,10 @@ The descriptor is the whole of what this addon tells the library. Everything els
 | `rowsForPage(pageKey, filter)` | `NS.SchemaForPage`. `filter` is `ctx.unit`, passed through uninterpreted — that is what makes a per-unit page render one unit's rows while General, whose `ctx.unit` is nil, gets every unit's |
 | `skipRestoreAll(row)` | `row.page == "profiles"` — those rows are AceDBOptions-supplied and resetting them is data loss, not a restore |
 | `afterRestoreAll` | delegates to `Helpers.ResetAllPositions`, because `position` is written by dragging and no schema row owns it, so `ApplyDefault` never touches it |
-| `scheduleTimer` | `NS.addon:ScheduleTimer` (AceTimer per §3.1, not a raw `C_Timer`); backs the colour picker's 50 ms drag throttle. Optional at the library level — without it the library commits every drag frame |
+| `scheduleTimer` | `NS.addon:ScheduleTimer` (AceTimer per §3.1, not a raw `C_Timer`); backs the color picker's 50 ms drag throttle. Optional at the library level — without it the library commits every drag frame |
 | `getLSM`, `validate` | `NS.GetLSM`, `NS.ValidateSchema` |
 | `onAceGUI`, `buildMain` | publishes `NS.AceGUI`; hands back `Helpers.BuildMainContent` under a nil-guard, because `settings/About.lua` loads *after* this file |
-| `colorDecode`, `colorEncode` | the `{r=, g=, b=, a=}` named-key shape `core/Data.lua`'s colour getters read. Written out rather than omitted even though it matches the library default, because the shape is a real contract with the rest of the addon |
+| `colorDecode`, `colorEncode` | the `{r=, g=, b=, a=}` named-key shape `core/Data.lua`'s color getters read. Written out rather than omitted even though it matches the library default, because the shape is a real contract with the rest of the addon |
 
 ```lua
 -- What NS.Helpers answers, and where each member comes from:
@@ -656,7 +656,7 @@ NS.Helpers
     -- libs/LibKa0s/OptionsScroll.lua
     Helpers.PatchAlwaysShowScrollbar(scroll)       -- always-visible scrollbar override
 
-    -- settings/UnitPanel.lua — ours, because neither piece generalises
+    -- settings/UnitPanel.lua — ours, because neither piece generalizes
     Helpers.RenderUnitPanel(ctx, pageKey)          -- Bar/Border/Font: Unit dropdown + mirror
                                                    -- header (checkbox + copy button), full
                                                    -- rebuild via ClearScroll on every call.
@@ -676,7 +676,7 @@ NS.Helpers
                                                    -- the descriptor's buildMain hook.
 ```
 
-The colour-picker drag throttle is library code (`COLOR_THROTTLE = 0.05` in `OptionsWidgets.lua`); the timer behind it arrives through the descriptor's `scheduleTimer` — `NS.addon:ScheduleTimer` (AceTimer one-shot), not `C_Timer.NewTimer`. Detail in [settings-panel.md](./settings-panel.md).
+The color-picker drag throttle is library code (`COLOR_THROTTLE = 0.05` in `OptionsWidgets.lua`); the timer behind it arrives through the descriptor's `scheduleTimer` — `NS.addon:ScheduleTimer` (AceTimer one-shot), not `C_Timer.NewTimer`. Detail in [settings-panel.md](./settings-panel.md).
 
 ### Options pages (`settings/General|Bar|Border|Font|Profiles.lua`)
 
