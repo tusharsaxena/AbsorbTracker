@@ -31,7 +31,7 @@ State that lives on `NS` (rather than as a global):
 - Library instances published under an addon-owned name: `DebugLog` (`LibKa0s-DebugLog-1.0`'s console), `Helpers` (`LibKa0s-Options-1.0`'s options instance), `Perf` (`LibKa0s-Perf-1.0`'s probe). These are not addon sub-tables — they are what `lib:New(descriptor)` returned, assigned outright.
 - Helper functions attached directly (`Print`, `Debug`, `GetSetting`, `SetSetting`, `GetBarColor`, ...).
 - The schema registry (`Schema`) and the localized-string table (`L`).
-- The slash command list (`COMMANDS`, aliased `SlashCommands`) — also rendered on the about page.
+- The slash command list (`COMMANDS`) — also rendered on the about page.
 - The stashed AceGUI reference (`AceGUI`), handed over by `LibKa0s-Options-1.0` through the descriptor's `onAceGUI` callback, which fires once during `CreateOptionsPanel`.
 
 The only WoW-required global is the SavedVariables table `AbsorbTrackerDB`. The bar frame is named `AbsorbTrackerFrame`; the debug console frames are `AbsorbTrackerDebugWindow` / `AbsorbTrackerDebugCopyWindow`. There are **no** `SLASH_*` / `SlashCmdList` globals — slash registration is AceConsole (`RegisterChatCommand`).
@@ -550,7 +550,6 @@ NS.COMMANDS         -- ordered { name, desc, fn } array of 17 verbs: help, confi
                     -- update, version, test, profile. Passed INTO the library rather than owned
                     -- by it — the about page renders the same table, so a library that owned it
                     -- would drag the options library into depending on the slash one.
-NS.SlashCommands    -- alias of NS.COMMANDS (kept for settings/About.lua)
 
 NS.Slash:LandingRows() -- the formatted command rows settings/About.lua renders: the same
                        -- library formatter /at help uses, without the chat indent
@@ -567,9 +566,9 @@ The settings UI is `LibKa0s-Options-1.0` (`libs/LibKa0s/Options.lua` + `OptionsW
 
 ```lua
 -- The addon's half: the wrappers (settings/OptionsSetup.lua)
-NS.PARENT_TITLE            -- "Ka0s Absorb Tracker" — single source of truth for the top-level
-                           -- canvas title and the breadcrumb prefix. Set BEFORE the lib check,
-                           -- so it exists on the degraded path too.
+-- There is no NS.PARENT_TITLE: the brand string is a file-scope `PARENT_TITLE` local in
+-- settings/OptionsSetup.lua, reaching the library as descriptor.parentTitle. The two files
+-- that used to read it off the namespace (settings/Panel.lua, Helpers.lua) are in the library.
 NS.RegisterOptionsPage(key, name, builder)
     -- key:     "general" / "bar" / "border" / "font" / "profiles"
     -- name:    display name shown in the Blizzard Settings tree (and breadcrumb header)

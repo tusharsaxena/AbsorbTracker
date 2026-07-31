@@ -101,9 +101,6 @@ NS.COMMANDS = {
         function(rest) runProfile(rest) end},
 }
 
--- Alias kept for the About page, which renders the same list (settings/About.lua).
-NS.SlashCommands = NS.COMMANDS
-
 -- ---------------------------------------------------------------------
 -- /at help
 -- ---------------------------------------------------------------------
@@ -383,8 +380,7 @@ end
 -- The host verbs never went to the library, so they keep working untouched. What is lost is the
 -- schema CLI, and each of those verbs names the missing library rather than going quiet.
 if not SlashLib then
-    local missing = " is unavailable: the LibKa0s library is missing from this installation of " ..
-        "Absorb Tracker (expected in libs/LibKa0s)."
+    local missing = " is unavailable. " .. NS.LIBKA0S_MISSING .. "."
     SlashLib = { FormatRow = function(cmd, desc) return cmd .. " \226\128\148 " .. desc end }
 
     function SlashLib:New(d)
@@ -395,7 +391,6 @@ if not SlashLib then
         for _, verb in ipairs({ "List", "Get", "Set", "Reset", "ResetAll" }) do
             stub["Cli" .. verb] = absent(verb:lower())
         end
-        stub.CliVersion  = function() print(("v%s"):format(d.version())) end
         stub.LandingRows = function()
             local out = {}
             for _, e in ipairs(d.commands) do

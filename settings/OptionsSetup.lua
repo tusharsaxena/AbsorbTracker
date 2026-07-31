@@ -138,8 +138,7 @@ local descriptor = {
 -- header. Hand-copying the code whose drift the extraction exists to end is the one duplicate
 -- testing-§8 most specifically forbids.
 if not lib then
-    local MISSING = "The settings panel is unavailable: the LibKa0s library is missing from this " ..
-        "installation of Absorb Tracker (expected in libs/LibKa0s)."
+    local MISSING = NS.LIBKA0S_MISSING .. ", so the settings panel is unavailable."
 
     local Helpers = {}
     NS.Helpers = Helpers

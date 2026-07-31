@@ -71,7 +71,10 @@ test("the About page renders one row per verb, through the same formatter as /at
   for i, entry in ipairs(NS.COMMANDS) do
     assertTrue(rows[i]:find("/at " .. entry[1], 1, true) ~= nil, entry[1] .. ": " .. rows[i])
   end
-  assertEqual(NS.SlashCommands, NS.COMMANDS, "and the alias still points at the same table")
+  -- The NS.SlashCommands alias is gone: About.lua renders LandingRows(), the rows above are what
+  -- carry the no-drift property, and nothing in the addon read the alias by the time it was
+  -- removed. Asserted as absent so a reflex re-add has to argue for itself.
+  assertEqual(NS.SlashCommands, nil, "the alias is gone, not resurrected")
 end)
 
 test("the About rows carry the help colors, without the chat indent", function()

@@ -9,11 +9,11 @@ re-derived here. Five extractions have moved code out of the addon since the mea
 
 | Extraction | Deleted from the addon | What took its place |
 |---|---|---|
-| `LibKa0s-Core-1.0` | `core/Util.lua` | `core/CoreSetup.lua` (70 lines) |
-| `LibKa0s-DebugLog-1.0` | `core/DebugLog.lua` | `core/DebugLogSetup.lua` (111 lines) |
+| `LibKa0s-Core-1.0` | `core/Util.lua` | `core/CoreSetup.lua` (78 lines) |
+| `LibKa0s-DebugLog-1.0` | `core/DebugLog.lua` | `core/DebugLogSetup.lua` (110 lines) |
 | `LibKa0s-Slash-1.0` | — (`settings/Slash.lua` gutted in place) | `settings/Slash.lua`, now the verb table and host verbs only |
-| `LibKa0s-Options-1.0` | `settings/Panel.lua`, `Helpers.lua`, `ScrollPatch.lua`, `Widgets.lua` | `settings/OptionsSetup.lua` (182 lines) + `settings/UnitPanel.lua` (173 lines) |
-| `LibKa0s-Perf-1.0` | `core/Perf.lua`, `core/PerfPanel.lua` | `core/PerfSetup.lua` (131 lines) |
+| `LibKa0s-Options-1.0` | `settings/Panel.lua`, `Helpers.lua`, `ScrollPatch.lua`, `Widgets.lua` | `settings/OptionsSetup.lua` (199 lines) + `settings/UnitPanel.lua` (193 lines) |
+| `LibKa0s-Perf-1.0` | `core/Perf.lua`, `core/PerfPanel.lua` | `core/PerfSetup.lua` (130 lines) |
 
 Rows for the deleted files have been hand-removed rather than renamed. The numbers would not carry
 over: what is left in the addon is a descriptor plus a degradation stub, not the algorithms. The

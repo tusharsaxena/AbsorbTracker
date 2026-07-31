@@ -19,8 +19,7 @@ if not lib then
     -- core/PerfSetup.lua's log sink all reach for one — and the flag itself still works, because
     -- NS.State.debug is ours and a user who types `/at debug on` should not be told nothing
     -- happened. What is lost is the window, and the stub says so once, honestly.
-    local missing = "The LibKa0s library is missing from this installation of Absorb Tracker " ..
-        "(expected in libs/LibKa0s), so the debug console window is unavailable."
+    local missing = NS.LIBKA0S_MISSING .. ", so the debug console window is unavailable."
     local announced = false
     local function sayOnce()
         if announced then return end

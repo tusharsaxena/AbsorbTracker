@@ -13,6 +13,15 @@ local Util = NS.Util
 -- NS.PREFIX just above it, and everything below it — core/PerfSetup.lua first — either calls
 -- NS.Print or takes it as a load-time upvalue.
 
+-- The one cause clause, shared by every seam that has to explain the same absence: this file,
+-- core/DebugLogSetup.lua, core/PerfSetup.lua, settings/OptionsSetup.lua and settings/Slash.lua.
+-- Each appends its own "so <what> is unavailable" and its own terminal punctuation, so a degraded
+-- install says the same thing about WHY five times and a different thing about WHAT each time.
+-- Set outside the branch below because the seams that read it are reached on both paths, and set
+-- HERE because core/CoreSetup.lua is the first of the five the TOC loads.
+NS.LIBKA0S_MISSING = "The LibKa0s library is missing from this installation of Absorb Tracker " ..
+    "(expected in libs/LibKa0s)"
+
 local lib = LibStub and LibStub("LibKa0s-Core-1.0", true)
 
 if not lib then
@@ -41,9 +50,8 @@ if not lib then
         if not DEFAULT_CHAT_FRAME then return end
         if not announced then
             announced = true
-            DEFAULT_CHAT_FRAME:AddMessage(NS.SafeToString(NS.PREFIX) .. " The LibKa0s library is " ..
-                "missing from this installation of Absorb Tracker (expected in libs/LibKa0s); " ..
-                "running on reduced built-in fallbacks.")
+            DEFAULT_CHAT_FRAME:AddMessage(NS.SafeToString(NS.PREFIX) .. " " ..
+                NS.LIBKA0S_MISSING .. "; running on reduced built-in fallbacks.")
         end
         DEFAULT_CHAT_FRAME:AddMessage(table.concat(parts, " "))
     end
