@@ -117,8 +117,10 @@ modules subscribe on their own `NS.NewBusTarget()` targets (architecture-§4; se
   text file, convert with `sed -i 's/\r$//; s/$/\r/'` if the tool wrote LF.
 - **Libs vendored folder-per-lib in `libs/`** (`libs/LibStub/`, `libs/AceAddon-3.0/`, …): LibStub,
   CallbackHandler-1.0, the Ace3 stack (AceAddon / AceEvent / AceTimer / AceConsole / AceDB /
-  AceGUI / AceConfig / AceDBOptions), LibSharedMedia-3.0, and the upstream
-  `AceGUI-3.0-SharedMediaWidgets` r65. The displayButton tile is suppressed by
+  AceGUI / AceConfig / AceDBOptions), `LibKa0s` (`LibKa0s-Core-1.0` / `LibKa0s-DebugLog-1.0` /
+  `LibKa0s-Perf-1.0`, all four files loaded through `libs/LibKa0s/LibKa0s.xml`; ours, and the only
+  one of these re-vendored whole-folder from a sibling repo on every release), LibSharedMedia-3.0,
+  and the upstream `AceGUI-3.0-SharedMediaWidgets` r65. The displayButton tile is suppressed by
   `core/LSMPatch.lua` (addon-side, not a lib edit), so `r66+` refreshes are a clean drop-in.
 - **Headless tests (`tests/`) + lint gate.** `lua tests/run.lua` (schema parse/format/validate plus
   the build-time schema-integrity invariants, DB migrations, Compat, the `LibKa0s-Core-1.0` wiring
