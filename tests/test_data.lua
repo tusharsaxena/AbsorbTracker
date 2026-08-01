@@ -160,7 +160,11 @@ end)
 test("LSMValues yields a self-keyed map of the live LSM hash table", function()
   local values = NS.Helpers.LSMValues("statusbar")
   assertEqual(type(values), "function", "LSMValues returns a deferred closure, not a table")
-  assertEqual(next(values()), nil, "empty while LSM is absent")
+  -- A single `None` placeholder while LSM is absent, not an empty table. Empty made the row
+  -- unusable rather than merely unpopulated: the dropdown cannot be opened, and the CLI's
+  -- allowed-values check refuses every value including the one already stored. Changed in
+  -- OptionsWidgets/Options minor 4.
+  assertEqual(values().None, "None", "a placeholder while LSM is absent")
   withLSM({ statusbar = { Alpha = "a/path", Beta = "b/path" } }, function()
     local out = values()
     assertEqual(out.Alpha, "Alpha", "keys map to themselves for the dropdown")
