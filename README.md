@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 [![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)](https://github.com/tusharsaxena/WowAddonStandards)
-![Tests](https://img.shields.io/badge/Tests-449%2F449_passing-green)
+![Tests](https://img.shields.io/badge/Tests-461%2F461_passing-green)
 
 ![Logo](https://media.forgecdn.net/attachments/1659/653/absorbracker-logo-v2-jpg.jpg)
 
@@ -137,6 +137,14 @@ or focus and its bar disappears until you have one again.
 | Custom textures or fonts aren't in the dropdowns | Install a media pack addon (one that includes SharedMedia). Without one, only WoW's built-in options show. |
 | A bar's position resets after I log out | WoW only saves your settings on a clean logout. A crash or a force-quit can drop the last position. Log out through the menu and it will stick. |
 | I want detailed logs | `/at debug` toggles a log window; `/at debug on` starts logging there instead of in chat. You can also open it from the **Debug console** checkbox on the General page. It resets to off every time you reload. |
+
+## Credits and libraries
+
+Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.1.0 (MIT) — the shared Ka0s
+library behind the chat printer, the debug console, the slash dispatcher and schema CLI, the
+settings panel toolkit and the perf harness. It ships in `libs/LibKa0s/`, license included.
+Ace3, LibStub, CallbackHandler-1.0 and LibSharedMedia-3.0 are bundled in `libs/` as well, each
+under its own license.
 
 ## Issues and feature requests
 

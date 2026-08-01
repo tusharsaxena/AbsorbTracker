@@ -121,7 +121,7 @@ badge and any count quoted in the docs must agree with it.
 - core: NS.Print and NS.Util.print are the same object after the AceConsole reclaim
 - core: the addon still prints, tagged, with LibKa0s absent
 
-### test_debuglog.lua (9)
+### test_debuglog.lua (10)
 
 - FONT_MONO constant is a JetBrains Mono TTF path
 - the debug flag the library reads and writes is NS.State.debug
@@ -132,8 +132,9 @@ badge and any count quoted in the docs must agree with it.
 - /at debug off disables session state
 - /at debug (no arg) toggles the window, not the state
 - /at debug on writes an [Init] summary naming our version, schema and profile
+- the console checkbox label the library renders is prose, not its own STRINGS key
 
-### test_slash.lua (12)
+### test_slash.lua (13)
 
 - NS.Print survives AceConsole's embed and stays the [AT]-prefixed printer
 - bare /at prints the help index: header + one row per command
@@ -147,6 +148,7 @@ badge and any count quoted in the docs must agree with it.
 - /at config in combat refuses with a gray notice (options-ui-§2)
 - OpenOptionsPanel logs [Cfg] refused in combat
 - SetByPath logs one [Set] path = value line (§10)
+- the schema CLI's list header the library renders is prose, not its own STRINGS key
 
 ### test_timer.lua (11)
 
@@ -162,7 +164,7 @@ badge and any count quoted in the docs must agree with it.
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (26)
+### test_perf.lua (27)
 
 - perf: the addon holds a real LibKa0s-Perf instance
 - perf: the descriptor declares this addon's buckets, with their nesting
@@ -190,6 +192,7 @@ badge and any count quoted in the docs must agree with it.
 - perf: the addon loads with LibKa0s absent
 - perf: /at perf explains itself instead of erroring with LibKa0s absent
 - perf: the brackets and the show ladder survive LibKa0s being absent
+- every perf step label the library renders is prose, not its own STRINGS key
 
 ### test_visibility.lua (17)
 
@@ -292,7 +295,7 @@ badge and any count quoted in the docs must agree with it.
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_helpers.lua (42)
+### test_helpers.lua (46)
 
 - CreatePanel returns a ctx wired to a panel, a body and an empty refresher list
 - CreatePanel names the panel with the plain title for the Blizzard left tree
@@ -325,6 +328,9 @@ badge and any count quoted in the docs must agree with it.
 - a page Defaults button resets that page across every unit
 - RestoreAllDefaults clears all three saved positions
 - the mirror checkbox renders exactly once — the header owns it, RenderRows must skip it
+- the mirror checkbox and copy button share one full-width Flow row at half width each
+- every header row is followed by a ROW_VSPACER, as the hand-rolled block did
+- one raising header item no longer costs the rest of the page
 - ClearScroll resets ctx.refreshers, so repeated renders do not leak stale closures
 - the General page's Reset Position button clears EVERY unit's saved position
 - the Reset Position button and /at resetposition run the SAME shared helper
@@ -336,6 +342,7 @@ badge and any count quoted in the docs must agree with it.
 - an ordinary schema write does NOT re-render the whole unit page
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
+- the Defaults button the library renders is prose, not its own STRINGS key
 
 ### test_optionssetup.lua (4)
 
@@ -512,6 +519,14 @@ badge and any count quoted in the docs must agree with it.
 - README.md carries no angle-bracket argument placeholders
 - the addon's own files use US spellings
 
+### test_ltrap.lua (5)
+
+- no LibKa0s descriptor in this addon is handed the key-returning locale table
+- locales/enUS.lua really does answer every key, so the check above guards something
+- vendored DebugLog resolves a fallback-only override to its own strings
+- vendored Slash resolves a fallback-only override to its own strings
+- vendored Perf resolves a fallback-only override to its own strings
+
 ## Totals
 
 | Suite | Cases |
@@ -522,17 +537,18 @@ badge and any count quoted in the docs must agree with it.
 | test_units.lua | 14 |
 | test_compat.lua | 4 |
 | test_coresetup.lua | 4 |
-| test_debuglog.lua | 9 |
-| test_slash.lua | 12 |
+| test_debuglog.lua | 10 |
+| test_slash.lua | 13 |
 | test_timer.lua | 11 |
-| test_perf.lua | 26 |
+| test_perf.lua | 27 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
 | test_display.lua | 39 |
-| test_helpers.lua | 42 |
+| test_helpers.lua | 46 |
 | test_optionssetup.lua | 4 |
 | test_slashcmds.lua | 109 |
 | test_widgets.lua | 48 |
 | test_docs.lua | 2 |
-| **Total** | **449** |
+| test_ltrap.lua | 5 |
+| **Total** | **461** |
