@@ -6,7 +6,8 @@
 --
 -- Neither generalizes. RenderUnitPanel reads NS.Units and the mirror partition, which no other Ka0s
 -- addon has; ResetAllPositions clears a per-unit saved frame position, which is this addon's data
--- model. Everything they stand on — ClearScroll, EnsureScroll, RenderRows, AttachTooltip — is
+-- model. Everything they stand on — ClearScroll, EnsureScroll, RenderGrid, RenderRows,
+-- AttachTooltip — is
 -- LibKa0s-Options-1.0's, reached through the same NS.Helpers table, which IS the library instance
 -- (settings/OptionsSetup.lua). Decorating it rather than sitting beside it is what lets a page file
 -- call H.RenderUnitPanel and H.RenderSchema without knowing or caring which is which.
@@ -58,70 +59,88 @@ local function renderUnitPanelBody(ctx, pageKey)
     local scroll = Helpers.EnsureScroll(ctx)
     Helpers.__lastUnitCtx = ctx   -- test seam: the harness has no other handle on a live ctx
 
-    -- Unit selector ---------------------------------------------------
-    local dd = AceGUI:Create("Dropdown")
-    dd:SetLabel("Unit")
-    dd:SetFullWidth(true)
-    local items, order = {}, {}
-    for i, u in ipairs(NS.Units.LIST) do
-        items[u] = NS.Units.LABEL[u]
-        order[i] = u
-    end
-    dd:SetList(items, order)
-    dd:SetValue(ctx.unit)
-    dd:SetCallback("OnValueChanged", function(_, _, value)
-        ctx.unit = value
-        Helpers.RenderUnitPanel(ctx, pageKey)
-    end)
-    scroll:AddChild(dd)
-    Helpers.AddSpacer(scroll, Helpers.ROW_VSPACER)
-
     local rows = NS.SchemaForPage(pageKey, ctx.unit)
     local perUnitRows, styledRows = NS.PartitionUnitRows(rows)
 
-    -- Mirror header (target / focus only) ------------------------------
     local mirrored = NS.Units.IsMirrored(ctx.unit)
     local cb                                   -- hoisted: the refresher at the bottom re-syncs it
+
+    -- The header, as DATA. -------------------------------------------------------------------
+    --
+    -- This block used to hand-roll LibKa0s-Options' flow engine: a SimpleGroup + SetLayout("Flow")
+    -- + SetFullWidth(true), two children at SetRelativeWidth(0.5), scroll:AddChild, then
+    -- AddSpacer(ROW_VSPACER) — the third such copy in the collection and exactly the duplication
+    -- OptionsWidgets minor 4 shipped RenderGrid to end. RenderGrid's HALF is the same 0.5 the copy
+    -- hardcoded and it emits the same trailing spacer after every flushed row, so the rendered
+    -- layout is unchanged; what is gained is that each item is pcall'd individually. Before, a
+    -- single raise in the header (a nil NS.Units.LABEL entry, an AceGUI widget error) aborted the
+    -- whole body and left the page half-drawn behind the outer pcall in RenderUnitPanel.
+    --
+    -- `wide` items get their own full-width row and a nil relativeWidth, so a wide maker still
+    -- calls SetFullWidth itself. Non-wide items pair two-across and are handed the width.
+    local items = {}
+
+    -- Unit selector — one widget for the whole of NS.Units.LIST, so the loop below fills the
+    -- dropdown's own list rather than emitting a widget per unit.
+    items[#items + 1] = { wide = true, make = function(_, parent)
+        local dd = AceGUI:Create("Dropdown")
+        dd:SetLabel("Unit")
+        dd:SetFullWidth(true)
+        local list, order = {}, {}
+        for i, u in ipairs(NS.Units.LIST) do
+            list[u] = NS.Units.LABEL[u]
+            order[i] = u
+        end
+        dd:SetList(list, order)
+        dd:SetValue(ctx.unit)
+        dd:SetCallback("OnValueChanged", function(_, _, value)
+            ctx.unit = value
+            Helpers.RenderUnitPanel(ctx, pageKey)
+        end)
+        parent:AddChild(dd)
+    end }
+
+    -- Mirror header (target / focus only) ------------------------------
     if ctx.unit ~= "player" then
-        local row = AceGUI:Create("SimpleGroup")
-        row:SetLayout("Flow")
-        row:SetFullWidth(true)
+        items[#items + 1] = { make = function(_, parent, relativeWidth)
+            cb = AceGUI:Create("CheckBox")
+            cb:SetLabel("Use same styling as Player")
+            cb:SetValue(mirrored)
+            cb:SetRelativeWidth(relativeWidth)
+            cb:SetCallback("OnValueChanged", function(_, _, value)
+                NS.SetByPath("units." .. ctx.unit .. ".mirror", value and true or false)
+                Helpers.RenderUnitPanel(ctx, pageKey)
+            end)
+            Helpers.AttachTooltip(cb, "Use same styling as Player",
+                "Mirror every Player bar appearance setting. Position and enable stay independent.")
+            parent:AddChild(cb)
+        end }
 
-        cb = AceGUI:Create("CheckBox")
-        cb:SetLabel("Use same styling as Player")
-        cb:SetValue(mirrored)
-        cb:SetRelativeWidth(0.5)
-        cb:SetCallback("OnValueChanged", function(_, _, value)
-            NS.SetByPath("units." .. ctx.unit .. ".mirror", value and true or false)
-            Helpers.RenderUnitPanel(ctx, pageKey)
-        end)
-        Helpers.AttachTooltip(cb, "Use same styling as Player",
-            "Mirror every Player bar appearance setting. Position and enable stay independent.")
-        row:AddChild(cb)
-
-        local btn = AceGUI:Create("Button")
-        btn:SetText("Copy styling from Player")
-        btn:SetRelativeWidth(0.5)
-        btn:SetCallback("OnClick", function()
-            NS.Units.CopyFromPlayer(ctx.unit)
-            NS.bus:SendMessage(NS.MSG.APPEARANCE)
-            Helpers.RenderUnitPanel(ctx, pageKey)
-        end)
-        Helpers.AttachTooltip(btn, "Copy styling from Player",
-            "Take a one-time snapshot of the Player bar's appearance. Unlinks this unit so you can then edit it freely.")
-        row:AddChild(btn)
-
-        scroll:AddChild(row)
-        Helpers.AddSpacer(scroll, Helpers.ROW_VSPACER)
+        items[#items + 1] = { make = function(_, parent, relativeWidth)
+            local btn = AceGUI:Create("Button")
+            btn:SetText("Copy styling from Player")
+            btn:SetRelativeWidth(relativeWidth)
+            btn:SetCallback("OnClick", function()
+                NS.Units.CopyFromPlayer(ctx.unit)
+                NS.bus:SendMessage(NS.MSG.APPEARANCE)
+                Helpers.RenderUnitPanel(ctx, pageKey)
+            end)
+            Helpers.AttachTooltip(btn, "Copy styling from Player",
+                "Take a one-time snapshot of the Player bar's appearance. Unlinks this unit so you can then edit it freely.")
+            parent:AddChild(btn)
+        end }
 
         if mirrored then
-            local hint = AceGUI:Create("Label")
-            hint:SetText("Linked to Player \226\128\147 uncheck to customize.")
-            hint:SetFullWidth(true)
-            scroll:AddChild(hint)
-            Helpers.AddSpacer(scroll, Helpers.ROW_VSPACER)
+            items[#items + 1] = { wide = true, make = function(_, parent)
+                local hint = AceGUI:Create("Label")
+                hint:SetText("Linked to Player \226\128\147 uncheck to customize.")
+                hint:SetFullWidth(true)
+                parent:AddChild(hint)
+            end }
         end
     end
+
+    Helpers.RenderGrid(ctx, items)
 
     -- Body: the per-unit rows always render; the appearance rows only when unlinked. The mirror
     -- row itself carries skipRender, so RenderRows leaves it to the header above.

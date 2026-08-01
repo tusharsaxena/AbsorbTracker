@@ -158,7 +158,7 @@ if not lib then
     -- Reached only from a builder or a user action, so a no-op is the honest answer.
     for _, name in ipairs({
         "CreatePanel", "EnsureDefaultsButton", "EnsureScroll", "ClearScroll", "Section",
-        "AddSpacer", "AttachTooltip", "InlineButtonPair", "RenderField", "RenderRows",
+        "AddSpacer", "AttachTooltip", "InlineButtonPair", "RenderField", "RenderGrid", "RenderRows",
         "RenderSchema", "SessionCheckbox", "RefreshAllPanels", "RestoreDefaults",
         "PatchAlwaysShowScrollbar",
         -- RenderUnitPanel is deliberately absent: settings/UnitPanel.lua loads after this file and
