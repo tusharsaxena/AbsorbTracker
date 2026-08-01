@@ -519,8 +519,9 @@ badge and any count quoted in the docs must agree with it.
 - README.md carries no angle-bracket argument placeholders
 - the addon's own files use US spellings
 
-### test_ltrap.lua (5)
+### test_ltrap.lua (6)
 
+- the source matcher tells the three `L =` spellings apart
 - no LibKa0s descriptor in this addon is handed the key-returning locale table
 - locales/enUS.lua really does answer every key, so the check above guards something
 - vendored DebugLog resolves a fallback-only override to its own strings
@@ -550,5 +551,5 @@ badge and any count quoted in the docs must agree with it.
 | test_slashcmds.lua | 109 |
 | test_widgets.lua | 48 |
 | test_docs.lua | 2 |
-| test_ltrap.lua | 5 |
-| **Total** | **461** |
+| test_ltrap.lua | 6 |
+| **Total** | **462** |

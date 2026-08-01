@@ -35,8 +35,8 @@
 
 local T = _G.AT_TEST
 local NS = T.NS
-local test, assertEqual, assertTrue, assertNil =
-  T.test, T.assertEqual, T.assertTrue, T.assertNil
+local test, assertEqual, assertTrue, assertFalse, assertNil =
+  T.test, T.assertEqual, T.assertTrue, T.assertFalse, T.assertNil
 
 -- The five seams, in TOC load order. Kept as a literal list rather than a glob so a new seam has
 -- to be added deliberately — see CLAUDE.md, "LibKa0s is vendored".
@@ -54,9 +54,56 @@ local function fallbackLocale()
   return setmetatable({}, { __index = function(_, k) return k end })
 end
 
+-- Does this source line hand a descriptor the locale table itself?
+--
+-- Matched on what the expression can EVALUATE TO, not on one spelling. An earlier version of this
+-- guard anchored `L = NS.L` to end-of-line, which meant `L = NS.L or {}` — the same trap, one word
+-- longer — walked straight past it. `and`/`or` is not a conditional here either:
+--
+--   L = NS.L                     -- the table itself                        OFFENDER
+--   L = NS.L or { ... }          -- NS.L is always truthy, so: the table    OFFENDER
+--   L = NS.L and { ... } or nil  -- evaluates to the plain table            fine
+--
+-- So: flag any `L =` whose value STARTS with the locale table, unless the next token is `and`,
+-- which is the one operator that can select something else. File scope rather than closure scope
+-- so the case below can drive it against known inputs — a matcher nothing tests is a matcher that
+-- silently stops matching.
+local function handedTheLocaleTable(line)
+  local tail = line:match("^%s*L%s*=%s*NS%.L(.*)$") or line:match("[{,]%s*L%s*=%s*NS%.L(.*)$")
+  if not tail then return false end
+  -- `and` guards it; anything else (`,` `}` `or` end-of-line) leaves NS.L reachable.
+  return not (tail:match("^%s*and$") or tail:match("^%s*and[^%w_]"))
+end
+
 -- ── 1. the source check ────────────────────────────────────────────────────────────
 --
--- red under: adding `L = NS.L,` to any seam descriptor.
+-- red under: adding `L = NS.L,` or `L = NS.L or {…},` to any seam descriptor.
+
+test("the source matcher tells the three `L =` spellings apart", function()
+  -- Non-vacuity for the case below. Without this, the matcher could be narrowed back to a single
+  -- anchored form — which is exactly what it was — and the guard would keep passing while
+  -- guarding nothing.
+  for _, bad in ipairs({
+    "  L = NS.L,",
+    "L = NS.L",
+    "    L = NS.L or {},",
+    "  L = NS.L or { FOO = 'bar' },",
+    "  { L = NS.L, other = 1 }",
+  }) do
+    assertTrue(handedTheLocaleTable(bad), "should be flagged: " .. bad)
+  end
+
+  for _, ok in ipairs({
+    "  L = NS.L and { FOO = 'bar' } or nil,",
+    "  L = NS.L and {",
+    "  local L = NS.LAYOUT",
+    "  L = STRINGS,",
+    "  L = nil,",
+    "  -- L = NS.L, in a comment",   -- documentation, not a descriptor
+  }) do
+    assertFalse(handedTheLocaleTable(ok), "should NOT be flagged: " .. ok)
+  end
+end)
 
 test("no LibKa0s descriptor in this addon is handed the key-returning locale table", function()
   -- The general form, so the next seam file cannot reintroduce it. A table whose __index
@@ -69,8 +116,7 @@ test("no LibKa0s descriptor in this addon is handed the key-returning locale tab
     local n = 0
     for line in fh:lines() do
       n = n + 1
-      -- `L = NS.L` in any spacing, and the aliased form a refactor might leave behind.
-      if line:match("^%s*L%s*=%s*NS%.L%s*[,}]?%s*$") or line:match("[{,]%s*L%s*=%s*NS%.L%s*[,}]") then
+      if handedTheLocaleTable(line) then
         offenders[#offenders + 1] = rel .. ":" .. n .. "  " .. line:match("^%s*(.-)%s*$")
       end
     end

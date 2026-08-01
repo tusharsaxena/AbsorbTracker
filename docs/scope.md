@@ -60,7 +60,7 @@ Decisions made during requirements review and earlier releases — these are set
 
 ## Testing posture
 
-- **A headless test harness exists** at `tests/` (`run.lua`, `wow_mock.lua`, and `_kit/` — the shared harness vendored from LibKa0s — plus `test_loadorder` / `test_schema` / `test_database` / `test_units` / `test_compat` / `test_coresetup` / `test_debuglog` / `test_slash` / `test_timer` / `test_perf` / `test_visibility` / `test_bus` / `test_data` / `test_display` / `test_helpers` / `test_slashcmds` / `test_widgets`). It runs outside WoW against a mock and is the green gate together with `luacheck .` (0/0) and `luac -p`. Any claim that "there are no automated tests" is stale.
+- **A headless test harness exists** at `tests/` (`run.lua`, `wow_mock.lua`, and `_kit/` — the shared harness vendored from LibKa0s — plus `test_loadorder` / `test_schema` / `test_database` / `test_units` / `test_compat` / `test_coresetup` / `test_debuglog` / `test_slash` / `test_timer` / `test_perf` / `test_visibility` / `test_bus` / `test_data` / `test_display` / `test_helpers` / `test_slashcmds` / `test_widgets` / `test_optionssetup` / `test_docs` / `test_ltrap`). It runs outside WoW against a mock and is the green gate together with `luacheck .` (0/0) and `luac -p`. Any claim that "there are no automated tests" is stale.
 - **In-game smoke tests remain the manual layer.** The harness cannot exercise real frames, protected APIs, or the live absorb engine; [docs/smoke-tests.md](./smoke-tests.md) is still the manual QA recipe run before a release.
 
 ## Where the contract lives
