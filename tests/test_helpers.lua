@@ -26,6 +26,46 @@ test("CreatePanel returns a ctx wired to a panel, a body and an empty refresher 
   assertEqual(ctx.scroll, nil, "the AceGUI scroll frame stays lazy until first render")
 end)
 
+-- ── the Blizzard canvas contract (LibKa0s-Options-1.0 minor 5) ─────────────────────
+--
+-- Blizzard's Settings window calls OnCommit on apply, OnRefresh on re-show, and OnDefault from its
+-- own FOOTER defaults control — which is a different widget from the header Defaults button this
+-- addon builds, and is not per-page. The library stamps all three in CreatePanel as of minor 5, so
+-- this addon gained a working footer control without a line of its own changing. These cases are
+-- what notice if a re-vendor takes it away again: nothing in this repo would otherwise, because
+-- every page's header button keeps working and looks equivalent to the user.
+--
+-- RAWGET throughout, and that is the point rather than a style choice. The frame mock synthesises a
+-- no-op for any PascalCase key, so `type(panel.OnDefault) == "function"` is true whether or not a
+-- single line ever set it.
+
+test("the canvas frame carries OnCommit, OnDefault and OnRefresh from the library", function()
+  local ctx = Helpers.CreatePanel("ATTestPanelCanvas1", "Canvas 1", { defaultsButton = true })
+  assertEqual(type(rawget(ctx.panel, "OnCommit")),  "function", "OnCommit")
+  assertEqual(type(rawget(ctx.panel, "OnDefault")), "function", "OnDefault")
+  assertEqual(type(rawget(ctx.panel, "OnRefresh")), "function", "OnRefresh")
+end)
+
+test("OnDefault reaches a defaultsOnClick parked AFTER the panel is built", function()
+  -- The ordering is the whole reason the library forwards rather than assigns, and it is this
+  -- addon's shape that makes it matter: settings/General.lua, Bar.lua, Border.lua and Font.lua all
+  -- park their handler after CreatePanel returns, because the button does not exist until first
+  -- OnShow. A re-vendor that turned the forwarder back into an assignment would capture nil in all
+  -- four pages, silently, and only the footer control would notice — in game.
+  local ctx = Helpers.CreatePanel("ATTestPanelCanvas2", "Canvas 2", { defaultsButton = true })
+  local ran = 0
+  ctx.panel.defaultsOnClick = function() ran = ran + 1 end
+  rawget(ctx.panel, "OnDefault")()
+  assertEqual(ran, 1, "the footer control must reach the page's parked defaults action")
+end)
+
+test("a page that parks no defaults action still has a callable, inert OnDefault", function()
+  -- The footer control is not per-page, so it can be clicked while the landing page is open.
+  local ctx = Helpers.CreatePanel("ATTestPanelCanvas3", "Canvas 3", {})
+  assertNil(rawget(ctx.panel, "defaultsOnClick"))
+  rawget(ctx.panel, "OnDefault")()   -- must not raise
+end)
+
 test("CreatePanel names the panel with the plain title for the Blizzard left tree", function()
   -- The header FontString gets the "Ka0s Absorb Tracker > Page" breadcrumb, but panel.name (what
   -- Blizzard renders in the category tree) must stay unprefixed or the tree reads doubled up.

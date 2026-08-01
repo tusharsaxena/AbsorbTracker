@@ -295,9 +295,12 @@ badge and any count quoted in the docs must agree with it.
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_helpers.lua (46)
+### test_helpers.lua (49)
 
 - CreatePanel returns a ctx wired to a panel, a body and an empty refresher list
+- the canvas frame carries OnCommit, OnDefault and OnRefresh from the library
+- OnDefault reaches a defaultsOnClick parked AFTER the panel is built
+- a page that parks no defaults action still has a callable, inert OnDefault
 - CreatePanel names the panel with the plain title for the Blizzard left tree
 - CreatePanel starts the panel hidden
 - CreatePanel only DECLARES the Defaults button, never builds it
@@ -519,11 +522,13 @@ badge and any count quoted in the docs must agree with it.
 - README.md carries no angle-bracket argument placeholders
 - the addon's own files use US spellings
 
-### test_ltrap.lua (6)
+### test_ltrap.lua (8)
 
 - the source matcher tells the three `L =` spellings apart
 - no LibKa0s descriptor in this addon is handed the key-returning locale table
 - locales/enUS.lua really does answer every key, so the check above guards something
+- LibKa0s-Core tripwire: Core ships no STRINGS and reads no descriptor L
+- LibKa0s-Options tripwire: Options reads no descriptor L
 - vendored DebugLog resolves a fallback-only override to its own strings
 - vendored Slash resolves a fallback-only override to its own strings
 - vendored Perf resolves a fallback-only override to its own strings
@@ -546,10 +551,10 @@ badge and any count quoted in the docs must agree with it.
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
 | test_display.lua | 39 |
-| test_helpers.lua | 46 |
+| test_helpers.lua | 49 |
 | test_optionssetup.lua | 4 |
 | test_slashcmds.lua | 109 |
 | test_widgets.lua | 48 |
 | test_docs.lua | 2 |
-| test_ltrap.lua | 6 |
-| **Total** | **462** |
+| test_ltrap.lua | 8 |
+| **Total** | **467** |

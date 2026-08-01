@@ -611,7 +611,13 @@ The descriptor is the whole of what this addon tells the library. Everything els
 -- What NS.Helpers answers, and where each member comes from:
 NS.Helpers
     -- libs/LibKa0s/Options.lua — the shell
-    Helpers.CreatePanel(name, title, opts)         -- canvas frame + header; records wantsDefaultsButton
+    Helpers.CreatePanel(name, title, opts)         -- canvas frame + header; records wantsDefaultsButton,
+                                                   -- and stamps the Blizzard canvas contract OnCommit /
+                                                   -- OnRefresh / OnDefault (Options minor 5). OnDefault
+                                                   -- FORWARDS to panel.defaultsOnClick at click time, so
+                                                   -- a handler parked after CreatePanel returns — which
+                                                   -- is what every page here does — is still reached by
+                                                   -- Blizzard's own footer defaults control
     Helpers.EnsureDefaultsButton(panel)            -- builds that Defaults button once, on the panel's
                                                    -- first OnShow, wiring the parked defaultsOnClick
                                                    -- (options-ui-§5: a widget created at load keeps

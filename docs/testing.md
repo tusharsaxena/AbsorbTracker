@@ -58,10 +58,13 @@ so. The panel shell, the widget makers, the two-column flow engine and the alway
 patch are `LibKa0s-Options-1.0` and are tested in the LibKa0s repo. What these two suites assert is
 the seam: that `NS.Helpers` answers each member this addon calls, that a write through a widget
 lands on `NS.SetByPath` and comes back through a refresher, that the Defaults button reverts a page
-across all three units, and that the per-unit page in `settings/UnitPanel.lua` — the Unit dropdown,
-the mirror partition, and the two-tier header refresher — behaves. They exercise library-backed
-members through `NS.Helpers` on purpose: that table **is** the library instance, so a case that
-swaps a member out to spy on it swaps the one the library's own callers see.
+across all three units, that the panel carries the Blizzard canvas contract the library stamps in
+`CreatePanel` (`OnCommit` / `OnRefresh` / `OnDefault`, the last forwarding to a `defaultsOnClick`
+parked *after* the panel is built — which is what every page here does, and what makes Blizzard's
+own footer Defaults control work), and that the per-unit page in `settings/UnitPanel.lua` — the
+Unit dropdown, the mirror partition, and the two-tier header refresher — behaves. They exercise
+library-backed members through `NS.Helpers` on purpose: that table **is** the library instance, so
+a case that swaps a member out to spy on it swaps the one the library's own callers see.
 
 The degradation stub in `settings/OptionsSetup.lua` is the one that could fail silently, and it has
 its own guard. It is deliberately **load-completing** rather than member-answering — page files call
@@ -84,8 +87,14 @@ all three forms, because a matcher nothing tests is one that can be narrowed bac
 anchored form while still reporting green. The rest is non-vacuity (`locales/enUS.lua` really does
 synthesise, so the source check guards something) plus library-regression cases that hand the
 vendored DebugLog, Slash and Perf the exact fallback shape every Ka0s host has and require the
-built-in English back. The **rendered** assertions live in each module's own suite; smoke-test step
-102 is the only check that looks at the screen.
+built-in English back. Core and Options take no `L` at all — Core has no `STRINGS`, and Options'
+`L` is `lib.LAYOUT`, a geometry table — so neither can be handed a descriptor to break, and each
+gets a **tripwire** over the vendored source instead: a case that goes red the day either grows an
+override path, i.e. the day the real assertion becomes writable rather than the day someone
+remembers to look. The two tripwires are not the same shape, on purpose — Options ships its own
+`lib.STRINGS`, so asserting that table absent would fail against a module behaving as designed;
+only the source half transfers. The **rendered** assertions live in each module's own suite;
+smoke-test step 102 is the only check that looks at the screen.
 
 `tests/test_optionssetup.lua` and `tests/test_docs.lua` round out the list. The first covers
 `settings/OptionsSetup.lua` as a *file* — the descriptor's half of the reset contract, and the
@@ -97,6 +106,41 @@ republishes `REPAINT`, which arms a coalescing timer. Left armed, `pending` in `
 stays set for the rest of the **process**, and every later suite's `RequestRepaint` quietly
 coalesces into a pass that never fires — surfacing as unrelated failures three suites away.
 `tests/test_perf.lua` drains it via a local `settle()` helper after every resume. Do the same.
+
+## Verifying the vendored LibKa0s copies
+
+Neither gate above can see this, and that is the whole problem: the library's suite passes against
+the library, and this addon's passes against a stale vendored copy that still works. It has already
+happened to **this** repo — `../LibKa0s/docs/releasing.md` records a fix landing upstream,
+AbsorbTracker not being re-vendored, and both suites staying green the entire time. An after-the-fact
+`diff -r` was the only thing that caught it.
+
+Run after any re-vendor, and before any release:
+
+```sh
+diff -r --strip-trailing-cr ../LibKa0s/LibKa0s libs/LibKa0s     # content — MUST be empty
+diff -r ../LibKa0s/LibKa0s libs/LibKa0s                         # bytes  — SHOULD be empty
+diff -r --strip-trailing-cr ../LibKa0s/testkit tests/_kit       # content — MUST be empty
+diff -r ../LibKa0s/testkit tests/_kit                           # bytes  — SHOULD be empty
+```
+
+Both halves, because the two answers are different findings.
+
+**Content differs** → a real fork in `libs/`, which is the forbidden state. Name every hunk, and fix
+it by re-vendoring from the library, never by editing here.
+
+**Bytes differ but content matches** → a line-ending divergence, not a fork. Both repos pin
+`* text=auto eol=crlf` over LF blobs, so a working tree holding *either* ending reads clean to
+`git status`, and neither side's cleanliness proves anything. Establish which side drifted (`file -b
+<path>`, and `git cat-file -p HEAD:<path> | file -b -` for what git stores) and renormalise that
+side. **Re-vendoring will not converge it, and the fix is never an edit to `libs/`** — editing the
+vendored copy to settle a line-ending disagreement creates a fork to fix one that was not there, and
+the next re-vendor reverts it silently.
+
+`CLAUDE.md` states the rule this checks ("never edit `libs/` here — change it upstream and
+re-vendor"). The rule without the check is what both runs of the 2026-08-01 adoption report kept
+landing on: the vendored copy is correct today, and nothing in this repo would say so if it stopped
+being.
 
 ## Current status
 

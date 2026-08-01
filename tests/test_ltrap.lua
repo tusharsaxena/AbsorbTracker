@@ -30,8 +30,11 @@
 -- Only DebugLog, Slash and Perf take an `L` at all. LibKa0s-Core-1.0 has no STRINGS table and no
 -- `L` descriptor field, and LibKa0s-Options-1.0's `L` is `lib.LAYOUT` — a geometry table, not a
 -- locale one; its user-visible strings come from `lib.STRINGS` with no override path. Writing a
--- descriptor-mutation case for either would be a case that cannot fail, so neither has one. The
--- source check still covers both files, because the mistake to catch is someone ADDING an `L`.
+-- descriptor-mutation case for either would be a case that cannot fail, so neither has one. What
+-- stands in for them is guard (4): a TRIPWIRE on each of those two library files, so the day either
+-- grows an override path this suite goes red and whoever bumps that minor writes the real
+-- assertion. The source check still covers both files too, because the other mistake to catch is
+-- someone adding an `L` to a seam descriptor here.
 
 local T = _G.AT_TEST
 local NS = T.NS
@@ -134,6 +137,52 @@ test("locales/enUS.lua really does answer every key, so the check above guards s
     "the standard's metatable fallback is what makes NS.L unusable as an `L` override")
   assertNil(rawget(NS.L, "NO_SUCH_KEY_ANYWHERE"),
     "and rawget is what lets the current library see through it")
+end)
+
+-- ── 4. the tripwires on the two majors that cannot express the trap ────────────────
+--
+-- red under: Core or Options growing an override path, which is the point — the tripwire fires on
+-- the day the real assertion becomes writable, not on the day someone remembers to look.
+
+local function libSource(rel)
+  local fh = assert(io.open(rel, "r"), "cannot open " .. rel .. " (tests run from the repo root)")
+  local src = fh:read("*a")
+  fh:close()
+  return src
+end
+
+test("LibKa0s-Core tripwire: Core ships no STRINGS and reads no descriptor L", function()
+  local lib = T.mocks.LibStub("LibKa0s-Core-1.0", true)
+  assertTrue(lib ~= nil, "the vendored Core major must be registered")
+  assertNil(rawget(lib, "STRINGS"),
+    "LibKa0s-Core-1.0 has grown a STRINGS table — it can express the L trap now, so this tripwire "
+    .. "must be replaced by a real rendered-string assertion")
+  local src = libSource("libs/LibKa0s/Core.lua")
+  assertNil(src:find("STRINGS", 1, true), "Core.lua now names STRINGS")
+  assertNil(src:find("d.L", 1, true), "Core.lua now reads a descriptor L")
+end)
+
+test("LibKa0s-Options tripwire: Options reads no descriptor L", function()
+  -- NOT the Core tripwire's shape, and the difference is the whole reason this case is written out
+  -- rather than copied. Options.lua DOES ship a STRINGS table, so asserting `lib.STRINGS == nil`
+  -- here would fail against a module behaving exactly as designed. The half that transfers is the
+  -- source half: Options resolves its user-visible strings from `lib.STRINGS` with no override
+  -- path at all, so there is nothing a host can hand it to break — until there is.
+  --
+  -- `local L = lib.LAYOUT` at the top of that file is a geometry table and must not be mistaken for
+  -- a locale one; it is asserted below so this case cannot be "fixed" by deleting the wrong line.
+  local lib = T.mocks.LibStub("LibKa0s-Options-1.0", true)
+  assertTrue(lib ~= nil, "the vendored Options major must be registered")
+  assertTrue(type(rawget(lib, "STRINGS")) == "table",
+    "Options is expected to own its strings — if this went away, so did the reason for this shape")
+  assertTrue(type(rawget(lib, "LAYOUT")) == "table", "and `L` inside that file is this table")
+
+  for _, rel in ipairs({ "Options.lua", "OptionsWidgets.lua", "OptionsScroll.lua" }) do
+    local src = libSource("libs/LibKa0s/" .. rel)
+    assertNil(src:find("d.L", 1, true),
+      rel .. " now reads a descriptor L — the Options major can express the trap, so every host "
+      .. "descriptor needs a rendered assertion and this tripwire needs replacing")
+  end
 end)
 
 -- ── 3. the library-regression checks ───────────────────────────────────────────────
