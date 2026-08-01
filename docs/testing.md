@@ -72,6 +72,26 @@ fully-loaded one, then names `units.player.barTexture` / `.border` / `.font` exp
 equal count could in principle be reached by a different set of rows. It is a comparison rather than
 a fixed number, so it cannot rot as pages are added. Do not weaken either half.
 
+`tests/test_ltrap.lua` is the odd one out: it is the only suite that reads this addon's **source**
+rather than running it. Every LibKa0s module taking an `L` override resolves the descriptor's table
+before its own `STRINGS`, and this addon's `NS.L` answers *every* key with a string (the standard's
+mandated metatable fallback), so `L = NS.L` in a descriptor renders raw SCREAMING_SNAKE keys for
+every key at once, in game only. Nothing observable after `lib:New` returns can see it, which is why
+the guard is a source check across the five seam files. It matches on what the expression can
+**evaluate to** rather than on one spelling — `L = NS.L` and `L = NS.L or {}` both trip it, while the
+legitimate `L = NS.L and { … } or nil` does not — and a companion case drives that matcher against
+all three forms, because a matcher nothing tests is one that can be narrowed back to a single
+anchored form while still reporting green. The rest is non-vacuity (`locales/enUS.lua` really does
+synthesise, so the source check guards something) plus library-regression cases that hand the
+vendored DebugLog, Slash and Perf the exact fallback shape every Ka0s host has and require the
+built-in English back. The **rendered** assertions live in each module's own suite; smoke-test step
+102 is the only check that looks at the screen.
+
+`tests/test_optionssetup.lua` and `tests/test_docs.lua` round out the list. The first covers
+`settings/OptionsSetup.lua` as a *file* — the descriptor's half of the reset contract, and the
+degradation stub. The second checks the shipped prose, which is checkable and therefore checked:
+two rules no code path enforces and no reviewer reliably catches.
+
 **A note for anyone adding tests that touch suspend or the repaint timer.** `NS.Perf.Resume()`
 republishes `REPAINT`, which arms a coalescing timer. Left armed, `pending` in `modules/Timer.lua`
 stays set for the rest of the **process**, and every later suite's `RequestRepaint` quietly
