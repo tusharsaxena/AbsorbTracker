@@ -1,7 +1,7 @@
 local T = _G.AT_TEST
 local NS = T.NS
-local test, assertEqual, assertTrue, assertFalse =
-  T.test, T.assertEqual, T.assertTrue, T.assertFalse
+local test, assertEqual, assertTrue, assertFalse, assertNil =
+  T.test, T.assertEqual, T.assertTrue, T.assertFalse, T.assertNil
 
 -- The panel toolkit as THIS addon is wired to it. The toolkit itself is LibKa0s-Options-1.0 and is
 -- tested in that repo; what these cases pin is that AbsorbTracker still reaches it correctly through
@@ -262,14 +262,24 @@ test("the Bar page opens on the player unit with no mirror header", function()
   assertEqual(ctx.unit, "player")
 end)
 
+-- Depth-first, because the header is laid out by LibKa0s-Options' RenderGrid rather than by hand:
+-- every item — wide or paired — lands inside a full-width Flow SimpleGroup that RenderGrid adds to
+-- the scroll, so nothing the header builds is a direct child of ctx.scroll any more.
+local function findWidget(root, pred)
+  for _, child in ipairs(root.children or {}) do
+    if pred(child) then return child end
+    local hit = findWidget(child, pred)
+    if hit then return hit end
+  end
+end
+
+local function isUnitDropdown(w) return w.type == "Dropdown" and w.labelText == "Unit" end
+
 test("RenderUnitPanel draws a Unit dropdown listing all three units", function()
   local panel = barPanel()
   panel:__fire("OnShow")
   local ctx = NS.Helpers.__lastUnitCtx
-  local dd
-  for _, child in ipairs(ctx.scroll.children) do
-    if child.type == "Dropdown" and child.labelText == "Unit" then dd = child break end
-  end
+  local dd = findWidget(ctx.scroll, isUnitDropdown)
   assertTrue(dd ~= nil, "no Unit dropdown was rendered")
   assertEqual(#dd.order, 3)
   assertEqual(dd.order[1], "player")
@@ -280,10 +290,8 @@ test("switching the dropdown to focus re-renders the page for that unit", functi
   local panel = barPanel()
   panel:__fire("OnShow")
   local ctx = NS.Helpers.__lastUnitCtx
-  local dd
-  for _, child in ipairs(ctx.scroll.children) do
-    if child.type == "Dropdown" and child.labelText == "Unit" then dd = child break end
-  end
+  local dd = findWidget(ctx.scroll, isUnitDropdown)
+  assertTrue(dd ~= nil, "no Unit dropdown was rendered")
 
   -- The mirror checkbox only exists for target/focus, never for player (RenderUnitPanel gates it
   -- behind `if ctx.unit ~= "player"`). So its presence/absence is a proxy for "did the scroll
@@ -431,6 +439,98 @@ test("the mirror checkbox renders exactly once — the header owns it, RenderRow
   walk(ctx.scroll)
   assertEqual(count, 1,
     "the mirror checkbox must appear exactly once (the header), never a second time from the body")
+
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+end)
+
+-- ── the header goes through LibKa0s-Options' RenderGrid ────────────────────────────
+--
+-- These three pin the adoption recorded as LIBKA0S-02: the mirror header is now DATA handed to
+-- RenderGrid rather than a hand-rolled copy of its flow engine. The first two pin the rendered
+-- layout is unchanged; the third pins the thing the adoption actually bought.
+
+test("the mirror checkbox and copy button share one full-width Flow row at half width each",
+  function()
+  -- The hand-rolled block built exactly this — SimpleGroup + SetLayout("Flow") + SetFullWidth(true)
+  -- with two SetRelativeWidth(0.5) children — so if RenderGrid's HALF or its row wrapper ever
+  -- diverged from the copy it replaced, the page would re-flow and this would say so.
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  ctx.unit = "focus"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+
+  local row
+  for _, child in ipairs(ctx.scroll.children) do
+    for _, gc in ipairs(child.children or {}) do
+      if gc.labelText == "Use same styling as Player" then row = child end
+    end
+  end
+  assertTrue(row ~= nil, "the mirror checkbox must sit inside a row group under the scroll")
+  assertEqual(row.type, "SimpleGroup")
+  assertEqual(row.layout, "Flow")
+  assertEqual(row.fullWidth, true)
+  assertEqual(#row.children, 2, "the checkbox and the copy button pair on one row")
+  assertEqual(row.children[1].relativeWidth, 0.5)
+  assertEqual(row.children[2].text, "Copy styling from Player")
+  assertEqual(row.children[2].relativeWidth, 0.5)
+
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+end)
+
+test("every header row is followed by a ROW_VSPACER, as the hand-rolled block did", function()
+  -- RenderGrid emits AddSpacer(ROW_VSPACER) after every flushed row unconditionally. The block it
+  -- replaced did the same by hand after the dropdown, after the mirror row and after the hint, so
+  -- the vertical rhythm of the page is a fixed point of the change.
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  NS.db.profile.units.focus.mirror = true
+  ctx.unit = "focus"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+
+  -- dropdown row, mirror row, hint row — each followed by its spacer. AddSpacer builds a
+  -- SimpleGroup with no layout and a fixed height, so the height is what tells the two apart.
+  local kids = ctx.scroll.children
+  for _, i in ipairs({ 1, 3, 5 }) do
+    assertEqual(kids[i].type, "SimpleGroup")
+    assertEqual(kids[i].layout, "Flow", "child " .. i .. " must be a laid-out row, not a spacer")
+    assertEqual(kids[i + 1].type, "SimpleGroup")
+    assertEqual(kids[i + 1].height, Helpers.ROW_VSPACER,
+      "child " .. (i + 1) .. " must be the ROW_VSPACER that follows every flushed row")
+  end
+
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "bar")
+end)
+
+test("one raising header item no longer costs the rest of the page", function()
+  -- The point of the adoption. RenderGrid pcalls each item; the hand-rolled block did not, so a
+  -- raise anywhere in it unwound the whole of renderUnitPanelBody and the outer pcall in
+  -- RenderUnitPanel printed and left the page half-drawn — no copy button, no hint, no schema rows.
+  -- AttachTooltip is the seam every header widget touches, so failing it for one label is the
+  -- cheapest faithful stand-in for "an AceGUI widget error inside one item".
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  NS.db.profile.units.focus.mirror = false
+  ctx.unit = "focus"
+
+  local saved = Helpers.AttachTooltip
+  Helpers.AttachTooltip = function(w, label, desc)
+    if label == "Use same styling as Player" then error("simulated widget failure") end
+    return saved(w, label, desc)
+  end
+  local ok = pcall(NS.Helpers.RenderUnitPanel, ctx, "bar")
+  Helpers.AttachTooltip = saved
+
+  assertTrue(ok, "RenderUnitPanel must not raise")
+  assertTrue(findWidget(ctx.scroll, function(w) return w.text == "Copy styling from Player" end) ~= nil,
+    "the item AFTER the failing one must still render")
+  assertTrue(findWidget(ctx.scroll, function(w) return w.labelText == "Bar Width (in px)" end) ~= nil,
+    "and the schema rows below the header must still render")
 
   ctx.unit = "player"
   NS.Helpers.RenderUnitPanel(ctx, "bar")
@@ -727,4 +827,27 @@ test("/at resetposition does not claim success when the settings helpers are abs
     "it must not report success it did not achieve: " .. joined)
   assertTrue(joined:find("Cannot reset positions", 1, true) ~= nil,
     "and it must say what went wrong: " .. joined)
+end)
+
+-- -- the `L` trap -----------------------------------------------------------------------------
+
+test("the Defaults button the library renders is prose, not its own STRINGS key", function()
+  -- LibKa0s-Options-1.0 takes NO `L` override (its `L` is lib.LAYOUT, a geometry table), so no
+  -- descriptor mutation can redden this — see tests/test_ltrap.lua's header for why that is
+  -- recorded rather than faked. What it does pin is the one library-owned string this addon puts
+  -- on screen through Options: EnsureDefaultsButton sets lib.STRINGS.DEFAULTS_LABEL on the widget,
+  -- and this reads it back off the built button.
+  local ctx = Helpers.CreatePanel("ATTestPanelLTrap", "Test L", { defaultsButton = true })
+  Helpers.EnsureDefaultsButton(ctx.panel)
+  local btn = ctx.panel.defaultsBtn
+  assertTrue(btn ~= nil, "the Defaults button must have been built")
+  local text = btn.text
+  assertTrue(type(text) == "string" and text ~= "", "the Defaults button must render a label")
+  assertNil(text:match("^[A-Z][A-Z0-9_]+$"),
+    "the Defaults button resolved to prose, not to its own key (got '" .. text .. "')")
+  -- Non-vacuity: the assertion above is only worth something if this string really is the
+  -- library's, so pin the coupling rather than the literal "Defaults".
+  local lib = T.mocks.LibStub("LibKa0s-Options-1.0", true)
+  assertEqual(text, lib.STRINGS.DEFAULTS_LABEL,
+    "the rendered label must be the library's own string, not a host copy")
 end)
