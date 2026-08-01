@@ -1,6 +1,7 @@
 local T = _G.AT_TEST
 local NS = T.NS
-local test, assertEqual, assertTrue = T.test, T.assertEqual, T.assertTrue
+local test, assertEqual, assertTrue, assertNil =
+  T.test, T.assertEqual, T.assertTrue, T.assertNil
 
 -- settings/Slash.lua captured `local print = NS.Print` at load, so the chat output can't be
 -- intercepted by swapping NS.Print. Instead capture at the sink: NS.Print writes to
@@ -147,4 +148,22 @@ test("SetByPath logs one [Set] path = value line (§10)", function()
   assertTrue(#NS.DebugLog.buffer > before, "a [Set] line should be appended")
   assertTrue(last:find("[Set]", 1, true) ~= nil, "tag is Set")
   assertTrue(last:find("barWidth = 200", 1, true) ~= nil, "logs path = value")
+end)
+
+-- -- the `L` trap -----------------------------------------------------------------------------
+
+test("the schema CLI's list header the library renders is prose, not its own STRINGS key",
+  function()
+  -- settings/Slash.lua:424's descriptor omits `L`. `/at list` is the shortest path from a user
+  -- keystroke to a library-owned string: BuildListLines opens with Text("LIST_HEADER"), so the
+  -- first captured chat line IS the rendered result. Driven through NS.Slash:OnSlash rather than
+  -- the instance, because `cli` is a file-local and the dispatcher is the only real accessor.
+  -- red under: giving the descriptor an `L` that answers LIST_HEADER with "LIST_HEADER".
+  local out = capture(function() NS.Slash:OnSlash("list") end)
+  assertTrue(#out > 0, "/at list must print")
+  -- Strip the addon's own chat tag and the color escapes so what is left is the library's string.
+  local header = out[1]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("^%s*%[%u+%]%s*", "")
+  assertTrue(header ~= "", "the list header must not be empty")
+  assertNil(header:match("^[A-Z][A-Z0-9_]+$"),
+    "the list header resolved to prose, not to its own key (got '" .. header .. "')")
 end)

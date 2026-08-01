@@ -76,5 +76,6 @@ Kit.run{
     "test_slashcmds",
     "test_widgets",
     "test_docs",
+    "test_ltrap",
   },
 }

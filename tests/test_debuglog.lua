@@ -9,8 +9,8 @@
 
 local T = _G.AT_TEST
 local NS = T.NS
-local test, assertEqual, assertTrue, assertFalse =
-  T.test, T.assertEqual, T.assertTrue, T.assertFalse
+local test, assertEqual, assertTrue, assertFalse, assertNil =
+  T.test, T.assertEqual, T.assertTrue, T.assertFalse, T.assertNil
 
 test("FONT_MONO constant is a JetBrains Mono TTF path", function()
   assertTrue(type(NS.Constants.FONT_MONO) == "string", "FONT_MONO must be a string")
@@ -130,4 +130,26 @@ test("/at debug on writes an [Init] summary naming our version, schema and profi
   assertTrue(initLine:find("schema v", 1, true) ~= nil and initLine:find("profile", 1, true) ~= nil,
     "and the schema version and active profile: " .. tostring(initLine))
   NS.State.debug = false
+end)
+
+-- -- the `L` trap -----------------------------------------------------------------------------
+
+test("the console checkbox label the library renders is prose, not its own STRINGS key", function()
+  -- core/DebugLogSetup.lua:72's descriptor omits `L` — correct, because this addon translates
+  -- nothing (locales/enUS.lua). This asserts the CONSEQUENCE rather than the omission: the string
+  -- the library actually produced, read back through the live instance's own accessor. A resolved
+  -- string is prose; an unresolved one is the STRINGS key itself, and no English label is
+  -- SCREAMING_SNAKE_CASE. Deliberately not guarded with `if label then` — a nil accessor must fail
+  -- here, not pass vacuously.
+  -- red under: giving the descriptor an `L` that answers CHECKBOX_LABEL with "CHECKBOX_LABEL".
+  local label = NS.DebugLog:ConsoleCheckbox().label
+  assertTrue(type(label) == "string" and label ~= "", "ConsoleCheckbox must render a label")
+  assertNil(label:match("^[A-Z][A-Z0-9_]+$"),
+    "the label resolved to prose, not to its own key (got '" .. label .. "')")
+
+  -- The window title is the second user-visible string this descriptor composes, and it is the one
+  -- KickCD shipped broken (`Ka0s KickCDPANEL_TITLE_SUFFIX`). Ours is `title .. Text("TITLE_SUFFIX")`.
+  local suffix = NS.DebugLog:Text("TITLE_SUFFIX")
+  assertNil(suffix:match("^[A-Z][A-Z0-9_]+$"),
+    "the title suffix resolved to prose, not to its own key (got '" .. suffix .. "')")
 end)

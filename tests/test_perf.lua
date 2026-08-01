@@ -9,8 +9,8 @@
 
 local T = _G.AT_TEST
 local NS, mocks = T.NS, T.mocks
-local test, assertEqual, assertTrue, assertFalse =
-  T.test, T.assertEqual, T.assertTrue, T.assertFalse
+local test, assertEqual, assertTrue, assertFalse, assertNil =
+  T.test, T.assertEqual, T.assertTrue, T.assertFalse, T.assertNil
 
 local P = NS.Perf
 
@@ -401,4 +401,21 @@ test("perf: the brackets and the show ladder survive LibKa0s being absent", func
   end)
   _G.AbsorbTrackerDB = saved
   assertTrue(ok, "a bracket site errored without the probe: " .. tostring(err))
+end)
+
+-- -- the `L` trap -----------------------------------------------------------------------------
+
+test("every perf step label the library renders is prose, not its own STRINGS key", function()
+  -- core/PerfSetup.lua:33's descriptor omits `L`. P.STEPS is built once in lib:New by resolving
+  -- each step's STRINGS key, and PerfPanel paints step.label straight onto the row button — so
+  -- this is the rendered string, on the live instance, and it is the exact surface KickCD shipped
+  -- reading STEP_START / STEP_MEASURE_A / PANEL_TITLE_SUFFIX verbatim.
+  -- red under: giving the descriptor an `L` that answers STEP_* with the key.
+  assertTrue(#(NS.Perf.STEPS or {}) > 0, "the perf instance must have built its step list")
+  for _, step in ipairs(NS.Perf.STEPS) do
+    assertTrue(type(step.label) == "string" and step.label ~= "",
+      "step " .. tostring(step.key) .. " has no label")
+    assertNil(step.label:match("^[A-Z][A-Z0-9_]+$"),
+      "step '" .. tostring(step.key) .. "' resolved to prose, not to its own key: " .. step.label)
+  end
 end)
