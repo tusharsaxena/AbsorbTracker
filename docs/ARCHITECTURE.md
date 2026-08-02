@@ -1,8 +1,8 @@
 # Architecture
 
 Orient-yourself map for **Ka0s Absorb Tracker** (modular layout). User-facing behavior is in
-[../README.md](../README.md); the full agent brief is in [agent-context.md](./agent-context.md);
-topic detail lives alongside this file in `docs/`.
+[../README.md](../README.md); how to verify is in [testing.md](./testing.md); topic detail lives
+alongside this file in `docs/`.
 
 ## Overview
 
@@ -15,7 +15,11 @@ stack (`AbsorbTrackerFrame` / `AbsorbTrackerTargetFrame` / `AbsorbTrackerFocusFr
 every visual knob through both a five-page Blizzard Settings panel — with a Unit dropdown on the
 Bar/Border/Font pages — and the `/at` slash CLI via fully-qualified `units.<unit>.<key>` paths. Bar
 fill, background, and border each support an opt-in class-color override (always resolved from the
-player, on all three bars); position is per-unit and saved per-profile via AceDB. Retail Midnight
+player, on all three bars); position and the per-unit `enabled` flag are per-unit and are **never**
+mirrored, whatever the mirror flag says. The two ways of bringing a unit in line with the player are
+distinct: **mirror** is a live link (`units.<unit>.mirror = true` — the unit re-reads the player's
+settings on every paint), **copy** is a one-shot snapshot (`NS.Units.CopyFromPlayer(unit)` —
+deep-copies once, then the unit diverges). Position is saved per-profile via AceDB. Retail Midnight
 only (Interface 120007), English only.
 
 The addon is an **AceAddon** (`core/AbsorbTracker.lua`) mixing in AceEvent / AceTimer / AceConsole.
@@ -34,6 +38,11 @@ Four of the rows below are *setup* files rather than implementation: `core/CoreS
 comes back under the `NS.*` name the addon already used, plus a degradation stub for when the library
 is absent. `settings/Slash.lua` does the same thing without a separate setup file. See
 [Five extracted libraries, one descriptor each](#five-extracted-libraries-one-descriptor-each).
+
+There is no `:NewModule()` hierarchy. Modules are plain files hanging functions on `NS`, and a
+caller reaches a function defined in a later-loaded file through `NS.X` directly — looked up at call
+time, guarded with `if NS.X then … end` where the load-order coupling is soft. Cross-module
+*notifications* do not use that route at all; they run over the bus (see [Message Bus](#message-bus)).
 
 | File | Responsibility |
 |------|----------------|
@@ -61,6 +70,22 @@ is absent. `settings/Slash.lua` does the same thing without a separate setup fil
 | `settings/UnitPanel.lua` | The two pieces of the old toolkit that did not generalize. **Decorates** `NS.Helpers` — which *is* the library instance — rather than sitting beside it, so page files call `H.RenderUnitPanel` and `H.RenderSchema` interchangeably. `Helpers.RenderUnitPanel(ctx, pageKey)` draws the Unit dropdown + mirror header (checkbox + copy button, hidden-while-mirrored hint) as a full rebuild via the library's `ClearScroll` + `RenderGrid` + `RenderRows` — the header is handed to `RenderGrid` as caller-ordered items (the dropdown and the hint `wide`, the checkbox and button pairing at half width), the schema rows follow through `RenderRows`. That header used to be a hand-rolled `SimpleGroup`/Flow/`SetRelativeWidth(0.5)` copy of the library's own flow engine; `RenderGrid` renders it identically and additionally pcalls each item, so one raising header widget costs that widget rather than aborting the whole body. There is a re-entrancy guard and a two-tier refresher: always re-sync the mirror checkbox in place, re-render only when mirror state actually changed (an unconditional re-render would `ClearScroll` the very widget whose `OnValueChanged` is still on the stack). `Helpers.ResetAllPositions()` is the single reset-position implementation, shared by `/at resetposition`, the General page button and the descriptor's `afterRestoreAll`. Loads after `settings/OptionsSetup.lua` (it takes `local Helpers = NS.Helpers` at load). |
 | `settings/About.lua` | The parent page (logo + Notes + slash-command list). |
 | `settings/{General,Bar,Border,Font,Profiles}.lua` | The five sub-pages; each registers schema rows + a deferred page builder — except Profiles, which registers no rows and renders AceDBOptions directly. Bar/Border/Font each generate their rows once per unit in `NS.Units.LIST` (path prefixed `units.<unit>.`, tagged `unit = unit`) and defer their page render to `Helpers.RenderUnitPanel` instead of `Helpers.RenderSchema` — the two reach the same `NS.Helpers` table from opposite sides, one addon code (`settings/UnitPanel.lua`), the other library code (`libs/LibKa0s/OptionsWidgets.lua`); General has no Unit dropdown, but does carry the three `units.<unit>.enabled` toggles — the one place a per-unit path is edited outside that dropdown. |
+
+## Invariants
+
+Rules the code depends on that reading one file will not reveal. The visual/taint ones live under
+[Taint Notes](#taint-notes); these are the structural ones.
+
+- **Color getters resolve at call time.** `NS.GetBarColor(unit)` / `GetBgColor(unit)` /
+  `GetBorderColor(unit)` (`core/Data.lua`) re-read that unit's `useClassColor*` on every paint, so a
+  class change, respec or profile switch needs no refresh wiring. **Do not cache a resolved color on
+  a frame** — that is what re-introduces the wiring.
+- **`core/Units.lua` is the only file that reads `db.profile.units` for appearance.** Every other
+  file — `modules/Bar.lua`, `modules/Display.lua`, `core/Data.lua`, the settings pages — goes through
+  `NS.Units.Get(unit, key)`, so mirror resolution ("does this unit read its own config or the
+  player's?") lives in exactly one place. Do not add a second read site.
+- **Deprecated APIs go through `core/Compat.lua`.** `Compat.GetAddOnMetadata` is the only metadata
+  accessor; never call `GetAddOnMetadata` / `C_AddOns.GetAddOnMetadata` inline.
 
 ## Settings Schema
 
@@ -127,6 +152,11 @@ dispatch to `Sl:OnSlash`, which hands the line straight to `LibKa0s-Slash-1.0`. 
 lower-cases only the verb (preserving case in the remainder so schema paths survive) and looks it
 up in the ordered `NS.COMMANDS` table this addon passed in. Unknown verb →
 `unknown command '<verb>'` then the help index (generated from `NS.COMMANDS`).
+
+**Schema paths are fully qualified.** `/at set units.target.barWidth 250` works; the pre-1.9
+unqualified `/at set barWidth 250` is rejected, because `FindSchemaRow` has no bare-key row for a
+per-unit setting. Only the three flat globals — `locked`, `showOnlyInCombat`, `throttleWindow` —
+take a bare path.
 
 **What is library code and what is ours.** The dispatcher, the help renderer, the row formatter
 (gold command — em dash — white description), the key/value formatter, the value renderer, the

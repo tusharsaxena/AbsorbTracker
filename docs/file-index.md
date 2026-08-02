@@ -132,7 +132,6 @@ Folder-per-lib, loaded before any addon source via the `#@no-lib-strip@` block a
 ## Top-level docs
 
 - `README.md` — user-facing.
-- `CLAUDE.md` — engineer working-notes stub (hard rules + response style + doc index); the full agent brief is `docs/agent-context.md`.
+- `CLAUDE.md` — the standards-compliance stub (working rules + doc pointers). Per documentation-§2 it stays a stub; the engineer brief is `docs/ARCHITECTURE.md`.
 - `docs/ARCHITECTURE.md` — subsystems-at-a-glance + invariants + doc index.
-- `docs/agent-context.md` — the full agent brief.
 - `docs/*.md` — topic chunks (this file is one of them).

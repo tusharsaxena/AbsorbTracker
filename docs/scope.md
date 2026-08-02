@@ -66,6 +66,6 @@ Decisions made during requirements review and earlier releases — these are set
 ## Where the contract lives
 
 - User-facing behavior: [README.md](../README.md) — slash commands, settings panel, FAQ, troubleshooting.
-- Engineer working notes: [../CLAUDE.md](../CLAUDE.md) — stub pointing at the full brief; [agent-context.md](./agent-context.md) is the full agent brief.
+- Engineer working notes: [../CLAUDE.md](../CLAUDE.md) — the standards-compliance stub and its pointers into `docs/`.
 - Big-picture map: [./ARCHITECTURE.md](./ARCHITECTURE.md) — subsystems + invariants + doc index.
 - Topic chunks: `docs/*.md` (this file is one of them).

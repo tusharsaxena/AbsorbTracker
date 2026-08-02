@@ -26,6 +26,10 @@ Both are documented in [performance.md](./performance.md).
 Toolchain: Lua 5.1 + luacheck (`sudo apt-get install -y lua5.1 luarocks && sudo luarocks install
 luacheck`).
 
+`tests/run.lua` mirrors the in-game lifecycle rather than only loading files: it calls `NS:InitDB()`
+**and** `NS.CreateOptionsPanel()` at bootstrap, so every `settings/<page>.lua` builder runs for real
+and a page that breaks fails the gate instead of waiting to be opened in-game.
+
 The suite list (see [common-tasks.md](./common-tasks.md#run-the-test-gate) for the full table) now
 includes `tests/test_units.lua` — `core/Units.lua`'s unit identity, mirror resolution
 (`IsEnabled`/`IsMirrored`/`SourceUnit`/`Get`/`Set`), per-unit position, and `CopyFromPlayer` — and

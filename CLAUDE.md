@@ -23,13 +23,21 @@ When in doubt, treat standard conformance as a hard requirement and ask.
 
 Start here, then read the docs:
 
-- **`docs/agent-context.md`** — the full agent brief (stack, layout, hard rules,
-  invariants, the `NS` bus, working environment, response style).
-- **`docs/ARCHITECTURE.md`** — module map, settings schema, message bus, slash surface, event
-  wiring, taint notes, known limitations.
+- **`docs/ARCHITECTURE.md`** — what this addon is: module map, invariants, settings schema, message
+  bus, slash surface, event wiring, taint notes, known limitations.
+- **`docs/testing.md`** — how to verify: the headless harness, lint, the green gate.
 - Topic detail in `docs/`: `schema.md`, `settings-panel.md`, `data-flow.md`, `profiles.md`,
   `midnight-quirks.md`, `common-tasks.md`, `scope.md`, `file-index.md`, `module-map.md`,
-  `smoke-tests.md`, `testing.md`, `test-cases.md`, `performance.md`, `complexity.md`.
+  `smoke-tests.md`, `test-cases.md`, `performance.md`, `complexity.md`.
+
+## Working rules
+
+Terse replies; cite code as `file_path:line`; no summary the diff already gives. Comment only the
+non-obvious *why* (invariant, Blizzard quirk, constraint), never what well-named code does. Don't
+create docs or planning files unless asked. This repo is **CRLF on disk** (enforced by
+`.gitattributes`) and mirrored across two WSL paths
+(`/mnt/d/Profile/Users/Tushar/Documents/GIT/AbsorbTracker` and `/home/tushar/GIT/AbsorbTracker`) —
+after a direct disk write that landed LF, convert with `sed -i 's/\r$//; s/$/\r/'`.
 
 ## LibKa0s is vendored — fix it upstream
 
@@ -57,5 +65,4 @@ Green gate before every commit: `lua tests/run.lua` and `luacheck .` (0/0). Synt
 with `luac -p <file>`. The authoritative test-case count lives in the generated
 `docs/test-cases.md` (testing-§5) — when the suite changes, regenerate it via `lua tests/run.lua
 --list` and update the README `tests` badge in the same change. Never auto-stage/commit/push and
-never bump the version without an explicit instruction — see `docs/agent-context.md` and
-`docs/testing.md`.
+never bump the version without an explicit instruction — see `docs/testing.md`.
