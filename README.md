@@ -140,7 +140,7 @@ or focus and its bar disappears until you have one again.
 
 ## Credits and libraries
 
-Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.3.0 (MIT) — the shared Ka0s
+Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.3.1 (MIT) — the shared Ka0s
 library behind the chat printer, the debug console, the slash dispatcher and schema CLI, the
 settings panel toolkit and the perf harness. It ships in `libs/LibKa0s/`, license included.
 Ace3, LibStub, CallbackHandler-1.0 and LibSharedMedia-3.0 are bundled in `libs/` as well, each
