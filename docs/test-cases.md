@@ -533,6 +533,11 @@ badge and any count quoted in the docs must agree with it.
 - vendored Slash resolves a fallback-only override to its own strings
 - vendored Perf resolves a fallback-only override to its own strings
 
+### test_vendor_sync.lua (2)
+
+- libs/LibKa0s is the LibKa0s release the README says this addon bundles
+- tests/_kit is the test kit that shipped with that release
+
 ## Totals
 
 | Suite | Cases |
@@ -557,4 +562,5 @@ badge and any count quoted in the docs must agree with it.
 | test_widgets.lua | 48 |
 | test_docs.lua | 2 |
 | test_ltrap.lua | 8 |
-| **Total** | **467** |
+| test_vendor_sync.lua | 2 |
+| **Total** | **469** |
