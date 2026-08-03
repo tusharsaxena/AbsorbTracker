@@ -16,7 +16,7 @@ AbsorbTracker's debug **infrastructure already conforms**: the on-screen console
 (`core/DebugLog.lua`), the two pure formatters (`FormatPlain` / `FormatColored`), the
 `<HH:MM:SS> | [<tag>] <msg>` format, `date("%H:%M:%S")` timestamp, the `Debug: ON/OFF` header
 toggle, Copy/Clear, and the `/at debug [on|off]` verb all match the standard. **The gaps are
-behavioural:**
+behavioral:**
 
 1. **§8 Coverage** — only three functional debug call sites exist; lifecycle, combat transitions,
    profile changes, config open/refuse, and migrations are logged nowhere.
@@ -113,7 +113,7 @@ session; the per-event negative trace is deleted outright.
 
 One line at the single write seam `NS.SetByPath(path, value)` (`settings/Schema.lua:93`):
 `NS.Debug("Set", "%s = %s", path, formatValue(value))`. Value formatting reuses the existing
-schema value formatter where possible (booleans → `true`/`false`, colours → `{r,g,b,a}`, numbers
+schema value formatter where possible (booleans → `true`/`false`, colors → `{r,g,b,a}`, numbers
 verbatim). No downstream reactor re-echoes the change (§10 forbids a second `[Cfg]` restatement).
 Position writes (non-schema, written outside `SetByPath`) are **not** logged per §10.
 

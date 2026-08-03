@@ -1,6 +1,6 @@
 # Raw capture transcripts — 2026-07-29
 
-Debug-console output from the four in-game captures analysed in
+Debug-console output from the four in-game captures analyzed in
 [analysis.md](analysis.md). Verbatim, including the `[Combat]` and `[Bar]` lines interleaved with
 `[Perf]`, because the interleaving is what makes the arms auditable after the fact.
 

@@ -27,7 +27,7 @@ are:
    cost from a StatusBar fed a secret every pass.
 2. Something re-enters far more often than the throttle implies.
 3. The delta is not ours. Disabling AbsorbTracker changes which addon owns the shared
-   LibStub/CallbackHandler dispatch frame, which can shift other addons' measured behaviour too.
+   LibStub/CallbackHandler dispatch frame, which can shift other addons' measured behavior too.
 
 Nothing currently in the repo can distinguish these. WoW's built-in Addon Profiler cannot either —
 that is precisely what the July 14 investigation established.
@@ -161,7 +161,7 @@ It is deliberately outside the AceDB tree: it never rides profile copy, reset, o
 appears as one self-contained block that can be read or deleted without disturbing settings.
 
 A separate SavedVariables *file* was considered and rejected. WoW names the SV file after the
-addon and serialises every global that addon declares into it, so a separate file would require
+addon and serializes every global that addon declares into it, so a separate file would require
 shipping a companion addon in its own sibling folder — restructuring this into a two-addon repo,
 with knock-on effects for packaging and the CurseForge project. Not worth it for isolation that a
 distinct top-level global already provides.

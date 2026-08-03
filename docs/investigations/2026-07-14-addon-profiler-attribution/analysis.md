@@ -148,7 +148,7 @@ above ElvUI.
 |---|---|
 | Global `UNIT_*` events → private `RegisterUnitEvent` frame | **Done** (`dc2a00f`) — real ~89% cut. |
 | Shared AceEvent-frame ownership inflating KaOs's rank | **Not fixable from the addon.** Load order is the user's; a standalone addon must ship AceEvent and may legitimately load first. Not real waste — do not chase it. |
-| Per-repaint closure allocation in `modules/Timer.lua` | **Optional trim** — hoist the callback to module scope so `RequestRepaint` allocates no per-cycle closure. Small, safe, no behaviour change. |
+| Per-repaint closure allocation in `modules/Timer.lua` | **Optional trim** — hoist the callback to module scope so `RequestRepaint` allocates no per-cycle closure. Small, safe, no behavior change. |
 | Value-dedup in `UpdateAbsorbBar` | **Deliberately not done** — the event-driven design spec chose against it; revisit only with explicit sign-off. |
 
 **Bottom line:** the addon is healthy. The one real hotspot is fixed; the residual ranking is a

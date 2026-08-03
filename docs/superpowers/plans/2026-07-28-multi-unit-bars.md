@@ -865,7 +865,7 @@ In `NS.ValidateSchema`, replace the §4.5 block:
 **Known consequence to accept, not work around:** a boolean row whose default is `false`
 (`useClassColorBar`, `hidden`, `locked`, `showOnlyInCombat`, `units.*.enabled` on target/focus)
 resolves to `false`, not `nil`, so `~= nil` still counts it as resolved. This matches the current
-behaviour, which used `defaults[row.path] ~= nil`.
+behavior, which used `defaults[row.path] ~= nil`.
 
 - [ ] **Step 7: Run the gate**
 
@@ -1298,7 +1298,7 @@ end)
 
 -- ── default positions ──────────────────────────────────────────────────────────────
 
-test("the player bar defaults to dead centre", function()
+test("the player bar defaults to dead center", function()
   local point, relPoint, x, y = NS.DefaultPosition("player")
   assertEqual(point, "CENTER"); assertEqual(relPoint, "CENTER")
   assertEqual(x, 0); assertEqual(y, 0)
@@ -1344,7 +1344,7 @@ function NS.ForEachUnit(fn)
     for _, unit in ipairs(NS.Units.LIST) do fn(unit) end
 end
 
---- Where a bar sits before the user has ever dragged it. Player is dead centre; target and focus
+--- Where a bar sits before the user has ever dragged it. Player is dead center; target and focus
 --- stack upward from it, one player-bar-height plus a gap apart, so a newly-enabled bar lands
 --- somewhere visible and non-overlapping instead of on top of the player's.
 function NS.DefaultPosition(unit)
@@ -1506,7 +1506,7 @@ end
 Three existing cases reference `NS.backdropInfo` and `NS.db.profile.position` directly. Update
 them in place:
 
-- `"RestoreBarPosition centres the bar when no position is saved"` — replace
+- `"RestoreBarPosition centers the bar when no position is saved"` — replace
   `NS.db.profile.position` with `NS.db.profile.units.player.position`.
 - `"RestoreBarPosition restores the saved anchor verbatim"` — same substitution.
 - The three `UpdateBarAppearance` backdrop cases — `NS.backdropInfo` still resolves (it is the
@@ -2340,7 +2340,7 @@ git commit -m "feat(panel): add the Unit dropdown and the mirror/copy header"
 Append to `tests/test_slashcmds.lua`:
 
 The file already defines the capture seam these cases use: `slash(line)` runs a slash line and
-returns its colour-stripped output lines, and `contains(lines, needle)` does a plain-text find over
+returns its color-stripped output lines, and `contains(lines, needle)` does a plain-text find over
 them. Use those — do not add a second capture mechanism.
 
 ```lua
@@ -2433,7 +2433,7 @@ function listSettings()
     if not NS.Schema or #NS.Schema == 0 then
         return print("No settings registered yet")
     end
-    -- Colour scheme (Ka0s standard, slash-commands-§5): header green (33ff99), group headers
+    -- Color scheme (Ka0s standard, slash-commands-§5): header green (33ff99), group headers
     -- azure (3399ff), key/value via FormatKV. No trailing colons.
     print("|cff33ff99Available settings|r")
 

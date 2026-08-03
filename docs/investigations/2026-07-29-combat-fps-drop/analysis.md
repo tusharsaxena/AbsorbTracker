@@ -262,7 +262,7 @@ are direct, reproducible across all four captures, and unaffected by arm mismatc
 
 Close the diagnostic question as a **negative result**. No performance work on this addon is
 justified: at 0.055 ms per repaint pass and under two passes per second, there is nothing here to
-optimise that would be measurable.
+optimize that would be measurable.
 
 The real cost is located but not attributed. [#18](https://github.com/tusharsaxena/AbsorbTracker/issues/18)
 tracks bisecting the addon set for it, and these captures sharpen that work:

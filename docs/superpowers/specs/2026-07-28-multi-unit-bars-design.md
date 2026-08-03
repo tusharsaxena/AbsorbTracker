@@ -76,9 +76,9 @@ every setting; Target and Focus exist in the DB but are disabled.
 
 ## 3. `core/Units.lua` — the unit identity and mirror seam
 
-New file, loaded after `core/Data.lua` and before `core/Database.lua`. Modelled on KickCD's
+New file, loaded after `core/Data.lua` and before `core/Database.lua`. Modeled on KickCD's
 `core/Units.lua`. **Nothing outside this file reads `db.profile.units` for appearance** — the
-mirror behaviour lives in exactly one place.
+mirror behavior lives in exactly one place.
 
 | Function | Contract |
 |---|---|
@@ -131,7 +131,7 @@ Every display function takes a `unit`:
 - `NS.UpdateAbsorbBar(unit)`
 
 plus `NS.ForEachUnit(fn)`, which walks `Units.LIST`. The three bus handlers call
-`ForEachUnit`, so the bus stays payload-free and the message catalogue is unchanged.
+`ForEachUnit`, so the bus stays payload-free and the message catalog is unchanged.
 
 ### Visibility
 
@@ -208,7 +208,7 @@ so the panel layout per unit is identical to today's Player layout.
 
 Two new row kinds:
 
-| Row | Page | Behaviour |
+| Row | Page | Behavior |
 |---|---|---|
 | `units.<unit>.enabled` | `bar` | "Enable this bar". `alwaysPerUnit = true` — renders even while mirrored. Player's is present too (defaults on), so the CLI can reach it. |
 | `units.<unit>.mirror` | `bar` | `skipRender = true` — kept in the schema so `/at set units.focus.mirror true` works, but drawn bespoke by the panel header. Not registered for `player`. |

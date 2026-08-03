@@ -64,7 +64,7 @@ path it replaced (same API, same addon name, same fallback chain), so the field 
 in-game capture ever taken. The cause is that WoW's `GetAddOnMetadata` does not expose the
 `Interface` TOC field at all.
 
-Left as-is here because reproducing the old behaviour faithfully is what the parity gate asked for.
+Left as-is here because reproducing the old behavior faithfully is what the parity gate asked for.
 Worth fixing in the library before rollout step 5 widens the number of emitters — `select(4,
 GetBuildInfo())` gives the client's interface version, which is the more useful number when reading a
 capture months later anyway.
