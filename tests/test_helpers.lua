@@ -35,7 +35,7 @@ end)
 -- what notice if a re-vendor takes it away again: nothing in this repo would otherwise, because
 -- every page's header button keeps working and looks equivalent to the user.
 --
--- RAWGET throughout, and that is the point rather than a style choice. The frame mock synthesises a
+-- RAWGET throughout, and that is the point rather than a style choice. The frame mock synthesizes a
 -- no-op for any PascalCase key, so `type(panel.OnDefault) == "function"` is true whether or not a
 -- single line ever set it.
 
@@ -203,7 +203,7 @@ test("RestoreAllDefaults resets every schema row that is not on the profiles pag
   T.mocks.__fireTimers()
 end)
 
-test("RestoreAllDefaults clears the saved bar position so the bar recentres", function()
+test("RestoreAllDefaults clears the saved bar position so the bar recenters", function()
   -- `position` is written by dragging, not by a schema row, so ApplyDefault never touches it. The
   -- explicit clear here is what keeps the popup and `/at resetall` from diverging (they once did).
   -- Retargeted (spec §9): position is now per-unit; check every unit, not just one flat field.
@@ -849,7 +849,7 @@ test("a mirror-state change DOES re-render -- the two-tier refresher keeps both 
 end)
 
 test("/at resetposition does not claim success when the settings helpers are absent", function()
-  -- Same silent-lie shape as the Reset Position no-op: the acknowledgement must live inside the
+  -- Same silent-lie shape as the Reset Position no-op: the acknowledgment must live inside the
   -- guard, not after it.
   local real = NS.Helpers.ResetAllPositions
   NS.Helpers.ResetAllPositions = nil

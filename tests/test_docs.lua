@@ -15,9 +15,10 @@
 --   * `libs/` -- vendored. A spelling there is an upstream fix in the LibKa0s repo; a local patch
 --     is silently reverted by the next whole-folder re-vendor.
 --   * `tests/_kit/` -- likewise vendored, from LibKa0s/testkit.
---   * `docs/audits/`, `docs/reviews/`, `docs/superpowers/`, `docs/investigations/`,
---     `docs/perf-runs/` -- frozen dated bundles. Rewriting them destroys the record of what was
---     true on the day they were written.
+--   * `docs/audits/`, `docs/reviews/`, `docs/superpowers/`, `docs/investigations/` -- frozen dated
+--     bundles. Rewriting them destroys the record of what was true on the day they were written.
+--     `docs/perf-runs/` is only PARTLY frozen: its dated `.json` captures are records, but its
+--     `README.md` is living prose and IS checked.
 --   * `docs/test-cases.md` -- generated from the suite; it inherits whatever the test names say.
 --   * this file -- it has to name the words it forbids.
 --
@@ -90,11 +91,99 @@ local BRITISH = {
   favour = "favor", favoured = "favored", favourite = "favorite",
   catalogue = "catalog", catalogues = "catalogs",
   centre = "center", centred = "centered", centres = "centers",
+  recentre = "recenter", recentres = "recenters", recentred = "recentered",
   defence = "defense", licence = "license",
   grey = "gray", greys = "grays", greyed = "grayed", greying = "graying",
   artefact = "artifact", artefacts = "artifacts",
   labelled = "labeled", modelling = "modeling", whilst = "while",
   memoised = "memoized", memoise = "memoize",
+  neighbour = "neighbor", neighbours = "neighbors", neighbouring = "neighboring",
+  synthesise = "synthesize", synthesises = "synthesizes",
+  synthesised = "synthesized", synthesising = "synthesizing",
+  unrecognised = "unrecognized", unrecognise = "unrecognize",
+  renormalise = "renormalize", renormalised = "renormalized",
+  serialises = "serializes", serialised = "serialized", serialising = "serializing",
+  summarises = "summarizes", summarised = "summarized", summarising = "summarizing",
+  utilises = "utilizes", utilised = "utilized", utilising = "utilizing",
+  alphabetise = "alphabetize", alphabetising = "alphabetizing",
+  acknowledgement = "acknowledgment", acknowledgements = "acknowledgments",
+  judgement = "judgment",
+  signalling = "signaling", signalled = "signaled",
+  travelled = "traveled", travelling = "traveling",
+  cancelling = "canceling",
+  dialogue = "dialog", dialogues = "dialogs",
+  practise = "practice", programme = "program", fulfil = "fulfill",
+  amongst = "among", learnt = "learned", ageing = "aging",
+  paralyse = "paralyze", paralysed = "paralyzed",
+  offence = "offense", pretence = "pretense",
+  sceptic = "skeptic", sceptical = "skeptical",
+  metre = "meter", metres = "meters", fibre = "fiber", calibre = "caliber",
+  mould = "mold", moulded = "molded", sulphur = "sulfur",
+
+  -- The rest of the inflections, and the -ise stems the list above never named. A table built
+  -- from base forms only is a table that greenlights the inflection: `serialise` was listed and
+  -- `serialises` was not, which is how "serialises" reached ARCHITECTURE.md under a green suite.
+  -- Every -ise stem this collection plausibly writes gets its full -e/-es/-ed/-ing/-ation set.
+  --
+  -- `analyses` is deliberately ABSENT: it is also the correct US plural of "analysis", and a
+  -- guard that reddens on a correct word gets deleted rather than obeyed.
+  initialises = "initializes",
+  normalises = "normalizes", normalisation = "normalization",
+  renormalises = "renormalizes", renormalising = "renormalizing",
+  recognises = "recognizes", recognising = "recognizing", recognisable = "recognizable",
+  unrecognisable = "unrecognizable",
+  generalising = "generalizing", generalisation = "generalization",
+  specialises = "specializes", specialising = "specializing",
+  optimises = "optimizes", optimising = "optimizing", optimisations = "optimizations",
+  customises = "customizes", customising = "customizing", customisation = "customization",
+  serialisation = "serialization",
+  deserialise = "deserialize", deserialises = "deserializes",
+  deserialised = "deserialized", deserialising = "deserializing",
+  summarisation = "summarization",
+  organises = "organizes", organising = "organizing", organisational = "organizational",
+  authorises = "authorizes", authorising = "authorizing", authorisation = "authorization",
+  prioritises = "prioritizes", prioritising = "prioritizing", prioritisation = "prioritization",
+  alphabetises = "alphabetizes", alphabetised = "alphabetized",
+  categorise = "categorize", categorises = "categorizes", categorised = "categorized",
+  categorising = "categorizing", categorisation = "categorization",
+  sanitise = "sanitize", sanitises = "sanitizes", sanitised = "sanitized",
+  sanitising = "sanitizing", sanitisation = "sanitization",
+  visualise = "visualize", visualises = "visualizes", visualised = "visualized",
+  visualising = "visualizing", visualisation = "visualization",
+  minimise = "minimize", minimises = "minimizes", minimised = "minimized",
+  minimising = "minimizing", minimisation = "minimization",
+  maximise = "maximize", maximises = "maximizes", maximised = "maximized",
+  maximising = "maximizing", maximisation = "maximization",
+  itemise = "itemize", itemises = "itemizes", itemised = "itemized", itemising = "itemizing",
+  randomise = "randomize", randomises = "randomizes", randomised = "randomized",
+  randomising = "randomizing", randomisation = "randomization",
+  tokenise = "tokenize", tokenises = "tokenizes", tokenised = "tokenized",
+  tokenising = "tokenizing", tokenisation = "tokenization",
+  capitalise = "capitalize", capitalises = "capitalizes", capitalised = "capitalized",
+  capitalising = "capitalizing", capitalisation = "capitalization",
+  localise = "localize", localises = "localizes", localised = "localized",
+  localising = "localizing", localisation = "localization",
+  modularise = "modularize", modularised = "modularized", modularising = "modularizing",
+  standardise = "standardize", standardises = "standardizes", standardised = "standardized",
+  standardising = "standardizing", standardisation = "standardization",
+  colourise = "colorize", colourised = "colorized", colourising = "colorizing",
+  greyscale = "grayscale", greyish = "grayish",
+  behaviourally = "behaviorally",
+  centring = "centering", recentring = "recentering",
+  favours = "favors", favouring = "favoring", favourites = "favorites",
+  honouring = "honoring",
+  licences = "licenses", defences = "defenses",
+  labelling = "labeling", modelled = "modeled",
+  practises = "practices", practised = "practiced", practising = "practicing",
+  programmes = "programs",
+  paralyses = "paralyzes", paralysing = "paralyzing",
+  fulfils = "fulfills",
+  neighbourhood = "neighborhood", neighbourly = "neighborly",
+  memoises = "memoizes", memoising = "memoizing",
+  artefactual = "artifactual",
+  judgements = "judgments",
+  offences = "offenses", sceptically = "skeptically",
+  fibres = "fibers", moulds = "molds", moulding = "molding",
 }
 
 --- Every file this repo authors itself, as paths relative to the repo root.
@@ -104,7 +193,14 @@ local function ownFiles()
     for _, p in ipairs(list) do files[#files + 1] = p end
   end
   add(glob("*.md"))
+  add(glob("*.toc"))
   add(glob("docs/*.md"))
+  -- Living docs that happen to sit in a subfolder. `docs/pending/LEDGER.md` is the open-items
+  -- ledger and `docs/perf-runs/README.md` explains the capture format; both are rewritten as the
+  -- addon changes, so both are ours to spell. The dated `.json` captures beside the latter are
+  -- data, not prose, and are not globbed.
+  add(glob("docs/pending/*.md"))
+  add(glob("docs/perf-runs/*.md"))
   add(glob("core/*.lua"))
   add(glob("settings/*.lua"))
   add(glob("modules/*.lua"))

@@ -89,7 +89,7 @@ the guard is a source check across the five seam files. It matches on what the e
 legitimate `L = NS.L and { … } or nil` does not — and a companion case drives that matcher against
 all three forms, because a matcher nothing tests is one that can be narrowed back to a single
 anchored form while still reporting green. The rest is non-vacuity (`locales/enUS.lua` really does
-synthesise, so the source check guards something) plus library-regression cases that hand the
+synthesize, so the source check guards something) plus library-regression cases that hand the
 vendored DebugLog, Slash and Perf the exact fallback shape every Ka0s host has and require the
 built-in English back. Core and Options take no `L` at all — Core has no `STRINGS`, and Options'
 `L` is `lib.LAYOUT`, a geometry table — so neither can be handed a descriptor to break, and each
@@ -136,7 +136,7 @@ it by re-vendoring from the library, never by editing here.
 **Bytes differ but content matches** → a line-ending divergence, not a fork. Both repos pin
 `* text=auto eol=crlf` over LF blobs, so a working tree holding *either* ending reads clean to
 `git status`, and neither side's cleanliness proves anything. Establish which side drifted (`file -b
-<path>`, and `git cat-file -p HEAD:<path> | file -b -` for what git stores) and renormalise that
+<path>`, and `git cat-file -p HEAD:<path> | file -b -` for what git stores) and renormalize that
 side. **Re-vendoring will not converge it, and the fix is never an edit to `libs/`** — editing the
 vendored copy to settle a line-ending disagreement creates a fork to fix one that was not there, and
 the next re-vendor reverts it silently.

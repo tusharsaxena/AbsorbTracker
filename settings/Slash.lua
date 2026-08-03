@@ -163,7 +163,7 @@ function runResetAll()
     -- Delegate to the single shared helper so the slash command and the
     -- "Reset All Settings" popup can never diverge — same rows reset,
     -- same position clear + recenter, same panel refresh.
-    -- The acknowledgement lives INSIDE the guard, for the reason runResetPosition spells out
+    -- The acknowledgment lives INSIDE the guard, for the reason runResetPosition spells out
     -- below: on a load where settings/OptionsSetup.lua never ran there is nothing to delegate to,
     -- and printing the ack anyway would claim success for work that did not happen.
     if NS.Helpers and NS.Helpers.RestoreAllDefaults then
@@ -177,7 +177,7 @@ end
 function runResetPosition()
     -- Delegate to the single shared helper so this verb and the General page's "Reset Position"
     -- button can never diverge — same per-unit clear, same POSITION publish.
-    -- The acknowledgement lives INSIDE the guard: printing it unconditionally would claim success
+    -- The acknowledgment lives INSIDE the guard: printing it unconditionally would claim success
     -- on a load where settings/UnitPanel.lua never ran — the same silent-lie shape as the Reset
     -- Position button that nil'd an already-nil key and reported nothing.
     if NS.Helpers and NS.Helpers.ResetAllPositions then

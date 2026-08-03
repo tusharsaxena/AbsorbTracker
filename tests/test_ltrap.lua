@@ -19,7 +19,7 @@
 --   2. The RENDERED checks, in each module's own suite (tests/test_debuglog.lua,
 --      tests/test_slash.lua, tests/test_perf.lua, tests/test_helpers.lua). Those assert on the
 --      string the library actually produced, reached through a real accessor on the live instance,
---      so they redden if a resolver ever lets a synthesised key through.
+--      so they redden if a resolver ever lets a synthesized key through.
 --   3. The LIBRARY-REGRESSION checks below. The vendored copy resolves an override with `rawget`
 --      (DebugLog 3 / Slash 4 / Perf 5), so a fallback-only locale table now correctly falls
 --      THROUGH and `L = NS.L` renders prose anyway. That hardening is what these pin — hand the
@@ -110,7 +110,7 @@ end)
 
 test("no LibKa0s descriptor in this addon is handed the key-returning locale table", function()
   -- The general form, so the next seam file cannot reintroduce it. A table whose __index
-  -- synthesises a value for an unknown key can never be a valid `L` override: it answers every
+  -- synthesizes a value for an unknown key can never be a valid `L` override: it answers every
   -- key. Pass nothing (this addon translates nothing, so that is the whole answer), or pass a
   -- plain table holding only the keys actually translated.
   local offenders = {}
@@ -131,7 +131,7 @@ test("no LibKa0s descriptor in this addon is handed the key-returning locale tab
 end)
 
 test("locales/enUS.lua really does answer every key, so the check above guards something", function()
-  -- Non-vacuity. If NS.L ever stopped synthesising, the trap would not exist and the source check
+  -- Non-vacuity. If NS.L ever stopped synthesizing, the trap would not exist and the source check
   -- would be dead weight rather than a guard — this case is what would notice.
   assertEqual(NS.L["NO_SUCH_KEY_ANYWHERE"], "NO_SUCH_KEY_ANYWHERE",
     "the standard's metatable fallback is what makes NS.L unusable as an `L` override")
@@ -202,7 +202,7 @@ test("vendored DebugLog resolves a fallback-only override to its own strings", f
   })
   local label = D:ConsoleCheckbox().label
   assertNil(label:match("^[A-Z][A-Z0-9_]+$"),
-    "the vendored library let a synthesised key through as '" .. label .. "'")
+    "the vendored library let a synthesized key through as '" .. label .. "'")
   assertEqual(label, lib.STRINGS.CHECKBOX_LABEL,
     "it must fall through to the library's own string")
 end)
@@ -217,7 +217,7 @@ test("vendored Slash resolves a fallback-only override to its own strings", func
   })
   local line = Sl:BuildListLines()[1]
   assertNil(line:match("^[A-Z][A-Z0-9_]+$"),
-    "the vendored library let a synthesised key through as '" .. line .. "'")
+    "the vendored library let a synthesized key through as '" .. line .. "'")
   assertEqual(line, lib.STRINGS.LIST_EMPTY,
     "it must fall through to the library's own string")
 end)
@@ -233,7 +233,7 @@ test("vendored Perf resolves a fallback-only override to its own strings", funct
   assertTrue(#(P.STEPS or {}) > 0, "the probe instance must have built its step list")
   for _, step in ipairs(P.STEPS) do
     assertNil(step.label:match("^[A-Z][A-Z0-9_]+$"),
-      "the vendored library let a synthesised key through as '" .. step.label .. "'")
+      "the vendored library let a synthesized key through as '" .. step.label .. "'")
     assertEqual(step.label, lib.STRINGS[step.string],
       "it must fall through to the library's own string")
   end

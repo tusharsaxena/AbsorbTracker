@@ -5,7 +5,7 @@
 -- timers, the Settings canvas API, LibStub, the four Ace fakes, the capture-context lookups — lives
 -- in the kit and is documented there, including its fidelity rules. Only absorb-shaped APIs belong
 -- here: a base that stubbed every addon's APIs for everyone would hide a missing stub behind a
--- neighbour's.
+-- neighbor's.
 
 local base = dofile("tests/_kit/mock_base.lua")
 

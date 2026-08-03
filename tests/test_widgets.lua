@@ -206,7 +206,7 @@ test("a dropdown's list is alphabetically ordered by default", function()
 end)
 
 test("a row with explicit `sorting` keeps that order instead of sorting", function()
-  -- Font outline styles read in a deliberate order (None, Outline, Thick…); alphabetising them
+  -- Font outline styles read in a deliberate order (None, Outline, Thick…); alphabetizing them
   -- would scramble it.
   local dd, row = render("units.player.fontFlags")
   assertTrue(row.sorting ~= nil, "fontFlags declares an explicit order")
@@ -331,7 +331,7 @@ test("RenderField dispatches each schema type to its widget", function()
   assertEqual(render("units.player.barColor").type, "ColorPicker")
 end)
 
-test("RenderField returns nil for an unrecognised type instead of erroring", function()
+test("RenderField returns nil for an unrecognized type instead of erroring", function()
   local ctx = newCtx()
   local widget = Helpers.RenderField(ctx, { path = "x", type = "mystery", label = "X" },
     AceGUI:Create("SimpleGroup"), 0.5)

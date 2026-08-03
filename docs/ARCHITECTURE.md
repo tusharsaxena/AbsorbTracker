@@ -285,7 +285,7 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
   alongside `AbsorbTrackerDB`. It holds the perf capture ring (last 10 runs) and is deliberately
   **outside** the AceDB tree so diagnostic data never rides profile copy / reset / switch.
   A separate SavedVariables *file* was considered and rejected: WoW names the file after the addon
-  and serialises every global it declares into that one file, so a separate file would require
+  and serializes every global it declares into that one file, so a separate file would require
   shipping a companion addon in its own sibling folder — a two-addon repo, with packaging and
   CurseForge knock-ons, for isolation a distinct global already provides.
   **Pending promotion:** the LibKa0s perf-extraction spec (the LibKa0s repo's

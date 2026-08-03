@@ -47,7 +47,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 24. `/at get units.player.barWidth` → `units.player.barWidth = <n> px` (gold key, white value); `/at get bogus` → not found; `/at get` → usage.
 25. `/at set units.player.barWidth 260` → `units.player.barWidth = 260 px`, bar widens, open panel refreshes; path case preserved.
 26. `/at set units.player.barWidth abc` → `Invalid value for units.player.barWidth`; bar unchanged.
-27. `/at reset units.player.barWidth` → that one setting reverts + repaints, and its neighbours do not; `/at reset bar` → `Setting not found: bar` (the page-shaped form is gone).
+27. `/at reset units.player.barWidth` → that one setting reverts + repaints, and its neighbors do not; `/at reset bar` → `Setting not found: bar` (the page-shaped form is gone).
 28. `/at resetall` → all pages revert **and** bar returns to center (position cleared) — same shared `RestoreAllDefaults` helper as the Reset All popup (step 20), so slash and button can never diverge.
 29. `/at resetposition` → bar snaps to center; other settings unchanged.
 30. `/at lock` / `/at unlock` → locks/unlocks dragging; dragged position persists across `/reload`.

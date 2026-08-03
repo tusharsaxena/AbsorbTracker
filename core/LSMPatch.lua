@@ -7,7 +7,7 @@ local addonName, NS = ...
 -- border-preview tile to the widget's TOPLEFT (AGSMW:GetBaseFrameWithWindow in
 -- libs/AceGUI-3.0-SharedMediaWidgets/prototypes.lua). Inside our canvas-layout settings panel
 -- that tile leaves a 42px gap to the right of the closed dropdown's left edge and looks
--- misaligned next to neighbouring sliders/checkboxes.
+-- misaligned next to neighboring sliders/checkboxes.
 --
 -- On enable — by which point every addon's libs have run and the LSM30_Border registry slot is
 -- stable — wrap whatever constructor AceGUI currently holds, register the wrapper at

@@ -5,7 +5,7 @@ local test, assertTrue, assertFalse = T.test, T.assertTrue, T.assertFalse
 -- Run `body` with specific enabled / showOnlyInCombat / in-combat state, then restore everything.
 -- The loader binds WoW globals live through the mock table, so swapping the combat mocks is seen by
 -- addon code (same pattern as tests/test_slash.lua). `inCombat` drives both combat predicates so
--- steady-state combat is modelled faithfully; the transition-timing gap between them is exercised
+-- steady-state combat is modeled faithfully; the transition-timing gap between them is exercised
 -- by the dedicated regression test below.
 --
 -- The first argument used to be the global `hidden` master toggle; schema v4 dropped it, so it is

@@ -80,7 +80,7 @@ when you explicitly ask for one. Everything also acknowledges in chat.
 
 | Command | Effect |
 |---------|--------|
-| `/at perf` | Status + usage, **and** shows the step panel — Start is clickable from it, so this is the entry point. Any unrecognised sub-verb lands here too |
+| `/at perf` | Status + usage, **and** shows the step panel — Start is clickable from it, so this is the entry point. Any unrecognized sub-verb lands here too |
 | `/at perf start [label]` | Begin a run. Records nothing until an experiment is armed. Captures character, spec, zone and group |
 | `/at perf measure a` | Arm **Experiment A** — addon active. Records while in combat |
 | `/at perf measure b` | Arm **Experiment B** — addon suspended (done for you). Same combat gating |
@@ -92,7 +92,7 @@ when you explicitly ask for one. Everything also acknowledges in chat.
 
 ### Suspend
 
-Experiment B suspends the addon: every event unregistered, any pending repaint cancelled, all bars
+Experiment B suspends the addon: every event unregistered, any pending repaint canceled, all bars
 hidden — **without a reload**. `NS.ShouldShowBar` checks the suspended flag as step 0 of its ladder,
 so nothing (a combat transition, a target swap, a settings edit) can re-show a bar mid-measurement.
 

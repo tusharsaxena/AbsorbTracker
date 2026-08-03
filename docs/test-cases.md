@@ -315,7 +315,7 @@ badge and any count quoted in the docs must agree with it.
 - RestoreDefaults survives a refresher that throws
 - RestoreDefaults on a page with no rows is a harmless no-op
 - RestoreAllDefaults resets every schema row that is not on the profiles page
-- RestoreAllDefaults clears the saved bar position so the bar recentres
+- RestoreAllDefaults clears the saved bar position so the bar recenters
 - RestoreAllDefaults publishes POSITION so the bar moves immediately
 - RestoreAllDefaults skips the profiles page (resetting it would delete user data)
 - RefreshAllPanels runs the refreshers of every registered panel
@@ -368,7 +368,7 @@ badge and any count quoted in the docs must agree with it.
 - /at update publishes REPAINT and acknowledges
 - /at reset with no path prints usage rather than resetting anything
 - /at reset rejects a path that is not a setting
-- /at reset restores one setting and leaves its neighbours alone
+- /at reset restores one setting and leaves its neighbors alone
 - /at reset does NOT lower-case its argument
 - /at resetall goes through the one shared RestoreAllDefaults helper
 - /at resetall really does restore the defaults end to end
@@ -496,7 +496,7 @@ badge and any count quoted in the docs must agree with it.
 - OnValueChanged throttles a drag to ONE timer and commits the latest value
 - a drag that resumes after the timer fired arms a fresh one
 - RenderField dispatches each schema type to its widget
-- RenderField returns nil for an unrecognised type instead of erroring
+- RenderField returns nil for an unrecognized type instead of erroring
 - RenderField adds the widget to the parent it was given
 - RenderSchema pairs widgets two-to-a-row inside full-width Flow groups
 - RenderSchema gives each paired widget half the row

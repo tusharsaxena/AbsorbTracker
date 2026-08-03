@@ -104,7 +104,7 @@ as "none" regardless of which bracket it wears.
 - **`interface`** reads `0` in every record, in-game ones included, and always has. WoW's
   `GetAddOnMetadata` does not expose the `Interface` TOC field, so the lookup returns nil and the
   record stamps 0. Offline runs have no client at all, so 0 is correct there. The
-  `LibKa0s-Perf-1.0` extraction reproduced the behaviour faithfully rather than fixing it, because
+  `LibKa0s-Perf-1.0` extraction reproduced the behavior faithfully rather than fixing it, because
   the parity gate asked for identical measurements; see
   [2026-07-30-extraction-parity](../investigations/2026-07-30-extraction-parity/analysis.md). Do not
   read this field as the client version — `select(4, GetBuildInfo())` is the fix, upstream in the

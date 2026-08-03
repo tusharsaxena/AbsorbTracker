@@ -210,7 +210,7 @@ test("/at reset rejects a path that is not a setting", function()
   assertTrue(contains(out, "Setting not found: bar"), joined(out))
 end)
 
-test("/at reset restores one setting and leaves its neighbours alone", function()
+test("/at reset restores one setting and leaves its neighbors alone", function()
   NS.SetByPath("units.player.barWidth", 250)
   NS.SetByPath("units.target.barWidth", 300)
   NS.SetByPath("units.player.borderSize", 20)
@@ -258,7 +258,7 @@ end)
 test("/at resetall says the helpers are missing instead of claiming success", function()
   -- The other half of the guard the case above exercises. On a build where settings/OptionsSetup
   -- never ran, RestoreAllDefaults is absent and the verb resets nothing -- printing the
-  -- acknowledgement anyway would claim success for work that did not happen. Same rule, same
+  -- acknowledgment anyway would claim success for work that did not happen. Same rule, same
   -- shape, as the resetposition verb immediately below.
   local orig = NS.Helpers.RestoreAllDefaults
   NS.Helpers.RestoreAllDefaults = nil
@@ -759,7 +759,7 @@ test("/at perf finish does not print the summary", function()
   NS.DebugLog:Clear()
   local out = slash("perf finish")
   assertEqual(joined(out):find("bucket", 1, true), nil, "no summary table: " .. joined(out))
-  assertTrue(contains(out, "FINISHED"), "just the acknowledgement")
+  assertTrue(contains(out, "FINISHED"), "just the acknowledgment")
   assertTrue(contains(out, "Report"), "which points at how to read it")
   local logged = table.concat(NS.DebugLog.buffer, "\n")
   assertEqual(logged:find("bucket", 1, true), nil, "and none in the console either: " .. logged)
@@ -1065,7 +1065,7 @@ test("a panel click reaches chat through this addon's print sink, like typing do
   -- The panel has no slash layer behind it, so the lib prints OnCommand's lines itself — through
   -- the `print` hook core/PerfSetup.lua hands it. Wired to the wrong sink (or to none) a click
   -- would silently produce less chat than the identical typed command; here Start's whole
-  -- acknowledgement went missing.
+  -- acknowledgment went missing.
   perfReset()
   P.HidePanel()
   local typed = slash("perf start")
