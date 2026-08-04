@@ -25,7 +25,10 @@ Start here, then read the docs:
 
 - **`docs/ARCHITECTURE.md`** — what this addon is: module map, invariants, settings schema, message
   bus, slash surface, event wiring, taint notes, known limitations.
-- **`docs/testing.md`** — how to verify: the headless harness, lint, the green gate.
+- **`docs/testing.md`** — how to verify: the headless harness, lint, the green gate, and the
+  release-time complexity checkpoint.
+- **`DEPENDENCIES.md`** (root) — what to install to build, run, test or release this addon, with
+  WSL2/Ubuntu commands and evidence per entry (documentation-§7).
 - Topic detail in `docs/`: `schema.md`, `settings-panel.md`, `data-flow.md`, `profiles.md`,
   `midnight-quirks.md`, `common-tasks.md`, `scope.md`, `file-index.md`, `module-map.md`,
   `smoke-tests.md`, `test-cases.md`, `performance.md`, `complexity.md`.
@@ -34,7 +37,13 @@ Start here, then read the docs:
 
 The canonical `docs/` set is exactly three files: **`ARCHITECTURE.md`** (what this addon is),
 **`testing.md`** (how to verify) and **`smoke-tests.md`** (in-game checks) — plus the generated
-`test-cases.md` and the topic-detail docs.
+`test-cases.md` and the topic-detail docs. Four of those topic-detail docs are **required**, not
+optional: `test-cases.md`, `performance.md`, `perf-runs/README.md` and `complexity.md`
+(documentation-§3).
+
+The repo **root** ships exactly three docs plus `LICENSE`, and never a fourth: the full
+**`README.md`** (player-facing), this **`CLAUDE.md`** stub, and **`DEPENDENCIES.md`** (the toolchain
+contract). Everything else lives under `docs/`.
 
 **`docs/agent-context.md` does not exist in this repo and MUST NOT be created.** The standard
 deleted it in **v2.17.0**; shipping it is **anti-pattern #49**. It held `NEW_ADDON_CONTEXT.md` —

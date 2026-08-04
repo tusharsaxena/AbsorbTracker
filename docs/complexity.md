@@ -1,137 +1,1157 @@
-# Cyclomatic complexity
+# Complexity report
 
-_Generated — do not hand-edit._ Measured 2026-07-29 against **v1.9.0**, addon source only
-(`libs/` and `tests/` excluded).
+<!-- GENERATED — do not hand-edit. Regenerate per performance-§10. -->
 
-**Regeneration has been pending since the five-module LibKa0s extraction (issue #17); every number
-below predates it.** `lizard` is not available in this environment, so the numbers cannot be
-re-derived here. Five extractions have moved code out of the addon since the measurement:
+- **Generated:** 2026-08-04
+- **Tool:** lizard 1.23.0
+- **Command:** `lizard -l lua -x "./libs/*" -x "./tests/_kit/*" .`
+- **Standard:** v2.18.0
 
-| Extraction | Deleted from the addon | What took its place |
+Addon source and this addon's own `tests/` are measured. The two vendored trees — `libs/LibKa0s/`
+and the shared harness at `tests/_kit/` — are excluded, because neither is this repo's to edit
+(library-stack-§7, testing-§1). Totals: **7,532 NLOC** across **1,047 functions**, average CCN
+**1.7**, **2** warnings.
+
+This report is not a gate. It is regenerated and its diff reviewed at **release**, never at commit
+(performance-§10).
+
+## Watch list
+
+**This is the first report generated under the mandated invocation, so there is no previous report
+to diff against.** The file that stood here before was measured on 2026-07-29 with a different,
+narrower command (`lizard -l lua core modules settings defaults locales`) against v1.9.0, was
+partly hand-edited afterwards, and carried rows for files that no longer exist. Nothing in it is
+comparable to the numbers below, so nothing below is described as "new" or "worse" — the trend line
+starts here. The next release's report is the first one with a real diff.
+
+| Item | Measure | Disposition |
 |---|---|---|
-| `LibKa0s-Core-1.0` | `core/Util.lua` | `core/CoreSetup.lua` (78 lines) |
-| `LibKa0s-DebugLog-1.0` | `core/DebugLog.lua` | `core/DebugLogSetup.lua` (110 lines) |
-| `LibKa0s-Slash-1.0` | — (`settings/Slash.lua` gutted in place) | `settings/Slash.lua`, now the verb table and host verbs only |
-| `LibKa0s-Options-1.0` | `settings/Panel.lua`, `Helpers.lua`, `ScrollPatch.lua`, `Widgets.lua` | `settings/OptionsSetup.lua` (199 lines) + `settings/UnitPanel.lua` (193 lines) |
-| `LibKa0s-Perf-1.0` | `core/Perf.lua`, `core/PerfPanel.lua` | `core/PerfSetup.lua` (130 lines) |
+| `runProfile` — `settings/Slash.lua:298-368` | CCN **21**, NLOC 68 (lizard warning) | **Peel next — already tracked.** The 2026-08-03 review's change **C-1** (findings **F-001**, **F-002**, **F-003**, **F-018**) rewrites exactly this function: four input guards behind one shared existence helper. That work moves branches out of the sub-verb ladder, so the CCN is expected to fall when C-1 lands. Not a hot path — it runs on a typed slash command. |
+| `NS:RunMigrations` — `core/Database.lua:138-192` | CCN **19**, NLOC 44 (lizard warning) | **Accepted.** A schema-migration ladder is one `if g.schemaVersion < N then … end` rung per version, and its branch count is the number of migrations the addon has shipped — splitting it would move the same branches into helpers that only this function calls and hide the ordering the ladder makes obvious. It runs once, at load, before anything reads the profile. Revisit if it passes CCN 30 or grows a branch that is not a version rung. |
+| `tests/test_slashcmds.lua` — 1,256 LOC (967 NLOC, 140 functions) | In layout-§1's **1000–1500 on-notice band** | **On notice, no action this release.** It is the only file in the repo inside the band; the next largest is `tests/test_helpers.lua` at 893. It is a test suite, so its size is case count rather than tangle — average CCN 1.2, the lowest of any large file here — and the 2026-08-03 review's C-1 adds cases to it, which will push it further into the band. **Peel at the next release if it crosses 1,400**, splitting by verb group (the profile verbs are the obvious first slice) rather than by line count. No file is over the 1,500 hard cap. |
 
-Rows for the deleted files have been hand-removed rather than renamed. The numbers would not carry
-over: what is left in the addon is a descriptor plus a degradation stub, not the algorithms. The
-extracted code's complexity is the LibKa0s repo's to report, not this file's.
+No function exceeded lizard's length (> 1000) or parameter-count (> 100) thresholds.
 
-Part of issue [#17](https://github.com/tusharsaxena/AbsorbTracker/issues/17). This report is
-**advisory**: it is not part of the green gate (`lua tests/run.lua` + `luacheck .`) and no build
-fails on a number here. The Ka0s WoW Addon Standard does not yet define a complexity rule — that is
-upstream work in [WowAddonStandards](https://github.com/tusharsaxena/WowAddonStandards), and these
-numbers exist partly to inform it.
+## Raw output
 
-## Regenerating
+```text
+================================================
+  NLOC    CCN   token  PARAM  length  location  
+------------------------------------------------
+       3      3     23      0       3 NS.NoteRepaint@33-35@./core/AbsorbTracker.lua
+       6      5     59      0       9 addon@37-45@./core/AbsorbTracker.lua
+      11      3     84      0      33 addon@49-81@./core/AbsorbTracker.lua
+       5      1     30      0       5 addon@88-92@./core/AbsorbTracker.lua
+       7      3     36      3       7 onEvent@111-117@./core/AbsorbTracker.lua
+      32      7    172      0      47 addon@108-154@./core/AbsorbTracker.lua
+      18     14    152      0      22 addon@164-185@./core/AbsorbTracker.lua
+       3      1     19      0       3 addon@192-194@./core/AbsorbTracker.lua
+       5      1     38      0       5 addon@196-200@./core/AbsorbTracker.lua
+       4      1     30      0       4 addon@205-208@./core/AbsorbTracker.lua
+       8      3     57      0      11 addon@215-225@./core/AbsorbTracker.lua
+      13      5     90      0      13 addon@227-239@./core/AbsorbTracker.lua
+      12      7    115      0      20 NS.OnProfileChanged@243-262@./core/AbsorbTracker.lua
+       5      3     22      0       5 (anonymous)@271-275@./core/AbsorbTracker.lua
+       5      1     19      0       5 NS.NewBusTarget@43-47@./core/Bus.lua
+       9      4     39      2       9 Compat.GetAddOnMetadata@12-20@./core/Compat.lua
+       1      1     14      1       1 probeConcat@34-34@./core/CoreSetup.lua
+       3      1     16      1       3 NS.IsConcatSafe@35-37@./core/CoreSetup.lua
+       6      4     45      1       6 NS.SafeToString@39-44@./core/CoreSetup.lua
+      11      4     99      0      11 NS.Print@47-57@./core/CoreSetup.lua
+       1      1      7      0       1 prefix@70-70@./core/CoreSetup.lua
+       7      3     26      0       7 NS.GetLSM@19-25@./core/Data.lua
+       3      1      9      0       3 NS.ClearLSMCache@28-30@./core/Data.lua
+       8      4     54      1       8 NS.GetSetting@34-41@./core/Data.lua
+       6      3     35      2       6 NS.SetSetting@44-49@./core/Data.lua
+       3      2     20      2       3 unitSetting@53-55@./core/Data.lua
+       8      3     45      1       8 NS.GetBarTexture@57-64@./core/Data.lua
+       8      3     45      1       8 NS.GetBgTexture@66-73@./core/Data.lua
+       8      3     45      1       8 NS.GetBorder@75-82@./core/Data.lua
+       8      3     45      1       8 NS.GetFont@84-91@./core/Data.lua
+      15      5     78      0      15 GetPlayerClassColor@94-108@./core/Data.lua
+      16      4     77      0      16 GetBgClassColor@129-144@./core/Data.lua
+       8      2     63      1       8 NS.GetBarColor@146-153@./core/Data.lua
+       8      2     63      1       8 NS.GetBgColor@155-162@./core/Data.lua
+       8      2     63      1       8 NS.GetBorderColor@164-171@./core/Data.lua
+      16      6    119      0      19 NS@5-23@./core/Database.lua
+       6      3     44      1       6 deepcopy@26-31@./core/Database.lua
+      24     10    175      1      33 NS.MigrateProfileToV3@58-90@./core/Database.lua
+      12      8     96      0      18 migrateAllProfiles@96-113@./core/Database.lua
+       6      3     33      1       6 drop@120-125@./core/Database.lua
+      13      6     82      1      19 dropKeyEverywhere@118-136@./core/Database.lua
+      44     19    301      0      55 NS@138-192@./core/Database.lua
+       5      3     24      0       5 sayOnce@24-28@./core/DebugLogSetup.lua
+       1      1      3      0       1 Add@35-35@./core/DebugLogSetup.lua
+       1      1      3      0       1 Debug@36-36@./core/DebugLogSetup.lua
+       1      1      3      0       1 Clear@37-37@./core/DebugLogSetup.lua
+       1      1      6      0       1 Show@38-38@./core/DebugLogSetup.lua
+       1      1      3      0       1 Hide@39-39@./core/DebugLogSetup.lua
+       1      1      6      0       1 Toggle@40-40@./core/DebugLogSetup.lua
+       1      1      5      0       1 IsShown@41-41@./core/DebugLogSetup.lua
+       1      3     15      0       1 IsEnabled@42-42@./core/DebugLogSetup.lua
+       8      6     52      2       8 SetEnabled@43-50@./core/DebugLogSetup.lua
+       1      1      3      0       1 RefreshHeader@51-51@./core/DebugLogSetup.lua
+       1      1      6      0       1 ShowCopy@52-52@./core/DebugLogSetup.lua
+       1      1      3      0       1 UpdateScrollBar@53-53@./core/DebugLogSetup.lua
+       1      1      3      0       1 UpdateStatus@54-54@./core/DebugLogSetup.lua
+       1      1      5      0       1 BufferSize@55-55@./core/DebugLogSetup.lua
+       1      1      5      0       1 LastLine@56-56@./core/DebugLogSetup.lua
+       1      1      5      0       1 FindLine@57-57@./core/DebugLogSetup.lua
+       1      1      5      0       1 MakeCloseButton@58-58@./core/DebugLogSetup.lua
+       1      1      5      0       1 get@63-63@./core/DebugLogSetup.lua
+       1      1      6      0       1 set@64-64@./core/DebugLogSetup.lua
+       8      1     24      0       8 ConsoleCheckbox@59-66@./core/DebugLogSetup.lua
+       1      3     15      0       1 isEnabled@80-80@./core/DebugLogSetup.lua
+       1      2     17      1       1 setEnabled@81-81@./core/DebugLogSetup.lua
+       1      1     10      1       1 print@86-86@./core/DebugLogSetup.lua
+       1      1     11      1       1 safeToString@87-87@./core/DebugLogSetup.lua
+       7      7     86      0       7 initSummary@92-98@./core/DebugLogSetup.lua
+       3      3     22      0       3 onVisibilityChanged@102-104@./core/DebugLogSetup.lua
+      17      6    110      0      20 (anonymous)@30-49@./core/LSMPatch.lua
+       9      6     68      0      31 NS.ApplyLSMBorderPatch@20-50@./core/LSMPatch.lua
+       1      1      3      0       1 Note@25-25@./core/PerfSetup.lua
+       3      1     12      0       3 OnCommand@26-28@./core/PerfSetup.lua
+      19      8    102      0      19 suspend@55-73@./core/PerfSetup.lua
+      12      5     77      0      12 resume@77-88@./core/PerfSetup.lua
+       7      3     33      1       7 log@94-100@./core/PerfSetup.lua
+       1      1     10      1       1 print@102-102@./core/PerfSetup.lua
+       5      4     31      0       5 showLog@106-110@./core/PerfSetup.lua
+       9      4     66      2      15 decorate@115-129@./core/PerfSetup.lua
+       3      2     14      0       3 profile@27-29@./core/Units.lua
+       4      7     45      1       4 defaultsFor@31-34@./core/Units.lua
+       6      3     44      1       6 deepcopy@36-41@./core/Units.lua
+       5      3     33      1       5 Units.Config@44-48@./core/Units.lua
+       5      2     37      1       5 Units.IsEnabled@50-54@./core/Units.lua
+       5      3     35      1       5 Units.IsMirrored@58-62@./core/Units.lua
+       3      3     18      1       3 Units.SourceUnit@64-66@./core/Units.lua
+       8      4     77      2       8 Units.Get@69-76@./core/Units.lua
+       4      2     30      3       4 Units.Set@82-85@./core/Units.lua
+       4      2     22      1       4 Units.Position@87-90@./core/Units.lua
+       4      2     27      2       4 Units.SetPosition@92-95@./core/Units.lua
+       9      5     72      1       9 Units.CopyFromPlayer@100-108@./core/Units.lua
+      20      1    143      0      20 appearance@14-33@./defaults/Profile.lua
+       6      1     25      2       6 unit@35-40@./defaults/Profile.lua
+       1      1      8      2       1 __index@6-6@./locales/enUS.lua
+       5      1     53      1       5 (anonymous)@39-43@./modules/Bar.lua
+      40      2    382      2      63 NS.CreateBar@16-78@./modules/Bar.lua
+       3      2     26      1       3 NS.ForEachUnit@20-22@./modules/Display.lua
+       8      3     63      1       8 NS.DefaultPosition@27-34@./modules/Display.lua
+      13      4     99      1      16 NS.RestoreBarPosition@37-52@./modules/Display.lua
+      36      8    348      1      52 NS.UpdateBarAppearance@55-106@./modules/Display.lua
+       8      8     68      1       8 NS.ShouldShowBar@130-137@./modules/Display.lua
+       9      7     61      1       9 visibilityReason@143-151@./modules/Display.lua
+      13     11    124      1      13 NS.ApplyVisibility@154-166@./modules/Display.lua
+      20     10    137      1      29 NS.UpdateAbsorbBar@176-204@./modules/Display.lua
+       1      1     10      1       1 (anonymous)@217-217@./modules/Display.lua
+       3      1     10      0       3 (anonymous)@216-218@./modules/Display.lua
+       1      1     10      1       1 (anonymous)@220-220@./modules/Display.lua
+       3      1     10      0       3 (anonymous)@219-221@./modules/Display.lua
+       1      1     10      1       1 (anonymous)@223-223@./modules/Display.lua
+       3      1     10      0       3 (anonymous)@222-224@./modules/Display.lua
+       3      2     16      1       3 (anonymous)@33-35@./modules/Timer.lua
+       8      5     57      0      26 doRepaint@17-42@./modules/Timer.lua
+       5      3     35      0       8 NS.RequestRepaint@44-51@./modules/Timer.lua
+       6      4     38      0       6 NS.CancelPendingRepaint@55-60@./modules/Timer.lua
+       1      1      8      0       1 (anonymous)@69-69@./modules/Timer.lua
+       3      1     18      1       3 getMetadata@24-26@./settings/About.lua
+       9      1     48      2       9 addBlock@28-36@./settings/About.lua
+      47     15    341      1      67 Helpers.BuildMainContent@38-104@./settings/About.lua
+     118      2    517      1     127 addUnitRows@22-148@./settings/Bar.lua
+       3      1     11      0       3 defaultsOnClick@168-170@./settings/Bar.lua
+       4      1     19      0       4 (anonymous)@172-175@./settings/Bar.lua
+      15      3     82      1      25 build@155-179@./settings/Bar.lua
+      55      1    244      1      56 addUnitRows@17-72@./settings/Border.lua
+       3      1     11      0       3 defaultsOnClick@89-91@./settings/Border.lua
+       4      1     19      0       4 (anonymous)@93-96@./settings/Border.lua
+      15      3     82      1      25 build@76-100@./settings/Border.lua
+      45      1    197      1      46 addUnitRows@31-76@./settings/Font.lua
+       3      1     11      0       3 defaultsOnClick@93-95@./settings/Font.lua
+       4      1     19      0       4 (anonymous)@97-100@./settings/Font.lua
+      15      3     82      1      25 build@80-104@./settings/Font.lua
+       4      2     35      0       4 onChange@50-53@./settings/General.lua
+       7      2     50      0      13 onChange@105-117@./settings/General.lua
+       6      3     26      0       6 OnAccept@133-138@./settings/General.lua
+       3      1     11      0       3 defaultsOnClick@154-156@./settings/General.lua
+       1      1      8      0       1 onClick@176-176@./settings/General.lua
+       1      1      7      0       1 onClick@181-181@./settings/General.lua
+      13      1     42      1      17 ]@167-183@./settings/General.lua
+       5      3     38      2       5 ]@187-191@./settings/General.lua
+      10      2     47      0      32 (anonymous)@162-193@./settings/General.lua
+      16      3     86      1      57 build@141-197@./settings/General.lua
+       1      1     11      1       1 vetoedFromResetAll@34-34@./settings/OptionsSetup.lua
+       1      1      8      1       1 print@46-46@./settings/OptionsSetup.lua
+       1      1     18      2       1 debug@47-47@./settings/OptionsSetup.lua
+       1      1     11      1       1 get@51-51@./settings/OptionsSetup.lua
+       1      1     14      2       1 set@52-52@./settings/OptionsSetup.lua
+       1      1     10      1       1 applyDefault@53-53@./settings/OptionsSetup.lua
+       1      1      7      0       1 allRows@54-54@./settings/OptionsSetup.lua
+       1      1     15      2       1 rowsForPage@59-59@./settings/OptionsSetup.lua
+       3      3     22      0       3 afterRestoreAll@69-71@./settings/OptionsSetup.lua
+       1      1     17      2       1 scheduleTimer@76-76@./settings/OptionsSetup.lua
+       1      1      9      0       1 getLSM@78-78@./settings/OptionsSetup.lua
+       1      1      8      0       1 validate@79-79@./settings/OptionsSetup.lua
+       1      1      9      1       1 onAceGUI@83-83@./settings/OptionsSetup.lua
+       3      3     24      1       3 buildMain@87-89@./settings/OptionsSetup.lua
+       4      6     42      1       4 colorDecode@95-98@./settings/OptionsSetup.lua
+       1      2     30      4       1 colorEncode@99-99@./settings/OptionsSetup.lua
+       1      1      6      0       1 (anonymous)@147-147@./settings/OptionsSetup.lua
+       1      1      6      0       1 LSMValues@147-147@./settings/OptionsSetup.lua
+       6      5     44      0       8 RestoreAllDefaults@149-156@./settings/OptionsSetup.lua
+       1      1      3      0       1 ]@168-168@./settings/OptionsSetup.lua
+       1      1      6      0       1 __panels@170-170@./settings/OptionsSetup.lua
+       1      1      5      0       1 __panelFor@171-171@./settings/OptionsSetup.lua
+       1      1      3      0       1 RegisterOptionsPage@173-173@./settings/OptionsSetup.lua
+       1      1      3      0       1 RefreshOptionsPanel@174-174@./settings/OptionsSetup.lua
+       1      1      7      0       1 CreateOptionsPanel@176-176@./settings/OptionsSetup.lua
+       1      1      7      0       1 OpenOptionsPanel@177-177@./settings/OptionsSetup.lua
+       1      1     18      3       1 RegisterOptionsPage@193-193@./settings/OptionsSetup.lua
+       1      1      8      0       1 CreateOptionsPanel@194-194@./settings/OptionsSetup.lua
+       1      1      8      0       1 OpenOptionsPanel@195-195@./settings/OptionsSetup.lua
+       1      1      8      0       1 RefreshOptionsPanel@199-199@./settings/OptionsSetup.lua
+       3      1     11      0       3 (anonymous)@60-62@./settings/Profiles.lua
+      31     12    247      1      51 build@16-66@./settings/Profiles.lua
+       5      2     23      1       5 NS.RegisterSchemaRows@38-42@./settings/Schema.lua
+       5      3     30      1       5 NS.FindSchemaRow@48-52@./settings/Schema.lua
+       5      6     55      2       5 (anonymous)@72-76@./settings/Schema.lua
+      15      8     94      2      22 NS.SchemaForPage@57-78@./settings/Schema.lua
+      11      3     45      1      11 NS.PartitionUnitRows@82-92@./settings/Schema.lua
+      10      6     72      2      10 NS.ResolvePath@102-111@./settings/Schema.lua
+       3      2     22      0       3 defaultOnChange@131-133@./settings/Schema.lua
+       4      2     19      2       4 fireOnChange@135-138@./settings/Schema.lua
+       8      6     74      2      11 NS.SetByPath@142-152@./settings/Schema.lua
+      11      4     72      1      12 NS.ApplyDefault@156-167@./settings/Schema.lua
+       5      3     35      2       5 NS.FormatSchemaValue@189-193@./settings/Schema.lua
+       9      3     48      2       9 _printSchemaError@211-219@./settings/Schema.lua
+      36     14    244      0      38 NS.ValidateSchema@224-261@./settings/Schema.lua
+       3      1     21      2       3 PrintCmd@32-34@./settings/Slash.lua
+       6      5     33      1       6 MirrorNote@48-53@./settings/Slash.lua
+       1      1      6      0       1 (anonymous)@63-63@./settings/Slash.lua
+       1      1      8      0       1 (anonymous)@65-65@./settings/Slash.lua
+       1      1      6      0       1 (anonymous)@67-67@./settings/Slash.lua
+       1      1      8      1       1 (anonymous)@69-69@./settings/Slash.lua
+       1      1      8      1       1 (anonymous)@71-71@./settings/Slash.lua
+       1      1      8      1       1 (anonymous)@73-73@./settings/Slash.lua
+       1      1      6      0       1 (anonymous)@75-75@./settings/Slash.lua
+       1      1      6      0       1 (anonymous)@77-77@./settings/Slash.lua
+       4      1     15      0       4 (anonymous)@79-82@./settings/Slash.lua
+       4      1     15      0       4 (anonymous)@84-87@./settings/Slash.lua
+       1      1      8      1       1 (anonymous)@89-89@./settings/Slash.lua
+       1      1      8      1       1 (anonymous)@91-91@./settings/Slash.lua
+       1      1      8      1       1 (anonymous)@93-93@./settings/Slash.lua
+       1      1      6      0       1 (anonymous)@95-95@./settings/Slash.lua
+       1      1     16      0       1 (anonymous)@97-97@./settings/Slash.lua
+       1      1      8      1       1 (anonymous)@99-99@./settings/Slash.lua
+       1      1      8      1       1 (anonymous)@101-101@./settings/Slash.lua
+       3      3     23      0       3 getVersion@108-110@./settings/Slash.lua
+       1      1      9      0       1 printHelp@112-112@./settings/Slash.lua
+       1      1      9      0       1 listSettings@128-128@./settings/Slash.lua
+       1      1     11      1       1 getSetting@129-129@./settings/Slash.lua
+       1      1     11      1       1 setSetting@130-130@./settings/Slash.lua
+      12      5     75      1      12 add@137-148@./settings/Slash.lua
+       1      1     11      1       1 runReset@159-159@./settings/Slash.lua
+       8      3     32      0      14 runResetAll@162-175@./settings/Slash.lua
+       8      3     32      0      13 runResetPosition@177-189@./settings/Slash.lua
+       3      3     29      1       3 runPerf@201-203@./settings/Slash.lua
+      17     10    100      1      17 runDebug@205-221@./settings/Slash.lua
+      21     11    197      1      23 runToggle@236-258@./settings/Slash.lua
+       4      1     20      0       4 runUpdate@260-263@./settings/Slash.lua
+      68     21    359      1      71 runProfile@298-368@./settings/Slash.lua
+       1      1     14      2       1 FormatRow@384-384@./settings/Slash.lua
+       1      1      3      0       1 SetRowAnnotator@387-387@./settings/Slash.lua
+       1      1     13      0       1 (anonymous)@389-389@./settings/Slash.lua
+       3      1      8      1       3 absent@388-390@./settings/Slash.lua
+       7      2     26      0       7 LandingRows@394-400@./settings/Slash.lua
+       4      2     40      0       4 PrintHelp@401-404@./settings/Slash.lua
+      12     10    117      2      12 OnSlash@405-416@./settings/Slash.lua
+      11      2     76      0      33 SlashLib@386-418@./settings/Slash.lua
+       1      1      8      1       1 print@430-430@./settings/Slash.lua
+       1      1     11      1       1 get@435-435@./settings/Slash.lua
+       4      2     25      2       4 set@436-439@./settings/Slash.lua
+       1      1     11      1       1 findRow@440-440@./settings/Slash.lua
+       4      2     21      1       4 applyDefault@441-444@./settings/Slash.lua
+       4      3     33      1       4 groupKey@448-451@./settings/Slash.lua
+       1      1     12      0       1 Sl@461-461@./settings/Slash.lua
+       3      1     13      0       3 Sl@463-465@./settings/Slash.lua
+       1      1     10      1       1 (anonymous)@469-469@./settings/Slash.lua
+       1      1     10      1       1 (anonymous)@470-470@./settings/Slash.lua
+       4      1     28      0       4 Sl@468-471@./settings/Slash.lua
+       6      2     43      0       6 Helpers.ResetAllPositions@33-38@./settings/UnitPanel.lua
+       4      1     21      3       4 (anonymous)@96-99@./settings/UnitPanel.lua
+      25      3    185      2      48 renderUnitPanelBody@54-101@./settings/UnitPanel.lua
+       4      3     36      3       4 (anonymous)@110-113@./settings/UnitPanel.lua
+       5      1     33      0       5 (anonymous)@123-127@./settings/UnitPanel.lua
+      10      4     70      2      12 Helpers.RenderUnitPanel@201-212@./settings/UnitPanel.lua
+       8      1     52      0      23 (anonymous)@16-38@./tests/degraded_env.lua
+       1      1     19      1       1 wrapped@102-102@./tests/perf.lua
+      10      3     52      2      10 __index@98-107@./tests/perf.lua
+       1      1     14      3       1 __newindex@108-108@./tests/perf.lua
+      11      3     58      1      21 countCalls@92-112@./tests/perf.lua
+      21      2    122      3      22 measure@142-163@./tests/perf.lua
+       3      1     13      0       3 (anonymous)@186-188@./tests/perf.lua
+       1      1     10      1       1 (anonymous)@196-196@./tests/perf.lua
+       3      1     10      0       3 (anonymous)@195-197@./tests/perf.lua
+       1      1     10      1       1 (anonymous)@206-206@./tests/perf.lua
+       3      1     10      0       3 (anonymous)@205-207@./tests/perf.lua
+       3      1     13      0       3 (anonymous)@211-213@./tests/perf.lua
+       1      1     10      1       1 (anonymous)@221-221@./tests/perf.lua
+       3      1     10      0       3 (anonymous)@220-222@./tests/perf.lua
+       1      1     10      1       1 (anonymous)@225-225@./tests/perf.lua
+       3      1     10      0       3 (anonymous)@224-226@./tests/perf.lua
+      10      1     93      0      10 (anonymous)@11-20@./tests/test_bus.lua
+       1      1      8      0       1 (anonymous)@25-25@./tests/test_bus.lua
+      10      1     62      0      12 (anonymous)@22-33@./tests/test_bus.lua
+       1      1      8      0       1 (anonymous)@41-41@./tests/test_bus.lua
+       1      1      8      0       1 (anonymous)@42-42@./tests/test_bus.lua
+      11      1     81      0      13 (anonymous)@38-50@./tests/test_bus.lua
+       1      1      9      2       1 (anonymous)@56-56@./tests/test_bus.lua
+       8      1     46      0       9 (anonymous)@52-60@./tests/test_bus.lua
+       8      1     47      0       8 (anonymous)@63-70@./tests/test_bus.lua
+       1      1      8      0       1 UpdateBarAppearance@76-76@./tests/test_bus.lua
+       1      1      8      0       1 ApplyVisibility@77-77@./tests/test_bus.lua
+       1      1      8      0       1 RestoreBarPosition@78-78@./tests/test_bus.lua
+      16      1    128      0      21 (anonymous)@72-92@./tests/test_bus.lua
+       1      1     11      0       1 (anonymous)@95-95@./tests/test_bus.lua
+       5      1     23      0       5 (anonymous)@94-98@./tests/test_bus.lua
+       1      1     11      2       1 GetAddOnMetadata@11-11@./tests/test_compat.lua
+       6      1     39      0       6 (anonymous)@9-14@./tests/test_compat.lua
+       1      1     11      2       1 GetAddOnMetadata@19-19@./tests/test_compat.lua
+       7      1     52      0       7 (anonymous)@16-22@./tests/test_compat.lua
+       6      1     52      0       6 (anonymous)@24-29@./tests/test_compat.lua
+       3      1     16      0       3 (anonymous)@31-33@./tests/test_compat.lua
+       1      1      5      0       1 __concat@11-11@./tests/test_coresetup.lua
+       5      1     22      2       5 (anonymous)@17-21@./tests/test_coresetup.lua
+       6      1     51      0       6 (anonymous)@23-28@./tests/test_coresetup.lua
+       1      1     11      0       1 (anonymous)@31-31@./tests/test_coresetup.lua
+       5      1     32      0       5 (anonymous)@30-34@./tests/test_coresetup.lua
+       3      1     17      0       6 (anonymous)@36-41@./tests/test_coresetup.lua
+       4      1     15      0       4 (anonymous)@55-58@./tests/test_coresetup.lua
+      16      1    141      0      22 (anonymous)@43-64@./tests/test_coresetup.lua
+       4      2     48      3       4 approx@13-16@./tests/test_data.lua
+       1      2     21      3       1 Fetch@24-24@./tests/test_data.lua
+       1      2     14      2       1 HashTable@25-25@./tests/test_data.lua
+       1      1      5      0       1 Register@26-26@./tests/test_data.lua
+       4      2     23      3       4 __call@29-32@./tests/test_data.lua
+      16      2     91      2      19 withLSM@21-39@./tests/test_data.lua
+       7      2     52      3       7 withSetting@42-48@./tests/test_data.lua
+       5      1     32      0       5 (anonymous)@52-56@./tests/test_data.lua
+       6      1     46      0       6 (anonymous)@58-63@./tests/test_data.lua
+       4      1     33      0       4 (anonymous)@68-71@./tests/test_data.lua
+       7      2     38      0      10 (anonymous)@65-74@./tests/test_data.lua
+       3      1     14      0       3 (anonymous)@76-78@./tests/test_data.lua
+       6      1     42      0       8 (anonymous)@80-87@./tests/test_data.lua
+       5      1     31      0       5 (anonymous)@89-93@./tests/test_data.lua
+       8      1     51      0       8 (anonymous)@95-102@./tests/test_data.lua
+       6      1     51      0       6 (anonymous)@106-111@./tests/test_data.lua
+       3      1     13      0       3 (anonymous)@119-121@./tests/test_data.lua
+       3      1     13      0       3 (anonymous)@122-124@./tests/test_data.lua
+       3      1     13      0       3 (anonymous)@125-127@./tests/test_data.lua
+       3      1     13      0       3 (anonymous)@128-130@./tests/test_data.lua
+       6      1     39      0      14 (anonymous)@118-131@./tests/test_data.lua
+       7      1     41      0      20 (anonymous)@113-132@./tests/test_data.lua
+       3      1     15      0       3 (anonymous)@138-140@./tests/test_data.lua
+       3      1     15      0       3 (anonymous)@141-143@./tests/test_data.lua
+       3      1     15      0       3 (anonymous)@144-146@./tests/test_data.lua
+       5      1     30      0      11 (anonymous)@137-147@./tests/test_data.lua
+       3      1     25      0      15 (anonymous)@134-148@./tests/test_data.lua
+       3      1     16      1       3 (anonymous)@154-156@./tests/test_data.lua
+       5      1     42      0       9 (anonymous)@150-158@./tests/test_data.lua
+       6      1     38      0       6 (anonymous)@168-173@./tests/test_data.lua
+       6      1     56      0      15 (anonymous)@160-174@./tests/test_data.lua
+       4      1     52      0       4 (anonymous)@180-183@./tests/test_data.lua
+       3      1     36      0       6 (anonymous)@179-184@./tests/test_data.lua
+       3      1     12      0       8 (anonymous)@178-185@./tests/test_data.lua
+       6      1     66      0       6 (anonymous)@191-196@./tests/test_data.lua
+       3      1     36      0       8 (anonymous)@190-197@./tests/test_data.lua
+       3      1     12      0      12 (anonymous)@187-198@./tests/test_data.lua
+       6      1     64      0       6 (anonymous)@202-207@./tests/test_data.lua
+       3      1     30      0       8 (anonymous)@201-208@./tests/test_data.lua
+       3      1     12      0      10 (anonymous)@200-209@./tests/test_data.lua
+       4      1     52      0       4 (anonymous)@213-216@./tests/test_data.lua
+       3      1     36      0       6 (anonymous)@212-217@./tests/test_data.lua
+       3      1     12      0       8 (anonymous)@211-218@./tests/test_data.lua
+       5      1     65      0       5 (anonymous)@224-228@./tests/test_data.lua
+       3      1     30      0       7 (anonymous)@223-229@./tests/test_data.lua
+       3      1     12      0      11 (anonymous)@220-230@./tests/test_data.lua
+       4      1     52      0       4 (anonymous)@234-237@./tests/test_data.lua
+       3      1     36      0       6 (anonymous)@233-238@./tests/test_data.lua
+       3      1     12      0       8 (anonymous)@232-239@./tests/test_data.lua
+       6      1     49      0       6 (anonymous)@246-251@./tests/test_data.lua
+       3      1     34      0       8 (anonymous)@245-252@./tests/test_data.lua
+       3      1     34      0      10 (anonymous)@244-253@./tests/test_data.lua
+       3      1     12      0      12 (anonymous)@243-254@./tests/test_data.lua
+       3      1     12      0      14 (anonymous)@242-255@./tests/test_data.lua
+       3      1     12      0      16 (anonymous)@241-256@./tests/test_data.lua
+       9      1    101      0      11 (anonymous)@260-270@./tests/test_data.lua
+       3      1     18      0       3 (anonymous)@272-274@./tests/test_data.lua
+      13      1    145      0      15 (anonymous)@283-297@./tests/test_data.lua
+       4      1     26      0      22 (anonymous)@277-298@./tests/test_data.lua
+       9      1    143      0       9 (anonymous)@300-308@./tests/test_data.lua
+      13      1    155      0      19 (anonymous)@310-328@./tests/test_data.lua
+       8      1     76      0       8 (anonymous)@330-337@./tests/test_data.lua
+       5      1     36      0       5 (anonymous)@339-343@./tests/test_data.lua
+       5      1     29      0       5 (anonymous)@8-12@./tests/test_database.lua
+       5      1     29      0       5 (anonymous)@14-18@./tests/test_database.lua
+       5      1     41      0       5 (anonymous)@20-24@./tests/test_database.lua
+       7      1     52      0       7 (anonymous)@26-32@./tests/test_database.lua
+       5      1     33      0       5 (anonymous)@34-38@./tests/test_database.lua
+       5      1     47      0       5 (anonymous)@42-46@./tests/test_database.lua
+       8      1     76      0       8 (anonymous)@50-57@./tests/test_database.lua
+       6      1     60      0       6 (anonymous)@59-64@./tests/test_database.lua
+       6      1     24      0       6 (anonymous)@66-71@./tests/test_database.lua
+      12      1     80      0      13 (anonymous)@73-85@./tests/test_database.lua
+       7      3     40      0       8 (anonymous)@87-94@./tests/test_database.lua
+      12      1    124      0      12 (anonymous)@96-107@./tests/test_database.lua
+      11      1     92      0      11 (anonymous)@109-119@./tests/test_database.lua
+      10      1     86      0      10 (anonymous)@121-130@./tests/test_database.lua
+      16      1    113      0      17 (anonymous)@134-150@./tests/test_database.lua
+       8      1     51      0       8 (anonymous)@152-159@./tests/test_database.lua
+      11      1     82      0      11 (anonymous)@161-171@./tests/test_database.lua
+      10      1     88      0      10 (anonymous)@173-182@./tests/test_database.lua
+       8      1     53      0       8 (anonymous)@184-191@./tests/test_database.lua
+      25      1    205      0      25 (anonymous)@201-225@./tests/test_database.lua
+      13      1    124      0      13 (anonymous)@227-239@./tests/test_database.lua
+      19      1    164      0      19 (anonymous)@247-265@./tests/test_database.lua
+      15      1    141      0      17 (anonymous)@267-283@./tests/test_database.lua
+      20      1    154      0      20 (anonymous)@285-304@./tests/test_database.lua
+       3      1     15      0       6 (anonymous)@307-312@./tests/test_database.lua
+      11      1    103      0      15 (anonymous)@314-328@./tests/test_database.lua
+      14      1    138      0      14 (anonymous)@330-343@./tests/test_database.lua
+       5      1     36      0       5 (anonymous)@15-19@./tests/test_debuglog.lua
+       6      3     39      1       6 debugCmd@21-26@./tests/test_debuglog.lua
+       6      2     41      2       6 AddMessage@34-39@./tests/test_debuglog.lua
+       8      1     63      0       9 (anonymous)@43-51@./tests/test_debuglog.lua
+       9      1     70      0       9 (anonymous)@53-61@./tests/test_debuglog.lua
+       7      1     42      0       9 (anonymous)@63-71@./tests/test_debuglog.lua
+      13      1    110      0      16 (anonymous)@73-88@./tests/test_debuglog.lua
+       6      1     33      0       6 (anonymous)@92-97@./tests/test_debuglog.lua
+       5      1     26      0       5 (anonymous)@99-103@./tests/test_debuglog.lua
+       8      1     49      0       8 (anonymous)@105-112@./tests/test_debuglog.lua
+       1      1      7      0       1 (anonymous)@121-121@./tests/test_debuglog.lua
+      13      2    136      0      18 (anonymous)@116-133@./tests/test_debuglog.lua
+       9      2     76      0      19 (anonymous)@137-155@./tests/test_debuglog.lua
+       1      1     11      0       1 (anonymous)@15-15@./tests/test_display.lua
+       3      1     14      1       3 (anonymous)@14-16@./tests/test_display.lua
+       7      2     43      3       7 record@19-25@./tests/test_display.lua
+       7      2     52      3       7 withSetting@27-33@./tests/test_display.lua
+       8      2     61      4       8 withUnitSetting@37-44@./tests/test_display.lua
+      12      1    127      0      12 (anonymous)@48-59@./tests/test_display.lua
+      12      1    145      0      12 (anonymous)@61-72@./tests/test_display.lua
+       4      1     21      0       6 (anonymous)@74-79@./tests/test_display.lua
+       3      1     17      0       3 (anonymous)@86-88@./tests/test_display.lua
+       3      1     14      0       5 (anonymous)@85-89@./tests/test_display.lua
+       7      1     43      0      11 (anonymous)@83-93@./tests/test_display.lua
+       8      1     66      0       8 (anonymous)@96-103@./tests/test_display.lua
+       3      1     14      0      10 (anonymous)@95-104@./tests/test_display.lua
+       5      1     32      0       5 (anonymous)@109-113@./tests/test_display.lua
+       3      1     14      0       9 (anonymous)@106-114@./tests/test_display.lua
+       5      1     30      0       5 (anonymous)@117-121@./tests/test_display.lua
+       3      1     14      0       7 (anonymous)@116-122@./tests/test_display.lua
+       6      1     51      0       9 (anonymous)@124-132@./tests/test_display.lua
+       5      1     36      0       5 (anonymous)@134-138@./tests/test_display.lua
+       3      1     17      0       3 (anonymous)@143-145@./tests/test_display.lua
+       3      1     16      0       5 (anonymous)@142-146@./tests/test_display.lua
+       6      1     40      0      10 (anonymous)@140-149@./tests/test_display.lua
+       3      1     17      0       3 (anonymous)@154-156@./tests/test_display.lua
+       3      1     16      0       5 (anonymous)@153-157@./tests/test_display.lua
+       6      1     40      0      10 (anonymous)@151-160@./tests/test_display.lua
+       1      1      3      0       1 ApplyVisibility@172-172@./tests/test_display.lua
+       7      2     40      1       7 withoutVisibility@170-176@./tests/test_display.lua
+       5      2     37      0       5 (anonymous)@178-182@./tests/test_display.lua
+       3      1      9      0       3 (anonymous)@189-191@./tests/test_display.lua
+       3      1     20      0       5 (anonymous)@188-192@./tests/test_display.lua
+       3      1     20      0       7 (anonymous)@187-193@./tests/test_display.lua
+       3      1      8      0       9 (anonymous)@186-194@./tests/test_display.lua
+       6      1     39      0      14 (anonymous)@184-197@./tests/test_display.lua
+       3      1      9      0       3 (anonymous)@203-205@./tests/test_display.lua
+       3      1     20      0       5 (anonymous)@202-206@./tests/test_display.lua
+       3      1      8      0       7 (anonymous)@201-207@./tests/test_display.lua
+       5      1     17      0      11 (anonymous)@199-209@./tests/test_display.lua
+       3      1     21      0       3 (anonymous)@213-215@./tests/test_display.lua
+       7      1     56      0       9 (anonymous)@211-219@./tests/test_display.lua
+       3      1     17      0       3 (anonymous)@224-226@./tests/test_display.lua
+       3      1     14      0       5 (anonymous)@223-227@./tests/test_display.lua
+       8      1     59      0      12 (anonymous)@221-232@./tests/test_display.lua
+      10      1     94      0      10 (anonymous)@234-243@./tests/test_display.lua
+       1      1      8      0       1 ApplyVisibility@248-248@./tests/test_display.lua
+       9      2     52      0       9 (anonymous)@245-253@./tests/test_display.lua
+       4      1     20      0       4 (anonymous)@258-261@./tests/test_display.lua
+       4      1     22      0       4 (anonymous)@262-265@./tests/test_display.lua
+       1      1      8      0       1 (anonymous)@266-266@./tests/test_display.lua
+       5      1     36      0      11 (anonymous)@257-267@./tests/test_display.lua
+       3      1     17      0       3 (anonymous)@273-275@./tests/test_display.lua
+       5      1     19      0       7 (anonymous)@271-277@./tests/test_display.lua
+       4      1     30      0       4 (anonymous)@284-287@./tests/test_display.lua
+       7      1     30      0      12 (anonymous)@279-290@./tests/test_display.lua
+       4      1     30      0       4 (anonymous)@295-298@./tests/test_display.lua
+       7      1     30      0      10 (anonymous)@292-301@./tests/test_display.lua
+       1      1      5      0       1 UnitGetTotalAbsorbs@306-306@./tests/test_display.lua
+       1      1      5      0       1 UnitHealthMax@307-307@./tests/test_display.lua
+       3      1     17      0       3 (anonymous)@311-313@./tests/test_display.lua
+       3      1     16      0       5 (anonymous)@310-314@./tests/test_display.lua
+      14      1    119      0      18 (anonymous)@303-320@./tests/test_display.lua
+       1      1      5      0       1 UnitGetTotalAbsorbs@325-325@./tests/test_display.lua
+       1      1      5      0       1 UnitHealthMax@326-326@./tests/test_display.lua
+       3      1     17      0       3 (anonymous)@330-332@./tests/test_display.lua
+       3      1     16      0       5 (anonymous)@329-333@./tests/test_display.lua
+      13      1    109      0      17 (anonymous)@322-338@./tests/test_display.lua
+       1      1      5      0       1 UnitGetTotalAbsorbs@343-343@./tests/test_display.lua
+       3      1     17      0       3 (anonymous)@346-348@./tests/test_display.lua
+      11      1     74      0      13 (anonymous)@340-352@./tests/test_display.lua
+       3      1     11      0       3 (anonymous)@361-363@./tests/test_display.lua
+       3      1     14      0       5 (anonymous)@360-364@./tests/test_display.lua
+       9      2     46      0      13 (anonymous)@356-368@./tests/test_display.lua
+       3      1     11      0       3 (anonymous)@373-375@./tests/test_display.lua
+       3      1     14      0       5 (anonymous)@372-376@./tests/test_display.lua
+       6      2     32      0      10 (anonymous)@370-379@./tests/test_display.lua
+       4      1     24      0       4 (anonymous)@385-388@./tests/test_display.lua
+       3      1     14      0       6 (anonymous)@384-389@./tests/test_display.lua
+       8      2     41      0      13 (anonymous)@381-393@./tests/test_display.lua
+       8      2     61      4       8 withUnitFlag@397-404@./tests/test_display.lua
+       6      1     47      0       6 (anonymous)@410-415@./tests/test_display.lua
+       3      1     14      0       8 (anonymous)@409-416@./tests/test_display.lua
+       3      1     14      0      10 (anonymous)@408-417@./tests/test_display.lua
+       5      1     32      0       5 (anonymous)@421-425@./tests/test_display.lua
+       3      1     14      0       7 (anonymous)@420-426@./tests/test_display.lua
+       3      1     14      0       9 (anonymous)@419-427@./tests/test_display.lua
+       7      1     52      0       7 (anonymous)@431-437@./tests/test_display.lua
+       3      1     14      0       9 (anonymous)@430-438@./tests/test_display.lua
+       3      1     14      0      11 (anonymous)@429-439@./tests/test_display.lua
+       5      1     32      0       5 (anonymous)@443-447@./tests/test_display.lua
+       3      1     14      0       8 (anonymous)@441-448@./tests/test_display.lua
+       1      1      5      0       1 UnitAffectingCombat@456-456@./tests/test_display.lua
+       1      1      5      0       1 UnitAffectingCombat@458-458@./tests/test_display.lua
+      10      1     74      0      10 (anonymous)@453-462@./tests/test_display.lua
+       3      1     14      0      12 (anonymous)@452-463@./tests/test_display.lua
+       3      1     12      0      14 (anonymous)@451-464@./tests/test_display.lua
+       3      1     14      0      16 (anonymous)@450-465@./tests/test_display.lua
+       3      1      9      0       3 (anonymous)@478-480@./tests/test_display.lua
+       3      1     20      0       5 (anonymous)@477-481@./tests/test_display.lua
+       3      1     14      0       7 (anonymous)@476-482@./tests/test_display.lua
+      13      1    101      0      19 (anonymous)@469-487@./tests/test_display.lua
+       1      1      9      0       1 (anonymous)@494-494@./tests/test_display.lua
+       9      1     78      0       9 (anonymous)@489-497@./tests/test_display.lua
+       1      1      9      0       1 (anonymous)@506-506@./tests/test_display.lua
+      12      1    104      0      12 (anonymous)@499-510@./tests/test_display.lua
+       5      1     44      0       5 (anonymous)@514-518@./tests/test_display.lua
+       9      1     89      0       9 (anonymous)@520-528@./tests/test_display.lua
+       4      1     39      1       4 (anonymous)@532-535@./tests/test_display.lua
+       7      1     47      1       7 readFile@31-37@./tests/test_docs.lua
+      15      5     88      0      15 (anonymous)@56-70@./tests/test_docs.lua
+      23      6    115      0      24 (anonymous)@219-242@./tests/test_docs.lua
+       8      1     63      0       8 (anonymous)@20-27@./tests/test_helpers.lua
+       6      1     74      0       6 (anonymous)@42-47@./tests/test_helpers.lua
+       1      1      8      0       1 defaultsOnClick@57-57@./tests/test_helpers.lua
+       7      1     50      0      12 (anonymous)@49-60@./tests/test_helpers.lua
+       5      1     38      0       6 (anonymous)@62-67@./tests/test_helpers.lua
+       4      1     27      0       6 (anonymous)@69-74@./tests/test_helpers.lua
+       4      1     29      0       4 (anonymous)@76-79@./tests/test_helpers.lua
+       5      1     42      0       8 (anonymous)@81-88@./tests/test_helpers.lua
+       4      1     25      0       4 (anonymous)@90-93@./tests/test_helpers.lua
+       5      1     34      0       5 (anonymous)@95-99@./tests/test_helpers.lua
+       1      1      8      0       1 defaultsOnClick@105-105@./tests/test_helpers.lua
+      16      1    131      0      19 (anonymous)@101-119@./tests/test_helpers.lua
+      10      1     80      0      15 (anonymous)@121-135@./tests/test_helpers.lua
+       5      1     35      0       5 (anonymous)@137-141@./tests/test_helpers.lua
+      13      6     99      0      13 (anonymous)@145-157@./tests/test_helpers.lua
+       6      1     36      0       8 (anonymous)@159-166@./tests/test_helpers.lua
+       1      1      8      0       1 ]@171-171@./tests/test_helpers.lua
+       1      1      8      0       1 ]@172-172@./tests/test_helpers.lua
+       8      1     56      0       8 (anonymous)@168-175@./tests/test_helpers.lua
+       1      1      7      0       1 ]@181-181@./tests/test_helpers.lua
+       1      1      8      0       1 ]@182-182@./tests/test_helpers.lua
+       1      1      3      0       1 ]@185-185@./tests/test_helpers.lua
+       9      1     74      0      10 (anonymous)@177-186@./tests/test_helpers.lua
+       3      1     14      0       3 (anonymous)@188-190@./tests/test_helpers.lua
+      10      1     84      0      11 (anonymous)@194-204@./tests/test_helpers.lua
+      10      3     97      0      13 (anonymous)@206-218@./tests/test_helpers.lua
+       1      1      8      0       1 (anonymous)@223-223@./tests/test_helpers.lua
+       9      1     56      0       9 (anonymous)@220-228@./tests/test_helpers.lua
+       9      3     59      1       9 ApplyDefault@233-241@./tests/test_helpers.lua
+       1      1      8      0       1 ]@249-249@./tests/test_helpers.lua
+       1      1      8      0       1 ]@250-250@./tests/test_helpers.lua
+       1      1      3      0       1 ]@254-254@./tests/test_helpers.lua
+       1      1      3      0       1 ]@255-255@./tests/test_helpers.lua
+      12      1     92      0      12 (anonymous)@245-256@./tests/test_helpers.lua
+       1      1      7      0       1 ]@262-262@./tests/test_helpers.lua
+       1      1      8      0       1 ]@263-263@./tests/test_helpers.lua
+       1      1      3      0       1 ]@266-266@./tests/test_helpers.lua
+       1      1      3      0       1 ]@267-267@./tests/test_helpers.lua
+      11      1     88      0      11 (anonymous)@258-268@./tests/test_helpers.lua
+       1      1      8      0       1 ]@273-273@./tests/test_helpers.lua
+       1      1      3      0       1 ]@276-276@./tests/test_helpers.lua
+       8      1     50      0       8 (anonymous)@270-277@./tests/test_helpers.lua
+       7      1     48      0       9 (anonymous)@281-289@./tests/test_helpers.lua
+       3      1     13      0       3 barPanel@294-296@./tests/test_helpers.lua
+       6      1     31      0       6 (anonymous)@298-303@./tests/test_helpers.lua
+       7      5     47      2       7 findWidget@308-314@./tests/test_helpers.lua
+       1      2     17      1       1 isUnitDropdown@316-316@./tests/test_helpers.lua
+      10      1     65      0      10 (anonymous)@318-327@./tests/test_helpers.lua
+       6      4     36      1       6 walk@342-347@./tests/test_helpers.lua
+       6      1     19      0      11 hasMirrorCheckbox@340-350@./tests/test_helpers.lua
+      16      1    104      0      33 (anonymous)@329-361@./tests/test_helpers.lua
+       6      4     39      1       6 walk@372-377@./tests/test_helpers.lua
+      16      1    109      0      26 (anonymous)@363-388@./tests/test_helpers.lua
+       6      4     39      1       6 walk@399-404@./tests/test_helpers.lua
+      15      1    102      0      22 (anonymous)@390-411@./tests/test_helpers.lua
+       6      5     42      1       6 walk@423-428@./tests/test_helpers.lua
+      18      1    137      0      26 (anonymous)@413-438@./tests/test_helpers.lua
+       9      1    110      0       9 (anonymous)@440-448@./tests/test_helpers.lua
+       9      3     92      0       9 (anonymous)@450-458@./tests/test_helpers.lua
+       6      4     38      1       6 walk@473-478@./tests/test_helpers.lua
+      14      1     74      0      25 (anonymous)@461-485@./tests/test_helpers.lua
+      23      5    176      0      28 (anonymous)@494-521@./tests/test_helpers.lua
+      18      2    161      0      25 (anonymous)@523-547@./tests/test_helpers.lua
+       4      2     27      3       4 AttachTooltip@562-565@./tests/test_helpers.lua
+       1      1     10      1       1 (anonymous)@570-570@./tests/test_helpers.lua
+       1      1     10      1       1 (anonymous)@572-572@./tests/test_helpers.lua
+      18      1    128      0      29 (anonymous)@549-577@./tests/test_helpers.lua
+      19      1    115      0      27 (anonymous)@580-606@./tests/test_helpers.lua
+       5      4     36      1       5 aceGUIButton@616-620@./tests/test_helpers.lua
+      13      3    112      0      14 (anonymous)@622-635@./tests/test_helpers.lua
+       1      1     13      0       1 ResetAllPositions@644-644@./tests/test_helpers.lua
+      11      1     80      0      16 (anonymous)@637-652@./tests/test_helpers.lua
+       7      5     49      1       7 walk@662-668@./tests/test_helpers.lua
+       6      1     26      1      12 mirrorHeaderState@660-671@./tests/test_helpers.lua
+      19      1    135      0      25 (anonymous)@673-697@./tests/test_helpers.lua
+      15      1    109      0      18 (anonymous)@699-716@./tests/test_helpers.lua
+      11      1     60      0      13 (anonymous)@718-730@./tests/test_helpers.lua
+       1      1      7      0       1 ]@744-744@./tests/test_helpers.lua
+      18      1    118      0      28 (anonymous)@732-759@./tests/test_helpers.lua
+       1      1      7      0       1 ]@775-775@./tests/test_helpers.lua
+      13      1    105      2      16 AddMessage@771-786@./tests/test_helpers.lua
+       6      5     39      1       6 walk@802-807@./tests/test_helpers.lua
+      23      1    150      0      37 (anonymous)@788-824@./tests/test_helpers.lua
+      18      1    111      0      24 (anonymous)@826-849@./tests/test_helpers.lua
+       1      1     11      0       1 (anonymous)@860-860@./tests/test_helpers.lua
+      11      2     92      2      12 AddMessage@859-870@./tests/test_helpers.lua
+      13      2    109      0      20 (anonymous)@874-893@./tests/test_helpers.lua
+       7      1     47      1       7 readFile@21-27@./tests/test_loadorder.lua
+       6      1     31      0       8 (anonymous)@29-36@./tests/test_loadorder.lua
+       8      2     72      0       8 (anonymous)@38-45@./tests/test_loadorder.lua
+       8      2     66      0       8 (anonymous)@47-54@./tests/test_loadorder.lua
+       7      3     51      0       7 (anonymous)@56-62@./tests/test_loadorder.lua
+       7      1     51      0       9 (anonymous)@64-72@./tests/test_loadorder.lua
+       5      1     28      0       7 (anonymous)@74-80@./tests/test_loadorder.lua
+      18      5    107      0      24 (anonymous)@82-105@./tests/test_loadorder.lua
+       1      1     10      0       1 (anonymous)@108-108@./tests/test_loadorder.lua
+       4      1     17      0       4 (anonymous)@107-110@./tests/test_loadorder.lua
+       1      1     12      0       1 (anonymous)@113-113@./tests/test_loadorder.lua
+       5      1     27      0       5 (anonymous)@112-116@./tests/test_loadorder.lua
+       8      1     68      0       8 (anonymous)@118-125@./tests/test_loadorder.lua
+       1      1      8      2       1 __index@57-57@./tests/test_ltrap.lua
+       3      1     17      0       3 fallbackLocale@56-58@./tests/test_ltrap.lua
+       5      4     45      1       6 handedTheLocaleTable@74-79@./tests/test_ltrap.lua
+      21      3     73      0      25 (anonymous)@85-109@./tests/test_ltrap.lua
+      17      4     93      0      21 (anonymous)@111-131@./tests/test_ltrap.lua
+       6      1     29      0       8 (anonymous)@133-140@./tests/test_ltrap.lua
+       6      1     43      1       6 libSource@147-152@./tests/test_ltrap.lua
+      10      1     76      0      10 (anonymous)@154-163@./tests/test_ltrap.lua
+      13      2    105      0      22 (anonymous)@165-186@./tests/test_ltrap.lua
+       1      1      5      0       1 isEnabled@199-199@./tests/test_ltrap.lua
+       1      1      3      0       1 setEnabled@200-200@./tests/test_ltrap.lua
+      16      1    106      0      17 (anonymous)@192-208@./tests/test_ltrap.lua
+       1      1      3      0       1 print@214-214@./tests/test_ltrap.lua
+       1      1      6      0       1 allRows@215-215@./tests/test_ltrap.lua
+      14      1    100      0      14 (anonymous)@210-223@./tests/test_ltrap.lua
+       1      1      3      0       1 suspend@230-230@./tests/test_ltrap.lua
+       1      1      3      0       1 resume@230-230@./tests/test_ltrap.lua
+      16      2    113      0      16 (anonymous)@225-240@./tests/test_ltrap.lua
+       1      1     12      1       1 ApplyDefault@36-36@./tests/test_optionssetup.lua
+       9      1     56      0      12 (anonymous)@50-61@./tests/test_optionssetup.lua
+       5      1     40      0       7 (anonymous)@65-71@./tests/test_optionssetup.lua
+       6      2     42      0      11 (anonymous)@73-83@./tests/test_optionssetup.lua
+       5      1     27      0       8 (anonymous)@85-92@./tests/test_optionssetup.lua
+       4      1     12      0       4 resume@26-29@./tests/test_perf.lua
+      11      1     53      0      11 reset@31-41@./tests/test_perf.lua
+       7      1     55      0       7 (anonymous)@45-51@./tests/test_perf.lua
+       9      1     71      0       9 (anonymous)@53-61@./tests/test_perf.lua
+       6      1     46      0       6 (anonymous)@63-68@./tests/test_perf.lua
+      11      8     85      3      11 reaches@72-82@./tests/test_perf.lua
+      12      3     99      0      15 (anonymous)@84-98@./tests/test_perf.lua
+       6      1     32      0       6 (anonymous)@102-107@./tests/test_perf.lua
+       9      1     61      0       9 (anonymous)@109-117@./tests/test_perf.lua
+       9      1     52      0      10 (anonymous)@119-128@./tests/test_perf.lua
+      11      1     60      0      11 (anonymous)@130-140@./tests/test_perf.lua
+      20      2    136      0      25 (anonymous)@142-166@./tests/test_perf.lua
+       9      1     55      0       9 (anonymous)@170-178@./tests/test_perf.lua
+      11      1     80      0      11 (anonymous)@180-190@./tests/test_perf.lua
+       8      1     52      0       8 (anonymous)@192-199@./tests/test_perf.lua
+      10      2     51      0      12 (anonymous)@201-212@./tests/test_perf.lua
+       9      1     34      0       9 (anonymous)@214-222@./tests/test_perf.lua
+       7      1     36      0       7 (anonymous)@224-230@./tests/test_perf.lua
+       8      1     37      0      10 (anonymous)@232-241@./tests/test_perf.lua
+       7      1     42      0       7 (anonymous)@243-249@./tests/test_perf.lua
+      13      1     62      0      16 (anonymous)@253-268@./tests/test_perf.lua
+       7      1     30      0       7 (anonymous)@270-276@./tests/test_perf.lua
+       4      1     14      2       4 AddMessage@294-297@./tests/test_perf.lua
+       1      1     11      0       1 (anonymous)@307-307@./tests/test_perf.lua
+       1      1     11      0       1 (anonymous)@310-310@./tests/test_perf.lua
+       9      1     60      0       9 (anonymous)@304-312@./tests/test_perf.lua
+       1      1     11      0       1 (anonymous)@316-316@./tests/test_perf.lua
+       6      1     56      0       6 (anonymous)@314-319@./tests/test_perf.lua
+       1      1      3      0       1 (anonymous)@337-337@./tests/test_perf.lua
+       9      1    100      0       9 (anonymous)@331-339@./tests/test_perf.lua
+      11      1     88      0      21 (anonymous)@321-341@./tests/test_perf.lua
+      13      4     69      0      15 (anonymous)@356-370@./tests/test_perf.lua
+       6      1     48      0       6 (anonymous)@372-377@./tests/test_perf.lua
+       1      1     11      0       1 (anonymous)@382-382@./tests/test_perf.lua
+       9      2     84      0       9 (anonymous)@379-387@./tests/test_perf.lua
+       7      1     45      0       7 (anonymous)@395-401@./tests/test_perf.lua
+       8      1     47      0      16 (anonymous)@389-404@./tests/test_perf.lua
+       9      3     81      0      14 (anonymous)@408-421@./tests/test_perf.lua
+       8      1    108      0       8 (anonymous)@11-18@./tests/test_schema.lua
+      14      4     90      0      17 (anonymous)@20-36@./tests/test_schema.lua
+       6      1     35      0       6 (anonymous)@38-43@./tests/test_schema.lua
+       7      1     51      0       7 (anonymous)@45-51@./tests/test_schema.lua
+       7      1     49      0       7 (anonymous)@53-59@./tests/test_schema.lua
+       7      4     83      0       7 (anonymous)@68-74@./tests/test_schema.lua
+       7      2     50      0       9 (anonymous)@76-84@./tests/test_schema.lua
+       5      2     35      0       7 (anonymous)@86-92@./tests/test_schema.lua
+      14      4    118      0      17 (anonymous)@94-110@./tests/test_schema.lua
+      18      7    128      0      29 (anonymous)@112-140@./tests/test_schema.lua
+      11      4    102      0      11 (anonymous)@142-152@./tests/test_schema.lua
+       8      4     50      0      10 (anonymous)@154-163@./tests/test_schema.lua
+       8      3     57      0      10 (anonymous)@165-174@./tests/test_schema.lua
+       6      2     67      0       6 (anonymous)@176-181@./tests/test_schema.lua
+       5      2     36      0       5 (anonymous)@185-189@./tests/test_schema.lua
+       1      1      7      1       1 onChange@195-195@./tests/test_schema.lua
+      12      2     86      0      12 (anonymous)@191-202@./tests/test_schema.lua
+       1      1      8      0       1 (anonymous)@210-210@./tests/test_schema.lua
+      14      2    107      0      14 (anonymous)@204-217@./tests/test_schema.lua
+       5      1     31      0       6 (anonymous)@219-224@./tests/test_schema.lua
+      10      1     75      0      12 (anonymous)@226-237@./tests/test_schema.lua
+       6      1     50      0       6 (anonymous)@239-244@./tests/test_schema.lua
+       4      1     32      0       4 (anonymous)@246-249@./tests/test_schema.lua
+       5      1     38      0       5 (anonymous)@251-255@./tests/test_schema.lua
+       3      1     20      0       3 (anonymous)@257-259@./tests/test_schema.lua
+       5      1     30      0       5 (anonymous)@261-265@./tests/test_schema.lua
+       6      1     39      0       6 (anonymous)@267-272@./tests/test_schema.lua
+       6      1     37      0       6 (anonymous)@274-279@./tests/test_schema.lua
+       7      5     58      0       7 (anonymous)@281-287@./tests/test_schema.lua
+      15      6     92      0      24 (anonymous)@289-312@./tests/test_schema.lua
+      11      1     58      0      11 (anonymous)@314-324@./tests/test_schema.lua
+      12      4     99      0      12 (anonymous)@326-337@./tests/test_schema.lua
+       7      2     32      0       7 (anonymous)@339-345@./tests/test_schema.lua
+      10      2     92      0      12 (anonymous)@347-358@./tests/test_schema.lua
+       6      1     40      0       6 (anonymous)@382-387@./tests/test_schema.lua
+       3      1     16      0       4 (anonymous)@389-392@./tests/test_schema.lua
+      17      4    125      0      17 (anonymous)@398-414@./tests/test_schema.lua
+       4      1     20      3       4 __call@427-430@./tests/test_schema.lua
+       4      1     43      0       4 (anonymous)@432-435@./tests/test_schema.lua
+      11      2     66      0      17 (anonymous)@423-439@./tests/test_schema.lua
+       4      2     23      3       4 __call@450-453@./tests/test_schema.lua
+      15      1    125      0      21 (anonymous)@441-461@./tests/test_schema.lua
+       6      2     34      2       6 AddMessage@13-18@./tests/test_slash.lua
+       3      1     23      1       3 stripColor@22-24@./tests/test_slash.lua
+       1      1      9      0       1 (anonymous)@34-34@./tests/test_slash.lua
+       7      1     83      0      12 (anonymous)@26-37@./tests/test_slash.lua
+       1      1     11      0       1 (anonymous)@40-40@./tests/test_slash.lua
+       8      2     61      0       9 (anonymous)@39-47@./tests/test_slash.lua
+       1      1     11      0       1 (anonymous)@50-50@./tests/test_slash.lua
+       5      1     34      0       5 (anonymous)@49-53@./tests/test_slash.lua
+       1      1     11      0       1 (anonymous)@67-67@./tests/test_slash.lua
+      13      5    109      0      17 (anonymous)@55-71@./tests/test_slash.lua
+       1      1     11      0       1 (anonymous)@75-75@./tests/test_slash.lua
+       4      1     34      0       5 (anonymous)@73-77@./tests/test_slash.lua
+       1      1     11      0       1 (anonymous)@80-80@./tests/test_slash.lua
+      12      4    109      0      13 (anonymous)@79-91@./tests/test_slash.lua
+       1      1     11      0       1 (anonymous)@94-94@./tests/test_slash.lua
+       1      1     11      0       1 (anonymous)@96-96@./tests/test_slash.lua
+       6      1     35      0       6 (anonymous)@93-98@./tests/test_slash.lua
+       1      1     11      0       1 (anonymous)@101-101@./tests/test_slash.lua
+       1      1     11      0       1 (anonymous)@103-103@./tests/test_slash.lua
+       5      1     24      0       5 (anonymous)@100-104@./tests/test_slash.lua
+       1      1     11      0       1 (anonymous)@109-109@./tests/test_slash.lua
+       6      2     35      0       8 (anonymous)@106-113@./tests/test_slash.lua
+       1      1      5      0       1 InCombatLockdown@117-117@./tests/test_slash.lua
+       1      1     11      0       1 (anonymous)@120-120@./tests/test_slash.lua
+      11      2     82      0      13 (anonymous)@115-127@./tests/test_slash.lua
+       1      1      5      0       1 InCombatLockdown@131-131@./tests/test_slash.lua
+      12      2     79      0      12 (anonymous)@129-140@./tests/test_slash.lua
+      10      1     78      0      10 (anonymous)@142-151@./tests/test_slash.lua
+       1      1     11      0       1 (anonymous)@162-162@./tests/test_slash.lua
+       8      1     68      0      14 (anonymous)@156-169@./tests/test_slash.lua
+       6      2     34      2       6 AddMessage@16-21@./tests/test_slashcmds.lua
+       3      1     23      1       3 stripColor@23-25@./tests/test_slashcmds.lua
+       1      1     11      0       1 (anonymous)@29-29@./tests/test_slashcmds.lua
+       6      2     40      1       6 slash@28-33@./tests/test_slashcmds.lua
+       1      1     14      1       1 joined@35-35@./tests/test_slashcmds.lua
+       3      1     24      2       3 contains@37-39@./tests/test_slashcmds.lua
+      10      2    134      0      10 (anonymous)@43-52@./tests/test_slashcmds.lua
+       8      2     74      0      10 (anonymous)@54-63@./tests/test_slashcmds.lua
+       8      2     78      0      14 (anonymous)@65-78@./tests/test_slashcmds.lua
+       1      1     11      0       1 (anonymous)@89-89@./tests/test_slashcmds.lua
+       8      1     70      0      12 (anonymous)@80-91@./tests/test_slashcmds.lua
+       8      1     66      0       9 (anonymous)@95-103@./tests/test_slashcmds.lua
+      18      3    178      0      21 (anonymous)@108-128@./tests/test_slashcmds.lua
+      12      1    116      0      14 (anonymous)@130-143@./tests/test_slashcmds.lua
+       6      1     50      0       6 (anonymous)@145-150@./tests/test_slashcmds.lua
+       1      1      8      0       1 (anonymous)@164-164@./tests/test_slashcmds.lua
+       1      1     11      0       1 (anonymous)@167-167@./tests/test_slashcmds.lua
+       1      1     11      0       1 (anonymous)@171-171@./tests/test_slashcmds.lua
+      17      1    123      0      26 (anonymous)@152-177@./tests/test_slashcmds.lua
+       1      1      8      0       1 (anonymous)@184-184@./tests/test_slashcmds.lua
+      10      1     72      0      10 (anonymous)@181-190@./tests/test_slashcmds.lua
+       7      1     53      0       7 (anonymous)@199-205@./tests/test_slashcmds.lua
+       4      1     24      0       5 (anonymous)@207-211@./tests/test_slashcmds.lua
+      11      1     90      0      11 (anonymous)@213-223@./tests/test_slashcmds.lua
+       7      1     53      0      11 (anonymous)@225-235@./tests/test_slashcmds.lua
+       1      1      8      0       1 RestoreAllDefaults@242-242@./tests/test_slashcmds.lua
+       1      1     11      0       1 (anonymous)@243-243@./tests/test_slashcmds.lua
+       9      1     63      0      11 (anonymous)@237-247@./tests/test_slashcmds.lua
+       8      1     60      0       8 (anonymous)@249-256@./tests/test_slashcmds.lua
+       9      1     72      0      13 (anonymous)@258-270@./tests/test_slashcmds.lua
+       1      1      8      0       1 (anonymous)@278-278@./tests/test_slashcmds.lua
+      11      1    110      0      13 (anonymous)@272-284@./tests/test_slashcmds.lua
+       3      1     15      0       3 (anonymous)@288-290@./tests/test_slashcmds.lua
+       3      1     15      0       3 (anonymous)@292-294@./tests/test_slashcmds.lua
+       5      1     38      0       5 (anonymous)@296-300@./tests/test_slashcmds.lua
+       3      1     15      0       3 (anonymous)@302-304@./tests/test_slashcmds.lua
+       7      1     60      0       7 (anonymous)@306-312@./tests/test_slashcmds.lua
+       6      1     53      0       8 (anonymous)@314-321@./tests/test_slashcmds.lua
+       9      2     86      0       9 (anonymous)@323-331@./tests/test_slashcmds.lua
+       6      1     29      0       6 (anonymous)@333-338@./tests/test_slashcmds.lua
+      15      3    137      0      15 (anonymous)@342-356@./tests/test_slashcmds.lua
+       1      1      9      2       1 (anonymous)@362-362@./tests/test_slashcmds.lua
+      12      1     89      0      12 (anonymous)@358-369@./tests/test_slashcmds.lua
+       1      1      9      2       1 (anonymous)@375-375@./tests/test_slashcmds.lua
+      11      1     67      0      11 (anonymous)@371-381@./tests/test_slashcmds.lua
+       1      1     15      3       1 (anonymous)@388-388@./tests/test_slashcmds.lua
+      11      1     59      0      12 (anonymous)@383-394@./tests/test_slashcmds.lua
+       4      3     31      0       4 backToDefault@399-402@./tests/test_slashcmds.lua
+       7      2     66      0       7 (anonymous)@404-410@./tests/test_slashcmds.lua
+       3      1     15      0       3 (anonymous)@412-414@./tests/test_slashcmds.lua
+      10      1     86      0      10 (anonymous)@416-425@./tests/test_slashcmds.lua
+       6      1     39      0       6 (anonymous)@427-432@./tests/test_slashcmds.lua
+       5      1     36      0       5 (anonymous)@434-438@./tests/test_slashcmds.lua
+      11      1     79      0      11 (anonymous)@440-450@./tests/test_slashcmds.lua
+       3      1     15      0       3 (anonymous)@452-454@./tests/test_slashcmds.lua
+      16      1    121      0      17 (anonymous)@456-472@./tests/test_slashcmds.lua
+       3      1     15      0       3 (anonymous)@474-476@./tests/test_slashcmds.lua
+       6      1     59      0       6 (anonymous)@478-483@./tests/test_slashcmds.lua
+       9      1     76      0       9 (anonymous)@485-493@./tests/test_slashcmds.lua
+       3      1     15      0       3 (anonymous)@495-497@./tests/test_slashcmds.lua
+       8      1     68      0       8 (anonymous)@499-506@./tests/test_slashcmds.lua
+       5      1     35      0       5 (anonymous)@508-512@./tests/test_slashcmds.lua
+       3      1     15      0       3 (anonymous)@514-516@./tests/test_slashcmds.lua
+       1      1     11      0       1 (anonymous)@521-521@./tests/test_slashcmds.lua
+       7      1     61      0       7 (anonymous)@518-524@./tests/test_slashcmds.lua
+       1      1     12      0       1 (anonymous)@531-531@./tests/test_slashcmds.lua
+       1      1     12      0       1 (anonymous)@533-533@./tests/test_slashcmds.lua
+       1      1     12      0       1 (anonymous)@535-535@./tests/test_slashcmds.lua
+       1      1     11      0       1 (anonymous)@537-537@./tests/test_slashcmds.lua
+      17      1    144      0      22 (anonymous)@526-547@./tests/test_slashcmds.lua
+       4      1     23      0       4 (anonymous)@551-554@./tests/test_slashcmds.lua
+       6      1     53      0       6 (anonymous)@556-561@./tests/test_slashcmds.lua
+       5      1     27      0       6 (anonymous)@563-568@./tests/test_slashcmds.lua
+       5      1     23      0       5 (anonymous)@570-574@./tests/test_slashcmds.lua
+       6      1     57      0       6 (anonymous)@576-581@./tests/test_slashcmds.lua
+       9      1     82      0      11 (anonymous)@583-593@./tests/test_slashcmds.lua
+      10      2     85      0      12 (anonymous)@595-606@./tests/test_slashcmds.lua
+       9      3     89      0       9 (anonymous)@608-616@./tests/test_slashcmds.lua
+      12      4    107      0      14 (anonymous)@618-631@./tests/test_slashcmds.lua
+       7      1     54      0       7 (anonymous)@641-647@./tests/test_slashcmds.lua
+       8      1     59      0       8 (anonymous)@649-656@./tests/test_slashcmds.lua
+       5      1     42      0       7 (anonymous)@658-664@./tests/test_slashcmds.lua
+       8      1     65      0       8 (anonymous)@666-673@./tests/test_slashcmds.lua
+      16      4    103      0      16 (anonymous)@675-690@./tests/test_slashcmds.lua
+       1      1     11      0       1 (anonymous)@694-694@./tests/test_slashcmds.lua
+       8      1     89      0       9 (anonymous)@692-700@./tests/test_slashcmds.lua
+       7      1     46      0       7 (anonymous)@722-728@./tests/test_slashcmds.lua
+       8      1     49      0       8 (anonymous)@730-737@./tests/test_slashcmds.lua
+       7      1     35      0       7 (anonymous)@739-745@./tests/test_slashcmds.lua
+       5      1     24      0       5 (anonymous)@747-751@./tests/test_slashcmds.lua
+      14      1    120      0      16 (anonymous)@753-768@./tests/test_slashcmds.lua
+      10      1     64      0      10 (anonymous)@770-779@./tests/test_slashcmds.lua
+      10      1     48      0      10 (anonymous)@781-790@./tests/test_slashcmds.lua
+      11      1     62      0      12 (anonymous)@792-803@./tests/test_slashcmds.lua
+       7      1     25      0       7 (anonymous)@805-811@./tests/test_slashcmds.lua
+       6      1     20      0       8 (anonymous)@813-820@./tests/test_slashcmds.lua
+       8      1     56      0      11 (anonymous)@822-832@./tests/test_slashcmds.lua
+       9      1     69      0       9 (anonymous)@834-842@./tests/test_slashcmds.lua
+       5      1     27      0       5 (anonymous)@844-848@./tests/test_slashcmds.lua
+       7      1     34      0       8 (anonymous)@850-857@./tests/test_slashcmds.lua
+       5      1     38      0       5 (anonymous)@859-863@./tests/test_slashcmds.lua
+       8      4     59      0      10 (anonymous)@865-874@./tests/test_slashcmds.lua
+       6      1     26      0       8 (anonymous)@876-883@./tests/test_slashcmds.lua
+       7      1     46      0       9 (anonymous)@885-893@./tests/test_slashcmds.lua
+       6      2     41      0       6 (anonymous)@895-900@./tests/test_slashcmds.lua
+       9      1     60      0       9 (anonymous)@902-910@./tests/test_slashcmds.lua
+      12      1     69      0      16 (anonymous)@912-927@./tests/test_slashcmds.lua
+      12      1     87      0      14 (anonymous)@929-942@./tests/test_slashcmds.lua
+      10      1     66      0      10 (anonymous)@944-953@./tests/test_slashcmds.lua
+       8      1     35      0       8 (anonymous)@955-962@./tests/test_slashcmds.lua
+       5      1     30      0       5 (anonymous)@964-968@./tests/test_slashcmds.lua
+       8      1     45      0       8 (anonymous)@970-977@./tests/test_slashcmds.lua
+       8      1     41      0       8 (anonymous)@979-986@./tests/test_slashcmds.lua
+       8      1     57      0       8 (anonymous)@988-995@./tests/test_slashcmds.lua
+      11      1     78      0      13 (anonymous)@997-1009@./tests/test_slashcmds.lua
+      12      1     72      0      12 (anonymous)@1011-1022@./tests/test_slashcmds.lua
+      15      1     82      0      15 (anonymous)@1024-1038@./tests/test_slashcmds.lua
+       8      1     43      0      10 (anonymous)@1040-1049@./tests/test_slashcmds.lua
+      12      1     66      0      12 (anonymous)@1051-1062@./tests/test_slashcmds.lua
+       1      1     17      0       1 (anonymous)@1075-1075@./tests/test_slashcmds.lua
+      14      2     84      0      18 (anonymous)@1064-1081@./tests/test_slashcmds.lua
+       6      1     41      0       6 (anonymous)@1083-1088@./tests/test_slashcmds.lua
+       5      1     27      0       5 (anonymous)@1090-1094@./tests/test_slashcmds.lua
+       6      1     41      0       6 (anonymous)@1096-1101@./tests/test_slashcmds.lua
+      10      1     45      0      10 (anonymous)@1103-1112@./tests/test_slashcmds.lua
+       8      1     65      0      11 (anonymous)@1114-1124@./tests/test_slashcmds.lua
+      11      1     42      0      11 (anonymous)@1126-1136@./tests/test_slashcmds.lua
+       9      1     48      0      11 (anonymous)@1138-1148@./tests/test_slashcmds.lua
+       8      1     36      0       8 (anonymous)@1150-1157@./tests/test_slashcmds.lua
+       9      1     44      0       9 (anonymous)@1159-1167@./tests/test_slashcmds.lua
+       1      1      3      0       1 AddMessage@1201-1201@./tests/test_slashcmds.lua
+      15      2     91      0      20 degradedBuild@1187-1206@./tests/test_slashcmds.lua
+       1      1     14      1       1 ]@1215-1215@./tests/test_slashcmds.lua
+       1      1     11      0       1 (anonymous)@1221-1221@./tests/test_slashcmds.lua
+       7      3     73      2       7 AddMessage@1220-1226@./tests/test_slashcmds.lua
+       8      1     75      2       8 assertParity@1229-1236@./tests/test_slashcmds.lua
+       3      1      9      0       4 (anonymous)@1238-1241@./tests/test_slashcmds.lua
+       3      1      9      0       4 (anonymous)@1243-1246@./tests/test_slashcmds.lua
+       3      1     14      0       4 (anonymous)@1248-1251@./tests/test_slashcmds.lua
+       4      1     25      0       4 (anonymous)@1253-1256@./tests/test_slashcmds.lua
+       1      2     15      1       1 UpdateAbsorbBar@13-13@./tests/test_timer.lua
+      15      1     80      0      19 (anonymous)@6-24@./tests/test_timer.lua
+       9      2     51      1      11 UpdateAbsorbBar@35-45@./tests/test_timer.lua
+       1      1      8      0       1 NoteRepaint@56-56@./tests/test_timer.lua
+       1      1      5      0       1 UpdateAbsorbBar@57-57@./tests/test_timer.lua
+      12      1     72      0      14 (anonymous)@51-64@./tests/test_timer.lua
+       1      1      8      0       1 NoteRepaint@71-71@./tests/test_timer.lua
+       1      1      5      0       1 UpdateAbsorbBar@72-72@./tests/test_timer.lua
+      12      1     72      0      14 (anonymous)@66-79@./tests/test_timer.lua
+       1      1      8      0       1 NoteRepaint@86-86@./tests/test_timer.lua
+       1      1      8      1       1 UpdateAbsorbBar@87-87@./tests/test_timer.lua
+      12      1     72      0      14 (anonymous)@81-94@./tests/test_timer.lua
+       7      1     43      0       7 (anonymous)@96-102@./tests/test_timer.lua
+       7      1     33      0       7 (anonymous)@105-111@./tests/test_timer.lua
+       7      1     33      0       7 (anonymous)@117-123@./tests/test_timer.lua
+       7      1     33      0       7 (anonymous)@125-131@./tests/test_timer.lua
+       7      1     33      0       9 (anonymous)@133-141@./tests/test_timer.lua
+       7      1     30      0       7 (anonymous)@143-149@./tests/test_timer.lua
+      19      7    152      1      20 withUnits@8-27@./tests/test_units.lua
+       6      1     45      0       6 (anonymous)@29-34@./tests/test_units.lua
+       6      1     57      0       6 (anonymous)@37-42@./tests/test_units.lua
+       3      1      8      0       8 (anonymous)@36-43@./tests/test_units.lua
+       7      1     59      0       7 (anonymous)@46-52@./tests/test_units.lua
+       3      1      8      0       9 (anonymous)@45-53@./tests/test_units.lua
+       5      1     42      0       5 (anonymous)@56-60@./tests/test_units.lua
+       3      1      8      0       7 (anonymous)@55-61@./tests/test_units.lua
+       7      1     91      0       7 (anonymous)@64-70@./tests/test_units.lua
+       3      1      8      0       9 (anonymous)@63-71@./tests/test_units.lua
+       6      1     76      0       6 (anonymous)@74-79@./tests/test_units.lua
+       3      1      8      0       8 (anonymous)@73-80@./tests/test_units.lua
+       9      1     98      0       9 (anonymous)@83-91@./tests/test_units.lua
+       3      1      8      0      11 (anonymous)@82-92@./tests/test_units.lua
+       7      1     67      0       7 (anonymous)@95-101@./tests/test_units.lua
+       3      1      8      0       9 (anonymous)@94-102@./tests/test_units.lua
+       6      1     51      0       6 (anonymous)@105-110@./tests/test_units.lua
+       3      1      8      0       8 (anonymous)@104-111@./tests/test_units.lua
+       8      1    116      0       8 (anonymous)@114-121@./tests/test_units.lua
+       3      1      8      0      10 (anonymous)@113-122@./tests/test_units.lua
+       5      1     40      0       5 (anonymous)@125-129@./tests/test_units.lua
+       3      1      8      0       7 (anonymous)@124-130@./tests/test_units.lua
+      10      1     85      0      10 (anonymous)@133-142@./tests/test_units.lua
+       3      1      8      0      12 (anonymous)@132-143@./tests/test_units.lua
+       5      1     51      0       5 (anonymous)@145-149@./tests/test_units.lua
+       5      1     53      0       5 (anonymous)@151-155@./tests/test_units.lua
+       7      2     39      1       7 readBytes@41-47@./tests/test_vendor_sync.lua
+       9      4     65      1       9 gitOut@51-59@./tests/test_vendor_sync.lua
+       1      1     17      1       1 gitShow@61-61@./tests/test_vendor_sync.lua
+       4      2     23      0       4 bundledVersion@100-103@./tests/test_vendor_sync.lua
+       7      2     33      0       7 siblingTag@110-116@./tests/test_vendor_sync.lua
+      16      3    183      4      19 assertVendorSync@118-136@./tests/test_vendor_sync.lua
+       5      2     28      0       5 (anonymous)@138-142@./tests/test_vendor_sync.lua
+       5      2     28      0       7 (anonymous)@144-150@./tests/test_vendor_sync.lua
+       1      1      5      0       1 InCombatLockdown@20-20@./tests/test_visibility.lua
+       1      1      5      0       1 UnitAffectingCombat@21-21@./tests/test_visibility.lua
+      16      2    140      4      16 withState@13-28@./tests/test_visibility.lua
+       3      1     13      0       3 (anonymous)@31-33@./tests/test_visibility.lua
+       3      1     14      0       5 (anonymous)@30-34@./tests/test_visibility.lua
+       3      1     13      0       3 (anonymous)@37-39@./tests/test_visibility.lua
+       3      1     14      0       5 (anonymous)@36-40@./tests/test_visibility.lua
+       3      1     13      0       3 (anonymous)@43-45@./tests/test_visibility.lua
+       3      1     14      0       5 (anonymous)@42-46@./tests/test_visibility.lua
+       3      1     13      0       3 (anonymous)@49-51@./tests/test_visibility.lua
+       3      1     14      0       5 (anonymous)@48-52@./tests/test_visibility.lua
+       1      1      5      0       1 InCombatLockdown@63-63@./tests/test_visibility.lua
+       1      1      8      1       1 UnitAffectingCombat@64-64@./tests/test_visibility.lua
+       3      1     13      0       3 (anonymous)@65-67@./tests/test_visibility.lua
+      13      2     93      0      15 (anonymous)@58-72@./tests/test_visibility.lua
+      14      6    129      2      14 withEnabled@86-99@./tests/test_visibility.lua
+       4      2     27      2       4 tokensFor@101-104@./tests/test_visibility.lua
+      10      3     80      0      10 (anonymous)@107-116@./tests/test_visibility.lua
+       3      1     22      0      12 (anonymous)@106-117@./tests/test_visibility.lua
+       9      2     70      0       9 (anonymous)@121-129@./tests/test_visibility.lua
+       3      1     22      0      11 (anonymous)@120-130@./tests/test_visibility.lua
+       3      1     16      0       3 (anonymous)@133-135@./tests/test_visibility.lua
+       3      1     17      0       3 (anonymous)@136-138@./tests/test_visibility.lua
+       3      1     16      0       3 (anonymous)@139-141@./tests/test_visibility.lua
+       5      1     60      0      11 (anonymous)@132-142@./tests/test_visibility.lua
+       5      1     29      0       5 (anonymous)@147-151@./tests/test_visibility.lua
+       4      1     32      0       4 (anonymous)@152-155@./tests/test_visibility.lua
+       3      1     16      0       3 (anonymous)@156-158@./tests/test_visibility.lua
+       5      1     60      0      14 (anonymous)@146-159@./tests/test_visibility.lua
+       8      1     57      0       8 (anonymous)@161-168@./tests/test_visibility.lua
+      11      1    119      0      13 (anonymous)@172-184@./tests/test_visibility.lua
+       1      1      8      0       1 ApplyVisibility@192-192@./tests/test_visibility.lua
+      12      1     59      0      14 (anonymous)@187-200@./tests/test_visibility.lua
+       1      1      8      0       1 ApplyVisibility@207-207@./tests/test_visibility.lua
+      12      1     59      0      13 (anonymous)@202-214@./tests/test_visibility.lua
+       1      1      8      0       1 OpenOptionsPanel@223-223@./tests/test_visibility.lua
+       1      1      3      0       1 ApplyVisibility@224-224@./tests/test_visibility.lua
+      14      1     86      0      14 (anonymous)@218-231@./tests/test_visibility.lua
+      20      5    164      0      20 (anonymous)@234-253@./tests/test_visibility.lua
+       1      1      5      0       1 UnitGetTotalAbsorbs@259-259@./tests/test_visibility.lua
+      14      1     79      0      14 (anonymous)@255-268@./tests/test_visibility.lua
+       1      1      5      0       1 UnitGetTotalAbsorbs@275-275@./tests/test_visibility.lua
+       1      1      5      0       1 UnitGetTotalAbsorbs@277-277@./tests/test_visibility.lua
+      17      2    112      0      17 (anonymous)@270-286@./tests/test_visibility.lua
+       4      1     27      0       4 newCtx@22-25@./tests/test_widgets.lua
+       8      1     66      2       8 render@28-35@./tests/test_widgets.lua
+       7      2     52      3       7 withSetting@37-43@./tests/test_widgets.lua
+       3      1     14      0       3 (anonymous)@45-47@./tests/test_widgets.lua
+       5      1     30      0       5 (anonymous)@51-55@./tests/test_widgets.lua
+       3      1     12      0       3 (anonymous)@58-60@./tests/test_widgets.lua
+       3      1     12      0       3 (anonymous)@61-63@./tests/test_widgets.lua
+       4      1     21      0       8 (anonymous)@57-64@./tests/test_widgets.lua
+       7      1     46      0       7 (anonymous)@67-73@./tests/test_widgets.lua
+       4      1     19      0      10 (anonymous)@66-75@./tests/test_widgets.lua
+       7      2     52      0       7 (anonymous)@78-84@./tests/test_widgets.lua
+       3      1     12      0       9 (anonymous)@77-85@./tests/test_widgets.lua
+       5      1     36      0       5 (anonymous)@87-91@./tests/test_widgets.lua
+       6      1     43      0       6 (anonymous)@93-98@./tests/test_widgets.lua
+       1      1      5      0       1 get@110-110@./tests/test_widgets.lua
+       1      1      7      1       1 set@111-111@./tests/test_widgets.lua
+      16      1    110      0      17 (anonymous)@102-118@./tests/test_widgets.lua
+       1      1      5      0       1 get@124-124@./tests/test_widgets.lua
+       1      1      3      0       1 set@124-124@./tests/test_widgets.lua
+      10      2     75      0      10 (anonymous)@120-129@./tests/test_widgets.lua
+       8      1     58      0       8 (anonymous)@133-140@./tests/test_widgets.lua
+       3      1     14      0       3 (anonymous)@143-145@./tests/test_widgets.lua
+       3      1     12      0       5 (anonymous)@142-146@./tests/test_widgets.lua
+       7      1     62      0       8 (anonymous)@148-155@./tests/test_widgets.lua
+       9      1     68      0       9 (anonymous)@157-165@./tests/test_widgets.lua
+       8      4     92      0      10 (anonymous)@167-176@./tests/test_widgets.lua
+       5      1     32      0       7 (anonymous)@180-186@./tests/test_widgets.lua
+       1      1     12      0       1 (anonymous)@190-190@./tests/test_widgets.lua
+       3      1     14      0       3 (anonymous)@191-193@./tests/test_widgets.lua
+       8      2     49      0      10 (anonymous)@188-197@./tests/test_widgets.lua
+       8      2     52      0       8 (anonymous)@199-206@./tests/test_widgets.lua
+       8      2     58      0      10 (anonymous)@208-217@./tests/test_widgets.lua
+       9      1     61      0       9 (anonymous)@219-227@./tests/test_widgets.lua
+       7      2     61      0       7 (anonymous)@229-235@./tests/test_widgets.lua
+       7      3     76      0       7 (anonymous)@240-246@./tests/test_widgets.lua
+       3      1     36      0       9 (anonymous)@239-247@./tests/test_widgets.lua
+       8      1     70      0       8 (anonymous)@249-256@./tests/test_widgets.lua
+       3      1     14      0       3 (anonymous)@259-261@./tests/test_widgets.lua
+       3      1     14      0       3 (anonymous)@262-264@./tests/test_widgets.lua
+       4      1     21      0       8 (anonymous)@258-265@./tests/test_widgets.lua
+       7      2     50      0       7 (anonymous)@270-276@./tests/test_widgets.lua
+       3      1     12      0      11 (anonymous)@267-277@./tests/test_widgets.lua
+      10      2    104      0      10 (anonymous)@279-288@./tests/test_widgets.lua
+      14      1    138      0      19 (anonymous)@290-308@./tests/test_widgets.lua
+      14      1    123      0      14 (anonymous)@310-323@./tests/test_widgets.lua
+       6      1     47      0       6 (anonymous)@327-332@./tests/test_widgets.lua
+       6      1     49      0       6 (anonymous)@334-339@./tests/test_widgets.lua
+       7      1     54      0       7 (anonymous)@341-347@./tests/test_widgets.lua
+       8      4     40      2       8 flatten@353-360@./tests/test_widgets.lua
+       7      3     49      0       7 (anonymous)@376-382@./tests/test_widgets.lua
+      14      6     91      0      15 (anonymous)@384-398@./tests/test_widgets.lua
+      15      6    112      0      15 (anonymous)@400-414@./tests/test_widgets.lua
+       1      1      8      0       1 ]@420-420@./tests/test_widgets.lua
+       7      1     47      0       7 (anonymous)@416-422@./tests/test_widgets.lua
+       9      6     57      1       9 rowContaining@433-441@./tests/test_widgets.lua
+      15      2    106      0      25 (anonymous)@429-453@./tests/test_widgets.lua
+       6      4     39      1       6 walk@459-464@./tests/test_widgets.lua
+      11      2     71      0      16 (anonymous)@455-470@./tests/test_widgets.lua
+       4      1     22      2       4 ]@481-484@./tests/test_widgets.lua
+      24      6    161      0      38 (anonymous)@472-509@./tests/test_widgets.lua
+       5      2     33      0       5 (anonymous)@511-515@./tests/test_widgets.lua
+      10      1     75      0      13 (anonymous)@517-529@./tests/test_widgets.lua
+       5      2     41      0       5 (anonymous)@533-537@./tests/test_widgets.lua
+       3      1     16      0       4 (anonymous)@539-542@./tests/test_widgets.lua
+       5      1     38      0       7 (anonymous)@544-550@./tests/test_widgets.lua
+       7      1     56      0       7 (anonymous)@552-558@./tests/test_widgets.lua
+      11      1     99      0      11 (anonymous)@560-570@./tests/test_widgets.lua
+       1      1      9      0       1 (anonymous)@586-586@./tests/test_widgets.lua
+      14      2     89      0      21 (anonymous)@572-592@./tests/test_widgets.lua
+       1      1      9      0       1 (anonymous)@597-597@./tests/test_widgets.lua
+       9      2     79      0       9 (anonymous)@594-602@./tests/test_widgets.lua
+       1      1      9      0       1 (anonymous)@607-607@./tests/test_widgets.lua
+       6      1     42      0       6 (anonymous)@604-609@./tests/test_widgets.lua
+       1      2     13      1       1 UnitGetTotalAbsorbs@18-18@./tests/wow_mock.lua
+       1      2     13      1       1 UnitHealthMax@20-20@./tests/wow_mock.lua
+       1      1      9      1       1 AbbreviateNumbers@23-23@./tests/wow_mock.lua
+       1      1     17      0       1 GetClassColor@24-24@./tests/wow_mock.lua
+      10      1     51      0      16 (anonymous)@12-27@./tests/wow_mock.lua
+53 file analyzed.
+==============================================================
+NLOC    Avg.NLOC  AvgCCN  Avg.token  function_cnt    file
+--------------------------------------------------------------
+    143       9.4     4.1       66.2        14     ./core/AbsorbTracker.lua
+     16       5.0     1.0       19.0         1     ./core/Bus.lua
+     12       9.0     4.0       39.0         1     ./core/Compat.lua
+      8       0.0     0.0        0.0         0     ./core/Constants.lua
+     39       4.4     2.2       36.2         5     ./core/CoreSetup.lua
+    136       8.1     2.9       47.7        14     ./core/Data.lua
+    121      17.3     7.9      121.4         7     ./core/Database.lua
+     69       2.0     1.7       13.0        27     ./core/DebugLogSetup.lua
+     26      13.0     6.0       89.0         2     ./core/LSMPatch.lua
+      6       0.0     0.0        0.0         0     ./core/Namespace.lua
+     80       7.1     3.4       41.8         8     ./core/PerfSetup.lua
+      2       0.0     0.0        0.0         0     ./core/State.lua
+     71       5.0     3.2       37.8        12     ./core/Units.lua
+     44      13.0     1.0       84.0         2     ./defaults/Profile.lua
+      2       1.0     1.0        8.0         1     ./locales/enUS.lua
+     57      22.5     1.5      217.5         2     ./modules/Bar.lua
+    130       8.7     4.2       70.4        14     ./modules/Display.lua
+     29       4.6     3.0       30.8         5     ./modules/Timer.lua
+     66      19.7     5.7      135.7         3     ./settings/About.lua
+    146      35.0     1.8      157.2         4     ./settings/Bar.lua
+     81      19.2     1.5       89.0         4     ./settings/Border.lua
+     83      16.8     1.5       77.2         4     ./settings/Font.lua
+    125       6.6     1.9       35.0        10     ./settings/General.lua
+     65       1.4     1.5       12.9        30     ./settings/OptionsSetup.lua
+     38      17.0     6.5      129.0         2     ./settings/Profiles.lua
+    148       9.8     4.8       64.1        13     ./settings/Schema.lua
+    307       4.7     2.4       30.8        52     ./settings/Slash.lua
+     97       9.0     2.3       64.7         6     ./settings/UnitPanel.lua
+      8       8.0     1.0       52.0         1     ./tests/degraded_env.lua
+    190       4.4     1.3       24.7        15     ./tests/perf.lua
+     51       0.0     0.0        0.0         0     ./tests/run.lua
+     72       5.1     1.0       36.5        15     ./tests/test_bus.lua
+     25       4.0     1.0       30.2         6     ./tests/test_compat.lua
+     47       5.1     1.0       36.8         8     ./tests/test_coresetup.lua
+    268       4.7     1.1       39.0        63     ./tests/test_data.lua
+    282      10.3     1.1       83.1        27     ./tests/test_database.lua
+    103       7.4     1.4       56.0        13     ./tests/test_debuglog.lua
+    444       4.7     1.1       31.3       106     ./tests/test_display.lua
+    186      15.0     4.0       83.3         3     ./tests/test_docs.lua
+    640       7.5     1.6       54.1        87     ./tests/test_helpers.lua
+     88       6.5     1.6       45.2        13     ./tests/test_loadorder.lua
+    138       7.4     1.6       46.2        18     ./tests/test_ltrap.lua
+     49       5.2     1.2       35.4         5     ./tests/test_optionssetup.lua
+    305       7.9     1.4       52.1        38     ./tests/test_perf.lua
+    349       8.0     2.1       59.7        42     ./tests/test_schema.lua
+    125       4.4     1.4       34.6        30     ./tests/test_slash.lua
+    967       6.9     1.2       49.6       140     ./tests/test_slashcmds.lua
+    110       6.1     1.1       33.8        18     ./tests/test_timer.lua
+    136       5.5     1.2       45.0        26     ./tests/test_units.lua
+     84       6.8     2.2       52.0         8     ./tests/test_vendor_sync.lua
+    229       5.7     1.4       39.8        44     ./tests/test_visibility.lua
+    478       6.6     1.7       47.9        73     ./tests/test_widgets.lua
+     11       2.8     1.4       20.6         5     ./tests/wow_mock.lua
 
-`lizard` is an **optional dev dependency**, not required to build, test, or ship the addon.
-
-```sh
-pipx install lizard          # or: python3 -m venv .venv && .venv/bin/pip install lizard
-lizard -l lua core modules settings defaults locales
+===========================================================================================================
+!!!! Warnings (cyclomatic_complexity > 15 or length > 1000 or nloc > 1000000 or parameter_count > 100) !!!!
+================================================
+  NLOC    CCN   token  PARAM  length  location  
+------------------------------------------------
+      44     19    301      0      55 NS@138-192@./core/Database.lua
+      68     21    359      1      71 runProfile@298-368@./settings/Slash.lua
+==========================================================================================
+Total nloc   Avg.NLOC  AvgCCN  Avg.token   Fun Cnt  Warning cnt   Fun Rt   nloc Rt
+------------------------------------------------------------------------------------------
+      7532       6.5     1.7       45.9     1047            2      0.00    0.02
 ```
-
-On a PEP 668 "externally managed" system without `pipx` or `python3-venv`, the wheel can be run
-without installing anything:
-
-```sh
-pip3 download lizard --no-deps -d /tmp/lz
-python3 -m zipfile -e /tmp/lz/lizard-*.whl /tmp/lz/x
-PYTHONPATH=/tmp/lz/x python3 -m lizard -l lua core modules settings defaults locales
-```
-
-## Totals
-
-| Metric | Value |
-|--------|-------|
-| Files | 30 |
-| Functions | 297 |
-| Total NLOC | 3,185 |
-| Average NLOC per function | 9.4 |
-| **Average CCN** | **3.6** |
-| Functions over CCN 15 | 7 (2.4%) |
-
-The only figure here re-verified by hand is the file count: addon source is now **28** `.lua` files
-across `core/ modules/ settings/ defaults/ locales/`, not 30. The rest await a `lizard` run.
-
-An average CCN of 3.6 is low. The addon is overwhelmingly made of small, single-purpose functions;
-the outliers below are concentrated in a handful of places and are all structural rather than
-algorithmic. That shape survives regeneration even where the number moves.
-
-## Functions over the default threshold (CCN > 15)
-
-| CCN | NLOC | Function | Why |
-|-----|------|----------|-----|
-| 21 | 68 | `runProfile` — `settings/Slash.lua:296` | Sub-verb dispatch ladder for `/at profile` |
-| 20 | 38 | ~~`Helpers.RenderRows`~~ — `settings/Widgets.lua:275` | Moved to `LibKa0s-Options-1.0`'s `OptionsWidgets.lua` |
-| 19 | 44 | `NS:InitDB` — `core/Database.lua:5` | Schema migration branches (v2 → v3 → v4) |
-| 18 | 21 | ~~`setEnabled`~~ — `settings/ScrollPatch.lua:36` | Moved to `LibKa0s-Options-1.0`'s `OptionsScroll.lua` |
-| 17 | 25 | ~~`Helpers.PatchAlwaysShowScrollbar`~~ — `settings/ScrollPatch.lua:20` | Moved to `LibKa0s-Options-1.0`'s `OptionsScroll.lua` |
-| 16 | 48 | `Helpers.BuildMainContent` — `settings/About.lua:38` | Optional metadata fields, each guarded |
-| 16 | 18 | ~~`NS.FormatSchemaValue`~~ — now a five-line delegate | The branching moved to `LibKa0s-Slash-1.0`'s `lib.FormatValue` |
-
-The struck rows are kept visible rather than deleted so the record of what the addon used to carry
-survives; they are the library's to report now, not this file's. Of the three live rows, none is a
-hot path: `runProfile` runs on user command, the `About` function runs once at panel build, `InitDB`
-runs once at load. The repaint path — the only code that runs at combat frequency — is entirely in
-the low single digits:
-
-| CCN | Function |
-|-----|----------|
-| 5 | `NS.UpdateAbsorbBar` — `modules/Display.lua` |
-| 4 | `NS.ShouldShowBar` — `modules/Display.lua` |
-| 3 | `doRepaint` — `modules/Timer.lua` |
-| 3 | `NS.RequestRepaint` — `modules/Timer.lua` |
-| 4 | `NS.GetSetting` — `core/Data.lua` |
-
-## Per-file averages
-
-| File | NLOC | Functions | Avg CCN |
-|------|------|-----------|---------|
-| core/AbsorbTracker.lua | 142 | 14 | 4.1 |
-| core/Bus.lua | 16 | 1 | 1.0 |
-| core/Compat.lua | 12 | 1 | 4.0 |
-| core/Data.lua | 136 | 14 | 2.9 |
-| core/Database.lua | 121 | 7 | 7.9 |
-| core/LSMPatch.lua | 26 | 2 | 6.0 |
-| core/Units.lua | 71 | 12 | 3.2 |
-| modules/Bar.lua | 57 | 2 | 1.5 |
-| modules/Display.lua | 130 | 14 | 4.2 |
-| modules/Timer.lua | 29 | 5 | 3.0 |
-| settings/About.lua | 67 | 3 | 6.0 |
-| settings/Bar.lua | 146 | 4 | 1.8 |
-| settings/Border.lua | 81 | 4 | 1.5 |
-| settings/Font.lua | 83 | 4 | 1.5 |
-| settings/General.lua | 125 | 10 | 1.9 |
-| settings/Schema.lua | 209 | 18 | 5.7 |
-| settings/Slash.lua | 392 | 38 | 3.9 |
-| defaults/Profile.lua | 44 | 2 | 1.0 |
-| locales/enUS.lua | 2 | 1 | 1.0 |
-
-Nineteen rows for twenty-eight files. Six rows were removed with their files (`core/Util.lua`,
-`core/DebugLog.lua`, `settings/Helpers.lua`, `Panel.lua`, `ScrollPatch.lua`, `Widgets.lua`); the
-other nine addon files — `core/Constants.lua`,
-`Namespace.lua`, `State.lua`, `CoreSetup.lua`, `PerfSetup.lua`, `DebugLogSetup.lua`,
-`settings/OptionsSetup.lua`, `UnitPanel.lua`, `Profiles.lua` — have never had one, some because they
-postdate the measurement and some because they predate it and were missed. A `lizard` run fixes both.
-
-The highest per-file average used to belong to `settings/ScrollPatch.lua` (11.4) by a wide margin.
-That was expected and hard to avoid — it patched Blizzard's scrollbar internals and was mostly
-defensive branching against fields that may or may not exist on a given client build. The same code,
-and the same shape, now lives in `LibKa0s-Options-1.0`'s `OptionsScroll.lua`.
-
-## Note on this change
-
-Two functions touched by the performance-instrumentation work were refactored *because* of this
-report rather than after it:
-
-- `runPerf` (`settings/Slash.lua`) first landed as an if/elseif ladder measuring **CCN 24** — which
-  would have made it the single most complex function in the addon. It is now a dispatch table of
-  CCN 1–3 handlers.
-- `NS.ApplyVisibility` (`modules/Display.lua`) reached **CCN 21** when a suspended-state rung was
-  added to its inline debug-reason chain. The chain is now `visibilityReason`, a separate function.
-
-Neither appears above.

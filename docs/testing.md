@@ -19,12 +19,47 @@ section.
 | Check | Command | Why it is not gated |
 |-------|---------|---------------------|
 | Offline perf | `lua tests/perf.lua` | Wall-clock numbers on a developer machine are not stable enough to fail a build on, and a perf suite that fails spuriously gets switched off within a week. It *does* hard-assert the deterministic half (repaint counts, API calls per pass, bytes per pass) and exits non-zero on a real regression, so it is CI-usable later. |
-| Complexity | `lizard -l lua core modules settings defaults locales` | Optional Python dev dependency; the Ka0s standard does not yet define a complexity rule. Report: [complexity.md](./complexity.md). |
+| Complexity | `lizard -l lua -x "./libs/*" -x "./tests/_kit/*" .` | It is a **report**, not a verdict, and it is regenerated at **release** rather than at commit — see [The complexity report](#the-complexity-report--regenerated-at-release-not-at-commit) below. Report: [complexity.md](./complexity.md). |
 
 Both are documented in [performance.md](./performance.md).
 
-Toolchain: Lua 5.1 + luacheck (`sudo apt-get install -y lua5.1 luarocks && sudo luarocks install
-luacheck`).
+Toolchain: Lua 5.1 + luacheck + lizard. The full list — what each one is needed for, the evidence
+for it, the WSL2/Ubuntu install command and a one-line verification per tool — lives in the root
+**[DEPENDENCIES.md](../DEPENDENCIES.md)** (documentation-§7). That file answers *what to install*;
+this one answers *how to verify*.
+
+## The complexity report — regenerated at release, not at commit
+
+`docs/complexity.md` is generated, never hand-edited. Regenerate it from the repo root with **exactly**
+this command — no extra flags, no narrowed path, no re-tuned thresholds, because a locally "improved"
+invocation produces a report that cannot be diffed against the one before it:
+
+```sh
+lizard -l lua -x "./libs/*" -x "./tests/_kit/*" .
+```
+
+**When:** as part of **every release** — in the same change that bumps the version and rolls the
+README's `## What's new` and `## Version History` forward, **before** the tag.
+
+**Then read the diff.** Regenerating is half the job; the value is entirely in what moved since the
+last release. Any function that newly crossed a `lizard` threshold, and any file that newly entered
+layout-§1's 1000–1500 LOC on-notice band, goes into the report's `## Watch list` with a one-line
+disposition — accepted and why, peel next, or already tracked as a deviation or finding ID.
+Degradation that is noticed and knowingly accepted is a decision; degradation that is regenerated
+over in silence is the report failing at its only job.
+
+**It is not a commit gate, and must not become one.** The green gate is `lua tests/run.lua` +
+`luacheck .`, and nothing else. A complexity threshold that fails a build teaches people to reach for
+`--no-verify`, after which the gate protects nothing and the habit remains. Cyclomatic complexity is
+a hint about where the addon is getting hard to change, not a verdict on a commit.
+
+`lizard` is an optional local tool. If it is not installed, the report is **stale, not missing**:
+leave the previous file committed with its original header, which dates itself, and say so in the
+release notes. A hand-edited complexity report is worse than an absent one, because it reads as
+measured.
+
+The rule itself lives upstream in performance-§10 — read it there rather than here if the two ever
+appear to disagree.
 
 `tests/run.lua` mirrors the in-game lifecycle rather than only loading files: it calls `NS:InitDB()`
 **and** `NS.CreateOptionsPanel()` at bootstrap, so every `settings/<page>.lua` builder runs for real
