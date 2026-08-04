@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "addon": "AbsorbTracker",
+  "addonVersion": "1.9.0",
+  "run": "20260804-214639",
+  "startedAt": "2026-08-04T21:46:39+05:30",
+  "durationMs": 3000,
+  "label": null,
+  "release": null,
+  "git": { "sha": "fa9035c4ce03699c5f7cd96875a76f052ddd45f3", "branch": "feat/fix-ccn", "dirty": true },
+  "host": { "lua": "Lua 5.1.5  Copyright (C) 1994-2012 Lua.org, PUC-Rio", "luacheck": "Luacheck: 1.2.0", "lizard": "1.23.0" },
+  "suites": {
+    "lint": { "status": "pass", "durationMs": -2000, "warnings": 0, "errors": 0, "files": 28, "gating": true },
+    "tests": { "status": "pass", "durationMs": 2000, "passed": 470, "failed": 0, "total": 470, "gating": true },
+    "perf": { "status": "pass", "durationMs": 1000, "scenarios": 6, "gating": false },
+    "complexity": { "status": "pass", "durationMs": 1000, "warnings": 0, "maxCcn": 0, "nloc": 7574, "functions": 1063, "avgCcn": 1.7, "avgNloc": 6.4, "avgToken": 45.4, "warnFunRatio": 0.00, "warnNlocRatio": 0.00, "bandFiles": 1, "overCapFiles": 0, "gating": false }
+  },
+  "verdict": "green"
+}
