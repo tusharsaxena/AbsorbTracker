@@ -1,40 +1,3 @@
-# Complexity report
-
-<!-- GENERATED — do not hand-edit. Regenerate per performance-§10. -->
-
-- **Generated:** 2026-08-04
-- **Tool:** lizard 1.23.0
-- **Command:** `lizard -l lua -x "./libs/*" -x "./tests/_kit/*" .`
-- **Standard:** v2.18.0
-
-Addon source and this addon's own `tests/` are measured. The two vendored trees — `libs/LibKa0s/`
-and the shared harness at `tests/_kit/` — are excluded, because neither is this repo's to edit
-(library-stack-§7, testing-§1). Totals: **7,532 NLOC** across **1,047 functions**, average CCN
-**1.7**, **2** warnings.
-
-This report is not a gate. It is regenerated and its diff reviewed at **release**, never at commit
-(performance-§10).
-
-## Watch list
-
-**This is the first report generated under the mandated invocation, so there is no previous report
-to diff against.** The file that stood here before was measured on 2026-07-29 with a different,
-narrower command (`lizard -l lua core modules settings defaults locales`) against v1.9.0, was
-partly hand-edited afterwards, and carried rows for files that no longer exist. Nothing in it is
-comparable to the numbers below, so nothing below is described as "new" or "worse" — the trend line
-starts here. The next release's report is the first one with a real diff.
-
-| Item | Measure | Disposition |
-|---|---|---|
-| `runProfile` — `settings/Slash.lua:298-368` | CCN **21**, NLOC 68 (lizard warning) | **Peel next — already tracked.** The 2026-08-03 review's change **C-1** (findings **F-001**, **F-002**, **F-003**, **F-018**) rewrites exactly this function: four input guards behind one shared existence helper. That work moves branches out of the sub-verb ladder, so the CCN is expected to fall when C-1 lands. Not a hot path — it runs on a typed slash command. |
-| `NS:RunMigrations` — `core/Database.lua:138-192` | CCN **19**, NLOC 44 (lizard warning) | **Accepted.** A schema-migration ladder is one `if g.schemaVersion < N then … end` rung per version, and its branch count is the number of migrations the addon has shipped — splitting it would move the same branches into helpers that only this function calls and hide the ordering the ladder makes obvious. It runs once, at load, before anything reads the profile. Revisit if it passes CCN 30 or grows a branch that is not a version rung. |
-| `tests/test_slashcmds.lua` — 1,256 LOC (967 NLOC, 140 functions) | In layout-§1's **1000–1500 on-notice band** | **On notice, no action this release.** It is the only file in the repo inside the band; the next largest is `tests/test_helpers.lua` at 893. It is a test suite, so its size is case count rather than tangle — average CCN 1.2, the lowest of any large file here — and the 2026-08-03 review's C-1 adds cases to it, which will push it further into the band. **Peel at the next release if it crosses 1,400**, splitting by verb group (the profile verbs are the obvious first slice) rather than by line count. No file is over the 1,500 hard cap. |
-
-No function exceeded lizard's length (> 1000) or parameter-count (> 100) thresholds.
-
-## Raw output
-
-```text
 ================================================
   NLOC    CCN   token  PARAM  length  location  
 ------------------------------------------------
@@ -1154,4 +1117,3 @@ NLOC    Avg.NLOC  AvgCCN  Avg.token  function_cnt    file
 Total nloc   Avg.NLOC  AvgCCN  Avg.token   Fun Cnt  Warning cnt   Fun Rt   nloc Rt
 ------------------------------------------------------------------------------------------
       7532       6.5     1.7       45.9     1047            2      0.00    0.02
-```

@@ -19,7 +19,7 @@ section.
 | Check | Command | Why it is not gated |
 |-------|---------|---------------------|
 | Offline perf | `lua tests/perf.lua` | Wall-clock numbers on a developer machine are not stable enough to fail a build on, and a perf suite that fails spuriously gets switched off within a week. It *does* hard-assert the deterministic half (repaint counts, API calls per pass, bytes per pass) and exits non-zero on a real regression, so it is CI-usable later. |
-| Complexity | `lizard -l lua -x "./libs/*" -x "./tests/_kit/*" .` | It is a **report**, not a verdict, and it is regenerated at **release** rather than at commit — see [The complexity report](#the-complexity-report--regenerated-at-release-not-at-commit) below. Report: [complexity.md](./complexity.md). |
+| Complexity | the `complexity` suite of `tests/_kit/run-automated-tests.sh` | It is a **report**, not a verdict, and it is **recorded, never gating** — see [Automated test records](#automated-test-records--the-consolidated-run) below. Records: [automated-tests/](./automated-tests/). |
 
 Both are documented in [performance.md](./performance.md).
 
@@ -28,123 +28,42 @@ for it, the WSL2/Ubuntu install command and a one-line verification per tool —
 **[DEPENDENCIES.md](../DEPENDENCIES.md)** (documentation-§7). That file answers *what to install*;
 this one answers *how to verify*.
 
-## The complexity report — regenerated at release, not at commit
+## Automated test records — the consolidated run
 
-`docs/complexity.md` is generated, never hand-edited. Regenerate it from the repo root with **exactly**
-this command — no extra flags, no narrowed path, no re-tuned thresholds, because a locally "improved"
-invocation produces a report that cannot be diffed against the one before it:
+All four out-of-game suites go through one vendored runner, and every run is recorded
+(`automated-tests`):
 
 ```sh
-lizard -l lua -x "./libs/*" -x "./tests/_kit/*" .
+tests/_kit/run-automated-tests.sh                            # all four, writes a bundle
+tests/_kit/run-automated-tests.sh --suite complexity          # a subset
+tests/_kit/run-automated-tests.sh --suite lint --suite tests --no-bundle   # the green gate; writes nothing
 ```
 
-**When:** as part of **every release** — in the same change that bumps the version and rolls the
-README's `## What's new` and `## Version History` forward, **before** the tag.
+| Suite | Command | Gates? |
+|---|---|---|
+| `lint` | `luacheck .` | **yes** |
+| `tests` | `lua tests/run.lua` | **yes** |
+| `perf` | `lua tests/perf.lua` | no — recorded only |
+| `complexity` | `lizard -l lua -x "./libs/*" -x "./tests/_kit/*" .` | no — recorded only |
 
-**Then read the diff.** Regenerating is half the job; the value is entirely in what moved since the
-last release. Any function that newly crossed a `lizard` threshold, and any file that newly entered
-layout-§1's 1000–1500 LOC on-notice band, goes into the report's `## Watch list` with a one-line
-disposition — accepted and why, peel next, or already tracked as a deviation or finding ID.
-Degradation that is noticed and knowingly accepted is a decision; degradation that is regenerated
-over in silence is the report failing at its only job.
+**`perf` and `complexity` never fail a run.** They are measured, recorded and diffed — a threshold
+that fails a run teaches everyone to reach for `--no-verify`, after which the gate protects nothing
+and the habit remains. They contribute `amber`, which is a signal rather than a stop. **A missing
+tool is a skip recorded with its reason**, never a pass.
 
-**It is not a commit gate, and must not become one.** The green gate is `lua tests/run.lua` +
-`luacheck .`, and nothing else. A complexity threshold that fails a build teaches people to reach for
-`--no-verify`, after which the gate protects nothing and the habit remains. Cyclomatic complexity is
-a hint about where the addon is getting hard to change, not a verdict on a commit.
+The runner is **vendored** from `LibKa0s`'s `testkit/`; never edit `tests/_kit/`. A kit fix goes
+upstream and is re-vendored.
 
-`lizard` is an optional local tool. If it is not installed, the report is **stale, not missing**:
-leave the previous file committed with its original header, which dates itself, and say so in the
-release notes. A hand-edited complexity report is worse than an absent one, because it reads as
-measured.
+**At release, not at commit.** A full bundle is produced as part of every version bump, before the
+tag, with an `ANALYSIS.md` write-up. Commits are gated on lint + tests only.
 
-The rule itself lives upstream in performance-§10 — read it there rather than here if the two ever
-appear to disagree.
+Results live in [`automated-tests/`](./automated-tests/): `RESULTS.md` is one row per run across all
+four suites plus the current complexity watch list — **one file, overwritten in place**, so its git
+history is the trend line — and each `<YYYY-MM-DD-HHMMSS>/` is a frozen bundle of that run's raw
+output. Bundles are never edited and never pruned.
 
-`tests/run.lua` mirrors the in-game lifecycle rather than only loading files: it calls `NS:InitDB()`
-**and** `NS.CreateOptionsPanel()` at bootstrap, so every `settings/<page>.lua` builder runs for real
-and a page that breaks fails the gate instead of waiting to be opened in-game.
-
-The suite list (see [common-tasks.md](./common-tasks.md#run-the-test-gate) for the full table) now
-includes `tests/test_units.lua` — `core/Units.lua`'s unit identity, mirror resolution
-(`IsEnabled`/`IsMirrored`/`SourceUnit`/`Get`/`Set`), per-unit position, and `CopyFromPlayer` — and
-`tests/test_perf.lua`, covering this addon's side of the `LibKa0s-Perf-1.0` harness (issue #17) —
-`core/PerfSetup.lua`'s descriptor, the bracket call sites, and the suspend/resume state machine. The
-probe itself (buckets, JSON, the record schema, report formatting, the capture ring) is tested in the
-LibKa0s repo, not duplicated here.
-
-`tests/test_debuglog.lua` is the same shape. The console itself — the two formatters, the buffer and
-its cap, the enable seam's write path, the window, and the checkbox contract — is
-`LibKa0s-DebugLog-1.0` and is tested in the LibKa0s repo; what stays here is this addon's wiring,
-plus the degradation stub that answers when the vendored library is missing. `tests/test_util.lua`
-went with it: its last two cases were the shared sink's, and a suite with nothing left in it is
-worse than no suite at all, because the runner skips a listed file that does not exist.
-
-`tests/test_slash.lua` and `tests/test_slashcmds.lua` are the same shape again. The slash
-algorithm itself — the verb lookup, the help renderer, the row and key/value formatters, the
-value renderer, the `/at list` builder, and the type-aware parser with its clamping, its enum
-check and its color rescale — is `LibKa0s-Slash-1.0` and is tested in the LibKa0s repo. What
-stays here is this addon's side: that `NS.COMMANDS` is a well-formed, unique, lower-case verb
-table, the host verbs that reach into this addon's own state (lock/unlock/toggle/update/test/
-profile/resetall/resetposition), the mirror note the annotator appends, the About page rendering
-the same rows through the same formatter, and the schema verbs driven end to end through the
-library so the seams this addon supplies — `get`/`set`/`findRow`/`applyDefault`/`allRows` — are
-proven wired. The degradation stub in `settings/Slash.lua` has no case of its own yet;
-`tests/test_coresetup.lua` covers that shape for Core, and this is the obvious gap to close next.
-
-`tests/test_helpers.lua` and `tests/test_widgets.lua` are the shape again, and the least obviously
-so. The panel shell, the widget makers, the two-column flow engine and the always-shown scrollbar
-patch are `LibKa0s-Options-1.0` and are tested in the LibKa0s repo. What these two suites assert is
-the seam: that `NS.Helpers` answers each member this addon calls, that a write through a widget
-lands on `NS.SetByPath` and comes back through a refresher, that the Defaults button reverts a page
-across all three units, that the panel carries the Blizzard canvas contract the library stamps in
-`CreatePanel` (`OnCommit` / `OnRefresh` / `OnDefault`, the last forwarding to a `defaultsOnClick`
-parked *after* the panel is built — which is what every page here does, and what makes Blizzard's
-own footer Defaults control work), and that the per-unit page in `settings/UnitPanel.lua` — the
-Unit dropdown, the mirror partition, and the two-tier header refresher — behaves. They exercise
-library-backed members through `NS.Helpers` on purpose: that table **is** the library instance, so
-a case that swaps a member out to spy on it swaps the one the library's own callers see.
-
-The degradation stub in `settings/OptionsSetup.lua` is the one that could fail silently, and it has
-its own guard. It is deliberately **load-completing** rather than member-answering — page files call
-`NS.Helpers.LSMValues` inside schema-row literals at file load, so a nil there aborts the file and
-takes its schema rows with it. `tests/test_perf.lua`'s `loadDegraded()` builds a second, complete
-environment from the TOC with `libs/LibKa0s/` absent and asserts `#NS.Schema` against the
-fully-loaded one, then names `units.player.barTexture` / `.border` / `.font` explicitly, because an
-equal count could in principle be reached by a different set of rows. It is a comparison rather than
-a fixed number, so it cannot rot as pages are added. Do not weaken either half.
-
-`tests/test_ltrap.lua` is the odd one out: it is the only suite that reads this addon's **source**
-rather than running it. Every LibKa0s module taking an `L` override resolves the descriptor's table
-before its own `STRINGS`, and this addon's `NS.L` answers *every* key with a string (the standard's
-mandated metatable fallback), so `L = NS.L` in a descriptor renders raw SCREAMING_SNAKE keys for
-every key at once, in game only. Nothing observable after `lib:New` returns can see it, which is why
-the guard is a source check across the five seam files. It matches on what the expression can
-**evaluate to** rather than on one spelling — `L = NS.L` and `L = NS.L or {}` both trip it, while the
-legitimate `L = NS.L and { … } or nil` does not — and a companion case drives that matcher against
-all three forms, because a matcher nothing tests is one that can be narrowed back to a single
-anchored form while still reporting green. The rest is non-vacuity (`locales/enUS.lua` really does
-synthesize, so the source check guards something) plus library-regression cases that hand the
-vendored DebugLog, Slash and Perf the exact fallback shape every Ka0s host has and require the
-built-in English back. Core and Options take no `L` at all — Core has no `STRINGS`, and Options'
-`L` is `lib.LAYOUT`, a geometry table — so neither can be handed a descriptor to break, and each
-gets a **tripwire** over the vendored source instead: a case that goes red the day either grows an
-override path, i.e. the day the real assertion becomes writable rather than the day someone
-remembers to look. The two tripwires are not the same shape, on purpose — Options ships its own
-`lib.STRINGS`, so asserting that table absent would fail against a module behaving as designed;
-only the source half transfers. The **rendered** assertions live in each module's own suite;
-smoke-test step 102 is the only check that looks at the screen.
-
-`tests/test_optionssetup.lua` and `tests/test_docs.lua` round out the list. The first covers
-`settings/OptionsSetup.lua` as a *file* — the descriptor's half of the reset contract, and the
-degradation stub. The second checks the shipped prose, which is checkable and therefore checked:
-two rules no code path enforces and no reviewer reliably catches.
-
-**A note for anyone adding tests that touch suspend or the repaint timer.** `NS.Perf.Resume()`
-republishes `REPAINT`, which arms a coalescing timer. Left armed, `pending` in `modules/Timer.lua`
-stays set for the rest of the **process**, and every later suite's `RequestRepaint` quietly
-coalesces into a pass that never fires — surfacing as unrelated failures three suites away.
-`tests/test_perf.lua` drains it via a local `settle()` helper after every resume. Do the same.
+`docs/complexity.md` was this addon's standalone complexity report through standard v2.18.0; it is
+**retired** — its raw output is each bundle's `complexity.txt` and its trend line is `RESULTS.md`.
 
 ## Verifying the vendored LibKa0s copies
 

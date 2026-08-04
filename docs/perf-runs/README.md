@@ -1,7 +1,11 @@
 # Performance run records
 
-Captured measurements from both harnesses. See [docs/performance.md](../performance.md) for how to
-produce them.
+**In-game captures only.** A human runs the `perf` verb in a live client and exports the record;
+a script cannot produce one, which is why this store survives (`automated-tests-§7`). **Offline**
+scenario runs are produced by `tests/_kit/run-automated-tests.sh` and live in the bundle for the run
+that produced them, under [`../automated-tests/`](../automated-tests/).
+
+See [docs/performance.md](../performance.md) for how to produce a capture.
 
 This directory is standing and cumulative rather than tied to one investigation, so runs can be
 compared across addon versions. Records are committed — the raw evidence should outlive the
@@ -13,9 +17,10 @@ write-up that interprets it.
 <YYYY-MM-DD>-<source>-<label>.json
 ```
 
-`source` is `offline` or `ingame`. Examples:
+`source` is `ingame` for everything written here now. The two `offline` records below predate
+`automated-tests` and are kept as evidence rather than rewritten — a frozen record is not
+renamed to match a later convention. Examples:
 
-- `2026-07-29-offline-baseline.json`
 - `2026-07-29-ingame-dummy-blooddk.json`
 
 ## Schema

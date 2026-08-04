@@ -87,7 +87,7 @@ here would be false precision.
 
 ### lizard — the complexity report
 
-Generates `docs/complexity.md` with the exact invocation `performance-§10` fixes:
+Drives the `complexity` suite of `tests/_kit/run-automated-tests.sh` with the exact invocation `performance-§10` fixes:
 
 ```sh
 lizard -l lua -x "./libs/*" -x "./tests/_kit/*" .
@@ -234,7 +234,7 @@ do when one is red — this file only tells you what to install.
 ```sh
 lua tests/run.lua                                       # the headless suite — all green
 luacheck .                                              # 0 warnings / 0 errors
-lizard -l lua -x "./libs/*" -x "./tests/_kit/*" .       # regenerates docs/complexity.md's contents
+lizard -l lua -x "./libs/*" -x "./tests/_kit/*" .       # the `complexity` suite; recorded in each run bundle
 ```
 
 The first two are the **green gate**: both must pass before every commit. The third is a **report**

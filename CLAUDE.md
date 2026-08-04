@@ -31,14 +31,14 @@ Start here, then read the docs:
   WSL2/Ubuntu commands and evidence per entry (documentation-§7).
 - Topic detail in `docs/`: `schema.md`, `settings-panel.md`, `data-flow.md`, `profiles.md`,
   `midnight-quirks.md`, `common-tasks.md`, `scope.md`, `file-index.md`, `module-map.md`,
-  `smoke-tests.md`, `test-cases.md`, `performance.md`, `complexity.md`.
+  `smoke-tests.md`, `test-cases.md`, `performance.md`, `automated-tests/`.
 
 ## The `docs/` set — there is no `agent-context.md`
 
 The canonical `docs/` set is exactly three files: **`ARCHITECTURE.md`** (what this addon is),
 **`testing.md`** (how to verify) and **`smoke-tests.md`** (in-game checks) — plus the generated
 `test-cases.md` and the topic-detail docs. Four of those topic-detail docs are **required**, not
-optional: `test-cases.md`, `performance.md`, `perf-runs/README.md` and `complexity.md`
+optional: `test-cases.md`, `performance.md`, `perf-runs/README.md`, `automated-tests/README.md` and `automated-tests/RESULTS.md`
 (documentation-§3).
 
 The repo **root** ships exactly three docs plus `LICENSE`, and never a fourth: the full

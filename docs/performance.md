@@ -295,5 +295,5 @@ for when the client is somewhere you can't read from disk.
 
 ## 5. Complexity
 
-Reported separately in [docs/complexity.md](complexity.md), measured with `lizard`. Advisory only,
+Reported in each automated-test bundle's `complexity.txt`, with the watch list in [automated-tests/RESULTS.md](automated-tests/RESULTS.md), measured with `lizard`. Advisory only,
 and outside the green gate pending an upstream rule in the Ka0s WoW Addon Standard.

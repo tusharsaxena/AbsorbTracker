@@ -294,7 +294,7 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
   this plan.
 
 - **`lizard` as an optional dev dependency (complexity reporting).** Python tooling in a Lua repo,
-  used to generate `docs/complexity.md`. It is **not** part of the green gate
+  used for the `complexity` suite of the automated-test run. It is **not** part of the green gate
   (`lua tests/run.lua` + `luacheck .`) and nothing fails without it. Issue #17 assigns the
   standard's definition of a complexity rule to WowAddonStandards; this addon adopts whatever
   lands there.
@@ -467,6 +467,6 @@ to the other four: `NS.Print`, `NS.Debug`, `NS.Slash` and `NS.Helpers` all kept 
 member lists, so the call sites did not move either.
 
 Protocol, caveats and how to read the numbers: [docs/performance.md](./performance.md). Captured
-records: [docs/perf-runs/](./perf-runs/README.md). Complexity: [docs/complexity.md](./complexity.md).
+records: [docs/perf-runs/](./perf-runs/README.md). Automated test records: [docs/automated-tests/](./automated-tests/).
 The current investigation into the reported in-combat FPS drop:
 [docs/investigations/2026-07-29-combat-fps-drop/](./investigations/2026-07-29-combat-fps-drop/analysis.md).
