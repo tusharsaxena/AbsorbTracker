@@ -1,0 +1,13 @@
+Ka0s Absorb Tracker — offline perf  (v1.9.0, label 'adoption')
+1000 absorb events coalesced into 1 repaint
+
+scenario                iters      ms/iter     api/iter   bytes/iter
+absorbEvent              1000      0.00026          0.0          0.0
+paintPass                1000      0.00650         12.0        312.0
+appearancePass            200      0.02730         33.0        893.7
+settingsRead            10000      0.00027          0.0          0.0
+probeOverheadOff         1000      0.00508         12.0        312.0
+probeOverheadOn          1000      0.00634         12.0        312.3
+
+timings are for orientation only — compare scenarios within a run, never across machines
+wrote docs/automated-tests/20260804-122459/perf.json

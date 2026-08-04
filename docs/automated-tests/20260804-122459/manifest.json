@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "addon": "AbsorbTracker",
+  "addonVersion": "1.9.0",
+  "run": "20260804-122459",
+  "startedAt": "2026-08-04T12:24:59+00:00",
+  "durationMs": 7000,
+  "label": "adoption",
+  "release": null,
+  "git": { "sha": "e07dc088d60757e5b1890d1b7932fe28ea6b60d0", "branch": "master", "dirty": true },
+  "host": { "lua": "Lua 5.1.5  Copyright (C) 1994-2012 Lua.org, PUC-Rio", "luacheck": "Luacheck: 1.2.0", "lizard": "1.23.0" },
+  "suites": {
+    "lint": { "status": "pass", "durationMs": 2000, "warnings": 0, "errors": 0, "files": 28, "gating": true },
+    "tests": { "status": "pass", "durationMs": 3000, "passed": 469, "failed": 0, "total": 469, "gating": true },
+    "perf": { "status": "pass", "durationMs": 0, "scenarios": 6, "gating": false },
+    "complexity": { "status": "pass", "durationMs": 2000, "warnings": 2, "maxCcn": 21, "nloc": 7532, "functions": 1047, "avgCcn": 1.7, "avgNloc": 6.5, "avgToken": 45.9, "warnFunRatio": 0.00, "warnNlocRatio": 0.02, "bandFiles": 1, "overCapFiles": 0, "gating": false }
+  },
+  "verdict": "green"
+}

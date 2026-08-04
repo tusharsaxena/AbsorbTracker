@@ -8,11 +8,11 @@ the analysis of a given run is its `ANALYSIS.md`.
 
 | Run | Version | Lint w/e | Tests | Perf | CCN warn | Max CCN | Verdict |
 |---|---|---|---|---|---|---|---|
-| [`20260804-114658`](20260804-114658/) | 1.9.0 | 0/0 | 469/469 | pass | 2 | 21 | **green** |
+| [`20260804-122459`](20260804-122459/) | 1.9.0 | 0/0 | 469/469 | pass | 2 | 21 | **green** |
 
 ## Complexity watch list
 
-Current state as of [`20260804-114658`](20260804-114658/) — not that run's diff.
+Current state as of [`20260804-122459`](20260804-122459/) — not that run's diff.
 Every function `lizard` warned on and every file in `layout-§1`'s 1000–1500 on-notice band,
 each with a one-line disposition.
 

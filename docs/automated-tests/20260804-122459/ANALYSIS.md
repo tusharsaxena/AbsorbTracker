@@ -1,8 +1,8 @@
-# Analysis — 20260804-114658
+# Analysis — 20260804-122459
 
 - **Addon:** AbsorbTracker 1.9.0
 - **Verdict:** green
-- **Commit:** 17142645fb4f (master), dirty
+- **Commit:** e07dc088d607 (master), dirty
 - **Previous run:** none — this is the first recorded run
 
 ## Headline
@@ -15,12 +15,32 @@ improvement.
 
 ## Suites
 
-| Suite | Status | Result | Moved since previous run |
-|---|---|---|---|
-| lint | pass | 0 warnings / 0 errors in 28 files (`lint.txt`) | — first run |
-| tests | pass | 469 passed, 0 failed, 469 total (`tests.txt`) | — first run |
-| perf | pass | pass — 6 scenarios | — first run |
-| complexity | pass | 2 warnings, max CCN 21, 7532 NLOC / 1047 functions (`complexity.txt`) | — first run |
+| Suite | Status | Result | Artifact | Moved since previous run |
+|---|---|---|---|---|
+| lint | pass | 0 warnings / 0 errors in 28 files | [`lint.txt`](lint.txt) | — first run |
+| tests | pass | 469 passed, 0 failed, 469 total | [`tests.txt`](tests.txt) · [`test-cases.md`](test-cases.md) | — first run |
+| perf | pass | 6 scenarios | [`perf.txt`](perf.txt) · [`perf.json`](perf.json) | — first run |
+| complexity | pass | see below | [`complexity.txt`](complexity.txt) | — first run |
+
+### Complexity in full
+
+Every field of `lizard`'s footer, plus the two derived file counts. The **averages** are what make
+this run comparable to the next one across a change in size: a total that rises because the addon
+grew is a different fact from an average that rises because it got denser, and only the second is a
+complexity signal.
+
+| Metric | Value |
+|---|---|
+| Total NLOC | 7532 |
+| Functions | 1047 |
+| Avg NLOC / function | 6.5 |
+| Avg CCN | 1.7 |
+| Max CCN | 21 |
+| Avg tokens / function | 45.9 |
+| Warnings (CCN > 15) | 2 |
+| Warning rate — `Fun Rt` / `nloc Rt` | 0.0 / 0.02 |
+| Files in the 1000–1500 band | 1 |
+| Files over the 1500 cap | 0 |
 
 All four suites ran. `perf` and `complexity` are **recorded, non-gating** — they inform, they do not fail the run.
 
