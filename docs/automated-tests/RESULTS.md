@@ -30,7 +30,7 @@ Six scenarios, including the **zero-overhead** case `performance-§2` requires a
 
 ## Complexity watch list
 
-Current state as of [`20260804-214639`](20260804-214639/) — not that run's diff.
+Current state as of [`20260804-233138`](20260804-233138/) — not that run's diff.
 Every function `lizard` warned on, and every file at or above `layout-§1`'s 1000-LOC
 on-notice threshold, each with a one-line disposition.
 
@@ -46,11 +46,12 @@ neither function is on the list any more. The closest to the line now is
 `Helpers.BuildMainContent` (`settings/About.lua`) at CCN **15** — at the threshold, not over it,
 and so not warned on; it is the one to watch if the About page grows another block.
 
-**The Max CCN column reads `0` for this run, and that is the kit's bug, not the measurement.** The
-runner derives max CCN by scanning `lizard`'s `!!!! Warnings` block; with no warnings there is no
-block, so the parser falls through to zero. The real maximum is the 15 above. Left as generated —
-`tests/_kit/` is vendored and a local patch is reverted silently by the next re-vendor
-(automated-tests-§2), so the fix belongs in LibKa0s `testkit/`.
+**The Max CCN column reads `15` again, and the `0` on the `20260804-214639` row is a kit bug that
+has since been fixed.** The runner used to derive max CCN by scanning `lizard`'s `!!!! Warnings`
+block, so it fell through to zero exactly when an addon reached zero warnings — the point at which
+the number is most worth reading. Test kit rev 6, vendored in with LibKa0s v1.7.0, takes the CCN
+column of every function row instead, which is why this run records the 15 the previous one could
+not. Fixed upstream and re-vendored rather than patched here (automated-tests-§2).
 
 ### Files by `layout-§1` band
 
