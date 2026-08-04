@@ -295,76 +295,101 @@ end
 -- /at profile
 -- ---------------------------------------------------------------------
 
-function runProfile(rest)
-    local db = NS.db
-    if not db or not db.SetProfile then
-        return print("Profile system requires AceDB-3.0")
+-- The sub-help rows, in the order they print. One row per sub-verb, and the order is the contract.
+local PROFILE_HELP = {
+    { "list",            "List all profiles" },
+    { "current",         "Show current profile name" },
+    { "use <name>",      "Switch to profile" },
+    { "new <name>",      "Create new profile with defaults" },
+    { "copy <name>",     "Copy settings from another profile" },
+    { "delete <name>",   "Delete a profile" },
+    { "reset",           "Reset current profile to defaults" },
+}
+
+local function printProfileHelp()
+    print("Profile commands")
+    for _, row in ipairs(PROFILE_HELP) do
+        PrintCmd("/at profile " .. row[1], row[2])
     end
+end
 
-    local sub, subarg = (rest or ""):match("^(%S*)%s*(.*)$")
-    sub = (sub or ""):lower()
-
-    if sub == "" then
-        print("Profile commands")
-        PrintCmd("/at profile list",          "List all profiles")
-        PrintCmd("/at profile current",       "Show current profile name")
-        PrintCmd("/at profile use <name>",    "Switch to profile")
-        PrintCmd("/at profile new <name>",    "Create new profile with defaults")
-        PrintCmd("/at profile copy <name>",   "Copy settings from another profile")
-        PrintCmd("/at profile delete <name>", "Delete a profile")
-        PrintCmd("/at profile reset",         "Reset current profile to defaults")
-        return
+-- The four name-taking verbs share one guard: no name means print that verb's own Usage line and
+-- do nothing. Wrapping is done once at file load, so a dispatch allocates nothing.
+local function needsName(verb, fn)
+    return function(db, name)
+        if name == "" then
+            return print("Usage: /at profile " .. verb .. " <name>")
+        end
+        return fn(db, name)
     end
+end
 
-    if sub == "list" then
+-- The sub-verb table, keyed by the lowercased verb. Built once at load.
+local PROFILE_VERBS = {
+    list = function(db)
         print("Available profiles")
         local current = db:GetCurrentProfile()
         for _, name in ipairs(db:GetProfiles()) do
             local marker = (name == current) and " (current)" or ""
             print("  " .. name .. marker)
         end
-    elseif sub == "current" then
+    end,
+
+    current = function(db)
         print("Current profile: " .. db:GetCurrentProfile())
-    elseif sub == "use" then
-        if subarg ~= "" then
-            db:SetProfile(subarg)
-            print("Switched to profile '" .. subarg .. "'")
-        else
-            print("Usage: /at profile use <name>")
+    end,
+
+    use = needsName("use", function(db, name)
+        db:SetProfile(name)
+        print("Switched to profile '" .. name .. "'")
+    end),
+
+    -- SetProfile first, THEN ResetProfile: the reset has to land on the new profile, not the one
+    -- being left behind.
+    new = needsName("new", function(db, name)
+        db:SetProfile(name)
+        db:ResetProfile()
+        print("Created and switched to new profile '" .. name .. "'")
+    end),
+
+    copy = needsName("copy", function(db, name)
+        db:CopyProfile(name)
+        print("Copied settings from profile '" .. name .. "'")
+    end),
+
+    delete = needsName("delete", function(db, name)
+        if name == db:GetCurrentProfile() then
+            return print("Cannot delete the current profile")
         end
-    elseif sub == "new" then
-        if subarg ~= "" then
-            db:SetProfile(subarg)
-            db:ResetProfile()
-            print("Created and switched to new profile '" .. subarg .. "'")
-        else
-            print("Usage: /at profile new <name>")
-        end
-    elseif sub == "copy" then
-        if subarg ~= "" then
-            db:CopyProfile(subarg)
-            print("Copied settings from profile '" .. subarg .. "'")
-        else
-            print("Usage: /at profile copy <name>")
-        end
-    elseif sub == "delete" then
-        if subarg ~= "" then
-            if subarg == db:GetCurrentProfile() then
-                print("Cannot delete the current profile")
-            else
-                db:DeleteProfile(subarg, true)
-                print("Deleted profile '" .. subarg .. "'")
-            end
-        else
-            print("Usage: /at profile delete <name>")
-        end
-    elseif sub == "reset" then
+        db:DeleteProfile(name, true)   -- silent: we print our own line
+        print("Deleted profile '" .. name .. "'")
+    end),
+
+    reset = function(db)
         db:ResetProfile()
         print("Profile reset to defaults")
-    else
-        print("Unknown profile subcommand '" .. sub .. "'")
-        runProfile("")
+    end,
+}
+
+function runProfile(rest)
+    local db = NS.db
+    if not db or not db.SetProfile then
+        return print("Profile system requires AceDB-3.0")
     end
+
+    -- Only the VERB is lowercased. The argument keeps its case — AceDB profile names are
+    -- case-sensitive, and folding one would address the wrong profile.
+    local sub, subarg = (rest or ""):match("^(%S*)%s*(.*)$")
+    sub = (sub or ""):lower()
+
+    if sub == "" then return printProfileHelp() end
+
+    local handler = PROFILE_VERBS[sub]
+    if not handler then
+        print("Unknown profile subcommand '" .. sub .. "'")
+        return printProfileHelp()
+    end
+    return handler(db, subarg)
 end
 
 -- ---------------------------------------------------------------------

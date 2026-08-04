@@ -135,6 +135,55 @@ local function dropKeyEverywhere(key)
     return n
 end
 
+-- Backfill any missing FLAT profile key from the defaults. `units` is skipped: it is the per-unit
+-- section, handled by backfillUnitKeys below. Keys already present are left untouched, so running
+-- it twice is a no-op.
+local function backfillFlatKeys(profile, defaults)
+    for key, defaultVal in pairs(defaults) do
+        if key ~= "units" and profile[key] == nil then
+            profile[key] = deepcopy(defaultVal)
+        end
+    end
+end
+
+-- Backfill any missing key on each per-unit row. Seeds the `units` table and each unit's row when
+-- absent, so the no-AceDB fallback and a raw profile out of db.sv.profiles both land on the full
+-- shape. Same idempotence: present keys are left alone.
+local function backfillUnitKeys(profile, defaults)
+    profile.units = profile.units or {}
+    for _, unit in ipairs(NS.Units.LIST) do
+        profile.units[unit] = profile.units[unit] or {}
+        for key, defaultVal in pairs(defaults.units[unit]) do
+            if profile.units[unit][key] == nil then
+                profile.units[unit][key] = deepcopy(defaultVal)
+            end
+        end
+    end
+end
+
+-- The account-wide schema ladder, in order. `apply` runs BEFORE the version line is logged, so a
+-- step's own [Migrate] output still precedes its "vX -> vY" stamp. Built once at file load — the
+-- ladder has grown three times now, and a new version should be one row here, not another arm.
+local SCHEMA_STEPS = {
+    { to = 2, apply = function(profile)
+        -- v2: the poll ticker became event-driven; the old poll-interval key is dead.
+        if profile then profile.updateInterval = nil end
+    end },
+    -- v3 is stamp-only: the per-unit lift is gated on the PER-PROFILE stamp and already ran
+    -- unconditionally above, so there is nothing account-wide left to do here.
+    { to = 3, apply = function() end },
+    { to = 4, apply = function()
+        -- v4: the global `hidden` master toggle is gone. The three per-unit `enabled` flags are
+        -- now the only visibility switch, so a stale `hidden = true` would be an unreachable
+        -- setting that silently suppressed every bar with no UI left to clear it. Swept from
+        -- every profile.
+        local dropped = dropKeyEverywhere("hidden")
+        if dropped > 0 then
+            NS.Debug("Migrate", "dropped `hidden` from %s profile(s)", dropped)
+        end
+    end },
+}
+
 function NS:RunMigrations()
     local g = NS.db and NS.db.global
     if not g then return end
@@ -148,45 +197,20 @@ function NS:RunMigrations()
         NS.Debug("Migrate", "lifted %s profile(s) to v3", lifted)
     end
 
-    -- Backfill any missing key from the defaults. Absorbs the legacy pre-AceDB flat
-    -- SavedVariables shape and the no-AceDB fallback into one versioned, idempotent step: keys
-    -- already present are left untouched, so running it twice is a no-op.
+    -- Backfill absorbs the legacy pre-AceDB flat SavedVariables shape and the no-AceDB fallback
+    -- into one versioned, idempotent step. It runs AFTER the v3 lift (or a pre-v3 profile's flat
+    -- appearance keys get shadowed by freshly copied defaults) and BEFORE the ladder (so v2 still
+    -- clears `updateInterval` after any backfill pass).
     if profile then
-        for key, defaultVal in pairs(defaults) do
-            if key ~= "units" and profile[key] == nil then
-                profile[key] = deepcopy(defaultVal)
-            end
-        end
-        profile.units = profile.units or {}
-        for _, unit in ipairs(NS.Units.LIST) do
-            profile.units[unit] = profile.units[unit] or {}
-            for key, defaultVal in pairs(defaults.units[unit]) do
-                if profile.units[unit][key] == nil then
-                    profile.units[unit][key] = deepcopy(defaultVal)
-                end
-            end
-        end
+        backfillFlatKeys(profile, defaults)
+        backfillUnitKeys(profile, defaults)
     end
 
-    -- v2: the poll ticker became event-driven; the old poll-interval key is dead.
-    if g.schemaVersion < 2 then
-        if profile then profile.updateInterval = nil end
-        NS.Debug("Migrate", "v%s \226\134\146 v2", g.schemaVersion)
-        g.schemaVersion = 2
-    end
-    if g.schemaVersion < 3 then
-        NS.Debug("Migrate", "v%s \226\134\146 v3", g.schemaVersion)
-        g.schemaVersion = 3
-    end
-    -- v4: the global `hidden` master toggle is gone. The three per-unit `enabled` flags are now
-    -- the only visibility switch, so a stale `hidden = true` would be an unreachable setting that
-    -- silently suppressed every bar with no UI left to clear it. Swept from every profile.
-    if g.schemaVersion < 4 then
-        local dropped = dropKeyEverywhere("hidden")
-        if dropped > 0 then
-            NS.Debug("Migrate", "dropped `hidden` from %s profile(s)", dropped)
+    for _, step in ipairs(SCHEMA_STEPS) do
+        if g.schemaVersion < step.to then
+            step.apply(profile)
+            NS.Debug("Migrate", "v%s \226\134\146 v%s", g.schemaVersion, step.to)
+            g.schemaVersion = step.to
         end
-        NS.Debug("Migrate", "v%s \226\134\146 v4", g.schemaVersion)
-        g.schemaVersion = 4
     end
 end
