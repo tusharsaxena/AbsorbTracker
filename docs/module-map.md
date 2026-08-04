@@ -233,9 +233,11 @@ NS:RunMigrations()  -- reads/writes db.global.schemaVersion. Idempotent. The v3 
                     -- NOT on profile.units == nil -- see core/Database.lua's comment) and runs
                     -- over the active profile AND every profile in db.sv.profiles; it lifts the
                     -- pre-v3 flat appearance keys onto profile.units.player. The unconditional
-                    -- backfill step then fills any missing flat OR per-unit key from
-                    -- NS.defaults.profile; v2 drops the dead profile.updateInterval key
-                    -- (repaints are event-driven now).
+                    -- backfill step (backfillFlatKeys + backfillUnitKeys) then fills any missing
+                    -- flat OR per-unit key from NS.defaults.profile; then the loop walks the
+                    -- file-local SCHEMA_STEPS ladder -- v2 drops the dead profile.updateInterval
+                    -- key (repaints are event-driven now), v3 is stamp-only, v4 drops `hidden`.
+                    -- A new version is ONE new SCHEMA_STEPS row, not another `if` arm.
 NS.MigrateProfileToV3(profile)
                     -- The per-profile lift itself. Public so NS.OnProfileChanged can re-run it
                     -- for a profile copied/restored in after InitDB's sweep. Returns false
@@ -558,7 +560,7 @@ NS.Slash:OnSlash(msg)  -- hands the line to the library dispatcher; unknown verb
 NS.Slash:Register()    -- NS.addon:RegisterChatCommand("at", ...) + ("absorbtracker", ...)
 ```
 
-`/at list` groups Bar/Border/Font rows once per unit (`[bar / player]`, `[bar / target]`, `[bar / focus]`, etc. — `PER_UNIT_PAGES` in `settings/Slash.lua`); General has no per-unit rows. `/at reset <path>` resets ONE setting; there is no page-shaped form (a page is reset by its own Defaults button, `NS.Helpers.RestoreDefaults`). `/at resetposition` clears all three units' saved positions. No `SLASH_*` globals, no `SlashCmdList`. `/at options` is a back-compat alias for `/at config`. Profile subcommands are handled inline in `runProfile`. The mirror note is handed to the library as a row annotator, so it is appended on `list` / `get` / `set` and never on a reset. With the vendored library absent a stub keeps the host verbs working and each schema verb names the missing library instead of going quiet. Detail in [profiles.md](./profiles.md).
+`/at list` groups Bar/Border/Font rows once per unit (`[bar / player]`, `[bar / target]`, `[bar / focus]`, etc. — `PER_UNIT_PAGES` in `settings/Slash.lua`); General has no per-unit rows. `/at reset <path>` resets ONE setting; there is no page-shaped form (a page is reset by its own Defaults button, `NS.Helpers.RestoreDefaults`). `/at resetposition` clears all three units' saved positions. No `SLASH_*` globals, no `SlashCmdList`. `/at options` is a back-compat alias for `/at config`. Profile subcommands dispatch through the file-local `PROFILE_VERBS` table in `settings/Slash.lua`, built once at load and keyed by the lowercased sub-verb; `runProfile` lowercases the verb, looks it up and calls `handler(db, subarg)`. A new sub-verb is one entry in that table plus one row in the `PROFILE_HELP` table above it (which fixes the order the help prints); the four name-taking verbs wrap their handler in `needsName(verb, fn)`, the shared `Usage: /at profile <verb> <name>` guard. The mirror note is handed to the library as a row annotator, so it is appended on `list` / `get` / `set` and never on a reset. With the vendored library absent a stub keeps the host verbs working and each schema verb names the missing library instead of going quiet. Detail in [profiles.md](./profiles.md).
 
 ### Options (`settings/OptionsSetup.lua` + `settings/UnitPanel.lua`)
 

@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 [![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)](https://github.com/tusharsaxena/WowAddonStandards)
-![Tests](https://img.shields.io/badge/Tests-469%2F469_passing-green)
+![Tests](https://img.shields.io/badge/Tests-470%2F470_passing-green)
 
 ![Logo](https://media.forgecdn.net/attachments/1659/653/absorbracker-logo-v2-jpg.jpg)
 
@@ -140,7 +140,7 @@ or focus and its bar disappears until you have one again.
 
 ## Credits and libraries
 
-Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.6.3 (MIT) — the shared Ka0s
+Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.7.0 (MIT) — the shared Ka0s
 library behind the chat printer, the debug console, the slash dispatcher and schema CLI, the
 settings panel toolkit and the perf harness. It ships in `libs/LibKa0s/`, license included.
 Ace3, LibStub, CallbackHandler-1.0 and LibSharedMedia-3.0 are bundled in `libs/` as well, each

@@ -60,7 +60,7 @@ The **migration call leads the chain on purpose.** A profile that only appears *
 
 ## `/at profile` subcommands
 
-Handled by `runProfile` in `settings/Slash.lua` (registered via AceConsole as part of the ordered `NS.COMMANDS` table — no `SLASH_*` globals). Bare `/at profile` prints the subcommand list.
+Handled by `runProfile` in `settings/Slash.lua` (registered via AceConsole as part of the ordered `NS.COMMANDS` table — no `SLASH_*` globals). Bare `/at profile` prints the subcommand list, which is the file-local `PROFILE_HELP` table in the order it is written.
 
 | Verb | Effect |
 |------|--------|
@@ -72,7 +72,7 @@ Handled by `runProfile` in `settings/Slash.lua` (registered via AceConsole as pa
 | `/at profile delete <name>` | `db:DeleteProfile(name, true)`. Refuses if `<name>` is the active profile. |
 | `/at profile reset` | Reset the active profile to defaults (`db:ResetProfile()`). Fires `OnProfileReset`. |
 
-The whole subcommand delegates to AceDB's `SetProfile / CopyProfile / DeleteProfile / ResetProfile / GetProfiles / GetCurrentProfile`. `runProfile` first checks `if not db or not db.SetProfile` and prints `Profile system requires AceDB-3.0` when that method is absent (the fallback path). An unrecognized subcommand prints `Unknown profile subcommand '<sub>'` then re-prints the list.
+The whole subcommand delegates to AceDB's `SetProfile / CopyProfile / DeleteProfile / ResetProfile / GetProfiles / GetCurrentProfile`. `runProfile` first checks `if not db or not db.SetProfile` and prints `Profile system requires AceDB-3.0` when that method is absent (the fallback path), then dispatches through the file-local `PROFILE_VERBS` table — built once at load, keyed by the lowercased sub-verb, each value a `function(db, name)`. **Only the verb is lowercased**; the argument keeps its case, because AceDB profile names are case-sensitive. The four name-taking verbs (`use`, `new`, `copy`, `delete`) are wrapped in `needsName(verb, fn)`, which prints that verb's own `Usage:` line and does nothing when the name is empty — so the guard exists once, not four times. An unrecognized subcommand prints `Unknown profile subcommand '<sub>'` then re-prints the list. Adding a sub-verb is one `PROFILE_VERBS` entry plus one `PROFILE_HELP` row.
 
 The Profiles sub-page (`settings/Profiles.lua`) wraps `AceDBOptions:GetOptionsTable(NS.db)` and renders it into a canvas panel via `AceConfigDialog:Open`, presenting the same create / switch / copy / reset / delete operations plus the scope dropdowns as a UI.
 
@@ -100,7 +100,7 @@ The shim isn't exercised in-game (AceDB ships in-tree), but the migration/backfi
 
 1. **Lift every profile to v3** (`migrateAllProfiles` → `NS.MigrateProfileToV3`). Logs one `[Migrate] lifted N profile(s) to v3` line, and only when a flat key was actually moved — a factory-fresh profile is unstamped and so passes the gate and gets stamped, but has nothing to lift, so a fresh install logs nothing.
 2. **Backfill** any key still missing from the active profile — flat globals at the root, and every unit's keys under `units.<unit>` — from the defaults, deep-copying table values so a saved-variable mutation can never reach back into `NS.defaults`.
-3. **Stamp** the account-wide version: the v2 step (retiring the dead `profile.updateInterval` key, orphaned when the poll ticker became event-driven), the v3 stamp, then the v4 step (dropping the dead `hidden` master toggle from every profile in the store, replaced by the per-unit `enabled` flags) landing on `global.schemaVersion = 4`. Each step logs one `[Migrate]` debug line only when the bump actually happens.
+3. **Walk the account-wide ladder** — the file-local `SCHEMA_STEPS` array in `core/Database.lua`, an ordered list of `{ to = N, apply = fn }` rows the loop climbs one version at a time: the v2 step (retiring the dead `profile.updateInterval` key, orphaned when the poll ticker became event-driven), the stamp-only v3 step, then the v4 step (dropping the dead `hidden` master toggle from every profile in the store, replaced by the per-unit `enabled` flags), landing on `global.schemaVersion = 4`. Each step logs one `[Migrate]` debug line only when the bump actually happens, and the step's own output lands before its version line. **A new schema version is one new row in `SCHEMA_STEPS`.**
 
 It is a safe no-op when the DB is absent (no `db.global` to touch).
 

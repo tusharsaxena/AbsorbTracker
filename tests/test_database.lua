@@ -84,6 +84,39 @@ test("RunMigrations logs [Migrate] only when a version bump happens", function()
   NS.State.debug = false
 end)
 
+-- Characterization: the ORDER of the [Migrate] lines across a full v1 -> v4 upgrade, not just
+-- their presence. A step's own message must precede its own "vX -> vY" stamp, and the ladder must
+-- climb one version at a time -- so the v4 `hidden` sweep is reported before "v3 -> v4", never
+-- after it and never folded into a single v1 -> v4 jump.
+test("RunMigrations emits the [Migrate] lines for a v1->v4 upgrade in order", function()
+  local savedSV, savedDB, savedDebug = _G.AbsorbTrackerDB, NS.db, NS.State.debug
+  _G.AbsorbTrackerDB = {
+    profiles = { Default = { updateInterval = 1.0, hidden = true } },
+    global   = { schemaVersion = 1 },
+  }
+  NS.State.debug = true
+  local before = #NS.DebugLog.buffer
+  NS:InitDB()
+  local lines = {}
+  for i = before + 1, #NS.DebugLog.buffer do
+    lines[#lines + 1] = NS.DebugLog.buffer[i]
+  end
+  NS.db, _G.AbsorbTrackerDB, NS.State.debug = savedDB, savedSV, savedDebug
+
+  local expected = {
+    "v1 \226\134\146 v2",
+    "v2 \226\134\146 v3",
+    "dropped `hidden` from 1 profile(s)",
+    "v3 \226\134\146 v4",
+  }
+  local logged = table.concat(lines, "\n")
+  assertEqual(#lines, #expected, "exactly four [Migrate] lines: " .. logged)
+  for i, want in ipairs(expected) do
+    assertTrue(lines[i]:find(want, 1, true) ~= nil,
+      ("line %d must be %q, got %q"):format(i, want, lines[i]))
+  end
+end)
+
 test("InitDB produced a profile carrying every default key", function()
   for k in pairs(NS.flatDefaults) do
     -- `position` defaults to nil, so it is legitimately absent.
