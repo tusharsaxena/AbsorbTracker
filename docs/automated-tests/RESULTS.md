@@ -8,4 +8,15 @@ the analysis of a given run is its `ANALYSIS.md`.
 
 | Run | Version | Lint w/e | Tests | Perf | CCN warn | Max CCN | Verdict |
 |---|---|---|---|---|---|---|---|
-| [`2026-08-04-102000`](2026-08-04-102000/) | 1.9.0 | 0/0 | 469/469 | pass | 2 | 21 | **green** |
+| [`20260804-114658`](20260804-114658/) | 1.9.0 | 0/0 | 469/469 | pass | 2 | 21 | **green** |
+
+## Complexity watch list
+
+Current state as of [`20260804-114658`](20260804-114658/) — not that run's diff.
+Every function `lizard` warned on and every file in `layout-§1`'s 1000–1500 on-notice band,
+each with a one-line disposition.
+
+| `runProfile` | 21 | `settings/Slash.lua` | **Peel next — already tracked.** The 2026-08-03 review's change **C-1** rewrites exactly this function. |
+| `NS:RunMigrations` | 19 | `core/Database.lua` | **Accepted.** A schema-migration ladder: one rung per shipped version, run once at load. |
+
+**Files in the 1000–1500 band:** `tests/test_slashcmds.lua` (1256) — accepted; a flat list of independent cases, avg CCN 1.2. Peel at 1400.
