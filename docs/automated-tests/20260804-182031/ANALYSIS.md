@@ -52,10 +52,18 @@ the first one that can say something moved, and this record is what it will be r
 
 ## Complexity watch list
 
-| `runProfile` | 21 | `settings/Slash.lua` | **Peel next — already tracked.** The 2026-08-03 review's change **C-1** rewrites exactly this function. |
-| `NS:RunMigrations` | 19 | `core/Database.lua` | **Accepted.** A schema-migration ladder: one rung per shipped version, run once at load. |
+### Functions `lizard` warned on
 
-**Files in the 1000–1500 band:** `tests/test_slashcmds.lua` (1256) — accepted; a flat list of independent cases, avg CCN 1.2. Peel at 1400.
+| Function | CCN | Location | Disposition |
+|---|---|---|---|
+| `runProfile` | 21 | `settings/Slash.lua` | **Peel next — already tracked.** The 2026-08-03 review's change **C-1** rewrites exactly this function; the CCN is expected to fall when it lands. |
+| `NS:RunMigrations` | 19 | `core/Database.lua` | **Accepted.** A schema-migration ladder — one rung per shipped version, run once at load. The branch count *is* the migration count. |
+
+### Files by `layout-§1` band
+
+| Band | File | LOC | Disposition |
+|---|---|---|---|
+| 1000–1500 (on notice) | `tests/test_slashcmds.lua` | 1256 | **Accepted.** The only file in the band; a flat list of independent cases, avg CCN 1.2 — length is case count, not tangle. Peel by verb group if it crosses 1400. |
 
 ## Actions
 
