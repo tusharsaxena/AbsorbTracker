@@ -49,7 +49,17 @@ NS.RegisterSchemaRows({
         default = flatDefaults.showOnlyInCombat,
         onChange = function()
             NS.bus:SendMessage(NS.MSG.VISIBILITY)
-            if NS.ShouldShowBar() then NS.bus:SendMessage(NS.MSG.REPAINT) end
+            -- Evaluated per enabled unit, not once for the player. NS.ShouldShowBar defaults its
+            -- argument to "player" and returns false as soon as the PLAYER bar is disabled
+            -- (modules/Display.lua), so a bare NS.ShouldShowBar() answered a question about one
+            -- bar and gated all three: with only the target bar on, toggling this setting
+            -- published VISIBILITY — the bar appeared — and then skipped the repaint that fills
+            -- it, leaving whatever it last painted on screen until the next absorb event.
+            local anyVisible = false
+            NS.ForEachUnit(function(unit)
+                if NS.ShouldShowBar(unit) then anyVisible = true end
+            end)
+            if anyVisible then NS.bus:SendMessage(NS.MSG.REPAINT) end
         end,
     },
     {
@@ -144,10 +154,17 @@ StaticPopupDialogs["ABSORBTRACKER_RESET_ALL"] = {
     whileDead    = true,
     hideOnEscape = true,
     OnAccept     = function()
+        -- The acknowledgment lives INSIDE the guard, for the reason settings/Slash.lua's
+        -- runResetAll spells out: on a load where settings/OptionsSetup.lua never ran there is
+        -- nothing to delegate to, and printing the ack anyway claims success for work that did not
+        -- happen. Same two branches as the slash verb; the wording keeps this popup's trailing
+        -- period, which docs/smoke-tests.md step 20 checks for.
         if NS.Helpers and NS.Helpers.RestoreAllDefaults then
             NS.Helpers.RestoreAllDefaults()
+            print("All settings reset to defaults.")
+        else
+            print("Cannot reset settings \226\128\148 the settings helpers failed to load.")
         end
-        print("All settings reset to defaults.")
     end,
 }
 

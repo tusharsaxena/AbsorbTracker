@@ -75,7 +75,15 @@ NS.defaults.global = {
     -- Persisted-DB schema version. NS:RunMigrations (core/Database.lua) reads/writes this once
     -- at init — the idempotent seam future schema changes hook into. v3 introduced profile.units;
     -- v4 dropped the dead `hidden` global.
-    schemaVersion = 4,
+    --
+    -- The default is 1 ("pre-ladder"), NOT the current 4, for exactly the reason the per-profile
+    -- stamp above is 1: AceDB-3.0's copyDefaults fills every ABSENT key the moment the section is
+    -- instantiated, which happens BEFORE NS:RunMigrations reads it. A default of 4 stamped every
+    -- freshly-materialized global as already-migrated, so `g.schemaVersion < step.to` was false
+    -- for every step and the ladder was structurally dead — including for a DB whose global was
+    -- wiped while its profiles still carried pre-v4 data. Every step is idempotent, so running the
+    -- ladder on a genuinely new install costs three no-ops and stamps 4.
+    schemaVersion = 1,
 }
 
 -- Flat alias for the no-AceDB fallback path: GetSetting reads this when NS.db is absent. It now

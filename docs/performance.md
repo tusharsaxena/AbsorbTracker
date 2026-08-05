@@ -249,19 +249,24 @@ paintBar           1869      98.10      1.575     0.920
 (buckets nest: paintBar declares itself within repaintPass — not observed, visibility observed inside appearance — do not sum)
 ```
 
-**`delta` is the headline.** It is the per-frame cost of having the addon active, measured with
-everything else held constant.
+**The bucket figures are the headline** (`performance-§7`). They time this addon's own code
+directly, so they are what the capture actually resolves. `ms/s` divided by the frame rate gives the
+Lua cost per frame: in the example above the buckets account for roughly 2.0 ms/s ≈ **0.026
+ms/frame** at 77 fps. That is the addon's cost.
 
-Then compare it against the bucket totals. `ms/s` divided by the frame rate gives the Lua cost per
-frame. In the example above the buckets account for roughly 2.0 ms/s ≈ **0.026 ms/frame** at 77 fps,
-against a measured delta of **2.74 ms/frame**. That gap — two orders of magnitude — is the finding:
-the cost is not in our Lua, it is on the other side of the API calls our Lua makes.
+**`delta` is the frame you read them in, not the answer.** It is a difference of two noisy
+aggregates, and this harness's run-to-run spread is roughly ±0.3 ms/frame on a 60–80 s arm (see the
+caveats below — one of four captures came back negative). Below that spread the delta is
+**unresolved**, and "unresolved" is the honest word: not zero, not free, not a pass. The example's
+**+2.74 ms/frame** is comfortably above the spread, so it is a real difference — and the two orders
+of magnitude between it and the 0.026 ms/frame the buckets account for is the finding: whatever that
+cost is, it is not in our Lua. It is on the other side of the API calls our Lua makes, or it is the
+environment.
 
-If instead the buckets roughly *equal* the delta, the cost is ours and the bucket breakdown says
-which function to look at.
-
-Both readings are useful. A near-zero delta is also a result: it means the sluggishness is not this
-addon's, and the investigation should move elsewhere.
+If instead the buckets roughly *equal* a resolved delta, the cost is ours and the bucket breakdown
+says which function to look at. And a delta inside the spread — including a near-zero or negative one
+— resolves nothing on its own: read the buckets, and if they are small too, the sluggishness is not
+this addon's and the investigation should move elsewhere.
 
 ### Caveats
 

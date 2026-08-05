@@ -61,9 +61,10 @@ badge and any count quoted in the docs must agree with it.
 - FormatSchemaValue resolves the Slash major at load, never per call
 - a build without LibKa0s-Slash-1.0 falls back to a minimal FormatSchemaValue
 
-### test_database.lua (28)
+### test_database.lua (29)
 
 - RunMigrations migrates a fresh DB to the current version (4)
+- a freshly-materialized global runs the ladder, because its default is pre-ladder
 - RunMigrations leaves an already-current (v4) DB unchanged
 - RunMigrations is idempotent across repeated runs
 - RunMigrations v2 retires the legacy updateInterval profile key
@@ -477,7 +478,7 @@ badge and any count quoted in the docs must agree with it.
 - parity: an unknown verb reaches no handler and prints the same shape in both
 - parity: a bare /at reaches no handler and prints help in both
 
-### test_widgets.lua (48)
+### test_widgets.lua (50)
 
 - NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
 - a bool row renders a CheckBox labeled from the schema
@@ -516,6 +517,8 @@ badge and any count quoted in the docs must agree with it.
 - an afterGroup callback fires exactly once, after its group's last row
 - each enable toggle leads its row, paired with a global on the right
 - every tracked unit gets an enable toggle on the General page
+- showOnlyInCombat repaints for a target-only setup, not just for the player
+- the Reset All popup does not claim success when the settings helpers are absent
 - a pairWith partner is attached to the named row and is one-shot
 - RenderSchema runs a layout pass at the end
 - EnsureScroll is lazy, created once, and patched for an always-visible scrollbar
@@ -562,7 +565,7 @@ badge and any count quoted in the docs must agree with it.
 |-------|------:|
 | test_loadorder.lua | 11 |
 | test_schema.lua | 38 |
-| test_database.lua | 28 |
+| test_database.lua | 29 |
 | test_units.lua | 14 |
 | test_compat.lua | 4 |
 | test_coresetup.lua | 4 |
@@ -577,9 +580,9 @@ badge and any count quoted in the docs must agree with it.
 | test_helpers.lua | 49 |
 | test_optionssetup.lua | 4 |
 | test_slashcmds.lua | 111 |
-| test_widgets.lua | 48 |
+| test_widgets.lua | 50 |
 | test_docs.lua | 2 |
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
-| **Total** | **484** |
+| **Total** | **487** |
