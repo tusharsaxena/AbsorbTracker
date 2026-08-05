@@ -6,7 +6,7 @@ badge and any count quoted in the docs must agree with it.
 
 **Generated — do not hand-edit.** Regenerate with `lua tests/run.lua --list > docs/test-cases.md`.
 
-### test_loadorder.lua (10)
+### test_loadorder.lua (11)
 
 - loadorder: tocFiles returns every addon lua file, in TOC order
 - loadorder: tocFiles skips libs, directives and comments
@@ -14,7 +14,8 @@ badge and any count quoted in the docs must agree with it.
 - loadorder: every derived path exists on disk
 - loadorder: the runner loaded exactly the TOC's files, in the TOC's order
 - loadorder: tests/perf.lua derives its list from the TOC too
-- loadorder: both runners load every LibKa0s file the vendored XML lists, in its order
+- loadorder: xmlFiles returns every LibKa0s script the vendored XML lists, in its order
+- loadorder: both runners derive the library half from the vendored XML
 - loadorder: LibStub raises for a missing major without the silent flag
 - loadorder: LibStub returns nil for a missing major with the silent flag
 - loadorder: LibStub keeps the higher minor when a major registers twice
@@ -543,7 +544,7 @@ badge and any count quoted in the docs must agree with it.
 
 | Suite | Cases |
 |-------|------:|
-| test_loadorder.lua | 10 |
+| test_loadorder.lua | 11 |
 | test_schema.lua | 38 |
 | test_database.lua | 28 |
 | test_units.lua | 14 |
@@ -564,4 +565,4 @@ badge and any count quoted in the docs must agree with it.
 | test_docs.lua | 2 |
 | test_ltrap.lua | 8 |
 | test_vendor_sync.lua | 2 |
-| **Total** | **470** |
+| **Total** | **471** |

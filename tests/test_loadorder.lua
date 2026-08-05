@@ -79,12 +79,12 @@ test("loadorder: tests/perf.lua derives its list from the TOC too", function()
     "tests/perf.lua must derive its load list from the TOC, not carry a copy")
 end)
 
-test("loadorder: both runners load every LibKa0s file the vendored XML lists, in its order", function()
+test("loadorder: xmlFiles returns every LibKa0s script the vendored XML lists, in its order", function()
   -- The library half of each runner's list CANNOT be derived from the TOC: the TOC reaches it
-  -- through libs\LibKa0s\LibKa0s.xml, which Loader.tocFiles deliberately skips. So it is hand
-  -- maintained, and it has already rotted once — omitting Core.lua raises nothing at all, because
-  -- Perf simply refuses to register, NS.Perf falls back to its degradation stub, and tests/perf.lua
-  -- goes on reporting a probeOverhead figure measured on a stub with no probe in it.
+  -- through libs\LibKa0s\LibKa0s.xml, which Loader.tocFiles deliberately skips. It used to be hand
+  -- maintained in both runners, and it had already rotted once — omitting Core.lua raises nothing at
+  -- all, because Perf simply refuses to register, NS.Perf falls back to its degradation stub, and
+  -- tests/perf.lua goes on reporting a probeOverhead figure measured on a stub with no probe in it.
   local raw = readFile("libs/LibKa0s/LibKa0s.xml")
   local want = {}
   for f in raw:gmatch('<Script%s+file="([^"]+)"%s*/>') do
@@ -92,15 +92,22 @@ test("loadorder: both runners load every LibKa0s file the vendored XML lists, in
   end
   assertTrue(#want > 0, "the vendored LibKa0s.xml lists at least one script")
 
+  local got = Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml")
+  assertEqual(table.concat(got, "\n"), table.concat(want, "\n"),
+    "Loader.xmlFiles must return the XML's scripts, directory-prefixed, in the XML's order")
+end)
+
+test("loadorder: both runners derive the library half from the vendored XML", function()
+  -- Pins that neither runner has gone back to a hand-typed list. Asserted by reading the source,
+  -- because tests/perf.lua is a separate process this suite deliberately does not run, and a
+  -- runner's literal list is exactly the failure mode that goes unnoticed.
   for _, runner in ipairs({ "tests/run.lua", "tests/perf.lua" }) do
     local src = readFile(runner)
-    local at = 0
-    for _, p in ipairs(want) do
-      local pos = src:find(p, at + 1, true)
-      assertTrue(pos ~= nil, runner .. " does not load " .. p ..
-        " in LibKa0s.xml's order — a missing library file degrades silently rather than failing")
-      at = pos or at
-    end
+    assertTrue(src:find('Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml")', 1, true) ~= nil,
+      runner .. " must derive its library load list with " ..
+      'Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml"), not carry a copy of it')
+    assertTrue(src:find('"libs/LibKa0s/Core.lua"', 1, true) == nil,
+      runner .. " still names a libs/LibKa0s/*.lua file literally — the copy is what rots")
   end
 end)
 
