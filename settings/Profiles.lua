@@ -43,21 +43,26 @@ local function build(mainCategory)
         defaultsButton = false,
     })
 
-    -- AceGUI SimpleGroup parented to our body. AceConfigDialog:Open
-    -- accepts any AceGUI container as the rendering target; we point
-    -- it at this group so the AceDBOptions widgets land inside our
-    -- canvas frame instead of opening their own window.
-    local container = AceGUI:Create("SimpleGroup")
-    container:SetLayout("Fill")
-    container.frame:SetParent(ctx.body)
-    container.frame:ClearAllPoints()
-    container.frame:SetPoint("TOPLEFT",     ctx.body, "TOPLEFT",      8, -8)
-    container.frame:SetPoint("BOTTOMRIGHT", ctx.body, "BOTTOMRIGHT", -8, 8)
+    -- The AceGUI SimpleGroup that hosts the rendered options tree.
+    -- AceConfigDialog:Open accepts any AceGUI container as its target;
+    -- we point it at this group so the AceDBOptions widgets land inside
+    -- our canvas frame instead of opening their own window. The group is
+    -- created on first OnShow, never in the builder — options-ui-§5 wants
+    -- no canvas widget built before the page is first opened.
+    local container
 
     -- Open lazily on first show. Re-Open()ing on every show is cheap
     -- (AceConfigDialog reuses the existing widget tree if one exists)
     -- and ensures the UI reflects the current profile after a switch.
     ctx.panel:SetScript("OnShow", function()
+        if not container then
+            container = AceGUI:Create("SimpleGroup")
+            container:SetLayout("Fill")
+            container.frame:SetParent(ctx.body)
+            container.frame:ClearAllPoints()
+            container.frame:SetPoint("TOPLEFT",     ctx.body, "TOPLEFT",      8, -8)
+            container.frame:SetPoint("BOTTOMRIGHT", ctx.body, "BOTTOMRIGHT", -8, 8)
+        end
         AceConfigDialog:Open(APPNAME, container)
     end)
 
