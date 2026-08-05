@@ -393,6 +393,32 @@ test("/at test keeps the bar scale usable for a value below the 100k floor", fun
   NS.testHoldUntil = nil
 end)
 
+-- The announced duration is a promise: "for 7 s" has to be a scheduled expiry, not a timestamp
+-- nobody revisits. Before this, the fake value sat on the bar past the window until the next
+-- absorb event or an explicit /at update (preview-mode).
+test("/at test schedules the expiry it just announced", function()
+  NS.db.profile.units.player.enabled = true
+  local before = #T.mocks.__timers
+  local out = slash("test 12345 7")
+  local armed = T.mocks.__timers[#T.mocks.__timers]
+  assertTrue(contains(out, "for 7 s"), joined(out))
+  assertEqual(#T.mocks.__timers, before + 1, "the announced window must be armed")
+  assertEqual(armed.delay, 7, "the timer fires at the end of the window the user was told about")
+  NS.ClearPreview()
+end)
+
+test("re-locking the bars clears a live /at test preview", function()
+  NS.db.profile.units.player.enabled = true
+  local wasLocked = NS.GetSetting("locked")
+  slash("unlock")
+  slash("test 12345 30")
+  assertTrue((NS.testHoldUntil or 0) > T.mocks.GetTime(), "the hold is live before the re-lock")
+  slash("lock")
+  assertEqual(NS.testHoldUntil, nil, "re-locking returns the bars to live data (preview-mode)")
+  NS.SetByPath("locked", wasLocked)
+  NS.ClearPreview()
+end)
+
 -- ── /at profile ────────────────────────────────────────────────────────────────────
 
 -- Leave the DB on the Default profile whatever a test did.

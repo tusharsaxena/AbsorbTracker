@@ -50,10 +50,10 @@ that covers the pure logic; this suite covers everything that only runs against 
 27. `/at reset units.player.barWidth` → that one setting reverts + repaints, and its neighbors do not; `/at reset bar` → `Setting not found: bar` (the page-shaped form is gone).
 28. `/at resetall` → all pages revert **and** bar returns to center (position cleared) — same shared `RestoreAllDefaults` helper as the Reset All popup (step 20), so slash and button can never diverge.
 29. `/at resetposition` → bar snaps to center; other settings unchanged.
-30. `/at lock` / `/at unlock` → locks/unlocks dragging; dragged position persists across `/reload`.
+30. `/at lock` / `/at unlock` → locks/unlocks dragging; dragged position persists across `/reload`. **Preview fill (preview-mode):** out of combat with no shield up, `/at unlock` → each bar shows a partial placeholder fill (not full, not empty) plus its unit label, so there is something to grab; `/at lock` → the placeholder is gone and the bar is back on live data.
 31. `/at toggle` → turns **every** bar off (if any was on), then a second call turns all three on. `/at toggle target` flips only the target bar and leaves the others alone; `/at toggle wibble` → `unknown unit 'wibble'` and nothing changes.
 32. `/at update` → `Forced refresh`; repaints from live absorb.
-33. `/at test` → shows `50K` for 5s then reverts; `/at test 250000 3` → `250K` for 3s.
+33. `/at test` → shows `50K` for 5s then reverts **on its own, with no `/at update` and no absorb event needed** — the announced duration is a scheduled expiry; `/at test 250000 3` → `250K` for 3s, same self-clearing. Then `/at test 250000 60` followed by `/at lock` → the fake value clears immediately, because re-locking ends the preview.
 34. `/at test` with every bar disabled → `Every bar is disabled; run /at toggle to turn them on…`; no hold window is armed.
 
 ### G. Profiles — switch repaints the bar

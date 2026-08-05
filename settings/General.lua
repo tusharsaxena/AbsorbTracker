@@ -61,6 +61,19 @@ NS.RegisterSchemaRows({
         label   = "Lock Position",
         desc    = "When locked, the bar can't be dragged.",
         default = flatDefaults.locked,
+        onChange = function()
+            -- Both directions of the lock end preview mode (preview-mode): re-locking drops any
+            -- live `/at test` hold so the bar returns to live data instead of keeping the fake
+            -- value, and unlocking drops it too so what the user drags is the placeholder fill.
+            -- The APPEARANCE pass is what paints, or stops painting, that placeholder.
+            --
+            -- Wired here rather than in the lock/unlock verbs because this is the single seam every
+            -- writer goes through — the checkbox, `/at lock`, `/at unlock`, `/at set locked` and
+            -- the Defaults button all land in NS.SetByPath, which fires this.
+            NS.ClearPreview()
+            NS.bus:SendMessage(NS.MSG.APPEARANCE)
+            NS.bus:SendMessage(NS.MSG.REPAINT)
+        end,
     },
     {
         path    = "throttleWindow",

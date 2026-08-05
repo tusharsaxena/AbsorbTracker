@@ -23,6 +23,74 @@ local STACK_GAP = 8
 -- the three bars even when one of them is styled with 24pt value text.
 local LABEL_FONT_SIZE = 10
 
+-- ── preview mode (preview-mode) ─────────────────────────────────────────────────────────────
+--
+-- Two things count as a preview here: the timed `/at test` fill, and the unlocked state in which
+-- the user is dragging the bars into place.
+--
+-- PLACEHOLDER_FRACTION is how full an unlocked bar reads when nothing live has painted over it.
+-- Deliberately not 1.0: a full bar is indistinguishable from a real full-strength absorb, and the
+-- placeholder must never be mistaken for data. The scale it paints against is 0..1 rather than the
+-- unit's max health, so the fraction IS the fill and no health read is needed.
+local PLACEHOLDER_FRACTION = 0.6
+local PLACEHOLDER_TEXT     = "Absorb"
+
+-- The armed `/at test` expiry timer, or nil. The hold used to be a bare future timestamp that
+-- nothing ever revisited: `/at test 5` announced five seconds, and the fake value then sat on the
+-- bar until the next absorb event or an explicit `/at update`. preview-mode requires the announced
+-- duration to be honored, so the hold now arms a one-shot that clears it and repaints.
+local previewTimer
+
+--- Paint the unlocked placeholder fill on one bar. Returns true when it painted.
+---
+--- Not folded into UpdateAbsorbBar on purpose: choosing between "live value" and "placeholder"
+--- there would mean asking whether the absorb is zero, and UnitGetTotalAbsorbs returns a secret in
+--- restricted content — comparing it raises. See ShouldShowBar's note and docs/scope.md. The
+--- placeholder is therefore painted by the appearance pass, and any live repaint wins over it,
+--- which is the honest ordering.
+function NS.PaintPlaceholder(unit)
+    unit = unit or "player"
+    local bar = NS.bars[unit]
+    if not bar then return false end
+    bar:SetAlpha(1)
+    bar.statusBar:SetMinMaxValues(0, 1)
+    bar.statusBar:SetValue(PLACEHOLDER_FRACTION)
+    bar.valueText:SetText(PLACEHOLDER_TEXT)
+    return true
+end
+
+--- End any `/at test` hold immediately, canceling its expiry timer. Returns true when a hold was
+--- actually live, so a caller can tell "cleared something" from "nothing to clear".
+---
+--- The single seam: the expiry timer, a second `/at test`, and the `locked` toggle's onChange all
+--- come through here, so re-locking can never leave a stale preview on screen. Publishing the
+--- repaint is the CALLER's job — the lock path already sends one, and a double repaint would be
+--- one wasted pass.
+function NS.ClearPreview()
+    local held = (NS.testHoldUntil or 0) > GetTime()
+    NS.testHoldUntil = nil
+    if previewTimer then
+        if NS.addon and NS.addon.CancelTimer then NS.addon:CancelTimer(previewTimer) end
+        previewTimer = nil
+    end
+    return held
+end
+
+--- Hold the currently-painted fake value for `seconds`, then clear it and repaint. Returns the
+--- absolute expiry time, which is what the tests and `/at test` read back.
+function NS.HoldPreview(seconds)
+    NS.ClearPreview()                       -- a second /at test replaces the first hold, never stacks
+    NS.testHoldUntil = GetTime() + seconds
+    if NS.addon and NS.addon.ScheduleTimer then
+        previewTimer = NS.addon:ScheduleTimer(function()
+            previewTimer = nil
+            NS.ClearPreview()
+            if NS.bus then NS.bus:SendMessage(NS.MSG.REPAINT) end
+        end, seconds)
+    end
+    return NS.testHoldUntil
+end
+
 --- Run `fn(unit)` for every tracked unit, in NS.Units.LIST order. The bus handlers drive all
 --- three bars through this, which is what keeps the bus messages payload-free.
 function NS.ForEachUnit(fn)
@@ -109,6 +177,12 @@ function NS.UpdateBarAppearance(unit)
     unitLabel:SetFont(NS.GetFont(unit), LABEL_FONT_SIZE, "OUTLINE")
     unitLabel:SetText(NS.Units.LABEL[unit] or unit)
     if locked then unitLabel:Hide() else unitLabel:Show() end
+
+    -- Unlocked means "being positioned", and out of combat the bar the user is trying to grab is
+    -- usually empty — a transparent strip with no text. Paint the placeholder fill so there is
+    -- something to see and drag (preview-mode). Re-locking runs this same pass with `locked` true
+    -- and does not repaint the placeholder, and the REPAINT the lock publishes restores live data.
+    if not locked then NS.PaintPlaceholder(unit) end
 
     NS.ApplyVisibility(unit)
     -- Closed AFTER ApplyVisibility on purpose: the appearance bucket is meant to answer "what does

@@ -288,7 +288,11 @@ function runTest(rest)
             bar.statusBar:SetValue(n)
         end
     end
-    NS.testHoldUntil = GetTime() + hold
+    -- Honors the duration just announced: NS.HoldPreview arms a one-shot that clears the hold and
+    -- republishes REPAINT at expiry (modules/Display.lua). Setting a bare NS.testHoldUntil, which
+    -- is what this used to do, left the fake value on the bar past the announced window until the
+    -- next absorb event happened to arrive.
+    NS.HoldPreview(hold)
 end
 
 -- ---------------------------------------------------------------------

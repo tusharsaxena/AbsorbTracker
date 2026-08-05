@@ -257,7 +257,7 @@ badge and any count quoted in the docs must agree with it.
 - three bar frames exist and the player alias points at the player frame
 - each bar carries its own unit tag and its own backdrop table
 
-### test_display.lua (39)
+### test_display.lua (44)
 
 - RestoreBarPosition centers the bar when no position is saved
 - RestoreBarPosition restores the saved anchor verbatim
@@ -273,6 +273,11 @@ badge and any count quoted in the docs must agree with it.
 - every bar owns a unit label
 - unlocking shows a label naming the unit
 - locking hides the unit label
+- an unlocked bar paints a placeholder fill against a 0..1 scale
+- a locked bar paints no placeholder
+- HoldPreview arms an expiry timer for exactly the announced duration
+- the expiry timer clears the hold and republishes REPAINT
+- ClearPreview reports whether a hold was actually live
 - the unit label follows the unit's own font face
 - UpdateBarAppearance re-applies the font from the profile
 - UpdateBarAppearance tolerates a nil fontFlags by passing an empty flag string
@@ -358,7 +363,7 @@ badge and any count quoted in the docs must agree with it.
 - the degraded stub keeps no private copy of the library's layout constants
 - PARENT_TITLE reaches the library through the descriptor, not the namespace
 
-### test_slashcmds.lua (109)
+### test_slashcmds.lua (111)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -390,6 +395,8 @@ badge and any count quoted in the docs must agree with it.
 - /at test paints the given value and arms the hold window
 - /at test defaults to 50000 held for 5 seconds
 - /at test keeps the bar scale usable for a value below the 100k floor
+- /at test schedules the expiry it just announced
+- re-locking the bars clears a live /at test preview
 - /at profile with no subcommand prints the sub-help
 - /at profile current names the active profile
 - /at profile list marks the current profile
@@ -566,13 +573,13 @@ badge and any count quoted in the docs must agree with it.
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
-| test_display.lua | 39 |
+| test_display.lua | 44 |
 | test_helpers.lua | 49 |
 | test_optionssetup.lua | 4 |
-| test_slashcmds.lua | 109 |
+| test_slashcmds.lua | 111 |
 | test_widgets.lua | 48 |
 | test_docs.lua | 2 |
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
-| **Total** | **477** |
+| **Total** | **484** |
