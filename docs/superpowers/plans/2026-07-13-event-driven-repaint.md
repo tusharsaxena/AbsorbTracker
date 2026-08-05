@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- **Standard:** Ka0s WoW Addon Standard — no deviation permitted. §3.1: no raw `C_Timer` for repeating or deferred work — use AceTimer (`NS.addon:ScheduleTimer`). §2.2/§5.1: schema changes go through the versioned, idempotent `NS:RunMigrations` seam.
+- **Standard:** Ka0s WoW Addon Standard — no deviation permitted. library-stack-§1: no raw `C_Timer` for repeating or deferred work — use AceTimer (`NS.addon:ScheduleTimer`). toc-file-§2/savedvariables-§1: schema changes go through the versioned, idempotent `NS:RunMigrations` seam.
 - **Green gate before every commit:** `lua tests/run.lua` (all pass, exit 0) **and** `luacheck .` (0 warnings / 0 errors). Syntax-check a single file with `luac -p <file>`.
 - **Never** bump the addon version (TOC/README). **Never** auto-stage/commit/push beyond the explicit commit steps in this plan.
 - **Repaint entry point is unchanged:** `NS.UpdateAbsorbBar()` (`modules/Display.lua`) already self-guards on `hidden` and `testHoldUntil` and reads both `UnitGetTotalAbsorbs("player")` and `UnitHealthMax("player")`. Do not modify it. Every repaint path funnels into it.
@@ -57,7 +57,7 @@
 In `tests/test_database.lua`, replace the three version tests (currently lines 6–22) with these, then append the two new migration tests after them (keep every other test in the file unchanged):
 
 ```lua
--- ── RunMigrations: the schema-migration seam (Ka0s standard §2.2/§5.1) ─────────────
+-- ── RunMigrations: the schema-migration seam (Ka0s standard toc-file-§2/savedvariables-§1) ─────────────
 -- The current schema version is 2, so a full migration run leaves the DB stamped at 2.
 test("RunMigrations migrates a fresh DB to the current version (2)", function()
   NS.db.global.schemaVersion = nil
@@ -139,7 +139,7 @@ Replace the placeholder comment on line 53:
 ```
 with:
 ```lua
-    -- v2 (§2.2/§5.1): the poll ticker became event-driven; the old poll-interval key is dead.
+    -- v2 (toc-file-§2/savedvariables-§1): the poll ticker became event-driven; the old poll-interval key is dead.
     -- throttleWindow is seeded by the flatDefaults backfill above, so this step only deletes the
     -- orphan. Operates on the active profile, matching the backfill's scope.
     if g.schemaVersion < 2 then
@@ -312,7 +312,7 @@ Replace the entire file contents with:
 ```lua
 local addonName, NS = ...
 
--- Coalescing repaint scheduler (Ka0s standard §3.1 — one-shot AceTimer, same pattern as
+-- Coalescing repaint scheduler (Ka0s standard library-stack-§1 — one-shot AceTimer, same pattern as
 -- settings/Widgets.lua). Repaints are event-driven (core/AbsorbTracker.lua wires the absorb /
 -- max-health / world events to RequestRepaint). This trailing-edge throttle caps the repaint rate
 -- to one per `throttleWindow` so a burst of UNIT_ABSORB_AMOUNT_CHANGED events during combat can't
@@ -349,7 +349,7 @@ b. Replace `OnAbsorbChanged` (and add `OnMaxHealthChanged`) so the absorb event 
 
 ```lua
 -- The absorb event drives a coalesced repaint (modules/Timer.lua). Gate the debug read so it
--- costs nothing when debug is off (§12.4).
+-- costs nothing when debug is off (debug-logging-§4).
 function addon:OnAbsorbChanged(_, unit)
     if unit ~= "player" then return end
     if NS.State and NS.State.debug then
@@ -502,7 +502,7 @@ EOF
 - Immediate login/profile paint stays direct (spec §Architecture) → Task 2 Step 6a/6d keep `NS.UpdateAbsorbBar()`.
 - Tests: coalescing + migration + schema-rename resolution (spec §Testing) → Task 1 + Task 2 tests.
 - Docs (spec §Docs) → Task 3.
-- Standards no-deviation (spec §7) → §3.1 one-shot AceTimer only; §2.2/§5.1 migration seam. Global Constraints enforce it.
+- Standards no-deviation (spec §7) → library-stack-§1 one-shot AceTimer only; toc-file-§2/savedvariables-§1 migration seam. Global Constraints enforce it.
 
 **Placeholder scan:** none — every code and test step shows complete content; the only deliberately deferred value is the test total `N` in Task 3, which Step 1 instructs the implementer to read from the suite output (not guessable ahead of run).
 

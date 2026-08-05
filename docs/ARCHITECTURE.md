@@ -59,7 +59,7 @@ time, guarded with `if NS.X then … end` where the load-order coupling is soft.
 | `core/LSMPatch.lua` | `NS.ApplyLSMBorderPatch` — collapses the upstream LSM30_Border preview tile; run once on enable. |
 | `core/DebugLogSetup.lua` | Wires the addon into `LibKa0s-DebugLog-1.0` — the on-screen console (§12) is a vendored library, not addon code. Builds `NS.DebugLog` via `lib:New{...}` and binds `NS.Debug` bare off it. What this file supplies: the frame-name prefix, the title, the monospace font, the `/at` slash name, the call-time `print`/`safeToString` hooks, the `onVisibilityChanged` panel refresh, the `[Init]` session summary, and — the part that must not move — `isEnabled`/`setEnabled` over `NS.State.debug`, so the logging flag stays this addon's single truth. Degrades to a stub that still flips the flag when the library is absent. The library's surface is unchanged: `FormatPlain`/`FormatColored`, `SetEnabled`, `Show`/`Hide`/`Toggle`/`IsShown`, the §11 always-shown scrollbar (`UpdateScrollBar`) + bottom line counter (`UpdateStatus`, `lib.MAX_BUFFER = 500`), `ConsoleCheckbox()` — the General page's checkbox spec that shows/hides the window (not the logging flag) — and the harness-facing `CopyText`/`FindLine`/`BufferSize`/`LastLine` plus the raw `buffer` array. |
 | `core/AbsorbTracker.lua` | AceAddon promotion; `OnInitialize` (font register, InitDB, slash register), `OnEnable` (the login sequence), event handlers, `OnProfileChanged`. |
-| `defaults/Profile.lua` | Three flat globals (`locked`/`showOnlyInCombat`/`throttleWindow` — there is no `hidden` master toggle; the per-unit `enabled` flags are the visibility switch) + `NS.defaults.profile.units.{player,target,focus}` (each unit's own appearance table, built by a factory so no table is shared across units) + `NS.defaults.global.schemaVersion = 4` (v3 introduced `profile.units`; v4 dropped the dead `hidden` toggle); `NS.flatDefaults` alias, `NS.unitDefaults` (= `defaults.profile.units.player`, the canonical per-row default source for `settings/{Bar,Border,Font}.lua`). |
+| `defaults/Profile.lua` | Three flat globals (`locked`/`showOnlyInCombat`/`throttleWindow` — there is no `hidden` master toggle; the per-unit `enabled` flags are the visibility switch) + `NS.defaults.profile.units.{player,target,focus}` (each unit's own appearance table, built by a factory so no table is shared across units) + `NS.defaults.global.schemaVersion = 1` (the current schema is **4** — v3 introduced `profile.units`, v4 dropped the dead `hidden` toggle — but the DEFAULT is the pre-ladder `1`, exactly like the per-profile stamp, because AceDB's `copyDefaults` fills it before `RunMigrations` reads it and a default of `4` would stamp every freshly-materialized global as already-migrated); `NS.flatDefaults` alias, `NS.unitDefaults` (= `defaults.profile.units.player`, the canonical per-row default source for `settings/{Bar,Border,Font}.lua`). |
 | `locales/enUS.lua` | `NS.L` metatable-fallback locale (English source keys; nothing wrapped yet). |
 | `modules/Bar.lua` | `NS.CreateBar(unit, globalName)` builds one bar frame; `NS.bars` (keyed `player`/`target`/`focus`, frames `AbsorbTrackerFrame`/`AbsorbTrackerTargetFrame`/`AbsorbTrackerFocusFrame`) at file load, plus `NS.bar`/`statusBar`/`valueText`/`backdropInfo` as player aliases for pre-multi-unit call sites. Each bar owns its own `backdropInfo` table (border size differs per unit; `SetBackdrop` keys off table identity) and a `unitLabel` FontString above the frame naming its unit, shown only while unlocked. |
 | `modules/Display.lua` | Every function takes a `unit` (defaulting to `"player"`): `RestoreBarPosition`, `UpdateBarAppearance`, `ShouldShowBar`/`ApplyVisibility` (the four-step visibility ladder), `UpdateAbsorbBar` (the paint path). `NS.ForEachUnit(fn)` and `NS.DefaultPosition(unit)` (stacks target/focus above the player bar) also live here. Subscribes to `APPEARANCE`/`VISIBILITY`/`POSITION` on its own `NS.Display.__ev` bus target, fanning each handler out over `NS.ForEachUnit` so the bus messages stay payload-free. |
@@ -208,7 +208,7 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   one shared frame with plain `RegisterEvent` and cannot `RegisterUnitEvent` — so an AceEvent
   registration would pay a full C→Lua dispatch for every unit only to discard all but ours. A
   private `CreateFrame("Frame")` with `RegisterUnitEvent` moves that filter to the C layer instead
-  — a documented §9.1 deviation (see below). One frame per unit rather than packing tokens two at a
+  — a documented events-frames-taint-§1 deviation (see below). One frame per unit rather than packing tokens two at a
   time (`RegisterUnitEvent`'s cap): each unit's registration can then be added or dropped on its own
   as its bar is enabled or disabled, with no repacking. **A disabled bar is registered for nothing
   at all**, and its `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` watch is dropped too — that
@@ -264,56 +264,49 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
 ## Known Limitations
 
 - **Retail Midnight only** (Interface 120007); no game-flavor branching.
-- **English only** — `NS.L` seam exists but no strings are wrapped yet.
+- **English only** — a ratified decision, not an unfinished job: the row lives in
+  [Documented deviations](#documented-deviations) below (`localization-§1`), which is its single home.
+  The `NS.L` seam is exported and `locales/enUS.lua` ships; no string is routed through it yet.
 - **Three bars — player, target, focus.** Group / raid / arena / boss units are out of scope
   ([scope.md](./scope.md)).
 
-## Standards Deviations
+## Documented deviations
 
-Accepted, intentional departures from the Ka0s WoW Addon Standard. Each is recorded here with its
-justification; a fresh `/standards-audit` will re-surface them into a new dated bundle under
-`docs/audits/`.
+Ratified departures from the Ka0s WoW Addon Standard, in the row shape `documentation-§3` fixes.
+**This is the single home**: a decision may be reasoned at length in an audit bundle or in
+`docs/pending/LEDGER.md`, and the row cites it — but a deviation that is not in this table is not
+ratified. The long-form argument for each row follows the table; a fresh `/wow-addon:standards-audit`
+reads the register first and records a match as accepted rather than re-filing it.
 
-- **No `## X-Wago-ID` in the TOC.** The standard expects a distribution ID for every platform the
-  addon ships on. Absorb Tracker is published on CurseForge only — `## X-Curse-Project-ID: 1450165`
-  is the complete set — so there is no Wago listing and no ID to declare. A placeholder or an empty
-  key would be worse than the omission: it would advertise a listing that does not exist. Add the
-  line if a Wago release ever ships. *(Closes AT-05, the last open MUST from
-  `docs/audits/2026-07-18/`, which was decision-gated on this question.)*
+| Rule | What differs | Why | Decided | Re-check trigger |
+|---|---|---|---|---|
+| `events-frames-taint-§1` | `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` are registered on a private `CreateFrame` **per tracked unit** via `RegisterUnitEvent`, not through AceEvent-3.0 | Both events fire for every unit the client knows about; AceEvent shares one frame and structurally cannot `RegisterUnitEvent`, so it would pay a full C→Lua dispatch per unit only to discard all but ours. One frame each rather than packing tokens, because `RegisterUnitEvent` filters **at most two** tokens per registration. Argument in full below; filed as `AT-A-10` in `docs/audits/2026-08-05/` | 2026-07-14 | A client build where `RegisterUnitEvent` accepts more than two unit tokens |
+| `savedvariables-§1` | A **per-profile** `schemaVersion` stamp at `db.profile.schemaVersion`, alongside the account-wide stamp in `db.global` | The v3 lift — flat appearance keys onto `profile.units.<unit>` — is a per-profile mutation, and an account-wide flag structurally cannot gate one: a second pre-v3 profile would have its stored appearance stranded forever. Argument in full below | 2026-07-28 | AceDB gaining a per-profile version stamp of its own, or the last per-profile migration being retired |
+| `events-frames-taint-§8` (SHOULD half) | 18 chat lines in `settings/Slash.lua` and `settings/Schema.lua` pre-format their arguments — `print(("%s bar %s"):format(...))`, `print("Switched to profile '" .. name .. "'")` — instead of handing the parts to the shared printer as `print("fmt", a, b)` | **Re-graded, not deferred.** §8's pre-formatting MUST is now **scoped** to call sites whose arguments can reach a value read from one of the named combat-protected APIs (`UnitGetTotalAbsorbs`, `UnitHealth`/`UnitHealthMax`, threat, aura amounts); outside that trigger set it is a **SHOULD NOT**, because the risk is drift, not secrets. Every one of the 18 sites formats only values this addon owns — a version string, a unit label, a profile name, a user-typed test number, a schema path — so none is in the trigger set and none can be handed a secret. The two sites that DO read `UnitGetTotalAbsorbs` (`core/AbsorbTracker.lua:168`, `:231`) already pass their arguments to the sink unformatted and guard with `NS.IsConcatSafe`; the seam's own guarantee (library stringifier, `table.concat`-based probe) is untouched and unconditional. Filed as `AT-A-03` in `docs/audits/2026-08-05/` against the pre-scoping text | 2026-08-05 | Any of these lines gaining an argument that is, or derives from, a return value of one of §8's named APIs — that site converts as a MUST — or §8's trigger set growing to cover one of them |
+| `localization-§1` | This addon ships **English only**: the `NS.L` seam is exported and `locales/enUS.lua` ships, but user-facing strings are hardcoded English rather than routed through `NS.L` | A deliberate decision, not a backlog item. `localization-§3` names this one of the routing SHOULD's **two terminal compliant states** — English-only, recorded — so this row IS the compliant end state and an audit records it as accepted rather than re-filing the SHOULD. Both localization MUSTs are met unconditionally: the seam is exported and `enUS.lua` ships, carrying no dead keys. Filed as `AT-A-09` in `docs/audits/2026-08-05/`; deferred twice before as `PLAN-02` in `docs/pending/LEDGER.md`, closed here | 2026-08-05 | The first non-English locale file added to `locales/` |
 
-- **A second top-level SavedVariables global — `AbsorbTrackerPerfDB`.** The TOC declares it
-  alongside `AbsorbTrackerDB`. It holds the perf capture ring (last 10 runs) and is deliberately
-  **outside** the AceDB tree so diagnostic data never rides profile copy / reset / switch.
-  A separate SavedVariables *file* was considered and rejected: WoW names the file after the addon
-  and serializes every global it declares into that one file, so a separate file would require
-  shipping a companion addon in its own sibling folder — a two-addon repo, with packaging and
-  CurseForge knock-ons, for isolation a distinct global already provides.
-  **Pending promotion:** the LibKa0s perf-extraction spec (the LibKa0s repo's
-  `docs/superpowers/specs/2026-07-29-libka0s-perf-extraction-design.md`)
-  proposes lifting this pattern into WowAddonStandards v2.12.0; that rollout step is not part of
-  this plan.
+**Retired on 2026-08-05** — four entries this register carried whose cited rule the standard has since
+changed, so the behavior is now permitted outright and a row for it reads as a deviation that is not
+one (`documentation-§3`: the register must not become a graveyard):
 
-- **`lizard` as an optional dev dependency (complexity reporting).** Python tooling in a Lua repo,
-  used for the `complexity` suite of the automated-test run. It is **not** part of the green gate
-  (`lua tests/run.lua` + `luacheck .`) and nothing fails without it. Issue #17 assigns the
-  standard's definition of a complexity rule to WowAddonStandards; this addon adopts whatever
-  lands there.
-  **Pending promotion:** the LibKa0s perf-extraction spec (the LibKa0s repo's
-  `docs/superpowers/specs/2026-07-29-libka0s-perf-extraction-design.md`)
-  proposes promoting this into WowAddonStandards v2.12.0; that rollout step is not part of this
-  plan.
+- **No `## X-Wago-ID` in the TOC.** `toc-file-§1` marks the distribution IDs as mandatory only for a
+  platform the addon actually ships on. Absorb Tracker is CurseForge-only, so there is nothing to
+  declare and nothing to deviate from.
+- **`AbsorbTrackerPerfDB`, a second top-level SavedVariables global.** `savedvariables-§4` now names
+  the diagnostics global as the one sanctioned non-AceDB SV, which is exactly what this is.
+- **`lizard` as an optional dev dependency.** `performance-§10` mandates the complexity measurement
+  and names the tool; `automated-tests-§3` places it outside the commit gate. Both are what this repo
+  already does.
+- **Instrumentation brackets in hot paths.** `performance-§2` now specifies the bracket idiom itself,
+  including the inline `local t0 = Perf.on and debugprofilestop()` shape these files use.
 
-- **Instrumentation hooks in hot paths.** `modules/Display.lua`, `modules/Timer.lua` and
-  `core/AbsorbTracker.lua` carry `local t0 = Perf.on and debugprofilestop()` brackets. When capture
-  is off this is an upvalue read, a field read and a boolean test — no call, no allocation. The
-  claim is enforced, not asserted: `tests/perf.lua`'s `probeOverheadOff` / `probeOverheadOn`
-  scenarios fail if a dormant bracket ever allocates more than an armed one.
-  **Pending promotion:** the LibKa0s perf-extraction spec (the LibKa0s repo's
-  `docs/superpowers/specs/2026-07-29-libka0s-perf-extraction-design.md`)
-  proposes promoting this frozen bracket idiom into WowAddonStandards v2.12.0; that rollout step is
-  not part of this plan.
+The perf capture ring, the complexity tooling and the bracket idiom are all still described in this
+document — under **Performance & Profiler Attribution** below, where they belong as design, not as
+departures.
 
-- **§9.1 — private `CreateFrame` event frames for the `UNIT_*` events, one per unit.**
+### The per-unit event frames, in full
+
+- **events-frames-taint-§1 — private `CreateFrame` event frames for the `UNIT_*` events, one per unit.**
   `addon:SyncUnitEventFrames()` (called from `OnEnable` and from the `UNITS` bus message,
   `core/AbsorbTracker.lua`) registers `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` on a private
   frame per tracked unit via `RegisterUnitEvent` rather than through AceEvent-3.0 — and only for
@@ -332,9 +325,11 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
   swap regardless of absorbs, so gating them is where the CPU saving actually lands — the `UNIT_*`
   events were already C-filtered to the tokens we asked for. `PLAYER_ENTERING_WORLD` and
   `PLAYER_REGEN_DISABLED/ENABLED` stay unconditionally on AceEvent. The per-unit frames are the
-  *only* raw event frames; §9.1 otherwise holds.
+  *only* raw event frames; events-frames-taint-§1 otherwise holds.
 
-- **§5.1 — a PER-PROFILE `schemaVersion` stamp alongside the account-wide one.** §5.1 puts the
+### The per-profile schema stamp, in full
+
+- **savedvariables-§1 — a PER-PROFILE `schemaVersion` stamp alongside the account-wide one.** savedvariables-§1 puts the
   persisted-DB version stamp account-wide in `db.global`. This addon keeps that stamp *and* adds a
   second one at `db.profile.schemaVersion` (`defaults/Profile.lua`, default `1`). **Why:** the v3
   migration — lifting flat appearance keys onto `profile.units.<unit>` — is a **per-profile**
@@ -350,6 +345,11 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
   fills every absent key before `RunMigrations` reads the profile, so a default of `3` would mark
   every upgrading profile as already-migrated and make the gate dead code. See
   [profiles.md](./profiles.md).
+
+### Recorded, but not deviations
+
+The two entries below cite no rule. They are kept in this document because an audit or a media sweep
+would otherwise surface them cold, and the reason they exist is not obvious from the code.
 
 - **A production test seam: `Helpers.__lastUnitCtx` (`settings/UnitPanel.lua`).**
   `Helpers.RenderUnitPanel` stashes the ctx it just rendered on `NS.Helpers.__lastUnitCtx`.
@@ -377,18 +377,18 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
     `core/DebugLogSetup.lua` hands it `C.FONT_MONO`, so the choice of face is still this addon's.
     It is registered with LSM as
     `"JetBrains Mono"` at init, but the console does not read a user font setting. **Why:** a fixed
-    monospace face is required for column-aligned debug output (§12.2). The console's backdrop is
+    monospace face is required for column-aligned debug output (debug-logging-§2). The console's backdrop is
     Blizzard-stock too, but it is no longer the tooltip frame: `WHITE8x8` for both the fill and
     the edge, the edge tinted flat black at `edgeSize = 1`, with a 1px gray highlight synthesized
     just inside it, a gold title and a gray divider. That edge is the **shared Ka0s window edge**,
     not this addon's — it is `LibKa0s-Core-1.0`'s `SKIN` + `ApplySkin` (`libs/LibKa0s/Core.lua`),
     and `core/DebugLogSetup.lua` takes it as-is (it passes neither `skin` nor `applySkin`), so the
     console and the perf panel wear whatever every other Ka0s window wears. The Ka0s WoW Addon
-    Standard specifies those values normatively (standalone-windows-§2); the 12px
+    Standard specifies those values normatively (standalone-windows); the 12px
     `UI-Tooltip-Border` is what the same seam drew before LibKa0s v1.3.0.
   - **About-page logo — `media/logos/absorbracker.logo.v2.tga`.** `settings/About.lua` draws the
     addon's branding logo via `C.LOGO_PATH`. **Why:** addon branding, not bar appearance; a
-    user-swappable logo would be meaningless. Stored under a typed media subfolder per §1.4.
+    user-swappable logo would be meaningless. Stored under a typed media subfolder per layout-§3.
 
 ## Performance & Profiler Attribution
 

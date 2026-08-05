@@ -6,9 +6,17 @@
 One row per run. The frozen evidence for each is in the dated folder beside this file;
 the analysis of a given run is its `ANALYSIS.md`.
 
-**`lint` and `tests` gate. `perf` and `complexity` are recorded and never fail a run** —
-they are read and compared, not thresholded. A `skip` is a suite that did not run at all,
-which is never the same as a pass.
+**`lint` and `tests` gate the run and gate the commit** (`testing-§4`).
+**`perf` and `complexity` never fail a run and never block a commit** — they are recorded,
+read and compared, not thresholded (`performance-§9`, `performance-§10`).
+
+**The tag is gated on all four suites at `pass`, plus zero functions above CCN 15**
+(`automated-tests-§3`, *The release gate*), evaluated by `/wow-addon:bump-version` from the
+`manifest.json` the release run writes — not by this script, whose exit code is unchanged.
+
+A `skip` is a suite that did not run at all. It is never a pass, and at the release gate it is
+**NOT EVALUATED** rather than passed: install the tool and re-run. A `—` is a suite that was
+not selected, which is a different fact again.
 
 | Run | Version | Lint w/e | Files | Tests | Perf | NLOC | Funcs | Avg NLOC | Avg CCN | Max CCN | CCN warn | Verdict |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -40,10 +48,13 @@ for the current state — and the README badge tracks the same number.
 
 Clean over 28 files as of [`20260804-233138`](20260804-233138/): 0 warnings, 0 errors
 ([`lint.txt`](20260804-233138/lint.txt)). **Those 28 files are the addon's own runtime source only.**
-`.luacheckrc` sets `exclude_files = { "libs/", "docs/", "_dev/", "tests/" }`, so the vendored `libs/`
-and the vendored `tests/_kit/` are out of scope — neither is this repo's to fix — but the blanket
-`tests/` entry also takes this addon's **own** test files with it. The harness is checked by running,
-not by linting; a `0/0` row here says nothing about `tests/`.
+`.luacheckrc` sets `exclude_files = { "libs/", "docs/audits/", "docs/reviews/", "_dev/", "tests/" }`,
+so the vendored `libs/` and the vendored `tests/_kit/` are out of scope — neither is this repo's to
+fix — but the blanket `tests/` entry also takes this addon's **own** test files with it. The harness
+is checked by running, not by linting; a `0/0` row here says nothing about `tests/`. The two `docs/`
+entries are the frozen evidence bundles only (`lint-§`); the rest of `docs/` is linted, so the file
+count would rise the day a doc directory carries Lua. It carries none today, which is why the count
+stayed at 28 when the exclusion was narrowed.
 
 ## Perf
 
@@ -61,28 +72,32 @@ Current state as of [`20260804-233138`](20260804-233138/) — not that run's dif
 Every function `lizard` warned on, and every file at or above `layout-§1`'s 1000-LOC
 on-notice threshold, each with a one-line disposition.
 
-### Functions `lizard` warned on
+### Functions on the CCN watch list
 
-**None.** No function in this addon's own source exceeds CCN 15.
+**`lizard` warned on nothing.** Zero functions in this addon's own source exceed CCN 15, so the
+warned set is empty — which is a result, not an absent section. The table below is therefore the
+**watch** list rather than the warned list: every function at or above CCN 12 in
+[`20260804-233138/complexity.txt`](20260804-233138/complexity.txt), highest first, each with its
+disposition. An empty table would carry the same verdict and none of the signal.
 
-That is a result, not an empty section. The last run that warned on anything was
-[`20260804-182031`](20260804-182031/), and it listed exactly two functions: `runProfile`
-(`settings/Slash.lua`) at CCN 21 and `NS:RunMigrations` (`core/Database.lua`) at CCN 19. Both were
-peeled on `feat/fix-ccn` rather than accepted or deferred — `runProfile` onto a `PROFILE_VERBS`
-dispatch table (`settings/Slash.lua:328`) with its help rows in `PROFILE_HELP`
-(`settings/Slash.lua:299`), and `RunMigrations` onto a `SCHEMA_STEPS` ladder
-(`core/Database.lua:167`) plus the two backfill helpers `backfillFlatKeys`
-(`core/Database.lua:141`) and `backfillUnitKeys` (`core/Database.lua:152`). Neither disposition
+| Function | CCN | Location | Disposition |
+|---|---|---|---|
+| `Helpers.BuildMainContent` | 15 | `settings/About.lua` | **At the line, not over it.** The one to watch: the About page is a straight-line builder, so one more content block puts it over. Peel the block sequence into a data table the day it grows. |
+| `NS.ValidateSchema` | 14 | `settings/Schema.lua` | **Accepted.** The integrity checks are a flat list of independent row assertions; each `if` is one rule, and merging any two would hide which rule fired. Revisit only if a rule needs branching of its own. |
+| `addon:OnAbsorbChanged` | 14 | `core/AbsorbTracker.lua` | **Accepted.** `lizard` reports it as `addon`. The branching is the per-unit relevance ladder the event handler exists to be; splitting it would move the ladder, not shorten it. |
+| `build` | 12 | `settings/Profiles.lua` | **Accepted.** Well under the line and falling — the lazy-`OnShow` work is the direction of travel here, not a peel. |
+
+Nothing **newly** crossed since the previous run: the CCN column has not moved between
+[`20260804-214639`](20260804-214639/) and [`20260804-233138`](20260804-233138/), over
+byte-identical `complexity.txt` output.
+
+The last run that warned on anything was [`20260804-182031`](20260804-182031/), and it listed
+exactly two functions: `runProfile` (`settings/Slash.lua`) at CCN 21 and `NS:RunMigrations`
+(`core/Database.lua`) at CCN 19. Both were peeled on `feat/fix-ccn` rather than accepted or
+deferred — `runProfile` onto a `PROFILE_VERBS` dispatch table with its help rows in `PROFILE_HELP`
+(both `settings/Slash.lua`), and `RunMigrations` onto a `SCHEMA_STEPS` ladder plus the two backfill
+helpers `backfillFlatKeys` and `backfillUnitKeys` (all `core/Database.lua`). Neither disposition
 carries forward, because neither function is on the list any more.
-
-Nothing is over the line and exactly **one** function is *at* it: `Helpers.BuildMainContent`
-(`settings/About.lua:38-104`) at CCN **15**. Naming the rest of the top of the list so the count is
-not a bare number — behind it sit `addon:OnAbsorbChanged` (`core/AbsorbTracker.lua:164-185`, which `lizard` reports as
-`addon`) and `NS.ValidateSchema`
-(`settings/Schema.lua:224-261`), both at CCN 14, then `build` (`settings/Profiles.lua:16-66`) at 12;
-that is every function at or above 12 in
-[`20260804-233138/complexity.txt`](20260804-233138/complexity.txt). `BuildMainContent` is the one to
-watch if the About page grows another block.
 
 **Max CCN reads `15` again from [`20260804-233138`](20260804-233138/) onward.** The `0` on the
 `20260804-214639` row is the pre-rev-6 kit parser fault described under the table above, not a

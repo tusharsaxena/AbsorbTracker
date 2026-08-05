@@ -1,6 +1,7 @@
 local T = _G.AT_TEST
 local NS = T.NS
-local test, assertEqual, assertTrue = T.test, T.assertEqual, T.assertTrue
+local test, assertEqual, assertTrue, assertFalse =
+  T.test, T.assertEqual, T.assertTrue, T.assertFalse
 
 -- modules/Display.lua — the paint path: position restore, the appearance apply (size / textures /
 -- backdrop insets / lock), and the absorb repaint with its two early-outs.
@@ -206,6 +207,76 @@ test("locking hides the unit label", function()
     end)
   end)
   assertEqual(#hides, 1, "a locked bar shows no label")
+end)
+
+-- ── preview mode ───────────────────────────────────────────────────────────────────
+-- Two previews: the unlocked placeholder fill, and the timed `/at test` hold. Both must END —
+-- the placeholder when the bars are re-locked, the hold when its announced duration expires.
+
+test("an unlocked bar paints a placeholder fill against a 0..1 scale", function()
+  local minmax, value
+  withSetting("locked", false, function()
+    withoutVisibility(function()
+      minmax = record(NS.statusBar, "SetMinMaxValues", function()
+        value = record(NS.statusBar, "SetValue", function()
+          NS.UpdateBarAppearance("player")
+        end)
+      end)
+    end)
+  end)
+  assertEqual(#value, 1, "an unlocked bar the user is dragging must not be an empty strip")
+  assertEqual(minmax[#minmax][1], 0)
+  assertEqual(minmax[#minmax][2], 1, "the placeholder scale is a fraction, not the unit's health")
+  assertTrue(value[1][1] > 0 and value[1][1] < 1,
+    "a full placeholder would be indistinguishable from a real absorb")
+end)
+
+test("a locked bar paints no placeholder", function()
+  local value
+  withSetting("locked", true, function()
+    withoutVisibility(function()
+      value = record(NS.statusBar, "SetValue", function()
+        NS.UpdateBarAppearance("player")
+      end)
+    end)
+  end)
+  assertEqual(#value, 0, "a locked bar shows live data only")
+end)
+
+test("HoldPreview arms an expiry timer for exactly the announced duration", function()
+  local savedHold = NS.testHoldUntil
+  local before = #T.mocks.__timers
+  local expiry = NS.HoldPreview(7)
+  local armed = T.mocks.__timers[#T.mocks.__timers]
+  assertEqual(#T.mocks.__timers, before + 1, "the announced duration must be scheduled, not assumed")
+  assertEqual(armed.delay, 7, "the timer fires when the announced window ends")
+  assertEqual(expiry, T.mocks.GetTime() + 7)
+  NS.ClearPreview()
+  NS.testHoldUntil = savedHold
+end)
+
+test("the expiry timer clears the hold and republishes REPAINT", function()
+  local savedHold = NS.testHoldUntil
+  local repaints = 0
+  local ev = NS.NewBusTarget()
+  ev:RegisterMessage(NS.MSG.REPAINT, function() repaints = repaints + 1 end)
+  NS.HoldPreview(5)
+  local armed = T.mocks.__timers[#T.mocks.__timers]
+  armed.fn()
+  ev:UnregisterMessage(NS.MSG.REPAINT)
+  assertEqual(NS.testHoldUntil, nil, "the fake value must not outlive the window it announced")
+  assertEqual(repaints, 1, "live data has to be repainted, or the bar keeps the fake number")
+  NS.testHoldUntil = savedHold
+end)
+
+test("ClearPreview reports whether a hold was actually live", function()
+  local savedHold = NS.testHoldUntil
+  NS.testHoldUntil = nil
+  assertFalse(NS.ClearPreview(), "nothing to clear")
+  NS.HoldPreview(5)
+  assertTrue(NS.ClearPreview(), "a live hold is reported as cleared")
+  assertEqual(NS.testHoldUntil, nil)
+  NS.testHoldUntil = savedHold
 end)
 
 test("the unit label follows the unit's own font face", function()

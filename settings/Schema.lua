@@ -155,7 +155,10 @@ end
 --- Defaults button.
 function NS.ApplyDefault(row)
     if row.default == nil then return end
-    -- DeepCopy color tables so two profiles can't end up sharing the same nested table.
+    -- Copy a table default before storing it, so two profiles can't end up sharing the same
+    -- table. ONE level is enough and this is not `NS.Units.DeepCopy`: every table-valued default
+    -- in the schema is a flat `{ r, g, b, a }` color, so there is no nested table to alias. Reach
+    -- for `NS.Units.DeepCopy` here the day a nested default appears.
     local v = row.default
     if type(v) == "table" then
         local copy = {}
@@ -197,7 +200,7 @@ end
 -- ---------------------------------------------------------------------
 --
 -- Run once at panel-registration time after every settings/<page>.lua has loaded its rows.
--- Catches misspelled page / type enum values, missing path, and (Ka0s standard §4.5) any row
+-- Catches misspelled page / type enum values, missing path, and (Ka0s standard architecture-§5) any row
 -- whose `path` does NOT resolve against the defaults profile — a typo'd path would otherwise
 -- silently read/write nothing. The validator only PRINTS; it never refuses to register.
 
@@ -245,7 +248,7 @@ function NS.ValidateSchema()
                     .. " (expected one of: bool, number, string, color)")
                 errors = errors + 1
             end
-            -- §4.5: the path must resolve against the defaults profile. Profiles-page rows (if
+            -- architecture-§5: the path must resolve against the defaults profile. Profiles-page rows (if
             -- any) are AceDBOptions-supplied and exempt. Paths may be dotted (units.<unit>.<key>).
             if hasPath and row.page ~= "profiles" then
                 if NS.ResolvePath(defaults, row.path) ~= nil then

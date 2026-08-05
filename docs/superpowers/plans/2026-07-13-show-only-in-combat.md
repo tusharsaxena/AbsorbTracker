@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- **Standard:** Ka0s WoW Addon Standard — no deviation. Combat events via AceEvent (`self:RegisterEvent`), never a raw event frame (§3.1/§4.2). Settings are schema rows through the existing registry. The §6.2 combat-deferred-config-open contract must be preserved (opens on combat end, idempotent).
+- **Standard:** Ka0s WoW Addon Standard — no deviation. Combat events via AceEvent (`self:RegisterEvent`), never a raw event frame (library-stack-§1/architecture-§2). Settings are schema rows through the existing registry. The options-ui-§2 combat-deferred-config-open contract must be preserved (opens on combat end, idempotent).
 - **Green gate before every commit:** `lua tests/run.lua` (all pass, exit 0) **and** `luacheck .` (0 warnings / 0 errors). Syntax-check a file with `luac -p <file>`.
 - **Default is `false`** — behavior with the toggle off must be byte-for-byte today's behavior.
 - **`hidden` is the master toggle** — it always wins over `showOnlyInCombat`.
@@ -362,7 +362,7 @@ with:
 ```lua
     if InCombatLockdown() then
         -- Settings UI is protected during combat; opening it taints the panel for the session.
-        -- Per Ka0s standard §6.2, queue the open and let core/AbsorbTracker.lua's OnLeaveCombat
+        -- Per Ka0s standard options-ui-§2, queue the open and let core/AbsorbTracker.lua's OnLeaveCombat
         -- (the single owner of PLAYER_REGEN_ENABLED) replay it. The flag makes it idempotent —
         -- hammering /at config mid-pull queues exactly one open.
         if not NS.State.panelOpenPending then

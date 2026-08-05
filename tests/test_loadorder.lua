@@ -15,6 +15,7 @@ local T = _G.AT_TEST
 local test, assertEqual, assertTrue, assertFalse =
   T.test, T.assertEqual, T.assertTrue, T.assertFalse
 local mocks = T.mocks
+local NS = T.NS
 
 local Loader = dofile("tests/_kit/loader.lua")
 
@@ -79,12 +80,12 @@ test("loadorder: tests/perf.lua derives its list from the TOC too", function()
     "tests/perf.lua must derive its load list from the TOC, not carry a copy")
 end)
 
-test("loadorder: both runners load every LibKa0s file the vendored XML lists, in its order", function()
+test("loadorder: xmlFiles returns every LibKa0s script the vendored XML lists, in its order", function()
   -- The library half of each runner's list CANNOT be derived from the TOC: the TOC reaches it
-  -- through libs\LibKa0s\LibKa0s.xml, which Loader.tocFiles deliberately skips. So it is hand
-  -- maintained, and it has already rotted once — omitting Core.lua raises nothing at all, because
-  -- Perf simply refuses to register, NS.Perf falls back to its degradation stub, and tests/perf.lua
-  -- goes on reporting a probeOverhead figure measured on a stub with no probe in it.
+  -- through libs\LibKa0s\LibKa0s.xml, which Loader.tocFiles deliberately skips. It used to be hand
+  -- maintained in both runners, and it had already rotted once — omitting Core.lua raises nothing at
+  -- all, because Perf simply refuses to register, NS.Perf falls back to its degradation stub, and
+  -- tests/perf.lua goes on reporting a probeOverhead figure measured on a stub with no probe in it.
   local raw = readFile("libs/LibKa0s/LibKa0s.xml")
   local want = {}
   for f in raw:gmatch('<Script%s+file="([^"]+)"%s*/>') do
@@ -92,16 +93,49 @@ test("loadorder: both runners load every LibKa0s file the vendored XML lists, in
   end
   assertTrue(#want > 0, "the vendored LibKa0s.xml lists at least one script")
 
-  for _, runner in ipairs({ "tests/run.lua", "tests/perf.lua" }) do
-    local src = readFile(runner)
-    local at = 0
-    for _, p in ipairs(want) do
-      local pos = src:find(p, at + 1, true)
-      assertTrue(pos ~= nil, runner .. " does not load " .. p ..
-        " in LibKa0s.xml's order — a missing library file degrades silently rather than failing")
-      at = pos or at
-    end
-  end
+  local got = Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml")
+  assertEqual(table.concat(got, "\n"), table.concat(want, "\n"),
+    "Loader.xmlFiles must return the XML's scripts, directory-prefixed, in the XML's order")
+end)
+
+test("loadorder: the runner loaded exactly the vendored XML's library files, in its order", function()
+  -- What this observes is the LIST THE LOADER WAS FED, published by tests/run.lua, against a fresh
+  -- reading of the XML — not the spelling of the call that produced it. A runner that hoists the
+  -- path to a local, or reaches xmlFiles through a helper, loads exactly the right files and stays
+  -- green; a runner that drops or reorders a file goes red however it is written.
+  local loaded = T.loadedLibFiles
+  assertTrue(type(loaded) == "table", "tests/run.lua publishes the library files it loaded")
+  local want = Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml")
+  assertEqual(table.concat(loaded, "\n"), table.concat(want, "\n"),
+    "tests/run.lua's library load list has drifted from libs/LibKa0s/LibKa0s.xml")
+end)
+
+test("loadorder: the loaded library registered — NS.Perf is the lib, not the degradation stub", function()
+  -- The consequence a short list has, and the reason it goes unnoticed: a missing Perf.lua raises
+  -- nothing at all. LibStub never sees the major, core/PerfSetup.lua takes its `if not lib` arm,
+  -- NS.Perf becomes the four-member stub (on/suspended/Note/OnCommand), and tests/perf.lua goes on
+  -- reporting a probeOverhead figure measured on a stub with no probe in it. So assert the majors
+  -- the XML declares are registered, and that NS.Perf carries members only the real instance has.
+  local perf = mocks.LibStub("LibKa0s-Perf-1.0", true)
+  assertTrue(perf ~= nil, "libs/LibKa0s/Perf.lua must have loaded and registered its major")
+  -- PerfPanel.lua does not take a major of its own — it attaches to the probe and records itself in
+  -- lib.MODULES, so that table is what says the second file was in the list the loader was fed.
+  assertTrue((perf.MODULES or {}).PerfPanel ~= nil,
+    "libs/LibKa0s/PerfPanel.lua must have loaded and attached to the probe")
+  assertTrue(type(NS.Perf.Start) == "function",
+    "NS.Perf is the LibKa0s-Perf instance; the degradation stub has no Start")
+  assertTrue(type(NS.Perf.BUCKET_ORDER) == "table",
+    "and it built this addon's descriptor, which only the real lib:New does")
+end)
+
+test("loadorder: tests/perf.lua derives its library half from the vendored XML too", function()
+  -- Source-only, and deliberately so: tests/perf.lua is a separate process this suite does not run,
+  -- so there is no loaded list to observe. Kept as a lint for the ungated runner, matching the
+  -- FUNCTION rather than a whole literal call, so a correct refactor that hoists the path is
+  -- allowed through.
+  local src = readFile("tests/perf.lua")
+  assertTrue(src:find("Loader.xmlFiles", 1, true) ~= nil,
+    "tests/perf.lua must derive its library load list with Loader.xmlFiles, not carry a copy of it")
 end)
 
 test("loadorder: LibStub raises for a missing major without the silent flag", function()

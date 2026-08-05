@@ -53,15 +53,11 @@ local NS = {}
 -- a hand-maintained list here rots silently while the allocation figures it produces are still
 -- treated as the extraction's parity gate. tests/test_loadorder.lua asserts this file still derives.
 --
--- The library half IS hand-maintained (the TOC reaches it through an XML the loader cannot read),
--- and it has already rotted once: omitting Core.lua does not fail — Perf simply refuses to register,
--- NS.Perf becomes the degradation stub, and probeOverheadOn quietly measures a stub with no probe in
--- it. Keep this list in LibKa0s.xml's order, and read the figures as suspect if they move without a
--- change that should have moved them.
-Loader.loadAll({ "libs/LibKa0s/Core.lua", "libs/LibKa0s/DebugLog.lua", "libs/LibKa0s/Slash.lua",
-  "libs/LibKa0s/Options.lua", "libs/LibKa0s/OptionsWidgets.lua", "libs/LibKa0s/OptionsScroll.lua",
-  "libs/LibKa0s/Perf.lua",
-  "libs/LibKa0s/PerfPanel.lua" }, NS, mocks)
+-- The library half is derived from libs/LibKa0s/LibKa0s.xml, which is the file the TOC actually
+-- reaches. It used to be hand-maintained here, and it had already rotted once: omitting Core.lua
+-- does not fail — Perf simply refuses to register, NS.Perf becomes the degradation stub, and
+-- probeOverheadOn quietly measures a stub with no probe in it.
+Loader.loadAll(Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml"), NS, mocks)
 Loader.loadAll(Loader.tocFiles("AbsorbTracker.toc"), NS, mocks)
 
 NS:InitDB()
@@ -225,6 +221,17 @@ local probeOn = measure("probeOverheadOn", BURST, function()
   NS.ForEachUnit(function(unit) NS.UpdateAbsorbBar(unit) end)
 end)
 NS.Perf.on = false
+-- The relation alone cannot go red the way it matters: if a regression adds allocation to the
+-- repaint path itself, BOTH arms rise together and `off <= on + 1` still holds. The dormant arm
+-- therefore also carries an ABSOLUTE ceiling. 312.0 bytes/pass is the measured figure with the
+-- brackets off (identical to paintPass, which is the point); the headroom below is deliberately
+-- thin, because one extra table per pass is exactly the regression this is here to catch. Raise it
+-- only with a recorded reason — a rise IS the finding.
+local PROBE_OFF_BYTES_CEILING = 320
+
+assert_(probeOff.bytesPerIter <= PROBE_OFF_BYTES_CEILING,
+  ("a dormant pass allocated %.1f bytes/iter, over the %d-byte ceiling — the repaint path grew")
+    :format(probeOff.bytesPerIter, PROBE_OFF_BYTES_CEILING))
 assert_(probeOff.bytesPerIter <= probeOn.bytesPerIter + 1,
   "a dormant bracket allocated more than an armed one — the gating idiom is wrong")
 assert_(probeOff.apiPerIter == probeOn.apiPerIter,

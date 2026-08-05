@@ -6,7 +6,7 @@ local addonName, NS = ...
 -- table lookup through NS. PerfSetup loads earlier in the TOC, so this is never nil.
 local Perf = NS.Perf
 
--- AceAddon promotion (Ka0s standard §4.2). Pass NS as the first arg so the bootstrap table and
+-- AceAddon promotion (Ka0s standard architecture-§2). Pass NS as the first arg so the bootstrap table and
 -- the AceAddon object are one and the same; the AceEvent/AceTimer/AceConsole mixins are stamped
 -- onto NS.addon.
 local AceAddon = LibStub("AceAddon-3.0")
@@ -35,7 +35,7 @@ function NS.NoteRepaint()
 end
 
 function addon:OnInitialize()
-    -- Register the vendored monospace font with LSM for the debug console (§12.2).
+    -- Register the vendored monospace font with LSM for the debug console (debug-logging-§2).
     local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
     if LSM then LSM:Register("font", "JetBrains Mono", NS.Constants.FONT_MONO) end
 
@@ -60,7 +60,7 @@ function addon:OnEnable()
     -- shared frame with plain RegisterEvent and has no unit filtering, so routing these two through
     -- AceEvent would pay a full C→Lua dispatch for every unit only to discard all but ours.
     --
-    -- §9.1 deviation (see docs/ARCHITECTURE.md): register them on private frames via
+    -- events-frames-taint-§1 deviation (see docs/ARCHITECTURE.md): register them on private frames via
     -- RegisterUnitEvent instead, so the client filters at the C level and OnEvent never fires for
     -- other units. (The rest are global, payload-free events and stay on AceEvent.)
     --
@@ -160,7 +160,7 @@ end
 -- line / the [Absorb] shield-up/shield-gone transitions all read UnitGetTotalAbsorbs("player")),
 -- so it stays gated on unit == "player" — counting target/focus events here would make the rollup
 -- report a number that doesn't match what it prints. Gate the debug read so it costs nothing when
--- debug is off (§12.4).
+-- debug is off (debug-logging-§4).
 function addon:OnAbsorbChanged(_, unit)
     local t0 = Perf.on and debugprofilestop()
     if unit == "player" and NS.State and NS.State.debug then

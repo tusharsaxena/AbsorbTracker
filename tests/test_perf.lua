@@ -54,10 +54,53 @@ test("perf: the descriptor declares this addon's buckets, with their nesting", f
   reset()
   assertEqual(table.concat(P.BUCKET_ORDER, ","),
     "absorbEvent,repaintPass,paintBar,appearance,visibility", "order")
-  assertEqual(P.BUCKET_WITHIN.paintBar, "repaintPass", "paintBar nests")
-  assertEqual(P.BUCKET_WITHIN.appearance, "repaintPass", "appearance nests")
-  assertEqual(P.BUCKET_WITHIN.visibility, "repaintPass", "visibility nests")
+  assertEqual(P.BUCKET_WITHIN.paintBar, "repaintPass", "paintBar nests in the pass")
+  -- UpdateBarAppearance is an entry point — the APPEARANCE message and a settings row's onChange
+  -- reach it, doRepaint never does — so it declares no parent. It used to declare repaintPass,
+  -- which no call graph supports.
+  assertEqual(P.BUCKET_WITHIN.appearance, nil, "appearance is a root, not a child of the pass")
+  -- The one real nesting: UpdateBarAppearance ends by calling ApplyVisibility inside its own
+  -- open bracket.
+  assertEqual(P.BUCKET_WITHIN.visibility, "appearance", "visibility nests in appearance")
   assertEqual(P.BUCKET_WITHIN.repaintPass, nil, "the pass itself is top level")
+end)
+
+test("perf: the capture OBSERVES visibility inside appearance, it does not just declare it", function()
+  -- performance-§3: a declared `within` the library never saw is a claim nothing checks. The
+  -- brackets in modules/Display.lua supply the parent at the recording call, so the record can
+  -- confirm the declaration — or contradict it.
+  reset()
+  NS.SetByPath("units.player.enabled", true)
+  P.on = true
+  mocks.__profileMs = 1
+  NS.UpdateBarAppearance("player")
+  P.on = false
+  local b = P.__buckets()
+  assertEqual(b.visibility.observedWithin, "appearance",
+    "the nested bracket must report the bucket it actually ran inside")
+  assertFalse(b.visibility.observedMixed, "one parent, seen once")
+  assertNil(b.appearance.observedWithin,
+    "nothing was open when UpdateBarAppearance started, so it claims no parent")
+  local record = P.BuildRecord("cap")
+  assertEqual(record.buckets.visibility.observedWithin, "appearance", "and it reaches the record")
+  assertEqual(record.buckets.visibility.within, "appearance", "matching the declaration")
+  settle()
+end)
+
+test("perf: a standalone ApplyVisibility claims no parent rather than inventing one", function()
+  -- The VISIBILITY message reaches ApplyVisibility directly, with no appearance bracket open. A
+  -- hard-coded parent at that Note would report containment that did not happen; supplying the
+  -- bucket that is actually open reports nothing, which is the honest answer.
+  reset()
+  NS.SetByPath("units.player.enabled", true)
+  P.on = true
+  mocks.__profileMs = 1
+  NS.ApplyVisibility("player")
+  P.on = false
+  local b = P.__buckets()
+  assertTrue(b.visibility ~= nil, "the bracket still fired")
+  assertNil(b.visibility.observedWithin, "and it observed no containment")
+  settle()
 end)
 
 test("perf: records identify this addon and land in its own global", function()

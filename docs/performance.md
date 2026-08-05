@@ -21,9 +21,19 @@ degrades to a stub whose `Note` is a no-op but whose `OnCommand` answers honestl
 the missing library and where it is expected — which is the same degradation philosophy every setup
 file in this addon follows. This addon supplies only a **descriptor**: `core/PerfSetup.lua` calls
 `lib:New(descriptor)` with this addon's name, its `AbsorbTrackerPerfDB` SavedVariables global, the
-ordered bucket declarations (nesting via `within` — `paintBar` runs inside `repaintPass`), and what
+ordered bucket declarations, and what
 "suspend"/"resume" mean for *this* addon's events and frames. That call returns the `NS.Perf`
 instance every bracket and slash verb below reads.
+
+**Nesting is declared *and* observed.** A bucket's `within` is what the descriptor claims;
+`Perf.Note(key, ms, parentKey)` reports what the run actually saw, and the report distinguishes the
+two (`performance-§3`). Two nestings exist here: `paintBar` inside `repaintPass` (doRepaint fans out
+over `NS.UpdateAbsorbBar`), and `visibility` inside `appearance` (`NS.UpdateBarAppearance` ends by
+calling `NS.ApplyVisibility` inside its own open bracket). `appearance` itself is a **root** — it is
+entered from the `APPEARANCE` bus message and from a settings row's `onChange`, never from a
+repaint pass — and declares no parent, which is why the report says nothing about containing it.
+`visibility` is also reached directly by the `VISIBILITY` message; that path supplies no parent, so
+the record claims containment only for the calls that actually had one.
 
 The descriptor contract and the full public surface `lib:New` returns are documented in the
 library's own repo, not duplicated here:
@@ -236,22 +246,27 @@ bucket            calls   total ms       ms/s    max ms
 absorbEvent        1284      31.20      0.501     0.310
 repaintPass         623     122.40      1.965     1.840
 paintBar           1869      98.10      1.575     0.920
-(buckets nest: repaintPass contains paintBar — do not sum)
+(buckets nest: paintBar declares itself within repaintPass — not observed, visibility observed inside appearance — do not sum)
 ```
 
-**`delta` is the headline.** It is the per-frame cost of having the addon active, measured with
-everything else held constant.
+**The bucket figures are the headline** (`performance-§7`). They time this addon's own code
+directly, so they are what the capture actually resolves. `ms/s` divided by the frame rate gives the
+Lua cost per frame: in the example above the buckets account for roughly 2.0 ms/s ≈ **0.026
+ms/frame** at 77 fps. That is the addon's cost.
 
-Then compare it against the bucket totals. `ms/s` divided by the frame rate gives the Lua cost per
-frame. In the example above the buckets account for roughly 2.0 ms/s ≈ **0.026 ms/frame** at 77 fps,
-against a measured delta of **2.74 ms/frame**. That gap — two orders of magnitude — is the finding:
-the cost is not in our Lua, it is on the other side of the API calls our Lua makes.
+**`delta` is the frame you read them in, not the answer.** It is a difference of two noisy
+aggregates, and this harness's run-to-run spread is roughly ±0.3 ms/frame on a 60–80 s arm (see the
+caveats below — one of four captures came back negative). Below that spread the delta is
+**unresolved**, and "unresolved" is the honest word: not zero, not free, not a pass. The example's
+**+2.74 ms/frame** is comfortably above the spread, so it is a real difference — and the two orders
+of magnitude between it and the 0.026 ms/frame the buckets account for is the finding: whatever that
+cost is, it is not in our Lua. It is on the other side of the API calls our Lua makes, or it is the
+environment.
 
-If instead the buckets roughly *equal* the delta, the cost is ours and the bucket breakdown says
-which function to look at.
-
-Both readings are useful. A near-zero delta is also a result: it means the sluggishness is not this
-addon's, and the investigation should move elsewhere.
+If instead the buckets roughly *equal* a resolved delta, the cost is ours and the bucket breakdown
+says which function to look at. And a delta inside the spread — including a near-zero or negative one
+— resolves nothing on its own: read the buckets, and if they are small too, the sluggishness is not
+this addon's and the investigation should move elsewhere.
 
 ### Caveats
 

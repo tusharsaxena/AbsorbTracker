@@ -6,7 +6,7 @@ badge and any count quoted in the docs must agree with it.
 
 **Generated — do not hand-edit.** Regenerate with `lua tests/run.lua --list > docs/test-cases.md`.
 
-### test_loadorder.lua (10)
+### test_loadorder.lua (13)
 
 - loadorder: tocFiles returns every addon lua file, in TOC order
 - loadorder: tocFiles skips libs, directives and comments
@@ -14,7 +14,10 @@ badge and any count quoted in the docs must agree with it.
 - loadorder: every derived path exists on disk
 - loadorder: the runner loaded exactly the TOC's files, in the TOC's order
 - loadorder: tests/perf.lua derives its list from the TOC too
-- loadorder: both runners load every LibKa0s file the vendored XML lists, in its order
+- loadorder: xmlFiles returns every LibKa0s script the vendored XML lists, in its order
+- loadorder: the runner loaded exactly the vendored XML's library files, in its order
+- loadorder: the loaded library registered — NS.Perf is the lib, not the degradation stub
+- loadorder: tests/perf.lua derives its library half from the vendored XML too
 - loadorder: LibStub raises for a missing major without the silent flag
 - loadorder: LibStub returns nil for a missing major with the silent flag
 - loadorder: LibStub keeps the higher minor when a major registers twice
@@ -60,9 +63,10 @@ badge and any count quoted in the docs must agree with it.
 - FormatSchemaValue resolves the Slash major at load, never per call
 - a build without LibKa0s-Slash-1.0 falls back to a minimal FormatSchemaValue
 
-### test_database.lua (28)
+### test_database.lua (29)
 
 - RunMigrations migrates a fresh DB to the current version (4)
+- a freshly-materialized global runs the ladder, because its default is pre-ladder
 - RunMigrations leaves an already-current (v4) DB unchanged
 - RunMigrations is idempotent across repeated runs
 - RunMigrations v2 retires the legacy updateInterval profile key
@@ -165,10 +169,12 @@ badge and any count quoted in the docs must agree with it.
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (27)
+### test_perf.lua (29)
 
 - perf: the addon holds a real LibKa0s-Perf instance
 - perf: the descriptor declares this addon's buckets, with their nesting
+- perf: the capture OBSERVES visibility inside appearance, it does not just declare it
+- perf: a standalone ApplyVisibility claims no parent rather than inventing one
 - perf: records identify this addon and land in its own global
 - perf: the ring is reachable through its own global and nowhere in AceDB
 - perf: brackets record nothing while capture is off
@@ -254,7 +260,7 @@ badge and any count quoted in the docs must agree with it.
 - three bar frames exist and the player alias points at the player frame
 - each bar carries its own unit tag and its own backdrop table
 
-### test_display.lua (39)
+### test_display.lua (44)
 
 - RestoreBarPosition centers the bar when no position is saved
 - RestoreBarPosition restores the saved anchor verbatim
@@ -270,6 +276,11 @@ badge and any count quoted in the docs must agree with it.
 - every bar owns a unit label
 - unlocking shows a label naming the unit
 - locking hides the unit label
+- an unlocked bar paints a placeholder fill against a 0..1 scale
+- a locked bar paints no placeholder
+- HoldPreview arms an expiry timer for exactly the announced duration
+- the expiry timer clears the hold and republishes REPAINT
+- ClearPreview reports whether a hold was actually live
 - the unit label follows the unit's own font face
 - UpdateBarAppearance re-applies the font from the profile
 - UpdateBarAppearance tolerates a nil fontFlags by passing an empty flag string
@@ -355,7 +366,7 @@ badge and any count quoted in the docs must agree with it.
 - the degraded stub keeps no private copy of the library's layout constants
 - PARENT_TITLE reaches the library through the descriptor, not the namespace
 
-### test_slashcmds.lua (109)
+### test_slashcmds.lua (111)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -387,6 +398,8 @@ badge and any count quoted in the docs must agree with it.
 - /at test paints the given value and arms the hold window
 - /at test defaults to 50000 held for 5 seconds
 - /at test keeps the bar scale usable for a value below the 100k floor
+- /at test schedules the expiry it just announced
+- re-locking the bars clears a live /at test preview
 - /at profile with no subcommand prints the sub-help
 - /at profile current names the active profile
 - /at profile list marks the current profile
@@ -467,7 +480,7 @@ badge and any count quoted in the docs must agree with it.
 - parity: an unknown verb reaches no handler and prints the same shape in both
 - parity: a bare /at reaches no handler and prints help in both
 
-### test_widgets.lua (48)
+### test_widgets.lua (50)
 
 - NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
 - a bool row renders a CheckBox labeled from the schema
@@ -506,6 +519,8 @@ badge and any count quoted in the docs must agree with it.
 - an afterGroup callback fires exactly once, after its group's last row
 - each enable toggle leads its row, paired with a global on the right
 - every tracked unit gets an enable toggle on the General page
+- showOnlyInCombat repaints for a target-only setup, not just for the player
+- the Reset All popup does not claim success when the settings helpers are absent
 - a pairWith partner is attached to the named row and is one-shot
 - RenderSchema runs a layout pass at the end
 - EnsureScroll is lazy, created once, and patched for an always-visible scrollbar
@@ -534,6 +549,13 @@ badge and any count quoted in the docs must agree with it.
 - vendored Slash resolves a fallback-only override to its own strings
 - vendored Perf resolves a fallback-only override to its own strings
 
+### test_surface_parity.lua (4)
+
+- parity: the Core stub publishes everything core/CoreSetup.lua publishes live
+- parity: the DebugLog stub carries the whole live surface
+- parity: the Options stub carries every helper the degraded build can reach
+- parity: the Slash stub carries every dispatcher member the addon calls
+
 ### test_vendor_sync.lua (2)
 
 - libs/LibKa0s is the LibKa0s release the README says this addon bundles
@@ -543,25 +565,26 @@ badge and any count quoted in the docs must agree with it.
 
 | Suite | Cases |
 |-------|------:|
-| test_loadorder.lua | 10 |
+| test_loadorder.lua | 13 |
 | test_schema.lua | 38 |
-| test_database.lua | 28 |
+| test_database.lua | 29 |
 | test_units.lua | 14 |
 | test_compat.lua | 4 |
 | test_coresetup.lua | 4 |
 | test_debuglog.lua | 10 |
 | test_slash.lua | 13 |
 | test_timer.lua | 11 |
-| test_perf.lua | 27 |
+| test_perf.lua | 29 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
-| test_display.lua | 39 |
+| test_display.lua | 44 |
 | test_helpers.lua | 49 |
 | test_optionssetup.lua | 4 |
-| test_slashcmds.lua | 109 |
-| test_widgets.lua | 48 |
+| test_slashcmds.lua | 111 |
+| test_widgets.lua | 50 |
 | test_docs.lua | 2 |
 | test_ltrap.lua | 8 |
+| test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
-| **Total** | **470** |
+| **Total** | **489** |

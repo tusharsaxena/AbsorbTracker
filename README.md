@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 [![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)](https://github.com/tusharsaxena/WowAddonStandards)
-![Tests](https://img.shields.io/badge/Tests-470%2F470_passing-green)
+![Tests](https://img.shields.io/badge/Tests-489%2F489_passing-green)
 
 ![Logo](https://media.forgecdn.net/attachments/1659/653/absorbracker-logo-v2-jpg.jpg)
 
@@ -14,14 +14,12 @@ Set it all up in the WoW Settings panel, or with the `/at` slash command.
 
 ## What's new in 1.9.0
 
-- **Target and Focus absorb bars.** Two new bars — off by default — track the same combined-absorb display for your current target and focus. Turn them on with **Enable Target Bar** / **Enable Focus Bar** on the General page.
-- **Each bar is switched on independently.** The old single **Show Bar** master toggle is gone; the three per-bar enable checkboxes replace it, and a bar you turn off stops receiving events entirely rather than just hiding.
+- **Target and Focus absorb bars, each switched on independently.** Two new bars — off by default — track the same combined-absorb display for your current target and focus. Turn them on with **Enable Target Bar** / **Enable Focus Bar** on the General page; the old single **Show Bar** master toggle is gone, and a bar you turn off stops receiving events entirely rather than just hiding.
 - **Mirror or copy the Player bar's look.** A Target/Focus bar can live-link to the Player bar's appearance ("Use same styling as Player"), or take a one-time snapshot with **Copy styling from Player** and then customize it independently.
 - **Slash paths are now fully qualified.** `/at set units.player.barWidth 250` replaces the old unqualified `/at set barWidth 250` — see [Breaking change](#breaking-change-slash-paths) below if you have macros.
 - **Show the bar only in combat.** A new General option hides the bar(s) out of combat and brings them back the moment you're fighting.
 - **The bar now updates the instant a shield changes** instead of ticking on a timer, so it tracks your absorbs more smoothly.
-- **A proper on-screen debug window.** `/at debug` opens a styled window instead of spamming chat; `/at debug on` / `off` starts and stops logging, and each line is tagged with what triggered it.
-- **A Debug console toggle on the General page** to show or hide that window without a slash command.
+- **A proper on-screen debug window, with a General-page toggle.** `/at debug` opens a styled window instead of spamming chat; `/at debug on` / `off` starts and stops logging, each line tagged with what triggered it, and the **Debug console** checkbox shows or hides the window without a slash command.
 
 ### Breaking change: slash paths
 
@@ -140,7 +138,7 @@ or focus and its bar disappears until you have one again.
 
 ## Credits and libraries
 
-Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.7.0 (MIT) — the shared Ka0s
+Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.8.0 (MIT) — the shared Ka0s
 library behind the chat printer, the debug console, the slash dispatcher and schema CLI, the
 settings panel toolkit and the perf harness. It ships in `libs/LibKa0s/`, license included.
 Ace3, LibStub, CallbackHandler-1.0 and LibSharedMedia-3.0 are bundled in `libs/` as well, each
@@ -156,7 +154,7 @@ Please file new reports there rather than in comments, so nothing gets lost.
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| 1.9.0 | 2026-07-20 | Added a **Show only in combat** option that hides the bar out of combat<br>The bar now redraws the instant a shield changes instead of on a fixed timer, for smoother tracking<br>Added an on-screen debug window — `/at debug` opens it, `/at debug on`/`off` turns logging on or off (no more chat spam), with each line tagged by what triggered it<br>Added a **Debug console** toggle on the General page to show or hide that window |
+| 1.9.0 | 2026-07-20 | Added **Target and Focus absorb bars**, each switched on independently from the General page — the old single **Show Bar** master toggle is gone, and a bar you turn off stops receiving events entirely<br>A Target/Focus bar can **mirror** the Player bar's look live, or take a one-time **Copy styling from Player** snapshot and then be customized on its own<br>`/at set` and `/at get` paths are now **fully qualified** — `/at set units.player.barWidth 250` replaces `/at set barWidth 250`; update any macros<br>Added a **Show only in combat** option that hides the bar out of combat<br>The bar now redraws the instant a shield changes instead of on a fixed timer, for smoother tracking<br>Added an on-screen debug window with a General-page **Debug console** toggle — `/at debug` opens it, `/at debug on`/`off` turns logging on or off (no more chat spam), each line tagged by what triggered it |
 | 1.8.0 | 2026-05-03 | Redesigned the settings panel with breadcrumb navigation and an About page<br>Added a hold-time to `/at test` (`/at test value seconds`) and reshaped the Bar and Border pages |
 | 1.7.0 | 2026-04-24 | Rebranded to **Ka0s Absorb Tracker** with new artwork<br>Split the settings into separate pages<br>Chat messages now use a cyan `[AT]` tag |
 | 1.6.0 | 2026-02-14 | Added `/at` commands for the class-color options |

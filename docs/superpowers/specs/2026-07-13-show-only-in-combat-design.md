@@ -126,7 +126,7 @@ initial visibility at login is correct for the current combat state via `InComba
 
 **Why this changes.** AceEvent registers **one handler per event per object**.
 `NS.OpenOptionsPanel` currently registers its own one-shot `PLAYER_REGEN_ENABLED` on `NS.addon` to
-replay a combat-deferred open (§6.2). Our `OnLeaveCombat` also needs `PLAYER_REGEN_ENABLED`; two
+replay a combat-deferred open (options-ui-§2). Our `OnLeaveCombat` also needs `PLAYER_REGEN_ENABLED`; two
 registrations on the same object collide (the second overwrites the first, and Panel's one-shot
 then unregisters it — silently killing combat visibility).
 
@@ -142,7 +142,7 @@ if InCombatLockdown() then
 end
 ```
 `OnLeaveCombat` (§3) drains `panelOpenPending` and calls `OpenOptionsPanel()` (now out of combat,
-so it opens). The §6.2 behavior is preserved exactly: still opens on combat end, still idempotent
+so it opens). The options-ui-§2 behavior is preserved exactly: still opens on combat end, still idempotent
 (one pending open no matter how many times `/at config` is hammered mid-pull).
 
 ### 5. Migration
@@ -185,15 +185,15 @@ are no-ops); `ShouldShowBar` carries the decision logic and is what the tests co
 
 ## Standards compliance
 
-**No deviation.** Combat events use AceEvent (§3.1/§4.2), not a raw event frame. The setting is a
+**No deviation.** Combat events use AceEvent (library-stack-§1/architecture-§2), not a raw event frame. The setting is a
 schema row driven through the existing registry (§9.x). Centralizing `PLAYER_REGEN_ENABLED` in
-`OnLeaveCombat` preserves the §6.2 combat-deferred-open contract (a cleanup, not a behavior
-change). Additive migration uses the existing `RunMigrations` backfill seam (§2.2/§5.1).
+`OnLeaveCombat` preserves the options-ui-§2 combat-deferred-open contract (a cleanup, not a behavior
+change). Additive migration uses the existing `RunMigrations` backfill seam (toc-file-§2/savedvariables-§1).
 
 ## Risks & mitigations
 
 - **AceEvent single-handler collision** (the main risk): resolved by §4 — one owner for
-  `PLAYER_REGEN_ENABLED`. The `OnLeaveCombat` deferred-open drain test guards the §6.2 behavior.
+  `PLAYER_REGEN_ENABLED`. The `OnLeaveCombat` deferred-open drain test guards the options-ui-§2 behavior.
 - **Confusing interaction with `/at toggle`**: with `showOnlyInCombat` on and out of combat,
   `/at toggle` (flipping `hidden`) won't reveal the bar. This is the intended composition
   (`hidden` is master, combat gate is secondary); documented in the FAQ.

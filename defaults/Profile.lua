@@ -2,11 +2,11 @@ local addonName, NS = ...
 
 -- AceDB defaults. Bar appearance is PER UNIT (player / target / focus) under `profile.units`;
 -- the three master toggles stay flat at the profile root because they govern all three bars.
--- There are TWO schema-version stamps. The account-wide one under `global` (Ka0s standard §5.1) is
+-- There are TWO schema-version stamps. The account-wide one under `global` (Ka0s standard savedvariables-§1) is
 -- the DB-wide marker NS:RunMigrations walks regardless of the active profile. The second lives
 -- per-profile, below, and gates the v3 lift — which is a per-profile mutation an account-wide flag
--- structurally cannot gate. That second stamp is a deliberate, recorded §5.1 deviation: see the
--- "Standards Deviations" section of docs/ARCHITECTURE.md and docs/profiles.md.
+-- structurally cannot gate. That second stamp is a deliberate, recorded savedvariables-§1 deviation: see the
+-- "Documented deviations" register in docs/ARCHITECTURE.md and docs/profiles.md.
 NS.defaults = NS.defaults or {}
 
 -- The per-unit appearance block. Built by a factory so each unit gets its OWN tables — sharing
@@ -40,7 +40,7 @@ local function unit(enabled, mirror)
 end
 
 NS.defaults.profile = {
-    -- PER-PROFILE schema stamp — a deliberate, documented deviation from Ka0s standard §5.1, which
+    -- PER-PROFILE schema stamp — a deliberate, documented deviation from Ka0s standard savedvariables-§1, which
     -- puts the version stamp account-wide under `global` (see docs/ARCHITECTURE.md "Standards
     -- Deviations" and docs/profiles.md). The account-wide stamp still exists below and remains the
     -- DB-wide marker; this one answers the narrower question "has THIS profile been lifted?", which
@@ -75,7 +75,15 @@ NS.defaults.global = {
     -- Persisted-DB schema version. NS:RunMigrations (core/Database.lua) reads/writes this once
     -- at init — the idempotent seam future schema changes hook into. v3 introduced profile.units;
     -- v4 dropped the dead `hidden` global.
-    schemaVersion = 4,
+    --
+    -- The default is 1 ("pre-ladder"), NOT the current 4, for exactly the reason the per-profile
+    -- stamp above is 1: AceDB-3.0's copyDefaults fills every ABSENT key the moment the section is
+    -- instantiated, which happens BEFORE NS:RunMigrations reads it. A default of 4 stamped every
+    -- freshly-materialized global as already-migrated, so `g.schemaVersion < step.to` was false
+    -- for every step and the ladder was structurally dead — including for a DB whose global was
+    -- wiped while its profiles still carried pre-v4 data. Every step is idempotent, so running the
+    -- ladder on a genuinely new install costs three no-ops and stamps 4.
+    schemaVersion = 1,
 }
 
 -- Flat alias for the no-AceDB fallback path: GetSetting reads this when NS.db is absent. It now

@@ -43,7 +43,7 @@ local function withSetting(key, value, body)
 end
 
 test("NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder", function()
-  assertTrue(NS.AceGUI ~= nil, "the panel build stashes AceGUI (Ka0s standard §3.4)")
+  assertTrue(NS.AceGUI ~= nil, "the panel build stashes AceGUI (Ka0s standard library-stack-§4)")
 end)
 
 -- ── Checkbox ───────────────────────────────────────────────────────────────────────
@@ -467,6 +467,61 @@ test("every tracked unit gets an enable toggle on the General page", function()
     assertTrue(labels["Enable " .. NS.Units.LABEL[unit] .. " Bar"],
       unit .. " has no enable toggle on the General page")
   end
+end)
+
+-- ── the General page's two guards ──────────────────────────────────────────────────
+-- Both are "the guard answers a question about the wrong thing" bugs: one asked about the player
+-- bar and gated all three, the other asked nothing at all and reported success regardless.
+
+test("showOnlyInCombat repaints for a target-only setup, not just for the player", function()
+  -- NS.ShouldShowBar() with no argument answers for "player" and returns false the moment the
+  -- player bar is disabled. Toggling this row with only the target bar enabled therefore published
+  -- VISIBILITY (the bar appeared) and skipped the REPAINT that fills it.
+  local row = NS.FindSchemaRow("showOnlyInCombat")
+  local saved = {}
+  for _, unit in ipairs(NS.Units.LIST) do
+    saved[unit] = NS.db.profile.units[unit].enabled
+    NS.db.profile.units[unit].enabled = (unit == "target")
+  end
+  local savedExists = T.mocks.__unitExists.target
+  T.mocks.__unitExists.target = true
+
+  local repaints = 0
+  local ev = NS.NewBusTarget()
+  ev:RegisterMessage(NS.MSG.REPAINT, function() repaints = repaints + 1 end)
+  local ok, err = pcall(row.onChange)
+  ev:UnregisterMessage(NS.MSG.REPAINT)
+
+  T.mocks.__unitExists.target = savedExists
+  for _, unit in ipairs(NS.Units.LIST) do
+    NS.db.profile.units[unit].enabled = saved[unit]
+  end
+  if not ok then error(err) end
+  assertEqual(repaints, 1, "an enabled target bar must still be repainted after the toggle")
+end)
+
+test("the Reset All popup does not claim success when the settings helpers are absent", function()
+  -- Same silent-lie shape /at resetall already guards against: on a load where
+  -- settings/OptionsSetup.lua never ran there is nothing to delegate to, so the ack belongs inside
+  -- the guard. The wording keeps this popup's trailing period.
+  local dialog = T.mocks.StaticPopupDialogs["ABSORBTRACKER_RESET_ALL"]
+  assertTrue(dialog ~= nil and dialog.OnAccept ~= nil, "the popup must be registered at load")
+  local savedHelpers = NS.Helpers
+  local lines = {}
+  local cf = T.mocks.DEFAULT_CHAT_FRAME
+  local oldAdd = rawget(cf, "AddMessage")
+  cf.AddMessage = function(_, msg) lines[#lines + 1] = msg end
+  NS.Helpers = {}
+  local ok, err = pcall(dialog.OnAccept)
+  NS.Helpers = savedHelpers
+  cf.AddMessage = oldAdd
+  if not ok then error(err) end
+
+  local joined = table.concat(lines, "\n")
+  assertFalse(joined:find("All settings reset to defaults", 1, true) ~= nil,
+    "nothing was reset, so nothing may claim it was: " .. joined)
+  assertTrue(joined:find("failed to load", 1, true) ~= nil,
+    "the failure has to be said out loud: " .. joined)
 end)
 
 test("a pairWith partner is attached to the named row and is one-shot", function()

@@ -18,16 +18,25 @@ silently by the next re-vendor.
 
 ## What gates, and what only records
 
-| Suite | Command | Gates? |
-|---|---|---|
-| `lint` | `luacheck .` | **yes** |
-| `tests` | `lua tests/run.lua` | **yes** |
-| `perf` | `lua tests/perf.lua` | no — recorded only |
-| `complexity` | `lizard -l lua -x "./libs/*" -x "./tests/_kit/*" .` | no — recorded only |
+There are **two checkpoints** — the run (and the commit it gates) and the release tag — and a suite's
+answer differs between them, so the table names both:
 
-`perf` and `complexity` are **measured, recorded and diffed — never used to fail a run.** A
-threshold that fails a run teaches everyone to reach for `--no-verify`, after which the gate protects
-nothing and the habit remains. They contribute `amber`, which is a signal rather than a stop.
+| Suite | Command | Run + commit | Release tag |
+|---|---|---|---|
+| `lint` | `luacheck .` | **gates** | **gates** |
+| `tests` | `lua tests/run.lua` | **gates** | **gates** |
+| `perf` | `lua tests/perf.lua` | no — recorded | **gates** — `pass` required |
+| `complexity` | `lizard -l lua -x "./libs/*" -x "./tests/_kit/*" .` | no — recorded | **gates** — `pass`, zero functions above CCN 15 |
+
+`perf` and `complexity` are **measured, recorded and diffed — they never fail a run and never block
+a commit** (`performance-§9`, `performance-§10`). A threshold that fails a run teaches everyone to
+reach for `--no-verify`, after which the gate protects nothing and the habit remains. They contribute
+`amber`, which is a signal rather than a stop.
+
+**At the tag all four gate** (`automated-tests-§3`, *The release gate*): `/wow-addon:bump-version`
+reads the release run's `manifest.json` and refuses unless all four suites are at `pass` with
+`suites.complexity.warnings` at `0`. It is a separate checkpoint evaluated by a separate actor — this
+runner's exit code is unchanged — and a `skip` there is **NOT EVALUATED**, never a pass.
 
 **A missing tool is a skip, not a failure**, and the skip is recorded with its reason — so a green
 run that measured nothing cannot be mistaken for a green run that measured everything.

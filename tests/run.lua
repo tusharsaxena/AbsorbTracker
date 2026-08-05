@@ -16,17 +16,11 @@ local NS = {}
 Loader.addonName = "AbsorbTracker"
 
 -- The vendored library files, which the TOC pulls in through libs\LibKa0s\LibKa0s.xml and so are
--- invisible to Loader.tocFiles. Listed here explicitly, in the same dependency order the XML uses.
-local LIB_FILES = {
-  "libs/LibKa0s/Core.lua",
-  "libs/LibKa0s/DebugLog.lua",
-  "libs/LibKa0s/Slash.lua",
-  "libs/LibKa0s/Options.lua",
-  "libs/LibKa0s/OptionsWidgets.lua",
-  "libs/LibKa0s/OptionsScroll.lua",
-  "libs/LibKa0s/Perf.lua",
-  "libs/LibKa0s/PerfPanel.lua",
-}
+-- invisible to Loader.tocFiles. Derived from that XML rather than re-typed: a hand-kept copy that
+-- is short by one file does not raise — the module simply never registers, its degradation stub
+-- takes over, and whichever cases never reach it stay green. Loader.xmlFiles returns XML order,
+-- directory-prefixed, and raises on a missing XML.
+local LIB_FILES = Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml")
 
 -- The addon's own files come from the TOC rather than a copy of it, so this runner cannot drift
 -- from what the client actually loads. tests/test_loadorder.lua pins the derivation.
@@ -49,11 +43,19 @@ NS.CreateOptionsPanel()
 _G.AT_TEST = Kit.expose{
   NS = NS, mocks = mocks,
   -- What this runner actually fed the loader, so tests/test_loadorder.lua can compare it against a
-  -- fresh reading of the TOC instead of trusting that they still match.
+  -- fresh reading of the TOC (and of the vendored XML) instead of trusting that they still match.
+  -- Publishing the lists themselves, rather than leaving the suite to grep this file's source, is
+  -- what makes the load lists OBSERVABLE: a runner that spells the derivation differently but loads
+  -- the right files must stay green, and one that loads the wrong files must not.
   loadedAddonFiles = ADDON_FILES,
+  loadedLibFiles   = LIB_FILES,
 }
 
 -- --- load test suites (order is load-order-sensitive; keep it) ---
+--
+-- `dir` is given explicitly, so Kit.run calls Kit.assertSuiteInventory before it loads anything:
+-- a tests/test_*.lua that is on disk but missing from this list, or listed here but not on disk,
+-- takes the run down instead of running zero cases in silence.
 Kit.run{
   dir = "tests/",
   suites = {
@@ -77,6 +79,7 @@ Kit.run{
     "test_widgets",
     "test_docs",
     "test_ltrap",
+    "test_surface_parity",
     "test_vendor_sync",
   },
 }

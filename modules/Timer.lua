@@ -1,6 +1,6 @@
 local addonName, NS = ...
 
--- Coalescing repaint scheduler (Ka0s standard §3.1 — one-shot AceTimer, same pattern as
+-- Coalescing repaint scheduler (Ka0s standard library-stack-§1 — one-shot AceTimer, same pattern as
 -- LibKa0s-Options-1.0's widget makers). Repaints are event-driven (core/AbsorbTracker.lua wires the absorb /
 -- max-health / world events to RequestRepaint). This trailing-edge throttle caps the repaint rate
 -- to one per `throttleWindow` so a burst of UNIT_ABSORB_AMOUNT_CHANGED events during combat can't

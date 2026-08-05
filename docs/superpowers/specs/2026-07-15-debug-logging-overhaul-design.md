@@ -76,7 +76,7 @@ end
 |-----|----------|------------------------|
 | `Init` | `addon:OnEnable` (`core/AbsorbTracker.lua`) | `enabled — schema v%s, profile "%s", bar %s` (one boot summary: schema version, active profile, shown/hidden) |
 | `World` | `addon:OnEnterWorld` | `entering world` |
-| `Combat` | `addon:OnEnterCombat` | `entered` (also resets the coalescing counters, §3.4) |
+| `Combat` | `addon:OnEnterCombat` | `entered` (also resets the coalescing counters, library-stack-§4) |
 | `Combat` | `addon:OnLeaveCombat` | `left: %s events, %s repaints` (+ `final=%s` from the post-combat read when it is non-secret) |
 | `Bar` | `NS.ApplyVisibility` (`modules/Display.lua`) | `shown (%s)` / `hidden (%s)` — **only on a shown↔hidden transition**, reason = `combat` / `showOnlyInCombat` / `hidden toggle` |
 | `Profile` | `NS.OnProfileChanged` (`core/AbsorbTracker.lua`) — all three AceDB callbacks (changed/copied/reset, registered in `core/Database.lua`) route here, so one log point covers all | `changed → "%s"` |
@@ -130,7 +130,7 @@ In combat, `UnitGetTotalAbsorbs("player")` returns a **secret** value. Consequen
 
 ## 4. Files to change
 
-- `core/DebugLog.lua` — make `NS.Debug` secret-safe (§3.1).
+- `core/DebugLog.lua` — make `NS.Debug` secret-safe (library-stack-§1).
 - `core/Util.lua` — remove `NS.DebugPrint`; keep `SafeToString`/`IsConcatSafe`/`Print`.
 - `core/AbsorbTracker.lua` — `Init` boot summary; `World`; `Combat` enter/leave + counters +
   rollup; drop the `OnAbsorbChanged` per-event log, add gated event counter + non-secret transition;

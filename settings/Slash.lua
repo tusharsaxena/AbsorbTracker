@@ -2,7 +2,7 @@ local addonName, NS = ...
 NS.Slash = NS.Slash or {}
 local Sl = NS.Slash
 
--- Schema-driven slash dispatcher registered via AceConsole (Ka0s standard §7.1 — no hand-rolled
+-- Schema-driven slash dispatcher registered via AceConsole (Ka0s standard slash-commands-§1 — no hand-rolled
 -- SLASH_* globals). /at list, /at get and /at set walk NS.Schema directly, so adding an option is
 -- one schema row (in some settings/<page>.lua) and the slash surface picks it up automatically.
 --
@@ -193,10 +193,10 @@ end
 -- ---------------------------------------------------------------------
 --
 -- /at debug        toggles the on-screen debug console window (state unchanged).
--- /at debug on|off enables / disables session logging (§12.5).
+-- /at debug on|off enables / disables session logging (debug-logging-§5).
 
 -- The whole guided run lives in LibKa0s-Perf; this is only the dispatch. The lib deliberately
--- registers no slash command of its own (slash-commands-§: every verb goes through this table with
+-- registers no slash command of its own (slash-commands-§3: every verb goes through this table with
 -- the cyan tag), so it hands back lines and we print them.
 function runPerf(rest)
     for _, line in ipairs(NS.Perf.OnCommand(rest or "")) do print(line) end
@@ -288,7 +288,11 @@ function runTest(rest)
             bar.statusBar:SetValue(n)
         end
     end
-    NS.testHoldUntil = GetTime() + hold
+    -- Honors the duration just announced: NS.HoldPreview arms a one-shot that clears the hold and
+    -- republishes REPAINT at expiry (modules/Display.lua). Setting a bare NS.testHoldUntil, which
+    -- is what this used to do, left the fake value on the bar past the announced window until the
+    -- next absorb event happened to arrive.
+    NS.HoldPreview(hold)
 end
 
 -- ---------------------------------------------------------------------
@@ -480,6 +484,13 @@ cli = SlashLib:New({
 -- alwaysPerUnit flag, neither of which a generic dispatcher knows about. The library decides only
 -- WHERE an annotation may appear — after the colored pair, on list/get/set and never on a reset.
 cli:SetRowAnnotator(MirrorNote)
+
+-- The dispatcher itself, published for introspection under the same `__` convention the options
+-- helpers use (Helpers.__panels, Helpers.__pages). Nothing in the addon calls through it — the two
+-- wrappers below are the seam every caller uses — but the degraded arm's stub and the library's
+-- instance are otherwise both file-scope locals, and a stub surface that cannot be reached cannot
+-- be compared. tests/test_surface_parity.lua is the only reader.
+Sl.__cli = cli
 
 --- The command list the About page renders. Same coloring and spacing as `/at help`, without the
 --- chat indent: each row there is its own label, where a leading indent reads as a mistake.

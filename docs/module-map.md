@@ -263,7 +263,9 @@ NS.Units.SourceUnit(unit)      -> "player" | unit  -- IsMirrored(unit) and "play
 NS.Units.Get(unit, key)        -> value            -- mirror-resolved read; THE read path for all
                                                     -- 15 appearance keys
 NS.Units.Set(unit, key, value) -- writes the unit's OWN config, NOT mirror-resolved (a write while
-                               -- mirrored would silently edit the player's bar)
+                               -- mirrored would silently edit the player's bar). NO production
+                               -- caller: `/at set` goes NS.SetByPath -> NS.SetSetting ->
+                               -- NS.SetPath. Published as the write half of the Get seam.
 NS.Units.Position(unit)        -> position | nil   -- never mirror-resolved
 NS.Units.SetPosition(unit, pos)
 NS.Units.CopyFromPlayer(unit)  -- one-shot: deep-copies the player's 15 appearance keys onto
@@ -320,7 +322,7 @@ NS.DebugLog = lib:New({
                                                -- by /at debug moves the General page's checkbox
 })
 
--- Bound bare, which is why all fifteen NS.Debug call sites across five files are unchanged.
+-- Bound bare, which is why all thirteen NS.Debug call sites across five files are unchanged.
 NS.Debug = NS.DebugLog.Debug
 ```
 
@@ -411,7 +413,7 @@ NS.OnProfileChanged()  -- registered as the AceDB profile callback inside InitDB
                        -- POSITION + APPEARANCE + REPAINT, then RefreshOptionsPanel.
 ```
 
-Cross-module signaling goes through the message bus (see [Bus](#bus-corebuslua) above) — the handlers publish `NS.MSG.*` rather than calling the display module directly. Events are AceEvent (`self:RegisterEvent`), **except** the two `UNIT_*` events (`UNIT_ABSORB_AMOUNT_CHANGED`, `UNIT_MAXHEALTH`), which use one private `CreateFrame` frame PER UNIT with `RegisterUnitEvent` for C-level unit filtering — a documented §9.1 deviation ([ARCHITECTURE.md → Standards Deviations](./ARCHITECTURE.md#standards-deviations)). A frame each (rather than packing two tokens onto one, `RegisterUnitEvent`'s cap) lets a unit's registration be added or dropped on its own as its bar is enabled or disabled, so a disabled unit is registered for nothing at all; `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` are gated on the same flag. Detail in [data-flow.md](./data-flow.md).
+Cross-module signaling goes through the message bus (see [Bus](#bus-corebuslua) above) — the handlers publish `NS.MSG.*` rather than calling the display module directly. Events are AceEvent (`self:RegisterEvent`), **except** the two `UNIT_*` events (`UNIT_ABSORB_AMOUNT_CHANGED`, `UNIT_MAXHEALTH`), which use one private `CreateFrame` frame PER UNIT with `RegisterUnitEvent` for C-level unit filtering — a documented events-frames-taint-§1 deviation ([ARCHITECTURE.md → Documented deviations](./ARCHITECTURE.md#documented-deviations)). A frame each (rather than packing two tokens onto one, `RegisterUnitEvent`'s cap) lets a unit's registration be added or dropped on its own as its bar is enabled or disabled, so a disabled unit is registered for nothing at all; `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` are gated on the same flag. Detail in [data-flow.md](./data-flow.md).
 
 ### Defaults (`defaults/Profile.lua`)
 
@@ -590,7 +592,7 @@ NS.OpenOptionsPanel()      -- Settings.OpenToCategory(mainCategoryID) + expandMa
 NS.AceGUI                  -- the AceGUI-3.0 handle. The library resolves it and hands it over via
                            -- the descriptor's onAceGUI callback during CreateOptionsPanel, so the
                            -- page builders and settings/About.lua read this upvalue rather than
-                           -- re-LibStub-ing (§3.4).
+                           -- re-LibStub-ing (library-stack-§4).
 ```
 
 The descriptor is the whole of what this addon tells the library. Everything else is the library's:
@@ -604,7 +606,7 @@ The descriptor is the whole of what this addon tells the library. Everything els
 | `rowsForPage(pageKey, filter)` | `NS.SchemaForPage`. `filter` is `ctx.unit`, passed through uninterpreted — that is what makes a per-unit page render one unit's rows while General, whose `ctx.unit` is nil, gets every unit's |
 | `skipRestoreAll(row)` | `row.page == "profiles"` — those rows are AceDBOptions-supplied and resetting them is data loss, not a restore |
 | `afterRestoreAll` | delegates to `Helpers.ResetAllPositions`, because `position` is written by dragging and no schema row owns it, so `ApplyDefault` never touches it |
-| `scheduleTimer` | `NS.addon:ScheduleTimer` (AceTimer per §3.1, not a raw `C_Timer`); backs the color picker's 50 ms drag throttle. Optional at the library level — without it the library commits every drag frame |
+| `scheduleTimer` | `NS.addon:ScheduleTimer` (AceTimer per library-stack-§1, not a raw `C_Timer`); backs the color picker's 50 ms drag throttle. Optional at the library level — without it the library commits every drag frame |
 | `getLSM`, `validate` | `NS.GetLSM`, `NS.ValidateSchema` |
 | `onAceGUI`, `buildMain` | publishes `NS.AceGUI`; hands back `Helpers.BuildMainContent` under a nil-guard, because `settings/About.lua` loads *after* this file |
 | `colorDecode`, `colorEncode` | the `{r=, g=, b=, a=}` named-key shape `core/Data.lua`'s color getters read. Written out rather than omitted even though it matches the library default, because the shape is a real contract with the rest of the addon |
