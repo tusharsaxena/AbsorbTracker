@@ -21,9 +21,19 @@ degrades to a stub whose `Note` is a no-op but whose `OnCommand` answers honestl
 the missing library and where it is expected — which is the same degradation philosophy every setup
 file in this addon follows. This addon supplies only a **descriptor**: `core/PerfSetup.lua` calls
 `lib:New(descriptor)` with this addon's name, its `AbsorbTrackerPerfDB` SavedVariables global, the
-ordered bucket declarations (nesting via `within` — `paintBar` runs inside `repaintPass`), and what
+ordered bucket declarations, and what
 "suspend"/"resume" mean for *this* addon's events and frames. That call returns the `NS.Perf`
 instance every bracket and slash verb below reads.
+
+**Nesting is declared *and* observed.** A bucket's `within` is what the descriptor claims;
+`Perf.Note(key, ms, parentKey)` reports what the run actually saw, and the report distinguishes the
+two (`performance-§3`). Two nestings exist here: `paintBar` inside `repaintPass` (doRepaint fans out
+over `NS.UpdateAbsorbBar`), and `visibility` inside `appearance` (`NS.UpdateBarAppearance` ends by
+calling `NS.ApplyVisibility` inside its own open bracket). `appearance` itself is a **root** — it is
+entered from the `APPEARANCE` bus message and from a settings row's `onChange`, never from a
+repaint pass — and declares no parent, which is why the report says nothing about containing it.
+`visibility` is also reached directly by the `VISIBILITY` message; that path supplies no parent, so
+the record claims containment only for the calls that actually had one.
 
 The descriptor contract and the full public surface `lib:New` returns are documented in the
 library's own repo, not duplicated here:
@@ -236,7 +246,7 @@ bucket            calls   total ms       ms/s    max ms
 absorbEvent        1284      31.20      0.501     0.310
 repaintPass         623     122.40      1.965     1.840
 paintBar           1869      98.10      1.575     0.920
-(buckets nest: repaintPass contains paintBar — do not sum)
+(buckets nest: paintBar declares itself within repaintPass — not observed, visibility observed inside appearance — do not sum)
 ```
 
 **`delta` is the headline.** It is the per-frame cost of having the addon active, measured with

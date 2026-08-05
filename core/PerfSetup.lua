@@ -37,14 +37,30 @@ NS.Perf = lib:New({
     version = NS.version,
     sv      = "AbsorbTrackerPerfDB",
 
-    -- Ordered for the report, and the nesting is DECLARED rather than left as prose: repaintPass
-    -- contains the three per-bar buckets, so their totals must never be summed as if disjoint.
+    -- Ordered for the report, and the nesting is DECLARED rather than left as prose, so two
+    -- totals are never summed as if they were disjoint. Each declaration below is the containment
+    -- the call graph actually has, and every nested bracket also SUPPLIES its parent to Perf.Note,
+    -- so the capture reports containment it observed rather than one this table merely claims
+    -- (performance-§3).
+    --
+    -- What this used to say, and why it was wrong: `appearance` and `visibility` both declared
+    -- `within = "repaintPass"`. Neither runs there. `repaintPass` is doRepaint, which fans out over
+    -- NS.UpdateAbsorbBar and nothing else; NS.UpdateBarAppearance is entered from the APPEARANCE bus
+    -- message and from a settings row's onChange, and NS.ApplyVisibility from the VISIBILITY message
+    -- — or from inside UpdateBarAppearance, which is the one real nesting here.
     buckets = {
         { key = "absorbEvent" },                        -- addon:OnAbsorbChanged
         { key = "repaintPass" },                        -- doRepaint, one coalesced pass over every unit
-        { key = "paintBar",    within = "repaintPass" },-- NS.UpdateAbsorbBar, per bar
-        { key = "appearance",  within = "repaintPass" },-- NS.UpdateBarAppearance, per bar
-        { key = "visibility",  within = "repaintPass" },-- NS.ApplyVisibility, per bar
+        { key = "paintBar",    within = "repaintPass" },-- NS.UpdateAbsorbBar, per bar, inside doRepaint
+        -- A root: UpdateBarAppearance is an entry point (APPEARANCE message / settings onChange),
+        -- contained in nothing. Declaring a parent it never runs under is the claim this table is
+        -- supposed to make checkable, so it declares none — and the bracket still supplies whatever
+        -- bucket happens to be open, so the day it does run inside one, the capture says so.
+        { key = "appearance" },                         -- NS.UpdateBarAppearance, per bar
+        -- UpdateBarAppearance ends by calling ApplyVisibility inside its own open bracket, so this
+        -- IS nested — in `appearance`, never in `repaintPass`. Dropping `within` here would trade a
+        -- wrong-parent claim for a disjoint-totals claim, which is worse: nothing contradicts it.
+        { key = "visibility",  within = "appearance" }, -- NS.ApplyVisibility, per bar
     },
 
     --- Make the addon inert without a /reload.

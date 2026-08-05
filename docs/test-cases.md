@@ -166,10 +166,12 @@ badge and any count quoted in the docs must agree with it.
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (27)
+### test_perf.lua (29)
 
 - perf: the addon holds a real LibKa0s-Perf instance
 - perf: the descriptor declares this addon's buckets, with their nesting
+- perf: the capture OBSERVES visibility inside appearance, it does not just declare it
+- perf: a standalone ApplyVisibility claims no parent rather than inventing one
 - perf: records identify this addon and land in its own global
 - perf: the ring is reachable through its own global and nowhere in AceDB
 - perf: brackets record nothing while capture is off
@@ -560,7 +562,7 @@ badge and any count quoted in the docs must agree with it.
 | test_debuglog.lua | 10 |
 | test_slash.lua | 13 |
 | test_timer.lua | 11 |
-| test_perf.lua | 27 |
+| test_perf.lua | 29 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
@@ -573,4 +575,4 @@ badge and any count quoted in the docs must agree with it.
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
-| **Total** | **475** |
+| **Total** | **477** |

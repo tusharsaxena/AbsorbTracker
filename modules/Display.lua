@@ -7,6 +7,14 @@ local floor, max = NS.floor, NS.max
 -- this file (see the TOC), so it is never nil.
 local Perf = NS.Perf
 
+-- The bucket whose bracket is currently open in THIS module, or nil. Written only inside an open
+-- bracket — so with capture off it is never touched at all — and read by the nested bracket, which
+-- is how a Perf.Note here reports the containment the run OBSERVED instead of the one the
+-- descriptor merely declares (performance-§3). A plain upvalue rather than a stack: this module
+-- nests exactly one level (UpdateBarAppearance -> ApplyVisibility), and the previous value is
+-- saved and restored at the one site that nests.
+local openBucket
+
 -- Gap between stacked default bar positions, in pixels.
 local STACK_GAP = 8
 
@@ -57,6 +65,11 @@ function NS.UpdateBarAppearance(unit)
     local bar = NS.bars[unit]
     if not bar then return end
     local t0 = Perf.on and debugprofilestop()
+    -- Publish this bracket as the open one, so ApplyVisibility's note below records the containment
+    -- rather than asserting it. Saved and restored rather than cleared, so a future outer bracket
+    -- is not lost.
+    local prevBucket
+    if t0 then prevBucket, openBucket = openBucket, "appearance" end
     local statusBar = bar.statusBar
     local valueText = bar.valueText
     local backdropInfo = bar.backdropInfo
@@ -102,7 +115,12 @@ function NS.UpdateBarAppearance(unit)
     -- one full restyle of a bar cost", and in production a restyle always ends by re-evaluating
     -- visibility. Excluding it would understate the real call. `visibility` still records its own
     -- nested figure, so the two are separable in the report.
-    if t0 then Perf.Note("appearance", debugprofilestop() - t0) end
+    if t0 then
+        openBucket = prevBucket
+        -- Third argument: the bucket THIS bracket ran inside, which is whatever was open when it
+        -- started — nil today, since UpdateBarAppearance is an entry point.
+        Perf.Note("appearance", debugprofilestop() - t0, openBucket)
+    end
 end
 
 -- Effective bar visibility, composed in order — the first false wins:
@@ -162,7 +180,10 @@ function NS.ApplyVisibility(unit)
     end
     dbgLastShown[unit] = show
     if show then bar:Show() else bar:Hide() end
-    if t0 then Perf.Note("visibility", debugprofilestop() - t0) end
+    -- `openBucket` is "appearance" when UpdateBarAppearance called us and nil when the VISIBILITY
+    -- message did, so the record reports containment where it happened and claims none where it did
+    -- not. A hard-coded "appearance" here would be the same unverified declaration in a new place.
+    if t0 then Perf.Note("visibility", debugprofilestop() - t0, openBucket) end
 end
 
 -- Repaint one bar's absorb value. Reads the raw (possibly "secret") UnitGetTotalAbsorbs value and
