@@ -77,8 +77,13 @@ end
 
 --- Write an appearance key onto the unit's OWN config. Deliberately not mirror-resolved: a
 --- write while mirrored would silently edit the player's bar, which is not what the user
---- clicked. The panel hides the appearance widgets while mirrored, so this path is only
---- reachable from the slash CLI.
+--- clicked.
+---
+--- Exported without a production caller, deliberately: this is the published write half of the
+--- `Units.Get` seam, and it is the shape any future per-unit write path should take. It is NOT on
+--- the slash CLI's path — `/at set` goes `NS.SetByPath` -> `NS.SetSetting` (`settings/Schema.lua`)
+--- -> `NS.SetPath` (`core/Data.lua`), walking the dotted profile path directly. The mirror-unaware
+--- write the comment above describes is real, it just also lives there.
 function Units.Set(unit, key, value)
     local c = Units.Config(unit)
     if c then c[key] = value end

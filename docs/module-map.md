@@ -263,7 +263,9 @@ NS.Units.SourceUnit(unit)      -> "player" | unit  -- IsMirrored(unit) and "play
 NS.Units.Get(unit, key)        -> value            -- mirror-resolved read; THE read path for all
                                                     -- 15 appearance keys
 NS.Units.Set(unit, key, value) -- writes the unit's OWN config, NOT mirror-resolved (a write while
-                               -- mirrored would silently edit the player's bar)
+                               -- mirrored would silently edit the player's bar). NO production
+                               -- caller: `/at set` goes NS.SetByPath -> NS.SetSetting ->
+                               -- NS.SetPath. Published as the write half of the Get seam.
 NS.Units.Position(unit)        -> position | nil   -- never mirror-resolved
 NS.Units.SetPosition(unit, pos)
 NS.Units.CopyFromPlayer(unit)  -- one-shot: deep-copies the player's 15 appearance keys onto

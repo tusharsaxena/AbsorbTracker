@@ -155,7 +155,10 @@ end
 --- Defaults button.
 function NS.ApplyDefault(row)
     if row.default == nil then return end
-    -- DeepCopy color tables so two profiles can't end up sharing the same nested table.
+    -- Copy a table default before storing it, so two profiles can't end up sharing the same
+    -- table. ONE level is enough and this is not `NS.Units.DeepCopy`: every table-valued default
+    -- in the schema is a flat `{ r, g, b, a }` color, so there is no nested table to alias. Reach
+    -- for `NS.Units.DeepCopy` here the day a nested default appears.
     local v = row.default
     if type(v) == "table" then
         local copy = {}

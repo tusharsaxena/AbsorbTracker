@@ -23,12 +23,11 @@ function NS:InitDB()
 end
 
 -- Deep-copy so an in-place mutation of a saved variable can never reach back into the defaults.
-local function deepcopy(v)
-    if type(v) ~= "table" then return v end
-    local out = {}
-    for k, vv in pairs(v) do out[k] = deepcopy(vv) end
-    return out
-end
+-- There is exactly ONE implementation, `core/Units.lua`'s, which the TOC loads immediately before
+-- this file (and the headless harness derives its load list from that same TOC). This file used to
+-- carry a byte-identical private copy; two copies of a recursive copier can drift, and the drift
+-- would surface only as two profiles silently sharing a nested table.
+local deepcopy = NS.Units.DeepCopy
 
 -- v3 (toc-file-§2/savedvariables-§1): bar appearance moved from flat profile keys to profile.units.<unit>.
 --
