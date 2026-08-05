@@ -43,8 +43,12 @@ NS.CreateOptionsPanel()
 _G.AT_TEST = Kit.expose{
   NS = NS, mocks = mocks,
   -- What this runner actually fed the loader, so tests/test_loadorder.lua can compare it against a
-  -- fresh reading of the TOC instead of trusting that they still match.
+  -- fresh reading of the TOC (and of the vendored XML) instead of trusting that they still match.
+  -- Publishing the lists themselves, rather than leaving the suite to grep this file's source, is
+  -- what makes the load lists OBSERVABLE: a runner that spells the derivation differently but loads
+  -- the right files must stay green, and one that loads the wrong files must not.
   loadedAddonFiles = ADDON_FILES,
+  loadedLibFiles   = LIB_FILES,
 }
 
 -- --- load test suites (order is load-order-sensitive; keep it) ---

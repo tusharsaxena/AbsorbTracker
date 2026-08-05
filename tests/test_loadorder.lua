@@ -15,6 +15,7 @@ local T = _G.AT_TEST
 local test, assertEqual, assertTrue, assertFalse =
   T.test, T.assertEqual, T.assertTrue, T.assertFalse
 local mocks = T.mocks
+local NS = T.NS
 
 local Loader = dofile("tests/_kit/loader.lua")
 
@@ -97,18 +98,44 @@ test("loadorder: xmlFiles returns every LibKa0s script the vendored XML lists, i
     "Loader.xmlFiles must return the XML's scripts, directory-prefixed, in the XML's order")
 end)
 
-test("loadorder: both runners derive the library half from the vendored XML", function()
-  -- Pins that neither runner has gone back to a hand-typed list. Asserted by reading the source,
-  -- because tests/perf.lua is a separate process this suite deliberately does not run, and a
-  -- runner's literal list is exactly the failure mode that goes unnoticed.
-  for _, runner in ipairs({ "tests/run.lua", "tests/perf.lua" }) do
-    local src = readFile(runner)
-    assertTrue(src:find('Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml")', 1, true) ~= nil,
-      runner .. " must derive its library load list with " ..
-      'Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml"), not carry a copy of it')
-    assertTrue(src:find('"libs/LibKa0s/Core.lua"', 1, true) == nil,
-      runner .. " still names a libs/LibKa0s/*.lua file literally — the copy is what rots")
-  end
+test("loadorder: the runner loaded exactly the vendored XML's library files, in its order", function()
+  -- What this observes is the LIST THE LOADER WAS FED, published by tests/run.lua, against a fresh
+  -- reading of the XML — not the spelling of the call that produced it. A runner that hoists the
+  -- path to a local, or reaches xmlFiles through a helper, loads exactly the right files and stays
+  -- green; a runner that drops or reorders a file goes red however it is written.
+  local loaded = T.loadedLibFiles
+  assertTrue(type(loaded) == "table", "tests/run.lua publishes the library files it loaded")
+  local want = Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml")
+  assertEqual(table.concat(loaded, "\n"), table.concat(want, "\n"),
+    "tests/run.lua's library load list has drifted from libs/LibKa0s/LibKa0s.xml")
+end)
+
+test("loadorder: the loaded library registered — NS.Perf is the lib, not the degradation stub", function()
+  -- The consequence a short list has, and the reason it goes unnoticed: a missing Perf.lua raises
+  -- nothing at all. LibStub never sees the major, core/PerfSetup.lua takes its `if not lib` arm,
+  -- NS.Perf becomes the four-member stub (on/suspended/Note/OnCommand), and tests/perf.lua goes on
+  -- reporting a probeOverhead figure measured on a stub with no probe in it. So assert the majors
+  -- the XML declares are registered, and that NS.Perf carries members only the real instance has.
+  local perf = mocks.LibStub("LibKa0s-Perf-1.0", true)
+  assertTrue(perf ~= nil, "libs/LibKa0s/Perf.lua must have loaded and registered its major")
+  -- PerfPanel.lua does not take a major of its own — it attaches to the probe and records itself in
+  -- lib.MODULES, so that table is what says the second file was in the list the loader was fed.
+  assertTrue((perf.MODULES or {}).PerfPanel ~= nil,
+    "libs/LibKa0s/PerfPanel.lua must have loaded and attached to the probe")
+  assertTrue(type(NS.Perf.Start) == "function",
+    "NS.Perf is the LibKa0s-Perf instance; the degradation stub has no Start")
+  assertTrue(type(NS.Perf.BUCKET_ORDER) == "table",
+    "and it built this addon's descriptor, which only the real lib:New does")
+end)
+
+test("loadorder: tests/perf.lua derives its library half from the vendored XML too", function()
+  -- Source-only, and deliberately so: tests/perf.lua is a separate process this suite does not run,
+  -- so there is no loaded list to observe. Kept as a lint for the ungated runner, matching the
+  -- FUNCTION rather than a whole literal call, so a correct refactor that hoists the path is
+  -- allowed through.
+  local src = readFile("tests/perf.lua")
+  assertTrue(src:find("Loader.xmlFiles", 1, true) ~= nil,
+    "tests/perf.lua must derive its library load list with Loader.xmlFiles, not carry a copy of it")
 end)
 
 test("loadorder: LibStub raises for a missing major without the silent flag", function()
