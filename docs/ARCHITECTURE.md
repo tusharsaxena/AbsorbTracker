@@ -268,50 +268,39 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
 - **Three bars — player, target, focus.** Group / raid / arena / boss units are out of scope
   ([scope.md](./scope.md)).
 
-## Standards Deviations
+## Documented deviations
 
-Accepted, intentional departures from the Ka0s WoW Addon Standard. Each is recorded here with its
-justification; a fresh `/standards-audit` will re-surface them into a new dated bundle under
-`docs/audits/`.
+Ratified departures from the Ka0s WoW Addon Standard, in the row shape `documentation-§3` fixes.
+**This is the single home**: a decision may be reasoned at length in an audit bundle or in
+`docs/pending/LEDGER.md`, and the row cites it — but a deviation that is not in this table is not
+ratified. The long-form argument for each row follows the table; a fresh `/wow-addon:standards-audit`
+reads the register first and records a match as accepted rather than re-filing it.
 
-- **No `## X-Wago-ID` in the TOC.** The standard expects a distribution ID for every platform the
-  addon ships on. Absorb Tracker is published on CurseForge only — `## X-Curse-Project-ID: 1450165`
-  is the complete set — so there is no Wago listing and no ID to declare. A placeholder or an empty
-  key would be worse than the omission: it would advertise a listing that does not exist. Add the
-  line if a Wago release ever ships. *(Closes AT-05, the last open MUST from
-  `docs/audits/2026-07-18/`, which was decision-gated on this question.)*
+| Rule | What differs | Why | Decided | Re-check trigger |
+|---|---|---|---|---|
+| `events-frames-taint-§1` | `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` are registered on a private `CreateFrame` **per tracked unit** via `RegisterUnitEvent`, not through AceEvent-3.0 | Both events fire for every unit the client knows about; AceEvent shares one frame and structurally cannot `RegisterUnitEvent`, so it would pay a full C→Lua dispatch per unit only to discard all but ours. One frame each rather than packing tokens, because `RegisterUnitEvent` filters **at most two** tokens per registration. Argument in full below; filed as `AT-A-10` in `docs/audits/2026-08-05/` | 2026-07-14 | A client build where `RegisterUnitEvent` accepts more than two unit tokens |
+| `savedvariables-§1` | A **per-profile** `schemaVersion` stamp at `db.profile.schemaVersion`, alongside the account-wide stamp in `db.global` | The v3 lift — flat appearance keys onto `profile.units.<unit>` — is a per-profile mutation, and an account-wide flag structurally cannot gate one: a second pre-v3 profile would have its stored appearance stranded forever. Argument in full below | 2026-07-28 | AceDB gaining a per-profile version stamp of its own, or the last per-profile migration being retired |
 
-- **A second top-level SavedVariables global — `AbsorbTrackerPerfDB`.** The TOC declares it
-  alongside `AbsorbTrackerDB`. It holds the perf capture ring (last 10 runs) and is deliberately
-  **outside** the AceDB tree so diagnostic data never rides profile copy / reset / switch.
-  A separate SavedVariables *file* was considered and rejected: WoW names the file after the addon
-  and serializes every global it declares into that one file, so a separate file would require
-  shipping a companion addon in its own sibling folder — a two-addon repo, with packaging and
-  CurseForge knock-ons, for isolation a distinct global already provides.
-  **Pending promotion:** the LibKa0s perf-extraction spec (the LibKa0s repo's
-  `docs/superpowers/specs/2026-07-29-libka0s-perf-extraction-design.md`)
-  proposes lifting this pattern into WowAddonStandards v2.12.0; that rollout step is not part of
-  this plan.
+**Retired on 2026-08-05** — four entries this register carried whose cited rule the standard has since
+changed, so the behavior is now permitted outright and a row for it reads as a deviation that is not
+one (`documentation-§3`: the register must not become a graveyard):
 
-- **`lizard` as an optional dev dependency (complexity reporting).** Python tooling in a Lua repo,
-  used for the `complexity` suite of the automated-test run. It is **not** part of the green gate
-  (`lua tests/run.lua` + `luacheck .`) and nothing fails without it. Issue #17 assigns the
-  standard's definition of a complexity rule to WowAddonStandards; this addon adopts whatever
-  lands there.
-  **Pending promotion:** the LibKa0s perf-extraction spec (the LibKa0s repo's
-  `docs/superpowers/specs/2026-07-29-libka0s-perf-extraction-design.md`)
-  proposes promoting this into WowAddonStandards v2.12.0; that rollout step is not part of this
-  plan.
+- **No `## X-Wago-ID` in the TOC.** `toc-file-§1` marks the distribution IDs as mandatory only for a
+  platform the addon actually ships on. Absorb Tracker is CurseForge-only, so there is nothing to
+  declare and nothing to deviate from.
+- **`AbsorbTrackerPerfDB`, a second top-level SavedVariables global.** `savedvariables-§4` now names
+  the diagnostics global as the one sanctioned non-AceDB SV, which is exactly what this is.
+- **`lizard` as an optional dev dependency.** `performance-§10` mandates the complexity measurement
+  and names the tool; `automated-tests-§3` places it outside the commit gate. Both are what this repo
+  already does.
+- **Instrumentation brackets in hot paths.** `performance-§2` now specifies the bracket idiom itself,
+  including the inline `local t0 = Perf.on and debugprofilestop()` shape these files use.
 
-- **Instrumentation hooks in hot paths.** `modules/Display.lua`, `modules/Timer.lua` and
-  `core/AbsorbTracker.lua` carry `local t0 = Perf.on and debugprofilestop()` brackets. When capture
-  is off this is an upvalue read, a field read and a boolean test — no call, no allocation. The
-  claim is enforced, not asserted: `tests/perf.lua`'s `probeOverheadOff` / `probeOverheadOn`
-  scenarios fail if a dormant bracket ever allocates more than an armed one.
-  **Pending promotion:** the LibKa0s perf-extraction spec (the LibKa0s repo's
-  `docs/superpowers/specs/2026-07-29-libka0s-perf-extraction-design.md`)
-  proposes promoting this frozen bracket idiom into WowAddonStandards v2.12.0; that rollout step is
-  not part of this plan.
+The perf capture ring, the complexity tooling and the bracket idiom are all still described in this
+document — under **Performance & Profiler Attribution** below, where they belong as design, not as
+departures.
+
+### The per-unit event frames, in full
 
 - **events-frames-taint-§1 — private `CreateFrame` event frames for the `UNIT_*` events, one per unit.**
   `addon:SyncUnitEventFrames()` (called from `OnEnable` and from the `UNITS` bus message,
@@ -334,6 +323,8 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
   `PLAYER_REGEN_DISABLED/ENABLED` stay unconditionally on AceEvent. The per-unit frames are the
   *only* raw event frames; events-frames-taint-§1 otherwise holds.
 
+### The per-profile schema stamp, in full
+
 - **savedvariables-§1 — a PER-PROFILE `schemaVersion` stamp alongside the account-wide one.** savedvariables-§1 puts the
   persisted-DB version stamp account-wide in `db.global`. This addon keeps that stamp *and* adds a
   second one at `db.profile.schemaVersion` (`defaults/Profile.lua`, default `1`). **Why:** the v3
@@ -350,6 +341,11 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
   fills every absent key before `RunMigrations` reads the profile, so a default of `3` would mark
   every upgrading profile as already-migrated and make the gate dead code. See
   [profiles.md](./profiles.md).
+
+### Recorded, but not deviations
+
+The two entries below cite no rule. They are kept in this document because an audit or a media sweep
+would otherwise surface them cold, and the reason they exist is not obvious from the code.
 
 - **A production test seam: `Helpers.__lastUnitCtx` (`settings/UnitPanel.lua`).**
   `Helpers.RenderUnitPanel` stashes the ctx it just rendered on `NS.Helpers.__lastUnitCtx`.

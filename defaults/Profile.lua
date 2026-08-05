@@ -6,7 +6,7 @@ local addonName, NS = ...
 -- the DB-wide marker NS:RunMigrations walks regardless of the active profile. The second lives
 -- per-profile, below, and gates the v3 lift — which is a per-profile mutation an account-wide flag
 -- structurally cannot gate. That second stamp is a deliberate, recorded savedvariables-§1 deviation: see the
--- "Standards Deviations" section of docs/ARCHITECTURE.md and docs/profiles.md.
+-- "Documented deviations" register in docs/ARCHITECTURE.md and docs/profiles.md.
 NS.defaults = NS.defaults or {}
 
 -- The per-unit appearance block. Built by a factory so each unit gets its OWN tables — sharing
