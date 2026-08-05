@@ -322,7 +322,7 @@ NS.DebugLog = lib:New({
                                                -- by /at debug moves the General page's checkbox
 })
 
--- Bound bare, which is why all fifteen NS.Debug call sites across five files are unchanged.
+-- Bound bare, which is why all thirteen NS.Debug call sites across five files are unchanged.
 NS.Debug = NS.DebugLog.Debug
 ```
 
