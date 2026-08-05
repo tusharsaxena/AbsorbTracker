@@ -15,12 +15,13 @@ end)
 -- copyDefaults fills db.global from NS.defaults.global BEFORE RunMigrations reads it, so a default
 -- of 4 stamped every freshly-materialized global as already-migrated and made `g.schemaVersion <
 -- step.to` false for every step — the whole ladder dead, including for a DB whose global was wiped
--- while its profiles still held pre-v4 data. This asserts the default itself: the nil'd-stamp case
--- above passes either way, which is why it never caught this.
+-- while its profiles still held pre-v4 data. So the global here is materialized the way AceDB does
+-- it — copyDefaults out of the SHIPPED defaults, never a hand-set stamp — and what is asserted is
+-- that the ladder reached the profile. The nil'd-stamp case above passes either way, which is why
+-- it never caught this. The default's literal VALUE is deliberately not asserted: omitting the key
+-- entirely is equally correct (copyDefaults copies nothing, and core/Database.lua:189 reads the
+-- absent stamp as 1), so pinning `== 1` would only forbid a correct file.
 test("a freshly-materialized global runs the ladder, because its default is pre-ladder", function()
-  assertEqual(NS.defaults.global.schemaVersion, 1,
-    "an account-wide default of the CURRENT version gates the ladder off permanently")
-
   local savedDB = NS.db
   local profile = { updateInterval = 1.0, hidden = true, schemaVersion = 3 }
   local fresh = {}
