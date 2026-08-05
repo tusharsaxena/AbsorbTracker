@@ -187,9 +187,9 @@ timers.
 
 New AceEvent subscriptions: `PLAYER_TARGET_CHANGED` and `PLAYER_FOCUS_CHANGED`, each publishing
 `VISIBILITY` then `REPAINT`. These are global, payload-free events with no unit to filter, so they
-belong on AceEvent per §9.1.
+belong on AceEvent per events-frames-taint-§1.
 
-**Standards note.** This widens the accepted §9.1 deviation from one raw event frame to two. The
+**Standards note.** This widens the accepted events-frames-taint-§1 deviation from one raw event frame to two. The
 justification is unchanged and strengthened — the events fire for every unit the client knows
 about, and AceEvent structurally cannot `RegisterUnitEvent`. `ARCHITECTURE.md` → Standards
 Deviations is rewritten to describe two frames and why a second is required (the two-unit filter
@@ -220,7 +220,7 @@ Schema infrastructure changes (`settings/Schema.lua`):
   unit's rows plus any unit-agnostic rows (General's, which carry no `unit` field).
 - `NS.ResolvePath(tbl, path)` / `NS.SetPath(tbl, path, value)` — dotted-path walkers.
   `NS.SetByPath` and `NS.GetSetting`'s callers route through them.
-- `NS.ValidateSchema`'s §4.5 check resolves dotted paths against `defaults.profile` rather than
+- `NS.ValidateSchema`'s architecture-§5 check resolves dotted paths against `defaults.profile` rather than
   indexing it flat. Its `(errors, resolved, missing)` return shape is unchanged, so the harness
   assertion still holds — the counts simply grow.
 - `NS.PartitionUnitRows(rows)` — splits `alwaysPerUnit` rows from mirrored appearance rows.
@@ -316,7 +316,7 @@ in the same change.
 |---|---|
 | `AbsorbTracker.toc` | Add `core\Units.lua` after `core\Data.lua`. |
 | `docs/scope.md` | Move target/focus tracking from Out of scope to In scope (raid/group stays out). Add resolved decisions: mirror is Player-sourced and live; copy is a one-shot snapshot; position and enable are never mirrored; class colors are always the player's; visibility uses `UnitExists`, never an absorb comparison. |
-| `docs/ARCHITECTURE.md` | Module map row for `core/Units.lua`; rewrite the "Single bar" limitation; rewrite the §9.1 deviation for two event frames; add the two new AceEvent subscriptions. |
+| `docs/ARCHITECTURE.md` | Module map row for `core/Units.lua`; rewrite the "Single bar" limitation; rewrite the events-frames-taint-§1 deviation for two event frames; add the two new AceEvent subscriptions. |
 | `docs/schema.md` | Dotted paths, the `unit` / `alwaysPerUnit` / `skipRender` row fields, per-unit row generation. |
 | `docs/settings-panel.md` | The Unit dropdown, the mirror header, and the hidden-while-mirrored rule. |
 | `docs/data-flow.md` | Three bars through one coalesced repaint; the mirror resolution step. |

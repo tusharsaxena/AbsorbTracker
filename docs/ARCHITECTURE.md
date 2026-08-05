@@ -208,7 +208,7 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   one shared frame with plain `RegisterEvent` and cannot `RegisterUnitEvent` — so an AceEvent
   registration would pay a full C→Lua dispatch for every unit only to discard all but ours. A
   private `CreateFrame("Frame")` with `RegisterUnitEvent` moves that filter to the C layer instead
-  — a documented §9.1 deviation (see below). One frame per unit rather than packing tokens two at a
+  — a documented events-frames-taint-§1 deviation (see below). One frame per unit rather than packing tokens two at a
   time (`RegisterUnitEvent`'s cap): each unit's registration can then be added or dropped on its own
   as its bar is enabled or disabled, with no repacking. **A disabled bar is registered for nothing
   at all**, and its `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` watch is dropped too — that
@@ -313,7 +313,7 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
   proposes promoting this frozen bracket idiom into WowAddonStandards v2.12.0; that rollout step is
   not part of this plan.
 
-- **§9.1 — private `CreateFrame` event frames for the `UNIT_*` events, one per unit.**
+- **events-frames-taint-§1 — private `CreateFrame` event frames for the `UNIT_*` events, one per unit.**
   `addon:SyncUnitEventFrames()` (called from `OnEnable` and from the `UNITS` bus message,
   `core/AbsorbTracker.lua`) registers `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` on a private
   frame per tracked unit via `RegisterUnitEvent` rather than through AceEvent-3.0 — and only for
@@ -332,9 +332,9 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
   swap regardless of absorbs, so gating them is where the CPU saving actually lands — the `UNIT_*`
   events were already C-filtered to the tokens we asked for. `PLAYER_ENTERING_WORLD` and
   `PLAYER_REGEN_DISABLED/ENABLED` stay unconditionally on AceEvent. The per-unit frames are the
-  *only* raw event frames; §9.1 otherwise holds.
+  *only* raw event frames; events-frames-taint-§1 otherwise holds.
 
-- **§5.1 — a PER-PROFILE `schemaVersion` stamp alongside the account-wide one.** §5.1 puts the
+- **savedvariables-§1 — a PER-PROFILE `schemaVersion` stamp alongside the account-wide one.** savedvariables-§1 puts the
   persisted-DB version stamp account-wide in `db.global`. This addon keeps that stamp *and* adds a
   second one at `db.profile.schemaVersion` (`defaults/Profile.lua`, default `1`). **Why:** the v3
   migration — lifting flat appearance keys onto `profile.units.<unit>` — is a **per-profile**
@@ -377,18 +377,18 @@ justification; a fresh `/standards-audit` will re-surface them into a new dated 
     `core/DebugLogSetup.lua` hands it `C.FONT_MONO`, so the choice of face is still this addon's.
     It is registered with LSM as
     `"JetBrains Mono"` at init, but the console does not read a user font setting. **Why:** a fixed
-    monospace face is required for column-aligned debug output (§12.2). The console's backdrop is
+    monospace face is required for column-aligned debug output (debug-logging-§2). The console's backdrop is
     Blizzard-stock too, but it is no longer the tooltip frame: `WHITE8x8` for both the fill and
     the edge, the edge tinted flat black at `edgeSize = 1`, with a 1px gray highlight synthesized
     just inside it, a gold title and a gray divider. That edge is the **shared Ka0s window edge**,
     not this addon's — it is `LibKa0s-Core-1.0`'s `SKIN` + `ApplySkin` (`libs/LibKa0s/Core.lua`),
     and `core/DebugLogSetup.lua` takes it as-is (it passes neither `skin` nor `applySkin`), so the
     console and the perf panel wear whatever every other Ka0s window wears. The Ka0s WoW Addon
-    Standard specifies those values normatively (standalone-windows-§2); the 12px
+    Standard specifies those values normatively (standalone-windows); the 12px
     `UI-Tooltip-Border` is what the same seam drew before LibKa0s v1.3.0.
   - **About-page logo — `media/logos/absorbracker.logo.v2.tga`.** `settings/About.lua` draws the
     addon's branding logo via `C.LOGO_PATH`. **Why:** addon branding, not bar appearance; a
-    user-swappable logo would be meaningless. Stored under a typed media subfolder per §1.4.
+    user-swappable logo would be meaningless. Stored under a typed media subfolder per layout-§3.
 
 ## Performance & Profiler Attribution
 

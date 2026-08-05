@@ -43,7 +43,7 @@ local function withSetting(key, value, body)
 end
 
 test("NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder", function()
-  assertTrue(NS.AceGUI ~= nil, "the panel build stashes AceGUI (Ka0s standard §3.4)")
+  assertTrue(NS.AceGUI ~= nil, "the panel build stashes AceGUI (Ka0s standard library-stack-§4)")
 end)
 
 -- ── Checkbox ───────────────────────────────────────────────────────────────────────

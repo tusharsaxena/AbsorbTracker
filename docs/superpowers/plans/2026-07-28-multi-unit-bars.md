@@ -281,7 +281,7 @@ local addonName, NS = ...
 -- AceDB defaults. Bar appearance is PER UNIT (player / target / focus) under `profile.units`;
 -- the four master toggles stay flat at the profile root because they govern all three bars.
 -- The persisted-DB schema-version stamp lives under `global` (account-wide) so NS:RunMigrations
--- has a single version to walk regardless of the active profile (Ka0s standard §5.1).
+-- has a single version to walk regardless of the active profile (Ka0s standard savedvariables-§1).
 NS.defaults = NS.defaults or {}
 
 -- The per-unit appearance block. Built by a factory so each unit gets its OWN tables — sharing
@@ -480,7 +480,7 @@ function NS:RunMigrations()
     local profile = NS.db.profile
     local defaults = NS.defaults.profile
 
-    -- v3 (§2.2/§5.1): bar appearance moved from flat profile keys to profile.units.<unit>.
+    -- v3 (toc-file-§2/savedvariables-§1): bar appearance moved from flat profile keys to profile.units.<unit>.
     -- Guarded on `units == nil` so re-running is a no-op. Runs BEFORE the backfill so the
     -- backfill sees the migrated shape.
     if profile and profile.units == nil then
@@ -847,10 +847,10 @@ end
 
 - [ ] **Step 6: Make `ValidateSchema` resolve dotted paths**
 
-In `NS.ValidateSchema`, replace the §4.5 block:
+In `NS.ValidateSchema`, replace the architecture-§5 block:
 
 ```lua
-            -- §4.5: the path must resolve against the defaults profile. Profiles-page rows (if
+            -- architecture-§5: the path must resolve against the defaults profile. Profiles-page rows (if
             -- any) are AceDBOptions-supplied and exempt. Paths may be dotted (units.<unit>.<key>).
             if hasPath and row.page ~= "profiles" then
                 if NS.ResolvePath(defaults, row.path) ~= nil then
@@ -1540,7 +1540,7 @@ frames. Keep the existing create-once guard pattern and the existing handler met
 (`addon:OnAbsorbChanged`, `addon:OnMaxHealthChanged`):
 
 ```lua
-    -- §9.1 deviation (see docs/ARCHITECTURE.md): the two UNIT_* events are registered on PRIVATE
+    -- events-frames-taint-§1 deviation (see docs/ARCHITECTURE.md): the two UNIT_* events are registered on PRIVATE
     -- frames via RegisterUnitEvent rather than through AceEvent-3.0. Both events fire for every
     -- unit the client knows about (raid, pets, nameplates); AceEvent uses one shared frame with
     -- plain RegisterEvent and structurally cannot RegisterUnitEvent, so it would pay a full C→Lua
@@ -1578,7 +1578,7 @@ registrations, add:
 
 ```lua
     -- Target / focus swaps change which bars should be visible and what they should read.
-    -- Global, payload-free events with no unit to filter, so they stay on AceEvent (§9.1).
+    -- Global, payload-free events with no unit to filter, so they stay on AceEvent (events-frames-taint-§1).
     self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnUnitSwap")
     self:RegisterEvent("PLAYER_FOCUS_CHANGED", "OnUnitSwap")
 ```
@@ -2591,7 +2591,7 @@ Then the scope amendment proper:
 - **Known Limitations:** replace the *"Single bar"* bullet with
   *"Three bars — player, target, focus. Group / raid / arena / boss units are out of scope
   ([scope.md](./scope.md))."*
-- **Standards Deviations:** rewrite the §9.1 entry to describe **two** private frames, adding the
+- **Standards Deviations:** rewrite the events-frames-taint-§1 entry to describe **two** private frames, adding the
   reason a second is required: `RegisterUnitEvent` filters at most two units per frame and the
   addon now tracks three.
 - **Message Bus:** note that each Display handler fans out over `NS.ForEachUnit`, so the messages

@@ -3,7 +3,7 @@ local NS = T.NS
 local test, assertEqual, assertTrue, assertFalse =
   T.test, T.assertEqual, T.assertTrue, T.assertFalse
 
--- ── RunMigrations: the schema-migration seam (Ka0s standard §2.2/§5.1) ─────────────
+-- ── RunMigrations: the schema-migration seam (Ka0s standard toc-file-§2/savedvariables-§1) ─────────────
 -- The current schema version is 4, so a full migration run leaves the DB stamped at 4.
 test("RunMigrations migrates a fresh DB to the current version (4)", function()
   NS.db.global.schemaVersion = nil

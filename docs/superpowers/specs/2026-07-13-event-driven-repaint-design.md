@@ -75,7 +75,7 @@ Add:
 ```lua
 local addonName, NS = ...
 
--- Coalescing repaint scheduler (Ka0s standard §3.1 — one-shot AceTimer, same pattern as
+-- Coalescing repaint scheduler (Ka0s standard library-stack-§1 — one-shot AceTimer, same pattern as
 -- settings/Widgets.lua). Repaints are event-driven; this trailing-edge throttle caps the repaint
 -- rate to one per throttleWindow so a burst of UNIT_ABSORB_AMOUNT_CHANGED events during combat
 -- can't cause a repaint storm. Idle = zero repaints; there is no polling fallback.
@@ -187,16 +187,16 @@ Green gate stays `lua tests/run.lua` + `luacheck .` (0/0).
   (`updateInterval` → `throttleWindow`), note the ticker removal.
 - `docs/settings-panel.md` and `docs/schema.md` — the renamed setting.
 - `CHANGELOG` — behavioral change + migration note.
-- The §3.1 comment header in `modules/Timer.lua` (rewritten as above).
+- The library-stack-§1 comment header in `modules/Timer.lua` (rewritten as above).
 
 No version bump and no commit are part of this design — those require an explicit instruction.
 
 ## Standards compliance (§7)
 
-**No deviation.** §3.1 (no raw `C_Timer` for repeating work) is satisfied: the coalescing repaint
+**No deviation.** library-stack-§1 (no raw `C_Timer` for repeating work) is satisfied: the coalescing repaint
 is a one-shot AceTimer (the same pattern already in `settings/Widgets.lua:198`), and the repeating
 poll ticker is *removed*, not replaced with raw `C_Timer`. Splitting/retiring a schema setting via
-a versioned, idempotent `RunMigrations` step is the §2.2/§5.1 flow. Event registration follows the
+a versioned, idempotent `RunMigrations` step is the toc-file-§2/savedvariables-§1 flow. Event registration follows the
 file's existing `RegisterEvent` + `unit == "player"` convention.
 
 ## Risks & mitigations

@@ -70,7 +70,7 @@ local descriptor = {
         if NS.Helpers and NS.Helpers.ResetAllPositions then NS.Helpers.ResetAllPositions() end
     end,
 
-    -- AceTimer through the addon object (Ka0s standard §3.1) rather than a raw C_Timer. Backs the
+    -- AceTimer through the addon object (Ka0s standard library-stack-§1) rather than a raw C_Timer. Backs the
     -- color picker's 50 ms drag throttle; the library takes it as a descriptor field because
     -- embedding AceTimer would be its second dependency-budget breach.
     scheduleTimer = function(fn, delay) return NS.addon:ScheduleTimer(fn, delay) end,
@@ -78,7 +78,7 @@ local descriptor = {
     getLSM   = function() return NS.GetLSM() end,
     validate = function() NS.ValidateSchema() end,
 
-    -- Ka0s standard §3.4: resolve AceGUI once and read the upvalue. settings/About.lua and the
+    -- Ka0s standard library-stack-§4: resolve AceGUI once and read the upvalue. settings/About.lua and the
     -- page builders read NS.AceGUI, so the library hands it over rather than keeping it private.
     onAceGUI = function(AceGUI) NS.AceGUI = AceGUI end,
 

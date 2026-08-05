@@ -83,7 +83,7 @@ if t0 then Perf.Note("paintBar", debugprofilestop() - t0) end
 ```
 
 When capture is off this is an upvalue read, a field read, and a boolean test — no call, no
-allocation. This matches the existing §12.4 convention for gated debug reads.
+allocation. This matches the existing debug-logging-§4 convention for gated debug reads.
 
 Buckets, in report order:
 

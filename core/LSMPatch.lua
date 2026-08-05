@@ -1,6 +1,6 @@
 local addonName, NS = ...
 
--- LSM30_Border widget fixup, applied once on enable (Ka0s standard §3.5 — extend AceGUI via
+-- LSM30_Border widget fixup, applied once on enable (Ka0s standard library-stack-§5 — extend AceGUI via
 -- RegisterWidgetType, never fork the lib).
 --
 -- Upstream AceGUI-3.0-SharedMediaWidgets' LSM30_Border widget pins a 42x42 displayButton

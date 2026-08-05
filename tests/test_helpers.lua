@@ -121,7 +121,7 @@ end)
 test("EnsureDefaultsButton is a safe no-op without AceGUI, and on a nil panel", function()
   local ctx = Helpers.CreatePanel("ATTestPanelG2", "Test G2", { defaultsButton = true })
   -- Nils the handle the toolkit itself reads, not NS.AceGUI. Since the extraction NS.Helpers IS
-  -- the LibKa0s-Options instance and it stashes AceGUI on itself (Ka0s standard §3.4, one lookup
+  -- the LibKa0s-Options instance and it stashes AceGUI on itself (Ka0s standard library-stack-§4, one lookup
   -- rather than one per builder); NS.AceGUI is the copy it hands the host for its own page files.
   -- In game the two are always the same object, so this is the same scenario read at the seam the
   -- code under test actually uses.

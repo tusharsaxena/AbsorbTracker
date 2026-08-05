@@ -197,7 +197,7 @@ end
 -- ---------------------------------------------------------------------
 --
 -- Run once at panel-registration time after every settings/<page>.lua has loaded its rows.
--- Catches misspelled page / type enum values, missing path, and (Ka0s standard §4.5) any row
+-- Catches misspelled page / type enum values, missing path, and (Ka0s standard architecture-§5) any row
 -- whose `path` does NOT resolve against the defaults profile — a typo'd path would otherwise
 -- silently read/write nothing. The validator only PRINTS; it never refuses to register.
 
@@ -245,7 +245,7 @@ function NS.ValidateSchema()
                     .. " (expected one of: bool, number, string, color)")
                 errors = errors + 1
             end
-            -- §4.5: the path must resolve against the defaults profile. Profiles-page rows (if
+            -- architecture-§5: the path must resolve against the defaults profile. Profiles-page rows (if
             -- any) are AceDBOptions-supplied and exempt. Paths may be dotted (units.<unit>.<key>).
             if hasPath and row.page ~= "profiles" then
                 if NS.ResolvePath(defaults, row.path) ~= nil then

@@ -42,7 +42,7 @@ these two events onto a **private `CreateFrame` frame** with `RegisterUnitEvent(
 the client filters at the C layer and the handler never runs for other units. The three global,
 payload-free events (`PLAYER_ENTERING_WORLD`, `PLAYER_REGEN_DISABLED/ENABLED`) stayed on AceEvent.
 
-This is a **documented Ka0s-standard §9.1 deviation** (events otherwise go through AceEvent),
+This is a **documented Ka0s-standard events-frames-taint-§1 deviation** (events otherwise go through AceEvent),
 recorded in [ARCHITECTURE.md → Standards Deviations](../../ARCHITECTURE.md#standards-deviations).
 
 ### Result (30 s window, same character, same zone)

@@ -30,7 +30,7 @@ local function deepcopy(v)
     return out
 end
 
--- v3 (§2.2/§5.1): bar appearance moved from flat profile keys to profile.units.<unit>.
+-- v3 (toc-file-§2/savedvariables-§1): bar appearance moved from flat profile keys to profile.units.<unit>.
 --
 -- Gated on a schemaVersion stamp, NOT on `profile.units == nil`. Under REAL AceDB-3.0, the very
 -- act of reading `NS.db.profile` already triggers the library's own copyDefaults: AceDB's

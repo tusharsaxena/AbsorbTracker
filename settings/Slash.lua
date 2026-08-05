@@ -2,7 +2,7 @@ local addonName, NS = ...
 NS.Slash = NS.Slash or {}
 local Sl = NS.Slash
 
--- Schema-driven slash dispatcher registered via AceConsole (Ka0s standard §7.1 — no hand-rolled
+-- Schema-driven slash dispatcher registered via AceConsole (Ka0s standard slash-commands-§1 — no hand-rolled
 -- SLASH_* globals). /at list, /at get and /at set walk NS.Schema directly, so adding an option is
 -- one schema row (in some settings/<page>.lua) and the slash surface picks it up automatically.
 --
@@ -193,10 +193,10 @@ end
 -- ---------------------------------------------------------------------
 --
 -- /at debug        toggles the on-screen debug console window (state unchanged).
--- /at debug on|off enables / disables session logging (§12.5).
+-- /at debug on|off enables / disables session logging (debug-logging-§5).
 
 -- The whole guided run lives in LibKa0s-Perf; this is only the dispatch. The lib deliberately
--- registers no slash command of its own (slash-commands-§: every verb goes through this table with
+-- registers no slash command of its own (slash-commands-§3: every verb goes through this table with
 -- the cyan tag), so it hands back lines and we print them.
 function runPerf(rest)
     for _, line in ipairs(NS.Perf.OnCommand(rest or "")) do print(line) end
