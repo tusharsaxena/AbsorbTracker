@@ -481,6 +481,13 @@ cli = SlashLib:New({
 -- WHERE an annotation may appear — after the colored pair, on list/get/set and never on a reset.
 cli:SetRowAnnotator(MirrorNote)
 
+-- The dispatcher itself, published for introspection under the same `__` convention the options
+-- helpers use (Helpers.__panels, Helpers.__pages). Nothing in the addon calls through it — the two
+-- wrappers below are the seam every caller uses — but the degraded arm's stub and the library's
+-- instance are otherwise both file-scope locals, and a stub surface that cannot be reached cannot
+-- be compared. tests/test_surface_parity.lua is the only reader.
+Sl.__cli = cli
+
 --- The command list the About page renders. Same coloring and spacing as `/at help`, without the
 --- chat indent: each row there is its own label, where a leading indent reads as a mistake.
 function Sl:LandingRows() return cli:LandingRows() end

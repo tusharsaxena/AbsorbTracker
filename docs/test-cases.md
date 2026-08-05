@@ -535,6 +535,13 @@ badge and any count quoted in the docs must agree with it.
 - vendored Slash resolves a fallback-only override to its own strings
 - vendored Perf resolves a fallback-only override to its own strings
 
+### test_surface_parity.lua (4)
+
+- parity: the Core stub publishes everything core/CoreSetup.lua publishes live
+- parity: the DebugLog stub carries the whole live surface
+- parity: the Options stub carries every helper the degraded build can reach
+- parity: the Slash stub carries every dispatcher member the addon calls
+
 ### test_vendor_sync.lua (2)
 
 - libs/LibKa0s is the LibKa0s release the README says this addon bundles
@@ -564,5 +571,6 @@ badge and any count quoted in the docs must agree with it.
 | test_widgets.lua | 48 |
 | test_docs.lua | 2 |
 | test_ltrap.lua | 8 |
+| test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
-| **Total** | **471** |
+| **Total** | **475** |

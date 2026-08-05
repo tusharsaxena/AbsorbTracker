@@ -75,6 +75,7 @@ Kit.run{
     "test_widgets",
     "test_docs",
     "test_ltrap",
+    "test_surface_parity",
     "test_vendor_sync",
   },
 }
