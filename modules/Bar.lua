@@ -2,8 +2,9 @@ local addonName, NS = ...
 
 -- The absorb bar frames — one per unit (player / target / focus). Built at file-load time from
 -- the per-unit defaults (no DB yet — appearance is re-applied from the active profile on enable).
--- Exports NS.bars keyed by unit, plus NS.bar / NS.statusBar / NS.valueText as player aliases for
--- the call sites that predate multi-unit (core/DebugLog.lua, settings/Slash.lua, the tests).
+-- Exports NS.bars keyed by unit, plus NS.bar / NS.statusBar / NS.valueText / NS.backdropInfo as
+-- player aliases. Nothing in the addon's own runtime reaches for them any more — see the note at
+-- the foot of this file.
 
 local C = NS.Constants
 local unitDefaults = NS.unitDefaults
@@ -83,8 +84,12 @@ NS.bars = {
     focus  = NS.CreateBar("focus",  "AbsorbTrackerFocusFrame"),
 }
 
--- Player aliases. core/DebugLog.lua, settings/Slash.lua (`/at test`) and the test harness reach
--- for these; keeping them avoids a rename sweep across files this feature does not otherwise touch.
+-- Player aliases, kept for the TEST HARNESS alone — tests/test_display.lua, test_data.lua and
+-- test_slashcmds.lua take a stable handle on the player frame through them. No production call
+-- site remains: modules/Display.lua and settings/Slash.lua (`/at test`) both index NS.bars[unit],
+-- and core/DebugLog.lua, which this comment used to name, has not existed since debug logging
+-- moved to LibKa0s (core/DebugLogSetup.lua is what is left). Delete these the day the tests stop
+-- using them; do not add a production caller.
 NS.bar          = NS.bars.player
 NS.statusBar    = NS.bars.player.statusBar
 NS.valueText    = NS.bars.player.valueText
