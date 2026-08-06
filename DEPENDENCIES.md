@@ -131,16 +131,16 @@ compensate.
 ### git — required by the test suite, not just by you
 
 The vendor-sync gate shells out to `git` to prove the vendored `libs/LibKa0s/` and
-`tests/_kit/` payloads are byte-identical to the LibKa0s release the README claims to bundle.
+`tests/_kit/` payloads are byte-identical to the LibKa0s release `CLAUDE.md` claims to bundle.
 `tests/test_vendor_sync.lua` is one line of adoption; the comparator is part of the payload it
 checks, at `tests/_kit/vendor_sync.lua`:
 
 ```
-tests/_kit/vendor_sync.lua:140   io.popen(('git -C "%s" %s 2>/dev/null'):format(SIBLING, args), "r")
+tests/_kit/vendor_sync.lua:154   io.popen(('git -C "%s" %s 2>/dev/null'):format(SIBLING, args), "r")
 ```
 
 It runs `git show` and `git ls-tree` against a **sibling checkout at `../LibKa0s`**
-(`tests/_kit/vendor_sync.lua:63`, resolved at `:132`).
+(`tests/_kit/vendor_sync.lua:70`, resolved at `:145`).
 
 ```sh
 sudo apt install -y git
@@ -152,7 +152,7 @@ sudo apt install -y git
 
 The two vendor-sync cases compare against `../LibKa0s`. When that directory is not there, they
 report a **skip carrying its reason** — deliberately, and named in the run rather than hidden
-(`tests/_kit/vendor_sync.lua:177-180`, `T.skip("… the vendored payload was NOT compared")`). An
+(`tests/_kit/vendor_sync.lua:193`, `T.skip("… the vendored payload was NOT compared")`). An
 earlier copy returned early instead, which registered as PASS for a comparison that never ran.
 Where the folder *is* present, a missing tag, a missing file, an extra file or any content difference
 **fails**.
@@ -173,10 +173,10 @@ suites list directories by shelling out:
 
 ```
 tests/test_docs.lua:41           io.popen("ls -1 " .. pattern .. " 2>/dev/null")
-tests/_kit/vendor_sync.lua:106   io.popen(('ls -A "%s" 2>/dev/null'):format(dir))
+tests/_kit/vendor_sync.lua:114   io.popen(('ls -A "%s" 2>/dev/null'):format(dir))
 ```
 
-`tests/_kit/vendor_sync.lua:107` falls back to `dir /b` for `cmd.exe`, so that suite survives a Windows
+`tests/_kit/vendor_sync.lua:116` falls back to `dir /b` for `cmd.exe`, so that suite survives a Windows
 shell; `tests/test_docs.lua` does not, and needs a POSIX shell. Under WSL2 you already have one and
 there is nothing to install.
 
@@ -196,7 +196,7 @@ you are likely to be missing it. The second command uses process substitution, s
 
 Recorded so nobody installs them by mistake:
 
-- **LuaFileSystem** — *not* used. `tests/_kit/vendor_sync.lua:92-93` says so explicitly and shells out
+- **LuaFileSystem** — *not* used. `tests/_kit/vendor_sync.lua:101-102` says so explicitly and shells out
   instead. `luacheck` pulls LFS in as its own dependency; that is LuaRocks' business, not this
   addon's.
 - **A CI runner** — there is none. No GitHub Action, no dynamic badge; every gate is local and

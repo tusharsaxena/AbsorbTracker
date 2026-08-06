@@ -65,6 +65,15 @@ after a direct disk write that landed LF, convert with `sed -i 's/\r$//; s/$/\r/
 
 ## LibKa0s is vendored — fix it upstream
 
+Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.8.1 (MIT).
+
+That line is the **provenance record** for both vendored payloads, and it is an input rather than a
+note: `tests/test_vendor_sync.lua` greps it out of *this* file and compares `libs/LibKa0s/` and
+`tests/_kit/` byte-for-byte against what LibKa0s published at that tag. So it moves in the same
+commit as the bytes do — bump one without the other and the gate goes red, which is the whole point.
+It lived in `README.md` until testkit revision 9; the README is player-facing and a vendored-library
+inventory was never something a player needed.
+
 `libs/LibKa0s/` is **vendored**; its upstream is the LibKa0s repo. Never edit it here — change it
 upstream and re-vendor. `tests/_kit/` is vendored the same way (from LibKa0s/testkit), so a local
 "fix" there forks a shared file. Both sit outside `luacheck .` via `exclude_files`.

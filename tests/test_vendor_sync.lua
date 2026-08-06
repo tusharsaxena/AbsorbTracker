@@ -5,9 +5,9 @@
 -- for a kit problem is upstream and re-vendor, never a local edit.
 --
 -- WHAT IT CHECKS: that `libs/LibKa0s/` and `tests/_kit/` in this repo are exactly
--- what the LibKa0s repo published at the tag THIS README says it bundles.
+-- what the LibKa0s repo published at the tag THIS REPO'S CLAUDE.md says it bundles.
 --
--- THE PROVENANCE LINE IS AN INPUT, NOT A CONSTANT. It is read out of README.md
+-- THE PROVENANCE LINE IS AN INPUT, NOT A CONSTANT. It is read out of CLAUDE.md
 -- rather than hardcoded: a provenance line and a vendored payload that disagree
 -- is precisely the drift this file exists to catch, so the claim has to be the
 -- thing under test. Bump the line and the bytes in the same commit.
@@ -22,8 +22,9 @@
 -- copy this replaced returned early instead, which registered as PASS — "checked,
 -- fine" for a comparison that never ran.
 --
--- The case names are unchanged from that copy, deliberately: they are what
--- `docs/test-cases.md` counts, and adopting the shared gate must not move them.
+-- The case names come from the kit and are what `docs/test-cases.md` counts, so a
+-- kit revision that renames one obliges a regenerate in the same commit. Revision
+-- 9 did exactly that when the provenance line moved to CLAUDE.md.
 
 local VendorSync = dofile("tests/_kit/vendor_sync.lua")
 
