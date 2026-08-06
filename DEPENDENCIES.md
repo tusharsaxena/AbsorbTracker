@@ -216,8 +216,9 @@ toolchain at all.**
 
 - **Packaging** is done by the **CurseForge packager**, remotely, driven by `.pkgmeta` (which sets
   `package-as: AbsorbTracker`, `enable-nolib-creation: no`, and the ignore list). No `Makefile`, no
-  build script, no `*.sh`, no `*.py` exists anywhere in the repo — the addon folder *is* the
-  deliverable, which is why libraries are vendored.
+  build script, no `*.py` exists anywhere in the repo — the addon folder *is* the deliverable, which
+  is why libraries are vendored. The one `*.sh` in the tree is the vendored test runner
+  `tests/_kit/run-automated-tests.sh`, which runs the four out-of-game suites and builds nothing.
 - **Assets are committed, not generated.** `media/fonts/JetBrainsMono-Regular.ttf` (with its
   `OFL.txt`), `media/logos/` and `media/screenshots/` are checked in as final files. No script in this
   repo reads, converts or regenerates any of them, so **no image or font tooling is a dependency**.

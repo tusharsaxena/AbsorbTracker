@@ -132,8 +132,8 @@ Verify it is in sync:
 diff <(lua tests/run.lua --list) docs/test-cases.md   # no output == in sync
 ```
 
-Note on line endings: this repo pins `*.md text eol=crlf` (`.gitattributes`), so the committed file
-is CRLF throughout — and the renderer in `tests/_kit/framework.lua` writes CRLF itself. There is no
+Note on line endings: this repo pins the whole tree CRLF with a single `* text=auto eol=crlf`
+(`.gitattributes`), so the committed file is CRLF throughout — and the renderer in `tests/_kit/framework.lua` writes CRLF itself. There is no
 `| sed 's/$/\r/'` in the command any more: a regeneration command with a pipeline in it is one
 someone eventually runs without the pipeline, and the whitespace-only diff that produces is exactly
 the kind of noise this file exists to prevent.
