@@ -1,7 +1,7 @@
 local addonName, NS = ...
 
 -- Canonical locale. Metatable fallback returns the key itself, so English strings work
--- untranslated and a missing key never errors (Ka0s standard §8). Non-enUS files gate with
+-- untranslated and a missing key never errors (localization-§1). Non-enUS files gate with
 -- GetLocale() and only list overrides.
 NS.L = setmetatable(NS.L or {}, { __index = function(_, k) return k end })
 

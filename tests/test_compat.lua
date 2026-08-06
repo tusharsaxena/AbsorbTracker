@@ -2,7 +2,7 @@ local T = _G.AT_TEST
 local NS = T.NS
 local test, assertEqual, assertTrue = T.test, T.assertEqual, T.assertTrue
 
--- Compat is the single seam for the deprecated addon-metadata API (Ka0s standard §11). It reads
+-- Compat is the single seam for the deprecated addon-metadata API (Ka0s standard compat). It reads
 -- C_AddOns / GetAddOnMetadata from its load environment, which falls through to _G, so these
 -- tests swap the _G globals to exercise each branch.
 

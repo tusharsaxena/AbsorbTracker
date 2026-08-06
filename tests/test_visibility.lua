@@ -230,7 +230,7 @@ test("OnLeaveCombat never opens config, even with a stale panelOpenPending (opti
   NS.State.panelOpenPending = nil
 end)
 
--- ── Debug coalescing (§9): [Combat] rollup + [Absorb] transitions ──────────────────
+-- ── Debug coalescing (debug-logging-§9): [Combat] rollup + [Absorb] transitions ────
 test("combat rollup: OnLeaveCombat logs one [Combat] left summary with counts", function()
   local mocks = T.mocks
   NS.State.debug = true

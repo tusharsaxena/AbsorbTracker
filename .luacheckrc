@@ -3,7 +3,7 @@ max_line_length = false
 codes = true
 -- libs/ holds vendored code, including libs/LibKa0s/ whose upstream is the LibKa0s repo; the
 -- blanket tests/ exclude likewise covers the vendored tests/_kit/. Neither is ours to lint here.
--- Under docs/ only the FROZEN evidence bundles are excluded — `lint-§` names exactly
+-- Under docs/ only the FROZEN evidence bundles are excluded — `lint` names exactly
 -- docs/audits/ and docs/reviews/. A blanket docs/ exclude would silently drop any Lua a future
 -- doc directory carries (a plan's worked example, a repro snippet) out of the gate.
 exclude_files = { "libs/", "docs/audits/", "docs/reviews/", "_dev/", "tests/" }

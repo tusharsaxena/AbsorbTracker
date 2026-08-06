@@ -245,7 +245,7 @@ The dropdown's `values` table is supplied by `Helpers.LSMValues(mediaType)`, whi
 `Helpers.BuildMainContent(ctx)` (defined in `settings/About.lua`, fired by the library from the main panel's first `OnShow` through the descriptor's `buildMain` hook — which resolves the member at call time precisely because `About.lua` loads *after* `settings/OptionsSetup.lua`) renders three blocks into the AceGUI scroll:
 
 1. **Logo.** `NS.Constants.LOGO_PATH` (`media/logos/absorbracker.logo.v2.tga`) at native 300×300, anchored TOPLEFT inside a full-width SimpleGroup.
-2. **TOC `Notes` blurb** — full-width `Label` with `GameFontHighlight`, left-justified. The Notes string is read through `NS.Compat.GetAddOnMetadata` (Ka0s standard §11 — the single deprecated-API shim).
+2. **TOC `Notes` blurb** — full-width `Label` with `GameFontHighlight`, left-justified. The Notes string is read through `NS.Compat.GetAddOnMetadata` (Ka0s standard `compat` — the single deprecated-API shim).
 3. **Slash Commands section** — a full-width `Heading` widget (`GameFontNormalLarge`) followed by one `Label` row per string returned by `NS.Slash:LandingRows()`, formatted `|cFFFFFF00/at <cmd>|r — |cFFFFFFFF<desc>|r`: gold command, an em dash with a **single** space either side, and a **white** description. That is `LibKa0s-Slash-1.0`'s one row formatter — literally the same function `/at help` prints through, minus the two-space chat indent, which belongs to the chat renderer because a settings-panel label sitting under a heading does not need one. So the about list and the help block cannot drift. The list itself is `NS.COMMANDS` (`settings/Slash.lua`), handed to the library rather than owned by it.
 
 ## See also

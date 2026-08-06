@@ -24,7 +24,7 @@ NS.addon = addon
 -- (KickCD sidesteps this entirely by only ever calling NS.Util.print; we keep the NS.Print name.)
 if NS.Util and NS.Util.print then NS.Print = NS.Util.print end
 
--- Debug coalescing (§9): per-combat counters + last non-secret absorb, all maintained only when
+-- Debug coalescing (debug-logging-§9): per-combat counters + last non-secret absorb, all maintained only when
 -- debug is on. Reset at combat start, flushed as one [Combat] rollup at combat end.
 local dbgAbsorbEvents, dbgRepaints = 0, 0
 local dbgLastAbsorb   -- last NON-secret absorb value seen (nil until a non-secret read)
@@ -76,7 +76,7 @@ function addon:OnEnable()
     -- Create the options panel (defined in settings/OptionsSetup.lua).
     if NS.CreateOptionsPanel then NS.CreateOptionsPanel() end
     -- No [Init] boot summary here: the debug flag is session-only and off at login, so a
-    -- login-time NS.Debug line would always be gated off. Per debug-logging §5 the session summary
+    -- login-time NS.Debug line would always be gated off. Per debug-logging-§5 the session summary
     -- is emitted from DebugLog:SetEnabled on enable, the only point where it is current and visible.
 end
 

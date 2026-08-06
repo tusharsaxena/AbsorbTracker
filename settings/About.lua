@@ -20,7 +20,7 @@ local MAIN_GAP_BELOW_HEAD = 6
 
 local LOGO_PATH = NS.Constants.LOGO_PATH
 
--- Deprecated-API access routes through the single Compat shim (Ka0s standard §11).
+-- Deprecated-API access routes through the single Compat shim (Ka0s standard compat).
 local function getMetadata(field)
     return NS.Compat.GetAddOnMetadata(NS.name, field)
 end

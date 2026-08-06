@@ -104,7 +104,7 @@ NS.DebugLog = lib:New({
     end,
 })
 
--- The global gated sink (Ka0s debug-logging §4), published under the name sixteen call sites across
+-- The global gated sink (Ka0s debug-logging-§4), published under the name sixteen call sites across
 -- five files already use. Bound bare rather than wrapped: it is a plain function precisely so
 -- `NS.Debug("Absorb", "value=%s", total)` keeps working unchanged.
 NS.Debug = NS.DebugLog.Debug
