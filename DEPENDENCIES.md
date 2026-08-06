@@ -173,7 +173,7 @@ suites list directories by shelling out:
 
 ```
 tests/test_docs.lua:41           io.popen("ls -1 " .. pattern .. " 2>/dev/null")
-tests/_kit/vendor_sync.lua:114   io.popen(('ls -A "%s" 2>/dev/null'):format(dir))
+tests/_kit/vendor_sync.lua:115   io.popen(('ls -A "%s" 2>/dev/null'):format(dir))
 ```
 
 `tests/_kit/vendor_sync.lua:116` falls back to `dir /b` for `cmd.exe`, so that suite survives a Windows
