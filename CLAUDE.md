@@ -29,9 +29,7 @@ Start here, then read the docs:
   release-time complexity checkpoint.
 - **`DEPENDENCIES.md`** (root) — what to install to build, run, test or release this addon, with
   WSL2/Ubuntu commands and evidence per entry (documentation-§7).
-- Topic detail in `docs/`: `schema.md`, `settings-panel.md`, `data-flow.md`, `profiles.md`,
-  `midnight-quirks.md`, `common-tasks.md`, `scope.md`, `file-index.md`, `module-map.md`,
-  `smoke-tests.md`, `test-cases.md`, `performance.md`, `automated-tests/`.
+- Topic detail in `docs/` — **Tier 1 is always present**: `scope.md`, `module-map.md`, `schema.md`, `settings-panel.md`, `data-flow.md`, `common-tasks.md`. Conditional and addon-specific docs vary; `docs/ARCHITECTURE.md` → `## Documentation map` lists every page under `docs/` and says which conditional ones do not apply here (`documentation-§3`).
 
 ## The `docs/` set — there is no `agent-context.md`
 

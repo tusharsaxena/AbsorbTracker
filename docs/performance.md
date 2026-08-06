@@ -312,3 +312,87 @@ for when the client is somewhere you can't read from disk.
 
 Reported in each automated-test bundle's `complexity.txt`, with the watch list in [automated-tests/RESULTS.md](automated-tests/RESULTS.md), measured with `lizard`. Advisory only,
 and outside the green gate pending an upstream rule in the Ka0s WoW Addon Standard.
+
+## Profiler attribution and measured cost
+
+Spilled from `ARCHITECTURE.md` under `documentation-§3`'s hub rule (standard v2.23.0); the hub now
+carries the one-paragraph summary and links here.
+
+The addon is purely reactive — **no `OnUpdate`, no repeating ticker, no combat-log parsing, no
+hot-path hooks.** Its entire runtime cost is: a player/target/focus `UNIT_*` event (C-filtered) →
+`OnAbsorbChanged` / `OnMaxHealthChanged` → `NS.RequestRepaint` (coalescing one-shot AceTimer,
+`throttleWindow` default 0.1 s) → `NS.UpdateAbsorbBar` (fanned out over all three units). The
+measurements below predate the multi-unit-bars feature (player-only at the time) and have not been
+re-run; after Finding 1 (above) the real cost was ~1.8 ms/s ≈ 0.18 % of one core for the single-bar
+build.
+
+**Reading the in-game Addon Profiler (`C_AddOnProfiler`) — important caveat.** The profiler bills a
+shared library's dispatch frame to **whichever addon created it (first to load that LibStub copy)**,
+not to the addons whose callbacks it later serves. Because WoW loads addons **alphabetically** and
+`AbsorbTracker` sorts near the top, it typically **owns the shared AceEvent/CallbackHandler event
+frame** and is billed for *every* Ace-based addon's event dispatch. This makes it rank far higher
+than its own work warrants (it out-ranked ElvUI). This is **not** waste and is **not fixable from the
+addon** — a standalone Ace addon must ship AceEvent and may legitimately load first. It was proven by
+a controlled disable test (the blame transferred to the next alphabetical Ace addon, AlterEgo).
+
+Full analysis, exact numbers, and profiler screenshots:
+[docs/investigations/2026-07-14-addon-profiler-attribution/](./investigations/2026-07-14-addon-profiler-attribution/analysis.md).
+
+**Measuring it yourself (issue #17).** Because the built-in profiler cannot attribute cost past the
+shared-frame problem above, the addon ships its own harnesses:
+
+- `lua tests/perf.lua` — offline, headless, over the real addon code. Asserts deterministic counters
+  (repaints per event burst, API calls per pass, bytes allocated per pass) and reports timings.
+  **Outside the green gate** — wall-clock numbers are not stable enough to gate a commit on.
+- `/at perf` — in-game, via `LibKa0s-Perf-1.0` (vendored, `libs/LibKa0s/`), wired to this addon by
+  `core/PerfSetup.lua`'s descriptor. `debugprofilestop()` brackets on the addon's own entry points,
+  plus an FPS sampler bucketed by suspend state so one session yields both arms of an A/B. `suspend`
+  makes the addon inert **without a reload**, holding load order and shared-frame ownership fixed —
+  the one thing the July 14 confound cannot reach.
+
+#### Five extracted libraries, one descriptor each
+
+The instrumentation harness was the first thing to leave this addon for a shared library; it is now
+one of five. `LibKa0s` is a Ka0s-owned library, vendored into `libs/LibKa0s/` the same way Ace3 is —
+copied in, not depended on at runtime — and ships **five majors across eight files**, load-ordered by
+`libs/LibKa0s/LibKa0s.xml`: `Core.lua`, `DebugLog.lua`, `Slash.lua`, `Options.lua`,
+`OptionsWidgets.lua`, `OptionsScroll.lua`, `Perf.lua`, `PerfPanel.lua`. `LibKa0s-Core-1.0` is the
+root; the other four each declare a `NEEDS_CORE` guard and, if Core is absent or too old, `return`
+before `LibStub:NewLibrary` — the major is simply never registered, which is what the addon's setup
+files detect.
+
+Every one of them follows the same shape: the algorithms are lib code, and this addon supplies only a
+**descriptor** naming what is genuinely its own.
+
+| Major | Wired by | What the descriptor carries | Published as |
+|---|---|---|---|
+| `LibKa0s-Core-1.0` | `core/CoreSetup.lua` | the `[AT]` prefix, passed as a **function** so a later `NS.PREFIX` change is not frozen in | `NS.Print`, `NS.Util.print`, `NS.IsConcatSafe`, `NS.SafeToString` |
+| `LibKa0s-DebugLog-1.0` | `core/DebugLogSetup.lua` | frame-name prefix, title, monospace font, `/at`, call-time `print`/`safeToString`, the `[Init]` summary, and `isEnabled`/`setEnabled` over `NS.State.debug` | `NS.DebugLog`, `NS.Debug` |
+| `LibKa0s-Slash-1.0` | `settings/Slash.lua` (no separate setup file) | `NS.COMMANDS`, the schema read/write/default seams, `groupKey`, the mirror annotator | `NS.Slash`, an addon-owned table wrapping the private dispatcher instance |
+| `LibKa0s-Options-1.0` | `settings/OptionsSetup.lua` | the brand, the schema seams, the reset policy hooks, the color codec, AceTimer, LSM | `NS.Helpers` (the instance itself), `NS.AceGUI`, the four `NS.*OptionsPanel*` wrappers |
+| `LibKa0s-Perf-1.0` | `core/PerfSetup.lua` | name, SavedVariables global, bucket declarations, and what "suspend"/"resume" mean for *this* addon | `NS.Perf` |
+
+Each setup file also carries a degradation stub, so the addon still loads and runs with the library
+absent. The stubs are honest rather than silent: they answer each member the addon calls with a line
+naming what is missing. `settings/OptionsSetup.lua` is the one exception, and deliberately so — it is
+load-completing rather than member-answering, because its members are reached at *file load* by the
+page files rather than at click time.
+
+The descriptor contracts, the full public surface each `lib:New` returns, and the perf record schema
+(now schema 2 — see below) are documented in the library's own repo, not duplicated here:
+[LibKa0s README](https://github.com/tusharsaxena/LibKa0s/blob/master/README.md) and
+[LibKa0s docs/record-schema.md](https://github.com/tusharsaxena/LibKa0s/blob/master/docs/record-schema.md).
+The design work sits in that repo too, as
+`docs/superpowers/specs/2026-07-29-libka0s-perf-extraction-design.md` (Perf) and
+`docs/superpowers/specs/2026-07-30-libka0s-five-module-extraction-design.md` (the other four).
+
+For Perf specifically, the frozen hot-path bracket idiom (`local t0 = Perf.on and debugprofilestop()` /
+`if t0 then Perf.Note(k, debugprofilestop()-t0) end`) is unchanged at every call site — that
+byte-identity is what proves the extraction didn't change what is measured. The same rule was applied
+to the other four: `NS.Print`, `NS.Debug`, `NS.Slash` and `NS.Helpers` all kept their names and their
+member lists, so the call sites did not move either.
+
+Protocol, caveats and how to read the numbers: [docs/performance.md](./performance.md). Captured
+records: [docs/perf-runs/](./perf-runs/README.md). Automated test records: [docs/automated-tests/](./automated-tests/).
+The current investigation into the reported in-combat FPS drop:
+[docs/investigations/2026-07-29-combat-fps-drop/](./investigations/2026-07-29-combat-fps-drop/analysis.md).
