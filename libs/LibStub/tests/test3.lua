@@ -11,4 +11,4 @@ assert(not success or not ret) -- either error because proxy is not a string or 
 
 assert(not pcall(LibStub.NewLibrary, LibStub, "Something", "No number in here")) -- should error, minor has no string in it.
 
-assert(not LibStub:GetLibrary("Something", true)) -- shouldn't've created it from the above statement
+assert(not LibStub:GetLibrary("Something", true)) -- shouldn't've created it from the above statement

@@ -38,4 +38,4 @@ loadfile("../LibStub.lua")()
 assert(LibStub.IterateLibraries == 123)
 
 
-print("OK")
+print("OK")
