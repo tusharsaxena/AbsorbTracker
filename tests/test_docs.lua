@@ -195,11 +195,11 @@ local function ownFiles()
   add(glob("*.md"))
   add(glob("*.toc"))
   add(glob("docs/*.md"))
-  -- Living docs that happen to sit in a subfolder. `docs/pending/LEDGER.md` is the open-items
-  -- ledger and `docs/perf-runs/README.md` explains the capture format; both are rewritten as the
-  -- addon changes, so both are ours to spell. The dated `.json` captures beside the latter are
-  -- data, not prose, and are not globbed.
-  add(glob("docs/pending/*.md"))
+  -- Living docs that happen to sit in a subfolder. `docs/perf-runs/README.md` explains the capture
+  -- format and is rewritten as the addon changes, so it is ours to spell. The dated `.json`
+  -- captures beside it are data, not prose, and are not globbed.
+  -- (`docs/pending/` is gone: the open-items ledger was retired and its contents moved to GitHub
+  -- issues, so there is no longer a pending doc to scan. See standards `audit-review-history`.)
   add(glob("docs/perf-runs/*.md"))
   add(glob("core/*.lua"))
   add(glob("settings/*.lua"))
