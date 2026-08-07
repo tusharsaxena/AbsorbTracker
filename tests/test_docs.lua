@@ -17,8 +17,8 @@
 --   * `tests/_kit/` -- likewise vendored, from LibKa0s/testkit.
 --   * `docs/audits/`, `docs/reviews/`, `docs/superpowers/`, `docs/investigations/` -- frozen dated
 --     bundles. Rewriting them destroys the record of what was true on the day they were written.
---     `docs/perf-runs/` is only PARTLY frozen: its dated `.json` captures are records, but its
---     `README.md` is living prose and IS checked.
+--     `docs/perf-analysis/` is only PARTLY frozen: its dated `<YYYYMMDD-HHMMSS>/` capture bundles
+--     are records, but the `README.md` beside them is living prose and IS checked.
 --   * `docs/test-cases.md` -- generated from the suite; it inherits whatever the test names say.
 --   * this file -- it has to name the words it forbids.
 --
@@ -195,12 +195,13 @@ local function ownFiles()
   add(glob("*.md"))
   add(glob("*.toc"))
   add(glob("docs/*.md"))
-  -- Living docs that happen to sit in a subfolder. `docs/perf-runs/README.md` explains the capture
-  -- format and is rewritten as the addon changes, so it is ours to spell. The dated `.json`
-  -- captures beside it are data, not prose, and are not globbed.
+  -- Living docs that happen to sit in a subfolder. `docs/perf-analysis/README.md` explains the
+  -- capture format and the store's index, and is rewritten as the addon changes, so it is ours to
+  -- spell. The dated capture bundles beside it are frozen, sit one level deeper, and are not
+  -- globbed.
   -- (`docs/pending/` is gone: the open-items ledger was retired and its contents moved to GitHub
   -- issues, so there is no longer a pending doc to scan. See standards `audit-review-history`.)
-  add(glob("docs/perf-runs/*.md"))
+  add(glob("docs/perf-analysis/*.md"))
   add(glob("core/*.lua"))
   add(glob("settings/*.lua"))
   add(glob("modules/*.lua"))

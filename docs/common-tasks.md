@@ -251,7 +251,7 @@ Neither harness is part of the green gate. Full protocol and caveats: [performan
 ```sh
 lua tests/perf.lua                                   # offline: counters asserted, timings reported
 lua tests/perf.lua --label after-my-change \
-    --out docs/perf-runs/2026-08-01-offline-mine.json
+    --out /tmp/at-offline-mine.json               # scratch: offline records belong to the run bundle
 ```
 
 In-game, as a sub-verb of the debug suite:
@@ -273,7 +273,10 @@ and nothing else.
 
 Captures land in the `AbsorbTrackerPerfDB` global inside
 `WTF/Account/<ACCOUNT>/SavedVariables/AbsorbTracker.lua` (note: the file is named after the **addon**,
-not after the saved-variable globals). Record schema: [perf-runs/README.md](./perf-runs/README.md).
+not after the saved-variable globals). A capture worth keeping is committed as a frozen bundle under
+[perf-analysis/](./perf-analysis/README.md) — `report.md`, a verbatim one-line `dump.json`, and
+`ANALYSIS.md` — in a directory stamped from the record's own timestamp. Record schema and the
+capture index: [perf-analysis/README.md](./perf-analysis/README.md).
 
 **If you add a bracket to a hot path**, use the gated idiom exactly — anything else costs work when
 capture is off, and `tests/perf.lua`'s `probeOverhead*` scenarios will fail:

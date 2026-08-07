@@ -50,4 +50,5 @@ run that measured nothing cannot be mistaken for a green run that measured every
 
 Offline perf records live in the bundle with the run that produced them. **In-game** captures cannot
 be produced by a script — a human runs the `perf` verb in a live client and exports the record — so
-they keep their own standing store at [`../perf-runs/`](../perf-runs/).
+they keep their own standing store, one frozen bundle per capture, at
+[`../perf-analysis/`](../perf-analysis/).

@@ -48,8 +48,14 @@ about the library's mechanics.
 
 ```sh
 lua tests/perf.lua
-lua tests/perf.lua --label "after-my-change" --out docs/perf-runs/2026-08-01-offline-mychange.json
+lua tests/perf.lua --label "after-my-change" --out /tmp/at-offline-mychange.json
 ```
+
+An ad-hoc `--out` goes to a scratch path, not into `docs/`. Offline records worth keeping are the
+ones the vendored runner writes into that run's own bundle under
+[`docs/automated-tests/`](./automated-tests/) (`automated-tests-§7`);
+[`docs/perf-analysis/`](./perf-analysis/README.md) is the **in-game** store and takes nothing from
+this harness.
 
 **Not part of the green gate.** `lua tests/run.lua` does not invoke it and no commit depends on it.
 Wall-clock numbers on a developer machine are not stable enough to fail a build on, and a perf suite
@@ -296,9 +302,25 @@ this addon's and the investigation should move elsewhere.
 
 ## 4. Where the numbers go
 
-Records land in [`docs/perf-runs/`](perf-runs/README.md) — naming and field meanings for what this
-addon captures are documented there. The record shape itself is now **schema 2**, defined by
-`LibKa0s-Perf-1.0`; the authoritative field-by-field contract is
+An in-game capture worth keeping is committed as a **frozen dated bundle** under
+[`docs/perf-analysis/`](perf-analysis/README.md):
+
+```
+docs/perf-analysis/<YYYYMMDD-HHMMSS>/
+  report.md      what the client printed - the `/at perf report` summary plus the run's lifecycle lines
+  dump.json      the `/at perf dump` record, verbatim: one line, byte for byte, keys as sorted
+  ANALYSIS.md    the write-up, following the root PERF_ANALYSIS.md playbook's uniform prompt
+```
+
+The directory stamp is **local time derived from the record's own `timestamp` field**, so it names
+when the capture happened rather than when it was written up and a run analyzed a week later still
+sorts against its neighbors. Bundles are frozen once written and never pruned; the store's
+`README.md` — naming, a schema summary, the capture index — is the one file in there that is
+rewritten. Offline scenario runs are not part of this store (`automated-tests-§7`).
+
+`dump.json` goes in **unedited**. The library emits object keys in sorted order so two records diff
+cleanly, and pretty-printing or rounding it destroys exactly that. The record shape is **schema 2**,
+defined by `LibKa0s-Perf-1.0`; the authoritative field-by-field contract is
 [LibKa0s docs/record-schema.md](https://github.com/tusharsaxena/LibKa0s/blob/master/docs/record-schema.md).
 
 In-game captures persist to the `AbsorbTrackerPerfDB` SavedVariables global (a ring of the last 10),
@@ -393,6 +415,6 @@ to the other four: `NS.Print`, `NS.Debug`, `NS.Slash` and `NS.Helpers` all kept 
 member lists, so the call sites did not move either.
 
 Protocol, caveats and how to read the numbers: [docs/performance.md](./performance.md). Captured
-records: [docs/perf-runs/](./perf-runs/README.md). Automated test records: [docs/automated-tests/](./automated-tests/).
+records: [docs/perf-analysis/](./perf-analysis/README.md). Automated test records: [docs/automated-tests/](./automated-tests/).
 The current investigation into the reported in-combat FPS drop:
 [docs/investigations/2026-07-29-combat-fps-drop/](./investigations/2026-07-29-combat-fps-drop/analysis.md).

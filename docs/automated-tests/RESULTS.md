@@ -92,7 +92,7 @@ Both are currently **flat across all three of the last runs** — `paintPass` 12
 movement was `appearancePass` going 33.0 → 45.0 api/iter between
 [`20260804-233138`](20260804-233138/) and [`20260807-022551`](20260807-022551/), with `bytes/iter`
 unchanged at 893.7; it has not moved since. In-game captures cannot come from a script and keep their
-own store at [`../perf-runs/`](../perf-runs/).
+own store at [`../perf-analysis/`](../perf-analysis/).
 
 ## Complexity watch list
 

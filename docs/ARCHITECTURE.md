@@ -273,7 +273,7 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
 ## Documentation map
 
 Every `.md` under `docs/` appears in exactly one table below (`documentation-§3`) — except this
-file, the hub the map itself lives in. Frozen and generated directories are named once each and never enumerated per run: `docs/audits/`, `docs/reviews/`, `docs/automated-tests/`, `docs/superpowers/`, `docs/perf-runs/`, `docs/investigations/`.
+file, the hub the map itself lives in. Frozen and generated directories are named once each and never enumerated per run: `docs/audits/`, `docs/reviews/`, `docs/automated-tests/`, `docs/superpowers/`, `docs/perf-analysis/`, `docs/investigations/`.
 
 ### Required (documentation-§3, Tier 1)
 
@@ -296,7 +296,7 @@ file, the hub the map itself lives in. Frozen and generated directories are name
 | `message-bus.md` | Not applicable | Five messages; threshold is more than ten. The table lives in `ARCHITECTURE.md` → `## Message Bus` |
 | `compat-layer.md` | Not applicable | `core/Compat.lua` is 20 lines of straight API normalization with no addon-specific shim |
 | `debug.md` | Not applicable | The console is `LibKa0s-DebugLog-1.0`’s, with no debug surface of the addon’s own |
-| `perf-runs/README.md` | Present | The performance harness is wired (`core/PerfSetup.lua`) |
+| `perf-analysis/README.md` | Present | The performance harness is wired (`core/PerfSetup.lua`) |
 
 ### Verification and record
 

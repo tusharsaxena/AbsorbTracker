@@ -37,7 +37,7 @@ The canonical `docs/` set is exactly three files: **`ARCHITECTURE.md`** (what th
 **`testing.md`** (how to verify) and **`smoke-tests.md`** (in-game checks) — plus the generated
 `test-cases.md` and the topic-detail docs. **Five verification-and-record docs are required** on top
 of the six Tier 1 topic-detail docs named above, and these are the five (documentation-§3):
-`test-cases.md`, `performance.md`, `perf-runs/README.md`, `automated-tests/README.md`,
+`test-cases.md`, `performance.md`, `perf-analysis/README.md`, `automated-tests/README.md`,
 `automated-tests/RESULTS.md`.
 
 The repo **root** ships exactly three docs plus `LICENSE`, and never a fourth: the full
