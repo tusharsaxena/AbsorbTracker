@@ -152,7 +152,7 @@ badge and any count quoted in the docs must agree with it.
 - /at options is aliased to /at config (no unknown-command error)
 - /at config in combat refuses with a gray notice (options-ui-§2)
 - OpenOptionsPanel logs [Cfg] refused in combat
-- SetByPath logs one [Set] path = value line (§10)
+- SetByPath logs one [Set] path = value line (debug-logging-§10)
 - the schema CLI's list header the library renders is prose, not its own STRINGS key
 
 ### test_timer.lua (11)

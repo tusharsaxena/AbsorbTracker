@@ -139,7 +139,7 @@ test("OpenOptionsPanel logs [Cfg] refused in combat", function()
     and last:find("refused", 1, true) ~= nil, "a [Cfg] refused line is logged in combat")
 end)
 
-test("SetByPath logs one [Set] path = value line (§10)", function()
+test("SetByPath logs one [Set] path = value line (debug-logging-§10)", function()
   NS.State.debug = true
   local before = #NS.DebugLog.buffer
   NS.SetByPath("barWidth", 200)
