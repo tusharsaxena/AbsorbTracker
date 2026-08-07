@@ -20,6 +20,7 @@ not selected, which is a different fact again.
 
 | Run | Version | Lint w/e | Files | Tests | Perf | NLOC | Funcs | Avg NLOC | Avg CCN | Max CCN | CCN warn | Verdict |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
+| [`20260807-114413`](20260807-114413/) | 1.9.0 | 0/0 | 28 | 489/489 | pass | 7766 | 1088 | 6.5 | 1.7 | 15 | 0 | **green** |
 | [`20260807-110443`](20260807-110443/) | 1.9.0 | 0/0 | 28 | 489/489 | pass | 7766 | 1088 | 6.5 | 1.7 | 15 | 0 | **green** |
 | [`20260807-022551`](20260807-022551/) | 1.9.0 | 0/0 | 28 | 489/489 | pass | 7766 | 1088 | 6.5 | 1.7 | 15 | 0 | **green** |
 | [`20260804-233138`](20260804-233138/) | 1.9.0 | 0/0 | 28 | 470/470 | pass | 7574 | 1063 | 6.4 | 1.7 | 15 | 0 | **green** |
@@ -39,54 +40,70 @@ record is worse than a wrong one, because it reads as measured (`automated-tests
 
 ## Test suite
 
-489 cases as of [`20260807-022551`](20260807-022551/), up 19 from the 470 that stood across the three
-runs before it — the count had been flat since [`20260804-214639`](20260804-214639/), and it has now
-moved. The growth is spread across six existing files plus one new one: `test_surface_parity.lua`
-(new, 4 cases), `test_display.lua` (39 → 44), `test_loadorder.lua` (10 → 13), `test_perf.lua`
-(27 → 29), `test_slashcmds.lua` (109 → 111), `test_widgets.lua` (48 → 50) and `test_database.lua`
-(28 → 29). Zero cases skipped and zero failed. The suite covers the absorb pipeline, the coalescing
-throttle, the bar/display modules and the settings schema; frame rendering and taint stay in
-`docs/smoke-tests.md`. The generated inventory `test-cases.md` in each bundle is the authority on
-what exists at that point — [`20260807-022551/test-cases.md`](20260807-022551/test-cases.md) for the
-current state — and the README badge tracks the same number.
+489 cases as of [`20260807-114413`](20260807-114413/), unchanged across the last three runs
+([`20260807-022551`](20260807-022551/), [`20260807-110443`](20260807-110443/) and this one). That is
+not yet a stalled suite: the count jumped 19 at `20260807-022551` — up from the 470 that had stood
+since [`20260804-214639`](20260804-214639/) — and the two runs since were re-vendor verification
+runs against the LibKa0s v1.8.2 payload, which changed no addon source and so had no new behaviour to
+cover. The flat count is worth re-reading the next time this addon's own source moves; a count that
+holds while `core/` or `modules/` changes is a coverage gap the table cannot show.
+
+Zero cases skipped and zero failed. The `0 skipped` figure is load-bearing rather than decorative
+after a re-vendor: the two vendored-payload cases that skip when a sibling checkout is missing
+(`testing-§11`) both executed and both passed, confirming `libs/LibKa0s` and `tests/_kit` are the
+payload root `CLAUDE.md` names ([`tests.txt`](20260807-114413/tests.txt)).
+
+The suite covers the absorb pipeline, the coalescing throttle, the bar/display modules and the
+settings schema; frame rendering and taint stay in `docs/smoke-tests.md`. The generated inventory
+`test-cases.md` in each bundle is the authority on what exists at that point —
+[`20260807-114413/test-cases.md`](20260807-114413/test-cases.md) for the current state — and the
+README badge tracks the same number.
 
 ## Lint
 
-Clean over 28 files as of [`20260807-022551`](20260807-022551/): 0 warnings, 0 errors
-([`lint.txt`](20260807-022551/lint.txt)). **Those 28 files are the addon's own runtime source only.**
+Clean over 28 files as of [`20260807-114413`](20260807-114413/): 0 warnings, 0 errors
+([`lint.txt`](20260807-114413/lint.txt)). **Those 28 files are the addon's own runtime source only.**
 `.luacheckrc` sets `exclude_files = { "libs/", "docs/audits/", "docs/reviews/", "_dev/", "tests/" }`,
 so the vendored `libs/` and the vendored `tests/_kit/` are out of scope — neither is this repo's to
 fix — but the blanket `tests/` entry also takes this addon's **own** test files with it. The harness
 is checked by running, not by linting; a `0/0` row here says nothing about `tests/`. That exclusion
-is why the file count held at 28 while the suite grew by 19 cases: every new case landed under
-`tests/`, and none of it is linted. The two `docs/` entries are the frozen evidence bundles only
-(`lint-§`); the rest of `docs/` is linted, so the count would rise the day a doc directory carries
+is why the file count held at 28 while the suite grew by 19 cases at `20260807-022551`: every new
+case landed under `tests/`, and none of it is linted. The two `docs/` entries are the frozen evidence
+bundles only; the rest of `docs/` is linted, so the count would rise the day a doc directory carries
 Lua. It carries none today.
 
 ## Perf
 
-Six scenarios as of [`20260807-022551`](20260807-022551/) — `absorbEvent`, `paintPass`,
+Six scenarios as of [`20260807-114413`](20260807-114413/) — `absorbEvent`, `paintPass`,
 `appearancePass`, `settingsRead`, `probeOverheadOff` and `probeOverheadOn`
-([`perf.txt`](20260807-022551/perf.txt)). The last pair is the **zero-overhead** case
-`performance-§2` requires as evidence that instrumentation is free when off. The suite has run —
-this addon ships `tests/perf.lua`, so `perf` is a real pass and neither of `automated-tests-§3`'s
-two sanctioned skip reasons applies here. Timings are orientation only: compare scenarios within a
-run, never across machines. The **api/iter** and **bytes/iter** columns are not timings and are worth
-reading across runs; `appearancePass` moved from 33.0 to 45.0 api/iter between
-[`20260804-233138`](20260804-233138/) and this run, with `bytes/iter` unchanged at 893.7 and every
-other scenario's call count identical. In-game captures cannot come from a script and keep their own
-store at [`../perf-runs/`](../perf-runs/).
+([`perf.txt`](20260807-114413/perf.txt)). The last pair is the **zero-overhead** case
+`performance-§2` requires as evidence that instrumentation is free when off, and it still reads that
+way: the two sit within timing noise on ms/iter, identical at 12.0 api/iter, and 0.3 bytes/iter
+apart.
+
+The suite has run — this addon ships `tests/perf.lua`, so `perf` is a real pass and neither of
+`automated-tests-§3`'s two sanctioned skip reasons applies here. This addon holds no
+`performance-§12` no-combat-path exemption and needs none.
+
+Timings are orientation only: compare scenarios within a run, never across machines. The
+**api/iter** and **bytes/iter** columns are not timings and are the ones worth reading across runs.
+Both are currently **flat across all three of the last runs** — `paintPass` 12.0 / 312.0,
+`appearancePass` 45.0 / 893.7, `probeOverheadOn` 12.0 / 312.3, and the rest unchanged. The last real
+movement was `appearancePass` going 33.0 → 45.0 api/iter between
+[`20260804-233138`](20260804-233138/) and [`20260807-022551`](20260807-022551/), with `bytes/iter`
+unchanged at 893.7; it has not moved since. In-game captures cannot come from a script and keep their
+own store at [`../perf-runs/`](../perf-runs/).
 
 ## Complexity watch list
 
-Current state as of [`20260807-022551`](20260807-022551/) — not that run's diff.
+Current state as of [`20260807-114413`](20260807-114413/) — not that run's diff.
 Every function `lizard` warned on, and every file at or above `layout-§1`'s 1000-LOC
 on-notice threshold, each with a one-line disposition.
 
 ### Functions on the CCN watch list
 
 **`lizard` warned on nothing.** Zero functions in this addon's own source exceed CCN 15
-([`20260807-022551/complexity.txt`](20260807-022551/complexity.txt), `Warning cnt` 0), so the warned
+([`20260807-114413/complexity.txt`](20260807-114413/complexity.txt), `Warning cnt` 0), so the warned
 set is empty — which is a result, not an absent section. The table below is therefore the **watch**
 list rather than the warned list: every function at or above CCN 12, highest first, each with its
 disposition. An empty table would carry the same verdict and none of the signal.
@@ -96,19 +113,22 @@ disposition. An empty table would carry the same verdict and none of the signal.
 | `Helpers.BuildMainContent` | 15 | `settings/About.lua` | **At the line, not over it.** The one to watch: the About page is a straight-line builder, so one more content block puts it over — and over is a blocked tag, not just a warning. Peel the block sequence into a data table the day it grows. |
 | `addon:OnAbsorbChanged` | 14 | `core/AbsorbTracker.lua` | **Accepted.** `lizard` reports it as `addon`. Dense guarding rather than tangled control flow: the branching is the per-unit relevance ladder the event handler exists to be, and splitting it would move the ladder, not shorten it. |
 | `NS.ValidateSchema` | 14 | `settings/Schema.lua` | **Accepted.** The integrity checks are a flat list of independent row assertions; each `if` is one rule, and merging any two would hide which rule fired. Revisit only if a rule needs branching of its own. |
-| `build` | 12 | `settings/Profiles.lua` | **Accepted.** Well under the line and falling — CCN flat at 12 while NLOC fell 31 → 26 this run. The lazy-`OnShow` work is the direction of travel here, not a peel. |
+| `build` | 12 | `settings/Profiles.lua` | **Accepted.** Well under the line. The lazy-`OnShow` work is the direction of travel here, not a peel. |
 
-Nothing **newly** crossed since the previous run: all four CCN values are unchanged between
-[`20260804-233138`](20260804-233138/) and [`20260807-022551`](20260807-022551/). The span shifts on
-`NS.ValidateSchema` (224–261 → 227–264) and `build` (16–66 → 16–71) are edits above and around them,
-not new branching.
+Nothing **newly** crossed. Both CCN values *and* spans are identical across the last three runs —
+`complexity.txt` for [`20260807-114413`](20260807-114413/) is byte-identical to
+[`20260807-110443`](20260807-110443/)'s, which is what a re-vendor that touches no addon source
+should produce. The last span movement was at [`20260807-022551`](20260807-022551/), on
+`NS.ValidateSchema` (224–261 → 227–264) and `build` (16–66 → 16–71), and those were edits above and
+around the functions rather than new branching.
 
 **On the shelf life of these dispositions (`automated-tests-§4`).** The three-consecutive-**release**
--runs clock has not started: no run recorded here is a release run — all four manifests carry
-`"release": null` — so none of the three `Accepted` entries above has yet spent a release cycle in
-that state. The first `--release` bundle starts the count, and at the third the accepted entries owe
-either a fix or a tracked deviation ID with an owner. `Helpers.BuildMainContent` is not on that clock
-at all: its disposition is *watch*, not *accepted*.
+-runs clock has still not started: no run recorded here is a release run — every manifest in this
+directory carries `"release": null`, including this run's — so none of the three `Accepted` entries
+above has yet spent a release cycle in that state, and none is stale. The first `--release` bundle
+starts the count, and at the third the accepted entries owe either a fix or a tracked deviation ID
+with an owner. `Helpers.BuildMainContent` is not on that clock at all: its disposition is *watch*,
+not *accepted*.
 
 The last run that warned on anything was [`20260804-182031`](20260804-182031/), and it listed
 exactly two functions: `runProfile` (`settings/Slash.lua`) at CCN 21 and `NS:RunMigrations`
@@ -128,6 +148,6 @@ upstream and re-vendored rather than patched here (automated-tests-§2).
 
 | Band | File | LOC | Disposition |
 |---|---|---|---|
-| 1000–1500 (on notice) | `tests/test_slashcmds.lua` | 1282 | **Accepted.** Still the only file in the band, and not newly crossed — it was already there at 1256 on [`20260804-233138`](20260804-233138/) and grew 26 lines with its two new cases. A flat list of independent cases, avg CCN 1.2 — length is case count, not tangle. Peel by verb group if it crosses 1400. |
+| 1000–1500 (on notice) | `tests/test_slashcmds.lua` | 1282 | **Accepted.** Still the only file in the band, and not newly crossed — it entered at 1256 on [`20260804-233138`](20260804-233138/), grew 26 lines with its two new cases at [`20260807-022551`](20260807-022551/), and has been flat at 1282 since. A flat list of independent cases, avg CCN 1.2 — length is case count, not tangle. Peel by verb group if it crosses 1400. |
 
 No file is over the 1500 cap.
