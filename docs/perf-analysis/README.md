@@ -137,12 +137,7 @@ profile", or swapped out by a profile switch.
 
 | Stamp | Addon version | Label | What it measured | Bundle |
 |---|---|---|---|---|
-| — | — | — | — | — |
-
-**This store is currently empty — there are no captures.** That is a real gap, not a missing tool:
-the harness is wired, the verbs work, and the only thing standing between here and a first row is
-somebody running the protocol in a live client. Until then this addon has no in-game measurement of
-its own cost on the current version.
+| `20260807-125002` | 1.9.0 | `2026-08-07 12:47` | First in-game capture. Murder Row, party of 5, 26.6 s active arm: **0.34 ms/s** of accounted addon cost. Frame-time delta **unresolved** (−0.18 ms/frame, backwards-signed — two loading screens and a 62 s gap between the arms). `appearance` never fired. | [20260807-125002](20260807-125002/ANALYSIS.md) |
 
 ## Field notes
 
