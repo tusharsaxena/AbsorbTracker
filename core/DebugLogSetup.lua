@@ -7,9 +7,9 @@ local addonName, NS = ...
 -- that is ours: the frame-name prefix, the title, the monospace font, where the debug flag actually
 -- lives, and what the [Init] session summary says.
 --
--- Sits in core/DebugLog.lua's old TOC slot, which puts it after core/Constants.lua (FONT_MONO),
--- core/State.lua (the debug flag) and core/CoreSetup.lua (NS.Print / NS.SafeToString), and before
--- everything that calls NS.Debug.
+-- Sits in core/DebugLog.lua's old TOC slot, which puts it after core/Constants.lua (FONT_MONO, itself
+-- resolved from the core/MediaSetup.lua seam), core/State.lua (the debug flag) and core/CoreSetup.lua
+-- (NS.Print / NS.SafeToString), and before everything that calls NS.Debug.
 
 local lib = LibStub and LibStub("LibKa0s-DebugLog-1.0", true)
 
@@ -70,7 +70,18 @@ if not lib then
 end
 
 NS.DebugLog = lib:New({
+    -- Seeds AbsorbTrackerDebugWindow / AbsorbTrackerDebugCopyWindow / …DebugCopyScroll. Two hosts
+    -- sharing a name would clobber each other's globals and each other's Esc handler.
     name  = addonName,
+    -- THE FOLDER NAME, which is a different question from the one above even though this addon
+    -- answers both with the same string. `name` seeds frame globals; `addonName` is what the library
+    -- builds a texture path from, so its own close, copy and clear controls draw this collection's
+    -- art on the console AND on its Copy window instead of a multiplication sign and two words. A
+    -- vendored library cannot work that out for itself — there is no one path to it — and a host
+    -- where the two strings diverge would hand it a path into nowhere, which draws nothing and
+    -- raises nothing. Passed explicitly for that reason rather than left to the library to infer
+    -- from `name`.
+    addonName = addonName,
     title = "Absorb Tracker",
     font  = NS.Constants.FONT_MONO,
     slash = "/at",

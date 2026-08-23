@@ -6,9 +6,10 @@ badge and any count quoted in the docs must agree with it.
 
 **Generated — do not hand-edit.** Regenerate with `lua tests/run.lua --list > docs/test-cases.md`.
 
-### test_loadorder.lua (13)
+### test_loadorder.lua (14)
 
 - loadorder: tocFiles returns every addon lua file, in TOC order
+- loadorder: core/MediaSetup.lua loads before core/Constants.lua
 - loadorder: tocFiles skips libs, directives and comments
 - loadorder: tocFiles converts backslashes to forward slashes
 - loadorder: every derived path exists on disk
@@ -119,16 +120,33 @@ badge and any count quoted in the docs must agree with it.
 - Compat.GetAddOnMetadata returns nil when neither API is present
 - No inline GetAddOnMetadata leaks: Compat is the only metadata accessor
 
-### test_coresetup.lua (4)
+### test_coresetup.lua (6)
 
 - core: the secret seam is the library's, not a private copy
+- core: the close button is the library's, told which addon is asking
+- core: the perf panel builds its close control through that one wrapper
 - core: NS.Print carries the [AT] tag and survives a secret arg
 - core: NS.Print and NS.Util.print are the same object after the AceConsole reclaim
 - core: the addon still prints, tagged, with LibKa0s absent
 
-### test_debuglog.lua (10)
+### test_mediasetup.lua (10)
 
-- FONT_MONO constant is a JetBrains Mono TTF path
+- MediaSetup: NS.Icon answers the vendored path, extensionless
+- MediaSetup: an icon the library does not ship answers nil
+- MediaSetup: NS.MediaFont answers the vendored face, and an unknown face answers nil
+- MediaSetup: the font this addon names is the face the library registers
+- MediaSetup: FONT_MONO resolves into the payload, not into this addon's own media/
+- MediaSetup: every mark this addon's windows draw is one the library ships
+- MediaSetup: every name the library ships has a file in the vendored copy
+- MediaSetup: the seam is handed the FOLDER name, never a frame prefix or a literal
+- MediaSetup: the LSM registration happens at file load, not at OnInitialize
+- MediaSetup: with no library there is no art, and that is not an error
+
+### test_debuglog.lua (12)
+
+- the console's font resolves through the Media seam to the LibKa0s payload
+- the descriptor tells the library the FOLDER name, not just the frame name
+- and it takes that folder name from the vararg, not from a hand-typed literal
 - the debug flag the library reads and writes is NS.State.debug
 - NS.Debug is published and reaches the console buffer
 - our title and our font reach the descriptor
@@ -565,13 +583,14 @@ badge and any count quoted in the docs must agree with it.
 
 | Suite | Cases |
 |-------|------:|
-| test_loadorder.lua | 13 |
+| test_loadorder.lua | 14 |
 | test_schema.lua | 38 |
 | test_database.lua | 29 |
 | test_units.lua | 14 |
 | test_compat.lua | 4 |
-| test_coresetup.lua | 4 |
-| test_debuglog.lua | 10 |
+| test_coresetup.lua | 6 |
+| test_mediasetup.lua | 10 |
+| test_debuglog.lua | 12 |
 | test_slash.lua | 13 |
 | test_timer.lua | 11 |
 | test_perf.lua | 29 |
@@ -587,4 +606,4 @@ badge and any count quoted in the docs must agree with it.
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
-| **Total** | **489** |
+| **Total** | **504** |

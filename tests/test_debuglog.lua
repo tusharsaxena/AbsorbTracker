@@ -12,10 +12,81 @@ local NS = T.NS
 local test, assertEqual, assertTrue, assertFalse, assertNil =
   T.test, T.assertEqual, T.assertTrue, T.assertFalse, T.assertNil
 
-test("FONT_MONO constant is a JetBrains Mono TTF path", function()
+test("the console's font resolves through the Media seam to the LibKa0s payload", function()
+  -- This used to pin a literal path into this addon's own media/fonts/. That folder is gone: the
+  -- face ships inside the vendored LibKa0s payload now and core/Constants.lua resolves it through
+  -- NS.MediaFont at load, so the truth worth pinning here is that the descriptor hands the console
+  -- the resolved path rather than a second spelling of it.
+  -- The seam itself — extensionless icons, nil for an unknown name, the degraded fallback — is
+  -- covered in tests/test_mediasetup.lua.
   assertTrue(type(NS.Constants.FONT_MONO) == "string", "FONT_MONO must be a string")
-  assertTrue(NS.Constants.FONT_MONO:match("JetBrainsMono.-%.ttf$") ~= nil,
-    "FONT_MONO must point at the vendored JetBrainsMono TTF")
+  assertEqual(NS.Constants.FONT_MONO, NS.MediaFont(NS.Constants.FONT_MONO_NAME),
+    "FONT_MONO must be what the seam answers for FONT_MONO_NAME")
+  assertTrue(NS.Constants.FONT_MONO:match("libs\\LibKa0s\\media\\fonts\\JetBrainsMono.-%.ttf$") ~= nil,
+    "FONT_MONO must point into the vendored payload, got " .. tostring(NS.Constants.FONT_MONO))
+end)
+
+-- The descriptor core/DebugLogSetup.lua actually hands `lib:New`, captured by a spy rather than
+-- read out of the source.
+--
+-- WHY A WHOLE SECOND LOAD. `lib:New` is called once, at file load, and by the time any suite runs
+-- the shared environment in tests/run.lua has long since made that call. So this builds a second
+-- full environment — libraries first, exactly as the runner does — wraps `New` on the registered
+-- LibKa0s-DebugLog-1.0 major, and then loads the addon, which is the only moment the real argument
+-- exists. tests/degraded_env.lua does the same trick for the library-less case.
+local function captureDescriptor()
+  local Loader     = dofile("tests/_kit/loader.lua")
+  local buildMocks = dofile("tests/wow_mock.lua")
+  Loader.addonName = "AbsorbTracker"
+  local mocks2, NS2 = buildMocks(), {}
+  Loader.loadAll(Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml"), NS2, mocks2)
+
+  local lib = mocks2.LibStub("LibKa0s-DebugLog-1.0")
+  local realNew, seen = lib.New, nil
+  lib.New = function(self, d) seen = d; return realNew(self, d) end
+  local ok, err = pcall(Loader.loadAll, Loader.tocFiles("AbsorbTracker.toc"), NS2, mocks2)
+  lib.New = realNew
+  if not ok then error(err, 0) end
+  return seen
+end
+
+test("the descriptor tells the library the FOLDER name, not just the frame name", function()
+  -- Two fields, two questions, one string in this addon: `name` seeds AbsorbTrackerDebugWindow and
+  -- its Copy window's globals; `addonName` is what the library builds a texture path from, so its
+  -- own close, copy and clear draw this collection's marks instead of a multiplication sign and two
+  -- words. A host where the two strings diverge would hand the library a path into nowhere — which
+  -- draws nothing and raises nothing — so it is passed explicitly rather than inferred from `name`.
+  --
+  -- ASSERTED ON THE TABLE THE LIBRARY RECEIVED, NOT ON THE SOURCE TEXT. A grep for
+  -- `addonName%s*=%s*addonName` matches just as happily inside `local d = {}; d.addonName =
+  -- addonName` — a table `lib:New` never sees — and that decoy is anti-pattern #64 exactly: the
+  -- library gets nil, makeIconButton returns nil for all three marks, both windows go back to the
+  -- multiplication sign and two words, and every suite stays green because a texture path that is
+  -- never built draws nothing and raises nothing.
+  -- red under: dropping the `addonName` line, AND under moving it onto a table that never reaches
+  -- the call.
+  local d = captureDescriptor()
+  assertTrue(type(d) == "table", "core/DebugLogSetup.lua never called lib:New")
+  assertEqual(d.addonName, "AbsorbTracker",
+    "the descriptor the library received carries no folder name, so both console windows draw the "
+      .. "untold title bar")
+  assertEqual(d.name, "AbsorbTracker",
+    "and it must still seed its frame names from the same folder name")
+end)
+
+test("and it takes that folder name from the vararg, not from a hand-typed literal", function()
+  -- The one thing a spy cannot see: both fields would read "AbsorbTracker" whether they came from
+  -- the first vararg or from a quoted string, because this addon's folder and its frame prefix are
+  -- the same word. A literal is still wrong — it is a second place to edit when a folder is
+  -- renamed, and a wrong texture path draws nothing and raises nothing — so this half stays a
+  -- source check, deliberately secondary to the spy above.
+  local f = io.open("core/DebugLogSetup.lua", "r")
+  assertTrue(f ~= nil, "cannot open core/DebugLogSetup.lua (tests run from the repo root)")
+  local src = f:read("*a")
+  f:close()
+  local body = src:gsub("%-%-[^\r\n]*", "")
+  assertNil(body:find("\"AbsorbTracker\"", 1, true),
+    "the descriptor must name this addon through `addonName`, the first vararg, never as a literal")
 end)
 
 local function debugCmd(rest)

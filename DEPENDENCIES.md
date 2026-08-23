@@ -219,10 +219,14 @@ toolchain at all.**
   build script, no `*.py` exists anywhere in the repo — the addon folder *is* the deliverable, which
   is why libraries are vendored. The one `*.sh` in the tree is the vendored test runner
   `tests/_kit/run-automated-tests.sh`, which runs the four out-of-game suites and builds nothing.
-- **Assets are committed, not generated.** `media/fonts/JetBrainsMono-Regular.ttf` (with its
-  `OFL.txt`), `media/logos/` and `media/screenshots/` are checked in as final files. No script in this
-  repo reads, converts or regenerates any of them, so **no image or font tooling is a dependency**.
-  Replacing a screenshot is a matter of committing a different PNG.
+- **Assets are committed, not generated.** `media/logos/` and `media/screenshots/` are checked in as
+  final files. No script in this repo reads, converts or regenerates any of them, so **no image or
+  font tooling is a dependency**. Replacing a screenshot is a matter of committing a different PNG.
+- **The monospace face is no longer this addon's asset.** `media/fonts/JetBrainsMono-Regular.ttf`
+  (with its `OFL.txt`) used to be committed here. It ships inside the vendored LibKa0s payload now
+  (`libs/LibKa0s/media/fonts/`, with `JetBrainsMono-OFL.txt` beside it) and is reached through
+  `core/MediaSetup.lua`, so the bytes, the license file and the LibSharedMedia registration are all
+  upstream's — one copy for the whole collection instead of one per addon.
 - **A `.tga` alongside the `.jpg` logo** (`media/logos/`) is the format WoW itself wants for in-game
   textures. Converting a new logo to `.tga` would need an image tool — but that is a one-off authoring
   step outside this repo, and no committed file or command depends on one. **Plausible, not

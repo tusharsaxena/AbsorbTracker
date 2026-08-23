@@ -33,10 +33,13 @@ Modules → Settings.
 
 Four of the rows below are *setup* files rather than implementation: `core/CoreSetup.lua`,
 `core/DebugLogSetup.lua`, `core/PerfSetup.lua` and `settings/OptionsSetup.lua` each hand a
-**descriptor** to one of the five LibKa0s majors — `LibKa0s-Core-1.0`, `-DebugLog-1.0`, `-Slash-1.0`,
-`-Options-1.0`, `-Perf-1.0`, **five majors across eight files** in `libs/LibKa0s/` — and publish what
+**descriptor** to one of the five descriptor-taking LibKa0s majors — `LibKa0s-Core-1.0`,
+`-DebugLog-1.0`, `-Slash-1.0`, `-Options-1.0`, `-Perf-1.0` — and publish what
 comes back under the `NS.*` name the addon already used, plus a degradation stub for when the library
-is absent. `settings/Slash.lua` does the same thing without a separate setup file. See
+is absent. `settings/Slash.lua` does the same thing without a separate setup file. `core/MediaSetup.lua`
+is the sixth seam and the odd one: `LibKa0s-Media-1.0` takes no descriptor, only this addon's FOLDER
+name, because a texture path is absolute from `Interface\AddOns\` and a vendored copy cannot know
+which folder it was copied into. **Six majors across nine files** in `libs/LibKa0s/`. See
 [Five extracted libraries, one descriptor each](#five-extracted-libraries-one-descriptor-each).
 
 There is no `:NewModule()` hierarchy. Modules are plain files hanging functions on `NS`, and a
@@ -47,7 +50,8 @@ time, guarded with `if NS.X then … end` where the load-order coupling is soft.
 | File | Responsibility |
 |------|----------------|
 | `core/Compat.lua` | The only file that calls deprecated APIs. `Compat.GetAddOnMetadata` (C_AddOns → `_G` fallback). |
-| `core/Constants.lua` | `NS.Constants`: fallback texture/border/font paths, `FONT_MONO` (debug console), `LOGO_PATH`. |
+| `core/MediaSetup.lua` | The `LibKa0s-Media-1.0` seam: `NS.Icon` / `NS.MediaFont` over the vendored payload, and the one `Media.RegisterLSM` call. Loads before `Constants.lua`, which reads it. |
+| `core/Constants.lua` | `NS.Constants`: fallback texture/border/font paths, `FONT_MONO` / `FONT_MONO_NAME` (debug console, resolved from the Media seam), `LOGO_PATH`. |
 | `core/Namespace.lua` | `NS.name` / `NS.version` / `NS.PREFIX` (cyan `[AT]`) and the hot-path `floor`/`max` caches. |
 | `core/State.lua` | `NS.State` — session-only runtime state (the debug flag; never persisted). |
 | `core/Bus.lua` | The closed cross-module message bus: `NS.bus` (shared publish target), `NS.NewBusTarget()` (one per receiver), and the `NS.MSG` catalog (`REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION`/`UNITS`). |
@@ -412,11 +416,15 @@ would otherwise surface them cold, and the reason they exist is not obvious from
   Two assets sit outside that model — non-Blizzard *and* deliberately not exposed as a user setting.
   Both are standard-sanctioned; they are recorded here only so a font/texture audit (or a fresh
   `/standards-audit`) re-surfaces them with their justification rather than flagging them:
-  - **Debug-console font — `JetBrainsMono-Regular.ttf` (vendored, OFL).** The console is
-    `libs/LibKa0s/DebugLog.lua` and renders in whatever face its descriptor's `font` names;
-    `core/DebugLogSetup.lua` hands it `C.FONT_MONO`, so the choice of face is still this addon's.
-    It is registered with LSM as
-    `"JetBrains Mono"` at init, but the console does not read a user font setting. **Why:** a fixed
+  - **Debug-console font — JetBrains Mono (OFL), shipped by LibKa0s, not by this addon.** The
+    console is `libs/LibKa0s/DebugLog.lua` and renders in whatever face its descriptor's `font`
+    names; `core/DebugLogSetup.lua` hands it `C.FONT_MONO`, so the choice of face is still this
+    addon's — but the bytes are `libs/LibKa0s/media/fonts/JetBrainsMono-Regular.ttf`, resolved at
+    load through `NS.MediaFont` (`core/MediaSetup.lua`) and falling back to `C.FALLBACK_FONT`
+    (`Fonts\FRIZQT__.TTF`, a literal in `core/Constants.lua`) when the payload is missing — a
+    literal rather than `_G.STANDARD_TEXT_FONT` so the last rung of the ladder cannot itself be nil. `Media.RegisterLSM` registers it with LSM as
+    `"JetBrains Mono"` at FILE LOAD (this addon used to register its own copy at init), but the
+    console does not read a user font setting. **Why:** a fixed
     monospace face is required for column-aligned debug output (debug-logging-§2). The console's backdrop is
     Blizzard-stock too, but it is no longer the tooltip frame: `WHITE8x8` for both the fill and
     the edge, the edge tinted flat black at `edgeSize = 1`, with a 1px gray highlight synthesized

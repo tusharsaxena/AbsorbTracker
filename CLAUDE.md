@@ -66,7 +66,7 @@ after a direct disk write that landed LF, convert with `sed -i 's/\r$//; s/$/\r/
 
 ## LibKa0s is vendored — fix it upstream
 
-Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.8.2 (MIT).
+Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.10.1 (MIT).
 
 That line is the **provenance record** for both vendored payloads, and it is an input rather than a
 note: `tests/test_vendor_sync.lua` greps it out of *this* file and compares `libs/LibKa0s/` and
@@ -79,9 +79,11 @@ inventory was never something a player needed.
 upstream and re-vendor. `tests/_kit/` is vendored the same way (from LibKa0s/testkit), so a local
 "fix" there forks a shared file. Both sit outside `luacheck .` via `exclude_files`.
 
-`libs/LibKa0s/LibKa0s.xml` loads five modules across eight files — Core, DebugLog, Slash, Options
-(`Options` + `OptionsWidgets` + `OptionsScroll`) and Perf (`Perf` + `PerfPanel`). This addon binds
-them in five seams: **`core/CoreSetup.lua`**, **`core/DebugLogSetup.lua`**, **`core/PerfSetup.lua`**,
+`libs/LibKa0s/LibKa0s.xml` loads six modules across nine files — Core, Media, DebugLog, Slash,
+Options (`Options` + `OptionsWidgets` + `OptionsScroll`) and Perf (`Perf` + `PerfPanel`). Five of
+them take a descriptor; `LibKa0s-Media-1.0` does not — it is a path resolver, and its seam
+(`core/MediaSetup.lua`) only has to tell it this addon's FOLDER name, which a vendored library
+cannot work out for itself. This addon binds them in six seams: **`core/MediaSetup.lua`**, **`core/CoreSetup.lua`**, **`core/DebugLogSetup.lua`**, **`core/PerfSetup.lua`**,
 **`settings/OptionsSetup.lua`** and **`settings/Slash.lua`** — the last being the one major wired
 without a separate setup file, because `NS.COMMANDS` has to stay host-owned anyway
 (`settings/UnitPanel.lua` then decorates `NS.Helpers` with the two pieces that did not

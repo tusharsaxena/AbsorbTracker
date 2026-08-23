@@ -11,9 +11,6 @@ How values move through the addon at runtime: the two-phase bootstrap (`OnInitia
 ```
 OnInitialize (ADDON_LOADED)
     │
-    ├─▶ LSM:Register("font", "JetBrains Mono", NS.Constants.FONT_MONO)
-    │        -- vendored monospace for the debug console
-    │
     ├─▶ NS:InitDB()                     -- core/Database.lua
     │     ├─ AceDB:New("AbsorbTrackerDB", NS.defaults, true) → NS.db
     │     │     └─ RegisterCallback OnProfileChanged / OnProfileCopied /

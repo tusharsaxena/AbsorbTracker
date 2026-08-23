@@ -65,6 +65,7 @@ Kit.run{
     "test_units",
     "test_compat",
     "test_coresetup",
+    "test_mediasetup",
     "test_debuglog",
     "test_slash",
     "test_timer",

@@ -35,10 +35,10 @@ function NS.NoteRepaint()
 end
 
 function addon:OnInitialize()
-    -- Register the vendored monospace font with LSM for the debug console (debug-logging-§2).
-    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
-    if LSM then LSM:Register("font", "JetBrains Mono", NS.Constants.FONT_MONO) end
-
+    -- No LSM font registration here any more. It used to register "JetBrains Mono" against this
+    -- addon's own media/fonts/ copy; the face now ships in the LibKa0s payload and core/MediaSetup.lua
+    -- registers it at FILE LOAD through Media.RegisterLSM — earlier than this, which is the point, and
+    -- under one key pointing at one set of bytes for the whole collection rather than one per addon.
     NS:InitDB()
 
     if NS.Slash and NS.Slash.Register then NS.Slash:Register() end

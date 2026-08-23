@@ -125,16 +125,21 @@ NS.Perf = lib:New({
         end
     end,
 
-    -- Built by the debug console's own close-button factory rather than a lookalike, so the two
-    -- windows cannot drift apart. Guarded only because a close button is worth degrading over,
-    -- not erroring over.
+    -- Built by the addon's own close-button factory rather than a lookalike, so the perf panel and
+    -- the debug console cannot drift apart: NS.MakeCloseButton (core/CoreSetup.lua) and the console's
+    -- own control both end at LibKa0s-Core's MakeCloseButton, and the wrapper is the single place
+    -- that tells the library which addon folder to build the mark's texture path from.
+    --
+    -- IT USED TO BE `NS.DebugLog.MakeCloseButton(frame, api.Hide)` — a two-argument call onto a
+    -- three-argument function, which is why this panel drew a multiplication sign while every suite
+    -- stayed green: the dropped third argument is the addon name, and a texture path that is never
+    -- built draws nothing and raises nothing. Going through the wrapper means the argument cannot be
+    -- dropped at a call site again.
+    --
+    -- Guarded only because a close button is worth degrading over, not erroring over.
     decorate = function(frame, api)
-        if NS.DebugLog and NS.DebugLog.MakeCloseButton then
-            -- Resolved HERE rather than into a local at load time. `decorate` fires at frame-build
-            -- time, long after every file has loaded, which is the only reason this file may reach
-            -- for a member of a module that loads after it. Hoisting the lookup reintroduces the
-            -- ordering hazard.
-            local close = NS.DebugLog.MakeCloseButton(frame, api.Hide)
+        if NS.MakeCloseButton then
+            local close = NS.MakeCloseButton(frame, api.Hide)
             -- The factory answers nil where CreateFrame is unavailable — a close button is worth
             -- degrading over, not erroring over.
             if close then

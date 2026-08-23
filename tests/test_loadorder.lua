@@ -36,6 +36,30 @@ test("loadorder: tocFiles returns every addon lua file, in TOC order", function(
   assertEqual(files[#files], "settings/Profiles.lua", "the settings pages load last")
 end)
 
+test("loadorder: core/MediaSetup.lua loads before core/Constants.lua", function()
+  -- The one TOC position in this addon that is LOAD-BEARING rather than conventional.
+  -- core/Constants.lua resolves C.FONT_MONO from the NS.MediaFont seam core/MediaSetup.lua
+  -- publishes, at load. A Constants that loaded first would resolve it to C.FALLBACK_FONT on a
+  -- perfectly healthy install and say nothing about it — the debug console would simply stop being
+  -- monospace, which is the kind of regression only a screenshot catches.
+  -- red under: moving MediaSetup below Constants, or dropping it out of the TOC entirely.
+  local index = {}
+  for i, p in ipairs(Loader.tocFiles("AbsorbTracker.toc")) do index[p:lower()] = i end
+
+  local media = index["core/mediasetup.lua"]
+  assertTrue(media ~= nil, "core/MediaSetup.lua is not in the TOC")
+  local constants = index["core/constants.lua"]
+  assertTrue(constants ~= nil, "core/Constants.lua is not in the TOC")
+  assertTrue(media < constants,
+    "core/MediaSetup.lua must load before core/Constants.lua, which reads NS.MediaFont")
+
+  -- And the reason is written down where the next person editing the TOC will see it, not only
+  -- here. A silent reorder is the failure; a comment is what makes it a deliberate one.
+  local raw = readFile("AbsorbTracker.toc")
+  assertTrue(raw:find("Constants.FONT_MONO is resolved from", 1, true) ~= nil,
+    "the TOC line must carry the note saying its position is load-bearing")
+end)
+
 test("loadorder: tocFiles skips libs, directives and comments", function()
   local files = Loader.tocFiles("AbsorbTracker.toc")
   for _, p in ipairs(files) do

@@ -89,6 +89,13 @@ test("parity: the Options stub carries every helper the degraded build can reach
     -- The AceGUI handle the live panel stashes. There is no AceGUI on the degraded path — that is
     -- the condition, not a divergence.
     "AceGUI",
+    -- New at Options minor 8 (libs/LibKa0s/Options.lua's O.RefreshPanel): the library's way for a
+    -- host to say "this one page's contents changed" without touching the private dirty flag. This
+    -- addon has no call site for it —
+    --   grep -rn "RefreshPanel" core modules settings   returns nothing —
+    -- and the Slash case below states the rule this follows: a stub member with no caller is a copy
+    -- waiting to go stale. It joins the stub on the commit that gives it a caller.
+    "RefreshPanel",
     -- A test seam settings/UnitPanel.lua:60 stamps on the table as it RENDERS a unit panel. The
     -- degraded build renders none, so the key is absent for the same reason AceGUI is.
     "__lastUnitCtx",
