@@ -662,3 +662,25 @@ test("the main page's About content renders on its first OnShow", function()
   local ok, err = pcall(function() panel:__fire("OnShow") end)
   assertTrue(ok, "BuildMainContent failed: " .. tostring(err))
 end)
+
+test("re-rendering the About page replaces its body rather than stacking a second copy", function()
+  -- The main page is re-rendered on every re-show after a refresh marked it dirty (a /at set, a
+  -- profile change), so its renderer must clear the scroll first. The hand-rolled body this file
+  -- used to carry did not, and the panel grew a second logo, description and command list per
+  -- render. Driven through the renderer directly: OnShow short-circuits on a clean page, which is
+  -- exactly why the bug survived the first-OnShow case above.
+  local panel = T.mocks.__mainPanel
+  local ctx
+  for _, c in ipairs(NS.Helpers.__panels()) do
+    if c.panel == panel then ctx = c end
+  end
+  assertTrue(ctx ~= nil, "the main canvas ctx is in the panel registry")
+
+  NS.Helpers.BuildMainContent(ctx)
+  local firstCount = #ctx.scroll.children
+  assertTrue(firstCount > 0, "the About page rendered something")
+
+  NS.Helpers.BuildMainContent(ctx)
+  assertEqual(#ctx.scroll.children, firstCount,
+    "the second render lands at the same child count, not a doubled/stacked set")
+end)

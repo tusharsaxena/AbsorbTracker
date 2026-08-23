@@ -498,7 +498,7 @@ badge and any count quoted in the docs must agree with it.
 - parity: an unknown verb reaches no handler and prints the same shape in both
 - parity: a bare /at reaches no handler and prints help in both
 
-### test_widgets.lua (50)
+### test_widgets.lua (51)
 
 - NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
 - a bool row renders a CheckBox labeled from the schema
@@ -550,6 +550,7 @@ badge and any count quoted in the docs must agree with it.
 - a second OnShow rebuilds the panel body without stacking duplicate widgets
 - showing every page builds it without error
 - the main page's About content renders on its first OnShow
+- re-rendering the About page replaces its body rather than stacking a second copy
 
 ### test_docs.lua (2)
 
@@ -601,9 +602,9 @@ badge and any count quoted in the docs must agree with it.
 | test_helpers.lua | 49 |
 | test_optionssetup.lua | 4 |
 | test_slashcmds.lua | 111 |
-| test_widgets.lua | 50 |
+| test_widgets.lua | 51 |
 | test_docs.lua | 2 |
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
-| **Total** | **504** |
+| **Total** | **505** |
