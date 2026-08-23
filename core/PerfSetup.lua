@@ -32,6 +32,15 @@ end
 
 NS.Perf = lib:New({
     name    = addonName,
+    -- THE FOLDER NAME, a different question from the one above even though this addon
+    -- answers both with the same string. `name` seeds the panel's frame globals;
+    -- `addonName` is what LibKa0s-Core builds a texture path from, so the panel's own
+    -- close control draws this collection's `close` mark rather than a multiplication
+    -- sign. PerfPanel minor 4 reads `d.addonName or d.name`, so this addon would fall
+    -- through to the right answer by luck; it is passed EXPLICITLY because a host where
+    -- the two strings diverge would hand the library a path into nowhere, which draws
+    -- nothing and raises nothing.
+    addonName = addonName,
     title   = "Absorb Tracker",
     slash   = "/at",
     version = NS.version,

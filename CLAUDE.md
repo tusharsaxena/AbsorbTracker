@@ -66,7 +66,7 @@ after a direct disk write that landed LF, convert with `sed -i 's/\r$//; s/$/\r/
 
 ## LibKa0s is vendored — fix it upstream
 
-Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.10.1 (MIT).
+Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.10.2 (MIT).
 
 That line is the **provenance record** for both vendored payloads, and it is an input rather than a
 note: `tests/test_vendor_sync.lua` greps it out of *this* file and compares `libs/LibKa0s/` and

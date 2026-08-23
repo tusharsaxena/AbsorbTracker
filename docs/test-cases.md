@@ -187,7 +187,7 @@ badge and any count quoted in the docs must agree with it.
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
 
-### test_perf.lua (29)
+### test_perf.lua (30)
 
 - perf: the addon holds a real LibKa0s-Perf instance
 - perf: the descriptor declares this addon's buckets, with their nesting
@@ -218,6 +218,7 @@ badge and any count quoted in the docs must agree with it.
 - perf: /at perf explains itself instead of erroring with LibKa0s absent
 - perf: the brackets and the show ladder survive LibKa0s being absent
 - every perf step label the library renders is prose, not its own STRINGS key
+- Perf: the descriptor hands the library the FOLDER name, not just the frame name
 
 ### test_visibility.lua (17)
 
@@ -594,7 +595,7 @@ badge and any count quoted in the docs must agree with it.
 | test_debuglog.lua | 12 |
 | test_slash.lua | 13 |
 | test_timer.lua | 11 |
-| test_perf.lua | 29 |
+| test_perf.lua | 30 |
 | test_visibility.lua | 17 |
 | test_bus.lua | 7 |
 | test_data.lua | 26 |
@@ -607,4 +608,4 @@ badge and any count quoted in the docs must agree with it.
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
-| **Total** | **505** |
+| **Total** | **506** |

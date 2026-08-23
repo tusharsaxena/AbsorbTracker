@@ -462,3 +462,22 @@ test("every perf step label the library renders is prose, not its own STRINGS ke
       "step '" .. tostring(step.key) .. "' resolved to prose, not to its own key: " .. step.label)
   end
 end)
+
+test("Perf: the descriptor hands the library the FOLDER name, not just the frame name", function()
+  -- PerfPanel minor 4 draws the panel's close control from
+  -- `core.MakeCloseButton(frame, P.HidePanel, d.addonName or d.name)`. This addon answers both
+  -- fields with the same string, so `name` alone would reach the right texture BY LUCK -- which
+  -- is the whole reason to pin the explicit field: the two are different questions, and a host
+  -- where they diverge hands the library a path into nowhere that draws nothing and raises
+  -- nothing. Testing the ARGUMENT, not the appearance.
+  -- red under: dropping `addonName` and leaving the panel to infer it from `name`.
+  local f = io.open("core/PerfSetup.lua", "r")
+  assertTrue(f ~= nil, "cannot open core/PerfSetup.lua (tests run from the repo root)")
+  local src = f:read("*a")
+  f:close()
+  local body = src:gsub("%-%-[^\r\n]*", "")
+  assertTrue(body:match("addonName%s*=%s*addonName") ~= nil,
+    "the perf descriptor does not pass addonName, so the panel's close falls back to `name`")
+  assertNil(body:find("\"AbsorbTracker\"", 1, true),
+    "the descriptor must name this addon through `addonName`, the first vararg, never as a literal")
+end)
