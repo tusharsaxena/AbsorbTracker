@@ -140,7 +140,7 @@ test("core: the addon still prints, tagged, with LibKa0s absent", function()
   Loader.addonName = "AbsorbTracker"
   local mocks2, NS2 = buildMocks(), {}
   Loader.loadAll({
-    "core/Compat.lua", "core/Constants.lua", "core/Namespace.lua", "core/CoreSetup.lua",
+    "core/EnvSetup.lua", "core/Constants.lua", "core/Namespace.lua", "core/CoreSetup.lua",
   }, NS2, mocks2)
 
   assertTrue(NS2.Print == NS2.Util.print, "the identity holds in the degraded build too")

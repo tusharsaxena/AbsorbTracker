@@ -18,16 +18,11 @@ local addonName, NS = ...
 
 local Helpers = NS.Helpers
 
--- Deprecated-API access routes through the single Compat shim (Ka0s standard compat).
-local function getMetadata(field)
-    return NS.Compat.GetAddOnMetadata(NS.name, field)
-end
-
 -- `notes` and `rows` are functions because both are resolved at RENDER time: the TOC's Notes field
 -- is not readable when this spec is declared, and NS.COMMANDS keeps growing as later files load.
 local SPEC = {
     logo  = NS.Constants.LOGO_PATH,
-    notes = function() return getMetadata("Notes") or "" end,
+    notes = function() return NS.Meta("Notes") or "" end,
     sections = {
         {
             heading = "Slash Commands",

@@ -63,7 +63,7 @@ Kit.run{
     "test_schema",
     "test_database",
     "test_units",
-    "test_compat",
+    "test_envsetup",
     "test_coresetup",
     "test_mediasetup",
     "test_debuglog",

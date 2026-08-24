@@ -160,12 +160,29 @@ to look different*, so check them against the expected output written here, **no
 101. **A raising header item costs that item, not the page.** ⚠ This is new capability, not a parity check: RenderGrid pcalls each item, where the hand-rolled block did not. Temporarily break one item — e.g. edit `settings/UnitPanel.lua` and make the **Copy styling from Player** maker raise (`error("smoke")` as its first line) — `/reload`, then open Bar → Target. Expect: **one** `settings row … failed to render` line naming the failure, the **Unit** dropdown and the mirror checkbox still drawn, and the schema rows below still drawn. Pre-adoption the whole body aborted behind `RenderUnitPanel`'s outer pcall and the page came up half-drawn with nothing naming the cause. Revert the edit and `/reload`. (What this pins: item-level fault isolation. `tests/test_helpers.lua` asserts it headlessly; this is the in-game walk.)
 102. **Nothing renders a raw locale key.** Open `/at config` and walk all five sub-pages, then `/at debug` and `/at perf`. Every label, tooltip title, section heading, button and step name reads as **English prose**. A `SCREAMING_SNAKE_CASE` string anywhere on screen — `STEP_START`, `PANEL_TITLE_SUFFIX`, `LIST_HEADER` — is the `L` trap: a descriptor was handed the addon's `NS.L`, whose metatable answers every key with the key, so the library's own strings became unreachable. It fails for **every** key in that module at once, so if you see one you will see dozens. This addon translates nothing and therefore passes `L` to no descriptor at all; `tests/test_ltrap.lua` guards the source, and this is the one check that sees what actually rendered. (KickCD shipped this bug once — see `../LibKa0s/docs/adoption-prompt.md`, "The `L` trap".)
 
-**Pass criteria:** all 114 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
+### N. The LibKa0s-Env-1.0 seam (TOC metadata)
+
+Run after the release that deletes `core/Compat.lua` and reads the TOC through `core/EnvSetup.lua`.
+Both checks are **supposed to look identical to before** — the seam changes where the answer comes
+from, never what it is. A wrong folder name reads another addon's manifest, or none, and answers
+nil **without raising**, so the only way this fails is by looking blank or stale. Read the values
+against the TOC, not against memory.
+
+94. `/at version` → prints `v1.9.0` — the `## Version` line of `AbsorbTracker.toc` **verbatim**, not
+    `?` and not an empty `v`. Bump the TOC's `## Version` by hand, `/reload`, run it again → the new
+    string. (That second half is what distinguishes the TOC read from the `NS.version` constant in
+    `core/Namespace.lua`, which is the seam's *fallback* and reads the same today.)
+95. `/at config` → the About page's one-line blurb under the logo is the addon's `## Notes` text,
+    **not blank**. This is the only `NS.Meta` call site that is not the version, and an unreadable
+    manifest renders it as an empty label rather than as an error.
+
+**Pass criteria:** all 116 checks pass with **no Lua errors**, the `[AT]` prefix on every chat line,
 and no combat-taint warning when the panel opens out of combat (step 13). On any failure, record the step number, observed vs.
 expected, and any error text.
 
 ### Triage references (if a step fails)
 - Bootstrap / events / profile repaint — `core/AbsorbTracker.lua` (`OnEnable`, `OnProfileChanged`)
+- TOC metadata (the `/at version` string, the About page's Notes blurb) — `LibKa0s-Env-1.0` (`libs/LibKa0s/Env.lua`), wired by `core/EnvSetup.lua` as `NS.Meta` / `NS.Version`
 - Slash dispatch, help / list formatting, the value parser — `LibKa0s-Slash-1.0` (`libs/LibKa0s/`); the `NS.COMMANDS` verb table, the host verbs and the mirror note — `settings/Slash.lua`
 - Combat gate — `LibKa0s-Options-1.0` (`libs/LibKa0s/Options.lua`, `O.OpenOptionsPanel`), wired by `settings/OptionsSetup.lua`
 - Panel shell / header / Defaults button / page registry — `LibKa0s-Options-1.0` (`libs/LibKa0s/Options.lua`); the descriptor and the degradation stub — `settings/OptionsSetup.lua`

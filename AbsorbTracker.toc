@@ -32,8 +32,10 @@ libs\AceGUI-3.0-SharedMediaWidgets\widget.xml
 # Locales
 locales\enUS.lua
 
-# Core (Compat loads first)
-core\Compat.lua
+# Core (the LibKa0s-Env seam loads first)
+# The LibKa0s-Env seam: this addon reads its own TOC manifest through it. Nothing here is resolved
+# at load, so this position is conventional rather than load-bearing.
+core\EnvSetup.lua
 # Before Constants, deliberately: Constants.FONT_MONO is resolved from the NS.MediaFont seam
 # this file publishes, so a Constants that loaded first would resolve it to the fallback.
 core\MediaSetup.lua

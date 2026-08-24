@@ -56,7 +56,6 @@ end
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
 local runDebug, runUpdate, runTest, runProfile, runToggle, runPerf
-local getVersion
 
 NS.COMMANDS = {
     {"help",          "List available commands",
@@ -94,7 +93,7 @@ NS.COMMANDS = {
     {"update",        "Force a bar refresh",
         function() runUpdate() end},
     {"version",       "Print the addon version",
-        function() print(("v%s"):format(getVersion())) end},
+        function() print(("v%s"):format(NS.Version())) end},
     {"test",          "Test display with a fake value \226\128\148 `/at test [value] [hold-secs]`",
         function(rest) runTest(rest) end},
     {"profile",       "Profile management \226\128\148 try `/at profile` for the list",
@@ -104,10 +103,6 @@ NS.COMMANDS = {
 -- ---------------------------------------------------------------------
 -- /at help
 -- ---------------------------------------------------------------------
-
-function getVersion()
-    return NS.Compat.GetAddOnMetadata(NS.name, "Version") or NS.version or "?"
-end
 
 function printHelp() cli:PrintHelp() end
 
@@ -457,7 +452,7 @@ cli = SlashLib:New({
     aliases      = { options = "config" },   -- backward-compat: `/at options` -> `/at config`
 
     print   = function(line) print(line) end,
-    version = getVersion,
+    version = NS.Version,
 
     -- The schema seams. SetByPath rather than a bare write, so a CLI change takes the same path a
     -- panel change does: the [Set] debug line, the row's onChange, and the panel refresh.

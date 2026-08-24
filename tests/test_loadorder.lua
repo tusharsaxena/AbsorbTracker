@@ -71,7 +71,7 @@ end)
 
 test("loadorder: tocFiles converts backslashes to forward slashes", function()
   local raw = readFile("AbsorbTracker.toc")
-  assertTrue(raw:find("core\\Compat.lua", 1, true) ~= nil, "the TOC really does use backslashes")
+  assertTrue(raw:find("core\\EnvSetup.lua", 1, true) ~= nil, "the TOC really does use backslashes")
   local files = Loader.tocFiles("AbsorbTracker.toc")
   for _, p in ipairs(files) do
     assertFalse(p:find("\\", 1, true), "a backslash survived into " .. p)

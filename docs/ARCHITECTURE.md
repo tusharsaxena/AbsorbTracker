@@ -49,7 +49,7 @@ time, guarded with `if NS.X then … end` where the load-order coupling is soft.
 
 | File | Responsibility |
 |------|----------------|
-| `core/Compat.lua` | The only file that calls deprecated APIs. `Compat.GetAddOnMetadata` (C_AddOns → `_G` fallback). |
+| `core/EnvSetup.lua` | The `LibKa0s-Env-1.0` seam: `NS.Meta(field)` / `NS.Version()` over the vendored library, told this addon's own folder name. It replaced the whole of `core/Compat.lua`, whose one export was the same TOC-metadata reader nine addons had each written for themselves. |
 | `core/MediaSetup.lua` | The `LibKa0s-Media-1.0` seam: `NS.Icon` / `NS.MediaFont` over the vendored payload, and the one `Media.RegisterLSM` call. Loads before `Constants.lua`, which reads it. |
 | `core/Constants.lua` | `NS.Constants`: fallback texture/border/font paths, `FONT_MONO` / `FONT_MONO_NAME` (debug console, resolved from the Media seam), `LOGO_PATH`. |
 | `core/Namespace.lua` | `NS.name` / `NS.version` / `NS.PREFIX` (cyan `[AT]`) and the hot-path `floor`/`max` caches. |
@@ -88,8 +88,10 @@ Rules the code depends on that reading one file will not reveal. The visual/tain
   file — `modules/Bar.lua`, `modules/Display.lua`, `core/Data.lua`, the settings pages — goes through
   `NS.Units.Get(unit, key)`, so mirror resolution ("does this unit read its own config or the
   player's?") lives in exactly one place. Do not add a second read site.
-- **Deprecated APIs go through `core/Compat.lua`.** `Compat.GetAddOnMetadata` is the only metadata
-  accessor; never call `GetAddOnMetadata` / `C_AddOns.GetAddOnMetadata` inline.
+- **TOC metadata goes through `core/EnvSetup.lua`.** `NS.Meta(field)` and `NS.Version()` are the
+  only metadata accessors; never call `GetAddOnMetadata` / `C_AddOns.GetAddOnMetadata` inline. The
+  deprecated-global rung still exists — it is the seam's own fallback, for an install with no
+  LibKa0s — and that file is the only place it may be spelled.
 
 ## Settings Schema
 
@@ -298,7 +300,7 @@ file, the hub the map itself lives in. Frozen and generated directories are name
 | `midnight-quirks.md` | Present | Client-version workarounds of the addon’s own |
 | `profiles.md` | Present | AceDB profiles are user-visible — the Profiles settings page |
 | `message-bus.md` | Not applicable | Five messages; threshold is more than ten. The table lives in `ARCHITECTURE.md` → `## Message Bus` |
-| `compat-layer.md` | Not applicable | `core/Compat.lua` is 20 lines of straight API normalization with no addon-specific shim |
+| `compat-layer.md` | Not applicable | There is no compat layer left: `core/Compat.lua` held one straight API normalization and it moved to `LibKa0s-Env-1.0`, reached through `core/EnvSetup.lua` |
 | `debug.md` | Not applicable | The console is `LibKa0s-DebugLog-1.0`’s, with no debug surface of the addon’s own |
 | `perf-analysis/README.md` | Present | The performance harness is wired (`core/PerfSetup.lua`) |
 

@@ -113,12 +113,14 @@ badge and any count quoted in the docs must agree with it.
 - target and focus ship disabled so an upgrade changes nothing on screen
 - target and focus ship mirrored so a first enable looks like the player bar
 
-### test_compat.lua (4)
+### test_envsetup.lua (6)
 
-- Compat.GetAddOnMetadata prefers C_AddOns.GetAddOnMetadata
-- Compat.GetAddOnMetadata falls back to the global GetAddOnMetadata
-- Compat.GetAddOnMetadata returns nil when neither API is present
-- No inline GetAddOnMetadata leaks: Compat is the only metadata accessor
+- EnvSetup: NS.Meta asks about THIS addon's folder, not its title or its frame prefix
+- EnvSetup: NS.Meta degrades to nil when the client exposes no manifest reader
+- EnvSetup: NS.Version prefers the TOC over this addon's own constant
+- EnvSetup: NS.Version falls back to this addon's own constant
+- EnvSetup degraded: an install with no LibKa0s still reads its own TOC
+- EnvSetup: the deleted shim is gone, and so is the file that was only ever the shim
 
 ### test_coresetup.lua (6)
 
@@ -589,7 +591,7 @@ badge and any count quoted in the docs must agree with it.
 | test_schema.lua | 38 |
 | test_database.lua | 29 |
 | test_units.lua | 14 |
-| test_compat.lua | 4 |
+| test_envsetup.lua | 6 |
 | test_coresetup.lua | 6 |
 | test_mediasetup.lua | 10 |
 | test_debuglog.lua | 12 |
@@ -608,4 +610,4 @@ badge and any count quoted in the docs must agree with it.
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
-| **Total** | **506** |
+| **Total** | **508** |

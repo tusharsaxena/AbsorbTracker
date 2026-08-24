@@ -54,16 +54,15 @@ end)
 
 test("/at version prints the addon version (slash-commands-§3)", function()
   -- The standalone `version` verb must exist in NS.COMMANDS and print the running
-  -- version on its own line. getVersion() reads Compat metadata with the NS.version
-  -- fallback; headless the metadata API is absent, so this resolves to NS.version.
+  -- version on its own line. It reads the TOC through the NS.Version seam, which falls back to
+  -- NS.version; headless no metadata API is exposed at all, so this resolves to the constant.
   local hasVersion = false
   for _, entry in ipairs(NS.COMMANDS) do
     if entry[1] == "version" then hasVersion = true break end
   end
   assertTrue(hasVersion, "NS.COMMANDS has a standalone 'version' verb")
 
-  local expected = "v" ..
-    (NS.Compat.GetAddOnMetadata(NS.name, "Version") or NS.version or "?")
+  local expected = "v" .. NS.Version()
   local out = capture(function() NS.Slash:OnSlash("version") end)
   assertEqual(#out, 1)
   assertTrue(stripColor(out[1]):find(expected, 1, true) ~= nil,
