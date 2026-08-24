@@ -66,7 +66,7 @@ after a direct disk write that landed LF, convert with `sed -i 's/\r$//; s/$/\r/
 
 ## LibKa0s is vendored — fix it upstream
 
-Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.10.2 (MIT).
+Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.15.0 (MIT).
 
 That line is the **provenance record** for both vendored payloads, and it is an input rather than a
 note: `tests/test_vendor_sync.lua` greps it out of *this* file and compares `libs/LibKa0s/` and
@@ -79,11 +79,14 @@ inventory was never something a player needed.
 upstream and re-vendor. `tests/_kit/` is vendored the same way (from LibKa0s/testkit), so a local
 "fix" there forks a shared file. Both sit outside `luacheck .` via `exclude_files`.
 
-`libs/LibKa0s/LibKa0s.xml` loads six modules across nine files — Core, Media, DebugLog, Slash,
-Options (`Options` + `OptionsWidgets` + `OptionsScroll`) and Perf (`Perf` + `PerfPanel`). Five of
-them take a descriptor; `LibKa0s-Media-1.0` does not — it is a path resolver, and its seam
+`libs/LibKa0s/LibKa0s.xml` loads ten modules across thirteen files — Core, Env, Pool, Item, Media,
+Widgets, DebugLog, Slash, Options (`Options` + `OptionsWidgets` + `OptionsScroll`) and Perf (`Perf`
++ `PerfPanel`). Env, Pool, Item and Widgets came in with the payload and this addon binds none of
+the four yet — they register and sit there. Of the six it does bind, five take a descriptor;
+`LibKa0s-Media-1.0` does not — it is a path resolver, and its seam
 (`core/MediaSetup.lua`) only has to tell it this addon's FOLDER name, which a vendored library
-cannot work out for itself. This addon binds them in six seams: **`core/MediaSetup.lua`**, **`core/CoreSetup.lua`**, **`core/DebugLogSetup.lua`**, **`core/PerfSetup.lua`**,
+cannot work out for itself. This addon binds them in six seams: **`core/MediaSetup.lua`**,
+**`core/CoreSetup.lua`**, **`core/DebugLogSetup.lua`**, **`core/PerfSetup.lua`**,
 **`settings/OptionsSetup.lua`** and **`settings/Slash.lua`** — the last being the one major wired
 without a separate setup file, because `NS.COMMANDS` has to stay host-owned anyway
 (`settings/UnitPanel.lua` then decorates `NS.Helpers` with the two pieces that did not
