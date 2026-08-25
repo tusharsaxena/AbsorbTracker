@@ -1,0 +1,31 @@
+Checking core/AbsorbTracker.lua                   OK
+Checking core/Bus.lua                             OK
+Checking core/Constants.lua                       OK
+Checking core/CoreSetup.lua                       OK
+Checking core/Data.lua                            OK
+Checking core/Database.lua                        OK
+Checking core/DebugLogSetup.lua                   OK
+Checking core/EnvSetup.lua                        OK
+Checking core/LSMPatch.lua                        OK
+Checking core/MediaSetup.lua                      OK
+Checking core/Namespace.lua                       OK
+Checking core/PerfSetup.lua                       OK
+Checking core/State.lua                           OK
+Checking core/Units.lua                           OK
+Checking defaults/Profile.lua                     OK
+Checking locales/enUS.lua                         OK
+Checking modules/Bar.lua                          OK
+Checking modules/Display.lua                      OK
+Checking modules/Timer.lua                        OK
+Checking settings/About.lua                       OK
+Checking settings/Bar.lua                         OK
+Checking settings/Border.lua                      OK
+Checking settings/Font.lua                        OK
+Checking settings/General.lua                     OK
+Checking settings/OptionsSetup.lua                OK
+Checking settings/Profiles.lua                    OK
+Checking settings/Schema.lua                      OK
+Checking settings/Slash.lua                       OK
+Checking settings/UnitPanel.lua                   OK
+
+Total: 0 warnings / 0 errors in 29 files

@@ -37,9 +37,10 @@ Four of the rows below are *setup* files rather than implementation: `core/CoreS
 `-DebugLog-1.0`, `-Slash-1.0`, `-Options-1.0`, `-Perf-1.0` — and publish what
 comes back under the `NS.*` name the addon already used, plus a degradation stub for when the library
 is absent. `settings/Slash.lua` does the same thing without a separate setup file. `core/MediaSetup.lua`
-is the sixth seam and the odd one: `LibKa0s-Media-1.0` takes no descriptor, only this addon's FOLDER
-name, because a texture path is absolute from `Interface\AddOns\` and a vendored copy cannot know
-which folder it was copied into. **Six majors across nine files** in `libs/LibKa0s/`. See
+and `core/EnvSetup.lua` are the sixth and seventh seams, and the two odd ones: `LibKa0s-Media-1.0` and
+`LibKa0s-Env-1.0` take no descriptor, only this addon's FOLDER name — a texture path is absolute from
+`Interface\AddOns\` and a TOC manifest is keyed by folder, and a vendored copy cannot know which folder
+it was copied into. **Seven majors across ten files** of the ten majors `libs/LibKa0s/` vendors. See
 [Five extracted libraries, one descriptor each](#five-extracted-libraries-one-descriptor-each).
 
 There is no `:NewModule()` hierarchy. Modules are plain files hanging functions on `NS`, and a
