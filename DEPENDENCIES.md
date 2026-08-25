@@ -40,9 +40,9 @@ The headless harness loads every source file into a sandboxed environment with *
 was **removed in Lua 5.2**:
 
 ```
-tests/_kit/loader.lua:31    setfenv(chunk, makeEnv(mocks))
-tests/_kit/loader.lua:48    local chunk, err = loadstring(src, chunkname)
-tests/_kit/loader.lua:50    setfenv(chunk, makeEnv(mocks))
+tests/_kit/loader.lua:72    setfenv(chunk, makeEnv(mocks))
+tests/_kit/loader.lua:89    local chunk, err = loadstring(src, chunkname)
+tests/_kit/loader.lua:91    setfenv(chunk, makeEnv(mocks))
 ```
 
 `loadstring` went the same way in 5.2. So "5.2 will probably work" is **false**: `lua tests/run.lua`
@@ -136,11 +136,11 @@ The vendor-sync gate shells out to `git` to prove the vendored `libs/LibKa0s/` a
 checks, at `tests/_kit/vendor_sync.lua`:
 
 ```
-tests/_kit/vendor_sync.lua:154   io.popen(('git -C "%s" %s 2>/dev/null'):format(SIBLING, args), "r")
+tests/_kit/vendor_sync.lua:184   io.popen(('git -C "%s" %s 2>/dev/null'):format(SIBLING, args), "r")
 ```
 
 It runs `git show` and `git ls-tree` against a **sibling checkout at `../LibKa0s`**
-(`tests/_kit/vendor_sync.lua:70`, resolved at `:145`).
+(`tests/_kit/vendor_sync.lua:70`, resolved at `:175`).
 
 ```sh
 sudo apt install -y git
@@ -152,7 +152,7 @@ sudo apt install -y git
 
 The two vendor-sync cases compare against `../LibKa0s`. When that directory is not there, they
 report a **skip carrying its reason** — deliberately, and named in the run rather than hidden
-(`tests/_kit/vendor_sync.lua:193`, `T.skip("… the vendored payload was NOT compared")`). An
+(`tests/_kit/vendor_sync.lua:285`, `T.skip("… the vendored payload was NOT compared")`). An
 earlier copy returned early instead, which registered as PASS for a comparison that never ran.
 Where the folder *is* present, a missing tag, a missing file, an extra file or any content difference
 **fails**.
@@ -166,21 +166,23 @@ git clone https://github.com/tusharsaxena/LibKa0s.git ../LibKa0s
 
 **Verify:** `git -C ../LibKa0s rev-parse --short HEAD`
 
-### A POSIX shell with `ls`
+### A POSIX shell with `ls` and `find`
 
 Lua 5.1 has no directory API and this repo deliberately does not depend on LuaFileSystem, so two
 suites list directories by shelling out:
 
 ```
 tests/test_docs.lua:41           io.popen("ls -1 " .. pattern .. " 2>/dev/null")
-tests/_kit/vendor_sync.lua:115   io.popen(('ls -A "%s" 2>/dev/null'):format(dir))
+tests/_kit/vendor_sync.lua:122   collect('cd "%s" && find . -type f 2>/dev/null')
 ```
 
-`tests/_kit/vendor_sync.lua:116` falls back to `dir /b` for `cmd.exe`, so that suite survives a Windows
-shell; `tests/test_docs.lua` does not, and needs a POSIX shell. Under WSL2 you already have one and
-there is nothing to install.
+The comparator recurses, so it lists with `find`, not `ls` — a vendored payload has subdirectories
+(`libs/LibKa0s/media/fonts/`, `media/icons/`) and a flat listing would report every file in them as
+missing. `tests/_kit/vendor_sync.lua:125` falls back to `dir /b /s /a-d` for `cmd.exe`, so that suite
+survives a Windows shell; `tests/test_docs.lua` does not, and needs a POSIX shell. Under WSL2 you
+already have both and there is nothing to install.
 
-**Verify:** `ls -1 docs/*.md | head -1`
+**Verify:** `ls -1 docs/*.md | head -1` and `find docs -type f -name '*.md' | head -1`
 
 ### `diff` (diffutils)
 
@@ -196,7 +198,7 @@ you are likely to be missing it. The second command uses process substitution, s
 
 Recorded so nobody installs them by mistake:
 
-- **LuaFileSystem** — *not* used. `tests/_kit/vendor_sync.lua:101-102` says so explicitly and shells out
+- **LuaFileSystem** — *not* used. `tests/_kit/vendor_sync.lua:103-104` says so explicitly and shells out
   instead. `luacheck` pulls LFS in as its own dependency; that is LuaRocks' business, not this
   addon's.
 - **A CI runner** — there is none. No GitHub Action, no dynamic badge; every gate is local and

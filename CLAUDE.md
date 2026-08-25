@@ -81,8 +81,11 @@ upstream and re-vendor. `tests/_kit/` is vendored the same way (from LibKa0s/tes
 
 `libs/LibKa0s/LibKa0s.xml` loads ten modules across thirteen files — Core, Env, Pool, Item, Media,
 Widgets, DebugLog, Slash, Options (`Options` + `OptionsWidgets` + `OptionsScroll`) and Perf (`Perf`
-+ `PerfPanel`). Pool, Item and Widgets came in with the payload and this addon binds none of
-the three yet — they register and sit there. Of the seven it does bind, five take a descriptor;
++ `PerfPanel`). Pool and Item came in with the payload and nothing binds them — they register and
+sit there. Widgets is not idle any more: `DebugLog` minor 12 draws its copy window with
+`LibKa0s-Widgets-1.0`'s `CopyWindow` and hard-floors on it (`NEEDS_WIDGETS = 7`,
+`libs/LibKa0s/DebugLog.lua:34`), so this addon reaches it through the console it does bind, never
+directly. Of the seven majors it binds by name, five take a descriptor;
 `LibKa0s-Media-1.0` and `LibKa0s-Env-1.0` do not — the first is a path resolver, the second a TOC
 manifest reader, and each seam (`core/MediaSetup.lua`, `core/EnvSetup.lua`) only has to tell it this
 addon's FOLDER name, which a vendored library cannot work out for itself. This addon binds them in
