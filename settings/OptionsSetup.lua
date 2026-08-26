@@ -33,7 +33,7 @@ local PARENT_TITLE = "Ka0s Absorb Tracker"
 -- page away from a degraded `/at resetall` that deletes profiles.
 --
 -- EVERY PROFILE-BACKED ROW IS VETOED TOO (options-ui-§12). The global reset IS a profile reset now —
--- see afterRestoreAll below — so walking the schema first and writing each row's default into the
+-- see resetProfile below — so walking the schema first and writing each row's default into the
 -- profile would fire the panel refresh once per row for values about to be discarded whole. What the
 -- walk is left with is exactly what a profile reset cannot reach: the sessionOnly rows, whose
 -- storage is their own `set()` rather than the db.
@@ -70,18 +70,26 @@ local descriptor = {
     -- The veto, named once above and shared with the stub's own reset loop.
     skipRestoreAll = vetoedFromResetAll,
 
-    -- RESET ALL SETTINGS IS A PROFILE RESET (options-ui-§12), and the same act as the Profiles
-    -- page's own Reset Profile. One call: AceDB empties the ACTIVE profile — and only that one; the
-    -- profile LIST is untouched, which is the line the veto above exists for — the defaults merge
-    -- back, and `OnProfileReset` reaches NS.OnProfileChanged (core/Database.lua), which repaints the
-    -- bar and refreshes an open panel exactly as it does for a profile switch.
+    -- RESET ALL SETTINGS IS A PROFILE RESET (options-ui-§12), and `resetProfile` is the library
+    -- field that says so (LibKa0s-Options-1.0 minor 9). It was a hand-written `afterRestoreAll`
+    -- here, and in eight sibling addons -- one policy the standard forbids varying, restated once
+    -- per repo.
+    --
+    -- With the field supplied the library narrows its own row walk to the sessionOnly rows before
+    -- calling this, so the veto above is belt to that braces on the live path; it is the WHOLE
+    -- policy on the degraded one, where there is no library to do the narrowing.
+    --
+    -- One call, and the same act as the Profiles page's Reset Profile. AceDB empties the ACTIVE
+    -- profile -- and only that one; the profile LIST is untouched, which is the line the veto
+    -- exists for -- the defaults merge back, and `OnProfileReset` reaches NS.OnProfileChanged
+    -- (core/Database.lua), which repaints the bar and refreshes an open panel exactly as it does
+    -- for a profile switch.
     --
     -- `position` comes back with it. It is written by dragging rather than by a schema row, so
-    -- ApplyDefault never touched it and this hook used to call ResetAllPositions to clear it — but a
-    -- position lives IN THE PROFILE, so emptying the profile clears every one of them. The helper is
-    -- untouched and still backs `/at resetposition` and the General page's button; it simply has no
-    -- business here any more.
-    afterRestoreAll = function()
+    -- ApplyDefault never touched it and this hook used to call ResetAllPositions to clear it -- but
+    -- a position lives IN THE PROFILE. The helper is untouched and still backs `/at resetposition`
+    -- and the General page's button; it simply has no business here any more.
+    resetProfile = function()
         local db = NS.db
         if db and db.ResetProfile then db:ResetProfile() end
     end,
@@ -168,7 +176,12 @@ if not lib then
         for _, row in ipairs(NS.Schema or {}) do
             if not vetoedFromResetAll(row) then NS.ApplyDefault(row) end
         end
-        if Helpers.ResetAllPositions then Helpers.ResetAllPositions() end
+        -- Then the profile itself, which IS the reset (options-ui-§12). On the live path the
+        -- library makes this call through the descriptor's `resetProfile`; here there is no
+        -- library, so the stub makes it. The saved positions come back with the profile, which is
+        -- why the ResetAllPositions call that used to close this function is gone from it.
+        local db = NS.db
+        if db and db.ResetProfile then db:ResetProfile() end
     end
 
     -- Reached only from a builder or a user action, so a no-op is the honest answer.
