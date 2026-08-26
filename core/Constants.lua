@@ -35,4 +35,4 @@ C.FONT_MONO = NS.MediaFont and NS.MediaFont("JetBrains Mono") or C.FALLBACK_FONT
 C.FONT_MONO_NAME = "JetBrains Mono"
 
 -- About-page logo. Moved to media/logos/ per layout-§3 (typed media subfolders).
-C.LOGO_PATH = "Interface\\AddOns\\AbsorbTracker\\media\\logos\\absorbracker.logo.v2.tga"
+C.LOGO_PATH = "Interface\\AddOns\\AbsorbTracker\\media\\logos\\absorbtracker.logo.tga"

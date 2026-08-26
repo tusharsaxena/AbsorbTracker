@@ -869,7 +869,7 @@ Folder-per-lib, loaded before any addon source via the `#@no-lib-strip@` block a
 ### Shared infrastructure
 
 - `AbsorbTracker.toc` — Interface line (`120007`), `## Version:`, SavedVariables (`AbsorbTrackerDB, AbsorbTrackerPerfDB`), modular file load order (Libraries → Locales → Core → Defaults → Modules → Settings). Order is dependency order, not alphabetical.
-- `media/` — bundled assets in typed subfolders: `media/logos/absorbracker.logo.v2.tga` (`NS.Constants.LOGO_PATH`) and `media/screenshots/`. There is no `media/fonts/` any more: the monospace face ships inside the vendored LibKa0s payload at `libs/LibKa0s/media/fonts/` (with its own OFL file) and is reached through `core/MediaSetup.lua`, so one set of bytes serves the whole collection under one LibSharedMedia key.
+- `media/` — bundled assets in typed subfolders: `media/logos/absorbtracker.logo.tga` (`NS.Constants.LOGO_PATH`) and `media/screenshots/`. There is no `media/fonts/` any more: the monospace face ships inside the vendored LibKa0s payload at `libs/LibKa0s/media/fonts/` (with its own OFL file) and is reached through `core/MediaSetup.lua`, so one set of bytes serves the whole collection under one LibSharedMedia key.
 - `.gitattributes` — pins the whole working tree CRLF with a single `* text=auto eol=crlf` line (there are no per-extension CRLF lines), carves out `*.sh text eol=lf` for the vendored `tests/_kit/run-automated-tests.sh`, and marks the binary media types so none of them is line-end converted.
 - `LICENSE` — MIT.
 

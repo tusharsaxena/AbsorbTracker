@@ -437,7 +437,7 @@ would otherwise surface them cold, and the reason they exist is not obvious from
     console and the perf panel wear whatever every other Ka0s window wears. The Ka0s WoW Addon
     Standard specifies those values normatively (standalone-windows); the 12px
     `UI-Tooltip-Border` is what the same seam drew before LibKa0s v1.3.0.
-  - **About-page logo — `media/logos/absorbracker.logo.v2.tga`.** `settings/About.lua` draws the
+  - **About-page logo — `media/logos/absorbtracker.logo.tga`.** `settings/About.lua` draws the
     addon's branding logo via `C.LOGO_PATH`. **Why:** addon branding, not bar appearance; a
     user-swappable logo would be meaningless. Stored under a typed media subfolder per layout-§3.
 
