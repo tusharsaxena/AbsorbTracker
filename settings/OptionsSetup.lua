@@ -31,7 +31,16 @@ local PARENT_TITLE = "Ka0s Absorb Tracker"
 -- degradation stub's own reset loop, which has to keep working with no library at all. Two literal
 -- copies of the rule — which is what this file used to carry, in opposite polarity — is one added
 -- page away from a degraded `/at resetall` that deletes profiles.
-local function vetoedFromResetAll(row) return row.page == "profiles" end
+--
+-- EVERY PROFILE-BACKED ROW IS VETOED TOO (options-ui-§12). The global reset IS a profile reset now —
+-- see afterRestoreAll below — so walking the schema first and writing each row's default into the
+-- profile would fire the panel refresh once per row for values about to be discarded whole. What the
+-- walk is left with is exactly what a profile reset cannot reach: the sessionOnly rows, whose
+-- storage is their own `set()` rather than the db.
+local function vetoedFromResetAll(row)
+    if row.page == "profiles" then return true end
+    return not row.sessionOnly
+end
 
 local lib = LibStub and LibStub("LibKa0s-Options-1.0", true)
 
@@ -61,13 +70,20 @@ local descriptor = {
     -- The veto, named once above and shared with the stub's own reset loop.
     skipRestoreAll = vetoedFromResetAll,
 
-    -- `position` is written by dragging, not by a schema row, so ApplyDefault never touches it. It
-    -- must be cleared explicitly, once per unit, or a target bar dragged off-screen would survive a
-    -- Reset All. Delegated to the single shared helper (settings/UnitPanel.lua) so this and
-    -- `/at resetposition` and the General page's button stay one implementation — they diverged
-    -- here once already.
+    -- RESET ALL SETTINGS IS A PROFILE RESET (options-ui-§12), and the same act as the Profiles
+    -- page's own Reset Profile. One call: AceDB empties the ACTIVE profile — and only that one; the
+    -- profile LIST is untouched, which is the line the veto above exists for — the defaults merge
+    -- back, and `OnProfileReset` reaches NS.OnProfileChanged (core/Database.lua), which repaints the
+    -- bar and refreshes an open panel exactly as it does for a profile switch.
+    --
+    -- `position` comes back with it. It is written by dragging rather than by a schema row, so
+    -- ApplyDefault never touched it and this hook used to call ResetAllPositions to clear it — but a
+    -- position lives IN THE PROFILE, so emptying the profile clears every one of them. The helper is
+    -- untouched and still backs `/at resetposition` and the General page's button; it simply has no
+    -- business here any more.
     afterRestoreAll = function()
-        if NS.Helpers and NS.Helpers.ResetAllPositions then NS.Helpers.ResetAllPositions() end
+        local db = NS.db
+        if db and db.ResetProfile then db:ResetProfile() end
     end,
 
     -- AceTimer through the addon object (Ka0s standard library-stack-§1) rather than a raw C_Timer. Backs the

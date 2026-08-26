@@ -147,7 +147,12 @@ end
 -- the same helper /at resetall calls, so the popup and the slash never
 -- diverge (they historically differed on whether position was cleared).
 StaticPopupDialogs["ABSORBTRACKER_RESET_ALL"] = {
-    text         = "Reset every General, Bar, Border, and Font setting on this profile to defaults and recenter the bar? Profiles are left alone.",
+    -- THE COLLECTION'S ONE WORDING (options-ui-§12), verbatim. It is deliberately addon-agnostic --
+    -- no addon enumerates its own nouns -- and deliberately explicit about the destruction: "reset
+    -- settings" does not sound like "throw away what I set up", and an OnAccept that does something
+    -- the text did not warn about is how a player loses an evening's work. Eight phrasings of one
+    -- act is how a collection reads as eight addons.
+    text         = "Reset this profile to the addon's defaults? Everything you have configured or added in it is discarded \226\128\148 your other profiles are not affected.",
     button1      = "Yes",
     button2      = "No",
     timeout      = 0,
@@ -207,7 +212,8 @@ local function build(mainCategory)
                     },
                     {
                         text    = "Reset All Settings",
-                        tooltip = "Reset every General, Bar, Border, and Font setting on this profile to defaults and recenter the bar.",
+                        -- Names the equivalence rather than restating the popup (options-ui-§12).
+                        tooltip = "Start over: reset the active profile to the addon defaults. The same thing Profiles \226\134\146 Reset Profile does. Your other profiles are left alone.",
                         onClick = function() StaticPopup_Show("ABSORBTRACKER_RESET_ALL") end,
                     })
             end,

@@ -1,7 +1,7 @@
 local T = _G.AT_TEST
 local NS = T.NS
-local test, assertEqual, assertTrue =
-  T.test, T.assertEqual, T.assertTrue
+local test, assertEqual, assertTrue, assertFalse =
+  T.test, T.assertEqual, T.assertTrue, T.assertFalse
 
 -- settings/OptionsSetup.lua as a FILE: the descriptor's half of the reset contract, and the
 -- degradation stub. The panel toolkit itself is LibKa0s-Options-1.0 and is tested in that repo;
@@ -30,6 +30,12 @@ local function vetoedByResetAll(ns, restoreAll)
   local n = #ns.Schema
   table.insert(ns.Schema, { page = "profiles", path = "__probe.onProfilesPage", type = "toggle" })
   table.insert(ns.Schema, { page = "general", path = "__probe.onGeneralPage", type = "toggle" })
+  -- A SESSION-ONLY row, which is the one kind the walk must still sweep: its storage is its own
+  -- set() rather than the db, so a profile reset cannot reach it (options-ui-§12). This addon ships
+  -- none today, so the probe is what keeps the rule under test.
+  table.insert(ns.Schema, { page = "general", path = "__probe.sessionOnly", type = "toggle",
+                            sessionOnly = true, get = function() return false end,
+                            set = function() end })
 
   local touched = {}
   local orig = ns.ApplyDefault
@@ -48,14 +54,25 @@ local function vetoedByResetAll(ns, restoreAll)
 end
 
 test("the live and degraded builds veto exactly the same rows from Reset All", function()
-  -- One rule — "a global reset must not touch AceDBOptions-supplied rows, because that deletes user
-  -- data" — enforced in two places: the descriptor's skipRestoreAll, which the library calls, and
+  -- One rule — enforced in two places: the descriptor's skipRestoreAll, which the library calls, and
   -- the stub's own loop, which runs with no library at all. They must not be able to drift.
+  --
+  -- The rule has two clauses now (options-ui-§12). A global reset must not touch AceDBOptions-
+  -- supplied rows, because that deletes user data; and it must not touch anything else that lives in
+  -- the PROFILE either, because the reset IS a profile reset and writing each row's default first
+  -- would refresh the panel once per row for values about to be discarded whole. What survives the
+  -- veto is the sessionOnly rows, which a profile reset cannot reach.
+  -- red under: a predicate that vetoes only the profiles page, or one that vetoes everything.
   local NS2 = loadDegraded()
   local live = vetoedByResetAll(NS, Helpers.RestoreAllDefaults)
   local degraded = vetoedByResetAll(NS2, NS2.Helpers.RestoreAllDefaults)
-  assertEqual(live, "__probe.onProfilesPage",
-    "the live path must veto the profiles row and nothing else")
+
+  assertTrue(live:find("__probe.onProfilesPage", 1, true) ~= nil,
+    "the profiles row must be vetoed — resetting it deletes the player's profiles")
+  assertTrue(live:find("__probe.onGeneralPage", 1, true) ~= nil,
+    "an ordinary profile-backed row must be vetoed; the profile reset covers it")
+  assertFalse(live:find("__probe.sessionOnly", 1, true) ~= nil,
+    "a sessionOnly row must still be swept — a profile reset cannot reach it")
   assertEqual(degraded, live, "the degraded reset vetoes a different row set than the live one")
   T.mocks.__fireTimers()
 end)
