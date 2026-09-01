@@ -66,7 +66,7 @@ after a direct disk write that landed LF, convert with `sed -i 's/\r$//; s/$/\r/
 
 ## LibKa0s is vendored — fix it upstream
 
-Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.19.0 (MIT).
+Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.23.0 (MIT).
 
 That line is the **provenance record** for both vendored payloads, and it is an input rather than a
 note: `tests/test_vendor_sync.lua` greps it out of *this* file and compares `libs/LibKa0s/` and
@@ -98,9 +98,9 @@ generalize). Each seam MUST publish the same `NS` names whether the library
 loaded or not — that symmetry is what the rest of the addon codes against.
 
 `settings/OptionsSetup.lua`'s no-library stub is deliberately **load-completing, not
-member-answering** — the one seam that breaks the honest-line-per-member pattern. `settings/Bar.lua`,
-`Border.lua` and `Font.lua` call `NS.Helpers.LSMValues` inside schema-row literals at **file load**, so
-a nil aborts the file, `NS.RegisterSchemaRows` never runs, and a third of `NS.Schema` vanishes
+member-answering** — the one seam that breaks the honest-line-per-member pattern.
+`settings/Appearance.lua` calls `NS.Helpers.LSMValues` inside schema-row literals at **file load**, so
+a nil aborts the file, `NS.RegisterSchemaRows` never runs, and most of `NS.Schema` vanishes
 silently. `loadDegraded()` in `tests/test_perf.lua` loads the whole TOC without the library and
 asserts `#NS.Schema` still matches — do not weaken it.
 
