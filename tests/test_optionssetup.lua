@@ -80,7 +80,7 @@ end)
 -- ── the stub's member set ──────────────────────────────────────────────────────────
 
 test("the degraded stub publishes LSMValues, the one member reached at file load", function()
-  -- settings/{Bar,Border,Font}.lua call it inside schema-row literals, so a nil aborts the file and
+  -- settings/Appearance.lua call it inside schema-row literals, so a nil aborts the file and
   -- takes that page's rows out of the schema. tests/test_perf.lua counts the rows; this names why.
   local NS2 = loadDegraded()
   assertEqual(type(NS2.Helpers.LSMValues), "function")
@@ -94,7 +94,14 @@ test("the degraded stub keeps no private copy of the library's layout constants"
   -- copy of a library value is the copy that goes stale. The live instance still answers all three
   -- (tests/test_helpers.lua) — they come from the library there, which is the point.
   local NS2 = loadDegraded()
-  for _, name in ipairs({ "ROW_VSPACER", "SECTION_HEADING_H", "BUTTON_PAIR_REL" }) do
+  for _, name in ipairs({
+    "ROW_VSPACER", "SECTION_HEADING_H", "BUTTON_PAIR_REL",
+    -- The chrome band's three, new at LibKa0s v1.23.0 (options-ui-§13/§14). Measured the same way
+    -- and absent for the same reason: this addon draws no chrome of its own, so nothing outside
+    -- the library ever needs to know how tall a tab or a banner is. The four CALLABLE members of
+    -- that band are in the stub -- tests/test_surface_parity.lua is what holds them there.
+    "CHROME_GAP", "TAB_H", "BANNER_H",
+  }) do
     assertEqual(NS2.Helpers[name], nil, name .. " is a copy of lib.LAYOUT with no degraded reader")
   end
 end)

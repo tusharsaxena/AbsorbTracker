@@ -255,25 +255,70 @@ test("a color picker substitutes 1s for a missing/corrupt stored color", functio
   assertEqual(cp.color.a, 1)
 end)
 
-test("disabledIf grays the swatch out while its sibling toggle is on", function()
+-- ── `disabledIf`: still the library's, deliberately unused by this addon ───────────
+--
+-- Every color row used to carry `disabledIf = <its Use Class Color sibling>` and gray its swatch
+-- out while the toggle was on. That is reversed (settings/Appearance.lua argues it in full): a
+-- player normally sets the color BEFORE deciding they want the class one, and a grayed swatch makes
+-- that a two-visit job.
+--
+-- So these two cases moved off the real rows and onto a SYNTHETIC one. They are not weaker for it
+-- -- they pin exactly what they pinned before, that LibKa0s-Options honors the field and that its
+-- refresher re-evaluates it live -- and they now also stand as the thing that would notice if a
+-- future row wanted the behavior back. The case DIRECTLY below is what pins the reversal itself.
+local function renderSynthetic(row)
+  local ctx = newCtx()
+  local parent = AceGUI:Create("SimpleGroup")
+  return Helpers.RenderField(ctx, row, parent, 0.5), ctx
+end
+
+local SYNTHETIC_SWATCH = {
+  path = "units.player.barColor", type = "color", label = "Synthetic swatch",
+  hasAlpha = true, disabledIf = "units.player.useClassColorBar",
+}
+
+test("disabledIf grays a swatch out while its sibling toggle is on", function()
   withSetting("units.player.useClassColorBar", true, function()
-    assertTrue(render("units.player.barColor").disabled, "class color on -> swatch disabled")
+    assertTrue(renderSynthetic(SYNTHETIC_SWATCH).disabled, "class color on -> swatch disabled")
   end)
   withSetting("units.player.useClassColorBar", false, function()
-    assertFalse(render("units.player.barColor").disabled, "class color off -> swatch live")
+    assertFalse(renderSynthetic(SYNTHETIC_SWATCH).disabled, "class color off -> swatch live")
   end)
 end)
 
 test("the refresher re-evaluates disabledIf, so the pair tracks on the same frame", function()
-  -- This is what makes "Use Class Color" gray out its partner swatch immediately: set() calls
-  -- RefreshAllPanels, which re-runs this refresher.
+  -- set() calls RefreshAllPanels, which re-runs this refresher.
   withSetting("units.player.useClassColorBar", false, function()
-    local cp, _, ctx = render("units.player.barColor")
+    local cp, ctx = renderSynthetic(SYNTHETIC_SWATCH)
     assertFalse(cp.disabled)
     NS.SetSetting("units.player.useClassColorBar", true)
     for _, fn in ipairs(ctx.refreshers) do fn() end
     assertTrue(cp.disabled)
   end)
+end)
+
+test("no shipped color row disables itself, under either class-color mode", function()
+  -- The reversal, pinned on the real rows rather than on the absence of a field: a swatch that is
+  -- live under BOTH modes is what makes "set the color, then switch the mode" a one-visit job. The
+  -- alpha channel was always read under either mode (core/Data.lua's resolveColor), so a grayed
+  -- swatch was overstating the case even before this.
+  local swatches = {
+    { "units.player.barColor",    "units.player.useClassColorBar"    },
+    { "units.player.bgColor",     "units.player.useClassColorBg"     },
+    { "units.player.borderColor", "units.player.useClassColorBorder" },
+    { "units.player.fontColor",   "units.player.useClassColorText"   },
+  }
+  for _, pairing in ipairs(swatches) do
+    local swatch, toggle = pairing[1], pairing[2]
+    assertEqual(NS.FindSchemaRow(swatch).disabledIf, nil,
+      swatch .. " must not gray itself out")
+    for _, on in ipairs({ true, false }) do
+      withSetting(toggle, on, function()
+        assertFalse(render(swatch).disabled,
+          swatch .. " must stay live with " .. toggle .. " = " .. tostring(on))
+      end)
+    end
+  end
 end)
 
 test("OnValueConfirmed commits the color immediately (cancel must not wait on the throttle)", function()
@@ -361,7 +406,7 @@ end
 
 test("RenderSchema pairs widgets two-to-a-row inside full-width Flow groups", function()
   local ctx = newCtx()
-  Helpers.RenderSchema(ctx, "border")
+  Helpers.RenderSchema(ctx, "appearance")
   local rows = {}
   for _, child in ipairs(ctx.scroll.children) do
     if child.type == "SimpleGroup" and child.layout == "Flow" then rows[#rows + 1] = child end
@@ -375,7 +420,7 @@ end)
 
 test("RenderSchema gives each paired widget half the row", function()
   local ctx = newCtx()
-  Helpers.RenderSchema(ctx, "border")
+  Helpers.RenderSchema(ctx, "appearance")
   for _, w in ipairs(flatten(ctx.scroll)) do
     if w.relativeWidth then assertEqual(w.relativeWidth, 0.5) end
   end
@@ -384,7 +429,7 @@ end)
 test("a `solo` row is rendered alone on its own line", function()
   -- barTexture and bgTexture are solo pivots; pairing them would misread as a two-column group.
   local ctx = newCtx()
-  Helpers.RenderSchema(ctx, "bar")
+  Helpers.RenderSchema(ctx, "appearance")
   local soloRow
   for _, child in ipairs(ctx.scroll.children) do
     if child.type == "SimpleGroup" and child.layout == "Flow" then
@@ -399,13 +444,13 @@ end)
 
 test("RenderSchema emits a Heading for each schema group", function()
   local ctx = newCtx()
-  Helpers.RenderSchema(ctx, "bar")
+  Helpers.RenderSchema(ctx, "appearance")
   local headings = {}
   for _, child in ipairs(ctx.scroll.children) do
     if child.type == "Heading" then headings[child.text] = true end
   end
   local groups = {}
-  for _, row in ipairs(NS.SchemaForPage("bar")) do
+  for _, row in ipairs(NS.SchemaForPage("appearance")) do
     if row.group then groups[row.group] = true end
   end
   for group in pairs(groups) do
@@ -417,16 +462,19 @@ test("an afterGroup callback fires exactly once, after its group's last row", fu
   local ctx = newCtx()
   local fired = 0
   local group = NS.FindSchemaRow("units.player.borderSize").group
-  Helpers.RenderSchema(ctx, "border", { [group] = function() fired = fired + 1 end })
+  Helpers.RenderSchema(ctx, "appearance", { [group] = function() fired = fired + 1 end })
   assertEqual(fired, 1)
 end)
 
--- The General page's Master controls run the three enable toggles down the LEFT column, each
--- paired with a global on the right; Enable Focus Bar is the odd one out and takes the Debug
--- console checkbox as its partner through the pairWith seam (asserted separately below).
--- RenderRows fills left-then-right in schema order, so the pairing is entirely a product of row
--- order — a re-numbered `order` silently re-columns the page, which is what these pin.
-test("each enable toggle leads its row, paired with a global on the right", function()
+-- The General page's two tabs each pair their rows two per line, and RenderRows fills
+-- left-then-right in schema order — so the pairing is entirely a product of row order and a
+-- re-numbered `order` silently re-columns the page. That is what these pin.
+--
+-- The enable toggles USED to be interleaved with the globals one for one ([Enable Player Bar |
+-- Lock Position]). They are not any more: reading across a line is meant to compare two answers to
+-- one question, and those two were answers to different ones. The three toggles now run together on
+-- the Bars tab and the globals together on Behavior.
+test("the Bars tab pairs the enable toggles with each other, not with a global", function()
   local ctx = newCtx()
   Helpers.RenderSchema(ctx, "general")
 
@@ -440,16 +488,16 @@ test("each enable toggle leads its row, paired with a global on the right", func
     end
   end
 
-  local pairs_ = {
-    { "Enable Player Bar", "Lock Position"       },
-    { "Enable Target Bar", "Show only in combat" },
-  }
-  for _, p in ipairs(pairs_) do
-    local row = rowContaining(p[1])
-    assertTrue(row ~= nil, "no row rendered for " .. p[1])
-    assertEqual(#row.children, 2, p[1] .. " must share its row with exactly one widget")
-    assertEqual(row.children[2].labelText, p[2], p[1] .. " must pair with " .. p[2])
-  end
+  local row = rowContaining("Enable Player Bar")
+  assertTrue(row ~= nil, "no row rendered for Enable Player Bar")
+  assertEqual(#row.children, 2, "Enable Player Bar must share its row with exactly one widget")
+  assertEqual(row.children[2].labelText, "Enable Target Bar",
+    "the enable toggles pair with each other")
+
+  local lockRow = rowContaining("Lock Position")
+  assertTrue(lockRow ~= nil, "no row rendered for Lock Position")
+  assertEqual(lockRow.children[2].labelText, "Show only in combat",
+    "the two globals pair with each other on the Behavior tab")
 end)
 
 test("every tracked unit gets an enable toggle on the General page", function()
@@ -525,15 +573,17 @@ test("the Reset All popup does not claim success when the settings helpers are a
 end)
 
 test("a pairWith partner is attached to the named row and is one-shot", function()
-  -- `units.focus.enabled` is the production pairing site: the session-only "Debug console"
-  -- checkbox rides beside Enable Focus Bar as the right half of its row (settings/General.lua).
-  -- It only works because the five schema rows above pair off as 2 + 2 + 1, leaving Enable Focus
-  -- Bar alone on its row — pairWith declines to fire otherwise, so this doubles as a guard that
-  -- the Master controls row count stays odd.
+  -- `throttleWindow` is the production pairing site: the session-only "Debug console" checkbox
+  -- rides beside Update throttle as the right half of its row (settings/General.lua). pairWith
+  -- declines to fire unless its host is ALONE on its line, and `throttleWindow` is `solo`, which
+  -- guarantees that by construction. The old host, `units.focus.enabled`, qualified only because
+  -- the five rows above it happened to pair off as 2 + 2 + 1 — an accident any added row would
+  -- have broken silently, and the reason the pairing moved.
+  assertEqual(NS.FindSchemaRow("throttleWindow").solo, true, "the host row must be solo")
   local ctx = newCtx()
   local made = 0
   local partner = {
-    ["units.focus.enabled"] = function(_ctxRef, rowGroup)
+    ["throttleWindow"] = function(_ctxRef, rowGroup)
       made = made + 1
       rowGroup:AddChild(AceGUI:Create("CheckBox"))
     end,
@@ -544,22 +594,22 @@ test("a pairWith partner is attached to the named row and is one-shot", function
   -- implement it by writing nil into THIS table, which silently lost the pairing on any second
   -- render -- what a per-unit page does on every unit switch. The caller's table is now left
   -- alone, so a host may hoist it to a file-level constant.
-  assertTrue(partner["units.focus.enabled"] ~= nil, "the caller's table is not written to")
+  assertTrue(partner["throttleWindow"] ~= nil, "the caller's table is not written to")
   local ctx2 = newCtx()
   Helpers.RenderSchema(ctx2, "general", nil, partner)
   assertEqual(made, 2, "and a second render pairs it again rather than dropping it")
 
   -- It must land as the SECOND widget of that row, not on a line of its own.
-  local lockedLabel = NS.FindSchemaRow("units.focus.enabled").label
+  local hostLabel = NS.FindSchemaRow("throttleWindow").label
   local row
   for _, child in ipairs(ctx.scroll.children) do
     if child.type == "SimpleGroup" and child.layout == "Flow" then
       for _, w in ipairs(child.children) do
-        if w.labelText == lockedLabel then row = child end
+        if w.labelText == hostLabel then row = child end
       end
     end
   end
-  assertTrue(row ~= nil, "the Enable Focus Bar row was found")
+  assertTrue(row ~= nil, "the Update throttle row was found")
   assertEqual(#row.children, 2, "the pair stays 50/50 and never overflows to three-wide")
 end)
 
@@ -586,7 +636,7 @@ end)
 -- ── The real pages, driven through their deferred OnShow ───────────────────────────
 
 test("every schema page registered a real Blizzard subcategory at build time", function()
-  for _, name in ipairs({ "General", "Bar", "Border", "Font" }) do
+  for _, name in ipairs({ "General", "Appearance" }) do
     assertTrue(T.mocks.__subcategories[name] ~= nil, name .. " page was registered")
   end
 end)
@@ -596,16 +646,8 @@ test("the Profiles page self-skips when AceDBOptions is unavailable", function()
   assertEqual(T.mocks.__subcategories["Profiles"], nil)
 end)
 
-test("a page renders nothing until its first OnShow", function()
-  -- The body is deferred because ctx.body has zero width at enable time and AceGUI lays children
-  -- out against the container's current width.
-  local panel = T.mocks.__subcategories["Font"]
-  assertTrue(panel:GetScript("OnShow") ~= nil, "the deferred render is wired to OnShow")
-  assertEqual(panel.defaultsBtn, nil, "and nothing has been built yet")
-end)
-
 test("first OnShow builds the Defaults button and renders the page", function()
-  local panel = T.mocks.__subcategories["Font"]
+  local panel = T.mocks.__subcategories["Appearance"]
   panel:__fire("OnShow")
   assertTrue(panel.defaultsBtn ~= nil, "the button is built late, after skinners have loaded")
   assertEqual(panel.defaultsBtn.text, "Defaults")
@@ -613,24 +655,31 @@ test("first OnShow builds the Defaults button and renders the page", function()
 end)
 
 test("the Defaults button restores just its own page", function()
-  local panel = T.mocks.__subcategories["Font"]
+  -- Retargeted: Font and Bar are TABS on one page now, so the Appearance Defaults button resets
+  -- both — which is what a page-scoped button is supposed to do, and is why the General page is the
+  -- other half of this assertion rather than a sibling appearance page.
+  local panel = T.mocks.__subcategories["Appearance"]
   panel:__fire("OnShow")
   NS.SetSetting("units.player.fontSize", 30)
   NS.SetSetting("units.player.barWidth", 250)
+  NS.SetSetting("throttleWindow", 0.85)
   panel.defaultsBtn.callbacks.OnClick(panel.defaultsBtn, "OnClick")
-  assertEqual(NS.GetSetting("units.player.fontSize"), NS.unitDefaults.fontSize, "the Font page was reset")
-  assertEqual(NS.GetSetting("units.player.barWidth"), 250, "the Bar page was not")
-  NS.SetByPath("units.player.barWidth", NS.unitDefaults.barWidth)
+  assertEqual(NS.GetSetting("units.player.fontSize"), NS.unitDefaults.fontSize,
+    "the Text tab was reset")
+  assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth,
+    "and so was the Size tab, on the same page")
+  assertEqual(NS.GetSetting("throttleWindow"), 0.85, "the General page was not")
+  NS.SetByPath("throttleWindow", NS.flatDefaults.throttleWindow)
   T.mocks.__fireTimers()
 end)
 
 test("a second OnShow rebuilds the panel body without stacking duplicate widgets", function()
-  -- Task 6: Bar/Border/Font dropped their `rendered` one-shot guard, because RenderUnitPanel must
-  -- re-render on every OnShow so the Unit dropdown and mirror header reflect ctx.unit. That is
-  -- only safe because Helpers.ClearScroll releases the old widgets first — so a second OnShow
+  -- The Appearance page has no `rendered` one-shot guard, because RenderUnitPanel must re-render
+  -- on every OnShow so the Unit banner, the mirror header and the tab strip reflect ctx.unit. That
+  -- is only safe because Helpers.ClearScroll releases the old widgets first — so a second OnShow
   -- must land back at the SAME child count, not a second full set stacked on top of the first.
   -- The Defaults button is unaffected: EnsureDefaultsButton still only builds it once.
-  local panel = T.mocks.__subcategories["Border"]
+  local panel = T.mocks.__subcategories["Appearance"]
   panel:__fire("OnShow")               -- first show: builds
   local btn = panel.defaultsBtn
   assertTrue(btn ~= nil, "the first show built the button")
@@ -646,8 +695,94 @@ test("a second OnShow rebuilds the panel body without stacking duplicate widgets
     "the scroll ends at the same child count as the first show, not a doubled/stacked set")
 end)
 
+-- The rendered ctx of a real page. `__panels()` also holds every throwaway panel this suite has
+-- created, several of which share a pageKey with a real one -- so "has a scroll" is the half of the
+-- match that says this one actually rendered.
+local function renderedCtx(pageKey)
+  for _, c in ipairs(Helpers.__panels()) do
+    if c.pageKey == pageKey and c.scroll then return c end
+  end
+end
+
+local function tabButtons(ctx)
+  local out = {}
+  for _, f in ipairs(ctx.__tabKids or {}) do
+    if f.__frameType == "Button" then out[#out + 1] = f end
+  end
+  return out
+end
+
+test("the General page draws its two groups as a tab strip, Bars first", function()
+  -- options-ui-§13 adoption, on the page a player opens first. The mock records nothing about a
+  -- Button's text, so the tabs are identified by POSITION and by which one is disabled -- makeTab
+  -- disables exactly the active tab, which is how Blizzard's own tab groups mark selection.
+  local panel = T.mocks.__subcategories["General"]
+  panel:__fire("OnShow")
+  local ctx = renderedCtx("general")
+  assertTrue(ctx ~= nil, "the General page rendered")
+
+  local tabs = tabButtons(ctx)
+  assertEqual(#tabs, 2, "two groups, two tabs")
+  assertEqual(ctx.activeTab, "Bars", "the page opens on Bars, not blank and not Behavior")
+  assertFalse(tabs[1].__enabled, "the first tab is the selected one")
+  assertTrue(tabs[2].__enabled, "and the second is clickable")
+  assertTrue(ctx.chromeHeight > 0, "the strip reserves a band, so the first row clears it")
+
+  local labels = {}
+  local function walk(w)
+    for _, child in ipairs(w.children or {}) do
+      if child.labelText then labels[child.labelText] = true end
+      walk(child)
+    end
+  end
+  walk(ctx.scroll)
+  assertTrue(labels["Enable Player Bar"], "the Bars tab shows its own rows")
+  assertTrue(not labels["Lock Position"], "and not the other tab's")
+
+  -- No section headings: a `group` is the tab now, and RenderTabbedSchema passes `noHeadings`
+  -- down. A Heading under a strip means the page silently fell back to RenderSchema.
+  for _, child in ipairs(ctx.scroll.children) do
+    assertTrue(child.type ~= "Heading", "a tabbed page draws no section headings")
+  end
+end)
+
+test("clicking Behavior swaps the rows and leaves the button pair on Bars", function()
+  local panel = T.mocks.__subcategories["General"]
+  panel:__fire("OnShow")
+  local ctx = renderedCtx("general")
+  tabButtons(ctx)[2]:__fire("OnClick")
+  assertEqual(ctx.activeTab, "Behavior")
+
+  local labels = {}
+  local function walk(w)
+    for _, child in ipairs(w.children or {}) do
+      if child.labelText then labels[child.labelText] = true end
+      walk(child)
+    end
+  end
+  walk(ctx.scroll)
+  assertTrue(labels["Lock Position"] and labels["Update throttle (in sec)"],
+    "the Behavior tab's rows are on screen")
+  assertTrue(not labels["Enable Player Bar"],
+    "and the tab it came from is gone, not stacked above it")
+
+  -- The afterGroup button pair is keyed to "Bars", so it must NOT follow the reader here.
+  local sawResetButton = false
+  local function walkButtons(w)
+    for _, child in ipairs(w.children or {}) do
+      if child.type == "Button" and child.text == "Reset Position" then sawResetButton = true end
+      walkButtons(child)
+    end
+  end
+  walkButtons(ctx.scroll)
+  assertFalse(sawResetButton, "afterGroup fires for the ACTIVE group only")
+
+  tabButtons(ctx)[1]:__fire("OnClick")   -- leave the page as the rest of the suite found it
+  assertEqual(ctx.activeTab, "Bars")
+end)
+
 test("showing every page builds it without error", function()
-  for _, name in ipairs({ "General", "Bar", "Border", "Font" }) do
+  for _, name in ipairs({ "General", "Appearance" }) do
     local panel = T.mocks.__subcategories[name]
     local ok, err = pcall(function() panel:__fire("OnShow") end)
     assertTrue(ok, name .. " page failed to render: " .. tostring(err))

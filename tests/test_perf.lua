@@ -386,7 +386,7 @@ end)
 -- R1. The single highest-value case in the extraction, and it is not about perf at all — it lives
 -- here because this is where the library-absent environment is built.
 --
--- settings/Bar.lua, Border.lua and Font.lua each evaluate NS.Helpers.LSMValues("...") inside a
+-- settings/Appearance.lua evaluates NS.Helpers.LSMValues("...") inside a
 -- schema-row literal, at FILE LOAD. With LSMValues nil that is `attempt to call field 'LSMValues'
 -- (a nil value)`, so the file never finishes loading, so NS.RegisterSchemaRows never runs for that
 -- page, so a third of the schema silently vanishes — taking /at list, /at set, /at reset and the

@@ -17,12 +17,15 @@ test("FormatSchemaValue formats by type", function()
     "{1.00, 0.00, 0.00, 1.00}")
 end)
 
-test("SchemaForPage keeps groups in registration order (Size, Bar, Background)", function()
+test("SchemaForPage keeps groups in registration order, which IS the Appearance tab strip",
+  function()
   -- Filtered to one unit so the three units' rows don't interleave when checking group order.
-  -- The Bar page opens on Size now: the enable toggle that used to head it in a "This bar" group
-  -- lives on the General page, and the only row left group-less is the unrendered mirror flag.
-  local rows = NS.SchemaForPage("bar", "player")
-  assertTrue(#rows >= 6, "bar page should have >= 6 rows")
+  -- This is the strip a player sees, left to right: RenderTabbedSchema (and this addon's own
+  -- Helpers.__partitionTabs, which draws the strip because the page has a bespoke header above it)
+  -- both take one tab per distinct `group` in declaration order. The whole list, in order, not just
+  -- the first three -- a run that ends where the assertions stop is a run that can grow a fourth
+  -- tab nobody named.
+  local rows = NS.SchemaForPage("appearance", "player")
   local order, seen = {}, {}
   for _, r in ipairs(rows) do
     if r.group and not seen[r.group] then
@@ -30,9 +33,93 @@ test("SchemaForPage keeps groups in registration order (Size, Bar, Background)",
       order[#order + 1] = r.group
     end
   end
-  assertEqual(order[1], "Size")
-  assertEqual(order[2], "Bar")
-  assertEqual(order[3], "Background")
+  local want = { "Size", "Bar", "Background", "Border", "Text" }
+  assertEqual(#order, #want, "unexpected tab count on the Appearance page")
+  for i, name in ipairs(want) do
+    assertEqual(order[i], name, "Appearance tab " .. i)
+  end
+end)
+
+-- The page -> tab -> row-count partition, as designed. This is the case that catches a row drifting
+-- into the wrong tab: a moved row leaves one count short and lands another one over, and neither
+-- shows up in a test that only asserts the tab NAMES.
+--
+-- Counts are per unit for the Appearance page (it renders one unit at a time behind the banner) and
+-- unfiltered for General (it renders with ctx.unit nil, so every unit's enable toggle is on screen
+-- at once). The mirror row is excluded from every count on purpose: it carries no `group`, belongs
+-- to no tab, and is drawn bespoke in the header.
+test("the page -> tab -> row-count partition is the designed one", function()
+  local want = {
+    { page = "general", unit = nil, tabs = { { "Bars", 3 }, { "Behavior", 3 } } },
+    { page = "appearance", unit = "player", tabs = {
+      { "Size", 2 }, { "Bar", 4 }, { "Background", 3 }, { "Border", 4 }, { "Text", 5 },
+    } },
+  }
+  for _, page in ipairs(want) do
+    local counts, order, seen = {}, {}, {}
+    for _, r in ipairs(NS.SchemaForPage(page.page, page.unit)) do
+      if r.group then
+        if not seen[r.group] then
+          seen[r.group] = true
+          order[#order + 1] = r.group
+        end
+        counts[r.group] = (counts[r.group] or 0) + 1
+      end
+    end
+    assertEqual(#order, #page.tabs, page.page .. ": unexpected tab count")
+    for i, spec in ipairs(page.tabs) do
+      assertEqual(order[i], spec[1], page.page .. " tab " .. i)
+      assertEqual(counts[spec[1]], spec[2], page.page .. " / " .. spec[1] .. " row count")
+    end
+  end
+end)
+
+-- The two-visible-control rule (options-ui-§13, PROMPT Step 1): a tab holding fewer than two
+-- visible controls is not a subject, it is a click that reveals one checkbox. Merge it into the tab
+-- whose subject contains it.
+--
+-- Nothing on either page is exempt today, and the exemption is stated here rather than left to be
+-- invented later. The one thing this addon draws that HAS no path and so cannot be counted is the
+-- Appearance page's bespoke chrome -- the Unit banner, and the mirror checkbox + "Copy styling from
+-- Player" button in the header. Neither sits inside a tab: the banner is chrome above the strip and
+-- the mirror pair is drawn above it by Helpers.RenderUnitPanel, so neither can prop up a one-row
+-- tab. If a future tab ever earns the exemption, name it in EXEMPT with the bespoke controls it
+-- sits beside -- never by dropping the assertion or lowering the 2.
+--
+-- Counted the way the strip is DRAWN, one page-and-unit at a time: NS.Schema as a whole would show
+-- every Appearance tab at three times its size (once per unit) and a genuinely one-row tab would
+-- read as three and pass.
+-- red under: a tab losing rows until one is left, or a new one-row group.
+test("no tab holds fewer than two visible controls", function()
+  local EXEMPT = {}   -- { ["<tab>"] = "<the bespoke controls it sits beside>" }
+  local views = { { "general", nil } }
+  for _, unit in ipairs(NS.Units.LIST) do
+    views[#views + 1] = { "appearance", unit }
+  end
+
+  local sawTab = false
+  for _, view in ipairs(views) do
+    local page, unit = view[1], view[2]
+    local counts, order, seen = {}, {}, {}
+    for _, r in ipairs(NS.SchemaForPage(page, unit)) do
+      if r.group and not r.skipRender then
+        if not seen[r.group] then
+          seen[r.group] = true
+          order[#order + 1] = r.group
+        end
+        counts[r.group] = (counts[r.group] or 0) + 1
+      end
+    end
+    for _, group in ipairs(order) do
+      sawTab = true
+      local where = page .. (unit and ("/" .. unit) or "") .. " / " .. group
+      if not EXEMPT[group] then
+        assertTrue(counts[group] >= 2,
+          where .. " holds only " .. counts[group] .. " visible control(s)")
+      end
+    end
+  end
+  assertTrue(sawTab, "no tabs were counted at all -- the walk found nothing")
 end)
 
 test("ValidateSchema resolves every real path against defaults (0 errors, 0 missing)", function()
@@ -43,7 +130,7 @@ test("ValidateSchema resolves every real path against defaults (0 errors, 0 miss
 end)
 
 test("ValidateSchema reports a planted path that does not resolve against defaults", function()
-  local bogus = { path = "doesNotExist", page = "bar", type = "number", label = "x" }
+  local bogus = { path = "doesNotExist", page = "appearance", type = "number", label = "x" }
   NS.Schema[#NS.Schema + 1] = bogus
   local _, _, missing = NS.ValidateSchema()
   assertEqual(missing, 1)
@@ -174,7 +261,7 @@ test("`disabledIf` names a real sibling setting", function()
 end)
 
 test("every schema row lands on a page the panel actually builds", function()
-  local pages = { general = true, bar = true, border = true, font = true, profiles = true }
+  local pages = { general = true, appearance = true, profiles = true }
   for _, row in ipairs(NS.Schema) do
     assertTrue(pages[row.page], tostring(row.path) .. " is on unknown page " .. tostring(row.page))
   end
@@ -279,7 +366,7 @@ test("ValidateSchema resolves nested paths against defaults.profile", function()
 end)
 
 test("SchemaForPage with no unit returns every unit's rows", function()
-  local rows = NS.SchemaForPage("bar")
+  local rows = NS.SchemaForPage("appearance")
   local seen = {}
   for _, r in ipairs(rows) do if r.unit then seen[r.unit] = true end end
   assertTrue(seen.player and seen.target and seen.focus,
@@ -287,8 +374,8 @@ test("SchemaForPage with no unit returns every unit's rows", function()
 end)
 
 test("SchemaForPage filtered to a unit excludes the other units' rows", function()
-  local all = NS.SchemaForPage("bar")
-  local focusRows = NS.SchemaForPage("bar", "focus")
+  local all = NS.SchemaForPage("appearance")
+  local focusRows = NS.SchemaForPage("appearance", "focus")
 
   -- Prove the unfiltered set actually contains other units' rows to exclude — otherwise this
   -- test would pass vacuously even if the `unit` argument were ignored entirely.
@@ -296,7 +383,8 @@ test("SchemaForPage filtered to a unit excludes the other units' rows", function
   for _, r in ipairs(all) do
     if r.unit and r.unit ~= "focus" then haveOther = true end
   end
-  assertTrue(haveOther, "the unfiltered bar page must contain player/target rows to prove against")
+  assertTrue(haveOther,
+    "the unfiltered Appearance page must contain player/target rows to prove against")
 
   for _, r in ipairs(focusRows) do
     assertTrue(r.unit == nil or r.unit == "focus",
@@ -323,8 +411,8 @@ test("PartitionUnitRows splits alwaysPerUnit rows from the mirrored appearance r
   assertEqual(#styled, 2)
 end)
 
-test("every appearance page carries a full row set for all three units", function()
-  for _, page in ipairs({ "bar", "border", "font" }) do
+test("the appearance page carries a full row set for all three units", function()
+  for _, page in ipairs({ "appearance" }) do
     for _, unit in ipairs(NS.Units.LIST) do
       local rows = NS.SchemaForPage(page, unit)
       assertTrue(#rows > 0, page .. " page has no rows for " .. unit)
@@ -337,7 +425,7 @@ test("every appearance page carries a full row set for all three units", functio
 end)
 
 test("each unit's row set for a page is the same size", function()
-  for _, page in ipairs({ "bar", "border", "font" }) do
+  for _, page in ipairs({ "appearance" }) do
     local n = #NS.SchemaForPage(page, "target")
     assertEqual(#NS.SchemaForPage(page, "focus"), n,
       page .. ": target and focus must expose identical settings")
@@ -352,31 +440,43 @@ test("the enable row is per-unit, lives on General, and survives mirroring", fun
     -- the flag is honored per-unit whatever the mirror says.
     assertEqual(row.alwaysPerUnit, true)
     assertEqual(row.page, "general", "the enable toggles are master controls, not appearance")
-    assertEqual(row.group, "Master controls")
+    assertEqual(row.group, "Bars")
     assertEqual(row.label, "Enable " .. NS.Units.LABEL[unit] .. " Bar")
   end
 end)
 
-test("the enable toggles lead the left column, interleaved with the globals", function()
-  -- RenderRows fills left-then-right in schema order, so the rendered pairing IS the row order:
-  -- [Enable Player Bar | Lock Position], [Enable Target Bar | Show only in combat],
-  -- [Enable Focus Bar | <Debug console, via pairWith>]. Assert the sequence, not the orders.
-  --
-  -- The ODD count matters: it leaves Enable Focus Bar alone on its row, which is the only reason
-  -- the pairWith seam will attach the Debug console checkbox there.
-  local want = {
-    "units.player.enabled", "locked",
-    "units.target.enabled", "showOnlyInCombat",
-    "units.focus.enabled",
-  }
+test("the Bars tab is the three enable toggles, in unit order and nothing else", function()
+  -- RenderRows fills left-then-right in schema order, so the rendered layout IS the row order:
+  -- [Enable Player Bar | Enable Target Bar], [Enable Focus Bar]. The globals they used to be
+  -- interleaved with are a tab away now -- pairing an enable toggle with "Lock Position" put two
+  -- answers to two different questions on one line.
+  local want = { "units.player.enabled", "units.target.enabled", "units.focus.enabled" }
   local got = {}
   for _, r in ipairs(NS.SchemaForPage("general")) do
-    if r.group == "Master controls" then got[#got + 1] = r.path end
+    if r.group == "Bars" then got[#got + 1] = r.path end
   end
-  assertEqual(#got, #want, "unexpected Master controls row count")
+  assertEqual(#got, #want, "unexpected Bars row count")
   for i, path in ipairs(want) do
-    assertEqual(got[i], path, "Master controls row " .. i)
+    assertEqual(got[i], path, "Bars row " .. i)
   end
+end)
+
+test("the Behavior tab runs lock, combat gate, throttle -- and the throttle is solo", function()
+  -- The throttle row's `solo` is what makes it a legal pairWith host: the Debug console checkbox
+  -- attaches only to a row that is ALONE on its line, and `solo` guarantees that by construction
+  -- rather than by the row count above it happening to be odd (which is how the old host,
+  -- Enable Focus Bar, qualified -- an accident any added row would have broken silently).
+  local want = { "locked", "showOnlyInCombat", "throttleWindow" }
+  local got = {}
+  for _, r in ipairs(NS.SchemaForPage("general")) do
+    if r.group == "Behavior" then got[#got + 1] = r.path end
+  end
+  assertEqual(#got, #want, "unexpected Behavior row count")
+  for i, path in ipairs(want) do
+    assertEqual(got[i], path, "Behavior row " .. i)
+  end
+  assertEqual(NS.FindSchemaRow("throttleWindow").solo, true,
+    "the Debug console's pairWith host must be solo")
 end)
 
 test("the mirror row exists for target and focus but not the player", function()
@@ -391,8 +491,8 @@ test("the mirror row is kept out of the auto-rendered body", function()
   assertEqual(NS.FindSchemaRow("units.focus.mirror").skipRender, true)
 end)
 
--- General carries the four flat globals plus exactly one enable toggle per unit. Nothing else
--- unit-scoped belongs here: appearance is what the Bar/Border/Font Unit dropdown is for, and a
+-- General carries the three flat globals plus exactly one enable toggle per unit. Nothing else
+-- unit-scoped belongs here: appearance is what the Appearance page's Unit banner is for, and a
 -- second unit-scoped row would silently render all three units' copies at once (the General page
 -- renders with ctx.unit nil, so SchemaForPage does no unit filtering).
 test("General's rows are the flat globals plus one enable toggle per unit", function()

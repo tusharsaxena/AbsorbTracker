@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-508%2F508_passing-green)
+![Tests](https://img.shields.io/badge/Tests-525%2F525_passing-green)
 
 ![Logo](https://media.forgecdn.net/attachments/1659/653/absorbracker-logo-v2-jpg.jpg)
 
@@ -50,8 +50,8 @@ chat with a cyan `[AT]` tag.
 |---------|--------------|
 | `/at` or `/at help` | Show the list of commands |
 | `/at config` | Open the settings panel |
-| `/at list` | Show every setting and its current value (Bar/Border/Font settings list once per bar — Player/Target/Focus) |
-| `/at get name` | Show one setting's value. Bar/Border/Font settings need the full path, e.g. `/at get units.player.barWidth` |
+| `/at list` | Show every setting and its current value (Appearance settings list once per bar — Player/Target/Focus) |
+| `/at get name` | Show one setting's value. Appearance settings need the full path, e.g. `/at get units.player.barWidth` |
 | `/at set name value` | Change one setting. Examples: `/at set units.player.barWidth 250`, `/at set units.target.useClassColorBar true`, `/at set showOnlyInCombat true` |
 | `/at reset path` | Reset one setting to its default — e.g. `/at reset units.player.barWidth`. To reset a whole page across all three bars, use that page's **Defaults** button in the settings panel |
 | `/at resetall` | Reset every setting and move every bar back to center |
@@ -65,31 +65,33 @@ chat with a cyan `[AT]` tag.
 | `/at perf` | Measure what the addon costs your CPU — run it on its own and it prints the workflow |
 | `/at profile subcommand` | Manage profiles: `list`, `current`, `use name`, `new name`, `copy name`, `delete name`, `reset` |
 
-Global settings (`showOnlyInCombat`, `locked`, `throttleWindow`) use their plain name — `/at set locked true`. Only the per-bar appearance settings on the Bar/Border/Font pages need the `units.player|target|focus.` prefix.
+Global settings (`showOnlyInCombat`, `locked`, `throttleWindow`) use their plain name — `/at set locked true`. Only the per-bar appearance settings on the Appearance pages need the `units.player|target|focus.` prefix.
 
 ### Settings panel
 
-Five pages under **Ka0s Absorb Tracker**:
+Three pages under **Ka0s Absorb Tracker**, each with a row of tabs across the top:
 
-| Tab | Covers |
-|-----|--------|
-| General | Turn each bar on or off (Player / Target / Focus), show them only in combat, lock the bars, show or hide the debug console, and the repaint throttle (how fast the bars may redraw during a burst of changes). Buttons to reset the position or all settings. |
-| Bar | A **Unit** dropdown to pick Player/Target/Focus, then that bar's width and height, plus its bar and background textures and colors. |
-| Border | Same Unit dropdown, then border style, thickness, and color for the selected bar. |
-| Font | Same Unit dropdown, then font face, size, and outline for the selected bar. |
-| Profiles | Save different setups and switch between them. |
+| Page | Tabs | Covers |
+|------|------|--------|
+| General | **Bars**, **Behavior** | *Bars*: turn each bar on or off (Player / Target / Focus), plus buttons to reset the position or all settings. *Behavior*: lock the bars, show them only in combat, the repaint throttle (how fast the bars may redraw during a burst of changes), and a show/hide toggle for the debug console. |
+| Appearance | **Size**, **Bar**, **Background**, **Border**, **Text** | A **Unit** picker at the top of the page chooses which bar you are styling — Player, Target or Focus — and every tab below applies to that one. *Size*: width and height. *Bar*: fill texture, color, and the whole bar's opacity. *Background*: texture and color behind the fill. *Border*: style, thickness, color. *Text*: font face, size, color and outline for the absorb amount. |
+| Profiles | — | Save different setups and switch between them. |
 
-**Target and Focus start off.** Tick **Enable Target Bar** or **Enable Focus Bar** in **General → Master controls** to start tracking that unit — all three enable toggles sit together there, so you never have to hunt through the Unit dropdown to turn a bar on. An enabled target/focus bar only shows while you actually have that unit (no target/focus = no bar).
+The Unit picker sits **once**, above the tabs, so switching from styling the Player bar to styling the Target bar is one click and every tab follows it.
+
+**Target and Focus start off.** Tick **Enable Target Bar** or **Enable Focus Bar** on **General → Bars** to start tracking that unit — all three enable toggles sit together there, so you never have to touch the Unit picker to turn a bar on. An enabled target/focus bar only shows while you actually have that unit (no target/focus = no bar).
 
 **Mirror or copy the Player bar.** While a Target/Focus bar has **Use same styling as Player** checked, it shares the Player bar's texture, colors, border, and font live — change the Player bar and the linked one updates too. Uncheck it to style that bar independently, or click **Copy styling from Player** to grab the Player bar's current look as a one-time starting point and then tweak it on its own. Position and whether the bar is enabled are never linked — each bar keeps its own.
 
 To move a bar, type `/at unlock`, drag it into place, then `/at lock` to fix it there. Each bar remembers its own position.
 
 **Class colors.** The bar fill, background, and border can each follow your class color instead of a
-fixed color — just turn on the matching **Use Class Color** toggle on the Bar or Border page (this
-follows *your* class regardless of which unit's bar you're styling — Target/Focus don't get their
-own class colors). While a toggle is on, its color picker grays out; turn the toggle off to pick a
-color by hand again.
+fixed color — as can the absorb number itself. Turn on the matching **Use Class Color** toggle on the
+**Bar**, **Background**, **Border** or **Text** tab (this follows *your* class regardless of which
+unit's bar you're styling — Target/Focus don't get their own class colors). The color picker beside
+it stays usable either way, so you can set the color you want to fall back to before or after you
+flip the toggle, in one visit. The opacity you set on that picker applies under both — a class color
+carries a hue, not a transparency.
 
 ## How the bar works
 
@@ -111,7 +113,7 @@ or focus and its bar disappears until you have one again.
 |----------|--------|
 | Do I need to install anything else? | No. Everything the addon needs is bundled, so it works on its own. The bundled Ka0s library also registers a shared set of bar textures and fonts, so those show up in the dropdowns without any extra addon. Install a media pack (such as one that includes SharedMedia) if you want more choices than that. |
 | Does this replace the shield display on my unit frames? | No. These are separate movable bars. Blizzard's shield overlay on the player, target, and focus frames is left alone — hide it in *Edit Mode* if you don't want to see both. |
-| How do I turn on the Target or Focus bar? | General page → Master controls → tick **Enable Target Bar** or **Enable Focus Bar**. It only appears while you actually have that target or focus set. |
+| How do I turn on the Target or Focus bar? | General page → **Bars** tab → tick **Enable Target Bar** or **Enable Focus Bar**. It only appears while you actually have that target or focus set. |
 | Can the Target/Focus bar match my Player bar automatically? | Yes — that's what **Use same styling as Player** does: it's a live link, so changes to the Player bar's look carry over immediately. Uncheck it any time to style that bar on its own, or use **Copy styling from Player** for a one-time copy you then customize independently. |
 | How do I move a bar? | Type `/at unlock`, drag the bar you want where you want it, then `/at lock`. Each bar remembers its own position. Use `/at resetposition` to snap all of them back to their default spots. |
 | Can I show the bars only while I'm fighting? | Yes. Turn on **Show only in combat** on the General page. Every enabled bar hides out of combat and reappears the instant you enter combat. |

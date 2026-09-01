@@ -143,12 +143,12 @@ end)
 -- ── RestoreDefaults ────────────────────────────────────────────────────────────────
 
 test("RestoreDefaults resets every row on the named page", function()
-  local rows = NS.SchemaForPage("bar")
-  assertTrue(#rows > 0, "the bar page has schema rows to reset")
+  local rows = NS.SchemaForPage("appearance")
+  assertTrue(#rows > 0, "the Appearance page has schema rows to reset")
   for _, row in ipairs(rows) do
     if row.type == "number" then NS.SetSetting(row.path, (row.default or 0) + 1) end
   end
-  Helpers.RestoreDefaults("bar")
+  Helpers.RestoreDefaults("appearance")
   for _, row in ipairs(rows) do
     if row.type == "number" then
       assertEqual(NS.GetSetting(row.path), row.default, row.path .. " is back at its default")
@@ -158,29 +158,40 @@ end)
 
 test("RestoreDefaults leaves other pages untouched", function()
   -- The per-panel Defaults button must be page-scoped; a stray global reset here would silently
-  -- wipe settings the user never asked about.
-  NS.SetSetting("borderSize", 20)
-  Helpers.RestoreDefaults("bar")
-  assertEqual(NS.GetSetting("borderSize"), 20, "a border-page value survives a bar-page reset")
-  Helpers.RestoreDefaults("border")
+  -- wipe settings the user never asked about. Border and Font are tabs on the Appearance page now,
+  -- not pages, so the pair that proves the scoping is General against Appearance: a General reset
+  -- must not touch a unit's styling, and an Appearance reset must not touch the throttle.
+  NS.SetSetting("units.player.borderSize", 20)
+  Helpers.RestoreDefaults("general")
+  assertEqual(NS.GetSetting("units.player.borderSize"), 20,
+    "an Appearance value survives a General-page reset")
+
+  NS.SetSetting("throttleWindow", 0.85)
+  Helpers.RestoreDefaults("appearance")
+  assertEqual(NS.GetSetting("throttleWindow"), 0.85,
+    "a General value survives an Appearance-page reset")
+
+  Helpers.RestoreDefaults("appearance")
+  Helpers.RestoreDefaults("general")
 end)
 
 test("RestoreDefaults runs the ctx refreshers so open widgets re-read", function()
-  local ctx = Helpers.CreatePanel("ATTestPanelI", "Test I", { pageKey = "bar" })
+  local ctx = Helpers.CreatePanel("ATTestPanelI", "Test I", { pageKey = "appearance" })
   local ran = 0
   ctx.refreshers[1] = function() ran = ran + 1 end
   ctx.refreshers[2] = function() ran = ran + 1 end
-  Helpers.RestoreDefaults("bar", ctx)
+  Helpers.RestoreDefaults("appearance", ctx)
   assertEqual(ran, 2)
 end)
 
 test("RestoreDefaults survives a refresher that throws", function()
   -- Refreshers touch live AceGUI widgets; one dead widget must not abort the rest of the reset.
-  local ctx = Helpers.CreatePanel("ATTestPanelJ", "Test J", { pageKey = "bar" })
+  local ctx = Helpers.CreatePanel("ATTestPanelJ", "Test J", { pageKey = "appearance" })
   local ran = 0
   ctx.refreshers[1] = function() error("boom") end
   ctx.refreshers[2] = function() ran = ran + 1 end
-  assertTrue(pcall(Helpers.RestoreDefaults, "bar", ctx), "RestoreDefaults must not propagate")
+  assertTrue(pcall(Helpers.RestoreDefaults, "appearance", ctx),
+    "RestoreDefaults must not propagate")
   assertEqual(ran, 1, "the refresher after the failing one still ran")
   ctx.refreshers[1] = function() end
 end)
@@ -288,14 +299,27 @@ test("the cross-slice layout constants are published for the widget/about slices
     "the paired-button width is inset under 0.5 so the right button clears the scroll clip")
 end)
 
--- ── Per-unit panel: Unit dropdown + mirror header ──────────────────────────────────
+-- ── The Appearance page: Unit banner + mirror header + tab strip ───────────────────
 
--- Reach the real Bar page canvas the harness built, then drive its OnShow.
+-- Reach the real Appearance page canvas the harness built, then drive its OnShow.
 local function barPanel()
-  return T.mocks.__subcategories["Bar"]
+  return T.mocks.__subcategories["Appearance"]
 end
 
-test("the Bar page opens on the player unit with no mirror header", function()
+-- FIRST, before anything below fires an OnShow, and that position is the case. It used to live in
+-- tests/test_widgets.lua against the Font page, which worked only because nothing had opened that
+-- page yet; the Appearance collapse left no unopened page there, and a case that depends on
+-- which OTHER file ran first is a case that passes for the wrong reason. Asserted here, where the
+-- ordering is local and visible.
+test("a page renders nothing until its first OnShow", function()
+  -- The body is deferred because ctx.body has zero width at enable time and AceGUI lays children
+  -- out against the container's current width.
+  local panel = barPanel()
+  assertTrue(panel:GetScript("OnShow") ~= nil, "the deferred render is wired to OnShow")
+  assertEqual(panel.defaultsBtn, nil, "and nothing has been built yet")
+end)
+
+test("the Appearance page opens on the player unit with no mirror header", function()
   local panel = barPanel()
   panel:__fire("OnShow")
   local ctx = NS.Helpers.__lastUnitCtx
@@ -315,23 +339,29 @@ end
 
 local function isUnitDropdown(w) return w.type == "Dropdown" and w.labelText == "Unit" end
 
-test("RenderUnitPanel draws a Unit dropdown listing all three units", function()
+test("the Unit picker is the page BANNER, and the page's only picker", function()
+  -- options-ui-§14: the picker for "which thing is this page editing" belongs in the chrome band
+  -- above the strip, and there must be exactly ONE of it. Three pages used to draw three copies of
+  -- this dropdown into three scrolls over one piece of state.
   local panel = barPanel()
   panel:__fire("OnShow")
   local ctx = NS.Helpers.__lastUnitCtx
-  local dd = findWidget(ctx.scroll, isUnitDropdown)
-  assertTrue(dd ~= nil, "no Unit dropdown was rendered")
+  local dd = ctx.__bannerWidget
+  assertTrue(dd ~= nil, "no Unit banner was rendered")
+  assertEqual(dd.labelText, "Unit")
   assertEqual(#dd.order, 3)
   assertEqual(dd.order[1], "player")
   assertEqual(dd.value, "player")
+  assertEqual(findWidget(ctx.scroll, isUnitDropdown), nil,
+    "the scroll must carry no second copy of the picker")
 end)
 
-test("switching the dropdown to focus re-renders the page for that unit", function()
+test("switching the banner to focus re-renders the page for that unit", function()
   local panel = barPanel()
   panel:__fire("OnShow")
   local ctx = NS.Helpers.__lastUnitCtx
-  local dd = findWidget(ctx.scroll, isUnitDropdown)
-  assertTrue(dd ~= nil, "no Unit dropdown was rendered")
+  local dd = ctx.__bannerWidget
+  assertTrue(dd ~= nil, "no Unit banner was rendered")
 
   -- The mirror checkbox only exists for target/focus, never for player (RenderUnitPanel gates it
   -- behind `if ctx.unit ~= "player"`). So its presence/absence is a proxy for "did the scroll
@@ -355,9 +385,124 @@ test("switching the dropdown to focus re-renders the page for that unit", functi
   assertTrue(hasMirrorCheckbox(),
     "switching to focus must actually re-render the page, not just flip ctx.unit")
 
-  NS.Helpers.RenderUnitPanel(ctx, "bar")   -- restore to a known state for later tests
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")   -- restore to a known state for later tests
   ctx.unit = "player"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+end)
+
+-- ── The tab strip (options-ui-§13) ────────────────────────────────────────────────
+--
+-- The mock records nothing about a Button's text, so a tab cannot be asserted by its label. What it
+-- does record is `__enabled`, and that is enough to pin the whole contract: makeTab disables
+-- exactly the ACTIVE tab (a disabled button does not highlight and does not fire, which is how
+-- Blizzard's own tab groups mark selection), so the index of the one disabled button IS the
+-- selected tab's position in the strip.
+
+-- The strip's buttons, in tab order. ctx.__tabKids also holds the content panel TabStrip draws
+-- under the tabs, which is a Frame rather than a Button — filtered out here rather than counted,
+-- because it is not a tab and a count that included it would be one off forever.
+local function tabButtons(ctx)
+  local out = {}
+  for _, f in ipairs(ctx.__tabKids or {}) do
+    if f.__frameType == "Button" then out[#out + 1] = f end
+  end
+  return out
+end
+
+local function tabNames(ctx)
+  local names = NS.Helpers.__partitionTabs(NS.SchemaForPage("appearance", ctx.unit))
+  return names
+end
+
+test("the Appearance page draws one tab per schema group, in declaration order", function()
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  ctx.unit = "player"
+  ctx.activeTab = nil
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+
+  local names = tabNames(ctx)
+  assertEqual(#tabButtons(ctx), #names, "one button per group, and no more")
+  assertEqual(ctx.activeTab, names[1],
+    "a page with no tab selected opens on the first, never blank")
+
+  local disabled = {}
+  for i, b in ipairs(tabButtons(ctx)) do
+    if not b.__enabled then disabled[#disabled + 1] = i end
+  end
+  assertEqual(#disabled, 1, "exactly one tab is marked selected")
+  assertEqual(disabled[1], 1, "and it is the one ctx.activeTab names")
+end)
+
+test("clicking a tab switches the page to that tab's rows and nothing else's", function()
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  ctx.unit = "player"
+  ctx.activeTab = nil
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+
+  local names = tabNames(ctx)
+  local borderIndex
+  for i, n in ipairs(names) do if n == "Border" then borderIndex = i end end
+  assertTrue(borderIndex ~= nil, "the Appearance page has a Border tab")
+
+  tabButtons(ctx)[borderIndex]:__fire("OnClick")
+  assertEqual(ctx.activeTab, "Border", "the click must retarget the page, not just repaint it")
+
+  local labels = {}
+  local function walk(w)
+    for _, child in ipairs(w.children or {}) do
+      if child.labelText then labels[child.labelText] = true end
+      walk(child)
+    end
+  end
+  walk(ctx.scroll)
+  assertTrue(labels["Border Style"], "the Border tab's own rows must be on screen")
+  assertTrue(not labels["Bar Width (in px)"],
+    "and the tab it came from must be gone, not stacked above it")
+
+  ctx.activeTab = nil
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+end)
+
+test("a tab click keeps the banner, and never grows a second copy of it", function()
+  -- The reason this page drives H.TabStrip itself instead of handing the whole body to
+  -- H.RenderTabbedSchema: that function's tab click is ClearScroll + a re-render of ITSELF, which
+  -- would drop the banner and the mirror header this page draws above the rows.
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+
+  tabButtons(ctx)[2]:__fire("OnClick")
+  assertTrue(ctx.__bannerWidget ~= nil, "the banner survives a tab click")
+  assertEqual(#ctx.__chromeKids, 2,
+    "the banner ledger holds its dropdown and its divider, never a second set")
+  assertEqual(findWidget(ctx.scroll, isUnitDropdown), nil, "and no copy leaked into the scroll")
+
+  ctx.activeTab = nil
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+end)
+
+test("a mirrored unit gets no tab strip at all", function()
+  -- Every appearance row on this page is hidden by the mirror, so a strip there would be five tabs
+  -- of nothing to click through. The banner and the mirror header stay: they are how the player
+  -- gets back out.
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  NS.db.profile.units.focus.mirror = true
+  ctx.unit = "focus"
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+
+  assertEqual(#tabButtons(ctx), 0, "a mirrored unit has nothing to tab between")
+  assertTrue(ctx.__bannerWidget ~= nil, "the Unit banner is still there")
+
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
 test("a mirrored unit shows only its header, no appearance rows", function()
@@ -366,7 +511,7 @@ test("a mirrored unit shows only its header, no appearance rows", function()
   local ctx = NS.Helpers.__lastUnitCtx
   NS.db.profile.units.focus.mirror = true
   ctx.unit = "focus"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
   local labels = {}
   local function walk(w)
@@ -379,12 +524,12 @@ test("a mirrored unit shows only its header, no appearance rows", function()
 
   assertTrue(labels["Use same styling as Player"], "the mirror checkbox is the header")
   assertTrue(not labels["Bar Width (in px)"], "mirrored appearance rows must be hidden")
-  -- The enable toggle moved to General's Master controls; the mirror flag is the only per-unit
+  -- The enable toggle moved to General's Bars tab; the mirror flag is the only per-unit
   -- row left on this page and it renders in the header, not the body.
   assertTrue(not labels["Enable this bar"], "the enable toggle no longer lives on the Bar page")
 
   ctx.unit = "player"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
 test("unchecking the mirror reveals the appearance rows", function()
@@ -393,7 +538,7 @@ test("unchecking the mirror reveals the appearance rows", function()
   local ctx = NS.Helpers.__lastUnitCtx
   NS.db.profile.units.focus.mirror = false
   ctx.unit = "focus"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
   local labels = {}
   local function walk(w)
@@ -407,7 +552,7 @@ test("unchecking the mirror reveals the appearance rows", function()
 
   NS.db.profile.units.focus.mirror = true
   ctx.unit = "player"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
 test("the copy button snapshots the player's styling and clears the mirror", function()
@@ -417,7 +562,7 @@ test("the copy button snapshots the player's styling and clears the mirror", fun
   NS.db.profile.units.player.barWidth = 288
   NS.db.profile.units.target.mirror = true
   ctx.unit = "target"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
   local btn
   local function walk(w)
@@ -434,14 +579,14 @@ test("the copy button snapshots the player's styling and clears the mirror", fun
   assertEqual(NS.db.profile.units.target.barWidth, 288)
 
   ctx.unit = "player"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
 test("a page Defaults button resets that page across every unit", function()
   NS.db.profile.units.player.barWidth = 111
   NS.db.profile.units.target.barWidth = 222
   NS.db.profile.units.focus.barWidth  = 333
-  NS.Helpers.RestoreDefaults("bar")
+  NS.Helpers.RestoreDefaults("appearance")
   assertEqual(NS.db.profile.units.player.barWidth, NS.unitDefaults.barWidth)
   assertEqual(NS.db.profile.units.target.barWidth, NS.unitDefaults.barWidth)
   assertEqual(NS.db.profile.units.focus.barWidth,  NS.unitDefaults.barWidth)
@@ -467,7 +612,7 @@ test("the mirror checkbox renders exactly once — the header owns it, RenderRow
   panel:__fire("OnShow")
   local ctx = NS.Helpers.__lastUnitCtx
   ctx.unit = "focus"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
   local count = 0
   local function walk(w)
@@ -481,7 +626,7 @@ test("the mirror checkbox renders exactly once — the header owns it, RenderRow
     "the mirror checkbox must appear exactly once (the header), never a second time from the body")
 
   ctx.unit = "player"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
 -- ── the header goes through LibKa0s-Options' RenderGrid ────────────────────────────
@@ -499,7 +644,7 @@ test("the mirror checkbox and copy button share one full-width Flow row at half 
   panel:__fire("OnShow")
   local ctx = NS.Helpers.__lastUnitCtx
   ctx.unit = "focus"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
   local row
   for _, child in ipairs(ctx.scroll.children) do
@@ -517,7 +662,7 @@ test("the mirror checkbox and copy button share one full-width Flow row at half 
   assertEqual(row.children[2].relativeWidth, 0.5)
 
   ctx.unit = "player"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
 test("every header row is followed by a ROW_VSPACER, as the hand-rolled block did", function()
@@ -529,12 +674,13 @@ test("every header row is followed by a ROW_VSPACER, as the hand-rolled block di
   local ctx = NS.Helpers.__lastUnitCtx
   NS.db.profile.units.focus.mirror = true
   ctx.unit = "focus"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
-  -- dropdown row, mirror row, hint row — each followed by its spacer. AddSpacer builds a
-  -- SimpleGroup with no layout and a fixed height, so the height is what tells the two apart.
+  -- Mirror row, then hint row — each followed by its spacer. AddSpacer builds a SimpleGroup with
+  -- no layout and a fixed height, so the height is what tells the two apart. The dropdown row that
+  -- used to lead this list is the banner now, and the banner lives in the chrome, not the scroll.
   local kids = ctx.scroll.children
-  for _, i in ipairs({ 1, 3, 5 }) do
+  for _, i in ipairs({ 1, 3 }) do
     assertEqual(kids[i].type, "SimpleGroup")
     assertEqual(kids[i].layout, "Flow", "child " .. i .. " must be a laid-out row, not a spacer")
     assertEqual(kids[i + 1].type, "SimpleGroup")
@@ -543,7 +689,7 @@ test("every header row is followed by a ROW_VSPACER, as the hand-rolled block di
   end
 
   ctx.unit = "player"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
 test("one raising header item no longer costs the rest of the page", function()
@@ -563,7 +709,7 @@ test("one raising header item no longer costs the rest of the page", function()
     if label == "Use same styling as Player" then error("simulated widget failure") end
     return saved(w, label, desc)
   end
-  local ok = pcall(NS.Helpers.RenderUnitPanel, ctx, "bar")
+  local ok = pcall(NS.Helpers.RenderUnitPanel, ctx, "appearance")
   Helpers.AttachTooltip = saved
 
   assertTrue(ok, "RenderUnitPanel must not raise")
@@ -573,7 +719,7 @@ test("one raising header item no longer costs the rest of the page", function()
     "and the schema rows below the header must still render")
 
   ctx.unit = "player"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
 test("ClearScroll resets ctx.refreshers, so repeated renders do not leak stale closures",
@@ -585,21 +731,21 @@ test("ClearScroll resets ctx.refreshers, so repeated renders do not leak stale c
   local panel = barPanel()
   panel:__fire("OnShow")
   local ctx = NS.Helpers.__lastUnitCtx
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
   local firstCount = #ctx.refreshers
   assertTrue(firstCount > 0, "the render registered at least one refresher")
 
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
   assertEqual(#ctx.refreshers, firstCount,
     "re-rendering the SAME unit repeatedly must not grow ctx.refreshers")
 
   ctx.unit = "focus"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
   ctx.unit = "player"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
   assertEqual(#ctx.refreshers, firstCount,
     "switching units and back must also leave ctx.refreshers at a stable size")
@@ -676,7 +822,7 @@ test("a page refresh re-syncs the mirror checkbox and re-runs the row partition"
   local ctx = NS.Helpers.__lastUnitCtx
   NS.db.profile.units.focus.mirror = false
   ctx.unit = "focus"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
   local checked, hasRows = mirrorHeaderState(ctx)
   assertFalse(checked, "an unlinked unit's header checkbox starts unticked")
@@ -684,7 +830,7 @@ test("a page refresh re-syncs the mirror checkbox and re-runs the row partition"
 
   -- Exactly what the page Defaults button does: reset every row (which puts units.focus.mirror
   -- back to its default `true`), then run the refreshers.
-  NS.Helpers.RestoreDefaults("bar", ctx)
+  NS.Helpers.RestoreDefaults("appearance", ctx)
   assertEqual(NS.db.profile.units.focus.mirror, true, "the reset really did re-mirror the unit")
 
   checked, hasRows = mirrorHeaderState(ctx)
@@ -693,7 +839,7 @@ test("a page refresh re-syncs the mirror checkbox and re-runs the row partition"
     "and the appearance rows must be partitioned back off a now-mirrored unit")
 
   ctx.unit = "player"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
 test("`/at set units.<unit>.mirror` re-syncs an open panel's mirror header", function()
@@ -702,7 +848,7 @@ test("`/at set units.<unit>.mirror` re-syncs an open panel's mirror header", fun
   local ctx = NS.Helpers.__lastUnitCtx
   NS.db.profile.units.focus.mirror = false
   ctx.unit = "focus"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
   assertTrue(select(2, mirrorHeaderState(ctx)), "precondition: the appearance rows are visible")
 
   NS.Slash:OnSlash("set units.focus.mirror true")
@@ -712,7 +858,7 @@ test("`/at set units.<unit>.mirror` re-syncs an open panel's mirror header", fun
   assertFalse(hasRows, "and the now-mirrored unit's appearance rows must disappear")
 
   ctx.unit = "player"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
 test("the header refresher cannot recurse: a refresh fired mid-render is a no-op", function()
@@ -723,10 +869,10 @@ test("the header refresher cannot recurse: a refresh fired mid-render is a no-op
   local ctx = NS.Helpers.__lastUnitCtx
   local before = #ctx.refreshers
   ctx.__rendering = true
-  NS.Helpers.RenderUnitPanel(ctx, "bar")   -- must return immediately, registering nothing
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")   -- must return immediately, registering nothing
   assertEqual(#ctx.refreshers, before, "a re-entrant render must not append another refresher")
   ctx.__rendering = false
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
 test("a raise mid-render must not latch the re-entrancy flag for the session", function()
@@ -742,7 +888,7 @@ test("a raise mid-render must not latch the re-entrancy flag for the session", f
   local AceGUI    = NS.AceGUI
   local savedCtor = AceGUI.WidgetRegistry["Dropdown"]
   AceGUI.WidgetRegistry["Dropdown"] = function() error("planted widget failure") end
-  local ok = pcall(NS.Helpers.RenderUnitPanel, ctx, "bar")
+  local ok = pcall(NS.Helpers.RenderUnitPanel, ctx, "appearance")
   AceGUI.WidgetRegistry["Dropdown"] = savedCtor
 
   assertTrue(ok, "a failed render must be contained, not thrown at the caller")
@@ -750,12 +896,12 @@ test("a raise mid-render must not latch the re-entrancy flag for the session", f
 
   -- The claim that actually matters: the page still renders after a failed one.
   local before = #NS.AceGUI.__created
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
   assertTrue(#NS.AceGUI.__created > before,
     "the render after a failed one must actually rebuild the page, not return at the guard")
 
   ctx.unit = "player"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
 test("a failed unit-panel render is reported in chat, never swallowed", function()
@@ -773,7 +919,7 @@ test("a failed unit-panel render is reported in chat, never swallowed", function
   local AceGUI    = NS.AceGUI
   local savedCtor = AceGUI.WidgetRegistry["Dropdown"]
   AceGUI.WidgetRegistry["Dropdown"] = function() error("planted widget failure") end
-  pcall(NS.Helpers.RenderUnitPanel, ctx, "bar")
+  pcall(NS.Helpers.RenderUnitPanel, ctx, "appearance")
   AceGUI.WidgetRegistry["Dropdown"] = savedCtor
   cf.AddMessage = old
 
@@ -782,7 +928,7 @@ test("a failed unit-panel render is reported in chat, never swallowed", function
     "the render failure must reach the user, with its cause: " .. joined)
 
   ctx.unit = "player"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
 test("an ordinary schema write does NOT re-render the whole unit page", function()
@@ -796,7 +942,12 @@ test("an ordinary schema write does NOT re-render the whole unit page", function
   local ctx = NS.Helpers.__lastUnitCtx
   NS.db.profile.units.focus.mirror = false
   ctx.unit = "focus"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+
+  -- The Bar tab, not whichever tab the page happened to open on: "Use Class Color" is the write
+  -- being simulated and it only exists on a color tab.
+  ctx.activeTab = "Bar"
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
   local target
   local function walk(w)
@@ -806,7 +957,7 @@ test("an ordinary schema write does NOT re-render the whole unit page", function
     end
   end
   walk(ctx.scroll)
-  assertTrue(target ~= nil, "no Use Class Color checkbox on the unlinked focus page")
+  assertTrue(target ~= nil, "no Use Class Color checkbox on the unlinked focus page's Bar tab")
 
   local widgetsBefore = #NS.AceGUI.__created
   local firstChild    = ctx.scroll.children[1]
@@ -820,7 +971,7 @@ test("an ordinary schema write does NOT re-render the whole unit page", function
   NS.SetByPath("units.focus.useClassColorBar", false)
   NS.db.profile.units.focus.mirror = true
   ctx.unit = "player"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
 test("a mirror-state change DOES re-render -- the two-tier refresher keeps both halves", function()
@@ -832,7 +983,7 @@ test("a mirror-state change DOES re-render -- the two-tier refresher keeps both 
   local ctx = NS.Helpers.__lastUnitCtx
   NS.db.profile.units.focus.mirror = false
   ctx.unit = "focus"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
   local widgetsBefore = #NS.AceGUI.__created
   NS.SetByPath("units.focus.mirror", true)
@@ -845,7 +996,7 @@ test("a mirror-state change DOES re-render -- the two-tier refresher keeps both 
   assertFalse(hasRows, "and the mirrored unit's appearance rows are gone")
 
   ctx.unit = "player"
-  NS.Helpers.RenderUnitPanel(ctx, "bar")
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
 test("/at resetposition does not claim success when the settings helpers are absent", function()

@@ -90,18 +90,22 @@ function NS.GetFont(unit)
     return C.FALLBACK_FONT
 end
 
+-- ANSWERS NIL WHEN THE CLASS IS UNKNOWN, and every caller below then keeps the configured color.
+--
+-- It used to substitute opaque white, which is a tenth hue invented for the occasion: a player who
+-- had set a blue bar, ticked Use Class Color and landed on a client that could not name their class
+-- got white -- a color they had never chosen and could not have predicted. Falling back to the
+-- swatch they DID choose is both recoverable and legible. The cache still only fills on success, so
+-- a class that resolves later (a lib loading after us, a reload) is picked up on the next read.
 local playerClassColor
 local function GetPlayerClassColor()
     if not playerClassColor then
         local _, classFilename = UnitClass("player")
-        if classFilename then
+        if classFilename and C_ClassColor and C_ClassColor.GetClassColor then
             local color = C_ClassColor.GetClassColor(classFilename)
             if color then
                 playerClassColor = { r = color.r, g = color.g, b = color.b }
             end
-        end
-        if not playerClassColor then
-            playerClassColor = { r = 1, g = 1, b = 1 }
         end
     end
     return playerClassColor
@@ -125,6 +129,7 @@ local bgClassColors = {
     WARRIOR     = { r = 0.78, g = 0.61, b = 0.43 },  -- #C69B6D
 }
 
+-- Same nil-on-unknown contract as GetPlayerClassColor above, and for the same reason.
 local playerBgClassColor
 local function GetBgClassColor()
     if not playerBgClassColor then
@@ -136,36 +141,62 @@ local function GetBgClassColor()
                 g = base.g * backgroundMultiplier,
                 b = base.b * backgroundMultiplier,
             }
-        else
-            playerBgClassColor = { r = 1, g = 1, b = 1 }
         end
     end
     return playerBgClassColor
 end
 
-function NS.GetBarColor(unit)
-    local c = unitSetting(unit, "barColor")
-    if unitSetting(unit, "useClassColorBar") then
-        local cc = GetPlayerClassColor()
-        return cc.r, cc.g, cc.b, c.a
+--- Resolve one color row against its class-color toggle. Three rules, in one place because all
+--- four surfaces obey them and four copies is how one of them stops:
+---
+---   1. THE CONFIGURED ALPHA SURVIVES THE MODE. A class color carries no alpha of its own, so it
+---      takes the swatch's -- otherwise the opacity would silently change when the mode did.
+---   2. AN UNKNOWN CLASS KEEPS THE CONFIGURED COLOR. `classColor` answers nil there (see
+---      GetPlayerClassColor), and nil falls straight through to the stored swatch.
+---   3. The swatch is read under BOTH modes, which is why no color row carries `disabledIf` any
+---      more (settings/Appearance.lua states that reversal in full).
+local function resolveColor(c, on, classColor)
+    if type(c) ~= "table" then c = {} end
+    local a = c.a or 1
+    if on then
+        local cc = classColor()
+        if cc then return cc.r, cc.g, cc.b, a end
     end
-    return c.r, c.g, c.b, c.a
+    return c.r or 1, c.g or 1, c.b or 1, a
+end
+
+function NS.GetBarColor(unit)
+    return resolveColor(unitSetting(unit, "barColor"),
+        unitSetting(unit, "useClassColorBar"), GetPlayerClassColor)
 end
 
 function NS.GetBgColor(unit)
-    local c = unitSetting(unit, "bgColor")
-    if unitSetting(unit, "useClassColorBg") then
-        local cc = GetBgClassColor()
-        return cc.r, cc.g, cc.b, c.a
-    end
-    return c.r, c.g, c.b, c.a
+    return resolveColor(unitSetting(unit, "bgColor"),
+        unitSetting(unit, "useClassColorBg"), GetBgClassColor)
 end
 
 function NS.GetBorderColor(unit)
-    local c = unitSetting(unit, "borderColor")
-    if unitSetting(unit, "useClassColorBorder") then
-        local cc = GetPlayerClassColor()
-        return cc.r, cc.g, cc.b, c.a
-    end
-    return c.r, c.g, c.b, c.a
+    return resolveColor(unitSetting(unit, "borderColor"),
+        unitSetting(unit, "useClassColorBorder"), GetPlayerClassColor)
+end
+
+--- The absorb amount's color. New surface, same three rules as the three above it.
+function NS.GetFontColor(unit)
+    return resolveColor(unitSetting(unit, "fontColor"),
+        unitSetting(unit, "useClassColorText"), GetPlayerClassColor)
+end
+
+--- The whole frame's opacity, CLAMPED to the slider's own range.
+---
+--- The clamp is not belt and braces. This value comes out of SavedVariables, which a player can
+--- hand-edit and an older profile can be holding anything in; `bar:SetAlpha(0)` is an invisible bar
+--- with no error and no way to tell it from the addon having stopped working. Clamping to the same
+--- 0.1 .. 1 the row advertises means the worst a bad value can do is look like the nearest legal
+--- setting. A non-number reads as the default rather than raising inside a paint pass.
+function NS.GetBarAlpha(unit)
+    local v = tonumber(unitSetting(unit, "barAlpha"))
+    if not v then return NS.unitDefaults.barAlpha end
+    if v < 0.1 then return 0.1 end
+    if v > 1 then return 1 end
+    return v
 end

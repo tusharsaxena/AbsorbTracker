@@ -153,3 +153,38 @@ test("target and focus ship mirrored so a first enable looks like the player bar
   assertEqual(NS.defaults.profile.units.focus.mirror, true)
   assertEqual(NS.defaults.profile.units.player.mirror, nil, "player is the mirror source")
 end)
+
+-- ── APPEARANCE_KEYS vs. the schema ────────────────────────────────────────────────
+
+test("every per-unit appearance row is in APPEARANCE_KEYS, and vice versa", function()
+  -- The mirror list is hand-maintained, and a per-unit setting added to the schema and the defaults
+  -- but NOT to this list is invisibly broken: it renders, it stores, and it is silently left out of
+  -- both the mirror resolution and Units.CopyFromPlayer -- so a mirrored target keeps its own value
+  -- for that one key while every other key follows the player. Nothing else in the suite would say
+  -- so, because the row works perfectly on the player bar where it is usually tested.
+  --
+  -- Both directions, because the reverse is a bug too: a key listed here with no row behind it is a
+  -- key CopyFromPlayer copies out of nothing.
+  local exempt = { enabled = true, mirror = true, position = true }
+
+  local listed = {}
+  for _, key in ipairs(NS.Units.APPEARANCE_KEYS) do
+    assertTrue(not listed[key], key .. " is listed twice")
+    listed[key] = true
+    assertTrue(NS.defaults.profile.units.player[key] ~= nil,
+      key .. " is in APPEARANCE_KEYS but has no default")
+  end
+
+  local fromSchema = {}
+  for _, row in ipairs(NS.Schema) do
+    local key = row.path:match("^units%.player%.(.+)$")
+    if key and not exempt[key] then
+      fromSchema[key] = true
+      assertTrue(listed[key],
+        key .. " is a per-unit schema row but is not in Units.APPEARANCE_KEYS")
+    end
+  end
+  for key in pairs(listed) do
+    assertTrue(fromSchema[key], key .. " is in APPEARANCE_KEYS but has no schema row")
+  end
+end)

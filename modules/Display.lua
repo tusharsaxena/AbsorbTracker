@@ -52,7 +52,10 @@ function NS.PaintPlaceholder(unit)
     unit = unit or "player"
     local bar = NS.bars[unit]
     if not bar then return false end
-    bar:SetAlpha(1)
+    -- The unit's configured opacity, not the literal 1 this used to pass. Both paint sites and the
+    -- appearance pass now ask NS.GetBarAlpha, so the placeholder, a live repaint and a restyle
+    -- cannot disagree about how solid the bar is.
+    bar:SetAlpha(NS.GetBarAlpha(unit))
     bar.statusBar:SetMinMaxValues(0, 1)
     bar.statusBar:SetValue(PLACEHOLDER_FRACTION)
     bar.valueText:SetText(PLACEHOLDER_TEXT)
@@ -164,6 +167,16 @@ function NS.UpdateBarAppearance(unit)
 
     valueText:SetFont(NS.GetFont(unit), NS.Units.Get(unit, "fontSize"),
         NS.Units.Get(unit, "fontFlags") or "")
+    -- The absorb amount had no color of its own until the Text tab gained one; it drew at a bare
+    -- FontString's default, opaque white, which is exactly what NS.GetFontColor answers for an
+    -- untouched profile. Set on every appearance pass, like every other styled property here, so a
+    -- profile switch and a `/at set` land the same way.
+    valueText:SetTextColor(NS.GetFontColor(unit))
+
+    -- The frame's overall opacity. Applied in the appearance pass as well as at the two paint
+    -- sites, because a restyle that did not touch it would leave the bar at whatever alpha the last
+    -- paint chose until the next absorb event.
+    bar:SetAlpha(NS.GetBarAlpha(unit))
 
     -- `locked` is global: all three bars lock together.
     local locked = NS.GetSetting("locked")
@@ -287,7 +300,7 @@ function NS.UpdateAbsorbBar(unit)
     local totalAbsorb = UnitGetTotalAbsorbs(unit) or 0
     local maxHealth = UnitHealthMax(unit) or 1
 
-    bar:SetAlpha(1)
+    bar:SetAlpha(NS.GetBarAlpha(unit))
     bar.statusBar:SetMinMaxValues(0, maxHealth)
     bar.statusBar:SetValue(totalAbsorb)
     bar.valueText:SetText(AbbreviateNumbers(totalAbsorb))

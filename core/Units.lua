@@ -16,12 +16,17 @@ NS.Units = Units
 Units.LIST  = { "player", "target", "focus" }
 Units.LABEL = { player = "Player", target = "Target", focus = "Focus" }
 
--- The fifteen appearance keys, in profile order. Mirror resolution and CopyFromPlayer both walk
+-- The eighteen appearance keys, in profile order. Mirror resolution and CopyFromPlayer both walk
 -- this list, so adding a per-unit setting means adding its key here as well as to the defaults.
+--
+-- The v3 migration (core/Database.lua) walks it too, to lift the pre-v3 FLAT keys onto the player
+-- unit. A key added here after v3 shipped never existed as a flat key, so that loop finds nothing
+-- for it and lifts nothing -- which is why growing this list is safe for the ladder.
 Units.APPEARANCE_KEYS = {
     "barTexture", "bgTexture", "border", "borderSize", "borderColor",
-    "font", "fontSize", "fontFlags", "barWidth", "barHeight",
-    "barColor", "bgColor", "useClassColorBar", "useClassColorBg", "useClassColorBorder",
+    "font", "fontSize", "fontFlags", "fontColor", "barWidth", "barHeight", "barAlpha",
+    "barColor", "bgColor",
+    "useClassColorBar", "useClassColorBg", "useClassColorBorder", "useClassColorText",
 }
 
 local function profile()

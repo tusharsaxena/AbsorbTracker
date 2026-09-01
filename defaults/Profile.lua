@@ -21,13 +21,21 @@ local function appearance()
         font = "Friz Quadrata TT",
         fontSize = 12,
         fontFlags = "OUTLINE",
+        -- Opaque white: what a FontString draws at when nothing sets a color, which is what the
+        -- absorb amount did before it had a row. Stated here so an install that never opens the
+        -- Text tab is drawn exactly as it was.
+        fontColor = { r = 1.0, g = 1.0, b = 1.0, a = 1.0 },
         barWidth = 200,
         barHeight = 20,
+        -- The literal `1` modules/Display.lua used to pass to bar:SetAlpha at both paint sites.
+        -- Same reason as fontColor above: the promoted default has to BE the number it replaced.
+        barAlpha = 1.0,
         barColor = { r = 0.4, g = 0.7, b = 1.0, a = 0.8 },
         bgColor = { r = 0.2, g = 0.2, b = 0.2, a = 0.8 },
         useClassColorBar = false,
         useClassColorBg = false,
         useClassColorBorder = false,
+        useClassColorText = false,
         position = nil,
     }
 end

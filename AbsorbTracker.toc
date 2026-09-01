@@ -67,7 +67,5 @@ settings\OptionsSetup.lua
 settings\UnitPanel.lua
 settings\About.lua
 settings\General.lua
-settings\Bar.lua
-settings\Border.lua
-settings\Font.lua
+settings\Appearance.lua
 settings\Profiles.lua

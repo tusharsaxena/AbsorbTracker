@@ -209,6 +209,62 @@ test("locking hides the unit label", function()
   assertEqual(#hides, 1, "a locked bar shows no label")
 end)
 
+-- ── the two promoted chrome literals ───────────────────────────────────────────────
+--
+-- The absorb amount had NO color of its own (a bare FontString, drawing at its own default white)
+-- and the frame's alpha was the literal 1 written at two paint sites. Both are settings now, and
+-- both default to exactly the value they replaced -- which is what these first two cases pin: an
+-- untouched profile must paint identically to the build before the rows existed.
+
+test("an untouched profile paints the same white text and full alpha it always did", function()
+  local colors, alphas
+  withoutVisibility(function()
+    colors = record(NS.bars.player.valueText, "SetTextColor", function()
+      alphas = record(NS.bars.player, "SetAlpha", function()
+        NS.UpdateBarAppearance("player")
+      end)
+    end)
+  end)
+  assertTrue(#colors > 0, "the appearance pass must set a text color")
+  local c = colors[#colors]
+  assertEqual(c[1], 1); assertEqual(c[2], 1); assertEqual(c[3], 1); assertEqual(c[4], 1)
+  assertTrue(#alphas > 0, "the appearance pass must set the frame alpha")
+  assertEqual(alphas[#alphas][1], 1)
+end)
+
+test("the Text tab's color reaches the absorb amount, alpha included", function()
+  local colors
+  withUnitSetting("player", "fontColor", { r = 0.2, g = 0.4, b = 0.6, a = 0.5 }, function()
+    withoutVisibility(function()
+      colors = record(NS.bars.player.valueText, "SetTextColor", function()
+        NS.UpdateBarAppearance("player")
+      end)
+    end)
+  end)
+  local c = colors[#colors]
+  assertTrue(math.abs(c[1] - 0.2) < 1e-6)
+  assertTrue(math.abs(c[4] - 0.5) < 1e-6, "the swatch's alpha is the text's alpha")
+end)
+
+test("barAlpha reaches all three paint sites, not just the appearance pass", function()
+  -- The appearance pass, the unlocked placeholder and a live repaint each set the frame's alpha.
+  -- Before the row existed all three passed a literal 1; if any one of them still did, a bar would
+  -- snap back to full opacity the next time an absorb event landed.
+  withUnitSetting("player", "barAlpha", 0.4, function()
+    withSetting("locked", false, function()
+      withoutVisibility(function()
+        local a = record(NS.bars.player, "SetAlpha", function() NS.UpdateBarAppearance("player") end)
+        assertTrue(#a >= 2, "the appearance pass and its placeholder both set alpha")
+        for i, call in ipairs(a) do
+          assertTrue(math.abs(call[1] - 0.4) < 1e-6, "alpha call " .. i .. " ignored the setting")
+        end
+      end)
+    end)
+    local a = record(NS.bars.player, "SetAlpha", function() NS.UpdateAbsorbBar("player") end)
+    assertTrue(#a == 1 and math.abs(a[1][1] - 0.4) < 1e-6, "a live repaint honors it too")
+  end)
+end)
+
 -- ── preview mode ───────────────────────────────────────────────────────────────────
 -- Two previews: the unlocked placeholder fill, and the timed `/at test` hold. Both must END —
 -- the placeholder when the bars are re-locked, the hold when its announced duration expires.

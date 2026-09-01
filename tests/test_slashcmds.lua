@@ -201,7 +201,7 @@ test("/at reset with no path prints usage rather than resetting anything", funct
   local out = slash("reset")
   assertTrue(contains(out, "Usage: /at reset <path>"), joined(out))
   assertEqual(NS.GetSetting("units.player.barWidth"), 250, "nothing was reset")
-  NS.Helpers.RestoreDefaults("bar")
+  NS.Helpers.RestoreDefaults("appearance")
 end)
 
 test("/at reset rejects a path that is not a setting", function()
@@ -231,7 +231,7 @@ test("/at reset does NOT lower-case its argument", function()
   -- Asserted on the ECHOED path, not just the prefix: a reset that lower-cased its argument would
   -- still print "Setting not found" for this input, so a prefix match cannot tell the two apart.
   assertTrue(contains(out, "Setting not found: UNITS.PLAYER.BARWIDTH"), joined(out))
-  NS.Helpers.RestoreDefaults("bar")
+  NS.Helpers.RestoreDefaults("appearance")
 end)
 
 test("/at resetall goes through the one shared RestoreAllDefaults helper", function()
@@ -606,16 +606,30 @@ test("get echoes a dotted path", function()
   assertTrue(contains(out, "275"), "got: " .. joined(out))
 end)
 
-test("list groups the appearance pages by unit", function()
+test("list groups the appearance page by unit", function()
   local out = slash("list")
-  assertTrue(contains(out, "[bar / player]"), "no player group header; got: " .. joined(out))
-  assertTrue(contains(out, "[bar / target]"), "no target group header")
-  assertTrue(contains(out, "[bar / focus]"),  "no focus group header")
+  assertTrue(contains(out, "[appearance / player]"),
+    "no player group header; got: " .. joined(out))
+  assertTrue(contains(out, "[appearance / target]"), "no target group header")
+  assertTrue(contains(out, "[appearance / focus]"),  "no focus group header")
   assertTrue(contains(out, "[general]"), "globals must still list under a plain page header")
-  -- All four pages, not just the two the per-unit assertions happen to touch: PAGE_ORDER is what
-  -- decides which pages `/at list` shows at all, and trimming it would silently drop ~30 rows.
-  assertTrue(contains(out, "[border / player]"), "the border page lists too")
-  assertTrue(contains(out, "[font / player]"), "and the font page")
+
+  -- The old Bar / Border / Font page names must be GONE, not merely unasserted. PAGE_ORDER is what
+  -- decides which pages `/at list` shows at all, and a name left in it after the pages collapsed
+  -- would print an empty group; a name dropped from it silently loses every row on that page.
+  -- Counting the rows is what catches the second half, which no header assertion can.
+  for _, dead in ipairs({ "[bar /", "[border /", "[font /" }) do
+    assertTrue(not contains(out, dead), dead .. " is not a page any more")
+  end
+  local rows = 0
+  for _, line in ipairs(out) do
+    if line:find(" = ") then rows = rows + 1 end
+  end
+  local expected = #NS.SchemaForPage("general")
+  for _, unit in ipairs(NS.Units.LIST) do
+    expected = expected + #NS.SchemaForPage("appearance", unit)
+  end
+  assertEqual(rows, expected, "/at list must print every schema row exactly once")
 end)
 
 test("reset takes one fully-qualified path, not a page", function()
@@ -628,7 +642,7 @@ test("reset takes one fully-qualified path, not a page", function()
   assertEqual(NS.GetSetting("units.target.barWidth"), NS.unitDefaults.barWidth, "the named unit")
   assertEqual(NS.GetSetting("units.player.barWidth"), 111, "and only that unit")
   assertEqual(NS.GetSetting("units.focus.barWidth"), 111)
-  NS.Helpers.RestoreDefaults("bar")
+  NS.Helpers.RestoreDefaults("appearance")
 end)
 
 test("resetposition clears all three positions", function()

@@ -10,6 +10,10 @@ local test, assertEqual, assertTrue, assertFalse =
 
 local C = NS.Constants
 
+-- A SECOND, freshly-loaded addon environment. Used by exactly one case below, which needs
+-- core/Data.lua's class-color cache to be empty -- see the note there.
+local loadDegraded = dofile("tests/degraded_env.lua")
+
 local function approx(got, want, msg)
   assertTrue(math.abs(got - want) < 1e-6,
     (msg or "approx") .. string.format(" (expected %s, got %s)", tostring(want), tostring(got)))
@@ -238,7 +242,71 @@ test("GetBgColor returns the stored color when the toggle is off", function()
   end)
 end)
 
-test("the three class-color toggles are independent of each other", function()
+test("GetFontColor honors useClassColorText and keeps its own alpha", function()
+  withSetting("units.player.useClassColorText", true, function()
+    withSetting("units.player.fontColor", { r = 0.1, g = 0.2, b = 0.3, a = 0.42 }, function()
+      local r, g, b, a = NS.GetFontColor()
+      local mock = T.mocks.C_ClassColor.GetClassColor("MAGE")
+      approx(r, mock.r); approx(g, mock.g); approx(b, mock.b)
+      approx(a, 0.42, "alpha is NOT overridden by the class color")
+    end)
+  end)
+  withSetting("units.player.useClassColorText", false, function()
+    withSetting("units.player.fontColor", { r = 0.7, g = 0.6, b = 0.5, a = 0.4 }, function()
+      local r, g, b, a = NS.GetFontColor()
+      approx(r, 0.7); approx(g, 0.6); approx(b, 0.5); approx(a, 0.4)
+    end)
+  end)
+end)
+
+test("an unknown class keeps the CONFIGURED color, never a hue invented for the occasion",
+  function()
+  -- The reversal. All four getters used to substitute opaque white when the class could not be
+  -- named -- a color the player never chose and could not have predicted, over the one they did.
+  --
+  -- Run in a FRESH environment rather than by stubbing the global here, and that is the case, not
+  -- a convenience: core/Data.lua caches the class color, the cache fills only on SUCCESS, and this
+  -- suite's own earlier cases have already filled it. Stubbing C_ClassColor in place would
+  -- therefore never reach the miss path and the test would pass without executing the branch it
+  -- names. A second load gets an empty cache; the class lookup is stubbed out before the first read
+  -- reaches it. (That the cache only fills on success is the other half of the fix: a client that
+  -- can name the class a moment later is still picked up.)
+  -- The stub goes on that environment's OWN globals table (the loader runs each file against it),
+  -- not on _G: a file loaded there never reads this process's globals.
+  local NS2, mocks2 = loadDegraded()
+  mocks2.UnitClass    = function() return nil, nil end
+  mocks2.C_ClassColor = { GetClassColor = function() return nil end }
+
+  local unit = NS2.defaults.profile.units.player
+  unit.useClassColorBar = true
+  unit.barColor = { r = 0.31, g = 0.32, b = 0.33, a = 0.6 }
+
+  local r, g, b, a = NS2.GetBarColor("player")
+  approx(r, 0.31); approx(g, 0.32); approx(b, 0.33)
+  approx(a, 0.6, "and the alpha is still the swatch's")
+
+  -- And the same for the background, whose class color comes from a different table.
+  unit.useClassColorBg = true
+  unit.bgColor = { r = 0.41, g = 0.42, b = 0.43, a = 0.7 }
+  local br, bg2, bb, ba = NS2.GetBgColor("player")
+  approx(br, 0.41); approx(bg2, 0.42); approx(bb, 0.43); approx(ba, 0.7)
+end)
+
+test("GetBarAlpha clamps a hand-edited SavedVariable to the slider's own range", function()
+  -- The value comes out of SavedVariables, so the schema's min/max never sees it. An alpha of 0 is
+  -- an invisible bar with no error and no way to tell it from the addon having stopped working.
+  local saved = NS.db.profile.units.player.barAlpha
+  local cases = { { 0, 0.1 }, { -5, 0.1 }, { 2, 1 }, { 0.5, 0.5 } }
+  for _, c in ipairs(cases) do
+    NS.db.profile.units.player.barAlpha = c[1]
+    approx(NS.GetBarAlpha("player"), c[2], "stored " .. tostring(c[1]))
+  end
+  NS.db.profile.units.player.barAlpha = "not a number"
+  approx(NS.GetBarAlpha("player"), NS.unitDefaults.barAlpha, "a non-number reads as the default")
+  NS.db.profile.units.player.barAlpha = saved
+end)
+
+test("the four class-color toggles are independent of each other", function()
   withSetting("units.player.useClassColorBar", true, function()
     withSetting("units.player.useClassColorBg", false, function()
       withSetting("units.player.useClassColorBorder", false, function()
@@ -246,8 +314,10 @@ test("the three class-color toggles are independent of each other", function()
           withSetting("units.player.borderColor", { r = 0.21, g = 0.22, b = 0.23, a = 1 }, function()
             local br = select(1, NS.GetBgColor())
             local dr = select(1, NS.GetBorderColor())
+            local tr = select(1, NS.GetFontColor())
             approx(br, 0.11, "bar's toggle must not bleed into the background")
             approx(dr, 0.21, "bar's toggle must not bleed into the border")
+            approx(tr, 1.0, "nor into the text, which is white by default")
           end)
         end)
       end)

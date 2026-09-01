@@ -26,7 +26,7 @@ return function()
   -- The list is the TOC's, in the TOC's order, and it is the WHOLE list. Both halves matter:
   --
   --   * Whole, because the load-order hazard this environment exists to catch is a page file that
-  --     calls a helper at FILE LOAD (settings/Bar.lua evaluates LSMValues inside a schema-row
+  --     calls a helper at FILE LOAD (settings/Appearance.lua evaluates LSMValues inside a schema-row
   --     literal). A list that stopped before the page files — as this one did until M6 — would
   --     stay green straight through a total load failure, because the schema simply would not be
   --     built and nothing here looked at it. tests/test_perf.lua's count assertion is the guard.

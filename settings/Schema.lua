@@ -10,8 +10,9 @@ local addonName, NS = ...
 -- Schema row shape:
 --   {
 --     path    = "barWidth",        -- key in db.profile (also /at set path)
---     page    = "bar",             -- which settings/<page>.lua renders it
---     group   = "Size",            -- section heading on the page (optional)
+--     page    = "appearance",      -- which settings/<page>.lua renders it
+--     group   = "Size",            -- the page's TAB this row belongs to (options-ui-§13); tabs are
+--                                  -- drawn in the order their first row was registered
 --     order   = 10,                -- render order within the group
 --     type    = "bool"|"number"|"string"|"color",
 --     label   = "Bar width",       -- widget label and /at list/get display
@@ -204,8 +205,11 @@ end
 -- whose `path` does NOT resolve against the defaults profile — a typo'd path would otherwise
 -- silently read/write nothing. The validator only PRINTS; it never refuses to register.
 
+-- The Bar / Border / Font trio collapsed into one `appearance` page: they were three copies of the
+-- same Unit picker over one piece of state (settings/Appearance.lua says why). A page is where a
+-- row is EDITED, never where it is stored, so not one path moved with them.
 local _validPages = {
-    general = true, bar = true, border = true, font = true, profiles = true,
+    general = true, appearance = true, profiles = true,
 }
 local _validTypes = {
     bool = true, number = true, string = true, color = true,
@@ -240,7 +244,7 @@ function NS.ValidateSchema()
             end
             if not _validPages[row.page] then
                 _printSchemaError(where, "invalid `page` = " .. tostring(row.page)
-                    .. " (expected one of: general, bar, border, font, profiles)")
+                    .. " (expected one of: general, appearance, profiles)")
                 errors = errors + 1
             end
             if not _validTypes[row.type] then

@@ -31,7 +31,7 @@ The third arg to `AceDB:New` is `defaultProfile` — `true` means use the WoW-su
 
 Defaults come from `defaults/Profile.lua`:
 
-- `NS.defaults.profile` — the three flat globals (`locked`, `throttleWindow`, `showOnlyInCombat`), a per-profile `schemaVersion` stamp, and `units.<player|target|focus>` carrying that unit's fifteen appearance keys plus `enabled`, `mirror` and `position`.
+- `NS.defaults.profile` — the three flat globals (`locked`, `throttleWindow`, `showOnlyInCombat`), a per-profile `schemaVersion` stamp, and `units.<player|target|focus>` carrying that unit's eighteen appearance keys plus `enabled`, `mirror` and `position`.
 - `NS.defaults.global.schemaVersion = 4` — the account-wide DB-version stamp.
 - `NS.defaults.profile.schemaVersion = 1` — the **per-profile** stamp. Its default is `1` ("legacy — not yet lifted"), *not* the current `3`, and that is load-bearing; see [Migrations](#migrations-and-the-flatprofile-backfill) below.
 - `NS.flatDefaults` — a flat alias of `NS.defaults.profile` used by the fallback read path; `NS.unitDefaults` — an alias of `NS.defaults.profile.units.player`, the one canonical default every unit's schema rows share.
@@ -56,7 +56,7 @@ The three messages are payload-free; `modules/Display.lua` owns the sole subscri
 
 The **migration call leads the chain on purpose.** A profile that only appears *after* the upgrade — copied in from another character, restored from a backup SavedVariables file, or reset back to the shipped defaults — never passed through `InitDB`'s sweep, so its own `schemaVersion` still reads pre-v3. Lifting it here, before anything reads its appearance, is what stops it rendering with factory defaults. It cannot double-apply: `MigrateProfileToV3` returns immediately once the profile carries the stamp.
 
-`RefreshOptionsPanel` re-runs each rendered panel's refreshers, which re-read every row's value from the newly active `db.profile` and push it into its AceGUI widget. On the per-unit pages (Bar / Border / Font) the last refresher is two-tier: it **always** re-syncs the mirror header checkbox in place, and re-renders the page outright **only when the new profile actually changed that unit's mirror state** — which is the only thing that can invalidate the mirrored/unmirrored row partition. An unconditional re-render would tear down a widget whose callback is still on the stack, so it was deliberately removed. The Profiles sub-page re-`Open()`s its AceConfigDialog tree on next show. See [settings-panel.md](./settings-panel.md).
+`RefreshOptionsPanel` re-runs each rendered panel's refreshers, which re-read every row's value from the newly active `db.profile` and push it into its AceGUI widget. On the per-unit pages (Appearance) the last refresher is two-tier: it **always** re-syncs the mirror header checkbox in place, and re-renders the page outright **only when the new profile actually changed that unit's mirror state** — which is the only thing that can invalidate the mirrored/unmirrored row partition. An unconditional re-render would tear down a widget whose callback is still on the stack, so it was deliberately removed. The Profiles sub-page re-`Open()`s its AceConfigDialog tree on next show. See [settings-panel.md](./settings-panel.md).
 
 ## `/at profile` subcommands
 

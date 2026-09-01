@@ -4,7 +4,7 @@ Recipes for the routine modifications. For deeper context on any module, see [mo
 
 ## Add a new setting (General page — a flat, unit-agnostic global)
 
-This recipe is for a **flat** setting like `locked` / `showOnlyInCombat` / `throttleWindow` — one that governs all three bars at once and belongs on the General page. For a Bar/Border/Font appearance setting that should exist per unit, see [Add a per-unit setting](#add-a-per-unit-setting) below instead.
+This recipe is for a **flat** setting like `locked` / `showOnlyInCombat` / `throttleWindow` — one that governs all three bars at once and belongs on the General page. For a Appearance appearance setting that should exist per unit, see [Add a per-unit setting](#add-a-per-unit-setting) below instead.
 
 The schema-driven design makes a flat setting a one-row change. The widget on the General sub-page AND the `/at set <path>` CLI come for free.
 
@@ -30,7 +30,7 @@ The schema-driven design makes a flat setting a one-row change. The widget on th
 
    NS.RegisterSchemaRows({
        -- ... existing rows ...
-       { path = "myNewKnob", page = "general", group = "Master controls", order = 50,
+       { path = "myNewKnob", page = "general", group = "Behavior", order = 50,
          type = "number", label = "My New Knob", default = flatDefaults.myNewKnob,
          min = 0, max = 100, step = 1 },
    })
@@ -52,7 +52,7 @@ See [schema.md](./schema.md) for the full row grammar (knobs like `disabledIf`, 
 
 ## Add a per-unit setting
 
-Bar/Border/Font settings are per-unit (player/target/focus) rather than a single flat schema row. Use this recipe instead of "Add a new setting" above when the new knob is a bar-appearance value that should exist for all three units (and mirror the same way the existing fifteen do).
+Appearance settings are per-unit (player/target/focus) rather than a single flat schema row. Use this recipe instead of "Add a new setting" above when the new knob is a bar-appearance value that should exist for all three units (and mirror the same way the existing eighteen do). Add its key to `NS.Units.APPEARANCE_KEYS` too — `tests/test_units.lua` fails if you forget, which is the point: a key missing from that list renders and stores fine and is silently left out of the mirror.
 
 1. **Add the key to `defaults/Profile.lua`'s `appearance()` factory** (not `NS.defaults.profile` directly — `appearance()` is called once per unit so no table gets shared across units):
 
@@ -72,19 +72,20 @@ Bar/Border/Font settings are per-unit (player/target/focus) rather than a single
    -- core/Units.lua
    Units.APPEARANCE_KEYS = {
        "barTexture", "bgTexture", "border", "borderSize", "borderColor",
-       "font", "fontSize", "fontFlags", "barWidth", "barHeight",
-       "barColor", "bgColor", "useClassColorBar", "useClassColorBg", "useClassColorBorder",
+       "font", "fontSize", "fontFlags", "fontColor", "barWidth", "barHeight", "barAlpha",
+       "barColor", "bgColor",
+       "useClassColorBar", "useClassColorBg", "useClassColorBorder", "useClassColorText",
        "myNewKnob",
    }
    ```
 
-3. **Add the row inside the relevant page's `addUnitRows(unit)`** (`settings/Bar.lua`, `Border.lua`, or `Font.lua`) — the loop that already calls it once per `NS.Units.LIST` entry picks the new row up automatically:
+3. **Add the row inside `addUnitRows(unit)`** (`settings/Appearance.lua`) — the loop that already calls it once per `NS.Units.LIST` entry picks the new row up automatically. Put it with its tab's other rows: `group` is the tab, tabs are drawn in the order each group's first row was registered, and a group's rows must stay **contiguous**.
 
    ```lua
-   -- settings/Bar.lua, inside addUnitRows(unit)
+   -- settings/Appearance.lua, inside addUnitRows(unit)
    {
        path    = p .. "myNewKnob",   -- p = "units." .. unit .. "."
-       page    = "bar",
+       page    = "appearance",
        unit    = unit,
        group   = "Size",
        order   = 50,
@@ -95,13 +96,13 @@ Bar/Border/Font settings are per-unit (player/target/focus) rather than a single
    },
    ```
 
-That's it. `NS.Units.Get(unit, "myNewKnob")` reads it mirror-resolved; `/at set units.target.myNewKnob 10` and `/at get units.focus.myNewKnob` work immediately; `/at reset units.target.myNewKnob` resets that one unit's copy, and the panel's Bar-page Defaults button resets it across all three; `Helpers.RenderUnitPanel` renders it on whichever unit is selected in the Unit dropdown, and hides it while that unit mirrors the player.
+That's it. `NS.Units.Get(unit, "myNewKnob")` reads it mirror-resolved; `/at set units.target.myNewKnob 10` and `/at get units.focus.myNewKnob` work immediately; `/at reset units.target.myNewKnob` resets that one unit's copy, and the Appearance page's Defaults button resets it across all three; `Helpers.RenderUnitPanel` renders it on the tab its `group` names, for whichever unit the Unit banner has selected, and hides it while that unit mirrors the player. If the new key is a count in `docs/schema.md`'s page → tab table, update that and the matching case in `tests/test_schema.lua`.
 
 `NS.ValidateSchema` will warn in chat if the path (`units.<unit>.myNewKnob`) doesn't resolve against `NS.defaults.profile` — a cheap guard against forgetting step 1 or getting the factory vs. `NS.defaults.profile` distinction backwards.
 
 ## Add a new sub-page
 
-When a logical group of settings outgrows an existing page (or doesn't fit any of General / Bar / Border / Font), add a new `settings/<NewPage>.lua`.
+When a logical group of settings outgrows an existing page (or doesn't fit any of General / Appearance), add a new `settings/<NewPage>.lua`.
 
 1. **Create `settings/<NewPage>.lua`** with the standard shape:
 
@@ -141,7 +142,11 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
        ctx.panel:SetScript("OnShow", function()
            if rendered then return end
            rendered = true
-           H.RenderSchema(ctx, "newpage")
+           -- RenderTabbedSchema, not RenderSchema: a `group` is a TAB (options-ui-§13), and
+           -- the strip's order is the order each group's FIRST row was registered. A page
+           -- with fewer than two groups falls back to RenderSchema and draws no strip --
+           -- that is the library's behavior, not a bug.
+           H.RenderTabbedSchema(ctx, "newpage")
        end)
 
        return Settings.RegisterCanvasLayoutSubcategory(
@@ -157,9 +162,7 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
 
    ```
    settings\General.lua
-   settings\Bar.lua
-   settings\Border.lua
-   settings\Font.lua
+   settings\Appearance.lua
    settings\NewPage.lua
    settings\Profiles.lua
    ```

@@ -131,18 +131,19 @@ local descriptor = {
 -- "not installed" line. That calculus does not survive contact with this one, and the reason is not
 -- importance — it is WHEN the missing code is reached.
 --
--- settings/Bar.lua evaluates `NS.Helpers.LSMValues("statusbar")` inside a schema-row literal, at
--- FILE LOAD. Border.lua and Font.lua do the same. With LSMValues nil that is `attempt to call field
--- 'LSMValues' (a nil value)`, so settings/Bar.lua never finishes loading, so NS.RegisterSchemaRows
--- never runs for the bar page, so a third of NS.Schema is missing — and `/at list`,
+-- settings/Appearance.lua evaluates `NS.Helpers.LSMValues("statusbar")` inside a schema-row
+-- literal, at FILE LOAD. With LSMValues nil that is `attempt to call field 'LSMValues' (a nil
+-- value)`, so settings/Appearance.lua never finishes loading, so NS.RegisterSchemaRows never runs
+-- for the appearance page, so most of NS.Schema is missing — and `/at list`,
 -- `/at set units.player.barWidth`, `/at reset` and the profile defaults all break with it. The
 -- addon would not degrade; it would half-load, and nothing would say so.
 --
 -- So this stub publishes every member a page file touches AT LOAD TIME. Measured, one member at a
 -- time, by deleting it and re-running the library-absent load (tests/degraded_env.lua) to see
 -- whether #NS.Schema still matches the fully-loaded environment: LSMValues is the ONLY load-time
--- member. Dropping it gives `settings/Bar.lua:60: attempt to call field 'LSMValues' (a nil value)`
--- and takes the bar, border and font rows out of the schema; dropping anything else changed nothing.
+-- member. Dropping it raises `attempt to call field 'LSMValues' (a nil value)` out of
+-- settings/Appearance.lua and takes every appearance row out of the schema; dropping anything else
+-- changed nothing.
 --
 -- RestoreAllDefaults is kept even though it measured as call-time, because the call it answers is
 -- `/at resetall` and the StaticPopup's OnAccept closure in settings/General.lua — a recovery path,
@@ -190,6 +191,12 @@ if not lib then
         "AddSpacer", "AttachTooltip", "InlineButtonPair", "RenderField", "RenderGrid", "RenderRows",
         "RenderSchema", "SessionCheckbox", "RefreshAllPanels", "RestoreDefaults",
         "PatchAlwaysShowScrollbar",
+        -- The chrome band (options-ui-§13 / §14), new to the surface at LibKa0s v1.23.0. Every one of
+        -- these is reached from a page builder or a tab click: settings/General.lua calls
+        -- RenderTabbedSchema, settings/UnitPanel.lua calls PageBanner and TabStrip, and both reach
+        -- SetChromeHeight through them. A no-op is the honest answer for the same reason
+        -- RenderSchema's is -- there is no panel to draw into.
+        "SetChromeHeight", "TabStrip", "PageBanner", "RenderTabbedSchema",
         -- RenderUnitPanel is deliberately absent: settings/UnitPanel.lua loads after this file and
         -- publishes the real one either way, and it already bails on a nil NS.AceGUI. A no-op here
         -- would read as though the degraded build had its own, which it does not.

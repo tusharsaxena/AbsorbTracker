@@ -80,6 +80,21 @@ test("parity: the Options stub carries every helper the degraded build can reach
     -- degraded reader of these sits behind an AceGUI a library-less build never gets.
     -- tests/test_optionssetup.lua pins their absence directly, as a measured fact.
     "ROW_VSPACER", "SECTION_HEADING_H", "BUTTON_PAIR_REL", "PADDING_X",
+    -- The chrome band's three scalars, new at LibKa0s v1.23.0 (options-ui-§13/§14) and exactly the
+    -- same class as the four above: they are lib.LAYOUT's numbers, published so a host that draws
+    -- its OWN chrome can measure where the library's band ends. This addon draws none --
+    --   grep -rn "CHROME_GAP\|TAB_H\|BANNER_H" core modules settings   returns nothing --
+    -- so a stub copy of 8 / 37 / 44 would be three more numbers with no reader and one re-vendor
+    -- to go stale. tests/test_optionssetup.lua pins their absence beside the other three.
+    "CHROME_GAP", "TAB_H", "BANNER_H",
+    -- The chrome band's PRIVATE arithmetic, published on the instance under a `__` prefix so the
+    -- library's own suite can test it without a live frame. No host calls any of them (the same
+    -- rule `__pages` below is exempted under: a stub member with no caller is a copy waiting to go
+    -- stale), and the four members that DO drive the band -- PageBanner, TabStrip,
+    -- RenderTabbedSchema, SetChromeHeight -- are in the stub, which is what the degraded build
+    -- can actually reach.
+    "__bannerBand", "__layoutTabs", "__releaseChrome", "__scrollTopInset", "__tabBand",
+    "__tabPlacement",
     -- The panel machinery itself. settings/OptionsSetup.lua's stub answers these on NS (a single
     -- honest "the settings panel is unavailable" line) rather than on Helpers, because there is no
     -- panel for them to act on: NS.CreateOptionsPanel / NS.OpenOptionsPanel / NS.RegisterOptionsPage

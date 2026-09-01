@@ -111,9 +111,9 @@ function printHelp() cli:PrintHelp() end
 -- ---------------------------------------------------------------------
 
 -- Page order for /at list grouping. Profiles is omitted (its schema is supplied by AceDBOptions).
-local PAGE_ORDER = { "general", "bar", "border", "font" }
+local PAGE_ORDER = { "general", "appearance" }
 -- Which pages carry per-unit rows and therefore list once per unit.
-local PER_UNIT_PAGES = { general = false, bar = true, border = true, font = true }
+local PER_UNIT_PAGES = { general = false, appearance = true }
 
 -- The three schema verbs are the library's: it walks the rows, formats the key/value pairs, parses
 -- the typed value and re-reads what was stored so a clamp is visible. What stays ours is WHICH rows
@@ -468,7 +468,7 @@ cli = SlashLib:New({
     end,
     allRows      = allRows,
 
-    -- `[bar / player]` for a per-unit page, a bare `[general]` otherwise.
+    -- `[appearance / player]` for a per-unit page, a bare `[general]` otherwise.
     groupKey = function(row)
         if row.unit and PER_UNIT_PAGES[row.page] then return row.page .. " / " .. row.unit end
         return row.page
