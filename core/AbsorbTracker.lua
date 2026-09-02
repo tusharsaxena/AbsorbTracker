@@ -207,7 +207,7 @@ function addon:OnUnitSwap()
     NS.bus:SendMessage(NS.MSG.REPAINT)
 end
 
--- Combat transitions re-evaluate bar visibility (the `showOnlyInCombat` gate) and repaint so the
+-- Combat transitions re-evaluate bar visibility (the `visibility` dropdown) and repaint so the
 -- bar is fresh if it just appeared. That is all these handlers do: per Ka0s standard options-ui-§2
 -- the settings panel REFUSES to open in combat (LibKa0s-Options-1.0, wired in
 -- settings/OptionsSetup.lua) rather than deferring, so there

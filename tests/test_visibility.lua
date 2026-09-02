@@ -2,53 +2,105 @@ local T = _G.AT_TEST
 local NS = T.NS
 local test, assertTrue, assertFalse = T.test, T.assertTrue, T.assertFalse
 
--- Run `body` with specific enabled / showOnlyInCombat / in-combat state, then restore everything.
--- The loader binds WoW globals live through the mock table, so swapping the combat mocks is seen by
--- addon code (same pattern as tests/test_slash.lua). `inCombat` drives both combat predicates so
--- steady-state combat is modeled faithfully; the transition-timing gap between them is exercised
--- by the dedicated regression test below.
+-- Run `body` with a specific per-unit enabled / `visibility` / in-combat state, then restore
+-- everything. The loader binds WoW globals live through the mock table, so swapping the combat mocks
+-- is seen by addon code (same pattern as tests/test_slash.lua). `inCombat` drives both combat
+-- predicates so steady-state combat is modeled faithfully; the transition-timing gap between them is
+-- exercised by the dedicated regression test below.
 --
 -- The first argument used to be the global `hidden` master toggle; schema v4 dropped it, so it is
--- now the PLAYER's own `enabled` flag — the first step of the ladder in either case.
-local function withState(enabled, combatOnly, inCombat, body)
+-- now the PLAYER's own `enabled` flag — a step of the ladder in either case. The second used to be
+-- the `showOnlyInCombat` BOOLEAN; schema v5 replaced it with the four-value `visibility` dropdown
+-- (options-ui-§15), so it is a MODE STRING now and the two states it could express are two of four.
+local function withState(enabled, visibility, inCombat, body)
   local savedEnabled    = NS.db.profile.units.player.enabled
-  local savedCombatOnly = NS.GetSetting("showOnlyInCombat")
+  local savedVisibility = NS.GetSetting("visibility")
   local savedICL        = T.mocks.InCombatLockdown
   local savedUAC        = T.mocks.UnitAffectingCombat
   NS.db.profile.units.player.enabled = enabled
-  NS.SetSetting("showOnlyInCombat", combatOnly)
+  NS.SetSetting("visibility", visibility)
   T.mocks.InCombatLockdown    = function() return inCombat end
   T.mocks.UnitAffectingCombat = function() return inCombat end
   local ok, err = pcall(body)
   NS.db.profile.units.player.enabled = savedEnabled
-  NS.SetSetting("showOnlyInCombat", savedCombatOnly)
+  NS.SetSetting("visibility", savedVisibility)
   T.mocks.InCombatLockdown    = savedICL
   T.mocks.UnitAffectingCombat = savedUAC
   if not ok then error(err) end
 end
 
 test("ShouldShowBar: a disabled unit wins even in combat", function()
-  withState(false, false, true, function()
+  withState(false, "always", true, function()
     assertFalse(NS.ShouldShowBar(), "enabled=false is never shown")
   end)
 end)
 
-test("ShouldShowBar: default (enabled, not combat-only) is shown", function()
-  withState(true, false, false, function()
+test("ShouldShowBar: default (enabled, visibility=always) is shown", function()
+  withState(true, "always", false, function()
     assertTrue(NS.ShouldShowBar(), "default visibility is shown")
   end)
 end)
 
 test("ShouldShowBar: combat-only + in combat is shown", function()
-  withState(true, true, true, function()
-    assertTrue(NS.ShouldShowBar(), "showOnlyInCombat + in combat -> shown")
+  withState(true, "inCombat", true, function()
+    assertTrue(NS.ShouldShowBar(), "visibility=inCombat + in combat -> shown")
   end)
 end)
 
 test("ShouldShowBar: combat-only + out of combat is hidden", function()
-  withState(true, true, false, function()
-    assertFalse(NS.ShouldShowBar(), "showOnlyInCombat + out of combat -> hidden")
+  withState(true, "inCombat", false, function()
+    assertFalse(NS.ShouldShowBar(), "visibility=inCombat + out of combat -> hidden")
   end)
+end)
+
+-- The two states the old boolean could not express. They are the reason options-ui-§15 makes this
+-- a dropdown rather than a checkbox, so they are pinned rather than assumed from the arm above.
+-- red under: an `outOfCombat` arm that answers the combat test the wrong way round, or a `never`
+-- that falls through to the "unrecognized value reads as always" tail.
+test("ShouldShowBar: out-of-combat-only is the mirror of combat-only", function()
+  withState(true, "outOfCombat", false, function()
+    assertTrue(NS.ShouldShowBar(), "visibility=outOfCombat + out of combat -> shown")
+  end)
+  withState(true, "outOfCombat", true, function()
+    assertFalse(NS.ShouldShowBar(), "visibility=outOfCombat + in combat -> hidden")
+  end)
+end)
+
+test("ShouldShowBar: never hides the bar in either combat state", function()
+  withState(true, "never", false, function()
+    assertFalse(NS.ShouldShowBar(), "visibility=never out of combat")
+  end)
+  withState(true, "never", true, function()
+    assertFalse(NS.ShouldShowBar(), "visibility=never in combat")
+  end)
+end)
+
+-- A hand-edited SavedVariable can hold anything, and the honest answer for a mode nobody wrote is
+-- the one that leaves the addon visible: a hidden addon with no cause the player can see is the
+-- worse failure. red under: a strict lookup that treats an unknown mode as "never".
+test("ShouldShowBar: an unrecognized visibility mode reads as always", function()
+  withState(true, "not-a-mode", false, function()
+    assertTrue(NS.ShouldShowBar(), "an unknown mode must not hide the addon")
+  end)
+end)
+
+-- The ADDON-WIDE enable (options-ui-§15's first row), which is a different setting from the
+-- per-unit flags above it and gates all three at once. red under: a ladder that drops this rung, or
+-- one that conflates it with `units.player.enabled`.
+test("ShouldShowBar: the addon-wide enable gates every unit, whatever the per-unit flag says",
+  function()
+  local savedEnabled = NS.GetSetting("enabled")
+  local savedUnit    = NS.db.profile.units.player.enabled
+  NS.db.profile.units.player.enabled = true
+  NS.SetSetting("enabled", false)
+  local ok, err = pcall(function()
+    assertFalse(NS.ShouldShowBar("player"), "the addon is off, so nothing draws")
+    NS.SetSetting("enabled", true)
+    assertTrue(NS.ShouldShowBar("player"), "and back on again with nothing else changed")
+  end)
+  NS.SetSetting("enabled", savedEnabled)
+  NS.db.profile.units.player.enabled = savedUnit
+  if not ok then error(err) end
 end)
 
 -- Regression: at PLAYER_REGEN_DISABLED the client fires OnEnterCombat while InCombatLockdown() is
@@ -56,16 +108,16 @@ end)
 -- combat. The gate must key off UnitAffectingCombat("player"), not the secure-lockdown flag — else
 -- the transition-time ApplyVisibility hides the bar and no later repaint ever re-shows it.
 test("ShouldShowBar: combat-only shows when lockdown lags actual combat", function()
-  local savedCombatOnly = NS.GetSetting("showOnlyInCombat")
+  local savedCombatOnly = NS.GetSetting("visibility")
   local savedICL        = T.mocks.InCombatLockdown
   local savedUAC        = T.mocks.UnitAffectingCombat
-  NS.SetSetting("showOnlyInCombat", true)
+  NS.SetSetting("visibility", "inCombat")
   T.mocks.InCombatLockdown    = function() return false end          -- lockdown not yet flipped
   T.mocks.UnitAffectingCombat = function(unit) return unit == "player" end  -- but in combat
   local ok, err = pcall(function()
     assertTrue(NS.ShouldShowBar(), "in combat with lockdown still false -> shown")
   end)
-  NS.SetSetting("showOnlyInCombat", savedCombatOnly)
+  NS.SetSetting("visibility", savedCombatOnly)
   T.mocks.InCombatLockdown    = savedICL
   T.mocks.UnitAffectingCombat = savedUAC
   if not ok then error(err) end

@@ -111,27 +111,36 @@ local function migrateAllProfiles()
     return n
 end
 
--- Delete one dead profile key from EVERY profile in the store, not just the active one. Same
--- reasoning as migrateAllProfiles: a key left behind on an inactive profile comes back the moment
--- the user switches to it. Returns how many profiles actually carried the key.
-local function dropKeyEverywhere(key)
+-- Run `fn(profile)` over EVERY profile in the store, not just the active one. Same reasoning as
+-- migrateAllProfiles: a change made only to the profile that happens to be loaded is a change an
+-- inactive profile silently undoes the moment the user switches to it. `fn` returns true when it
+-- actually changed that profile; the count of those is what a [Migrate] line may report.
+local function forEachProfile(fn)
     local n = 0
-    local function drop(p)
-        if type(p) == "table" and p[key] ~= nil then
-            p[key] = nil
-            n = n + 1
-        end
-    end
+    if fn(NS.db.profile) then n = n + 1 end
 
-    drop(NS.db.profile)
+    -- AceDB-3.0 keeps the raw name -> profile-table map at db.sv.profiles. Guarded rather than
+    -- assumed: the no-AceDB fallback (NS.db = { profile = AbsorbTrackerDB, global = {} }) has no
+    -- `sv` at all, and there the single profile handled above IS the whole store.
     local sv = NS.db.sv
     local store = (type(sv) == "table") and sv.profiles or nil
     if type(store) == "table" then
         for _, p in pairs(store) do
-            if p ~= NS.db.profile then drop(p) end
+            if p ~= NS.db.profile then
+                if fn(p) then n = n + 1 end
+            end
         end
     end
     return n
+end
+
+-- Delete one dead profile key from every profile. Returns how many actually carried it.
+local function dropKeyEverywhere(key)
+    return forEachProfile(function(p)
+        if type(p) ~= "table" or p[key] == nil then return false end
+        p[key] = nil
+        return true
+    end)
 end
 
 -- Backfill any missing FLAT profile key from the defaults. `units` is skipped: it is the per-unit
@@ -179,6 +188,28 @@ local SCHEMA_STEPS = {
         local dropped = dropKeyEverywhere("hidden")
         if dropped > 0 then
             NS.Debug("Migrate", "dropped `hidden` from %s profile(s)", dropped)
+        end
+    end },
+    { to = 5, apply = function()
+        -- v5: the `showOnlyInCombat` BOOLEAN became the `visibility` DROPDOWN (options-ui-§15).
+        -- A boolean can only ever answer two of Always / Only in combat / Only out of combat /
+        -- Never, so the row's stored TYPE changed -- and a stored-value type change takes the full
+        -- savedvariables-§1 treatment, a ladder step in the same change as the row, rather than an
+        -- edit to the defaults table. Changing the type alone would meet a stored `true` where the
+        -- panel expects one of four strings and lose a setting the player already made, silently.
+        --
+        -- The old value WINS over what the backfill above just seeded, and that ordering is the
+        -- whole point: backfillFlatKeys runs BEFORE the ladder and has already written the
+        -- "always" default into every profile that lacked the new key.
+        local mapped = forEachProfile(function(p)
+            if type(p) ~= "table" or p.showOnlyInCombat == nil then return false end
+            p.visibility = p.showOnlyInCombat and "inCombat" or "always"
+            p.showOnlyInCombat = nil
+            return true
+        end)
+        if mapped > 0 then
+            NS.Debug("Migrate", "mapped `showOnlyInCombat` onto `visibility` on %s profile(s)",
+                mapped)
         end
     end },
 }

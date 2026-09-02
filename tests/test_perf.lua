@@ -393,23 +393,33 @@ end)
 -- profile defaults with it. The addon does not degrade; it half-loads.
 --
 -- That is why settings/OptionsSetup.lua's stub is LOAD-COMPLETING rather than member-answering
--- like the other four: it must publish every member a page file touches at load time. This case is
--- what proves it does, and it is a count comparison against the fully-loaded environment rather
--- than a fixed number, so it cannot rot as pages are added.
+-- like the other four: it must publish every member a page file touches at load time. That set is
+-- SIX now -- LSMValues plus the five schema COMPOSERS, which settings/General.lua and
+-- settings/Appearance.lua call inside NS.RegisterSchemaRows. This case is what proves the stub
+-- publishes them all, and it compares against the fully-loaded environment rather than against a
+-- fixed number, so it cannot rot as pages are added.
+--
+-- The comparison is over the PATH SET, not just the count. A count alone could be reached by a
+-- different set of rows, and the stub's composers derive their paths from `prefix` and `keys` the
+-- same way the library's do -- which is exactly the arithmetic that would silently diverge if
+-- either side changed. Every stored setting a library-less session can `/at set` is in this set.
+-- red under: a stub composer that drops a leaf, honors `keys` differently, or emits nothing.
 test("perf: the schema is COMPLETE with LibKa0s absent (the pages still finish loading)", function()
   local NS2 = loadDegraded()
   assertEqual(#NS2.Schema, #NS.Schema,
     "a page file that aborts at load takes its rows with it and nothing else notices")
-  -- Named explicitly as well as counted: an equal count could in principle be reached by a
-  -- different set of rows, and the LSM-backed pages are precisely the ones at risk.
-  for _, path in ipairs({ "units.player.barTexture", "units.player.border",
-                          "units.player.font" }) do
-    local found = false
-    for _, row in ipairs(NS2.Schema) do
-      if row.path == path then found = true break end
-    end
-    assertTrue(found, path .. " is missing, so its page aborted at load")
+
+  local live = {}
+  for _, row in ipairs(NS.Schema) do live[row.path] = true end
+  for _, row in ipairs(NS2.Schema) do
+    assertTrue(live[row.path], row.path .. " exists only in the degraded schema")
+    live[row.path] = nil
   end
+  local missing = {}
+  for path in pairs(live) do missing[#missing + 1] = path end
+  table.sort(missing)
+  assertEqual(#missing, 0,
+    "paths the degraded load never registered: " .. table.concat(missing, ", "))
 end)
 
 test("perf: the addon loads with LibKa0s absent", function()

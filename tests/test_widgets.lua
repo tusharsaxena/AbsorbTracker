@@ -49,50 +49,50 @@ end)
 -- ── Checkbox ───────────────────────────────────────────────────────────────────────
 
 test("a bool row renders a CheckBox labeled from the schema", function()
-  local cb, row = render("showOnlyInCombat")
+  local cb, row = render("locked")
   assertEqual(cb.type, "CheckBox")
   assertEqual(cb.labelText, row.label)
 end)
 
 test("a checkbox reads its initial state from the current setting", function()
-  withSetting("showOnlyInCombat", true, function()
-    assertTrue(render("showOnlyInCombat").value)
+  withSetting("locked", true, function()
+    assertTrue(render("locked").value)
   end)
-  withSetting("showOnlyInCombat", false, function()
-    assertFalse(render("showOnlyInCombat").value)
+  withSetting("locked", false, function()
+    assertFalse(render("locked").value)
   end)
 end)
 
 test("clicking a checkbox writes through SetByPath", function()
-  withSetting("showOnlyInCombat", false, function()
-    local cb = render("showOnlyInCombat")
+  withSetting("locked", false, function()
+    local cb = render("locked")
     cb:__fire("OnValueChanged", true)
-    assertTrue(NS.GetSetting("showOnlyInCombat"), "the click reached the DB")
+    assertTrue(NS.GetSetting("locked"), "the click reached the DB")
     cb:__fire("OnValueChanged", false)
-    assertFalse(NS.GetSetting("showOnlyInCombat"))
+    assertFalse(NS.GetSetting("locked"))
   end)
   T.mocks.__fireTimers()
 end)
 
 test("a checkbox registers a refresher that re-reads after an external change", function()
-  withSetting("showOnlyInCombat", false, function()
-    local cb, _, ctx = render("showOnlyInCombat")
+  withSetting("locked", false, function()
+    local cb, _, ctx = render("locked")
     assertFalse(cb.value)
-    NS.SetSetting("showOnlyInCombat", true)    -- changed behind the widget's back, e.g. by /at set
+    NS.SetSetting("locked", true)    -- changed behind the widget's back, e.g. by /at set
     for _, fn in ipairs(ctx.refreshers) do fn() end
     assertTrue(cb.value, "the refresher pulled the new value in")
   end)
 end)
 
 test("every widget gets tooltip callbacks wired from the schema desc", function()
-  local cb = render("showOnlyInCombat")
+  local cb = render("locked")
   assertTrue(cb.callbacks.OnEnter ~= nil, "OnEnter shows the tooltip")
   assertTrue(cb.callbacks.OnLeave ~= nil, "OnLeave hides it")
 end)
 
 test("relativeWidth is applied when given, full width otherwise", function()
-  assertEqual(render("showOnlyInCombat", 0.5).relativeWidth, 0.5)
-  local full = render("showOnlyInCombat")
+  assertEqual(render("locked", 0.5).relativeWidth, 0.5)
+  local full = render("locked")
   assertEqual(full.relativeWidth, nil)
   assertTrue(full.fullWidth, "no relative width means the widget spans the row")
 end)
@@ -370,7 +370,7 @@ end)
 -- ── RenderField dispatch ───────────────────────────────────────────────────────────
 
 test("RenderField dispatches each schema type to its widget", function()
-  assertEqual(render("showOnlyInCombat").type, "CheckBox")
+  assertEqual(render("locked").type, "CheckBox")
   assertEqual(render("units.player.barWidth").type, "Slider")
   assertEqual(render("units.player.fontFlags").type, "Dropdown")
   assertEqual(render("units.player.barColor").type, "ColorPicker")
@@ -426,20 +426,54 @@ test("RenderSchema gives each paired widget half the row", function()
   end
 end)
 
-test("a `solo` row is rendered alone on its own line", function()
-  -- barTexture and bgTexture are solo pivots; pairing them would misread as a two-column group.
-  local ctx = newCtx()
-  Helpers.RenderSchema(ctx, "appearance")
-  local soloRow
+-- Find the Flow row that holds a widget with this label, in a rendered ctx.
+local function rowWithLabel(ctx, label)
   for _, child in ipairs(ctx.scroll.children) do
     if child.type == "SimpleGroup" and child.layout == "Flow" then
       for _, w in ipairs(child.children) do
-        if w.labelText == NS.FindSchemaRow("units.player.barTexture").label then soloRow = child end
+        if w.labelText == label then return child end
       end
     end
   end
-  assertTrue(soloRow ~= nil, "the barTexture row was found")
+end
+
+test("a `solo` row is rendered alone on its own line", function()
+  -- SYNTHETIC, and for exactly the reason the disabledIf cases above are: no shipped row asks for
+  -- `solo` any more. `barTexture` carried it only to stop the Bar tab's pairs splitting across
+  -- lines -- a parity count done by hand, which any added row would have broken silently -- and
+  -- H.BarGroup's `startsLine` does that job by construction now (settings/Appearance.lua). The
+  -- library feature is untouched, and this case is what would notice if a future row wanted it.
+  local ctx = newCtx()
+  Helpers.RenderRows(ctx, {
+    { path = "units.player.barWidth", type = "number", label = "Synthetic solo",
+      min = 1, max = 500, step = 1, solo = true },
+    { path = "units.player.barHeight", type = "number", label = "Synthetic partner",
+      min = 1, max = 100, step = 1 },
+  })
+  local soloRow = rowWithLabel(ctx, "Synthetic solo")
+  assertTrue(soloRow ~= nil, "the solo row was found")
   assertEqual(#soloRow.children, 1, "a solo row holds exactly one widget")
+end)
+
+-- `startsLine` is what replaced every hand-counted parity comment in this addon, so it is pinned
+-- directly rather than inferred from a rendered page: it flushes the PENDING line before its own
+-- row, which is what makes a declared pair unsplittable however many widgets precede it.
+-- red under: a composer that stops setting startsLine on the swatch, or an engine that ignores it.
+test("`startsLine` flushes the pending line, so a declared pair can never be split", function()
+  local ctx = newCtx()
+  Helpers.RenderRows(ctx, {
+    -- One widget, so the line is left half-full and the pair below would otherwise straddle it.
+    { path = "units.player.barWidth", type = "number", label = "Odd one out",
+      min = 1, max = 500, step = 1 },
+    { path = "units.player.barColor", type = "color", label = "Paired swatch",
+      hasAlpha = true, startsLine = true },
+    { path = "units.player.useClassColorBar", type = "bool", label = "Paired companion" },
+  })
+  local pairRow = rowWithLabel(ctx, "Paired swatch")
+  assertTrue(pairRow ~= nil, "the swatch row was found")
+  assertEqual(#pairRow.children, 2, "the swatch starts a fresh line and keeps its companion")
+  assertEqual(pairRow.children[2].labelText, "Paired companion",
+    "and the companion is the widget immediately to its right")
 end)
 
 test("RenderSchema emits a Heading for each schema group", function()
@@ -472,8 +506,8 @@ end)
 --
 -- The enable toggles USED to be interleaved with the globals one for one ([Enable Player Bar |
 -- Lock Position]). They are not any more: reading across a line is meant to compare two answers to
--- one question, and those two were answers to different ones. The three toggles now run together on
--- the Bars tab and the globals together on Behavior.
+-- one question, and those two were answers to different ones. The three toggles run together under
+-- the Bars tab's "Tracked units" heading, and the globals are on Master controls.
 test("the Bars tab pairs the enable toggles with each other, not with a global", function()
   local ctx = newCtx()
   Helpers.RenderSchema(ctx, "general")
@@ -494,10 +528,17 @@ test("the Bars tab pairs the enable toggles with each other, not with a global",
   assertEqual(row.children[2].labelText, "Enable Target Bar",
     "the enable toggles pair with each other")
 
-  local lockRow = rowContaining("Lock Position")
-  assertTrue(lockRow ~= nil, "no row rendered for Lock Position")
-  assertEqual(lockRow.children[2].labelText, "Show only in combat",
-    "the two globals pair with each other on the Behavior tab")
+  -- The canonical block pairs two per line in the order options-ui-§15 fixes, and the composer's
+  -- `startsLine` on the first row is what makes that independent of how many widgets precede it.
+  local enableRow = rowContaining("Enable Absorb Tracker")
+  assertTrue(enableRow ~= nil, "no row rendered for the addon-wide enable")
+  assertEqual(enableRow.children[2].labelText, "General visibility",
+    "Enable pairs with General visibility, as the canonical set orders them")
+
+  local lockRow = rowContaining("Lock frame")
+  assertTrue(lockRow ~= nil, "no row rendered for Lock frame")
+  assertEqual(lockRow.children[2].labelText, "Debug console",
+    "lock pairs with the debug console, which is a schema row now rather than a pairWith partner")
 end)
 
 test("every tracked unit gets an enable toggle on the General page", function()
@@ -521,11 +562,14 @@ end)
 -- Both are "the guard answers a question about the wrong thing" bugs: one asked about the player
 -- bar and gated all three, the other asked nothing at all and reported success regardless.
 
-test("showOnlyInCombat repaints for a target-only setup, not just for the player", function()
+test("visibility repaints for a target-only setup, not just for the player", function()
   -- NS.ShouldShowBar() with no argument answers for "player" and returns false the moment the
-  -- player bar is disabled. Toggling this row with only the target bar enabled therefore published
+  -- player bar is disabled. Changing this row with only the target bar enabled therefore published
   -- VISIBILITY (the bar appeared) and skipped the REPAINT that fills it.
-  local row = NS.FindSchemaRow("showOnlyInCombat")
+  --
+  -- The row is the composed `visibility` dropdown now rather than the `showOnlyInCombat` boolean it
+  -- replaced (schema v5); the guard it carries is settings/General.lua's and moved with it.
+  local row = NS.FindSchemaRow("visibility")
   local saved = {}
   for _, unit in ipairs(NS.Units.LIST) do
     saved[unit] = NS.db.profile.units[unit].enabled
@@ -573,43 +617,39 @@ test("the Reset All popup does not claim success when the settings helpers are a
 end)
 
 test("a pairWith partner is attached to the named row and is one-shot", function()
-  -- `throttleWindow` is the production pairing site: the session-only "Debug console" checkbox
-  -- rides beside Update throttle as the right half of its row (settings/General.lua). pairWith
-  -- declines to fire unless its host is ALONE on its line, and `throttleWindow` is `solo`, which
-  -- guarantees that by construction. The old host, `units.focus.enabled`, qualified only because
-  -- the five rows above it happened to pair off as 2 + 2 + 1 — an accident any added row would
-  -- have broken silently, and the reason the pairing moved.
-  assertEqual(NS.FindSchemaRow("throttleWindow").solo, true, "the host row must be solo")
+  -- SYNTHETIC, like the `solo` case above, and for the same reason: this addon has no production
+  -- pairing site any more. `throttleWindow` was one -- the bespoke session-only "Debug console"
+  -- checkbox rode beside it -- and options-ui-§15 moved that toggle onto the Master controls tab
+  -- as an ordinary schema row, which is what a CLI verb can also see. pairWith itself is untouched
+  -- and is still the seam a bespoke partner would use, so it stays pinned here.
+  --
+  -- The host must be ALONE on its line for pairWith to fire, which `solo` guarantees by
+  -- construction rather than by the row count above it happening to be odd.
+  local HOST = { path = "units.player.barWidth", type = "number", label = "Synthetic host",
+                 min = 1, max = 500, step = 1, solo = true }
+  local rows = { HOST }
   local ctx = newCtx()
   local made = 0
   local partner = {
-    ["throttleWindow"] = function(_ctxRef, rowGroup)
+    ["units.player.barWidth"] = function(_ctxRef, rowGroup)
       made = made + 1
       rowGroup:AddChild(AceGUI:Create("CheckBox"))
     end,
   }
-  Helpers.RenderSchema(ctx, "general", nil, partner)
+  Helpers.RenderRows(ctx, rows, nil, partner)
   assertEqual(made, 1, "the partner was built once")
   -- One-shot is per RENDER, and the bookkeeping is the library's: LibKa0s-Options-1.0 used to
   -- implement it by writing nil into THIS table, which silently lost the pairing on any second
   -- render -- what a per-unit page does on every unit switch. The caller's table is now left
   -- alone, so a host may hoist it to a file-level constant.
-  assertTrue(partner["throttleWindow"] ~= nil, "the caller's table is not written to")
+  assertTrue(partner["units.player.barWidth"] ~= nil, "the caller's table is not written to")
   local ctx2 = newCtx()
-  Helpers.RenderSchema(ctx2, "general", nil, partner)
+  Helpers.RenderRows(ctx2, rows, nil, partner)
   assertEqual(made, 2, "and a second render pairs it again rather than dropping it")
 
   -- It must land as the SECOND widget of that row, not on a line of its own.
-  local hostLabel = NS.FindSchemaRow("throttleWindow").label
-  local row
-  for _, child in ipairs(ctx.scroll.children) do
-    if child.type == "SimpleGroup" and child.layout == "Flow" then
-      for _, w in ipairs(child.children) do
-        if w.labelText == hostLabel then row = child end
-      end
-    end
-  end
-  assertTrue(row ~= nil, "the Update throttle row was found")
+  local row = rowWithLabel(ctx, HOST.label)
+  assertTrue(row ~= nil, "the host row was found")
   assertEqual(#row.children, 2, "the pair stays 50/50 and never overflows to three-wide")
 end)
 
@@ -675,9 +715,9 @@ end)
 
 test("a second OnShow rebuilds the panel body without stacking duplicate widgets", function()
   -- The Appearance page has no `rendered` one-shot guard, because RenderUnitPanel must re-render
-  -- on every OnShow so the Unit banner, the mirror header and the tab strip reflect ctx.unit. That
-  -- is only safe because Helpers.ClearScroll releases the old widgets first — so a second OnShow
-  -- must land back at the SAME child count, not a second full set stacked on top of the first.
+  -- on every OnShow so the chrome block and the tab strip reflect ctx.unit. That is only safe
+  -- because Helpers.ClearScroll releases the old widgets first — so a second OnShow must land back
+  -- at the SAME child count, not a second full set stacked on top of the first.
   -- The Defaults button is unaffected: EnsureDefaultsButton still only builds it once.
   local panel = T.mocks.__subcategories["Appearance"]
   panel:__fire("OnShow")               -- first show: builds
@@ -712,7 +752,7 @@ local function tabButtons(ctx)
   return out
 end
 
-test("the General page draws its two groups as a tab strip, Bars first", function()
+test("the General page draws its two groups as a tab strip, Master controls first", function()
   -- options-ui-§13 adoption, on the page a player opens first. The mock records nothing about a
   -- Button's text, so the tabs are identified by POSITION and by which one is disabled -- makeTab
   -- disables exactly the active tab, which is how Blizzard's own tab groups mark selection.
@@ -723,7 +763,8 @@ test("the General page draws its two groups as a tab strip, Bars first", functio
 
   local tabs = tabButtons(ctx)
   assertEqual(#tabs, 2, "two groups, two tabs")
-  assertEqual(ctx.activeTab, "Bars", "the page opens on Bars, not blank and not Behavior")
+  assertEqual(ctx.activeTab, "Master controls",
+    "options-ui-§15: the General page opens on Master controls, and it is the FIRST tab")
   assertFalse(tabs[1].__enabled, "the first tab is the selected one")
   assertTrue(tabs[2].__enabled, "and the second is clickable")
   assertTrue(ctx.chromeHeight > 0, "the strip reserves a band, so the first row clears it")
@@ -736,8 +777,8 @@ test("the General page draws its two groups as a tab strip, Bars first", functio
     end
   end
   walk(ctx.scroll)
-  assertTrue(labels["Enable Player Bar"], "the Bars tab shows its own rows")
-  assertTrue(not labels["Lock Position"], "and not the other tab's")
+  assertTrue(labels["Enable Absorb Tracker"], "the Master controls tab shows its own rows")
+  assertTrue(not labels["Enable Player Bar"], "and not the other tab's")
 
   -- No section headings: a `group` is the tab now, and RenderTabbedSchema passes `noHeadings`
   -- down. A Heading under a strip means the page silently fell back to RenderSchema.
@@ -746,12 +787,12 @@ test("the General page draws its two groups as a tab strip, Bars first", functio
   end
 end)
 
-test("clicking Behavior swaps the rows and leaves the button pair on Bars", function()
+test("clicking Bars swaps the rows and leaves the button pair on Master controls", function()
   local panel = T.mocks.__subcategories["General"]
   panel:__fire("OnShow")
   local ctx = renderedCtx("general")
   tabButtons(ctx)[2]:__fire("OnClick")
-  assertEqual(ctx.activeTab, "Behavior")
+  assertEqual(ctx.activeTab, "Bars")
 
   local labels = {}
   local function walk(w)
@@ -761,16 +802,18 @@ test("clicking Behavior swaps the rows and leaves the button pair on Bars", func
     end
   end
   walk(ctx.scroll)
-  assertTrue(labels["Lock Position"] and labels["Update throttle (in sec)"],
-    "the Behavior tab's rows are on screen")
-  assertTrue(not labels["Enable Player Bar"],
+  assertTrue(labels["Enable Player Bar"] and labels["Update throttle (in sec)"],
+    "the Bars tab's rows are on screen")
+  assertTrue(not labels["Enable Absorb Tracker"],
     "and the tab it came from is gone, not stacked above it")
 
-  -- The afterGroup button pair is keyed to "Bars", so it must NOT follow the reader here.
+  -- The afterGroup button pair is keyed to "Master controls", so it must NOT follow the reader
+  -- here. That key is the GROUP NAME, which is why settings/General.lua reads H.MASTER_GROUP
+  -- rather than spelling the literal a second time.
   local sawResetButton = false
   local function walkButtons(w)
     for _, child in ipairs(w.children or {}) do
-      if child.type == "Button" and child.text == "Reset Position" then sawResetButton = true end
+      if child.type == "Button" and child.text == "Reset position" then sawResetButton = true end
       walkButtons(child)
     end
   end
@@ -778,7 +821,7 @@ test("clicking Behavior swaps the rows and leaves the button pair on Bars", func
   assertFalse(sawResetButton, "afterGroup fires for the ACTIVE group only")
 
   tabButtons(ctx)[1]:__fire("OnClick")   -- leave the page as the rest of the suite found it
-  assertEqual(ctx.activeTab, "Bars")
+  assertEqual(ctx.activeTab, "Master controls")
 end)
 
 test("showing every page builds it without error", function()

@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-525%2F525_passing-green)
+![Tests](https://img.shields.io/badge/Tests-542%2F542_passing-green)
 
 ![Logo](https://media.forgecdn.net/attachments/1659/653/absorbracker-logo-v2-jpg.jpg)
 
@@ -52,7 +52,7 @@ chat with a cyan `[AT]` tag.
 | `/at config` | Open the settings panel |
 | `/at list` | Show every setting and its current value (Appearance settings list once per bar — Player/Target/Focus) |
 | `/at get name` | Show one setting's value. Appearance settings need the full path, e.g. `/at get units.player.barWidth` |
-| `/at set name value` | Change one setting. Examples: `/at set units.player.barWidth 250`, `/at set units.target.useClassColorBar true`, `/at set showOnlyInCombat true` |
+| `/at set name value` | Change one setting. Examples: `/at set units.player.barWidth 250`, `/at set units.target.useClassColorBar true`, `/at set visibility inCombat` |
 | `/at reset path` | Reset one setting to its default — e.g. `/at reset units.player.barWidth`. To reset a whole page across all three bars, use that page's **Defaults** button in the settings panel |
 | `/at resetall` | Reset every setting and move every bar back to center |
 | `/at resetposition` | Move every bar back to its default screen position |
@@ -65,7 +65,7 @@ chat with a cyan `[AT]` tag.
 | `/at perf` | Measure what the addon costs your CPU — run it on its own and it prints the workflow |
 | `/at profile subcommand` | Manage profiles: `list`, `current`, `use name`, `new name`, `copy name`, `delete name`, `reset` |
 
-Global settings (`showOnlyInCombat`, `locked`, `throttleWindow`) use their plain name — `/at set locked true`. Only the per-bar appearance settings on the Appearance pages need the `units.player|target|focus.` prefix.
+Global settings (`enabled`, `visibility`, `scale`, `alpha`, `locked`, `throttleWindow`) use their plain name — `/at set locked true`. Only the per-bar appearance settings on the Appearance page need the `units.player|target|focus.` prefix.
 
 ### Settings panel
 
@@ -73,9 +73,13 @@ Three pages under **Ka0s Absorb Tracker**, each with a row of tabs across the to
 
 | Page | Tabs | Covers |
 |------|------|--------|
-| General | **Bars**, **Behavior** | *Bars*: turn each bar on or off (Player / Target / Focus), plus buttons to reset the position or all settings. *Behavior*: lock the bars, show them only in combat, the repaint throttle (how fast the bars may redraw during a burst of changes), and a show/hide toggle for the debug console. |
-| Appearance | **Size**, **Bar**, **Background**, **Border**, **Text** | A **Unit** picker at the top of the page chooses which bar you are styling — Player, Target or Focus — and every tab below applies to that one. *Size*: width and height. *Bar*: fill texture, color, and the whole bar's opacity. *Background*: texture and color behind the fill. *Border*: style, thickness, color. *Text*: font face, size, color and outline for the absorb amount. |
+| General | **Master controls**, **Bars** | *Master controls*: turn the whole addon off, choose when it shows at all (always / only in combat / only out of combat / never), scale and fade every bar together, lock them, show the debug console, and the two reset buttons. *Bars*: turn each bar on or off (Player / Target / Focus), and the repaint throttle — how fast the bars may redraw during a burst of changes. |
+| Appearance | **Size**, **Bar**, **Background**, **Border**, **Text** | A **Unit** picker at the top of the page chooses which bar you are styling — Player, Target or Focus — and every tab below applies to that one. *Size*: width and height. *Bar*: fill texture, opacity, color. *Background*: texture and color behind the fill. *Border*: style, thickness, color. *Text*: font, size, color, flags and shadow for the absorb amount. |
 | Profiles | — | Save different setups and switch between them. |
+
+**Master scale and Master alpha are addon-wide.** They scale and fade all three bars together, and
+they are a different setting from the per-bar **Bar opacity** on the Appearance page — that one dims
+a single bar. The two multiply, so a bar at 50% opacity under a master alpha of 50% draws at 25%.
 
 The Unit picker sits **once**, above the tabs, so switching from styling the Player bar to styling the Target bar is one click and every tab follows it.
 
@@ -85,13 +89,18 @@ The Unit picker sits **once**, above the tabs, so switching from styling the Pla
 
 To move a bar, type `/at unlock`, drag it into place, then `/at lock` to fix it there. Each bar remembers its own position.
 
-**Class colors.** The bar fill, background, and border can each follow your class color instead of a
-fixed color — as can the absorb number itself. Turn on the matching **Use Class Color** toggle on the
-**Bar**, **Background**, **Border** or **Text** tab (this follows *your* class regardless of which
-unit's bar you're styling — Target/Focus don't get their own class colors). The color picker beside
-it stays usable either way, so you can set the color you want to fall back to before or after you
-flip the toggle, in one visit. The opacity you set on that picker applies under both — a class color
-carries a hue, not a transparency.
+**Class colors.** The bar fill, background, and border can each follow a class color instead of a
+fixed color — as can the absorb number itself. Turn on the matching **Use class color** toggle on the
+**Bar**, **Background**, **Border** or **Text** tab.
+
+**Which class it follows changed in this version.** It is now the class of the bar's own unit: the
+Player bar follows yours, the Target bar follows your target's, the Focus bar follows your focus's.
+It used to be your own class on all three. A unit whose class the game cannot name — an NPC, a
+critter, an empty target — falls back to the color you picked, never to a substitute shade.
+
+The color picker beside the toggle stays usable either way, so you can set the color you want to fall
+back to before or after you flip the toggle, in one visit. The opacity you set on that picker applies
+under both — a class color carries a hue, not a transparency.
 
 ## How the bar works
 
@@ -133,7 +142,7 @@ or focus and its bar disappears until you have one again.
 | The bar(s) disappear when I leave combat | You have **Show only in combat** turned on. Turn it off on the General settings page. |
 | `/at test` does nothing | A bar has to be enabled to preview a test value on it. If every bar is off, run `/at toggle` (or tick an **Enable ... Bar** box) first, then try `/at test` again. |
 | A bar won't stay where I put it | Lock it after positioning: `/at lock`, or turn on **Lock Position** on the General page. Unlock again whenever you want to drag it. |
-| My class color isn't showing | The bar has to be visible and have an active shield for the color to appear. Check that the matching **Use Class Color** toggle is on. When it's on the color picker grays out — that's normal. |
+| My class color isn't showing | The bar has to be visible and have an active shield for the color to appear. Check that the matching **Use class color** toggle is on. Remember it follows the *bar's own unit* — a Target bar takes your target's class, and falls back to your picked color when there is no target to read one from. |
 | Custom textures or fonts aren't in the dropdowns | Install a media pack addon (one that includes SharedMedia). Without one you still get WoW's built-in options plus the shared Ka0s textures and fonts the bundled library registers (JetBrains Mono, the face the debug console prints in, is one of them) — but nothing beyond those. |
 | A bar's position resets after I log out | WoW only saves your settings on a clean logout. A crash or a force-quit can drop the last position. Log out through the menu and it will stick. |
 | I want detailed logs | `/at debug` toggles a log window; `/at debug on` starts logging there instead of in chat. You can also open it from the **Debug console** checkbox on the General page. It resets to off every time you reload. |

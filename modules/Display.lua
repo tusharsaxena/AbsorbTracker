@@ -173,10 +173,28 @@ function NS.UpdateBarAppearance(unit)
     -- profile switch and a `/at set` land the same way.
     valueText:SetTextColor(NS.GetFontColor(unit))
 
-    -- The frame's overall opacity. Applied in the appearance pass as well as at the two paint
-    -- sites, because a restyle that did not touch it would leave the bar at whatever alpha the last
-    -- paint chose until the next absorb event.
+    -- Font shadow, the sixth row of the canonical font block (options-ui-§16). BOTH arms are
+    -- written: a setting that is declared and not honored is worse than one that is absent, and an
+    -- OFF arm that merely skipped the call would leave whatever the last pass set, so turning the
+    -- shadow back off would do nothing until a /reload.
+    if NS.Units.Get(unit, "fontShadow") then
+        valueText:SetShadowColor(0, 0, 0, 1)
+        valueText:SetShadowOffset(1, -1)
+    else
+        valueText:SetShadowColor(0, 0, 0, 0)
+        valueText:SetShadowOffset(0, 0)
+    end
+
+    -- The frame's overall opacity -- the unit's own value times the addon-wide Master alpha
+    -- (options-ui-§15), both resolved by NS.GetBarAlpha. Applied in the appearance pass as well as
+    -- at the two paint sites, because a restyle that did not touch it would leave the bar at
+    -- whatever alpha the last paint chose until the next absorb event.
     bar:SetAlpha(NS.GetBarAlpha(unit))
+
+    -- The addon-wide Master scale (options-ui-§15). Applied here rather than once at CreateBar
+    -- because it IS a setting: a restyle has to re-apply it, or a change would not land until the
+    -- next /reload. It scales the whole frame, so the unit label and the value text ride with it.
+    bar:SetScale(NS.GetMasterScale())
 
     -- `locked` is global: all three bars lock together.
     local locked = NS.GetSetting("locked")
@@ -210,24 +228,42 @@ function NS.UpdateBarAppearance(unit)
     end
 end
 
+-- The `visibility` dropdown's own gate (options-ui-§15). Four states, where there used to be a
+-- `showOnlyInCombat` boolean that could only ever answer two of them; the v5 migration
+-- (core/Database.lua) carries an existing install across.
+--
+-- The combat test keys off UnitAffectingCombat("player"), NOT InCombatLockdown(). At
+-- PLAYER_REGEN_DISABLED the client fires the event while InCombatLockdown() is still false —
+-- secure-frame lockdown lags actual combat by a fraction of a second — so gating on lockdown hid
+-- the bar exactly when it should appear. See docs/midnight-quirks.md.
+--
+-- An unrecognized value reads as "always", which is the honest answer for a hand-edited
+-- SavedVariable: the alternative is a hidden addon with no visible cause.
+local function visibilityAllows()
+    local mode = NS.GetSetting("visibility")
+    if mode == "never" then return false end
+    if mode == "inCombat" then return not not UnitAffectingCombat("player") end
+    if mode == "outOfCombat" then return not UnitAffectingCombat("player") end
+    return true
+end
+
 -- Effective bar visibility, composed in order — the first false wins:
 --   0. the perf probe's suspend switch
---   1. the per-unit `enabled` flag
---   2. the global `showOnlyInCombat` gate
---   3. for target/focus only, whether the unit exists
+--   1. the addon-wide `enabled` flag
+--   2. the per-unit `enabled` flag
+--   3. the `visibility` dropdown
+--   4. for target/focus only, whether the unit exists
 --
 -- Step 0 is what makes `/at debug perf suspend` airtight. Suspend could have hidden the bars
 -- imperatively, but then any later VISIBILITY publish — a combat transition, a target swap, a
 -- settings edit — would quietly re-show them mid-measurement and corrupt the capture. Gating at
 -- the source means suspend only has to publish VISIBILITY once and nothing can undo it.
 --
--- There is no master `hidden` toggle above these any more (dropped in schema v4): `enabled` is the
--- visibility switch, and `/at toggle` flips all three at once rather than a separate global.
---
--- The combat gate keys off UnitAffectingCombat("player"), NOT InCombatLockdown(). At
--- PLAYER_REGEN_DISABLED the client fires the event while InCombatLockdown() is still false —
--- secure-frame lockdown lags actual combat by a fraction of a second — so gating on lockdown hid
--- the bar exactly when it should appear. See docs/midnight-quirks.md.
+-- Steps 1 and 2 are DIFFERENT settings and options-ui-§15 forbids conflating them: `enabled` is
+-- the addon-wide switch on the Master controls tab ("turn this off without unloading it"), and the
+-- three per-unit flags are which bars exist. This is not the pre-v4 `hidden` global coming back —
+-- that key was dropped because nothing in the UI could clear it, which is exactly what made it a
+-- defect and exactly what a Master controls row is not.
 --
 -- Step 4 uses UnitExists and nothing else. "Hide when the unit has no absorb" is NOT
 -- implementable: UnitGetTotalAbsorbs returns a secret in restricted content and comparing it to
@@ -235,8 +271,9 @@ end
 function NS.ShouldShowBar(unit)
     unit = unit or "player"
     if Perf.suspended then return false end
+    if not NS.GetSetting("enabled") then return false end
     if not NS.Units.IsEnabled(unit) then return false end
-    if NS.GetSetting("showOnlyInCombat") and not UnitAffectingCombat("player") then return false end
+    if not visibilityAllows() then return false end
     if unit ~= "player" and not UnitExists(unit) then return false end
     return true
 end
@@ -247,9 +284,10 @@ end
 -- Mirrors the ladder's order exactly — if a rung is added there, add it here.
 local function visibilityReason(unit)
     if Perf.suspended then return "perf suspended" end
+    if not NS.GetSetting("enabled") then return "addon disabled" end
     if not NS.Units.IsEnabled(unit) then return "unit disabled" end
-    if NS.GetSetting("showOnlyInCombat") and not UnitAffectingCombat("player") then
-        return "showOnlyInCombat"
+    if not visibilityAllows() then
+        return "visibility=" .. NS.SafeToString(NS.GetSetting("visibility"))
     end
     if unit ~= "player" and not UnitExists(unit) then return "no unit" end
     return "always"

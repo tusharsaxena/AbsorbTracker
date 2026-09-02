@@ -82,15 +82,17 @@ test("parity: the Options stub carries every helper the degraded build can reach
     "ROW_VSPACER", "SECTION_HEADING_H", "BUTTON_PAIR_REL", "PADDING_X",
     -- The chrome band's three scalars, new at LibKa0s v1.23.0 (options-ui-§13/§14) and exactly the
     -- same class as the four above: they are lib.LAYOUT's numbers, published so a host that draws
-    -- its OWN chrome can measure where the library's band ends. This addon draws none --
-    --   grep -rn "CHROME_GAP\|TAB_H\|BANNER_H" core modules settings   returns nothing --
-    -- so a stub copy of 8 / 37 / 44 would be three more numbers with no reader and one re-vendor
-    -- to go stale. tests/test_optionssetup.lua pins their absence beside the other three.
+    -- its OWN chrome can measure where the library's band ends. This addon draws one --
+    --   grep -rn "CHROME_GAP\|TAB_H\|BANNER_H" core modules settings
+    -- names settings/UnitPanel.lua's BANNER_H alone, which sizes the block it hands PageHeader --
+    -- and it reads it from inside a render the degraded build never reaches. So a stub copy of
+    -- 8 / 37 / 44 would still be three numbers with no reader and one re-vendor to go stale.
+    -- tests/test_optionssetup.lua pins their absence beside the other three.
     "CHROME_GAP", "TAB_H", "BANNER_H",
     -- The chrome band's PRIVATE arithmetic, published on the instance under a `__` prefix so the
     -- library's own suite can test it without a live frame. No host calls any of them (the same
     -- rule `__pages` below is exempted under: a stub member with no caller is a copy waiting to go
-    -- stale), and the four members that DO drive the band -- PageBanner, TabStrip,
+    -- stale), and the four members that DO drive the band -- PageHeader, TabStrip,
     -- RenderTabbedSchema, SetChromeHeight -- are in the stub, which is what the degraded build
     -- can actually reach.
     "__bannerBand", "__layoutTabs", "__releaseChrome", "__scrollTopInset", "__tabBand",
@@ -114,6 +116,27 @@ test("parity: the Options stub carries every helper the degraded build can reach
     -- A test seam settings/UnitPanel.lua:60 stamps on the table as it RENDERS a unit panel. The
     -- degraded build renders none, so the key is absent for the same reason AceGUI is.
     "__lastUnitCtx",
+    -- New at LibKa0s v1.24.0 (OptionsWidgets 13 / OptionsCompose 1), and exempt under the rule the
+    -- RefreshPanel entry above already states: a stub member with no caller is a copy waiting to go
+    -- stale. The five COMPOSERS this addon does call are in the stub, because they must be for the
+    -- page files to finish loading; these are the members it does not call.
+    --
+    --   * The published CONSTANTS. `grep -rn "FONT_FLAGS\|VISIBILITY_\|CLASS_COLOR_NOTE" core
+    --     modules settings` returns nothing: the composers stamp those values onto the rows they
+    --     emit, so nothing outside the library ever reads the tables themselves. A stub copy would
+    --     be the same class of thing as a stub copy of lib.LAYOUT's numbers, one layer up.
+    "CLASS_COLOR_NOTE", "FONT_FLAGS", "FONT_FLAGS_SORT", "VISIBILITY_SORT", "VISIBILITY_VALUES",
+    --   * The banner and the secondary strip. The Appearance page's one chrome block is a
+    --     PageHeader (settings/UnitPanel.lua) -- options-ui-§14 allows a page ONE block, and this
+    --     one carries the Unit picker AND the two page-wide mirror controls, so the picker is built
+    --     inside it and PageBanner is never called. No tab of the five holds a list of like
+    --     subjects that would earn a sub-strip, and `__releaseSubTabs` is SubTabStrip's own ledger
+    --     and has no host caller by construction.
+    "PageBanner", "SubTabStrip", "__releaseSubTabs",
+    --   * The strip's measured row pitch and its reset, published for the library's own suite
+    --     exactly as the six `__` chrome members above are. A live session cannot need the reset,
+    --     and this addon measures no chrome of its own.
+    "__resetTabArtHeight", "__tabArtHeight",
   })
 end)
 

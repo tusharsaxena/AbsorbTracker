@@ -265,6 +265,69 @@ test("barAlpha reaches all three paint sites, not just the appearance pass", fun
   end)
 end)
 
+-- ── the rows the composers added, and the drawing code that honors them ────────────
+--
+-- A setting that is declared and not honored is worse than one that is absent: the panel promises
+-- something the addon never does, and nothing in a schema test can tell the two apart. These are
+-- the three rows this adoption ADDED, each pinned against the call that applies it.
+
+test("fontShadow reaches the absorb amount, and turning it off CLEARS the shadow", function()
+  -- The sixth row of the canonical font block (options-ui-§16), new to this addon. Both arms
+  -- matter: an OFF arm that merely skipped the call would leave whatever the last pass set, so
+  -- turning the shadow back off would do nothing until a /reload.
+  -- red under: dropping either arm, or writing only SetShadowColor and not the offset.
+  withUnitSetting("player", "fontShadow", true, function()
+    local color = record(NS.valueText, "SetShadowColor", NS.UpdateBarAppearance)
+    assertEqual(#color, 1, "the shadow color is set on every appearance pass")
+    assertTrue(color[1][4] > 0, "shadow on means a visible shadow alpha")
+    local offset = record(NS.valueText, "SetShadowOffset", NS.UpdateBarAppearance)
+    assertEqual(#offset, 1)
+    assertTrue(offset[1][1] ~= 0 or offset[1][2] ~= 0, "shadow on means a non-zero offset")
+  end)
+  withUnitSetting("player", "fontShadow", false, function()
+    local color = record(NS.valueText, "SetShadowColor", NS.UpdateBarAppearance)
+    assertEqual(#color, 1, "the OFF arm still writes, rather than leaving the last pass's shadow")
+    assertEqual(color[1][4], 0, "shadow off means a transparent shadow")
+    local offset = record(NS.valueText, "SetShadowOffset", NS.UpdateBarAppearance)
+    assertEqual(offset[1][1], 0)
+    assertEqual(offset[1][2], 0)
+  end)
+end)
+
+test("Master scale is applied to the frame on every appearance pass", function()
+  -- options-ui-§15's addon-wide scale. Applied in the appearance pass rather than once at
+  -- CreateBar, because it IS a setting: a restyle has to re-apply it or a change would not land
+  -- until the next /reload.
+  -- red under: a SetScale moved into modules/Bar.lua's constructor, or dropped entirely.
+  withSetting("scale", 1.35, function()
+    local calls = record(NS.bars.player, "SetScale", function() NS.UpdateBarAppearance("player") end)
+    assertEqual(#calls, 1, "exactly one scale write per pass")
+    assertTrue(math.abs(calls[1][1] - 1.35) < 1e-6, "the frame took the addon-wide scale")
+  end)
+end)
+
+test("Master alpha MULTIPLIES the per-unit barAlpha rather than replacing it", function()
+  -- The two are different settings and options-ui-§15 forbids conflating them: one dims all three
+  -- bars, the other dims one. NS.GetBarAlpha composes them, so every paint site gets the product
+  -- without any of them knowing there are two numbers.
+  -- red under: a master alpha that overwrites the per-unit value, or one read at only one of the
+  -- three paint sites.
+  withUnitSetting("player", "barAlpha", 0.5, function()
+    withSetting("alpha", 0.5, function()
+      assertTrue(math.abs(NS.GetBarAlpha("player") - 0.25) < 1e-6,
+        "0.5 of the bar's own 0.5 is 0.25, not 0.5")
+      local calls = record(NS.bars.player, "SetAlpha",
+        function() NS.UpdateAbsorbBar("player") end)
+      assertEqual(#calls, 1)
+      assertTrue(math.abs(calls[1][1] - 0.25) < 1e-6, "the repaint site takes the product too")
+    end)
+    withSetting("alpha", 1, function()
+      assertTrue(math.abs(NS.GetBarAlpha("player") - 0.5) < 1e-6,
+        "a master alpha of 1 leaves the per-unit value exactly where it was")
+    end)
+  end)
+end)
+
 -- ── preview mode ───────────────────────────────────────────────────────────────────
 -- Two previews: the unlocked placeholder fill, and the timed `/at test` hold. Both must END —
 -- the placeholder when the bars are re-locked, the hold when its announced duration expires.
@@ -574,9 +637,12 @@ test("the player bar never consults UnitExists", function()
   end)
 end)
 
-test("showOnlyInCombat gates every bar on PLAYER combat", function()
+test("visibility=inCombat gates every bar on PLAYER combat", function()
+  -- The gate is the addon-wide `visibility` dropdown (schema v5, options-ui-§15), and it keys off
+  -- the PLAYER's combat state for every bar -- a target bar hidden because the TARGET is out of
+  -- combat would flicker on every pull.
   withUnitSetting("player", "enabled", true, function()
-    withSetting("showOnlyInCombat", true, function()
+    withSetting("visibility", "inCombat", function()
       withUnitFlag("target", "enabled", true, function()
         T.mocks.__unitExists.target = true
         local savedCombat = T.mocks.UnitAffectingCombat

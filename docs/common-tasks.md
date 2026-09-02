@@ -4,7 +4,7 @@ Recipes for the routine modifications. For deeper context on any module, see [mo
 
 ## Add a new setting (General page — a flat, unit-agnostic global)
 
-This recipe is for a **flat** setting like `locked` / `showOnlyInCombat` / `throttleWindow` — one that governs all three bars at once and belongs on the General page. For a Appearance appearance setting that should exist per unit, see [Add a per-unit setting](#add-a-per-unit-setting) below instead.
+This recipe is for a **flat** setting like `locked` / `visibility` / `throttleWindow` — one that governs all three bars at once and belongs on the General page. Note the one thing it is **not** for: the eight rows of the **Master controls** tab are options-ui-§15's canonical set, emitted by `H.MasterControls`, and that set may not be reordered, renamed or added to. For a Appearance appearance setting that should exist per unit, see [Add a per-unit setting](#add-a-per-unit-setting) below instead.
 
 The schema-driven design makes a flat setting a one-row change. The widget on the General sub-page AND the `/at set <path>` CLI come for free.
 
@@ -13,7 +13,7 @@ The schema-driven design makes a flat setting a one-row change. The widget on th
    ```lua
    -- defaults/Profile.lua
    NS.defaults.profile = {
-       -- ... locked, showOnlyInCombat, throttleWindow ...
+       -- ... enabled, visibility, scale, alpha, locked, throttleWindow ...
        myNewKnob = 42,
        units = { ... },
    }
@@ -52,7 +52,7 @@ See [schema.md](./schema.md) for the full row grammar (knobs like `disabledIf`, 
 
 ## Add a per-unit setting
 
-Appearance settings are per-unit (player/target/focus) rather than a single flat schema row. Use this recipe instead of "Add a new setting" above when the new knob is a bar-appearance value that should exist for all three units (and mirror the same way the existing eighteen do). Add its key to `NS.Units.APPEARANCE_KEYS` too — `tests/test_units.lua` fails if you forget, which is the point: a key missing from that list renders and stores fine and is silently left out of the mirror.
+Appearance settings are per-unit (player/target/focus) rather than a single flat schema row. Use this recipe instead of "Add a new setting" above when the new knob is a bar-appearance value that should exist for all three units (and mirror the same way the existing nineteen do). If the knob belongs to a **font**, **border** or **bar** block, it is not a hand-written row at all: options-ui-§16 fixes those row sets and the composers emit them, so an addition goes in the composer's `spec.extra` — appended **after** the mandated rows, never interleaved. Add its key to `NS.Units.APPEARANCE_KEYS` too — `tests/test_units.lua` fails if you forget, which is the point: a key missing from that list renders and stores fine and is silently left out of the mirror.
 
 1. **Add the key to `defaults/Profile.lua`'s `appearance()` factory** (not `NS.defaults.profile` directly — `appearance()` is called once per unit so no table gets shared across units):
 
@@ -96,7 +96,7 @@ Appearance settings are per-unit (player/target/focus) rather than a single flat
    },
    ```
 
-That's it. `NS.Units.Get(unit, "myNewKnob")` reads it mirror-resolved; `/at set units.target.myNewKnob 10` and `/at get units.focus.myNewKnob` work immediately; `/at reset units.target.myNewKnob` resets that one unit's copy, and the Appearance page's Defaults button resets it across all three; `Helpers.RenderUnitPanel` renders it on the tab its `group` names, for whichever unit the Unit banner has selected, and hides it while that unit mirrors the player. If the new key is a count in `docs/schema.md`'s page → tab table, update that and the matching case in `tests/test_schema.lua`.
+That's it. `NS.Units.Get(unit, "myNewKnob")` reads it mirror-resolved; `/at set units.target.myNewKnob 10` and `/at get units.focus.myNewKnob` work immediately; `/at reset units.target.myNewKnob` resets that one unit's copy, and the Appearance page's Defaults button resets it across all three; `Helpers.RenderUnitPanel` renders it on the tab its `group` names, for whichever unit the Unit picker has selected, and hides it while that unit mirrors the player. If the new key is a count in `docs/schema.md`'s page → tab table, update that and the matching case in `tests/test_schema.lua`.
 
 `NS.ValidateSchema` will warn in chat if the path (`units.<unit>.myNewKnob`) doesn't resolve against `NS.defaults.profile` — a cheap guard against forgetting step 1 or getting the factory vs. `NS.defaults.profile` distinction backwards.
 
@@ -230,7 +230,7 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 | `tests/test_debuglog.lua` | This addon's side of the debug console: `FONT_MONO` resolving through the Media seam, the descriptor's `addonName` (the folder name, which is not the frame name), the descriptor's flag seam (`NS.State.debug`, with no second copy inside the library), `NS.Debug` reaching the shared buffer, the window title, the three `/at debug` forms, and the `[Init]` summary. The console itself — formatters, buffer cap, enable seam, window, checkbox contract — is `LibKa0s-DebugLog-1.0` and is tested in the LibKa0s repo |
 | `tests/test_slash.lua` | `NS.COMMANDS` dispatch through `LibKa0s-Slash-1.0`: the help index, the unknown-verb path, `/at version`, the schema verbs' wiring (`get`/`set`/`list`, the mandated color scheme, path case preserved, out-of-range clamping), the `/at options` alias, and the `/at config` combat gate. The dispatch algorithm, the formatters and the parser are the library's and are tested in the LibKa0s repo |
 | `tests/test_timer.lua` | `NS.RequestRepaint` coalescing + `throttleWindow` delay, event-handler repaint wiring |
-| `tests/test_visibility.lua` | `NS.ShouldShowBar` / `NS.ApplyVisibility` four-step ladder (per-unit `enabled` / `showOnlyInCombat` / target-focus `UnitExists`), `OnEnterCombat` + `OnLeaveCombat` + `OnUnitSwap` visibility+repaint, and the options-ui-§2 guarantee that `OnLeaveCombat` never auto-opens `/at config` (no defer-and-replay) |
+| `tests/test_visibility.lua` | `NS.ShouldShowBar` / `NS.ApplyVisibility` ladder (addon-wide `enabled` / per-unit `enabled` / the `visibility` dropdown / target-focus `UnitExists`), `OnEnterCombat` + `OnLeaveCombat` + `OnUnitSwap` visibility+repaint, and the options-ui-§2 guarantee that `OnLeaveCombat` never auto-opens `/at config` (no defer-and-replay) |
 | `tests/test_bus.lua` | `NS.bus` / `NS.NewBusTarget` / `NS.MSG` catalog, per-target subscribe + unregister, two receivers of one message both firing (anti-pattern #33), and `REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION` routing to their consumers (each fanning out over `NS.ForEachUnit`) |
 | `tests/test_data.lua` | `GetSetting` / `SetSetting` (profile read, dotted-path resolution, `flatDefaults` fallback, no-DB degradation), the per-unit LSM texture/border/font fetchers and their fallbacks, `ClearLSMCache`, `Helpers.LSMValues`, and the per-unit class-color resolvers |
 | `tests/test_display.lua` | `NS.ForEachUnit`, `NS.DefaultPosition`, `RestoreBarPosition`, `UpdateBarAppearance` (size, backdrop insets, nil-then-set refresh, lock, font, mirror-resolved reads), `UpdateAbsorbBar` (hidden / `testHoldUntil` early-outs, max-health scaling, `NoteRepaint`) — all per unit |

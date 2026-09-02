@@ -15,18 +15,36 @@ local addonName, NS = ...
 --                                  -- drawn in the order their first row was registered
 --     order   = 10,                -- render order within the group
 --     type    = "bool"|"number"|"string"|"color",
+--     subgroup = "Border",         -- a heading INSIDE a tab, for a tab that mixes control kinds
+--                                  -- (options-ui-§7). General's Bars tab is the one that does:
+--                                  -- "Tracked units" over the three enable toggles and "Updates"
+--                                  -- over the throttle (settings/General.lua). A subgroup
+--                                  -- repeating its tab's own name is forbidden
 --     label   = "Bar width",       -- widget label and /at list/get display
---     desc    = "...",             -- tooltip
+--     tooltip = "...",             -- tooltip body. `desc` is the older spelling and still read --
+--                                  -- the flow engine answers `row.tooltip or row.desc` -- so the
+--                                  -- composed rows carry `tooltip` and the hand-written ones `desc`
 --     default = 200,               -- used by /at reset and /at resetall
 --     min, max, step,                                 -- number
 --     values        = function() return {...} end,    -- string (select); k=v map
 --     dialogControl = "LSM30_Statusbar",              -- string (LSM swatch dropdown)
 --     hasAlpha      = true,                           -- color
+--     classColorSource = "unit"|"player",             -- color pair: WHOSE class this surface means
+--     classColorUnit   = "target",                    -- ... and which unit, when it is "unit"
 --     onChange   = function(v) ... end,               -- defaults to UpdateBarAppearance
---     disabledIf = "useClassColorBar",                -- color only: grays out when sibling on
 --     fmt        = "%.1f sec",                        -- /at list/get formatting hint
---     solo       = true,                              -- panel only: render alone in a row
+--     solo       = true,                              -- panel only: render alone in the LEFT HALF
+--     startsLine = true,                              -- panel only: flush the pending line first,
+--                                                     -- so a declared pair cannot be split
+--     sessionOnly = true,                             -- value is NOT in the profile; see
+--                                                     -- NS.RegisterSessionSetting (core/Data.lua)
+--     skipRender  = true,                             -- keep it in the schema; the host draws it
 --   }
+--
+-- NO ROW CARRIES `disabledIf`, and no color row ever may (options-ui-§17, anti-pattern #74): a
+-- swatch is still read for its ALPHA while its class-color companion is on, so graying it would
+-- tell the player something untrue. The field is the library's and still works; this addon simply
+-- does not ask for it.
 
 NS.Schema = NS.Schema or {}
 
@@ -102,6 +120,14 @@ end
 
 function NS.ResolvePath(tbl, path)
     if type(tbl) ~= "table" or type(path) ~= "string" then return nil end
+    -- FLAT-KEY FAST PATH, and it is a measured one rather than a tidy-up. `gmatch` builds an
+    -- iterator closure and one fresh string per segment, and this function sits inside the repaint
+    -- pass: NS.ShouldShowBar reads two flat globals per bar (`enabled`, `visibility`) and
+    -- NS.GetBarAlpha a third (`alpha`). Routing those through the walker took tests/perf.lua's
+    -- dormant repaint pass from 312 to 840 bytes/iter, well over its 320-byte ceiling. A key with
+    -- no dot is the common case and needs none of the machinery; `find` with plain=true allocates
+    -- nothing.
+    if not path:find(".", 1, true) then return tbl[path] end
     local node = tbl
     for segment in path:gmatch("[^%.]+") do
         if type(node) ~= "table" then return nil end
@@ -254,7 +280,12 @@ function NS.ValidateSchema()
             end
             -- architecture-§5: the path must resolve against the defaults profile. Profiles-page rows (if
             -- any) are AceDBOptions-supplied and exempt. Paths may be dotted (units.<unit>.<key>).
-            if hasPath and row.page ~= "profiles" then
+            --
+            -- A `sessionOnly` row is exempt too, and for the opposite reason to the profiles page's:
+            -- its value is deliberately NOT in the profile (core/Data.lua's session-settings
+            -- registry answers it), so resolving against defaults.profile is the wrong question.
+            -- The Master controls tab's `state.debugConsole` is the one such row today.
+            if hasPath and row.page ~= "profiles" and not row.sessionOnly then
                 if NS.ResolvePath(defaults, row.path) ~= nil then
                     resolved = resolved + 1
                 else
