@@ -4,12 +4,13 @@ How the addon registers its multi-page Blizzard Settings UI. The schema-driven c
 
 ## Source layout
 
-**The shell is not this addon's code any more.** `LibKa0s-Options-1.0` — three vendored files, one major — owns the canvas panel factory, the unified header, the page registry, the widget makers, the two-column flow engine and the always-visible scrollbar patch. What stays here is the part that is ours: where a value lives, which rows belong to which page, what a color looks like on disk, and the two pieces that did not generalize.
+**The shell is not this addon's code any more.** `LibKa0s-Options-1.0` — four vendored files, one major — owns the canvas panel factory, the unified header, the page registry, the widget makers, the chrome band, the schema composers and the two-column flow engine, plus the always-visible scrollbar patch. What stays here is the part that is ours: where a value lives, which rows belong to which page, what a color looks like on disk, and the two pieces that did not generalize.
 
 | File | Role |
 |------|------|
 | `libs/LibKa0s/Options.lua` | The shell. `CreatePanel` / `EnsureDefaultsButton` / `EnsureScroll` / `ClearScroll` / `RestoreDefaults` / `RestoreAllDefaults` / `RefreshAllPanels` / `LSMValues` / `RegisterOptionsPage` / `CreateOptionsPanel` / `OpenOptionsPanel`, the private page queue and panel registry, and `lib.LAYOUT` (every metric from `PADDING_X` to `BUTTON_PAIR_REL`). |
 | `libs/LibKa0s/OptionsWidgets.lua` | `RenderField` (dispatches by `row.type`) + `RenderRows` (two-column layout over an explicit row list, skipping `skipRender` rows) + the thin `RenderSchema(ctx, pageKey, ...)` wrapper + `RenderTabbedSchema` and its parts, `TabStrip` / `PageBanner` / `PageHeader` / `SetChromeHeight` (the chrome band, options-ui-§13/§14) + the five widget makers (CheckBox / Slider / Dropdown / EditBox / ColorPicker) + `Section` / `AddSpacer` / `AttachTooltip` / `InlineButtonPair` / `SessionCheckbox`. |
+| `libs/LibKa0s/OptionsCompose.lua` | The schema composers (options-ui-§15/§16/§17): `MasterControls` / `BarGroup` / `BorderGroup` / `FontGroup` / `ColorPair`, plus `FONT_FLAGS` / `FONT_FLAGS_SORT`, `VISIBILITY_SORT`, `MASTER_GROUP` and `CLASS_COLOR_NOTE`. Pure functions returning arrays of ordinary schema rows — they create no widget and read no state. |
 | `libs/LibKa0s/OptionsScroll.lua` | `PatchAlwaysShowScrollbar` — the always-visible scrollbar override. |
 | `settings/OptionsSetup.lua` | The descriptor, and the degradation stub. Holds the brand string as a file-scope `PARENT_TITLE` local passed in as `descriptor.parentTitle` (there is no `NS.PARENT_TITLE`), builds `NS.Helpers = lib:New(descriptor)`, and publishes the four thin wrappers `NS.RegisterOptionsPage` / `NS.CreateOptionsPanel` / `NS.OpenOptionsPanel` / `NS.RefreshOptionsPanel`. |
 | `settings/UnitPanel.lua` | The two pieces that did not generalize: `Helpers.RenderUnitPanel(ctx, pageKey)` (the Appearance page's one chrome block — Unit picker + the two mirror controls — and its tab strip, full rebuild per call) and `Helpers.ResetAllPositions()`. |
@@ -29,8 +30,8 @@ TOC order under `# Settings` is `settings/Schema.lua` → `Slash.lua` → `Optio
 | `print` / `debug` | `NS.Print` (cyan `[AT]` prefix) and `NS.Debug`. |
 | `get` / `set` / `applyDefault` | `NS.GetSetting` / `NS.SetByPath` / `NS.ApplyDefault` — so a panel write takes exactly the path a `/at set` takes. |
 | `rowsForPage(pageKey, filter)` / `allRows` | `NS.SchemaForPage` and `NS.Schema`. `filter` is `ctx.unit`, passed through uninterpreted — that is what makes a per-unit page render only the selected unit's rows while General (`ctx.unit` nil) gets every unit's. |
-| `skipRestoreAll` | Skips `row.page == "profiles"`: those rows are AceDBOptions-supplied and resetting them would delete user data, which is not what "restore defaults" means to anyone. |
-| `afterRestoreAll` | `Helpers.ResetAllPositions` — `position` is written by dragging, not by a schema row, so `ApplyDefault` never touches it and a target bar dragged off-screen would survive a Reset All. |
+| `skipRestoreAll` | Skips `row.page == "profiles"` (those rows are AceDBOptions-supplied and resetting them would delete user data) **and** every profile-backed row, leaving the walk only the `sessionOnly` rows a profile reset cannot reach. |
+| `resetProfile` | `db:ResetProfile()` — Reset All Settings **is** a profile reset (options-ui-§12), so the library empties the active profile rather than writing each row's default back. Saved positions live in the profile and come back with it, which is why `Helpers.ResetAllPositions` is no longer on this path. |
 | `scheduleTimer` | `NS.addon:ScheduleTimer` (Ka0s standard library-stack-§1, not a raw `C_Timer`), backing the color picker's 50 ms drag throttle. The library takes it as a descriptor field because embedding AceTimer would be its second dependency-budget breach. |
 | `getLSM` / `validate` | `NS.GetLSM` and `NS.ValidateSchema`. |
 | `onAceGUI` | `function(AceGUI) NS.AceGUI = AceGUI end` — see below. |
@@ -317,8 +318,9 @@ The dropdown's `values` table is supplied by `Helpers.LSMValues(mediaType)`, whi
 O.LSMValues(kind) end` — a closure returning a **closure**, where the flow engine's `enumList` calls
 it once and expects a table. It gets a function, its `type(v) ~= "table"` arm answers an empty list,
 and its own "no options" report is gated on `row.values == nil`, so the affected dropdowns render
-**with nothing in them and nothing says why**. That is five rows per unit here: `barTexture`,
-`border` and `font`.
+**with nothing in them and nothing says why**. That is three rows per unit here: `barTexture`,
+`border` and `font` — `bgTexture` is this addon's own hand-written row and sets its `values` directly,
+so it was never affected.
 
 `settings/Appearance.lua` corrects it on the rows it owns (`fixMediaValues`, which re-points each
 composed media row at `H.LSMValues(kind)` directly), and **not** in `libs/`. A downstream patch to a

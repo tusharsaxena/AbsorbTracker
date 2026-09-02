@@ -4,11 +4,11 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-542%2F542_passing-green)
+![Tests](https://img.shields.io/badge/Tests-544%2F544_passing-green)
 
 ![Logo](https://media.forgecdn.net/attachments/1659/653/absorbracker-logo-v2-jpg.jpg)
 
-Ka0s Absorb Tracker shows your current absorb shield as a movable bar, so you can see at a glance how much damage you can soak up. It tracks up to **three bars at once — Player, Target, and Focus** (Target and Focus start off, turn them on when you want them). Move each bar anywhere on screen and restyle almost everything about it — its size, the bar and background textures and colors, the border, and the font — per bar, or link Target/Focus to live-copy the Player bar's look. The bar fill, background, and border can each follow your class color if you prefer.
+Ka0s Absorb Tracker shows your current absorb shield as a movable bar, so you can see at a glance how much damage you can soak up. It tracks up to **three bars at once — Player, Target, and Focus** (Target and Focus start off, turn them on when you want them). Move each bar anywhere on screen and restyle almost everything about it — its size, the bar and background textures and colors, the border, and the font — per bar, or link Target/Focus to live-copy the Player bar's look. The bar fill, background, border and the absorb number itself can each follow a class color if you prefer — the class of the bar's own unit.
 
 Set it all up in the WoW Settings panel, or with the `/at` slash command.
 
@@ -125,7 +125,7 @@ or focus and its bar disappears until you have one again.
 | How do I turn on the Target or Focus bar? | General page → **Bars** tab → tick **Enable Target Bar** or **Enable Focus Bar**. It only appears while you actually have that target or focus set. |
 | Can the Target/Focus bar match my Player bar automatically? | Yes — that's what **Use same styling as Player** does: it's a live link, so changes to the Player bar's look carry over immediately. Uncheck it any time to style that bar on its own, or use **Copy styling from Player** for a one-time copy you then customize independently. |
 | How do I move a bar? | Type `/at unlock`, drag the bar you want where you want it, then `/at lock`. Each bar remembers its own position. Use `/at resetposition` to snap all of them back to their default spots. |
-| Can I show the bars only while I'm fighting? | Yes. Turn on **Show only in combat** on the General page. Every enabled bar hides out of combat and reappears the instant you enter combat. |
+| Can I show the bars only while I'm fighting? | Yes. Set **General visibility** to *Only in combat* on **General ▸ Master controls**. Every enabled bar hides out of combat and reappears the instant you enter combat. |
 | Can I have different setups? | Yes. Use the Profiles page in the settings panel to save and switch between setups. New characters start on the shared **Default** profile, so your changes carry over until you choose a separate setup. |
 | Why is my bar empty? | The fill only shows a value when that unit has an active absorb shield — Power Word: Shield, Ice Barrier, a trinket proc, and so on. With no shield the fill sits empty, but you'll still see the bar's background and border where you placed it. |
 | Why won't the settings panel open in combat? | WoW doesn't let addons change settings screens while you're fighting, so `/at config` answers with a gray "cannot open settings during combat" line instead. Run it again once you're out of combat and it opens normally. |
@@ -137,11 +137,11 @@ or focus and its bar disappears until you have one again.
 
 | Problem | Fix |
 |---------|-----|
-| The Player bar never shows up | Check three things: **Enable Player Bar** is ticked on the General page (or run `/at toggle player`), the addon is enabled on the character-select screen, and — if **Show only in combat** is on — that you're actually in combat. The background and border show even with no shield, so if you see *nothing* at all the bar is hidden, not just empty. |
+| The Player bar never shows up | Check three things: **Enable Player Bar** is ticked on the General page (or run `/at toggle player`), the addon is enabled on the character-select screen, and — if **General visibility** is set to *Only in combat* — that you're actually in combat. The background and border show even with no shield, so if you see *nothing* at all the bar is hidden, not just empty. |
 | The Target/Focus bar never shows up | Confirm **Enable Target Bar** / **Enable Focus Bar** is ticked on the General page. Even enabled, it only appears while you actually have that target or focus set — no target/focus means no bar, by design. |
-| The bar(s) disappear when I leave combat | You have **Show only in combat** turned on. Turn it off on the General settings page. |
+| The bar(s) disappear when I leave combat | **General visibility** is set to *Only in combat*. Set it back to *Always* on **General ▸ Master controls**. |
 | `/at test` does nothing | A bar has to be enabled to preview a test value on it. If every bar is off, run `/at toggle` (or tick an **Enable ... Bar** box) first, then try `/at test` again. |
-| A bar won't stay where I put it | Lock it after positioning: `/at lock`, or turn on **Lock Position** on the General page. Unlock again whenever you want to drag it. |
+| A bar won't stay where I put it | Lock it after positioning: `/at lock`, or tick **Lock frame** on **General ▸ Master controls**. Unlock again whenever you want to drag it. |
 | My class color isn't showing | The bar has to be visible and have an active shield for the color to appear. Check that the matching **Use class color** toggle is on. Remember it follows the *bar's own unit* — a Target bar takes your target's class, and falls back to your picked color when there is no target to read one from. |
 | Custom textures or fonts aren't in the dropdowns | Install a media pack addon (one that includes SharedMedia). Without one you still get WoW's built-in options plus the shared Ka0s textures and fonts the bundled library registers (JetBrains Mono, the face the debug console prints in, is one of them) — but nothing beyond those. |
 | A bar's position resets after I log out | WoW only saves your settings on a clean logout. A crash or a force-quit can drop the last position. Log out through the menu and it will stick. |

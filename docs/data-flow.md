@@ -139,14 +139,14 @@ cli:CliSet(rest) → lib.ParseValue        local set(row, value)
          path, v)  -- walks dotted
          paths (units.<unit>.<key>)
          same as flat ones
-                                enabled:   bus ▶ UNITS + APPEARANCE (+ REPAINT when on)
-                                combat:    bus ▶ VISIBILITY (+ REPAINT when shown)
+                                enabled:    bus ▶ UNITS + APPEARANCE (+ REPAINT when on)
+                                visibility: bus ▶ VISIBILITY (+ REPAINT when shown)
                              │
                              ▼
                    (slash path → NS.RefreshOptionsPanel;
                     panel set() → Helpers.RefreshAllPanels
-                    so paired controls re-sync — disabledIf state,
-                    refreshers re-pull every widget value)
+                    so paired controls re-sync — every refresher
+                    re-pulls its row's value into its widget)
                              │
                              ▼
                    GetBarColor / GetBgColor / GetBorderColor

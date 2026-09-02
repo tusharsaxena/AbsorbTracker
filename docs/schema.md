@@ -200,7 +200,11 @@ NS.SchemaForPage(pageKey, unit)         -> { rows }   -- groups kept in first-se
 NS.PartitionUnitRows(rows)              -> perUnit, styled   -- splits a unit page's rows into
                                                               -- alwaysPerUnit rows (stay editable
                                                               -- while mirrored) vs. the appearance
-                                                              -- rows the mirror hides
+                                                              -- rows the mirror hides. NO PRODUCTION
+                                                              -- CALLER since the mirrored state
+                                                              -- became a hint under the strip;
+                                                              -- exercised only by
+                                                              -- tests/test_schema.lua
 
 -- Dotted-path walkers (per-unit settings live at units.<unit>.<key>; flat keys pass through
 -- unchanged so the flat globals need no special case)
@@ -228,7 +232,7 @@ Called once through the descriptor's `validate` hook (`settings/OptionsSetup.lua
 - the row is a table with a non-empty string `path`,
 - `page` is one of `general`, `appearance`, `profiles`,
 - `type` is one of `bool`, `number`, `string`, `color`,
-- **(Ka0s standard architecture-§5)** the `path` resolves against `NS.defaults.profile` via `NS.ResolvePath` — dotted per-unit paths (`units.target.barWidth`) walk the nested `units` table the same way flat paths (`hidden`) index directly, so a typo anywhere in a per-unit path is caught the same as a flat one. Rows on the `profiles` page are exempt (their options are AceDBOptions-supplied).
+- **(Ka0s standard architecture-§5)** the `path` resolves against `NS.defaults.profile` via `NS.ResolvePath` — dotted per-unit paths (`units.target.barWidth`) walk the nested `units` table the same way flat paths (`locked`) index directly, so a typo anywhere in a per-unit path is caught the same as a flat one. Rows on the `profiles` page are exempt (their options are AceDBOptions-supplied).
 
 It returns **three** counts — `errors` (shape violations), `resolved` (paths found in `defaults.profile`), and `missing` (present rows whose `path` has no matching default). The validator only *prints* malformed rows through `NS.Print`; it never refuses to register.
 
@@ -244,7 +248,7 @@ The slash surface is `settings/Slash.lua`, registered via AceConsole (`NS.addon:
 | `/at get <path>` | Looks up one row via `FindSchemaRow` (the path must be the full dotted form, e.g. `units.target.barWidth`) and prints the same formatted pair. |
 | `/at set <path> <value>` | Calls `lib.ParseValue(row, text)` (LibKa0s-Slash-1.0) to coerce the tail into the typed value, then `SetByPath` to write + fire `onChange`, then `RefreshOptionsPanel`. Invalid input prints a type-specific error (`expected true/false/on/off/1/0/yes/no`, `expected a number`, `allowed values: A, B, C`, `expected: r g b [a] (each 0-1 or 0-255)`). **Fully-qualified paths only** — `/at set units.target.barWidth 250` works, `/at set barWidth 250` does not (the unqualified pre-1.9 form is gone; `FindSchemaRow` has no per-unit rows registered under the bare key). |
 | `/at reset <path>` | Resolves one row via `FindSchemaRow(path)` and calls `ApplyDefault` on it, then `RefreshOptionsPanel`. One setting, not a page — a whole page across all three units is that page's **Defaults** button (`NS.Helpers.RestoreDefaults`). |
-| `/at resetall` | Runs `ApplyDefault` on every row (all pages, all units). Also clears every unit's saved position (`NS.Units.SetPosition(unit, nil)` for each of `NS.Units.LIST`) and republishes `POSITION`. |
+| `/at resetall` | Resets the **active profile** to the shipped defaults — a profile reset (options-ui-§12), the same act as Profiles → Reset Profile. `skipRestoreAll` vetoes the Profiles page and every profile-backed row, so `ApplyDefault` runs only over the `sessionOnly` rows a profile reset cannot reach; the descriptor's `resetProfile` then calls `db:ResetProfile()`. Saved positions live in the profile and come back with it. |
 
 Per-setting subcommands like `/at width 250` or `/at color classcolor on` were removed in favor of `/at set <path> <value>` — today that path is fully qualified: `/at set units.player.barWidth 250` and `/at set units.player.useClassColorBar true`.
 
@@ -258,7 +262,7 @@ here instead of being rediscovered from three files.
 |-------|--------|-----|
 | **`NS.Units.Get(unit, key)`** (`core/Units.lua`) | **Resolved** — follows the mirror. While `units.focus.mirror` is true it returns the **player's** value. | This is what the bar renders. `modules/Bar.lua`, `modules/Display.lua` and `core/Data.lua` read appearance *only* through here, so "mirror the player" lives in exactly one place. |
 | **`NS.GetSetting(path)`** (`core/Data.lua`) | **Stored** — `ResolvePath(db.profile, path)`, mirror ignored. Returns focus's *own* saved `barWidth`, whatever the bar is currently showing. | It is the read half of the same seam `/at set` writes through. Resolving on read would make `get` and `set` asymmetric: `/at set units.focus.barWidth 400` followed by `/at get units.focus.barWidth` would echo the player's number. `NS.Units.Set` is deliberately unresolved for the same reason — a write while mirrored must never silently edit the *player's* bar. |
-| **The panel** (`Helpers.RenderUnitPanel`) | **Hidden** — while a unit is mirrored its appearance rows are not rendered at all; the chrome block and the tab strip are drawn exactly as they are for any other unit, and a one-line hint takes the rows' place. | The stored value is not what the user would see on screen, so offering a widget for it would be a lie. `NS.PartitionUnitRows` does the split. |
+| **The panel** (`Helpers.RenderUnitPanel`) | **Hidden** — while a unit is mirrored its appearance rows are not rendered at all; the chrome block and the tab strip are drawn exactly as they are for any other unit, and a one-line hint takes the rows' place. | The stored value is not what the user would see on screen, so offering a widget for it would be a lie. `Helpers.RenderUnitPanel` makes that call directly off `NS.Units.IsMirrored(ctx.unit)`; `NS.PartitionUnitRows` is the row-level split it no longer needs, and has no production caller left. |
 
 The seam is only dangerous where it is **silent**, so the slash surface says so out loud: `/at get`,
 `/at set` and `/at list` append a subordinate gray `(mirrored — the bar shows Player's appearance)`
