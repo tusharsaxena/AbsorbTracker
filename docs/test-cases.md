@@ -300,7 +300,7 @@ badge and any count quoted in the docs must agree with it.
 - three bar frames exist and the player alias points at the player frame
 - each bar carries its own unit tag and its own backdrop table
 
-### test_display.lua (50)
+### test_display.lua (53)
 
 - RestoreBarPosition centers the bar when no position is saved
 - RestoreBarPosition restores the saved anchor verbatim
@@ -324,8 +324,11 @@ badge and any count quoted in the docs must agree with it.
 - Master alpha MULTIPLIES the per-unit barAlpha rather than replacing it
 - an unlocked bar paints a placeholder fill against a 0..1 scale
 - a locked bar paints no placeholder
+- a live repaint leaves the unlocked placeholder alone
+- UpdateAbsorbBar reports false while the bars are unlocked
 - HoldPreview arms an expiry timer for exactly the announced duration
 - the expiry timer clears the hold and republishes REPAINT
+- a hold that expires while unlocked falls back to the placeholder
 - ClearPreview reports whether a hold was actually live
 - the unit label follows the unit's own font face
 - UpdateBarAppearance re-applies the font from the profile
@@ -637,7 +640,7 @@ badge and any count quoted in the docs must agree with it.
 | test_visibility.lua | 21 |
 | test_bus.lua | 7 |
 | test_data.lua | 31 |
-| test_display.lua | 50 |
+| test_display.lua | 53 |
 | test_helpers.lua | 56 |
 | test_optionssetup.lua | 5 |
 | test_slashcmds.lua | 111 |
@@ -646,4 +649,4 @@ badge and any count quoted in the docs must agree with it.
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
-| **Total** | **544** |
+| **Total** | **547** |

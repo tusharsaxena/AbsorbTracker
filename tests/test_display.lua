@@ -25,6 +25,12 @@ local function record(frame, method, body)
   return calls
 end
 
+-- Live paint is a locked-mode act: while the bars are unlocked they are in preview mode and
+-- UpdateAbsorbBar stands down so the placeholder survives (modules/Display.lua). Every test below
+-- that asserts what a repaint PAINTS therefore has to say which mode it is in, rather than riding
+-- the profile default -- which is `locked = false`, i.e. preview mode.
+local function withLocked(body) end   -- forward declaration; defined under withSetting
+
 local function withSetting(key, value, body)
   local saved = NS.GetSetting(key)
   NS.SetSetting(key, value)
@@ -32,6 +38,8 @@ local function withSetting(key, value, body)
   NS.SetSetting(key, saved)
   if not ok then error(err) end
 end
+
+function withLocked(body) return withSetting("locked", true, body) end
 
 -- Same shape as withSetting, but targets a per-unit config table directly (units.<unit>.<key>)
 -- rather than a flat/dotted NS.GetSetting path.
@@ -260,8 +268,10 @@ test("barAlpha reaches all three paint sites, not just the appearance pass", fun
         end
       end)
     end)
-    local a = record(NS.bars.player, "SetAlpha", function() NS.UpdateAbsorbBar("player") end)
-    assertTrue(#a == 1 and math.abs(a[1][1] - 0.4) < 1e-6, "a live repaint honors it too")
+    withLocked(function()
+      local a = record(NS.bars.player, "SetAlpha", function() NS.UpdateAbsorbBar("player") end)
+      assertTrue(#a == 1 and math.abs(a[1][1] - 0.4) < 1e-6, "a live repaint honors it too")
+    end)
   end)
 end)
 
@@ -317,7 +327,7 @@ test("Master alpha MULTIPLIES the per-unit barAlpha rather than replacing it", f
       assertTrue(math.abs(NS.GetBarAlpha("player") - 0.25) < 1e-6,
         "0.5 of the bar's own 0.5 is 0.25, not 0.5")
       local calls = record(NS.bars.player, "SetAlpha",
-        function() NS.UpdateAbsorbBar("player") end)
+        function() withLocked(function() NS.UpdateAbsorbBar("player") end) end)
       assertEqual(#calls, 1)
       assertTrue(math.abs(calls[1][1] - 0.25) < 1e-6, "the repaint site takes the product too")
     end)
@@ -362,6 +372,41 @@ test("a locked bar paints no placeholder", function()
   assertEqual(#value, 0, "a locked bar shows live data only")
 end)
 
+-- The placeholder must SURVIVE a repaint, not merely be painted once. Every REPAINT publish fans
+-- out over all three bars (modules/Timer.lua), and the panel publishes one whenever a bar is
+-- enabled, the addon-wide switch flips or the visibility mode changes -- so a live paint that won
+-- over the placeholder made unlocked mode depend on which settings row the user last touched:
+-- unchecking a bar left the others reading "Absorb", rechecking it turned all three back into
+-- empty strips reading 0.
+test("a live repaint leaves the unlocked placeholder alone", function()
+  local savedHold = NS.testHoldUntil
+  NS.testHoldUntil = nil
+  local calls
+  withSetting("locked", false, function()
+    withUnitSetting("player", "enabled", true, function()
+      calls = record(NS.statusBar, "SetValue", function() NS.UpdateAbsorbBar("player") end)
+    end)
+  end)
+  NS.testHoldUntil = savedHold
+  assertEqual(#calls, 0, "the bar the user is dragging must keep its placeholder fill")
+end)
+
+test("UpdateAbsorbBar reports false while the bars are unlocked", function()
+  local savedHold = NS.testHoldUntil
+  NS.testHoldUntil = nil
+  local painted
+  local ok, err = pcall(function()
+    withSetting("locked", false, function()
+      withUnitSetting("player", "enabled", true, function()
+        painted = NS.UpdateAbsorbBar("player")
+      end)
+    end)
+  end)
+  NS.testHoldUntil = savedHold
+  if not ok then error(err) end
+  assertEqual(painted, false, "a skipped bar is not a repaint, same as the /at test hold")
+end)
+
 test("HoldPreview arms an expiry timer for exactly the announced duration", function()
   local savedHold = NS.testHoldUntil
   local before = #T.mocks.__timers
@@ -386,6 +431,23 @@ test("the expiry timer clears the hold and republishes REPAINT", function()
   assertEqual(NS.testHoldUntil, nil, "the fake value must not outlive the window it announced")
   assertEqual(repaints, 1, "live data has to be repainted, or the bar keeps the fake number")
   NS.testHoldUntil = savedHold
+end)
+
+-- The two previews overlap: `/at test` can be run while the bars are unlocked. The expiry timer
+-- publishes REPAINT, and a repaint stands down in preview mode -- so without this the fake value
+-- would sit on an unlocked bar forever, past the window `/at test` announced.
+test("a hold that expires while unlocked falls back to the placeholder", function()
+  local savedHold = NS.testHoldUntil
+  local value
+  withSetting("locked", false, function()
+    NS.HoldPreview(5)
+    local armed = T.mocks.__timers[#T.mocks.__timers]
+    value = record(NS.statusBar, "SetValue", armed.fn)
+  end)
+  NS.testHoldUntil = savedHold
+  assertTrue(#value >= 1, "the announced window must end in something the user can see")
+  assertTrue(value[#value][1] > 0 and value[#value][1] < 1,
+    "unlocked, the fake value gives way to the placeholder fraction, not to live data")
 end)
 
 test("ClearPreview reports whether a hold was actually live", function()
@@ -484,7 +546,9 @@ test("UpdateAbsorbBar paints again once the hold window has expired", function()
   local calls
   withUnitSetting("player", "enabled", true, function()
     NS.testHoldUntil = T.mocks.GetTime() - 1
-    calls = record(NS.statusBar, "SetValue", NS.UpdateAbsorbBar)
+    calls = record(NS.statusBar, "SetValue", function()
+      withLocked(NS.UpdateAbsorbBar)
+    end)
   end)
   NS.testHoldUntil = savedHold
   assertEqual(#calls, 1)
@@ -499,7 +563,7 @@ test("UpdateAbsorbBar scales the bar to max health and sets the absorb value", f
   local minmax, value
   withUnitSetting("player", "enabled", true, function()
     minmax = record(NS.statusBar, "SetMinMaxValues", function()
-      value = record(NS.statusBar, "SetValue", NS.UpdateAbsorbBar)
+      value = record(NS.statusBar, "SetValue", function() withLocked(NS.UpdateAbsorbBar) end)
     end)
   end)
   T.mocks.UnitGetTotalAbsorbs, T.mocks.UnitHealthMax = savedAbs, savedHP
@@ -518,7 +582,7 @@ test("UpdateAbsorbBar substitutes 0 / 1 when the absorb and health reads come ba
   local minmax, value
   withUnitSetting("player", "enabled", true, function()
     minmax = record(NS.statusBar, "SetMinMaxValues", function()
-      value = record(NS.statusBar, "SetValue", NS.UpdateAbsorbBar)
+      value = record(NS.statusBar, "SetValue", function() withLocked(NS.UpdateAbsorbBar) end)
     end)
   end)
   T.mocks.UnitGetTotalAbsorbs, T.mocks.UnitHealthMax = savedAbs, savedHP
@@ -534,7 +598,7 @@ test("UpdateAbsorbBar writes the abbreviated value into the bar text", function(
   NS.testHoldUntil = nil
   local calls
   withUnitSetting("player", "enabled", true, function()
-    calls = record(NS.valueText, "SetText", NS.UpdateAbsorbBar)
+    calls = record(NS.valueText, "SetText", function() withLocked(NS.UpdateAbsorbBar) end)
   end)
   T.mocks.UnitGetTotalAbsorbs = savedAbs
   NS.testHoldUntil = savedHold
@@ -549,7 +613,7 @@ test("UpdateAbsorbBar reports true when it paints", function()
   local painted
   local ok, err = pcall(function()
     withUnitSetting("player", "enabled", true, function()
-      painted = NS.UpdateAbsorbBar("player")
+      withLocked(function() painted = NS.UpdateAbsorbBar("player") end)
     end)
   end)
   NS.testHoldUntil = savedHold
@@ -669,7 +733,7 @@ test("UpdateAbsorbBar reads the absorb of the unit it is painting", function()
   withUnitSetting("player", "enabled", true, function()
     withUnitFlag("target", "enabled", true, function()
       value = record(NS.bars.target.statusBar, "SetValue", function()
-        NS.UpdateAbsorbBar("target")
+        withLocked(function() NS.UpdateAbsorbBar("target") end)
       end)
     end)
   end)

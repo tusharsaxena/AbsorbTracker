@@ -46,8 +46,10 @@ local previewTimer
 --- Not folded into UpdateAbsorbBar on purpose: choosing between "live value" and "placeholder"
 --- there would mean asking whether the absorb is zero, and UnitGetTotalAbsorbs returns a secret in
 --- restricted content — comparing it raises. See ShouldShowBar's note and docs/scope.md. The
---- placeholder is therefore painted by the appearance pass, and any live repaint wins over it,
---- which is the honest ordering.
+--- placeholder is therefore painted by the appearance pass, and while the bars are unlocked
+--- UpdateAbsorbBar stands down entirely rather than repainting over it — so the placeholder is
+--- what the user sees for as long as they are positioning the bars, whatever else publishes a
+--- repaint meanwhile.
 function NS.PaintPlaceholder(unit)
     unit = unit or "player"
     local bar = NS.bars[unit]
@@ -88,6 +90,12 @@ function NS.HoldPreview(seconds)
         previewTimer = NS.addon:ScheduleTimer(function()
             previewTimer = nil
             NS.ClearPreview()
+            -- The two previews overlap: `/at test` can be run with the bars unlocked, and a
+            -- repaint stands down in that state (see NS.UpdateAbsorbBar). Publishing REPAINT alone
+            -- would therefore leave the fake value on an unlocked bar for good -- past the window
+            -- this timer exists to enforce. Hand the bars back to the placeholder first; locked,
+            -- this arm does not run and the repaint below restores live data as before.
+            if not NS.GetSetting("locked") then NS.ForEachUnit(NS.PaintPlaceholder) end
             if NS.bus then NS.bus:SendMessage(NS.MSG.REPAINT) end
         end, seconds)
     end
@@ -212,7 +220,8 @@ function NS.UpdateBarAppearance(unit)
     -- Unlocked means "being positioned", and out of combat the bar the user is trying to grab is
     -- usually empty — a transparent strip with no text. Paint the placeholder fill so there is
     -- something to see and drag (preview-mode). Re-locking runs this same pass with `locked` true
-    -- and does not repaint the placeholder, and the REPAINT the lock publishes restores live data.
+    -- and does not repaint the placeholder; the REPAINT the lock publishes is what restores live
+    -- data, and it can only paint because the bars are locked again (see UpdateAbsorbBar).
     if not locked then NS.PaintPlaceholder(unit) end
 
     NS.ApplyVisibility(unit)
@@ -330,6 +339,24 @@ function NS.UpdateAbsorbBar(unit)
 
     -- /at test paints a fake value and sets testHoldUntil so this doesn't immediately overwrite it.
     if (NS.testHoldUntil or 0) > GetTime() then
+        return false
+    end
+
+    -- The other half of preview mode (preview-mode). Unlocked means the user is positioning the
+    -- bars, and the appearance pass has painted the placeholder onto every one of them; a live
+    -- paint landing afterwards would replace it with an empty strip reading 0, which is the exact
+    -- "nothing to grab" the placeholder exists to prevent.
+    --
+    -- Every REPAINT fans out over all three bars (modules/Timer.lua), and the panel publishes one
+    -- whenever a bar is enabled, the addon-wide switch flips or the visibility mode changes -- so
+    -- letting the live paint win made the placeholder depend on which row the user last touched:
+    -- unchecking a bar left the other two reading "Absorb", rechecking it turned all three back
+    -- into empty strips. Skipping here is the single seam, and it holds for absorb events and
+    -- throttle ticks as well as for the panel.
+    --
+    -- Returns false, like the hold above: a bar that did not paint is not a repaint, so the
+    -- [Combat] rollup's count is unaffected.
+    if not NS.GetSetting("locked") then
         return false
     end
 

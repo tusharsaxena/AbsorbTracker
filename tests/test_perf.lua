@@ -152,9 +152,13 @@ end)
 test("perf: paintBar records when capture is on", function()
   reset()
   NS.SetByPath("units.player.enabled", true)
+  -- Locked, because live paint is a locked-mode act: unlocked bars are in preview mode and
+  -- UpdateAbsorbBar stands down so the placeholder survives (modules/Display.lua).
+  NS.SetByPath("locked", true)
   P.on = true
   NS.UpdateAbsorbBar("player")
   P.on = false
+  NS.SetByPath("locked", false)
   assertTrue(P.__buckets().paintBar ~= nil, "bucket created")
   assertEqual(P.__buckets().paintBar.calls, 1, "one paint")
 end)
@@ -190,6 +194,9 @@ test("perf: every declared bucket is reached by a real bracket", function()
   -- every report the addon prints.
   reset()
   NS.SetByPath("units.player.enabled", true)
+  -- paintBar is only reachable with the bars locked; unlocked, the pass runs and every bar skips
+  -- so the placeholder is left standing (modules/Display.lua).
+  NS.SetByPath("locked", true)
   P.on = true
   mocks.__absorbs.player = 1000
   mocks.__profileMs = 1
@@ -205,6 +212,7 @@ test("perf: every declared bucket is reached by a real bracket", function()
       "declared bucket '" .. key .. "' never fired — a bucket nobody reaches is a lie in the report")
   end
   mocks.__absorbs.player = nil
+  NS.SetByPath("locked", false)
   settle()
 end)
 
