@@ -594,9 +594,9 @@ test("an unqualified appearance key is rejected", function()
 end)
 
 test("a global key still uses its flat path", function()
-  slash("set showOnlyInCombat true")
-  assertEqual(NS.db.profile.showOnlyInCombat, true)
-  slash("set showOnlyInCombat false")
+  slash("set locked true")
+  assertEqual(NS.db.profile.locked, true)
+  slash("set locked false")
 end)
 
 test("get echoes a dotted path", function()

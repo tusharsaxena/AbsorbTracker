@@ -43,6 +43,26 @@ if not lib then
         return "<secret>"
     end
 
+    -- The class-color resolver, and a working fallback rather than a no-op for the same reason the
+    -- two above are: core/Data.lua calls it on every paint pass of every bar, so an absent one
+    -- takes all three shared-resolver surfaces down with it. Three rules, the library's
+    -- (options-ui-§17) — the stored alpha survives the mode, an unresolvable class falls through to
+    -- the stored swatch, and the swatch is read under BOTH modes. What is deliberately not copied
+    -- is the memoization: a table index is not worth a second cache with its own invalidation
+    -- story, and the one the library keeps is for the player alone.
+    function NS.ResolveColor(stored, on, unit)
+        if type(stored) ~= "table" then stored = {} end
+        local r, g, b, a = stored.r or 1, stored.g or 1, stored.b or 1, stored.a or 1
+        if not on then return r, g, b, a end
+        -- pcall'd for the reason the library pcalls it: the token is the CALLER's, and one the
+        -- client rejects raises rather than answering nil.
+        local ok, _, token = pcall(UnitClass, unit or "player")
+        local c = (ok and type(token) == "string" and type(RAID_CLASS_COLORS) == "table")
+            and RAID_CLASS_COLORS[token] or nil
+        if type(c) ~= "table" or type(c.r) ~= "number" then return r, g, b, a end
+        return c.r, c.g, c.b, a
+    end
+
     local announced = false
     function NS.Print(...)
         local parts = { NS.PREFIX }
@@ -67,6 +87,14 @@ end
 
 NS.IsConcatSafe = lib.IsConcatSafe
 NS.SafeToString = lib.SafeToString
+
+-- ONE class-color resolver for the collection (options-ui-§17). This addon used to own a private
+-- one in core/Data.lua reading `C_ClassColor.GetClassColor`, while two sibling addons owned one
+-- reading `RAID_CLASS_COLORS` — the table every other unit frame on the player's screen is already
+-- reading. That disagreement is exactly what the library settled, so the private copy is gone and
+-- core/Data.lua's four color getters come through here. Handed over by reference: it closes over
+-- nothing of ours, and the memoized player color is the library's to keep.
+NS.ResolveColor = lib.ResolveColor
 
 -- WRAPPED, TO SAY WHO IS ASKING — the one member of this seam that is not handed over by reference.
 -- `lib.MakeCloseButton(parent, onClick, addonName)` takes THREE arguments, and the third is what lets

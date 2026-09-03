@@ -50,9 +50,13 @@ end)
 -- to no tab, and is drawn bespoke in the header.
 test("the page -> tab -> row-count partition is the designed one", function()
   local want = {
-    { page = "general", unit = nil, tabs = { { "Bars", 3 }, { "Behavior", 3 } } },
+    -- Master controls is FIRST and holds exactly the six schema rows options-ui-§15 entitles this
+    -- addon to: enable, general visibility, master scale, master alpha, lock frame, debug console.
+    -- The two resets are the tab's closing BUTTON PAIR rather than rows, so they are not counted
+    -- here -- tests/test_widgets.lua is what pins them onto this tab.
+    { page = "general", unit = nil, tabs = { { "Master controls", 6 }, { "Bars", 4 } } },
     { page = "appearance", unit = "player", tabs = {
-      { "Size", 2 }, { "Bar", 4 }, { "Background", 3 }, { "Border", 4 }, { "Text", 5 },
+      { "Size", 2 }, { "Bar", 4 }, { "Background", 3 }, { "Border", 4 }, { "Text", 6 },
     } },
   }
   for _, page in ipairs(want) do
@@ -153,10 +157,17 @@ end)
 -- rather than shipping a half-wired option.
 
 test("every schema row carries a label and a tooltip description", function()
+  -- `tooltip` OR `desc`, because the flow engine reads exactly that: `row.tooltip or row.desc`
+  -- (libs/LibKa0s/OptionsWidgets.lua's tooltipBody). `desc` is this addon's older spelling and the
+  -- one its hand-written rows still use; `tooltip` is what the composers emit and what the rest of
+  -- the collection declares. Asserting only `desc` would fail every composed row while the tooltip
+  -- it names renders perfectly, which is a test measuring a spelling rather than a behavior.
+  -- red under: dropping the tooltip from any composed block, or the desc from a hand-written row.
   for i, row in ipairs(NS.Schema) do
     local where = "row #" .. i .. " (" .. tostring(row.path) .. ")"
+    local body = row.tooltip or row.desc
     assertTrue(type(row.label) == "string" and row.label ~= "", where .. " needs a label")
-    assertTrue(type(row.desc) == "string" and row.desc ~= "", where .. " needs a desc")
+    assertTrue(type(body) == "string" and body ~= "", where .. " needs a tooltip or desc")
   end
 end)
 
@@ -173,8 +184,16 @@ end)
 test("every schema row declares a default", function()
   -- ApplyDefault bails out on a nil default, so a row without one is silently skipped by
   -- /at reset, /at resetall and the per-panel Defaults button.
+  --
+  -- A `sessionOnly` row is exempt, and is the only thing that is: its value is not in the profile
+  -- at all (core/Data.lua's session-settings registry answers it), so there is nothing for a reset
+  -- to restore it TO. Giving the debug-console toggle a default would make "reset all settings"
+  -- close a console window the player opened, which is not a setting.
+  -- red under: adding a default to the console row, or dropping one from any stored row.
   for _, row in ipairs(NS.Schema) do
-    assertTrue(row.default ~= nil, tostring(row.path) .. " has no default to reset to")
+    if not row.sessionOnly then
+      assertTrue(row.default ~= nil, tostring(row.path) .. " has no default to reset to")
+    end
   end
 end)
 
@@ -247,6 +266,109 @@ test("every string row supplies a values source", function()
       assertTrue(t == "function" or t == "table", row.path .. " needs values for its dropdown")
     end
   end
+end)
+
+-- ── the options-ui v2 adoption invariants ──────────────────────────────────────────
+--
+-- Three loops over the whole schema, each pinning one rule the library now depends on. They are
+-- deliberately whole-schema rather than per-page: a rule that holds on the pages someone remembered
+-- to list is a rule that stops holding the day a page is added.
+
+test("every row on every page carries a `group`", function()
+  -- options-ui-§13: a page whose rows declare no group cannot draw a strip. The library reports it
+  -- and renders the page untabbed, which is a silent downgrade -- the page simply looks unlike
+  -- every other page in the collection and nothing in a suite notices.
+  --
+  -- `skipRender` rows are exempt and are the only exemption: their widget is bespoke chrome, not a
+  -- tab's content (the mirror flag, drawn in the Appearance page's header). They still carry a
+  -- group naming their subject -- settings/UnitPanel.lua's partition is what keeps them out of the
+  -- strip -- so this is an exemption from being COUNTED, not from being attributable.
+  -- red under: deleting `group` from any row, on any page.
+  for i, row in ipairs(NS.Schema) do
+    local where = "row #" .. i .. " (" .. tostring(row.path) .. ")"
+    assertTrue(type(row.group) == "string" and row.group ~= "",
+      where .. " carries no group, so it belongs to no tab")
+  end
+end)
+
+test("every color row is immediately followed by its class-color companion", function()
+  -- options-ui-§17: the companion is placed immediately to the swatch's RIGHT, and in a
+  -- two-column flow that means immediately after it in DECLARATION order. The composers guarantee
+  -- it; this is what would notice a hand-written pair that got separated by a third row.
+  --
+  -- Walked over NS.Schema in registration order, which is the order the composers appended in and
+  -- the order RenderRows fills the columns in.
+  -- red under: inserting any row between a swatch and its companion, or dropping a companion.
+  local seen = 0
+  for i, row in ipairs(NS.Schema) do
+    if row.type == "color" then
+      seen = seen + 1
+      local next_ = NS.Schema[i + 1]
+      local where = row.path .. " (row #" .. i .. ")"
+      assertTrue(next_ ~= nil and next_.type == "bool",
+        where .. " has no companion bool beside it")
+      assertTrue(next_.label == "Use class color",
+        where .. "'s companion is labeled " .. tostring(next_ and next_.label))
+      assertEqual(next_.group, row.group, where .. "'s companion sits on another tab")
+      -- The pair may not be split across two lines by an odd number of widgets above it, and
+      -- `startsLine` is what makes that a property of the declaration rather than of the count.
+      assertEqual(row.startsLine, true, where .. " must start its own line")
+    end
+  end
+  assertTrue(seen > 0, "the walk found no color rows at all")
+end)
+
+test("no color row carries `disabledIf`, and every pair declares whose class it means", function()
+  -- Two halves of options-ui-§17, in one walk because they are the same rule from two sides.
+  --
+  -- `disabledIf` on a color row is anti-pattern #74: the swatch is still read for its ALPHA under
+  -- class color, so graying it tells the player something untrue. The tooltip says it in words
+  -- instead (H.CLASS_COLOR_NOTE).
+  --
+  -- `classColorSource` is DECLARED because the path cannot be trusted to say it: a row stored
+  -- under `units.<unit>.` that drew the player's own spells would be player-scoped. On this addon
+  -- every one of the four surfaces paints the tracked unit's own bar, so every pair is "unit" --
+  -- and that declaration is what an audit reads.
+  -- red under: a `disabledIf` coming back, or a pair silently reverting to the player's class.
+  for _, row in ipairs(NS.Schema) do
+    if row.type == "color" then
+      assertEqual(row.disabledIf, nil, row.path .. " must never gray itself out")
+      assertEqual(row.classColorSource, "unit", row.path .. " does not declare whose class it means")
+      assertEqual(row.classColorUnit, row.unit, row.path .. " names a unit other than its own")
+    end
+  end
+  -- The companion carries the same declaration, so an audit reading either row gets one answer.
+  for i, row in ipairs(NS.Schema) do
+    if row.type == "color" then
+      local companion = NS.Schema[i + 1]
+      assertEqual(companion.classColorSource, row.classColorSource,
+        row.path .. " and its companion disagree about whose class")
+      assertEqual(companion.classColorUnit, row.classColorUnit)
+      assertEqual(companion.disabledIf, nil)
+    end
+  end
+end)
+
+test("every media-backed row answers a populated option list", function()
+  -- The composers declare `values` as a closure returning O.LSMValues(kind) -- a closure returning
+  -- a CLOSURE, where the flow engine's enumList calls it once and expects a table. It gets a
+  -- function, answers an empty list, and its own "no options" report is gated on `row.values ==
+  -- nil`, so the dropdown renders empty and nothing says why. settings/Appearance.lua corrects
+  -- that on its own rows (never in libs/, which the next re-vendor would overwrite); this is what
+  -- proves the correction is still applied, and what will fail loudly the day upstream fixes it
+  -- and the workaround is left behind doing nothing.
+  -- red under: deleting fixMediaValues, or an upstream `values` shape that answers a non-table.
+  local seen = 0
+  for _, row in ipairs(NS.Schema) do
+    if row.dialogControl then
+      seen = seen + 1
+      local v = type(row.values) == "function" and row.values() or row.values
+      assertEqual(type(v), "table",
+        row.path .. " (" .. row.dialogControl .. ") answers " .. type(v) .. ", not a list")
+      assertTrue(next(v) ~= nil, row.path .. " answers an EMPTY list, which cannot be opened")
+    end
+  end
+  assertTrue(seen > 0, "the walk found no media-backed rows at all")
 end)
 
 test("`disabledIf` names a real sibling setting", function()
@@ -445,38 +567,71 @@ test("the enable row is per-unit, lives on General, and survives mirroring", fun
   end
 end)
 
-test("the Bars tab is the three enable toggles, in unit order and nothing else", function()
-  -- RenderRows fills left-then-right in schema order, so the rendered layout IS the row order:
-  -- [Enable Player Bar | Enable Target Bar], [Enable Focus Bar]. The globals they used to be
-  -- interleaved with are a tab away now -- pairing an enable toggle with "Lock Position" put two
-  -- answers to two different questions on one line.
-  local want = { "units.player.enabled", "units.target.enabled", "units.focus.enabled" }
-  local got = {}
+-- The Master controls tab, and it is the one options-ui-§15 mandates rather than one this addon
+-- chose: the canonical set in the canonical order, composed by H.MasterControls and spliced at the
+-- HEAD of the general page so it is the first tab in the strip.
+--
+-- The set is asserted WHOLE and in order. An addon may omit only the four frame-only rows and only
+-- when it is frameless, and this one is not -- modules/Bar.lua calls SetMovable(true) on every bar
+-- -- so all six schema rows are here. The two resets are the tab's closing BUTTON PAIR rather than
+-- rows; tests/test_widgets.lua pins those onto this group's afterGroup hook.
+-- red under: a reordered composer, a `frameless = true` this addon is not entitled to, or a row
+-- moved back to the tab it came from.
+test("the Master controls tab is the canonical set, in order, and leads the General page", function()
+  local want = { "enabled", "visibility", "scale", "alpha", "locked", "state.debugConsole" }
+  local got, firstGroup = {}, nil
   for _, r in ipairs(NS.SchemaForPage("general")) do
-    if r.group == "Bars" then got[#got + 1] = r.path end
+    firstGroup = firstGroup or r.group
+    if r.group == "Master controls" then got[#got + 1] = r.path end
   end
-  assertEqual(#got, #want, "unexpected Bars row count")
+  assertEqual(firstGroup, "Master controls", "Master controls must be the FIRST tab")
+  assertEqual(#got, #want, "unexpected Master controls row count")
   for i, path in ipairs(want) do
-    assertEqual(got[i], path, "Bars row " .. i)
+    assertEqual(got[i], path, "Master controls row " .. i)
   end
+  -- The console toggle is session state and must never reach the profile (options-ui-§15). Pinned
+  -- through the ACCESSORS, because routing is the whole job of the session registry: GetSetting and
+  -- SetSetting take this one path to the console WINDOW's own show/hide state, and db.profile never
+  -- grows a `state` key on the way.
+  -- red under: dropping the sessionSettings lookup from either accessor in core/Data.lua.
+  assertEqual(NS.FindSchemaRow("state.debugConsole").sessionOnly, true)
+  local wasShown = NS.GetSetting("state.debugConsole")
+  NS.SetSetting("state.debugConsole", not wasShown)
+  assertEqual(NS.GetSetting("state.debugConsole"), not wasShown,
+    "the console path must round-trip through its live get/set pair")
+  assertEqual(NS.db.profile.state, nil, "and must never reach db.profile")
+  NS.SetSetting("state.debugConsole", wasShown)
 end)
 
-test("the Behavior tab runs lock, combat gate, throttle -- and the throttle is solo", function()
-  -- The throttle row's `solo` is what makes it a legal pairWith host: the Debug console checkbox
-  -- attaches only to a row that is ALONE on its line, and `solo` guarantees that by construction
-  -- rather than by the row count above it happening to be odd (which is how the old host,
-  -- Enable Focus Bar, qualified -- an accident any added row would have broken silently).
-  local want = { "locked", "showOnlyInCombat", "throttleWindow" }
+test("the Bars tab is the three enable toggles then the throttle, under their own headings",
+  function()
+  -- RenderRows fills left-then-right in schema order, so the rendered layout IS the row order:
+  -- [Enable Player Bar | Enable Target Bar], [Enable Focus Bar], then the throttle under its own
+  -- heading. The globals the enables used to be interleaved with are on Master controls now --
+  -- pairing an enable toggle with "Lock Position" put two answers to two different questions on
+  -- one line.
+  --
+  -- The throttle is here rather than on a `Behavior` tab of its own because lock and the combat
+  -- gate both moved to Master controls and left it alone: a tab holding one control is a click
+  -- that reveals one widget. A merged tab that mixes kinds carries a subsection heading per kind
+  -- (options-ui-§7), and neither heading may repeat the tab's name.
+  -- red under: dropping either subgroup, or naming one of them "Bars".
+  local want = {
+    { "units.player.enabled", "Tracked units" },
+    { "units.target.enabled", "Tracked units" },
+    { "units.focus.enabled",  "Tracked units" },
+    { "throttleWindow",       "Updates"       },
+  }
   local got = {}
   for _, r in ipairs(NS.SchemaForPage("general")) do
-    if r.group == "Behavior" then got[#got + 1] = r.path end
+    if r.group == "Bars" then got[#got + 1] = r end
   end
-  assertEqual(#got, #want, "unexpected Behavior row count")
-  for i, path in ipairs(want) do
-    assertEqual(got[i], path, "Behavior row " .. i)
+  assertEqual(#got, #want, "unexpected Bars row count")
+  for i, spec in ipairs(want) do
+    assertEqual(got[i].path, spec[1], "Bars row " .. i)
+    assertEqual(got[i].subgroup, spec[2], "Bars row " .. i .. " subgroup")
+    assertTrue(got[i].subgroup ~= got[i].group, "a subgroup may not repeat its tab's name")
   end
-  assertEqual(NS.FindSchemaRow("throttleWindow").solo, true,
-    "the Debug console's pairWith host must be solo")
 end)
 
 test("the mirror row exists for target and focus but not the player", function()

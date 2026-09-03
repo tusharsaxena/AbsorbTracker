@@ -87,6 +87,44 @@ test("the degraded stub publishes LSMValues, the one member reached at file load
   assertEqual(type(NS2.Helpers.LSMValues("statusbar")), "function", "and it returns a values fn")
 end)
 
+test("the degraded stub publishes the five composers, the other load-time members", function()
+  -- settings/General.lua and settings/Appearance.lua call these inside NS.RegisterSchemaRows, at
+  -- FILE LOAD, so a nil aborts the file and takes that page's rows out of the schema exactly as a
+  -- nil LSMValues does. tests/test_perf.lua compares the whole path set; this names the members and
+  -- pins the line the stub draws through them.
+  --
+  -- WHAT THEY REPRODUCE is the STORED surface: the path the live composer derives (so `prefix` and
+  -- `keys` are honored), the type, and the caller's default. WHAT THEY DO NOT is every label,
+  -- tooltip, range, media source and layout flag -- each of those is read by a widget or by the
+  -- library's CLI, and a library-less build has neither (settings/Slash.lua's own stub answers
+  -- every schema verb with "unavailable"). Copying them would be copying strings whose single
+  -- source is the whole point, for nobody to read.
+  -- red under: a stub composer returning {}, or one that stops honoring `keys`.
+  local NS2 = loadDegraded()
+  for _, name in ipairs({ "ColorPair", "FontGroup", "BorderGroup", "BarGroup", "MasterControls" }) do
+    assertEqual(type(NS2.Helpers[name]), "function", name .. " is reached at file load")
+  end
+
+  local rows = NS2.Helpers.BorderGroup({
+    prefix = "units.player.", page = "appearance", group = "Border",
+    keys = { borderStyle = "border" }, defaults = { borderSize = 12 },
+  })
+  assertEqual(#rows, 4, "the canonical border block is four rows")
+  assertEqual(rows[1].path, "units.player.border", "`keys` must move the stored path, not the leaf")
+  assertEqual(rows[2].default, 12, "and `defaults` must reach the row a reset reads")
+  assertEqual(rows[3].type, "color")
+  assertEqual(rows[4].path, "units.player.useClassColorBorder")
+  assertEqual(rows[1].label, nil, "the stub deliberately carries no label: nothing degraded reads one")
+
+  local master, tail = NS2.Helpers.MasterControls({
+    page = "general", addonName = "Absorb Tracker", debugConsolePath = "state.debugConsole",
+  })
+  assertEqual(#master, 6, "the canonical master set is six schema rows")
+  assertEqual(master[6].path, "state.debugConsole", "the console path is verbatim and unprefixed")
+  assertEqual(master[6].sessionOnly, true)
+  assertEqual(type(tail), "function", "the afterGroup hook is a no-op, not a nil")
+end)
+
 test("the degraded stub keeps no private copy of the library's layout constants", function()
   -- Measured, not assumed: dropping each of these from the stub and re-running the degraded load
   -- leaves #NS.Schema unchanged, because every reader (settings/About.lua, settings/UnitPanel.lua)
@@ -97,9 +135,11 @@ test("the degraded stub keeps no private copy of the library's layout constants"
   for _, name in ipairs({
     "ROW_VSPACER", "SECTION_HEADING_H", "BUTTON_PAIR_REL",
     -- The chrome band's three, new at LibKa0s v1.23.0 (options-ui-§13/§14). Measured the same way
-    -- and absent for the same reason: this addon draws no chrome of its own, so nothing outside
-    -- the library ever needs to know how tall a tab or a banner is. The four CALLABLE members of
-    -- that band are in the stub -- tests/test_surface_parity.lua is what holds them there.
+    -- and absent for the same reason as the three above: settings/UnitPanel.lua DOES read BANNER_H
+    -- now -- it sizes the block it hands PageHeader -- but only from inside a render, and a
+    -- library-less build never renders one (RenderUnitPanel bails on a nil NS.AceGUI). The four
+    -- CALLABLE members of that band are in the stub -- tests/test_surface_parity.lua holds them
+    -- there.
     "CHROME_GAP", "TAB_H", "BANNER_H",
   }) do
     assertEqual(NS2.Helpers[name], nil, name .. " is a copy of lib.LAYOUT with no degraded reader")

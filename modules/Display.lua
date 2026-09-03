@@ -46,8 +46,10 @@ local previewTimer
 --- Not folded into UpdateAbsorbBar on purpose: choosing between "live value" and "placeholder"
 --- there would mean asking whether the absorb is zero, and UnitGetTotalAbsorbs returns a secret in
 --- restricted content — comparing it raises. See ShouldShowBar's note and docs/scope.md. The
---- placeholder is therefore painted by the appearance pass, and any live repaint wins over it,
---- which is the honest ordering.
+--- placeholder is therefore painted by the appearance pass, and while the bars are unlocked
+--- UpdateAbsorbBar stands down entirely rather than repainting over it — so the placeholder is
+--- what the user sees for as long as they are positioning the bars, whatever else publishes a
+--- repaint meanwhile.
 function NS.PaintPlaceholder(unit)
     unit = unit or "player"
     local bar = NS.bars[unit]
@@ -88,6 +90,12 @@ function NS.HoldPreview(seconds)
         previewTimer = NS.addon:ScheduleTimer(function()
             previewTimer = nil
             NS.ClearPreview()
+            -- The two previews overlap: `/at test` can be run with the bars unlocked, and a
+            -- repaint stands down in that state (see NS.UpdateAbsorbBar). Publishing REPAINT alone
+            -- would therefore leave the fake value on an unlocked bar for good -- past the window
+            -- this timer exists to enforce. Hand the bars back to the placeholder first; locked,
+            -- this arm does not run and the repaint below restores live data as before.
+            if not NS.GetSetting("locked") then NS.ForEachUnit(NS.PaintPlaceholder) end
             if NS.bus then NS.bus:SendMessage(NS.MSG.REPAINT) end
         end, seconds)
     end
@@ -173,10 +181,28 @@ function NS.UpdateBarAppearance(unit)
     -- profile switch and a `/at set` land the same way.
     valueText:SetTextColor(NS.GetFontColor(unit))
 
-    -- The frame's overall opacity. Applied in the appearance pass as well as at the two paint
-    -- sites, because a restyle that did not touch it would leave the bar at whatever alpha the last
-    -- paint chose until the next absorb event.
+    -- Font shadow, the sixth row of the canonical font block (options-ui-§16). BOTH arms are
+    -- written: a setting that is declared and not honored is worse than one that is absent, and an
+    -- OFF arm that merely skipped the call would leave whatever the last pass set, so turning the
+    -- shadow back off would do nothing until a /reload.
+    if NS.Units.Get(unit, "fontShadow") then
+        valueText:SetShadowColor(0, 0, 0, 1)
+        valueText:SetShadowOffset(1, -1)
+    else
+        valueText:SetShadowColor(0, 0, 0, 0)
+        valueText:SetShadowOffset(0, 0)
+    end
+
+    -- The frame's overall opacity -- the unit's own value times the addon-wide Master alpha
+    -- (options-ui-§15), both resolved by NS.GetBarAlpha. Applied in the appearance pass as well as
+    -- at the two paint sites, because a restyle that did not touch it would leave the bar at
+    -- whatever alpha the last paint chose until the next absorb event.
     bar:SetAlpha(NS.GetBarAlpha(unit))
+
+    -- The addon-wide Master scale (options-ui-§15). Applied here rather than once at CreateBar
+    -- because it IS a setting: a restyle has to re-apply it, or a change would not land until the
+    -- next /reload. It scales the whole frame, so the unit label and the value text ride with it.
+    bar:SetScale(NS.GetMasterScale())
 
     -- `locked` is global: all three bars lock together.
     local locked = NS.GetSetting("locked")
@@ -194,7 +220,8 @@ function NS.UpdateBarAppearance(unit)
     -- Unlocked means "being positioned", and out of combat the bar the user is trying to grab is
     -- usually empty — a transparent strip with no text. Paint the placeholder fill so there is
     -- something to see and drag (preview-mode). Re-locking runs this same pass with `locked` true
-    -- and does not repaint the placeholder, and the REPAINT the lock publishes restores live data.
+    -- and does not repaint the placeholder; the REPAINT the lock publishes is what restores live
+    -- data, and it can only paint because the bars are locked again (see UpdateAbsorbBar).
     if not locked then NS.PaintPlaceholder(unit) end
 
     NS.ApplyVisibility(unit)
@@ -210,24 +237,42 @@ function NS.UpdateBarAppearance(unit)
     end
 end
 
+-- The `visibility` dropdown's own gate (options-ui-§15). Four states, where there used to be a
+-- `showOnlyInCombat` boolean that could only ever answer two of them; the v5 migration
+-- (core/Database.lua) carries an existing install across.
+--
+-- The combat test keys off UnitAffectingCombat("player"), NOT InCombatLockdown(). At
+-- PLAYER_REGEN_DISABLED the client fires the event while InCombatLockdown() is still false —
+-- secure-frame lockdown lags actual combat by a fraction of a second — so gating on lockdown hid
+-- the bar exactly when it should appear. See docs/midnight-quirks.md.
+--
+-- An unrecognized value reads as "always", which is the honest answer for a hand-edited
+-- SavedVariable: the alternative is a hidden addon with no visible cause.
+local function visibilityAllows()
+    local mode = NS.GetSetting("visibility")
+    if mode == "never" then return false end
+    if mode == "inCombat" then return not not UnitAffectingCombat("player") end
+    if mode == "outOfCombat" then return not UnitAffectingCombat("player") end
+    return true
+end
+
 -- Effective bar visibility, composed in order — the first false wins:
 --   0. the perf probe's suspend switch
---   1. the per-unit `enabled` flag
---   2. the global `showOnlyInCombat` gate
---   3. for target/focus only, whether the unit exists
+--   1. the addon-wide `enabled` flag
+--   2. the per-unit `enabled` flag
+--   3. the `visibility` dropdown
+--   4. for target/focus only, whether the unit exists
 --
 -- Step 0 is what makes `/at debug perf suspend` airtight. Suspend could have hidden the bars
 -- imperatively, but then any later VISIBILITY publish — a combat transition, a target swap, a
 -- settings edit — would quietly re-show them mid-measurement and corrupt the capture. Gating at
 -- the source means suspend only has to publish VISIBILITY once and nothing can undo it.
 --
--- There is no master `hidden` toggle above these any more (dropped in schema v4): `enabled` is the
--- visibility switch, and `/at toggle` flips all three at once rather than a separate global.
---
--- The combat gate keys off UnitAffectingCombat("player"), NOT InCombatLockdown(). At
--- PLAYER_REGEN_DISABLED the client fires the event while InCombatLockdown() is still false —
--- secure-frame lockdown lags actual combat by a fraction of a second — so gating on lockdown hid
--- the bar exactly when it should appear. See docs/midnight-quirks.md.
+-- Steps 1 and 2 are DIFFERENT settings and options-ui-§15 forbids conflating them: `enabled` is
+-- the addon-wide switch on the Master controls tab ("turn this off without unloading it"), and the
+-- three per-unit flags are which bars exist. This is not the pre-v4 `hidden` global coming back —
+-- that key was dropped because nothing in the UI could clear it, which is exactly what made it a
+-- defect and exactly what a Master controls row is not.
 --
 -- Step 4 uses UnitExists and nothing else. "Hide when the unit has no absorb" is NOT
 -- implementable: UnitGetTotalAbsorbs returns a secret in restricted content and comparing it to
@@ -235,8 +280,9 @@ end
 function NS.ShouldShowBar(unit)
     unit = unit or "player"
     if Perf.suspended then return false end
+    if not NS.GetSetting("enabled") then return false end
     if not NS.Units.IsEnabled(unit) then return false end
-    if NS.GetSetting("showOnlyInCombat") and not UnitAffectingCombat("player") then return false end
+    if not visibilityAllows() then return false end
     if unit ~= "player" and not UnitExists(unit) then return false end
     return true
 end
@@ -247,9 +293,10 @@ end
 -- Mirrors the ladder's order exactly — if a rung is added there, add it here.
 local function visibilityReason(unit)
     if Perf.suspended then return "perf suspended" end
+    if not NS.GetSetting("enabled") then return "addon disabled" end
     if not NS.Units.IsEnabled(unit) then return "unit disabled" end
-    if NS.GetSetting("showOnlyInCombat") and not UnitAffectingCombat("player") then
-        return "showOnlyInCombat"
+    if not visibilityAllows() then
+        return "visibility=" .. NS.SafeToString(NS.GetSetting("visibility"))
     end
     if unit ~= "player" and not UnitExists(unit) then return "no unit" end
     return "always"
@@ -292,6 +339,24 @@ function NS.UpdateAbsorbBar(unit)
 
     -- /at test paints a fake value and sets testHoldUntil so this doesn't immediately overwrite it.
     if (NS.testHoldUntil or 0) > GetTime() then
+        return false
+    end
+
+    -- The other half of preview mode (preview-mode). Unlocked means the user is positioning the
+    -- bars, and the appearance pass has painted the placeholder onto every one of them; a live
+    -- paint landing afterwards would replace it with an empty strip reading 0, which is the exact
+    -- "nothing to grab" the placeholder exists to prevent.
+    --
+    -- Every REPAINT fans out over all three bars (modules/Timer.lua), and the panel publishes one
+    -- whenever a bar is enabled, the addon-wide switch flips or the visibility mode changes -- so
+    -- letting the live paint win made the placeholder depend on which row the user last touched:
+    -- unchecking a bar left the other two reading "Absorb", rechecking it turned all three back
+    -- into empty strips. Skipping here is the single seam, and it holds for absorb events and
+    -- throttle ticks as well as for the panel.
+    --
+    -- Returns false, like the hold above: a bar that did not paint is not a repaint, so the
+    -- [Combat] rollup's count is unaffected.
+    if not NS.GetSetting("locked") then
         return false
     end
 

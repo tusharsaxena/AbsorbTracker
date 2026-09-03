@@ -1,8 +1,7 @@
 -- AbsorbTracker: settings/General.lua
 --
--- General sub-page — what `/at config` opens by default. Which bars exist, whether they are locked,
--- whether they only show in combat, how fast they repaint, a Debug console show/hide toggle, and a
--- Reset Position / Reset All Settings button pair.
+-- General sub-page — what `/at config` opens by default. The addon-wide controls, which bars exist,
+-- and how the ones that do behave.
 
 local addonName, NS = ...
 
@@ -10,50 +9,169 @@ local print = NS.Print
 
 local flatDefaults = NS.flatDefaults
 
+local H = NS.Helpers
+
 -- TWO TABS (options-ui-§13), and the strip is the schema array's own order:
 --
---     [ Bars ][ Behavior ]
+--     [ Master controls ][ Bars ]
 --
---     Bars       [Enable Player Bar]   [Enable Target Bar]
---                [Enable Focus Bar]
---                [Reset Position]      [Reset All Settings]   <- inline button pair, afterGroup
---     Behavior   [Lock Position]       [Show only in combat]
---                [Update throttle]     [Debug console]        <- window show/hide, via pairWith
+--     Master controls  [Enable Absorb Tracker]  [General visibility]
+--                      [Master scale]           [Master alpha]
+--                      [Lock frame]             [Debug console]
+--                      [Reset position]         [Reset all settings]   <- button pair, afterGroup
+--     Bars             -- Tracked units --                             <- subgroup, options-ui-§7
+--                      [Enable Player Bar]      [Enable Target Bar]
+--                      [Enable Focus Bar]
+--                      -- Updates --
+--                      [Update throttle]
 --
--- WHY THIS SPLIT. The page's six rows answer two different questions -- WHICH bars exist, and how
--- the ones that do behave -- and each half is three rows, so neither tab is a drawer. Bars leads
--- because turning a bar on is what a player opens this page for; Behavior is what they set once.
+-- THERE IS NO `Behavior` TAB ANY MORE, and it is the move of `locked` that ended it rather than a
+-- redesign. Behavior held lock, the combat gate and the throttle; lock is canonical and belongs on
+-- Master controls, the combat gate became the `visibility` dropdown there, and what was left was
+-- one slider. A tab holding one control is not a subject, it is a click that reveals one widget, so
+-- the throttle merged into the tab whose subject contains it -- which bars exist and how they
+-- behave -- and the merged tab carries a subsection heading per kind, which is exactly what
+-- options-ui-§7 asks of a tab that mixes them. Neither heading repeats the tab's own name, which
+-- that rule forbids outright.
 --
--- The three enable toggles now run together instead of being interleaved with the globals one for
--- one. The old interleave (orders 10/15/20/25/30) paired [Enable Player Bar] with [Lock Position]
--- for no reason beyond both being on this page; reading across a line is supposed to compare two
--- answers to one question, and those two were answers to different ones. Three toggles in a row
--- read as the set they are.
+-- MASTER CONTROLS LEADS, AND IS NOT OPTIONAL (options-ui-§15). The one thing every player looks for
+-- first -- how do I turn this off, how do I make it smaller, how do I put it back -- is in the same
+-- place, under the same words, in every Ka0s addon. The set is canonical rather than a menu: it may
+-- not be reordered, renamed or split, and this addon draws all eight rows because it HAS a movable
+-- frame (modules/Bar.lua calls SetMovable(true) on every bar), so nothing is omitted.
 --
--- They write `units.<unit>.enabled` -- the same paths `/at set units.target.enabled true` uses --
--- but live here rather than on the Appearance page behind the Unit banner: enabling a bar is a
--- master control, not an appearance choice, and all three visible at once means turning a bar on
--- costs no picker switch.
+-- IT IS COMPOSED, NEVER TYPED OUT. H.MasterControls emits the eight from one declaration, so nine
+-- addons cannot drift into nine orders; hand-writing the block is anti-pattern #73. What this file
+-- supplies is the part that is genuinely ours -- the defaults each row starts from and the
+-- `onChange` each one fires.
 --
--- [Debug console] shows/hides the debug console window (same as bare /at debug) — it does NOT
--- change the debug logging flag. NOT a schema row (window visibility is transient UI, never
--- persisted); injected through RenderSchema's pairWith seam, which needs its host row to be the
--- LONE widget on its line. It hangs off `throttleWindow`, which is `solo = true` and therefore
--- always alone on its line by construction -- where the old host (Enable Focus Bar) was only alone
--- because the five rows above it happened to pair off as 2 + 2 + 1, an accident any added row would
--- have broken silently. Its get/set lives in NS.DebugLog:ConsoleCheckbox().
+-- WHAT MOVED HERE, AND IS THEREFORE GONE FROM WHERE IT WAS. Two controls over one setting is the
+-- failure this pass exists to remove, so each of these has exactly ONE declaration now:
+--
+--   * `locked`             was the Behavior tab's "Lock Position"
+--   * `state.debugConsole` was a bespoke SessionCheckbox hung off the throttle row through the
+--                          `pairWith` seam. The console itself is untouched -- only how the toggle
+--                          is DECLARED changed, and it is a schema row now, so `/at get` and
+--                          `/at set` can reach it where before no CLI verb could.
+--   * Reset position       were the Bars tab's afterGroup button pair
+--   * Reset all settings
+--
+-- WHAT IS NEW. `enabled`, `visibility`, `scale` and `alpha` did not exist. `visibility` REPLACES the
+-- old `showOnlyInCombat` boolean, which could only ever answer two of the dropdown's four states;
+-- that is a stored-value type change and so takes a migration (core/Database.lua's v5) in the same
+-- change as the row.
+--
+-- WHAT DID NOT MOVE. The per-unit `barAlpha` on the Appearance page is NOT Master alpha
+-- (options-ui-§15 forbids conflating an addon-wide row with a per-instance one): one dims all three
+-- bars, the other dims one, and NS.GetBarAlpha multiplies them. Nor are the three per-unit `enabled`
+-- toggles the addon-wide `Enable` row -- they are which bars exist, and they stay on the Bars tab.
 --
 -- Schema rows below double as the source for `/at list/get/set` on these paths.
 
+-- The console toggle's stored path, VERBATIM and unprefixed: session state lives outside the
+-- block's own prefix, and this is the literal the composer defaults to. Named once because the
+-- registration below has to spell the same string.
+local DEBUG_CONSOLE_PATH = "state.debugConsole"
+
+-- Bind that path to the console WINDOW's own show/hide state rather than to the profile
+-- (options-ui-§15: the row is session-only, and a console left open is not a setting the next
+-- character inherits). `ConsoleCheckbox` is the `{ label, tooltip, get, set }` pair
+-- LibKa0s-DebugLog already answers for exactly this, and BOTH arms of core/DebugLogSetup.lua
+-- publish it -- so a library-less build gets an honest toggle rather than a row wired to nothing.
+if NS.DebugLog and NS.DebugLog.ConsoleCheckbox then
+    NS.RegisterSessionSetting(DEBUG_CONSOLE_PATH, NS.DebugLog:ConsoleCheckbox())
+end
+
+-- The canonical block. `defaults` names this addon's own starting values without changing any
+-- stored path: every leaf here already IS the path the composer derives, so `keys` is unnecessary
+-- and nothing about what is stored moves.
+local masterRows, masterTail = H.MasterControls({
+    prefix           = "",
+    page             = "general",
+    addonName        = "Absorb Tracker",
+    -- Not frameless: the bars are movable, so master scale, master alpha, lock frame and reset
+    -- position all apply. Stated rather than left to the default, because `frameless` is the one
+    -- field that silently REMOVES four mandated rows.
+    frameless        = false,
+    debugConsolePath = DEBUG_CONSOLE_PATH,
+    defaults         = {
+        enabled    = flatDefaults.enabled,
+        visibility = flatDefaults.visibility,
+        scale      = flatDefaults.scale,
+        alpha      = flatDefaults.alpha,
+        locked     = flatDefaults.locked,
+    },
+    -- The same shared helper `/at resetposition` calls, so the button and the slash verb can never
+    -- diverge. They did once: the old body nil'd `db.profile.position`, the pre-v3 flat key the v3
+    -- migration deletes, which made the button a silent no-op (see Helpers.ResetAllPositions).
+    -- Resolved at CLICK time, not captured: settings/UnitPanel.lua decorates the helper onto the
+    -- instance AFTER this file loads, and tests/test_helpers.lua swaps it out to spy on it.
+    onResetPosition  = function() NS.Helpers.ResetAllPositions() end,
+    -- options-ui-§12's global reset, through the confirmation the act has always carried.
+    onResetAll       = function() StaticPopup_Show("ABSORBTRACKER_RESET_ALL") end,
+})
+
+-- The composer emits DATA; `onChange` is the host's half and is attached here. Keyed by PATH rather
+-- than by index, so a change to the canonical order upstream cannot silently move a handler onto
+-- the wrong row -- it would simply stop firing, which is visible.
+local masterOnChange = {
+    -- The addon-wide switch. Nothing unloads and no event registration changes (those key off the
+    -- per-unit flags); what changes is whether ShouldShowBar's second rung lets anything draw.
+    ["enabled"] = function()
+        NS.bus:SendMessage(NS.MSG.VISIBILITY)
+        NS.bus:SendMessage(NS.MSG.REPAINT)
+    end,
+
+    ["visibility"] = function()
+        NS.bus:SendMessage(NS.MSG.VISIBILITY)
+        -- Evaluated per enabled unit, not once for the player. NS.ShouldShowBar defaults its
+        -- argument to "player" and returns false as soon as the PLAYER bar is disabled
+        -- (modules/Display.lua), so a bare NS.ShouldShowBar() answered a question about one bar and
+        -- gated all three: with only the target bar on, changing this setting published VISIBILITY
+        -- -- the bar appeared -- and then skipped the repaint that fills it, leaving whatever it
+        -- last painted on screen until the next absorb event.
+        local anyVisible = false
+        NS.ForEachUnit(function(unit)
+            if NS.ShouldShowBar(unit) then anyVisible = true end
+        end)
+        if anyVisible then NS.bus:SendMessage(NS.MSG.REPAINT) end
+    end,
+
+    -- Both multipliers are read inside the appearance pass (modules/Display.lua), so the ordinary
+    -- restyle broadcast is all either needs.
+    ["scale"] = function() NS.bus:SendMessage(NS.MSG.APPEARANCE) end,
+    ["alpha"] = function() NS.bus:SendMessage(NS.MSG.APPEARANCE) end,
+
+    ["locked"] = function()
+        -- Both directions of the lock end preview mode (preview-mode): re-locking drops any live
+        -- `/at test` hold so the bar returns to live data instead of keeping the fake value, and
+        -- unlocking drops it too so what the user drags is the placeholder fill. The APPEARANCE
+        -- pass is what paints, or stops painting, that placeholder.
+        --
+        -- Wired here rather than in the lock/unlock verbs because this is the single seam every
+        -- writer goes through — the checkbox, `/at lock`, `/at unlock`, `/at set locked` and the
+        -- Defaults button all land in NS.SetByPath, which fires this.
+        NS.ClearPreview()
+        NS.bus:SendMessage(NS.MSG.APPEARANCE)
+        NS.bus:SendMessage(NS.MSG.REPAINT)
+    end,
+}
+
+for _, row in ipairs(masterRows) do
+    local fn = masterOnChange[row.path]
+    if fn then row.onChange = fn end
+end
+
+NS.RegisterSchemaRows(masterRows)
+
 -- Per-unit enable toggles, one per NS.Units.LIST entry, generated so adding a fourth tracked unit
--- needs no edit here. Orders 10 / 20 / 30 interleave with the globals above (15 / 25) to fill the
--- LEFT column. Each row keeps its `unit` tag: the General page renders with ctx.unit nil, and
+-- needs no edit here. Each row keeps its `unit` tag: the General page renders with ctx.unit nil, and
 -- SchemaForPage(page, nil) returns every unit's rows, so the tag is inert here — it is kept so the
 -- row is still identifiable as per-unit by anything walking the schema.
 --
--- These are the only visibility switch the addon has; `onChange` therefore also re-syncs the
--- per-unit event registrations (core/AbsorbTracker.lua), so a disabled unit costs no event
--- dispatch at all.
+-- These are the per-BAR visibility switch, a different setting from the Master controls tab's
+-- addon-wide `enabled`; `onChange` therefore also re-syncs the per-unit event registrations
+-- (core/AbsorbTracker.lua), so a disabled unit costs no event dispatch at all.
 for i, unit in ipairs(NS.Units.LIST) do
     NS.RegisterSchemaRows({
         {
@@ -64,7 +182,8 @@ for i, unit in ipairs(NS.Units.LIST) do
             -- must not tag `/at get units.focus.enabled` with the "(mirrored)" note. Still load
             -- bearing after the move off the Bar page — that note is keyed off this flag.
             alwaysPerUnit = true,
-            group   = "Bars",
+            group    = "Bars",
+            subgroup = "Tracked units",
             order   = i * 10,
             type    = "bool",
             label   = "Enable " .. NS.Units.LABEL[unit] .. " Bar",
@@ -90,67 +209,27 @@ end
 
 NS.RegisterSchemaRows({
     {
-        path    = "showOnlyInCombat",
-        page    = "general",
-        group   = "Behavior",
-        order   = 20,
-        type    = "bool",
-        label   = "Show only in combat",
-        desc    = "When on, the bar is hidden except while you're in combat.",
-        default = flatDefaults.showOnlyInCombat,
-        onChange = function()
-            NS.bus:SendMessage(NS.MSG.VISIBILITY)
-            -- Evaluated per enabled unit, not once for the player. NS.ShouldShowBar defaults its
-            -- argument to "player" and returns false as soon as the PLAYER bar is disabled
-            -- (modules/Display.lua), so a bare NS.ShouldShowBar() answered a question about one
-            -- bar and gated all three: with only the target bar on, toggling this setting
-            -- published VISIBILITY — the bar appeared — and then skipped the repaint that fills
-            -- it, leaving whatever it last painted on screen until the next absorb event.
-            local anyVisible = false
-            NS.ForEachUnit(function(unit)
-                if NS.ShouldShowBar(unit) then anyVisible = true end
-            end)
-            if anyVisible then NS.bus:SendMessage(NS.MSG.REPAINT) end
-        end,
-    },
-    {
-        path    = "locked",
-        page    = "general",
-        group   = "Behavior",
-        order   = 10,
-        type    = "bool",
-        label   = "Lock Position",
-        desc    = "When locked, the bar can't be dragged.",
-        default = flatDefaults.locked,
-        onChange = function()
-            -- Both directions of the lock end preview mode (preview-mode): re-locking drops any
-            -- live `/at test` hold so the bar returns to live data instead of keeping the fake
-            -- value, and unlocking drops it too so what the user drags is the placeholder fill.
-            -- The APPEARANCE pass is what paints, or stops painting, that placeholder.
-            --
-            -- Wired here rather than in the lock/unlock verbs because this is the single seam every
-            -- writer goes through — the checkbox, `/at lock`, `/at unlock`, `/at set locked` and
-            -- the Defaults button all land in NS.SetByPath, which fires this.
-            NS.ClearPreview()
-            NS.bus:SendMessage(NS.MSG.APPEARANCE)
-            NS.bus:SendMessage(NS.MSG.REPAINT)
-        end,
-    },
-    {
-        path    = "throttleWindow",
-        page    = "general",
-        group   = "Behavior",
-        order   = 30,
+        -- The last row of the old Behavior tab, under its own subsection heading on Bars. See the
+        -- note at the head of this file for why the tab it used to share is gone.
+        --
+        -- `solo` went with the bespoke debug-console checkbox it existed for: this row HOSTED that
+        -- checkbox through the `pairWith` seam, which needs its host to be alone on its line.
+        -- Nothing pairs with it now, and a subsection heading already breaks the line before it, so
+        -- declaring the layout by hand would state a fact the flow engine produces.
+        path     = "throttleWindow",
+        page     = "general",
+        group    = "Bars",
+        subgroup = "Updates",
+        order    = 40,
         type    = "number",
         label   = "Update throttle (in sec)",
         desc    = "Fastest the bar repaints during a burst of changes. Lower = snappier but more CPU.",
         default = flatDefaults.throttleWindow,
         min = 0.05, max = 1, step = 0.05, fmt = "%.2f sec",
-        solo    = true,
     },
 })
 
--- StaticPopup for "Reset All Settings" — irreversible, so confirm
+-- StaticPopup for "Reset all settings" — irreversible, so confirm
 -- before wiping. The OnAccept body calls NS.Helpers.RestoreAllDefaults,
 -- the same helper /at resetall calls, so the popup and the slash never
 -- diverge (they historically differed on whether position was cleared).
@@ -186,7 +265,6 @@ local function build(mainCategory)
         return nil
     end
 
-    local H   = NS.Helpers
     local ctx = H.CreatePanel("AbsorbTrackerGeneralPanel", "General", {
         pageKey         = "general",
         defaultsButton  = true,
@@ -207,39 +285,14 @@ local function build(mainCategory)
         if rendered then return end
         rendered = true
         -- RenderTabbedSchema, not RenderSchema: the page's two groups become the strip
-        -- (options-ui-§13). Both hook tables key off names the schema owns -- the group for
-        -- afterGroup, the row's path for pairWith -- so a rename here that is not made in the rows
-        -- above simply stops firing rather than drawing in the wrong place.
-        H.RenderTabbedSchema(ctx, "general", {
-            ["Bars"] = function(ctxRef)
-                H.InlineButtonPair(ctxRef,
-                    {
-                        text    = "Reset Position",
-                        tooltip = "Move every bar back to its default position.",
-                        -- Same shared helper `/at resetposition` calls, so the button and the
-                        -- slash verb can never diverge. They did once: this body used to nil
-                        -- `db.profile.position`, the pre-v3 flat key the v3 migration deletes,
-                        -- which made the button a silent no-op (see Helpers.ResetAllPositions).
-                        onClick = function() H.ResetAllPositions() end,
-                    },
-                    {
-                        text    = "Reset All Settings",
-                        -- Names the equivalence rather than restating the popup (options-ui-§12).
-                        tooltip = "Start over: reset the active profile to the addon defaults. The same thing Profiles > Reset Profile does. Your other profiles are left alone.",
-                        onClick = function() StaticPopup_Show("ABSORBTRACKER_RESET_ALL") end,
-                    })
-            end,
-        }, {
-            -- "Debug console" as the throttle slider's right partner: shows/hides the console
-            -- window (not a schema row — transient UI); get/set live in DebugLog. The throttle row
-            -- is `solo`, so it is alone on its line by construction, which is what the pairWith
-            -- seam requires of its host.
-            ["throttleWindow"] = function(ctxRef, rowGroup)
-                if NS.DebugLog and NS.DebugLog.ConsoleCheckbox then
-                    H.SessionCheckbox(ctxRef, rowGroup, 0.5, NS.DebugLog:ConsoleCheckbox())
-                end
-            end,
-        })
+        -- (options-ui-§13). THE GROUP NAME IS THE HOOK KEY -- H.MASTER_GROUP is both the literal
+        -- the composer filed its rows under and the tab's label, so it is read off the instance
+        -- rather than spelled again here. A rename reaching only one of the two would detach the
+        -- button pair, and nothing would error.
+        --
+        -- No `pairWith` any more: its one user was the bespoke debug-console checkbox, which is a
+        -- schema row on the Master controls tab now.
+        H.RenderTabbedSchema(ctx, "general", { [H.MASTER_GROUP] = masterTail })
     end)
 
     return Settings.RegisterCanvasLayoutSubcategory(

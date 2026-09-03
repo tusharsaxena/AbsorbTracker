@@ -66,7 +66,7 @@ after a direct disk write that landed LF, convert with `sed -i 's/\r$//; s/$/\r/
 
 ## LibKa0s is vendored — fix it upstream
 
-Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.23.0 (MIT).
+Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.25.0 (MIT).
 
 That line is the **provenance record** for both vendored payloads, and it is an input rather than a
 note: `tests/test_vendor_sync.lua` greps it out of *this* file and compares `libs/LibKa0s/` and
@@ -79,9 +79,9 @@ inventory was never something a player needed.
 upstream and re-vendor. `tests/_kit/` is vendored the same way (from LibKa0s/testkit), so a local
 "fix" there forks a shared file. Both sit outside `luacheck .` via `exclude_files`.
 
-`libs/LibKa0s/LibKa0s.xml` loads ten modules across thirteen files — Core, Env, Pool, Item, Media,
-Widgets, DebugLog, Slash, Options (`Options` + `OptionsWidgets` + `OptionsScroll`) and Perf (`Perf`
-+ `PerfPanel`). Pool and Item came in with the payload and nothing binds them — they register and
+`libs/LibKa0s/LibKa0s.xml` loads ten modules across fourteen files — Core, Env, Pool, Item, Media,
+Widgets, DebugLog, Slash, Options (`Options` + `OptionsWidgets` + `OptionsCompose` +
+`OptionsScroll`) and Perf (`Perf` + `PerfPanel`). Pool and Item came in with the payload and nothing binds them — they register and
 sit there. Widgets is not idle any more: `DebugLog` minor 12 draws its copy window with
 `LibKa0s-Widgets-1.0`'s `CopyWindow` and hard-floors on it (`NEEDS_WIDGETS = 7`,
 `libs/LibKa0s/DebugLog.lua:34`), so this addon reaches it through the console it does bind, never

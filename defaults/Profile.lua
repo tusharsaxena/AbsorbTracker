@@ -21,6 +21,10 @@ local function appearance()
         font = "Friz Quadrata TT",
         fontSize = 12,
         fontFlags = "OUTLINE",
+        -- The sixth row of the canonical font block (options-ui-§16), new with the composer.
+        -- Default OFF, so an install that never opens the Text tab is drawn exactly as it was;
+        -- modules/Display.lua applies it beside SetFont on every appearance pass.
+        fontShadow = false,
         -- Opaque white: what a FontString draws at when nothing sets a color, which is what the
         -- absorb amount did before it had a row. Stated here so an install that never opens the
         -- Text tab is drawn exactly as it was.
@@ -63,11 +67,27 @@ NS.defaults.profile = {
     -- profile read as what it is: pre-v3.
     schemaVersion = 1,
 
-    -- Globals: one value shared by all three bars. There is deliberately no `hidden` master
-    -- toggle — the three per-unit `enabled` flags ARE the visibility switch (dropped in v4).
+    -- Globals: one value shared by all three bars.
+    --
+    -- The Master controls block (options-ui-§15) is five of them — `enabled`, `visibility`,
+    -- `scale`, `alpha` and `locked`; its sixth row, the debug console, is session state and stores
+    -- nothing here. `enabled` is the addon-wide
+    -- switch the three per-unit `enabled` flags are NOT — §15 forbids conflating an addon-wide row
+    -- with a per-instance one, so both exist and the addon-wide one gates the per-unit ones
+    -- (NS.ShouldShowBar). `visibility` REPLACES the old `showOnlyInCombat` boolean, which could
+    -- only ever answer two of the four states; the v5 migration in core/Database.lua carries every
+    -- existing install across. `scale` and `alpha` are the addon-wide multipliers, and are a
+    -- different question from the per-unit `barAlpha` on the Appearance page.
+    --
+    -- There is deliberately no `hidden` master toggle — that key was dropped in v4, and `enabled`
+    -- above is not a re-introduction of it: `hidden` had no UI left to clear it, which is exactly
+    -- what made it a defect.
+    enabled = true,
+    visibility = "always",
+    scale = 1.0,
+    alpha = 1.0,
     locked = false,
     throttleWindow = 0.1,
-    showOnlyInCombat = false,
 
     -- Per-unit. Player has no `mirror` key — it is the mirror SOURCE, so a player mirror row
     -- would be circular. Target and Focus ship disabled (an upgrade changes nothing on screen)
@@ -82,20 +102,21 @@ NS.defaults.profile = {
 NS.defaults.global = {
     -- Persisted-DB schema version. NS:RunMigrations (core/Database.lua) reads/writes this once
     -- at init — the idempotent seam future schema changes hook into. v3 introduced profile.units;
-    -- v4 dropped the dead `hidden` global.
+    -- v4 dropped the dead `hidden` global; v5 mapped `showOnlyInCombat` onto `visibility`.
     --
-    -- The default is 1 ("pre-ladder"), NOT the current 4, for exactly the reason the per-profile
+    -- The default is 1 ("pre-ladder"), NOT the current 5, for exactly the reason the per-profile
     -- stamp above is 1: AceDB-3.0's copyDefaults fills every ABSENT key the moment the section is
-    -- instantiated, which happens BEFORE NS:RunMigrations reads it. A default of 4 stamped every
-    -- freshly-materialized global as already-migrated, so `g.schemaVersion < step.to` was false
-    -- for every step and the ladder was structurally dead — including for a DB whose global was
-    -- wiped while its profiles still carried pre-v4 data. Every step is idempotent, so running the
-    -- ladder on a genuinely new install costs three no-ops and stamps 4.
+    -- instantiated, which happens BEFORE NS:RunMigrations reads it. A default of 5 would stamp
+    -- every freshly-materialized global as already-migrated, so `g.schemaVersion < step.to` is
+    -- false for every step and the ladder is structurally dead — including for a DB whose global
+    -- was wiped while its profiles still carried pre-v5 data. Every step is idempotent, so running
+    -- the ladder on a genuinely new install costs four no-ops and stamps 5.
     schemaVersion = 1,
 }
 
 -- Flat alias for the no-AceDB fallback path: GetSetting reads this when NS.db is absent. It now
--- carries the four globals plus the `units` table.
+-- carries the six globals (enabled, visibility, scale, alpha, locked, throttleWindow), the
+-- per-profile schema stamp and the `units` table.
 NS.flatDefaults = NS.defaults.profile
 
 -- Per-unit default alias. settings/{Bar,Border,Font}.lua read each row's `default =` from here,

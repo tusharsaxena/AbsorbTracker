@@ -66,6 +66,11 @@ NS:InitDB()
 for _, unit in ipairs(NS.Units.LIST) do
   NS.db.profile.units[unit].enabled = true
 end
+-- Locked, which is the state the repaint path costs anything in: unlocked, the bars are in preview
+-- mode and NS.UpdateAbsorbBar stands down so the placeholder survives (modules/Display.lua). The
+-- stored default is `locked = false`, so leaving it would measure a pass in which every bar
+-- early-outs -- zero API calls, and a paintPass figure that meant nothing.
+NS.db.profile.locked = true
 mocks.__unitExists.target = true
 mocks.__unitExists.focus  = true
 

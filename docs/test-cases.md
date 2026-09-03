@@ -23,7 +23,7 @@ badge and any count quoted in the docs must agree with it.
 - loadorder: LibStub returns nil for a missing major with the silent flag
 - loadorder: LibStub keeps the higher minor when a major registers twice
 
-### test_schema.lua (41)
+### test_schema.lua (45)
 
 - FormatSchemaValue formats by type
 - SchemaForPage keeps groups in registration order, which IS the Appearance tab strip
@@ -39,6 +39,10 @@ badge and any count quoted in the docs must agree with it.
 - every persisted profile default is reachable from a schema row
 - every number row declares a usable min/max range
 - every string row supplies a values source
+- every row on every page carries a `group`
+- every color row is immediately followed by its class-color companion
+- no color row carries `disabledIf`, and every pair declares whose class it means
+- every media-backed row answers a populated option list
 - `disabledIf` names a real sibling setting
 - every schema row lands on a page the panel actually builds
 - FindSchemaRow returns the row for a known path and nil for an unknown one
@@ -59,19 +63,19 @@ badge and any count quoted in the docs must agree with it.
 - the appearance page carries a full row set for all three units
 - each unit's row set for a page is the same size
 - the enable row is per-unit, lives on General, and survives mirroring
-- the Bars tab is the three enable toggles, in unit order and nothing else
-- the Behavior tab runs lock, combat gate, throttle -- and the throttle is solo
+- the Master controls tab is the canonical set, in order, and leads the General page
+- the Bars tab is the three enable toggles then the throttle, under their own headings
 - the mirror row exists for target and focus but not the player
 - the mirror row is kept out of the auto-rendered body
 - General's rows are the flat globals plus one enable toggle per unit
 - FormatSchemaValue resolves the Slash major at load, never per call
 - a build without LibKa0s-Slash-1.0 falls back to a minimal FormatSchemaValue
 
-### test_database.lua (29)
+### test_database.lua (31)
 
-- RunMigrations migrates a fresh DB to the current version (4)
+- RunMigrations migrates a fresh DB to the current version (5)
 - a freshly-materialized global runs the ladder, because its default is pre-ladder
-- RunMigrations leaves an already-current (v4) DB unchanged
+- RunMigrations leaves an already-current (v5) DB unchanged
 - RunMigrations is idempotent across repeated runs
 - RunMigrations v2 retires the legacy updateInterval profile key
 - RunMigrations backfills throttleWindow from flatDefaults
@@ -80,18 +84,20 @@ badge and any count quoted in the docs must agree with it.
 - RunMigrations does not overwrite an existing user value
 - RunMigrations is a safe no-op when the DB is absent
 - RunMigrations logs [Migrate] only when a version bump happens
-- RunMigrations emits the [Migrate] lines for a v1->v4 upgrade in order
+- RunMigrations emits the [Migrate] lines for a v1->v5 upgrade in order
 - InitDB produced a profile carrying every default key
 - v3 migration lifts flat appearance keys onto the player unit
 - v3 migration seeds target and focus disabled and mirrored
 - v3 migration leaves the remaining global keys flat
 - v4 drops the dead `hidden` key from every profile, not just the active one
+- v5 maps showOnlyInCombat onto visibility on every profile, not just the active one
+- v5 leaves a profile that never had the boolean on the shipped default
 - v4 does not resurrect `hidden` via the defaults backfill
 - v3 migration is idempotent
 - v3 migration does not share nested tables between units
-- the schema version lands on 4
+- the schema version lands on 5
 - real AceDB init: a legacy flat profile is lifted onto the player unit, not overwritten by fresh defaults
-- real AceDB init: a fresh install (no saved data) converges on factory defaults at v4
+- real AceDB init: a fresh install (no saved data) converges on factory defaults at v5
 - InitDB lifts EVERY saved profile, not only the active one
 - a profile that appears AFTER the upgrade is lifted when it becomes active
 - the InitDB sweep and the profile-change lift compose without double-applying
@@ -226,12 +232,16 @@ badge and any count quoted in the docs must agree with it.
 - every perf step label the library renders is prose, not its own STRINGS key
 - Perf: the descriptor hands the library the FOLDER name, not just the frame name
 
-### test_visibility.lua (17)
+### test_visibility.lua (21)
 
 - ShouldShowBar: a disabled unit wins even in combat
-- ShouldShowBar: default (enabled, not combat-only) is shown
+- ShouldShowBar: default (enabled, visibility=always) is shown
 - ShouldShowBar: combat-only + in combat is shown
 - ShouldShowBar: combat-only + out of combat is hidden
+- ShouldShowBar: out-of-combat-only is the mirror of combat-only
+- ShouldShowBar: never hides the bar in either combat state
+- ShouldShowBar: an unrecognized visibility mode reads as always
+- ShouldShowBar: the addon-wide enable gates every unit, whatever the per-unit flag says
 - ShouldShowBar: combat-only shows when lockdown lags actual combat
 - SyncUnitEventFrames registers each enabled unit on its own frame, one token each
 - a disabled unit is registered for nothing at all
@@ -256,7 +266,7 @@ badge and any count quoted in the docs must agree with it.
 - APPEARANCE / VISIBILITY / POSITION route to their Display consumers
 - sending a message with no subscribers is a harmless no-op
 
-### test_data.lua (29)
+### test_data.lua (31)
 
 - GetSetting reads the value out of the active profile
 - GetSetting falls back to flatDefaults when the key is missing from the profile
@@ -284,11 +294,13 @@ badge and any count quoted in the docs must agree with it.
 - a media getter with no unit still resolves the player
 - with LSM present, the media getter resolves the REQUESTED unit's own key, not the player's
 - GetBarColor reads the requested unit's color
-- class color on a target bar is still the PLAYER's class color
+- class color on a target bar is the TARGET's class, not the player's
+- a MIRRORED focus bar reads the player's swatch but takes the focus's class
+- the background palette is per-unit too, and stays the DARKENED set
 - three bar frames exist and the player alias points at the player frame
 - each bar carries its own unit tag and its own backdrop table
 
-### test_display.lua (47)
+### test_display.lua (53)
 
 - RestoreBarPosition centers the bar when no position is saved
 - RestoreBarPosition restores the saved anchor verbatim
@@ -307,10 +319,16 @@ badge and any count quoted in the docs must agree with it.
 - an untouched profile paints the same white text and full alpha it always did
 - the Text tab's color reaches the absorb amount, alpha included
 - barAlpha reaches all three paint sites, not just the appearance pass
+- fontShadow reaches the absorb amount, and turning it off CLEARS the shadow
+- Master scale is applied to the frame on every appearance pass
+- Master alpha MULTIPLIES the per-unit barAlpha rather than replacing it
 - an unlocked bar paints a placeholder fill against a 0..1 scale
 - a locked bar paints no placeholder
+- a live repaint leaves the unlocked placeholder alone
+- UpdateAbsorbBar reports false while the bars are unlocked
 - HoldPreview arms an expiry timer for exactly the announced duration
 - the expiry timer clears the hold and republishes REPAINT
+- a hold that expires while unlocked falls back to the placeholder
 - ClearPreview reports whether a hold was actually live
 - the unit label follows the unit's own font face
 - UpdateBarAppearance re-applies the font from the profile
@@ -330,7 +348,7 @@ badge and any count quoted in the docs must agree with it.
 - a disabled unit stays hidden even when the others are on
 - an enabled target bar hides when there is no target
 - the player bar never consults UnitExists
-- showOnlyInCombat gates every bar on PLAYER combat
+- visibility=inCombat gates every bar on PLAYER combat
 - UpdateAbsorbBar reads the absorb of the unit it is painting
 - UpdateBarAppearance sizes the bar it is given, not always the player's
 - a mirrored unit paints with the player's size
@@ -338,7 +356,7 @@ badge and any count quoted in the docs must agree with it.
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_helpers.lua (54)
+### test_helpers.lua (56)
 
 - CreatePanel returns a ctx wired to a panel, a body and an empty refresher list
 - the canvas frame carries OnCommit, OnDefault and OnRefresh from the library
@@ -366,28 +384,30 @@ badge and any count quoted in the docs must agree with it.
 - NS.RefreshOptionsPanel delegates to RefreshAllPanels
 - the cross-slice layout constants are published for the widget/about slices
 - a page renders nothing until its first OnShow
-- the Appearance page opens on the player unit with no mirror header
-- the Unit picker is the page BANNER, and the page's only picker
-- switching the banner to focus re-renders the page for that unit
+- the Appearance page opens on the player unit with no mirror controls
+- the Unit picker is in the page's chrome block, and is the page's only picker
+- switching the picker to focus re-renders the page for that unit
 - the Appearance page draws one tab per schema group, in declaration order
 - clicking a tab switches the page to that tab's rows and nothing else's
-- a tab click keeps the banner, and never grows a second copy of it
-- a mirrored unit gets no tab strip at all
-- a mirrored unit shows only its header, no appearance rows
+- a tab click keeps the chrome block, and never grows a second copy of it
+- a mirrored unit STILL gets its tab strip, with the mirrored state as content
+- a mirrored unit shows only its chrome block, no appearance rows
 - unchecking the mirror reveals the appearance rows
 - the copy button snapshots the player's styling and clears the mirror
 - a page Defaults button resets that page across every unit
 - RestoreAllDefaults clears all three saved positions
-- the mirror checkbox renders exactly once — the header owns it, RenderRows must skip it
-- the mirror checkbox and copy button share one full-width Flow row at half width each
-- every header row is followed by a ROW_VSPACER, as the hand-rolled block did
-- one raising header item no longer costs the rest of the page
+- the mirror checkbox renders exactly once — the block owns it, RenderRows must skip it
+- the page-wide mirror controls sit in the chrome block, never in the scroll
+- the chrome block reserves the band its second row needs
+- a raise inside the chrome block costs the block, not the page
+- the chrome block's widgets go back to AceGUI's pool, after the render and not before
+- the mirrored hint is a laid-out row followed by a ROW_VSPACER
 - ClearScroll resets ctx.refreshers, so repeated renders do not leak stale closures
-- the General page's Reset Position button clears EVERY unit's saved position
-- the Reset Position button and /at resetposition run the SAME shared helper
+- the General page's Reset position button clears EVERY unit's saved position
+- the Reset position button and /at resetposition run the SAME shared helper
 - a page refresh re-syncs the mirror checkbox and re-runs the row partition
-- `/at set units.<unit>.mirror` re-syncs an open panel's mirror header
-- the header refresher cannot recurse: a refresh fired mid-render is a no-op
+- `/at set units.<unit>.mirror` re-syncs an open panel's mirror checkbox
+- the block's refresher cannot recurse: a refresh fired mid-render is a no-op
 - a raise mid-render must not latch the re-entrancy flag for the session
 - a failed unit-panel render is reported in chat, never swallowed
 - an ordinary schema write does NOT re-render the whole unit page
@@ -395,10 +415,11 @@ badge and any count quoted in the docs must agree with it.
 - /at resetposition does not claim success when the settings helpers are absent
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_optionssetup.lua (4)
+### test_optionssetup.lua (5)
 
 - the live and degraded builds veto exactly the same rows from Reset All
 - the degraded stub publishes LSMValues, the one member reached at file load
+- the degraded stub publishes the five composers, the other load-time members
 - the degraded stub keeps no private copy of the library's layout constants
 - PARENT_TITLE reaches the library through the descriptor, not the namespace
 
@@ -516,7 +537,7 @@ badge and any count quoted in the docs must agree with it.
 - parity: an unknown verb reaches no handler and prints the same shape in both
 - parity: a bare /at reaches no handler and prints help in both
 
-### test_widgets.lua (53)
+### test_widgets.lua (54)
 
 - NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
 - a bool row renders a CheckBox labeled from the schema
@@ -552,11 +573,12 @@ badge and any count quoted in the docs must agree with it.
 - RenderSchema pairs widgets two-to-a-row inside full-width Flow groups
 - RenderSchema gives each paired widget half the row
 - a `solo` row is rendered alone on its own line
+- `startsLine` flushes the pending line, so a declared pair can never be split
 - RenderSchema emits a Heading for each schema group
 - an afterGroup callback fires exactly once, after its group's last row
 - the Bars tab pairs the enable toggles with each other, not with a global
 - every tracked unit gets an enable toggle on the General page
-- showOnlyInCombat repaints for a target-only setup, not just for the player
+- visibility repaints for a target-only setup, not just for the player
 - the Reset All popup does not claim success when the settings helpers are absent
 - a pairWith partner is attached to the named row and is one-shot
 - RenderSchema runs a layout pass at the end
@@ -566,8 +588,8 @@ badge and any count quoted in the docs must agree with it.
 - first OnShow builds the Defaults button and renders the page
 - the Defaults button restores just its own page
 - a second OnShow rebuilds the panel body without stacking duplicate widgets
-- the General page draws its two groups as a tab strip, Bars first
-- clicking Behavior swaps the rows and leaves the button pair on Bars
+- the General page draws its two groups as a tab strip, Master controls first
+- clicking Bars swaps the rows and leaves the button pair on Master controls
 - showing every page builds it without error
 - the main page's About content renders on its first OnShow
 - re-rendering the About page replaces its body rather than stacking a second copy
@@ -605,8 +627,8 @@ badge and any count quoted in the docs must agree with it.
 | Suite | Cases |
 |-------|------:|
 | test_loadorder.lua | 14 |
-| test_schema.lua | 41 |
-| test_database.lua | 29 |
+| test_schema.lua | 45 |
+| test_database.lua | 31 |
 | test_units.lua | 15 |
 | test_envsetup.lua | 6 |
 | test_coresetup.lua | 6 |
@@ -615,16 +637,16 @@ badge and any count quoted in the docs must agree with it.
 | test_slash.lua | 13 |
 | test_timer.lua | 11 |
 | test_perf.lua | 30 |
-| test_visibility.lua | 17 |
+| test_visibility.lua | 21 |
 | test_bus.lua | 7 |
-| test_data.lua | 29 |
-| test_display.lua | 47 |
-| test_helpers.lua | 54 |
-| test_optionssetup.lua | 4 |
+| test_data.lua | 31 |
+| test_display.lua | 53 |
+| test_helpers.lua | 56 |
+| test_optionssetup.lua | 5 |
 | test_slashcmds.lua | 111 |
-| test_widgets.lua | 53 |
+| test_widgets.lua | 54 |
 | test_docs.lua | 2 |
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
-| **Total** | **525** |
+| **Total** | **547** |

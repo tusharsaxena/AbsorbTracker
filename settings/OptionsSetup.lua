@@ -140,10 +140,11 @@ local descriptor = {
 --
 -- So this stub publishes every member a page file touches AT LOAD TIME. Measured, one member at a
 -- time, by deleting it and re-running the library-absent load (tests/degraded_env.lua) to see
--- whether #NS.Schema still matches the fully-loaded environment: LSMValues is the ONLY load-time
--- member. Dropping it raises `attempt to call field 'LSMValues' (a nil value)` out of
--- settings/Appearance.lua and takes every appearance row out of the schema; dropping anything else
--- changed nothing.
+-- whether #NS.Schema still matches the fully-loaded environment. That set is SIX now: LSMValues,
+-- which settings/Appearance.lua calls inside a schema-row literal, and the five schema COMPOSERS,
+-- which settings/General.lua and settings/Appearance.lua call inside NS.RegisterSchemaRows. Dropping
+-- any one of them raises out of a page file and takes that page's rows with it; dropping anything
+-- else changed nothing.
 --
 -- RestoreAllDefaults is kept even though it measured as call-time, because the call it answers is
 -- `/at resetall` and the StaticPopup's OnAccept closure in settings/General.lua — a recovery path,
@@ -160,8 +161,8 @@ local descriptor = {
 -- thing standing between this stub and a silent half-load, so do not weaken either.
 --
 -- Note what is NOT here: no copy of a widget maker, no copy of the flow engine, no copy of the
--- header. Hand-copying the code whose drift the extraction exists to end is the one duplicate
--- testing-§8 most specifically forbids.
+-- header, no copy of lib.LAYOUT. Hand-copying the code whose drift the extraction exists to end is
+-- the one duplicate testing-§8 most specifically forbids.
 if not lib then
     local MISSING = NS.LIBKA0S_MISSING .. ", so the settings panel is unavailable."
 
@@ -170,6 +171,134 @@ if not lib then
 
     -- Reached at load, so it must be real enough for the page files to finish.
     Helpers.LSMValues = function() return function() return {} end end
+
+    -- ── the composers ──────────────────────────────────────────────────────────────────────
+    --
+    -- The other five load-time members, and the line drawn through them is what keeps this from
+    -- being the copy of the library the paragraph above forbids.
+    --
+    -- WHAT THEY REPRODUCE: the STORED SURFACE, and only that — one row per canonical leaf, at the
+    -- path the live composer derives (so `keys` and `prefix` are honored exactly), carrying its
+    -- type and the caller's `default`. That is what a schema IS to everything outside the panel.
+    --
+    -- WHAT THEY DELIBERATELY DO NOT: every label, tooltip, range, media source, `startsLine`,
+    -- `hasAlpha` and `classColorSource` the live composers emit. Each of those is read by a WIDGET
+    -- or by the library's CLI, and this build has neither — the schema verbs (`/at list/get/set/
+    -- reset`) all answer "unavailable" here (settings/Slash.lua's own stub), so nothing in a
+    -- library-less session ever looks at any of them. Copying them would be copying strings whose
+    -- single source is the whole point, to be read by nobody.
+    local ORDER_STEP = 10
+
+    --- Emit one block. A leaf is `{ leaf = , type = , path = , sessionOnly = }`; `path`, where
+    --- given, is VERBATIM and unprefixed (the debug-console toggle is the one such row).
+    local function composeBlock(leaves, spec)
+        spec = spec or {}
+        local keys, defaults, omit = spec.keys or {}, spec.defaults or {}, spec.omit or {}
+        local rows = {}
+        for _, leaf in ipairs(leaves) do
+            if not omit[leaf.leaf] then
+                rows[#rows + 1] = {
+                    path        = leaf.path
+                        or ((spec.prefix or "") .. (keys[leaf.leaf] or leaf.leaf)),
+                    page        = spec.page,
+                    group       = spec.group,
+                    subgroup    = spec.subgroup,
+                    order       = (tonumber(spec.order) or 0) + (#rows * ORDER_STEP),
+                    type        = leaf.type,
+                    default     = defaults[leaf.leaf],
+                    sessionOnly = leaf.sessionOnly,
+                }
+            end
+        end
+        -- An `extra` is a hand-written row and arrives whole; it takes the block's page, group and
+        -- subgroup and continues the order, exactly as it does live.
+        for _, extra in ipairs(spec.extra or {}) do
+            local copy = {}
+            for k, v in pairs(extra) do copy[k] = v end
+            copy.page, copy.group, copy.subgroup = spec.page, spec.group, spec.subgroup
+            copy.order = (tonumber(spec.order) or 0) + (#rows * ORDER_STEP)
+            rows[#rows + 1] = copy
+        end
+        return rows
+    end
+
+    Helpers.ColorPair = function(spec)
+        spec = spec or {}
+        local key = spec.key or "color"
+        local companion = spec.companionKey
+            or ("useClassColor" .. key:sub(1, 1):upper() .. key:sub(2))
+        return composeBlock({
+            { leaf = key,       type = "color" },
+            { leaf = companion, type = "bool"  },
+        }, spec)
+    end
+
+    Helpers.FontGroup = function(spec)
+        return composeBlock({
+            { leaf = "font",              type = "string" },
+            { leaf = "fontSize",          type = "number" },
+            { leaf = "fontColor",         type = "color"  },
+            { leaf = "useClassColorFont", type = "bool"   },
+            { leaf = "fontFlags",         type = "string" },
+            { leaf = "fontShadow",        type = "bool"   },
+        }, spec)
+    end
+
+    Helpers.BorderGroup = function(spec)
+        spec = spec or {}
+        local leaves = {
+            { leaf = "borderStyle",         type = "string" },
+            { leaf = "borderSize",          type = "number" },
+            { leaf = "borderColor",         type = "color"  },
+            { leaf = "useClassColorBorder", type = "bool"   },
+        }
+        if spec.show then
+            table.insert(leaves, 1, { leaf = "borderShow", type = "bool" })
+        end
+        return composeBlock(leaves, spec)
+    end
+
+    Helpers.BarGroup = function(spec)
+        return composeBlock({
+            { leaf = "barTexture",       type = "string" },
+            { leaf = "barAlpha",         type = "number" },
+            { leaf = "barColor",         type = "color"  },
+            { leaf = "useClassColorBar", type = "bool"   },
+        }, spec)
+    end
+
+    -- The group name is the host's own — settings/General.lua uses it as the afterGroup key — so it
+    -- is published here rather than left to the caller to spell twice. It is not one of lib.LAYOUT's
+    -- numbers; it is the literal options-ui-§15 mandates, and the tab it names has to exist in the
+    -- schema on both paths for the two row sets to match.
+    Helpers.MASTER_GROUP = "Master controls"
+
+    Helpers.MasterControls = function(spec)
+        spec = spec or {}
+        -- The frame-only rows drop through the same `omit` table a caller uses, so there is one
+        -- code path rather than a `frameless` branch per row.
+        local omit = {}
+        for k in pairs(spec.omit or {}) do omit[k] = true end
+        if spec.frameless then omit.scale, omit.alpha, omit.locked = true, true, true end
+
+        local rows = composeBlock({
+            { leaf = "enabled",      type = "bool"   },
+            { leaf = "visibility",   type = "string" },
+            { leaf = "scale",        type = "number" },
+            { leaf = "alpha",        type = "number" },
+            { leaf = "locked",       type = "bool"   },
+            { leaf = "debugConsole", type = "bool", sessionOnly = true,
+              path = spec.debugConsolePath or "state.debugConsole" },
+        }, {
+            prefix = spec.prefix, page = spec.page, subgroup = spec.subgroup,
+            group  = spec.group or Helpers.MASTER_GROUP,
+            order  = spec.order, keys = spec.keys, defaults = spec.defaults,
+            omit   = omit, extra = spec.extra,
+        })
+        -- The closing button pair is a widget act and there is nothing here to draw into, so the
+        -- afterGroup hook is the no-op every other maker in this stub is.
+        return rows, function() end
+    end
 
     Helpers.RestoreAllDefaults = function()
         -- The rows are the schema's and the schema loaded fine, so a reset still works without any
@@ -193,10 +322,15 @@ if not lib then
         "PatchAlwaysShowScrollbar",
         -- The chrome band (options-ui-§13 / §14), new to the surface at LibKa0s v1.23.0. Every one of
         -- these is reached from a page builder or a tab click: settings/General.lua calls
-        -- RenderTabbedSchema, settings/UnitPanel.lua calls PageBanner and TabStrip, and both reach
+        -- RenderTabbedSchema, settings/UnitPanel.lua calls PageHeader and TabStrip, and both reach
         -- SetChromeHeight through them. A no-op is the honest answer for the same reason
         -- RenderSchema's is -- there is no panel to draw into.
-        "SetChromeHeight", "TabStrip", "PageBanner", "RenderTabbedSchema",
+        --
+        -- PageHeader rather than PageBanner: the Appearance page's one chrome block carries the Unit
+        -- picker AND the two page-wide mirror controls, and options-ui-§14 allows a page exactly one
+        -- block, so the picker is built inside PageHeader's frame and PageBanner has no call site in
+        -- this addon at all. A stub member with no caller is a copy waiting to go stale.
+        "SetChromeHeight", "TabStrip", "PageHeader", "RenderTabbedSchema",
         -- RenderUnitPanel is deliberately absent: settings/UnitPanel.lua loads after this file and
         -- publishes the real one either way, and it already bails on a nil NS.AceGUI. A no-op here
         -- would read as though the degraded build had its own, which it does not.

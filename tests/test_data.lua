@@ -19,6 +19,32 @@ local function approx(got, want, msg)
     (msg or "approx") .. string.format(" (expected %s, got %s)", tostring(want), tostring(got)))
 end
 
+-- The class color the SHARED resolver will answer for `unit`, read straight off the mock's
+-- RAID_CLASS_COLORS -- the table LibKa0s-Core-1.0's ClassColor reads, and the one this addon's
+-- deleted private resolver did not. Asserting against the mock's own table rather than against
+-- literals is what keeps these cases about the SCOPING rather than about three magic numbers.
+local function classColor(token)
+  return T.mocks.RAID_CLASS_COLORS[token]
+end
+
+-- Give one unit a class of its own for the duration of `body`. The player stays MAGE (the shared
+-- kit's capture-context default), so a case can tell "the tracked unit's class" from "the player's".
+local function withUnitClass(unit, token, body)
+  local saved = T.mocks.__classByUnit[unit]
+  T.mocks.__classByUnit[unit] = token
+  -- The library memoizes the PLAYER's color on success and this addon memoizes the player's
+  -- BACKGROUND color the same way, so a case that changes the player's class has to clear both or
+  -- it reads whatever an earlier case cached.
+  local Core = T.mocks.LibStub and T.mocks.LibStub("LibKa0s-Core-1.0", true)
+  if Core and Core.__ResetClassColor then Core.__ResetClassColor() end
+  NS.__ResetBgClassColor()
+  local ok, err = pcall(body)
+  T.mocks.__classByUnit[unit] = saved
+  if Core and Core.__ResetClassColor then Core.__ResetClassColor() end
+  NS.__ResetBgClassColor()
+  if not ok then error(err) end
+end
+
 -- Run `body` with a LibSharedMedia-3.0 stub serving `media` ([mediaType][key] = path). Delegates
 -- every other LibStub lookup to the real mock so Ace libs keep resolving, and clears NS's cached
 -- LSM reference on both edges (the cache is why NS.ClearLSMCache exists).
@@ -194,7 +220,7 @@ test("GetBarColor substitutes the class color but KEEPS the stored alpha", funct
   withSetting("units.player.useClassColorBar", true, function()
     withSetting("units.player.barColor", { r = 0.1, g = 0.2, b = 0.3, a = 0.37 }, function()
       local r, g, b, a = NS.GetBarColor()
-      local mock = T.mocks.C_ClassColor.GetClassColor("MAGE")
+      local mock = classColor("MAGE")
       approx(r, mock.r); approx(g, mock.g); approx(b, mock.b)
       approx(a, 0.37, "alpha is NOT overridden by the class color")
     end)
@@ -205,7 +231,7 @@ test("GetBorderColor honors useClassColorBorder and keeps its own alpha", functi
   withSetting("units.player.useClassColorBorder", true, function()
     withSetting("units.player.borderColor", { r = 0, g = 0, b = 0, a = 0.55 }, function()
       local r, g, b, a = NS.GetBorderColor()
-      local mock = T.mocks.C_ClassColor.GetClassColor("MAGE")
+      local mock = classColor("MAGE")
       approx(r, mock.r); approx(g, mock.g); approx(b, mock.b)
       approx(a, 0.55)
     end)
@@ -246,7 +272,7 @@ test("GetFontColor honors useClassColorText and keeps its own alpha", function()
   withSetting("units.player.useClassColorText", true, function()
     withSetting("units.player.fontColor", { r = 0.1, g = 0.2, b = 0.3, a = 0.42 }, function()
       local r, g, b, a = NS.GetFontColor()
-      local mock = T.mocks.C_ClassColor.GetClassColor("MAGE")
+      local mock = classColor("MAGE")
       approx(r, mock.r); approx(g, mock.g); approx(b, mock.b)
       approx(a, 0.42, "alpha is NOT overridden by the class color")
     end)
@@ -265,17 +291,21 @@ test("an unknown class keeps the CONFIGURED color, never a hue invented for the 
   -- named -- a color the player never chose and could not have predicted, over the one they did.
   --
   -- Run in a FRESH environment rather than by stubbing the global here, and that is the case, not
-  -- a convenience: core/Data.lua caches the class color, the cache fills only on SUCCESS, and this
-  -- suite's own earlier cases have already filled it. Stubbing C_ClassColor in place would
+  -- a convenience: both resolvers memoize the PLAYER's answer, the memo fills only on SUCCESS, and
+  -- this suite's own earlier cases have already filled it. Stubbing UnitClass in place would
   -- therefore never reach the miss path and the test would pass without executing the branch it
-  -- names. A second load gets an empty cache; the class lookup is stubbed out before the first read
-  -- reaches it. (That the cache only fills on success is the other half of the fix: a client that
+  -- names. A second load gets an empty memo; the class lookup is stubbed out before the first read
+  -- reaches it. (That the memo only fills on success is the other half of the fix: a client that
   -- can name the class a moment later is still picked up.)
   -- The stub goes on that environment's OWN globals table (the loader runs each file against it),
   -- not on _G: a file loaded there never reads this process's globals.
+  --
+  -- The environment is the LIBRARY-ABSENT one, so what this drives is core/CoreSetup.lua's own
+  -- fallback resolver rather than LibKa0s-Core-1.0's. That is deliberate and it is the harder
+  -- half: the two must agree about nil, and the fallback is the copy with no upstream suite behind
+  -- it. tests/test_coresetup.lua pins the live resolver against the same three rules.
   local NS2, mocks2 = loadDegraded()
-  mocks2.UnitClass    = function() return nil, nil end
-  mocks2.C_ClassColor = { GetClassColor = function() return nil end }
+  mocks2.UnitClass = function() return nil, nil end
 
   local unit = NS2.defaults.profile.units.player
   unit.useClassColorBar = true
@@ -293,10 +323,15 @@ test("an unknown class keeps the CONFIGURED color, never a hue invented for the 
 end)
 
 test("GetBarAlpha clamps a hand-edited SavedVariable to the slider's own range", function()
-  -- The value comes out of SavedVariables, so the schema's min/max never sees it. An alpha of 0 is
-  -- an invisible bar with no error and no way to tell it from the addon having stopped working.
+  -- The value comes out of SavedVariables, so the schema's min/max never sees it, and a stored 2 or
+  -- -5 must read as the nearest legal setting rather than as the addon having stopped working.
+  --
+  -- The FLOOR is 0 now, not 0.1: options-ui-§16 fixes the canonical bar block's opacity range at
+  -- 0 .. 1 and H.BarGroup emits it, so a fully transparent bar is reachable from the row itself.
+  -- Clamping to 0.1 while the slider offered 0 would have been a control that quietly refused its
+  -- own minimum. Master alpha is a second way to reach 0 and is multiplied in below.
   local saved = NS.db.profile.units.player.barAlpha
-  local cases = { { 0, 0.1 }, { -5, 0.1 }, { 2, 1 }, { 0.5, 0.5 } }
+  local cases = { { 0, 0 }, { -5, 0 }, { 2, 1 }, { 0.5, 0.5 } }
   for _, c in ipairs(cases) do
     NS.db.profile.units.player.barAlpha = c[1]
     approx(NS.GetBarAlpha("player"), c[2], "stored " .. tostring(c[1]))
@@ -377,24 +412,85 @@ test("GetBarColor reads the requested unit's color", function()
   assertEqual(r, 0.1); assertEqual(g, 0.2); assertEqual(b, 0.3); assertEqual(a, 0.4)
 end)
 
-test("class color on a target bar is still the PLAYER's class color", function()
-  -- Spec decision: resolving the tracked unit's class would need a PLAYER_TARGET_CHANGED recolor
-  -- for a cosmetic gain. All three bars use your own class color.
-  -- Note: the brief's test compares straight to NS.GetBarColor("player"), which only reflects the
-  -- class color when the PLAYER row's own toggle is also on — its default is false. Flip it here
-  -- too so both sides genuinely take the class-color branch; otherwise the assertion would
-  -- compare a resolved class color against an unrelated stored RGB and fail for the wrong reason.
-  local savedMirror = NS.db.profile.units.target.mirror
-  local savedPlayerToggle = NS.db.profile.units.player.useClassColorBar
+-- CHARACTERIZATION OF THE REVERSAL. Every bar used to take the PLAYER's class color, on the
+-- argument that resolving the tracked unit's class would cost a recolor on every retarget for a
+-- cosmetic gain. options-ui-§17 settles it the other way: the color resolves to the class of the
+-- unit the surface DESCRIBES, and a target bar describes the target. This is a visible change for
+-- existing users and it is the intended one.
+--
+-- red under: passing "player" (or NS.Units.SourceUnit(unit)) to NS.ResolveColor instead of the
+-- rendering unit -- which is exactly what the mirror case below would NOT catch on its own.
+test("class color on a target bar is the TARGET's class, not the player's", function()
+  local savedMirror  = NS.db.profile.units.target.mirror
+  local savedToggle  = NS.db.profile.units.target.useClassColorBar
   NS.db.profile.units.target.mirror = false
   NS.db.profile.units.target.useClassColorBar = true
-  NS.db.profile.units.player.useClassColorBar = true
-  local r, g, b = NS.GetBarColor("target")
-  local pr, pg, pb = NS.GetBarColor("player")
-  NS.db.profile.units.target.useClassColorBar = false
-  NS.db.profile.units.player.useClassColorBar = savedPlayerToggle
+  withUnitClass("target", "WARRIOR", function()
+    local r, g, b = NS.GetBarColor("target")
+    local want = classColor("WARRIOR")
+    approx(r, want.r); approx(g, want.g); approx(b, want.b)
+    -- And the player's bar, in the same breath, still takes the player's -- so this is a scoping
+    -- change rather than a global swap to whatever the last unit answered.
+    local savedPlayerToggle = NS.db.profile.units.player.useClassColorBar
+    NS.db.profile.units.player.useClassColorBar = true
+    local pr, pg, pb = NS.GetBarColor("player")
+    NS.db.profile.units.player.useClassColorBar = savedPlayerToggle
+    local mage = classColor("MAGE")
+    approx(pr, mage.r); approx(pg, mage.g); approx(pb, mage.b)
+  end)
+  NS.db.profile.units.target.useClassColorBar = savedToggle
   NS.db.profile.units.target.mirror = savedMirror
-  assertEqual(r, pr); assertEqual(g, pg); assertEqual(b, pb)
+end)
+
+-- THE UNIT THE SURFACE DESCRIBES IS NOT THE UNIT THE SETTINGS CAME FROM. NS.Units.Get applies the
+-- mirror, so a mirrored focus bar reads the PLAYER's stored swatch and toggle -- and must still
+-- take the FOCUS's class. The mirror copies styling; "use the class color" is a rule about whose
+-- class, not a color to copy.
+-- red under: resolving against NS.Units.SourceUnit(unit), which reads correctly for an unmirrored
+-- unit and silently reverts a mirrored one to the player.
+test("a MIRRORED focus bar reads the player's swatch but takes the focus's class", function()
+  local savedMirror = NS.db.profile.units.focus.mirror
+  local savedToggle = NS.db.profile.units.player.useClassColorBar
+  NS.db.profile.units.focus.mirror = true          -- appearance comes from the player
+  NS.db.profile.units.player.useClassColorBar = true
+  withUnitClass("focus", "PRIEST", function()
+    local r, g, b = NS.GetBarColor("focus")
+    local want = classColor("PRIEST")
+    approx(r, want.r); approx(g, want.g); approx(b, want.b)
+  end)
+  -- With the toggle OFF the mirror still applies, so the swatch really is the player's.
+  NS.db.profile.units.player.useClassColorBar = false
+  local savedSwatch = NS.db.profile.units.player.barColor
+  NS.db.profile.units.player.barColor = { r = 0.61, g = 0.62, b = 0.63, a = 0.64 }
+  local r, g, b, a = NS.GetBarColor("focus")
+  NS.db.profile.units.player.barColor = savedSwatch
+  approx(r, 0.61); approx(g, 0.62); approx(b, 0.63); approx(a, 0.64)
+
+  NS.db.profile.units.player.useClassColorBar = savedToggle
+  NS.db.profile.units.focus.mirror = savedMirror
+end)
+
+-- The background is the ONE surface options-ui-§17 exempts from the shared resolver: a darkened
+-- per-class set is a different set of hues, not the class color times a constant. It keeps this
+-- addon's own palette -- and it takes the same per-unit scope as the three that do not.
+-- red under: routing the background through NS.ResolveColor, or reading the palette for "player"
+-- whatever unit was asked for.
+test("the background palette is per-unit too, and stays the DARKENED set", function()
+  local savedMirror = NS.db.profile.units.target.mirror
+  local savedToggle = NS.db.profile.units.target.useClassColorBg
+  NS.db.profile.units.target.mirror = false
+  NS.db.profile.units.target.useClassColorBg = true
+  withUnitClass("target", "WARRIOR", function()
+    local r, g, b = NS.GetBgColor("target")
+    local raw = classColor("WARRIOR")
+    -- The palette's WARRIOR entry is core/Data.lua's own #C69B6D, which happens to equal the mock's
+    -- raid color, scaled by the 0.2 background multiplier. Asserting the SCALE is the point: an
+    -- undimmed class color here would be a second bright fill behind the first.
+    approx(r, 0.78 * 0.2); approx(g, 0.61 * 0.2); approx(b, 0.43 * 0.2)
+    assertTrue(r < raw.r, "the background hue is darker than the raid-color one")
+  end)
+  NS.db.profile.units.target.useClassColorBg = savedToggle
+  NS.db.profile.units.target.mirror = savedMirror
 end)
 
 test("three bar frames exist and the player alias points at the player frame", function()

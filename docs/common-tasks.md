@@ -4,16 +4,16 @@ Recipes for the routine modifications. For deeper context on any module, see [mo
 
 ## Add a new setting (General page — a flat, unit-agnostic global)
 
-This recipe is for a **flat** setting like `locked` / `showOnlyInCombat` / `throttleWindow` — one that governs all three bars at once and belongs on the General page. For a Appearance appearance setting that should exist per unit, see [Add a per-unit setting](#add-a-per-unit-setting) below instead.
+This recipe is for a **flat** setting like `locked` / `visibility` / `throttleWindow` — one that governs all three bars at once and belongs on the General page. Note the one thing it is **not** for: the eight rows of the **Master controls** tab are options-ui-§15's canonical set, emitted by `H.MasterControls`, and that set may not be reordered, renamed or added to. For a Appearance appearance setting that should exist per unit, see [Add a per-unit setting](#add-a-per-unit-setting) below instead.
 
 The schema-driven design makes a flat setting a one-row change. The widget on the General sub-page AND the `/at set <path>` CLI come for free.
 
-1. **Pick a `path` and a default.** The `path` is the `db.profile` key (and the `/at set <path>` argument). The default goes in `defaults/Profile.lua`'s `NS.defaults.profile`, alongside the three existing flat globals (not inside `units`):
+1. **Pick a `path` and a default.** The `path` is the `db.profile` key (and the `/at set <path>` argument). The default goes in `defaults/Profile.lua`'s `NS.defaults.profile`, alongside the six existing flat globals (not inside `units`):
 
    ```lua
    -- defaults/Profile.lua
    NS.defaults.profile = {
-       -- ... locked, showOnlyInCombat, throttleWindow ...
+       -- ... enabled, visibility, scale, alpha, locked, throttleWindow ...
        myNewKnob = 42,
        units = { ... },
    }
@@ -30,13 +30,13 @@ The schema-driven design makes a flat setting a one-row change. The widget on th
 
    NS.RegisterSchemaRows({
        -- ... existing rows ...
-       { path = "myNewKnob", page = "general", group = "Behavior", order = 50,
+       { path = "myNewKnob", page = "general", group = "Bars", order = 50,
          type = "number", label = "My New Knob", default = flatDefaults.myNewKnob,
          min = 0, max = 100, step = 1 },
    })
    ```
 
-   Use `flatDefaults.myNewKnob` for the `default` field — `defaults/Profile.lua` is the single source of truth for default values.
+   `group` is the **tab** the row lands on, and the strip is the order each group's first row was registered — so reuse an existing tab name (`Bars` here) unless the setting really is a new subject, and keep a group's rows contiguous. `Master controls` is not available: options-ui-§15 fixes that set. Use `flatDefaults.myNewKnob` for the `default` field — `defaults/Profile.lua` is the single source of truth for default values.
 
 3. **Override `onChange` if the side effect isn't the default appearance refresh.** Most settings just need to re-apply appearance — the default `onChange` publishes the `APPEARANCE` message (→ `UpdateBarAppearance`). For settings that need a different reaction:
 
@@ -52,7 +52,7 @@ See [schema.md](./schema.md) for the full row grammar (knobs like `disabledIf`, 
 
 ## Add a per-unit setting
 
-Appearance settings are per-unit (player/target/focus) rather than a single flat schema row. Use this recipe instead of "Add a new setting" above when the new knob is a bar-appearance value that should exist for all three units (and mirror the same way the existing eighteen do). Add its key to `NS.Units.APPEARANCE_KEYS` too — `tests/test_units.lua` fails if you forget, which is the point: a key missing from that list renders and stores fine and is silently left out of the mirror.
+Appearance settings are per-unit (player/target/focus) rather than a single flat schema row. Use this recipe instead of "Add a new setting" above when the new knob is a bar-appearance value that should exist for all three units (and mirror the same way the existing nineteen do). If the knob belongs to a **font**, **border** or **bar** block, it is not a hand-written row at all: options-ui-§16 fixes those row sets and the composers emit them, so an addition goes in the composer's `spec.extra` — appended **after** the mandated rows, never interleaved. Add its key to `NS.Units.APPEARANCE_KEYS` too — `tests/test_units.lua` fails if you forget, which is the point: a key missing from that list renders and stores fine and is silently left out of the mirror.
 
 1. **Add the key to `defaults/Profile.lua`'s `appearance()` factory** (not `NS.defaults.profile` directly — `appearance()` is called once per unit so no table gets shared across units):
 
@@ -72,7 +72,8 @@ Appearance settings are per-unit (player/target/focus) rather than a single flat
    -- core/Units.lua
    Units.APPEARANCE_KEYS = {
        "barTexture", "bgTexture", "border", "borderSize", "borderColor",
-       "font", "fontSize", "fontFlags", "fontColor", "barWidth", "barHeight", "barAlpha",
+       "font", "fontSize", "fontFlags", "fontShadow", "fontColor",
+       "barWidth", "barHeight", "barAlpha",
        "barColor", "bgColor",
        "useClassColorBar", "useClassColorBg", "useClassColorBorder", "useClassColorText",
        "myNewKnob",
@@ -96,7 +97,7 @@ Appearance settings are per-unit (player/target/focus) rather than a single flat
    },
    ```
 
-That's it. `NS.Units.Get(unit, "myNewKnob")` reads it mirror-resolved; `/at set units.target.myNewKnob 10` and `/at get units.focus.myNewKnob` work immediately; `/at reset units.target.myNewKnob` resets that one unit's copy, and the Appearance page's Defaults button resets it across all three; `Helpers.RenderUnitPanel` renders it on the tab its `group` names, for whichever unit the Unit banner has selected, and hides it while that unit mirrors the player. If the new key is a count in `docs/schema.md`'s page → tab table, update that and the matching case in `tests/test_schema.lua`.
+That's it. `NS.Units.Get(unit, "myNewKnob")` reads it mirror-resolved; `/at set units.target.myNewKnob 10` and `/at get units.focus.myNewKnob` work immediately; `/at reset units.target.myNewKnob` resets that one unit's copy, and the Appearance page's Defaults button resets it across all three; `Helpers.RenderUnitPanel` renders it on the tab its `group` names, for whichever unit the Unit picker has selected, and hides it while that unit mirrors the player. If the new key is a count in `docs/schema.md`'s page → tab table, update that and the matching case in `tests/test_schema.lua`.
 
 `NS.ValidateSchema` will warn in chat if the path (`units.<unit>.myNewKnob`) doesn't resolve against `NS.defaults.profile` — a cheap guard against forgetting step 1 or getting the factory vs. `NS.defaults.profile` distinction backwards.
 
@@ -210,7 +211,8 @@ See also: the `/wow-addon:bump-interface` skill for the automated version of thi
 This addon has a headless test harness under `tests/` — any doc claiming "no automated tests" is stale. Run the green gate before you consider a change done:
 
 ```sh
-lua tests/run.lua      # suites: loadorder / schema / database / units / compat / coresetup / debuglog / slash / timer / perf / visibility / bus / data / display / helpers / optionssetup / slashcmds / widgets / docs / ltrap / surface_parity / vendor_sync (count: docs/test-cases.md)
+lua tests/run.lua      # suites: loadorder / schema / database / units / envsetup / coresetup /
+                       #   mediasetup / debuglog / slash / timer / perf / visibility / bus / data / display / helpers / optionssetup / slashcmds / widgets / docs / ltrap / surface_parity / vendor_sync (count: docs/test-cases.md)
 luacheck .             # must be 0 warnings / 0 errors
 luac -p <changed.lua>  # bytecode-parse each file you touched
 ```
@@ -230,16 +232,16 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 | `tests/test_debuglog.lua` | This addon's side of the debug console: `FONT_MONO` resolving through the Media seam, the descriptor's `addonName` (the folder name, which is not the frame name), the descriptor's flag seam (`NS.State.debug`, with no second copy inside the library), `NS.Debug` reaching the shared buffer, the window title, the three `/at debug` forms, and the `[Init]` summary. The console itself — formatters, buffer cap, enable seam, window, checkbox contract — is `LibKa0s-DebugLog-1.0` and is tested in the LibKa0s repo |
 | `tests/test_slash.lua` | `NS.COMMANDS` dispatch through `LibKa0s-Slash-1.0`: the help index, the unknown-verb path, `/at version`, the schema verbs' wiring (`get`/`set`/`list`, the mandated color scheme, path case preserved, out-of-range clamping), the `/at options` alias, and the `/at config` combat gate. The dispatch algorithm, the formatters and the parser are the library's and are tested in the LibKa0s repo |
 | `tests/test_timer.lua` | `NS.RequestRepaint` coalescing + `throttleWindow` delay, event-handler repaint wiring |
-| `tests/test_visibility.lua` | `NS.ShouldShowBar` / `NS.ApplyVisibility` four-step ladder (per-unit `enabled` / `showOnlyInCombat` / target-focus `UnitExists`), `OnEnterCombat` + `OnLeaveCombat` + `OnUnitSwap` visibility+repaint, and the options-ui-§2 guarantee that `OnLeaveCombat` never auto-opens `/at config` (no defer-and-replay) |
+| `tests/test_visibility.lua` | `NS.ShouldShowBar` / `NS.ApplyVisibility` ladder (addon-wide `enabled` / per-unit `enabled` / the `visibility` dropdown / target-focus `UnitExists`), `OnEnterCombat` + `OnLeaveCombat` + `OnUnitSwap` visibility+repaint, and the options-ui-§2 guarantee that `OnLeaveCombat` never auto-opens `/at config` (no defer-and-replay) |
 | `tests/test_bus.lua` | `NS.bus` / `NS.NewBusTarget` / `NS.MSG` catalog, per-target subscribe + unregister, two receivers of one message both firing (anti-pattern #33), and `REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION` routing to their consumers (each fanning out over `NS.ForEachUnit`) |
 | `tests/test_data.lua` | `GetSetting` / `SetSetting` (profile read, dotted-path resolution, `flatDefaults` fallback, no-DB degradation), the per-unit LSM texture/border/font fetchers and their fallbacks, `ClearLSMCache`, `Helpers.LSMValues`, and the per-unit class-color resolvers |
 | `tests/test_display.lua` | `NS.ForEachUnit`, `NS.DefaultPosition`, `RestoreBarPosition`, `UpdateBarAppearance` (size, backdrop insets, nil-then-set refresh, lock, font, mirror-resolved reads), `UpdateAbsorbBar` (hidden / `testHoldUntil` early-outs, max-health scaling, `NoteRepaint`) — all per unit |
-| `tests/test_helpers.lua` | This addon's side of the `LibKa0s-Options-1.0` seam, driven through `NS.Helpers` (which *is* the library instance): `CreatePanel` + the panel registry, the lazy Defaults-button declaration, `RestoreDefaults` / `RestoreAllDefaults` (every unit's position cleared, via the descriptor's `afterRestoreAll`) / `RefreshAllPanels`, and `settings/UnitPanel.lua`'s per-unit page. The shell's own algorithms are tested in the LibKa0s repo |
+| `tests/test_helpers.lua` | This addon's side of the `LibKa0s-Options-1.0` seam, driven through `NS.Helpers` (which *is* the library instance): `CreatePanel` + the panel registry, the lazy Defaults-button declaration, `RestoreDefaults` / `RestoreAllDefaults` (a profile reset, via the descriptor's `resetProfile`) / `RefreshAllPanels`, and `settings/UnitPanel.lua`'s per-unit page. The shell's own algorithms are tested in the LibKa0s repo |
 | `tests/test_slashcmds.lua` | The remaining `/at` verbs: lock/unlock/toggle, update, `reset` (one setting path — usage, an unknown path, one row reverted with its neighbors untouched, and the argument NOT lower-cased)/resetall/resetposition (all units), get/set failure paths (fully-qualified only), `test`, the mirror note, the About page's rows going through the same formatter as `/at help`, and the full `/at profile` sub-dispatcher |
 | `tests/test_widgets.lua` | Schema-row → AceGUI widget translation as this addon's rows exercise it: the widget makers reached by `RenderField` dispatch, `SessionCheckbox`, `RenderRows`/`RenderSchema` layout (`skipRender` rows omitted), and the real pages driven through their deferred `OnShow`. The flow engine itself belongs to `LibKa0s-Options-1.0`; what this asserts is that our rows drive it into the layout we expect |
 | `tests/test_perf.lua` | This addon's side of the `LibKa0s-Perf-1.0` harness (issue #17): `core/PerfSetup.lua`'s descriptor is well-formed, the bracket call sites (silent when off), and suspend/resume (the `ShouldShowBar` step-0 gate, event teardown/restore, `RequestRepaint` no-op, `CancelPendingRepaint`). The probe's own bucket accounting, `EncodeJSON`, `BuildRecord`, the capture ring, and `FormatReport` are tested in the LibKa0s repo, not here |
 | `tests/test_units.lua` | `core/Units.lua`: `LIST`/`LABEL`, `IsEnabled`/`IsMirrored`/`SourceUnit` (player never mirrored), the mirror-resolved `Get`, `Position`/`SetPosition` (never mirrored), `CopyFromPlayer` (deep-copy + mirror clear, `position`/`enabled` untouched — and the only place `DeepCopy` is exercised). `Set` has no case and no production caller; see `docs/module-map.md` |
-| `tests/test_optionssetup.lua` | `settings/OptionsSetup.lua` as a **file** — the descriptor's half of the reset contract and the degradation stub, the panel toolkit itself being `LibKa0s-Options-1.0`'s to test: the live and degraded builds veto the same rows from Reset All, the stub publishes `LSMValues` (the one member reached at *file load*), the stub keeps no private copy of the library's layout constants, and `PARENT_TITLE` reaches the library through `descriptor.parentTitle` |
+| `tests/test_optionssetup.lua` | `settings/OptionsSetup.lua` as a **file** — the descriptor's half of the reset contract and the degradation stub, the panel toolkit itself being `LibKa0s-Options-1.0`'s to test: the live and degraded builds veto the same rows from Reset All, the stub publishes all six members reached at *file load* (`LSMValues` plus the five composers), the stub keeps no private copy of the library's layout constants, and `PARENT_TITLE` reaches the library through `descriptor.parentTitle` |
 | `tests/test_docs.lua` | The shipped prose, where it is checkable: `README.md` carries no angle-bracket argument placeholders (CurseForge strips them, backticks included), and US English across every authored string and comment in the addon's own files. `libs/`, `tests/_kit/` and the frozen dated bundles under `docs/` are out of scope by design |
 | `tests/test_ltrap.lua` | The `L` trap across all five LibKa0s seams: a source check that fails on any `L =` whose value can evaluate to `NS.L` (which answers every key, so it would render raw SCREAMING_SNAKE in game only), a non-vacuity case on `locales/enUS.lua`, three library-regression cases handing DebugLog / Slash / Perf the fallback-table shape and requiring the built-in English back, and two tripwires (Core, Options) for the majors that cannot express the trap today |
 | `tests/test_surface_parity.lua` | Every degradation stub carries the whole live surface, asserted as a **set** per seam (Core / DebugLog / Options / Slash) via the kit's `assertSurfaceParity`. The degraded arm is a real load with `libs/` absent (`tests/degraded_env.lua`), never a hand-stub; live-only members are named in an `ignore` set with their reason (testing-§8) |

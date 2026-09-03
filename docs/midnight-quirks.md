@@ -38,13 +38,13 @@ Don't try to "optimize" by skipping the `SetBackdrop(nil)`. The backdrop will lo
 
 ## `InCombatLockdown()` lags `PLAYER_REGEN_DISABLED` — use `UnitAffectingCombat` for the visibility gate
 
-The `showOnlyInCombat` bar-visibility gate (`NS.ShouldShowBar`, `modules/Display.lua`) must key off `UnitAffectingCombat("player")`, **not** `InCombatLockdown()`.
+The `visibility` bar-visibility gate (`NS.ShouldShowBar`, `modules/Display.lua`) must key off `UnitAffectingCombat("player")`, **not** `InCombatLockdown()`. It was the `showOnlyInCombat` boolean when this was found; schema v5 replaced that with the four-value dropdown, and its `inCombat` / `outOfCombat` arms inherit the same rule.
 
 `InCombatLockdown()` reports the *secure-frame lockdown* state, which is a distinct thing from "the player is in combat" — and in this client the two are not simultaneous at the entering-combat edge. When `PLAYER_REGEN_DISABLED` fires (`addon:OnEnterCombat`), `InCombatLockdown()` still returns **false**; secure lockdown engages a fraction of a second later. Debug capture of the transition:
 
 ```
 [OnEnterCombat] fired | InCombatLockdown: false
-[ApplyVisibility] decision: HIDE | InCombatLockdown: false | showOnlyInCombat: true
+[ApplyVisibility] decision: HIDE | InCombatLockdown: false | visibility: inCombat
 [UpdateAbsorbBar] Absorb: <secret> | MaxHP: 734K   ← same second, now NOT skipped → lockdown flipped true
 ```
 

@@ -4,11 +4,11 @@ local test, assertEqual, assertTrue, assertFalse =
   T.test, T.assertEqual, T.assertTrue, T.assertFalse
 
 -- ── RunMigrations: the schema-migration seam (Ka0s standard toc-file-§2/savedvariables-§1) ─────────────
--- The current schema version is 4, so a full migration run leaves the DB stamped at 4.
-test("RunMigrations migrates a fresh DB to the current version (4)", function()
+-- The current schema version is 5, so a full migration run leaves the DB stamped at 5.
+test("RunMigrations migrates a fresh DB to the current version (5)", function()
   NS.db.global.schemaVersion = nil
   NS:RunMigrations()
-  assertEqual(NS.db.global.schemaVersion, 4)
+  assertEqual(NS.db.global.schemaVersion, 5)
 end)
 
 -- The account-wide DEFAULT is what decides whether the ladder is reachable at all. AceDB-3.0's
@@ -23,7 +23,8 @@ end)
 -- absent stamp as 1), so pinning `== 1` would only forbid a correct file.
 test("a freshly-materialized global runs the ladder, because its default is pre-ladder", function()
   local savedDB = NS.db
-  local profile = { updateInterval = 1.0, hidden = true, schemaVersion = 3 }
+  local profile = { updateInterval = 1.0, hidden = true, showOnlyInCombat = true,
+                    schemaVersion = 3 }
   local fresh = {}
   for k, v in pairs(NS.defaults.global) do fresh[k] = v end   -- what copyDefaults leaves behind
   NS.db = {
@@ -35,21 +36,23 @@ test("a freshly-materialized global runs the ladder, because its default is pre-
   NS.db = savedDB
   if not ok then error(err) end
 
-  assertEqual(fresh.schemaVersion, 4, "the ladder must run all the way to the current version")
+  assertEqual(fresh.schemaVersion, 5, "the ladder must run all the way to the current version")
   assertEqual(profile.updateInterval, nil, "v2 actually applied, not just the stamp")
   assertEqual(profile.hidden, nil, "v4 actually applied, not just the stamp")
+  assertEqual(profile.showOnlyInCombat, nil, "v5 actually applied, not just the stamp")
+  assertEqual(profile.visibility, "inCombat", "v5 carried the old TRUE across, not the default")
 end)
 
-test("RunMigrations leaves an already-current (v4) DB unchanged", function()
-  NS.db.global.schemaVersion = 4
+test("RunMigrations leaves an already-current (v5) DB unchanged", function()
+  NS.db.global.schemaVersion = 5
   NS:RunMigrations()
-  assertEqual(NS.db.global.schemaVersion, 4)
+  assertEqual(NS.db.global.schemaVersion, 5)
 end)
 
 test("RunMigrations is idempotent across repeated runs", function()
   NS.db.global.schemaVersion = nil
   NS:RunMigrations(); NS:RunMigrations(); NS:RunMigrations()
-  assertEqual(NS.db.global.schemaVersion, 4)
+  assertEqual(NS.db.global.schemaVersion, 5)
 end)
 
 test("RunMigrations v2 retires the legacy updateInterval profile key", function()
@@ -57,7 +60,7 @@ test("RunMigrations v2 retires the legacy updateInterval profile key", function(
   NS.db.profile.updateInterval = 1.0
   NS:RunMigrations()
   assertEqual(NS.db.profile.updateInterval, nil)
-  assertEqual(NS.db.global.schemaVersion, 4)
+  assertEqual(NS.db.global.schemaVersion, 5)
 end)
 
 test("RunMigrations backfills throttleWindow from flatDefaults", function()
@@ -113,14 +116,17 @@ test("RunMigrations logs [Migrate] only when a version bump happens", function()
   NS.State.debug = false
 end)
 
--- Characterization: the ORDER of the [Migrate] lines across a full v1 -> v4 upgrade, not just
+-- Characterization: the ORDER of the [Migrate] lines across a full v1 -> v5 upgrade, not just
 -- their presence. A step's own message must precede its own "vX -> vY" stamp, and the ladder must
 -- climb one version at a time -- so the v4 `hidden` sweep is reported before "v3 -> v4", never
--- after it and never folded into a single v1 -> v4 jump.
-test("RunMigrations emits the [Migrate] lines for a v1->v4 upgrade in order", function()
+-- after it and never folded into a single v1 -> v5 jump.
+test("RunMigrations emits the [Migrate] lines for a v1->v5 upgrade in order", function()
   local savedSV, savedDB, savedDebug = _G.AbsorbTrackerDB, NS.db, NS.State.debug
+  -- `showOnlyInCombat` is seeded TRUE so the v5 step has real work to report, the same way
+  -- `hidden` seeds v4's. A fixture with nothing for a step to do reports nothing and the step's
+  -- position in the order goes unpinned.
   _G.AbsorbTrackerDB = {
-    profiles = { Default = { updateInterval = 1.0, hidden = true } },
+    profiles = { Default = { updateInterval = 1.0, hidden = true, showOnlyInCombat = true } },
     global   = { schemaVersion = 1 },
   }
   NS.State.debug = true
@@ -137,9 +143,11 @@ test("RunMigrations emits the [Migrate] lines for a v1->v4 upgrade in order", fu
     "v2 \226\134\146 v3",
     "dropped `hidden` from 1 profile(s)",
     "v3 \226\134\146 v4",
+    "mapped `showOnlyInCombat` onto `visibility` on 1 profile(s)",
+    "v4 \226\134\146 v5",
   }
   local logged = table.concat(lines, "\n")
-  assertEqual(#lines, #expected, "exactly four [Migrate] lines: " .. logged)
+  assertEqual(#lines, #expected, "exactly six [Migrate] lines: " .. logged)
   for i, want in ipairs(expected) do
     assertTrue(lines[i]:find(want, 1, true) ~= nil,
       ("line %d must be %q, got %q"):format(i, want, lines[i]))
@@ -208,7 +216,47 @@ test("v4 drops the dead `hidden` key from every profile, not just the active one
 
   assertEqual(active.hidden, nil, "the active profile's dead key is dropped")
   assertEqual(raid.hidden, nil, "and so is an inactive profile's -- it would return on a switch")
-  assertEqual(version, 4)
+  assertEqual(version, 5)
+end)
+
+-- v5 is the same shape as v4 and gets the same every-profile case, because it is the same failure:
+-- a `showOnlyInCombat` left on an inactive profile is a combat gate that silently reverts to Always
+-- the day its owner switches to it. The MAP is what makes v5 different from v4's plain sweep --
+-- the old value has to survive, not just the key disappear.
+-- red under: a step that walks only NS.db.profile, or one that drops the key without writing
+-- `visibility` first (the backfill's "always" would then stand).
+test("v5 maps showOnlyInCombat onto visibility on every profile, not just the active one",
+  function()
+  local active = { showOnlyInCombat = true,  schemaVersion = 3 }
+  local raid   = { showOnlyInCombat = false, schemaVersion = 3 }
+  local savedDB = NS.db
+  NS.db = {
+    profile = active,
+    global  = { schemaVersion = 4 },
+    sv      = { profiles = { Default = active, Raid = raid } },
+  }
+  NS:RunMigrations()
+  local version = NS.db.global.schemaVersion
+  NS.db = savedDB
+
+  assertEqual(active.visibility, "inCombat", "an old TRUE reads back as inCombat")
+  assertEqual(raid.visibility, "always", "an old FALSE reads back as always")
+  assertEqual(active.showOnlyInCombat, nil, "the boolean is gone, not left beside its replacement")
+  assertEqual(raid.showOnlyInCombat, nil)
+  assertEqual(version, 5)
+end)
+
+test("v5 leaves a profile that never had the boolean on the shipped default", function()
+  -- A fresh install, and the case that catches a migration writing "inCombat" for a nil. The
+  -- backfill seeds `visibility` from the defaults before the ladder runs, and v5 must leave that
+  -- alone rather than reading a nil boolean as false and re-writing it.
+  local profile = {}
+  local savedDB = NS.db
+  NS.db = { profile = profile, global = { schemaVersion = 4 } }
+  NS:RunMigrations()
+  NS.db = savedDB
+  assertEqual(profile.visibility, NS.defaults.profile.visibility)
+  assertEqual(profile.showOnlyInCombat, nil, "the key is gone from defaults, so nothing backfills it")
 end)
 
 test("v4 does not resurrect `hidden` via the defaults backfill", function()
@@ -243,13 +291,13 @@ test("v3 migration does not share nested tables between units", function()
   assertTrue(profile.units.focus.barColor.r ~= 0.11)
 end)
 
-test("the schema version lands on 4", function()
+test("the schema version lands on 5", function()
   local savedDB = NS.db
   NS.db = { profile = {}, global = { schemaVersion = 1 } }
   NS:RunMigrations()
   local v = NS.db.global.schemaVersion
   NS.db = savedDB
-  assertEqual(v, 4)
+  assertEqual(v, 5)
 end)
 
 -- ── Regression coverage: the v3 lift must fire under REAL AceDB, not just a bespoke table ──
@@ -282,11 +330,11 @@ test("real AceDB init: a legacy flat profile is lifted onto the player unit, not
   assertEqual(profile.units.player.position.x, 1)
   assertEqual(profile.barWidth, nil, "the flat original must be cleared, not duplicated")
   assertEqual(profile.position, nil)
-  assertEqual(NS.db.global.schemaVersion, 4)
+  assertEqual(NS.db.global.schemaVersion, 5)
   NS.db, _G.AbsorbTrackerDB = savedDB, savedSV
 end)
 
-test("real AceDB init: a fresh install (no saved data) converges on factory defaults at v4", function()
+test("real AceDB init: a fresh install (no saved data) converges on factory defaults at v5", function()
   local savedSV, savedDB = _G.AbsorbTrackerDB, NS.db
   _G.AbsorbTrackerDB = nil
   NS:InitDB()
@@ -296,7 +344,7 @@ test("real AceDB init: a fresh install (no saved data) converges on factory defa
   assertEqual(profile.units.target.enabled, false)
   assertEqual(profile.units.target.mirror, true)
   assertEqual(profile.barWidth, nil, "a fresh install has no flat key to lift in the first place")
-  assertEqual(NS.db.global.schemaVersion, 4)
+  assertEqual(NS.db.global.schemaVersion, 5)
   NS.db, _G.AbsorbTrackerDB = savedDB, savedSV
 end)
 
