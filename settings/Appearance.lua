@@ -317,9 +317,18 @@ local function build(mainCategory)
         H.RestoreDefaults(PAGE, ctx)
     end
 
-    ctx.panel:SetScript("OnShow", function()
-        H.EnsureDefaultsButton(ctx.panel)
-        H.RenderUnitPanel(ctx, PAGE)
+    -- Declared THROUGH SetRenderer rather than a hand-wired OnShow (options-ui-§11). The library
+    -- owns that script now: it builds the Defaults button, and it refuses to draw in combat and
+    -- closes the Settings window first. That refusal is the point -- the Blizzard AddOns sidebar
+    -- opens a canvas without going anywhere near OpenOptionsPanel, so this page was reachable
+    -- mid-pull while docs/settings-panel.md described a gate that could not see it.
+    --
+    -- RenderUnitPanel is safe to be the renderer because it was always written to be re-run: the
+    -- picker and the tab strip both call it, and it opens with Helpers.ClearScroll and drains the
+    -- chrome ledger, so nothing stacks. SetRenderer simply narrows WHEN it runs unprompted --
+    -- first show, and again on the next show after a refresh marked the page dirty while hidden.
+    H.SetRenderer(ctx, function(c)
+        H.RenderUnitPanel(c, PAGE)
     end)
 
     return Settings.RegisterCanvasLayoutSubcategory(

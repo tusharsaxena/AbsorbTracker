@@ -102,7 +102,7 @@ test("parity: the Options stub carries every helper the degraded build can reach
     -- panel for them to act on: NS.CreateOptionsPanel / NS.OpenOptionsPanel / NS.RegisterOptionsPage
     -- are the degraded seam and tests/test_optionssetup.lua exercises them there.
     "CreateOptionsPanel", "OpenOptionsPanel", "RegisterOptionsPage",
-    "BuildLandingPage", "RefreshScalars", "SetRenderer", "TextRow", "__pages",
+    "BuildLandingPage", "RefreshScalars", "TextRow", "__pages",
     -- The AceGUI handle the live panel stashes. There is no AceGUI on the degraded path — that is
     -- the condition, not a divergence.
     "AceGUI",

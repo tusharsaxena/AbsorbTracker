@@ -170,8 +170,10 @@ in `tests/wow_mock.lua` models real `(message, target)` dispatch so `tests/test_
 two receivers of one message both fire (anti-pattern #33).
 
 Other cross-cutting refresh stays as explicit calls: `Helpers.RefreshAllPanels` (after `/at set` or
-a profile change) walks per-widget refresher closures — the implementation is the library's, walking
-`ctx.refreshers` on library-owned ctx tables. The other callback bus is **AceDB**:
+a profile change) is the STRUCTURAL tier: every settings page declares its body through
+`Helpers.SetRenderer`, so a page on screen re-renders and a hidden one is flagged dirty for its
+next `OnShow`. A panel widget's own write takes `Helpers.RefreshScalars` instead, which walks
+`ctx.refreshers` in place. Both implementations are the library's. The other callback bus is **AceDB**:
 `NS.OnProfileChanged` is registered for `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset` in
 `NS:InitDB`; it republishes `POSITION` / `APPEARANCE` / `REPAINT` on the bus and refreshes an open
 panel.

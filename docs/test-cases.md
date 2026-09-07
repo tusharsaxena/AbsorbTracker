@@ -537,7 +537,7 @@ badge and any count quoted in the docs must agree with it.
 - parity: an unknown verb reaches no handler and prints the same shape in both
 - parity: a bare /at reaches no handler and prints help in both
 
-### test_widgets.lua (54)
+### test_widgets.lua (55)
 
 - NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
 - a bool row renders a CheckBox labeled from the schema
@@ -585,6 +585,7 @@ badge and any count quoted in the docs must agree with it.
 - EnsureScroll is lazy, created once, and patched for an always-visible scrollbar
 - every schema page registered a real Blizzard subcategory at build time
 - the Profiles page self-skips when AceDBOptions is unavailable
+- the sidebar path refuses to render in combat and closes the window (options-ui-§11)
 - first OnShow builds the Defaults button and renders the page
 - the Defaults button restores just its own page
 - a second OnShow rebuilds the panel body without stacking duplicate widgets
@@ -644,9 +645,9 @@ badge and any count quoted in the docs must agree with it.
 | test_helpers.lua | 56 |
 | test_optionssetup.lua | 5 |
 | test_slashcmds.lua | 111 |
-| test_widgets.lua | 54 |
+| test_widgets.lua | 55 |
 | test_docs.lua | 2 |
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
-| **Total** | **547** |
+| **Total** | **548** |

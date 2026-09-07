@@ -102,7 +102,7 @@ Every page (about + sub-pages) builds the same header via `Helpers.CreatePanel(n
    - Re-resolves AceGUI through LibStub and hands it out via `onAceGUI` (bails with a chat notice if it is unavailable). Re-resolved rather than trusting the handle taken at `:New` time, because an AceGUI absent at load may be present by PLAYER_LOGIN, and this is the one place that can report it.
    - Runs the descriptor's `validate` hook — `NS.ValidateSchema()`, which chat-prints any malformed rows or unresolvable paths and never blocks.
    - Builds the about-page canvas (`CreatePanel(..., { isMain = true })`) and registers it via `Settings.RegisterCanvasLayoutCategory` + `Settings.RegisterAddOnCategory`, deferring the body render — the descriptor's `buildMain`, which forwards to `Helpers.BuildMainContent` — to the panel's first `OnShow`.
-   - Walks the queued pages, calling `builder(mainCategory)` on each entry. Each builder constructs its own canvas via `Helpers.CreatePanel`, defers the AceGUI render to the panel's first `OnShow` (the body has 0 width at enable time; AceGUI lays out against current width), and returns the result of `Settings.RegisterCanvasLayoutSubcategory(mainCategory, panel, name)`.
+   - Walks the queued pages, calling `builder(mainCategory)` on each entry. Each builder constructs its own canvas via `Helpers.CreatePanel`, declares its body through `Helpers.SetRenderer` — which defers the AceGUI render to the panel's first `OnShow` (the body has 0 width at enable time; AceGUI lays out against current width) and carries the combat refusal with it — and returns the result of `Settings.RegisterCanvasLayoutSubcategory(mainCategory, panel, name)`.
    - If the builder returns `nil` (e.g. `settings/Profiles.lua` when AceDBOptions is missing), the page is silently skipped.
 
 ## `RegisterOptionsPage(key, name, builder)`
@@ -121,12 +121,13 @@ NS.RegisterOptionsPage("appearance", "Appearance", function(mainCategory)
         H.RestoreDefaults("appearance", ctx)
     end
 
-    -- No `rendered` one-shot guard: RenderUnitPanel does a full rebuild (ClearScroll +
-    -- re-render) every call — on first OnShow, AND every subsequent unit switch / tab
-    -- click / mirror toggle / copy — so re-running it on a later OnShow is intentional.
-    ctx.panel:SetScript("OnShow", function()
-        H.EnsureDefaultsButton(ctx.panel)
-        H.RenderUnitPanel(ctx, "appearance")
+    -- SetRenderer, never a hand-wired ctx.panel:SetScript("OnShow", ...): the library owns that
+    -- script, and with it the Defaults button and the combat refusal (see the sidebar note under
+    -- the combat-lockdown gate below). No `rendered` one-shot guard either -- SetRenderer owns
+    -- WHEN, and RenderUnitPanel is a full rebuild (ClearScroll + re-render) on every call, so a
+    -- later draw is intentional and safe.
+    H.SetRenderer(ctx, function(c)
+        H.RenderUnitPanel(c, "appearance")
     end)
 
     return Settings.RegisterCanvasLayoutSubcategory(mainCategory, ctx.panel, "Appearance")
@@ -141,7 +142,7 @@ end)
 
 The per-unit page renderer, and one of the two things `settings/UnitPanel.lua` keeps. It did not generalize: it reads `NS.Units` and the mirror partition, which no other Ka0s addon has. Everything it stands on — `ClearScroll`, `EnsureScroll`, `RenderGrid`, `RenderRows`, `PageHeader`, `TabStrip`, `AttachTooltip` — is the library's, reached through the same `NS.Helpers` table.
 
-On every call (first `OnShow`, a unit switch, a tab click, a mirror-checkbox toggle, or a Copy click) it does a **full rebuild**: `Helpers.ClearScroll(ctx)` releases every AceGUI child and resets the section-heading tracker + `ctx.refreshers`, then draws two bands, top to bottom:
+On every call (the first `OnShow`, a re-render after `RefreshAllPanels` marked the page dirty, a unit switch, a tab click, a mirror-checkbox toggle, or a Copy click) it does a **full rebuild**: `Helpers.ClearScroll(ctx)` releases every AceGUI child and resets the section-heading tracker + `ctx.refreshers`, then draws two bands, top to bottom:
 
 1. **The chrome block** (chrome, options-ui-§14) — always, and there is exactly **one**. `Helpers.PageHeader` pins a frame in the band above the strip and the host fills it: a **Unit** dropdown listing `NS.Units.LABEL` in `NS.Units.LIST` order (parked on `ctx.__bannerWidget` so a suite can drive the selection the way a click would), and — for target and focus, never the player, which is the mirror source — a **"Use same styling as Player"** checkbox (writes `units.<unit>.mirror` via `NS.SetByPath`, re-renders on change) beside a **"Copy styling from Player"** button (`NS.Units.CopyFromPlayer(unit)` — a one-shot deep-copy of the appearance keys that also clears `mirror`, then publishes `NS.MSG.APPEARANCE` and re-renders).
 
@@ -271,9 +272,9 @@ The throttle is a single re-armed **AceTimer** one-shot — `timer = NS.addon:Sc
 
 ## Profile change refresh
 
-When AceDB fires `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset` (registered in `NS:InitDB`, `core/Database.lua`), the active profile flips and `NS.OnProfileChanged` runs the bar repaint chain, then calls `NS.RefreshOptionsPanel()`. That routes to `Helpers.RefreshAllPanels()`, which walks every panel ctx in the library's registry and runs every registered refresher closure. Each refresher re-reads its row's value via `NS.GetSetting` and pushes it into the widget — values that didn't survive the profile flip update; values that did are no-ops.
+When AceDB fires `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset` (registered in `NS:InitDB`, `core/Database.lua`), the active profile flips and `NS.OnProfileChanged` runs the bar repaint chain, then calls `NS.RefreshOptionsPanel()`. That routes to `Helpers.RefreshAllPanels()`, which walks every panel ctx in the library's registry. It is the **structural** tier of a two-tier refresh, and since every page here declares a renderer through `SetRenderer` it means: a page that is on screen re-renders now, and a hidden one is flagged dirty and re-renders on its next `OnShow`. (A ctx with no renderer — none of this addon's — falls back to running its `ctx.refreshers` ungated, which is the migration seam the library keeps for hosts that have not adopted the helper.)
 
-The same `RefreshAllPanels` runs after every `/at set`, `/at reset`, and `/at resetall` write (via `settings/Slash.lua` → `NS.SetByPath` / `RefreshOptionsPanel`) and after every panel widget's `set()` (via the file-local `set()` in `libs/LibKa0s/OptionsWidgets.lua` — see [Widget makers](#widget-makers-and-refresher-closures) above), so panel-driven and slash-driven mutations both keep open panels in sync.
+The same `RefreshAllPanels` runs after every `/at set`, `/at reset` and `/at resetall` write (via `settings/Slash.lua` → `NS.SetByPath` / `RefreshOptionsPanel`). A panel widget's own `set()` takes the **scalar** tier instead — the file-local `set()` in `libs/LibKa0s/OptionsWidgets.lua` calls `RefreshScalars`, which re-runs `ctx.refreshers` in place on a page that is on screen and never rebuilds it. That distinction is what keeps a checkbox click from releasing, under its own `OnValueChanged`, the widget that fired it. Each refresher re-reads its row's value via `NS.GetSetting` and pushes it into the widget — values that did not survive the write update, values that did are no-ops. Panel-driven and slash-driven mutations both keep open panels in sync; they differ only in how much of the page they are entitled to redraw.
 
 ## `OpenOptionsPanel` and the combat-lockdown gate
 
@@ -287,6 +288,16 @@ The same `RefreshAllPanels` runs after every `/at set`, `/at reset`, and `/at re
 `/at config` (dispatched through `NS.COMMANDS` in `settings/Slash.lua`) always opens the **parent** category (the about page) and then calls `expandMainCategory()` to expand the Blizzard Settings left-tree entry so every sub-page is visible. `expandMainCategory` walks `SettingsPanel:GetCategoryList():GetCategoryEntry(mainCategory):SetExpanded(true)` — `SettingsPanel` internals are private API, so the whole call is wrapped in `pcall`; if any of those calls disappears in a future patch, the panel still opens, just without the tree-expansion side effect.
 
 The user picks the sub-page they want from the expanded tree. There is no "default sub-page" mechanism — the parent always opens, the tree always expands.
+
+### The other door: the Blizzard AddOns sidebar
+
+`OpenOptionsPanel`'s gate covers `/at config`, `/at options` and any `/run` caller, because they all go through it. It does **not** cover the **Settings → AddOns** sidebar, and that is a second door into the same pages: Blizzard shows the canvas frame directly, so the panel's `OnShow` is the only code that runs. A page that parks its own `OnShow` is therefore ungated on the one path a player is most likely to take mid-pull, and all three of this addon's pages did exactly that until the `SetRenderer` adoption.
+
+Each page now declares its body through **`Helpers.SetRenderer(ctx, fn)`** (`libs/LibKa0s/Options.lua`) instead of setting `OnShow` itself. The library's `OnShow` builds the Defaults button, then — under `InCombatLockdown()` — closes the Settings window (`SettingsPanel:Close`), prints the same `lib.STRINGS.COMBAT_REFUSED` notice `/at config` prints, and returns without rendering. Closing the window is deliberate: a page that silently draws nothing reads as a broken addon. Nothing about the refusal is this addon's, including its wording — adopting the helper is the whole of the fix, which is why no page carries a copy of the guard.
+
+`SetRenderer` also owns **when** a page draws — first show, and again on the next show after `Helpers.RefreshAllPanels` marked it dirty while it was hidden (an on-screen page re-renders immediately). That replaced the per-page `rendered` one-shot flags, and it is why every renderer either opens with `Helpers.ClearScroll` or, like `RenderUnitPanel`, does its own.
+
+`tests/test_widgets.lua` drives the General and Appearance panels' `OnShow` under a mocked `InCombatLockdown` and asserts both closed the window and both said why. The Profiles page is on the same helper but cannot be driven headless — AceDBOptions is absent in the harness, so the page self-skips — and `docs/smoke-tests.md` § C step 13a walks all three in the client.
 
 ## LSM swatch dropdowns
 

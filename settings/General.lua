@@ -276,14 +276,25 @@ local function build(mainCategory)
         H.RestoreDefaults("general", ctx)
     end
 
-    -- Defer the AceGUI render until the panel becomes visible: build
-    -- happens at PLAYER_LOGIN when ctx.body has 0 width, and AceGUI
-    -- lays children out against the container's current width.
-    local rendered = false
-    ctx.panel:SetScript("OnShow", function()
-        H.EnsureDefaultsButton(ctx.panel)
-        if rendered then return end
-        rendered = true
+    -- Declared THROUGH SetRenderer rather than a hand-wired OnShow, and the combat refusal is the
+    -- whole reason (options-ui-§11). The Blizzard AddOns sidebar reaches a canvas directly, never
+    -- through OpenOptionsPanel, so the gate docs/settings-panel.md describes covered `/at config`
+    -- and a `/run` caller and missed the one path a player is most likely to take mid-pull.
+    -- SetRenderer's OnShow builds the Defaults button, refuses under InCombatLockdown and closes
+    -- the Settings window, and only then renders -- so the refusal arrives by adopting the library
+    -- rather than by this file growing a second copy of it.
+    --
+    -- The deferral the old comment here explained is still why the body is not drawn in the
+    -- builder: ctx.body has zero width at PLAYER_LOGIN and AceGUI lays children out against the
+    -- container's current width. SetRenderer defers to first show for exactly that reason, and for
+    -- the skinning race EnsureDefaultsButton documents.
+    --
+    -- The `rendered` one-shot flag that used to guard this is gone because SetRenderer owns WHEN:
+    -- first show draws, and a page marked dirty while hidden draws again on its next show. That
+    -- second draw is newly reachable, so ClearScroll leads the body -- RenderTabbedSchema appends
+    -- to the scroll, and appending twice is how a page grows two of every control.
+    H.SetRenderer(ctx, function(c)
+        H.ClearScroll(c)
         -- RenderTabbedSchema, not RenderSchema: the page's two groups become the strip
         -- (options-ui-§13). THE GROUP NAME IS THE HOOK KEY -- H.MASTER_GROUP is both the literal
         -- the composer filed its rows under and the tab's label, so it is read off the instance
@@ -292,7 +303,7 @@ local function build(mainCategory)
         --
         -- No `pairWith` any more: its one user was the bespoke debug-console checkbox, which is a
         -- schema row on the Master controls tab now.
-        H.RenderTabbedSchema(ctx, "general", { [H.MASTER_GROUP] = masterTail })
+        H.RenderTabbedSchema(c, "general", { [H.MASTER_GROUP] = masterTail })
     end)
 
     return Settings.RegisterCanvasLayoutSubcategory(

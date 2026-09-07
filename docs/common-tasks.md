@@ -136,18 +136,25 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
            H.RestoreDefaults("newpage", ctx)
        end
 
-       -- Defer the AceGUI render until the panel is visible: build runs at
-       -- PLAYER_LOGIN when ctx.body has 0 width, and AceGUI lays children out
-       -- against the container's current width.
-       local rendered = false
-       ctx.panel:SetScript("OnShow", function()
-           if rendered then return end
-           rendered = true
+       -- SetRenderer, never a hand-wired ctx.panel:SetScript("OnShow", ...). The library owns
+       -- that script: it builds the Defaults button, and it REFUSES to draw in combat and closes
+       -- the Settings window first (options-ui-§11). The Blizzard AddOns sidebar opens a canvas
+       -- without going through NS.OpenOptionsPanel, so a page holding its own OnShow has no
+       -- combat guard on the one path a player takes mid-pull.
+       --
+       -- It also owns WHEN, so there is no `rendered` one-shot flag: first show draws, and a page
+       -- flagged dirty by a refresh while it was hidden draws again on its next show. Deferring to
+       -- first show is still right for the original reason too -- build runs at PLAYER_LOGIN when
+       -- ctx.body has 0 width, and AceGUI lays children out against the current width.
+       H.SetRenderer(ctx, function(c)
+           -- ClearScroll leads, because that second draw is reachable and RenderTabbedSchema
+           -- APPENDS. Skipping it is how a page grows two of every control.
+           H.ClearScroll(c)
            -- RenderTabbedSchema, not RenderSchema: a `group` is a TAB (options-ui-§13), and
            -- the strip's order is the order each group's FIRST row was registered. A page
            -- with fewer than two groups falls back to RenderSchema and draws no strip --
            -- that is the library's behavior, not a bug.
-           H.RenderTabbedSchema(ctx, "newpage")
+           H.RenderTabbedSchema(c, "newpage")
        end)
 
        return Settings.RegisterCanvasLayoutSubcategory(

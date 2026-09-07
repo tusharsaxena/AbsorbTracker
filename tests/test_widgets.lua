@@ -686,6 +686,46 @@ test("the Profiles page self-skips when AceDBOptions is unavailable", function()
   assertEqual(T.mocks.__subcategories["Profiles"], nil)
 end)
 
+test("the sidebar path refuses to render in combat and closes the window (options-ui-§11)", function()
+  -- CX03. The Blizzard AddOns sidebar hands a canvas frame its OnShow directly -- it never goes
+  -- through NS.OpenOptionsPanel, whose combat gate docs/settings-panel.md describes -- so a page
+  -- that parks its own OnShow has no guard at all on the path a player is most likely to take
+  -- mid-pull. Every page here declares its body through Helpers.SetRenderer instead, and the
+  -- refusal is the library's: close the Settings window, say why, draw nothing.
+  --
+  -- Closing and the notice are asserted rather than "nothing rendered", and deliberately: the
+  -- Appearance page has already been shown (tests/test_helpers.lua runs first and drives it), so a
+  -- renderer would return at its own already-rendered guard and a no-render assertion would pass
+  -- with no guard present at all. SettingsPanel:Close and this notice happen nowhere else in the
+  -- addon, so counting them is a claim only the guard can satisfy.
+  --
+  -- red under: giving either page back a ctx.panel:SetScript("OnShow", ...) of its own.
+  -- Profiles is the third page on SetRenderer and cannot be driven here -- AceDBOptions is absent
+  -- in the harness, so it self-skips and registers no subcategory (the case above pins that).
+  -- docs/smoke-tests.md § C step 13a walks all three in the client.
+  local savedICL = T.mocks.InCombatLockdown
+  T.mocks.InCombatLockdown = function() return true end
+
+  local out = {}
+  local cf  = T.mocks.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function(_, msg) out[#out + 1] = msg end
+
+  local closedBefore = T.mocks.__settingsClosed
+  for _, name in ipairs({ "General", "Appearance" }) do
+    T.mocks.__subcategories[name]:__fire("OnShow")
+  end
+
+  cf.AddMessage = old
+  T.mocks.InCombatLockdown = savedICL
+
+  assertEqual(T.mocks.__settingsClosed, closedBefore + 2,
+    "each page must close the Settings window -- a silent no-render reads as a bug")
+  local joined = table.concat(out, "\n")
+  local _, hits = joined:gsub("cannot open settings during combat", "")
+  assertEqual(hits, 2, "and each must say why, in the library's wording: " .. joined)
+end)
+
 test("first OnShow builds the Defaults button and renders the page", function()
   local panel = T.mocks.__subcategories["Appearance"]
   panel:__fire("OnShow")
