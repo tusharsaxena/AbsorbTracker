@@ -859,24 +859,29 @@ test("/at perf routes output to the debug console, not chat", function()
   assertTrue(#NS.DebugLog.buffer > 0, "report lines landed in the console buffer")
 end)
 
-test("/at perf dump writes to the console, not the copy window", function()
-  -- The console is the log already open and scrollable, and its Copy button is one click away when
-  -- the text actually needs lifting out. A modal for something you may only want to glance at is
-  -- the wrong default.
+test("/at perf report writes the JSON to the console, not to a copy window", function()
+  -- `perf dump` was its own verb until LibKa0s v1.29.0 folded it into `report`. What it proved is
+  -- unchanged and still worth proving here rather than only upstream: this addon's slash handler
+  -- reaches the library's report, and the JSON lands in the console -- the log already open and
+  -- scrollable, its Copy button one click away when the text needs lifting out. A modal for
+  -- something you may only want to glance at is the wrong default.
   perfReset()
   NS.DebugLog:Clear()
-  slash("perf dump")
+  slash("perf report")
   local logged = table.concat(NS.DebugLog.buffer, "\n")
   assertTrue(logged:find('"buckets"', 1, true) ~= nil, "JSON is in the console: " .. logged)
   perfReset()
 end)
 
-test("/at perf dump emits parseable JSON carrying the schema stamp", function()
+test("/at perf report emits parseable JSON carrying the schema stamp, as its LAST line", function()
+  -- Last, not merely present: the summary is what a person reads and the JSON is what they copy,
+  -- so a copy-paste starts at the bottom of the window. A report that printed the JSON first and
+  -- the summary after would satisfy "contains JSON" and be worse to use.
   perfReset()
   NS.DebugLog:Clear()
-  slash("perf dump")
+  slash("perf report")
   local line = NS.DebugLog.buffer[#NS.DebugLog.buffer]
-  assertTrue(#NS.DebugLog.buffer > 0, "something was written")
+  assertTrue(#NS.DebugLog.buffer > 1, "the summary went missing with the fold")
   assertTrue(line:find('"schema":2', 1, true) ~= nil, "carries the schema: " .. line)
   assertTrue(line:find('"source":"ingame"', 1, true) ~= nil, "and the source")
 end)
@@ -1195,22 +1200,17 @@ test("/at perf report opens the debug console when it is hidden", function()
   perfReset()
 end)
 
-test("/at perf dump opens the debug console when it is hidden", function()
-  perfReset()
-  slash("perf start")
-  NS.DebugLog:Hide()
-  slash("perf dump")
-  assertTrue(NS.DebugLog:IsShown(), "dump opened it")
-  perfReset()
-end)
-
-test("/at perf dump marks itself reviewed exactly once", function()
+test("/at perf report marks itself reviewed exactly once", function()
+  -- One review step since v1.29.0: `dump` had its own mark and its own panel row, and both folded
+  -- into this one. The console-opening half is covered by the report case above, which is where it
+  -- belonged all along -- it was never about which verb was typed.
   perfReset()
   slash("perf start")
   slash("perf finish")
-  slash("perf dump")
-  assertTrue(P.__reviewed().dump, "marked")
-  assertFalse(P.MarkReviewed("dump"), "and only once")
+  slash("perf report")
+  assertTrue(P.__reviewed().report, "marked")
+  assertFalse(P.MarkReviewed("report"), "and only once")
+  assertTrue(P.__reviewed().dump == nil, "the dump mark is back")
   perfReset()
 end)
 

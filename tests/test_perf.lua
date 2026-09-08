@@ -520,7 +520,7 @@ end)
 
 test("perf: /at perf explains itself instead of erroring with LibKa0s absent", function()
   local NS2, mocks2 = loadDegraded()
-  for _, line in ipairs({ "perf", "perf start", "perf finish", "perf dump" }) do
+  for _, line in ipairs({ "perf", "perf start", "perf finish", "perf report" }) do
     local out = chatOf(mocks2, function() NS2.Slash:OnSlash(line) end)
     assertTrue(#out > 0, "/at " .. line .. " said nothing")
     assertTrue(table.concat(out, "\n"):find("LibKa0s", 1, true) ~= nil,
