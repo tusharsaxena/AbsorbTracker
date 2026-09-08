@@ -103,6 +103,87 @@ test("perf: a standalone ApplyVisibility claims no parent rather than inventing 
   settle()
 end)
 
+test("perf: the capture OBSERVES paintBar inside repaintPass, it does not just declare it", function()
+  -- The twin of the visibility-inside-appearance case above, for the one nesting the descriptor
+  -- declares and the report's totals actually depend on: paintBar's ms really is inside
+  -- repaintPass's, so a reader who sums the two double-counts. Before this pass the bracket at
+  -- modules/Display.lua passed two arguments, so `observedWithin` was permanently nil and the
+  -- library printed the collection's only load-bearing nesting as declared-but-unverified.
+  --
+  -- red under: drop the third argument from Perf.Note("paintBar", ...) in modules/Display.lua, or
+  -- stop passing `parent` down from doRepaint in modules/Timer.lua.
+  reset()
+  NS.SetByPath("units.player.enabled", true)
+  -- Locked, because paintBar is only reachable on the locked path: unlocked bars are in preview
+  -- mode and UpdateAbsorbBar stands down (modules/Display.lua).
+  NS.SetByPath("locked", true)
+  P.on = true
+  mocks.__profileMs = 1
+  NS.RequestRepaint()
+  mocks.__fireTimers()
+  P.on = false
+  NS.SetByPath("locked", false)
+  local b = P.__buckets()
+  assertTrue(b.paintBar ~= nil, "the paint bracket fired")
+  assertEqual(b.paintBar.observedWithin, "repaintPass",
+    "the nested bracket must report the pass it actually ran inside")
+  assertFalse(b.paintBar.observedMixed, "one parent, seen once")
+  assertNil(b.repaintPass.observedWithin, "the pass itself ran inside nothing")
+  local record = P.BuildRecord("cap")
+  assertEqual(record.buckets.paintBar.observedWithin, "repaintPass", "and it reaches the record")
+  assertEqual(record.buckets.paintBar.within, "repaintPass", "matching the declaration")
+  settle()
+end)
+
+test("perf: a standalone UpdateAbsorbBar claims no parent rather than inventing one", function()
+  -- The negative twin, and the reason the parent is an ARGUMENT rather than a constant at the
+  -- Note. Painting one bar outside doRepaint is containment that did not happen; reporting it
+  -- would make `observedWithin` as unfalsifiable as the declaration it exists to check.
+  --
+  -- red under: hard-code "repaintPass" as the third argument in modules/Display.lua.
+  reset()
+  NS.SetByPath("units.player.enabled", true)
+  NS.SetByPath("locked", true)
+  P.on = true
+  mocks.__profileMs = 1
+  NS.UpdateAbsorbBar("player")
+  P.on = false
+  NS.SetByPath("locked", false)
+  local b = P.__buckets()
+  assertTrue(b.paintBar ~= nil, "the bracket still fired")
+  assertNil(b.paintBar.observedWithin, "and it observed no containment")
+  settle()
+end)
+
+test("perf: the throttle and console rows publish no restyle, because they have no stake in one", function()
+  -- ABSORBTRACKER-R-12. settings/Schema.lua's `fireOnChange` falls back to `defaultOnChange` for
+  -- any row that declares none, and `defaultOnChange` publishes APPEARANCE -- so a row that only
+  -- wants a number stored, or a window shown, used to restyle all three bars. That is 48 WoW API
+  -- calls and 384.5 bytes per pass (tests/perf.lua's `appearancePass`) for a timer value, once per
+  -- slider STEP while the user drags. Both rows now declare an explicit no-op in
+  -- settings/General.lua, and this is what holds them there.
+  --
+  -- Measured through the perf brackets rather than by spying on the bus, because the bucket is the
+  -- thing the finding is about: a pass that ran is a pass that cost something.
+  --
+  -- red under: delete either no-op `onChange` in settings/General.lua.
+  reset()
+  P.on = true
+  mocks.__profileMs = 1
+  local throttleWas = NS.GetSetting("throttleWindow")
+  NS.SetByPath("throttleWindow", throttleWas == 0.2 and 0.25 or 0.2)
+  NS.SetByPath("state.debugConsole", not NS.GetSetting("state.debugConsole"))
+  assertNil(P.__buckets().appearance, "neither row may run a restyle")
+  -- The positive control, so this cannot pass merely because the bus is dead in this fixture: a
+  -- row that genuinely IS an appearance row still restyles.
+  NS.SetByPath("scale", NS.GetSetting("scale"))
+  assertTrue(P.__buckets().appearance ~= nil, "an appearance row still publishes one")
+  P.on = false
+  NS.SetByPath("state.debugConsole", not NS.GetSetting("state.debugConsole"))
+  NS.SetByPath("throttleWindow", throttleWas)
+  settle()
+end)
+
 test("perf: records identify this addon and land in its own global", function()
   reset()
   P.Save(P.BuildRecord("cap"))

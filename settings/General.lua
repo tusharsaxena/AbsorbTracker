@@ -155,6 +155,19 @@ local masterOnChange = {
         NS.bus:SendMessage(NS.MSG.APPEARANCE)
         NS.bus:SendMessage(NS.MSG.REPAINT)
     end,
+
+    -- EXPLICITLY NOTHING, and that is the whole content of this entry. Without it the row falls
+    -- through to settings/Schema.lua's `defaultOnChange`, which publishes APPEARANCE -- a full
+    -- three-bar restyle costing 48 WoW API calls and 384.5 bytes per pass (tests/perf.lua's
+    -- `appearancePass`, measured 2026-09-08) for a checkbox that only shows and hides a window.
+    -- The console's own visibility is the ConsoleCheckbox's `set`, registered above as a session
+    -- setting; nothing about a bar depends on it.
+    --
+    -- Written as a declared no-op rather than by changing `defaultOnChange`: APPEARANCE is the
+    -- right default for the appearance rows, which are the overwhelming majority. A row that
+    -- deliberately publishes nothing has to SAY so, or the next reader reads the absence as an
+    -- oversight and "fixes" it back.
+    [DEBUG_CONSOLE_PATH] = function() end,
 }
 
 for _, row in ipairs(masterRows) do
@@ -226,6 +239,12 @@ NS.RegisterSchemaRows({
         desc    = "Fastest the bar repaints during a burst of changes. Lower = snappier but more CPU.",
         default = flatDefaults.throttleWindow,
         min = 0.05, max = 1, step = 0.05, fmt = "%.2f sec",
+        -- Same declared no-op, same reason, and here the cost is per SLIDER STEP: a drag from 0.05
+        -- to 1 is nineteen restyles of three bars. Nothing needs republishing either -- the next
+        -- arm reads the value fresh (`NS.GetSetting("throttleWindow")` at modules/Timer.lua's
+        -- ScheduleTimer call), so a window already in flight finishes on the old value and every
+        -- window after it uses the new one, which is what a throttle change should do.
+        onChange = function() end,
     },
 })
 

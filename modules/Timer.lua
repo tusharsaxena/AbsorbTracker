@@ -30,8 +30,15 @@ local function doRepaint()
     -- were amplifying work. A pass in which no bar painted (all hidden, or a /at test hold) still
     -- counts nothing, so the "hidden bar is not a repaint" property is unchanged.
     local painted = false
+    -- The bucket this pass IS, handed down so `paintBar`'s note records the containment the run
+    -- OBSERVED rather than the one core/PerfSetup.lua merely declares (performance-§3). Derived
+    -- from `t0`, not from a constant: with capture off no bracket is open, so a dormant pass hands
+    -- down nil and paintBar honestly claims no parent. This is the cross-module twin of the
+    -- `openBucket` upvalue modules/Display.lua uses for appearance -> visibility; an upvalue
+    -- cannot cross the file boundary, so the parent travels as an argument instead.
+    local parent = t0 and "repaintPass" or nil
     NS.ForEachUnit(function(unit)
-        if NS.UpdateAbsorbBar(unit) then painted = true end
+        if NS.UpdateAbsorbBar(unit, parent) then painted = true end
     end)
     if painted and NS.NoteRepaint then NS.NoteRepaint() end
     -- One `repaintPass` note per coalesced pass, painted or not: the bucket measures what the

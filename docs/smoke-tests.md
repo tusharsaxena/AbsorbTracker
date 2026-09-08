@@ -145,6 +145,19 @@ that covers the pure logic; this suite covers everything that only runs against 
 85. **Panel and chat are the same path.** Click **Measure A** and separately type `/at perf measure a` → identical chat output and identical panel state. (The buttons call the lib's own `OnCommand` and print its lines through the descriptor's `print` hook — not this addon's slash layer.)
 86. **Zero cost when idle.** With no run active, sit out of combat with a shield up → no `[Perf]` lines at all, and no repaint activity. (The brackets are gated on `Perf.on`, which is only true inside an open experiment.)
 
+86a. **The report names the containment it OBSERVED, not the one the descriptor declares.**
+     (opportunistic — `M4-22`; fold into session 3, which already opens this panel for `M4-16`.) Run
+     a full capture — `/at perf start`, `measure a`, a pull, `measure b`, a pull, `finish` — then
+     click **Report**. The nesting sentence for **paintBar** must name `repaintPass` as an
+     **observed** parent, and both `paintBar` and `repaintPass` must show non-zero `calls`. Then
+     **JSON Dump** → **Copy** → the `paintBar` bucket carries `"observedWithin": "repaintPass"`
+     beside its `"within"`. Before `M4-22` the bracket at `modules/Display.lua` passed two arguments,
+     so the key was absent from every capture this addon has ever written — compare
+     `docs/perf-analysis/20260807-125002/dump.json`, which has `"within"` and no `"observedWithin"`.
+     **`paintBar` with calls but `repaintPass` with none is the finding**, and so is a `paintBar`
+     that still reports declared-only; the first would mean the parent is being supplied from
+     somewhere that is not the pass. `visibility` inside `appearance` is unchanged either way.
+
 ### M. Post-extraction regression pass (LibKa0s five-module split)
 
 Run this section on a live character after the build is green, following a release that moves code

@@ -231,11 +231,25 @@ end)
 NS.Perf.on = false
 -- The relation alone cannot go red the way it matters: if a regression adds allocation to the
 -- repaint path itself, BOTH arms rise together and `off <= on + 1` still holds. The dormant arm
--- therefore also carries an ABSOLUTE ceiling. 312.0 bytes/pass is the measured figure with the
--- brackets off (identical to paintPass, which is the point); the headroom below is deliberately
--- thin, because one extra table per pass is exactly the regression this is here to catch. Raise it
--- only with a recorded reason — a rise IS the finding.
-local PROBE_OFF_BYTES_CEILING = 320
+-- therefore also carries an ABSOLUTE ceiling.
+--
+-- RE-BASELINED 2026-09-08. The figure this comment used to cite — 312.0 bytes/pass, "identical to
+-- paintPass" — had not been true for a long time: paintPass and probeOverheadOff both measure
+-- 48.0, so the 320 ceiling stood at 6.7x the thing it bounds, and bounded nothing. A ceiling that
+-- cannot go red is worse than no ceiling, because the line still reads as a gate.
+--
+--   measured   48.0 bytes/pass, three consecutive runs, identical to the decimal in all three.
+--              This is allocation ACCOUNTING, not a sampled timing — it does not jitter, which is
+--              why a margin here can be small.
+--   ceiling    72 = 48.0 + 24, so 50% headroom over the measurement.
+--   margin     DERIVED, not guessed. The cheapest regression this line exists to catch is one
+--              extra table per pass, and that cost was measured rather than assumed: adding a
+--              single `{}` to this scenario's body moves the figure 48.0 -> 112.0, so one empty
+--              table costs 64 bytes/pass under this interpreter. 24 < 64, so the smallest
+--              allocation anyone can add still trips the ceiling. The old 320 swallowed four.
+--
+-- Raise it only by filling in those three lines again — a rise IS the finding.
+local PROBE_OFF_BYTES_CEILING = 72
 
 assert_(probeOff.bytesPerIter <= PROBE_OFF_BYTES_CEILING,
   ("a dormant pass allocated %.1f bytes/iter, over the %d-byte ceiling — the repaint path grew")
