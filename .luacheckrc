@@ -6,12 +6,12 @@ codes = true
 -- library's testkit/, linted in LibKa0s as source, and linting the copy too would report every
 -- finding twice while letting the copy drift green as the original went red -- the one state the
 -- re-vendor diff gate exists to make impossible. Everything else under tests/ is ours and is
--- linted (lint-§1).
+-- linted (lint.md).
 -- Under docs/ only the FROZEN evidence bundles are excluded — `lint` names exactly
 -- docs/audits/ and docs/reviews/. A blanket docs/ exclude would silently drop any Lua a future
 -- doc directory carries (a plan's worked example, a repro snippet) out of the gate.
 exclude_files = { "libs/", "docs/audits/", "docs/reviews/", "_dev/", "tests/_kit/" }
--- NO TOP-LEVEL `ignore`, and none is coming back (lint-§1, `M4-11`). This file carried
+-- NO TOP-LEVEL `ignore`, and none is coming back (lint.md, `M4-11`). This file carried
 -- `ignore = { "212/self", "212/event", "211/addonName", "431" }` until `M4c-06`. Three of those
 -- four entries were narrowed to the variable already, which reads like the careful thing and is
 -- not: an entry at the TOP LEVEL reaches all 54 files whatever it names, so `211/addonName`
@@ -75,7 +75,7 @@ files["tests/"] = {
 }
 
 -- ---------------------------------------------------------------------------
--- The narrowed 212s (lint-§1, `M4c-06`)
+-- The narrowed 212s (lint.md, `M4c-06`)
 -- ---------------------------------------------------------------------------
 --
 -- Every stanza below names ONE file, and every entry inside it names the code AND the variable, in

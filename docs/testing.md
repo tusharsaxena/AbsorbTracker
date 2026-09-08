@@ -24,7 +24,7 @@ different checkpoint (`automated-tests-§3`, *The release gate*):
 
 Both are documented in [performance.md](./performance.md).
 
-### What the lint gate is a statement about (lint-§1)
+### What the lint gate is a statement about (lint.md)
 
 `luacheck .` reading `0 warnings / 0 errors` is only worth something if the configuration is not the
 reason it reads that way. `.luacheckrc` therefore sets **no top-level `ignore`**, and
