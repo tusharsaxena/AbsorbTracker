@@ -284,7 +284,8 @@ end
 
 -- ── the coalescing window ────────────────────────────────────────────────────────────────────
 
---- The repaint throttle, clamped to the row's own 0.05 .. 1 (settings/General.lua:219-229).
+--- The repaint throttle, clamped to the row's own 0.05 .. 1 (the `throttleWindow` row in
+--- settings/General.lua declares that min and max).
 ---
 --- Here for the same reason the three getters above clamp, and with a sharper edge. This value
 --- does not reach a paint call, it reaches AceTimer: `new()` opens with `if delay < 0.01 then`

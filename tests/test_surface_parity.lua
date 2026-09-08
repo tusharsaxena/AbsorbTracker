@@ -83,8 +83,8 @@ test("parity: the DebugLog stub carries the whole live surface", function()
     --   grep -nE "DebugLog[.:](FormatPlain|FormatColored|CopyText|Text)" core modules settings
     -- returns nothing.
     "FormatPlain", "FormatColored", "CopyText", "Text",
-    -- Test seams the library stamps on the instance when it BUILDS the console window
-    -- (libs/LibKa0s/DebugLog.lua:357, :362). They are on the live instance by the time this case
+    -- Test seams the library stamps on the instance when it BUILDS the console window (its
+    -- `EnsureFrame`, in libs/LibKa0s/DebugLog.lua). They are on the live instance by the time this case
     -- runs because tests/test_debuglog.lua showed the window; a library-less build has no window to
     -- build, so their absence from the stub is the condition under test, not a gap in it. Single
     -- underscore, so Kit.publicMembers does not filter them — that exclusion is the `__` prefix.

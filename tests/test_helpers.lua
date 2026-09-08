@@ -48,10 +48,12 @@ end)
 
 test("OnDefault reaches a defaultsOnClick parked AFTER the panel is built", function()
   -- The ordering is the whole reason the library forwards rather than assigns, and it is this
-  -- addon's shape that makes it matter: settings/General.lua, Bar.lua, Border.lua and Font.lua all
-  -- park their handler after CreatePanel returns, because the button does not exist until first
-  -- OnShow. A re-vendor that turned the forwarder back into an assignment would capture nil in all
-  -- four pages, silently, and only the footer control would notice — in game.
+  -- addon's shape that makes it matter: both pages that own a defaults button --
+  -- settings/General.lua and settings/Appearance.lua -- park their handler after CreatePanel
+  -- returns, because the button does not exist until first OnShow. A re-vendor that turned the
+  -- forwarder back into an assignment would capture nil in both, silently, and only the footer
+  -- control would notice — in game. (The three pages this comment used to name, Bar, Border and
+  -- Font, are the ones settings/Appearance.lua replaced.)
   local ctx = Helpers.CreatePanel("ATTestPanelCanvas2", "Canvas 2", { defaultsButton = true })
   local ran = 0
   ctx.panel.defaultsOnClick = function() ran = ran + 1 end

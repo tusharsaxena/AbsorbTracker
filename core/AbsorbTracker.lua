@@ -64,8 +64,12 @@ function addon:OnEnable()
     -- other units. (The rest are global, payload-free events and stay on AceEvent.)
     --
     -- Extracted to its own method (rather than inlined here, as the original brief had it) purely
-    -- so a test can call it directly without paying for the rest of OnEnable's side effects
-    -- (CreateOptionsPanel is not safely re-callable). Behavior is identical either way.
+    -- so a test can call it directly without paying for the rest of OnEnable's side effects --
+    -- CreateOptionsPanel builds every page and registers a Blizzard category, which a unit-event
+    -- case has no use for. Test isolation is the whole reason; re-entrancy is NOT, because
+    -- LibKa0s-Options owns that guard now: its O.CreateOptionsPanel opens with
+    -- `if mainCategory then return end`, so a second call is a no-op. Behavior is identical
+    -- either way.
     -- Also registers PLAYER_TARGET_CHANGED / PLAYER_FOCUS_CHANGED, but only for units whose bar
     -- is enabled — which is why those two are not registered unconditionally alongside the three
     -- below. Re-runs on every UNITS message (subscribed at the bottom of this file).

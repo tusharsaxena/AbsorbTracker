@@ -106,7 +106,8 @@ test("RequestRepaint hands AceTimer a clamped number, never the raw stored value
   -- case above asserts the delay equals the STORED value, which is true and stays true for every
   -- value the slider can produce — so it could never see the line pass a hand-edited SavedVariables
   -- string straight into AceTimer's `delay < 0.01`.
-  -- red under: putting NS.GetSetting("throttleWindow") back at modules/Timer.lua:50.
+  -- red under: putting NS.GetSetting("throttleWindow") back at modules/Timer.lua's ScheduleTimer
+  -- call, in place of NS.GetThrottleWindow().
   -- Arm every case FIRST, restore, and only then assert, for the reason tests/test_data.lua's
   -- twin gives: a raise inside the loop would skip the restore and leave a bad throttle behind for
   -- every later case in this file.
