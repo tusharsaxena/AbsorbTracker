@@ -22,8 +22,9 @@
 --   * `docs/test-cases.md` -- generated from the suite; it inherits whatever the test names say.
 --   * this file -- it has to name the words it forbids.
 --
--- "cancelled" is absent from the list on purpose: every occurrence in this repo quotes the
--- library's own `perf run CANCELLED` output string, which is upstream's to change.
+-- "cancelled" is absent from the list on purpose: it never had a live site of its own here --
+-- every occurrence quoted the library's output string, which was upstream's to change. LibKa0s
+-- v1.27.0 changed it, so the quotes now read CANCELED and the word is gone from this repo.
 
 local T = _G.AT_TEST
 local test, assertEqual, assertTrue = T.test, T.assertEqual, T.assertTrue

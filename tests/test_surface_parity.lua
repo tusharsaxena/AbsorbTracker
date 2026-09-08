@@ -137,6 +137,16 @@ test("parity: the Options stub carries every helper the degraded build can reach
     --     exactly as the six `__` chrome members above are. A live session cannot need the reset,
     --     and this addon measures no chrome of its own.
     "__resetTabArtHeight", "__tabArtHeight",
+    -- New at LibKa0s v1.27.0 (Options minor 8): the ONE instance print sink the shell publishes
+    -- so OptionsWidgets stops building a second one from the same descriptor
+    -- (libs/LibKa0s/Options.lua:392, read at OptionsWidgets.lua:763). Its own comment there calls
+    -- it "internal rather than surface" and says a degradation stub does not mirror it because
+    -- `Kit.assertSurfaceParity` skips the `__` prefix -- true of the kit's BY-NAME form, which
+    -- filters through Kit.publicMembers, and not of the four-argument form this case uses, which
+    -- walks every key of the live table. So it is exempted here by hand, exactly as the six `__`
+    -- chrome members above are, and the entry goes away on its own when M4-09 moves this stub onto
+    -- the factory.
+    "__print",
   })
 end)
 

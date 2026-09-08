@@ -139,7 +139,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 81. **`report` and `dump`.** Close the debug console, then click **Report** in the panel → **the console opens by itself** and the summary is in it. Click **JSON Dump** → one JSON line starting `{"buckets":...`, carrying `"schema":2` and `"source":"ingame"`, appears **in the console** (not in a popup). Use the console's own **Copy** button → it pastes as valid JSON.
 82. **The console log is plain text.** Open the console's **Copy** window after a run → the `[Perf]` lines carry **no** `|cff…` color escapes, while the chat copies of the same lines are colored.
 83. **The step panel gates the workflow.** `/at perf start` → a small **Perf Run** panel appears with seven rows, each showing a status dot, the step name, and its slash command (`/at perf measure a` and so on). **No step list is printed to chat** — the panel replaced it. **Start** has a green dot; **Measure A** is the only clickable row (white text, gray dot); everything below is grayed out. Click **Measure A** → it turns gold (armed) and **Measure B** stays grayed. Pull → still gold while recording. Leave combat → **Measure A**'s dot goes green, and **Measure B** becomes the only clickable row. **Every row must show a visible dot — no empty boxes or missing glyphs.** Repeat for B → **Finish** unlocks. Click **Finish** → its dot goes green and **Report** / **JSON Dump** unlock. Clicking a grayed row does nothing. Drag the panel → it moves and stays put; `/at perf` re-shows it. The panel wears the **same shared Ka0s edge as the debug console** — flat 1px black border, 1px gray inner highlight, gold title — so put the two on screen together and check they match. (What this pins: the ordering is what makes a run valid, and out-of-order steps silently ruin a capture.)
-84. **Cancel is live only while a run is.** The window is titled **Absorb Tracker — Perf Run**. The **Cancel perf run** row is muted red and clickable mid-run, but **grayed and inert before `start` and after `finish`**. Mid-run, click it → chat shows `perf run CANCELLED`, the bars come back if Experiment B had suspended them, and **nothing is added to `AbsorbTrackerPerfDB`**. Start a fresh run → the panel is back at step one with no carry-over. `/at perf cancel` with no run → `no perf run to cancel`.
+84. **Cancel is live only while a run is.** The window is titled **Absorb Tracker — Perf Run**. The **Cancel perf run** row is muted red and clickable mid-run, but **grayed and inert before `start` and after `finish`**. Mid-run, click it → chat shows `perf run CANCELED`, the bars come back if Experiment B had suspended them, and **nothing is added to `AbsorbTrackerPerfDB`**. Start a fresh run → the panel is back at step one with no carry-over. `/at perf cancel` with no run → `no perf run to cancel`.
 84a. **Report and JSON Dump stay repeatable.** After `finish`, click **Report** → it turns green **and stays clickable**; click it again → it reprints. Same for **JSON Dump**.
 84b. **Closing the panel is non-destructive.** The close mark in the title bar (identical to the debug console's) is drawn by `libs/LibKa0s/PerfPanel.lua` from `core.MakeCloseButton(frame, P.HidePanel, d.addonName or d.name)` — **PerfPanel minor 4 or newer**. Against the minor-3 payload this panel drew a **multiplication sign** while the two console windows two inches away drew art, which is the regression signature to look for if this repo is ever re-vendored backwards: not a gap, an **×**, and only on this one window. `core/PerfSetup.lua` passes `addonName = addonName` beside `name` so the panel never has to infer it (`tests/test_perf.lua` pins that argument out of game). The mark  hides the panel; Esc does the same. Mid-run, do this → the run keeps going, the armed experiment survives, and `/at perf show` brings the panel back in the same state. `/at perf hide` / `show` / `toggle` do the same from chat. Bare `/at perf` prints the status **and re-shows** the panel — it is the entry point, so it never leaves you with no way back to the steps.
 85. **Panel and chat are the same path.** Click **Measure A** and separately type `/at perf measure a` → identical chat output and identical panel state. (The buttons call the lib's own `OnCommand` and print its lines through the descriptor's `print` hook — not this addon's slash layer.)
@@ -213,6 +213,36 @@ table, not that Blizzard's dropdown draws the entries.
      confirm a face it registers appears in **Font** and a texture it registers appears in **Bar
      texture**. A list holding only the Blizzard stock entries means the reader froze, which is the
      silent failure `libs/LibKa0s/OptionsCompose.lua:182-186` describes.
+
+### P. LibKa0s v1.27.0 — the pooled tab strip, and the perf strings
+
+**Smoke, session 3.** Run after the re-vendor to LibKa0s v1.27.0 (`M4-01`). Two things arrived with
+that payload that only a client can settle.
+
+`TabStrip` (`libs/LibKa0s/OptionsWidgets.lua`) no longer builds a button and a content panel per
+click: it acquires both from per-`ctx` `LibKa0s-Pool-1.0` pools and re-dresses them, re-setting
+`OnClick` on every dress. Its only headless proof counts `CreateFrame` calls on a second selection
+pass, and the case that would pin band geometry as invariant under selection cannot be written yet —
+the shared mock answers `GetHeight` with 0 for every frame, and that flips at kit 16, not here. **So
+a stale label, a mis-anchored button or a band that changes height on a re-dressed tab is invisible
+to every automated check in this repo.**
+
+The other is spelling. `LibKa0s-Perf-1.0` minor 8 changes five player-facing strings — two
+`CANCELLED` and three `unlabelled` become `CANCELED` and `unlabeled` — and no single capture shows
+all five, so step 106 runs two.
+
+105. **The tab strip survives being pooled and re-dressed.** `/at config` → **Appearance**. Cycle
+     every tab of the strip three times, ending back on the first. Watch three things on each pass:
+     the **label** is that tab's own, the **selected** tab is the one you pressed, and the strip's
+     **band height** does not move as you go through it. A label carried over from the
+     previously-dressed tab, a highlight on the wrong button, a body drawn under the wrong tab, or a
+     band that grows or shrinks between passes is the pool handing back a frame it did not finish
+     dressing.
+106. **The perf strings read US.** `/at perf start mylabel`, then `finish` — the started line names
+     the label and the report header names it too. Then `/at perf start` with no label, and
+     `cancel` — the start line, the report header and the cancel line must read **`unlabeled`** and
+     **`perf run CANCELED`**. A double-L in either is a copy of the string that did not come from
+     the vendored payload.
 
 ### Triage references (if a step fails)
 - Bootstrap / events / profile repaint — `core/AbsorbTracker.lua` (`OnEnable`, `OnProfileChanged`)
