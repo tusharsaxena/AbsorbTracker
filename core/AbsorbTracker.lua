@@ -49,7 +49,6 @@ end
 function addon:OnEnable()
     NS.ClearLSMCache()
     NS.GetLSM()
-    if NS.ApplyLSMBorderPatch then NS.ApplyLSMBorderPatch() end
     NS.bus:SendMessage(NS.MSG.POSITION)
     NS.bus:SendMessage(NS.MSG.APPEARANCE)
     NS.bus:SendMessage(NS.MSG.REPAINT)

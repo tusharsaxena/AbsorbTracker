@@ -49,7 +49,6 @@ OnEnable (PLAYER_LOGIN timing)
     │
     ├─▶ NS.ClearLSMCache()             -- drop cached LSM ref (late-loading libs)
     ├─▶ NS.GetLSM()                    -- re-fetch LibSharedMedia
-    ├─▶ NS.ApplyLSMBorderPatch()       -- suppress upstream LSM30_Border tile
     │
     ├─▶ NS.bus:SendMessage(NS.MSG.POSITION)    -- ▶ Display: re-apply saved position or center
     ├─▶ NS.bus:SendMessage(NS.MSG.APPEARANCE)  -- ▶ Display: size, textures, colors, border, font

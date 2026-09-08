@@ -46,7 +46,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 20a. **Reset-All wording and blast radius.** The popup carries the collection's **one** wording (`options-ui-§12`), verbatim: *"Reset this profile to the addon's defaults? Everything you have configured or added in it is discarded — your other profiles are not affected."* The button tooltip names the equivalence rather than restating it. Accepting must be **the same act** as Profiles → **Reset Profile**: every setting back to shipped, every bar back at its default position, and — with a second profile made on the Profiles page beforehand — the profile **list unchanged** and you still on the profile you were on.
 
 ### E. LSM border-widget alignment fix
-21. Appearance → *Border* tab, **Border Style** dropdown closed → left edge flush with neighbors, **no ~42px gap** (LSMPatch suppresses the displayButton tile).
+21. Appearance → *Border* tab, **Border Style** dropdown closed → left edge flush with neighbors, **no ~42px gap** (`lib.__PatchLSM30Border()`, called from `settings/OptionsSetup.lua`'s live arm, suppresses the displayButton tile — the addon-side `core/LSMPatch.lua` that used to do it is deleted). **This step passes with the fixup broken as long as AbsorbTracker is the only Ka0s addon loaded**; section Q is the one that can see the real defect.
 22. Open the dropdown → per-row hover border previews still render; selecting applies.
 
 ### F. Slash verbs — read/write/reset
@@ -246,9 +246,11 @@ all five, so step 106 runs two.
 
 ### Q. The LSM30_Border patch, promoted to LibKa0s
 
-**Smoke, session 5.** Run after `M4-02` puts `lib.__PatchLSM30Border()` into
-`settings/OptionsSetup.lua`'s live arm, and again after **each** of the five `core/LSMPatch.lua`
-deletions (`M4-04`…`M4-08`) — AbsorbTracker's copy is the last of the five to go.
+**Smoke, session 5. NOT YET RUN — no WoW client was available when `M4-08` landed.** Run after
+`M4-02` puts `lib.__PatchLSM30Border()` into `settings/OptionsSetup.lua`'s live arm, and again after
+**each** of the five `core/LSMPatch.lua` deletions (`M4-04`…`M4-08`). AbsorbTracker's copy was the
+fifth and last, deleted by `M4-08`, so **all five are gone now** and the outstanding run is the one
+with none of them present.
 
 AceGUI's `WidgetRegistry` is process-global, so the thing under test is not this addon. It is what
 five Ka0s addons do to **one** registry slot in **one** client. Each of the five used to register
@@ -258,11 +260,18 @@ see that: each one loads a single copy, registers once and passes. Section E's s
 the alignment with AbsorbTracker alone, which is exactly the check that stayed green through the
 defect.
 
-Right now this addon is doubly covered on purpose — the library call runs at settings file load and
-`core/LSMPatch.lua`'s `NS.ApplyLSMBorderPatch()` still runs at `OnEnable`. Both hide the same tile
-and re-anchor the same two regions, so the second is a no-op in effect. The step below must pass
-with the private copy present **and** after it is deleted; a difference between those two runs is
-the finding.
+There is no second cover any more. Between `M4-02` and `M4-08` this addon was patched twice on
+purpose — the library call at settings file load, and `core/LSMPatch.lua`'s `NS.ApplyLSMBorderPatch()`
+at `OnEnable` — and both hid the same tile, so the second was a no-op in effect and the first could
+not be proved by looking. The private copy is gone, so **the library call is the only thing hiding
+that tile in this addon now**, and its timing moved with it: file load rather than `OnEnable`, which
+is earlier. Nothing headless can tell you whether that is early enough in a real client; step 107 can.
+
+**The debt this leaves.** `M4-03` — the same sweep with all five private copies still present, which
+`03_SPEC.md`'s non-goals ask for before any of them is deleted — was not run either. Five deletions
+therefore landed on a green suite and an argument rather than on a client. One run of step 107 with
+all five addons loaded settles it for all five; if it fails, the five separate deletion commits are
+what turn "one of them is wrong" into "this one is wrong".
 
 107. **Every Border dropdown is the same control, whatever loaded last.** Enable KickCD,
      PanelMaster, AbsorbTracker, ConsumableMaster and MultiMeters together. Open each addon's Border
@@ -286,7 +295,7 @@ the finding.
 - Perf probe / suspend / capture ring / step panel — `LibKa0s-Perf-1.0` (`libs/LibKa0s/`), wired up by `core/PerfSetup.lua`; protocol in `docs/performance.md`
 - DB init + idempotent migration — `core/Database.lua`
 - Debug console — `LibKa0s-DebugLog-1.0` (`libs/LibKa0s/`), wired up by `core/DebugLogSetup.lua`
-- LSM border alignment fix — `core/LSMPatch.lua`
+- LSM border alignment fix — `LibKa0s-Options-1.0` (`libs/LibKa0s/Options.lua`, `lib.__PatchLSM30Border`), called from `settings/OptionsSetup.lua`'s live arm
 - Class-color-aware getters and the frame-alpha clamp — `core/Data.lua` (`GetBarColor`/`GetBgColor`/`GetBorderColor`/`GetFontColor`, all through one `resolveColor`; `GetBarAlpha`)
 - Mirror resolution / `CopyFromPlayer` / per-unit position — `core/Units.lua`
 - The Appearance page's chrome block (Unit picker, mirror checkbox, copy button) and its tab strip — `settings/UnitPanel.lua` (`Helpers.RenderUnitPanel`)

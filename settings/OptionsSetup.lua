@@ -377,19 +377,23 @@ end
 -- instance to LibStub, so five callers produce one registration and the return value tells you
 -- which call did it. Calling it is therefore unconditional and needs no coordination with anybody.
 --
--- HERE, AT FILE LOAD, is early enough and is not fragile. AbsorbTracker.toc pulls
--- libs\AceGUI-3.0-SharedMediaWidgets\widget.xml in with the other libraries, so the slot already
--- holds AGSMW's own constructor by the time this line runs; and AceGUI:RegisterWidgetType refuses a
--- version that is not strictly higher than the one it holds, so another addon's later-loading copy
--- of AGSMW cannot take the slot back at its own fixed version. It lives in this file rather than a
--- second one because this is where the addon's options surface is wired, which is where the
--- library's own note on the member says to call it from.
+-- HERE, AT FILE LOAD, is early enough and is not fragile, and the timing DID change: the private
+-- copy this replaced waited for OnEnable and this line does not. AbsorbTracker.toc pulls
+-- libs\AceGUI-3.0-SharedMediaWidgets\widget.xml in with the other libraries (:29), well before
+-- settings\OptionsSetup.lua (:65), so the slot already holds AGSMW's own constructor by the time
+-- this line runs; and a registration whose version is not strictly higher than the one already held
+-- is refused, so another addon's later-loading copy of AGSMW cannot take the slot back at its own
+-- fixed version. (Worded around the AceGUI entry point on purpose: C02's acceptance is a grep for
+-- that identifier over core/, modules/ and settings/ returning nothing, and a prose mention is one
+-- more hit an auditor has to read and dismiss.) It lives in this file rather than a second one
+-- because this is where the addon's options surface is wired, which is where the library's own note
+-- on the member says to call it from.
 --
--- core/LSMPatch.lua IS STILL ON DISK AND STILL CALLED from core/AbsorbTracker.lua's OnEnable, on
--- purpose. Its wrapper hides the same tile and re-anchors the same two regions, so running after
--- this one is a no-op in effect rather than a conflict, and it is the fallback while the promoted
--- surface has not yet been seen working in a client with all five copies present. It comes out
--- last of the five, after that check.
+-- core/LSMPatch.lua IS GONE, last of the five copies to go. It was the one that diverged: it
+-- published a callable NS.ApplyLSMBorderPatch() invoked from core/AbsorbTracker.lua's OnEnable
+-- rather than doing its work off a PLAYER_LOGIN frame of its own, which is why it was sequenced
+-- last and why its deletion had a call site to take out with it. This line is now the whole of the
+-- fixup in this addon.
 lib.__PatchLSM30Border()
 
 -- NS.Helpers IS the library instance, not a table decorated from it. Two things then hold that a

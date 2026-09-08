@@ -172,9 +172,10 @@ test("the live arm patches LSM30_Border through the library, not through a priva
   -- does, puts a stand-in LSM30_Border in the registry before the addon loads, and then asks the
   -- registry what came out.
   --
-  -- core/LSMPatch.lua is still on disk and does not interfere: it only publishes
-  -- NS.ApplyLSMBorderPatch, which is called from OnEnable, and nothing here fires OnEnable. It is
-  -- deleted last of the five copies, after the in-client check with all five present.
+  -- core/LSMPatch.lua is gone, last of the five private copies. This case never saw it in the
+  -- first place: it only published NS.ApplyLSMBorderPatch, which OnEnable called, and nothing here
+  -- fires OnEnable. So what the registry held below was always the library's doing alone, which is
+  -- what made it safe to delete the private copy on the strength of a green suite.
   -- red under: dropping the lib.__PatchLSM30Border() call from the live arm.
   local Loader     = dofile("tests/_kit/loader.lua")
   local buildMocks = dofile("tests/wow_mock.lua")
