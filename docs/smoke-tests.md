@@ -315,6 +315,32 @@ this step reads the console rather than the bar.
      profile>` and `/at get units.player.barWidth` → **333**. A missing `lifted` line, an N that
      does not count the inactive profile, or a width of 200 is the finding.
 
+### S. The perf panel's close control, now the library's
+
+**Smoke, session 3. NOT YET RUN — no WoW client was available when `M4-16` landed.** Run after
+`M4-16` deletes `core/PerfSetup.lua`'s `decorate` field.
+
+The hook and `libs/LibKa0s/PerfPanel.lua`'s else arm are **exclusive**, so this is not a change whose
+two sides ran side by side and can be compared: for as long as the descriptor carried `decorate` the
+library's own arm never executed once, in any client, ever. Deleting the field runs it for the first
+time. Headlessly the two are provably the same call — same `LibKa0s-Core-1.0` factory, same
+`TOPRIGHT` anchor, same `-(TITLE_H - 18) / 2` offset, same folder name arriving as the third
+argument — and `tests/test_coresetup.lua` shows the real panel against a spy on that factory to say
+so. What no suite in this repo can say is what the control **looks like**, because the mock answers
+nil for it: a texture path that is never built draws nothing and raises nothing, which is exactly the
+failure that hid here before and stayed green throughout.
+
+Numbered 109 rather than 108 because `M4-20` took 108 first.
+
+109. **`/at perf` opens with one close button, where it always was.** `/at perf` → the step panel.
+     Expect **exactly one** close control, in the panel's **top-right corner**, drawn as this
+     collection's own `close` mark — the same mark the debug console wears, so raise the console
+     (`/at debug on`, then `/at debug`) and compare the two corners side by side. Click it; the panel
+     hides. `/at perf` again; it re-opens with the control still there. **A multiplication sign
+     instead of the mark, an empty corner, two controls stacked in the same corner, or a control that
+     has moved off the corner is the finding** — the first three say the folder name is not reaching
+     `MakeCloseButton`, the last that the library's anchor is not the one the deleted hook used.
+
 ### Triage references (if a step fails)
 - Bootstrap / events / profile repaint — `core/AbsorbTracker.lua` (`OnEnable`, `OnProfileChanged`)
 - TOC metadata (the `/at version` string, the About page's Notes blurb) — `LibKa0s-Env-1.0` (`libs/LibKa0s/Env.lua`), wired by `core/EnvSetup.lua` as `NS.Meta` / `NS.Version`

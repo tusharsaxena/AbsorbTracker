@@ -134,27 +134,18 @@ NS.Perf = lib:New({
         end
     end,
 
-    -- Built by the addon's own close-button factory rather than a lookalike, so the perf panel and
-    -- the debug console cannot drift apart: NS.MakeCloseButton (core/CoreSetup.lua) and the console's
-    -- own control both end at LibKa0s-Core's MakeCloseButton, and the wrapper is the single place
-    -- that tells the library which addon folder to build the mark's texture path from.
+    -- NO `decorate`. The descriptor deliberately ends here: LibKa0s-Perf-1.0's panel draws its own
+    -- close control (`libs/LibKa0s/PerfPanel.lua:185-196`) out of the same LibKa0s-Core factory, at
+    -- the same TOPRIGHT anchor and the same -(TITLE_H - 18) / 2 offset, resolving the folder name
+    -- through `d.addonName or d.name` — which the `addonName` field above answers explicitly.
     --
-    -- IT USED TO BE `NS.DebugLog.MakeCloseButton(frame, api.Hide)` — a two-argument call onto a
-    -- three-argument function, which is why this panel drew a multiplication sign while every suite
-    -- stayed green: the dropped third argument is the addon name, and a texture path that is never
-    -- built draws nothing and raises nothing. Going through the wrapper means the argument cannot be
-    -- dropped at a call site again.
-    --
-    -- Guarded only because a close button is worth degrading over, not erroring over.
-    decorate = function(frame, api)
-        if NS.MakeCloseButton then
-            local close = NS.MakeCloseButton(frame, api.Hide)
-            -- The factory answers nil where CreateFrame is unavailable — a close button is worth
-            -- degrading over, not erroring over.
-            if close then
-                close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -6, -(api.TITLE_H - 18) / 2)
-                frame.closeButton = close
-            end
-        end
-    end,
+    -- THIS FILE USED TO SUPPLY THAT HOOK, and by the end it was a line-for-line copy of that arm. It
+    -- earned its place once: it began as `NS.DebugLog.MakeCloseButton(frame, api.Hide)`, a
+    -- two-argument call onto a three-argument function, so the panel drew a multiplication sign
+    -- while every suite stayed green — a texture path that is never built draws nothing and raises
+    -- nothing. Repairing it made it IDENTICAL to the library's arm rather than different from it,
+    -- and the two arms are EXCLUSIVE: for as long as `decorate` sat here the library's own control
+    -- never ran, so nothing stood against the drift a duplicate invites. Deleting the copy is what
+    -- makes this panel and the debug console wear one close mark by construction rather than by
+    -- agreement.
 })

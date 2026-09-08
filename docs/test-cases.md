@@ -135,7 +135,7 @@ badge and any count quoted in the docs must agree with it.
 
 - core: the secret seam is the library's, not a private copy
 - core: the close button is the library's, told which addon is asking
-- core: the perf panel builds its close control through that one wrapper
+- core: the perf descriptor names the folder and leaves the close control to the library
 - core: NS.Print carries the [AT] tag and survives a secret arg
 - core: NS.Print and NS.Util.print are the same object after the AceConsole reclaim
 - core: the addon still prints, tagged, with LibKa0s absent

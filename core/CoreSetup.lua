@@ -107,6 +107,18 @@ NS.ResolveColor = lib.ResolveColor
 -- three-argument function is green in every suite and visible only in a screenshot, because a missing
 -- texture path draws nothing and raises nothing. tests/test_coresetup.lua spies on the library
 -- function and asserts the folder name arrived, rather than looking at what got drawn.
+--
+-- NO CALL SITE TODAY, AND THAT IS RECORDED HERE RATHER THAN LEFT TO BE REDISCOVERED, the way
+-- core/MediaSetup.lua's NS.Icon already is. core/PerfSetup.lua's `decorate` hook was the last one,
+-- and M4-16 deleted it: the perf panel's close control now comes from libs/LibKa0s/PerfPanel.lua's
+-- own else arm, which calls LibKa0s-Core's factory directly with the folder name the descriptor's
+-- `addonName` supplies, and the debug console's control was always the library's too. This wrapper
+-- is kept because it is the live half of a two-sided seam -- the degradation branch above publishes
+-- the same name, and tests/test_surface_parity.lua derives its set from this file's publications,
+-- so deleting one side means deleting both -- and because the first close control this addon draws
+-- itself must come through here rather than reaching for lib.MakeCloseButton and dropping the
+-- argument again. If the collection's dead-export sweep reaches it before such a control arrives,
+-- deleting the pair is the right answer.
 NS.MakeCloseButton = function(parent, onClick)
     return lib.MakeCloseButton(parent, onClick, addonName)
 end
