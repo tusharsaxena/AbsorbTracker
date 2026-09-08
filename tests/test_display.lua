@@ -29,7 +29,7 @@ end
 -- UpdateAbsorbBar stands down so the placeholder survives (modules/Display.lua). Every test below
 -- that asserts what a repaint PAINTS therefore has to say which mode it is in, rather than riding
 -- the profile default -- which is `locked = false`, i.e. preview mode.
-local function withLocked(body) end   -- forward declaration; defined under withSetting
+local withLocked   -- forward declaration; assigned under withSetting, which it needs
 
 local function withSetting(key, value, body)
   local saved = NS.GetSetting(key)

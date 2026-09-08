@@ -170,7 +170,7 @@ local BURST = 1000
 -- 1. Coalescing. The single most important invariant the addon has: a burst of absorb events in
 --    combat must collapse into ONE repaint per throttle window, not one per event. If this ever
 --    regresses the addon goes from ~10 repaints/s to hundreds.
-local coalesced = 0
+local coalesced
 do
   for _ = 1, BURST do
     NS.addon:OnAbsorbChanged("UNIT_ABSORB_AMOUNT_CHANGED", "player")
@@ -203,7 +203,10 @@ assert_(paintPass.apiPerIter == 12,
 
 -- 4. A full restyle. Heaviest known path: SetBackdrop twice plus four LibSharedMedia fetches per
 --    bar. Only runs on settings changes, so its cost matters far less than its frequency does.
-local appearance = measure("appearancePass", 200, function()
+--    Measured and REPORTED but deliberately unasserted: it is the one scenario here with no ceiling
+--    derived from repeated runs, and a number guessed to give the line an assertion would gate on
+--    nothing. `measure` files it into `results`, so the row still prints.
+measure("appearancePass", 200, function()
   NS.ForEachUnit(function(unit) NS.UpdateBarAppearance(unit) end)
 end)
 
