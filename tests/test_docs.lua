@@ -70,6 +70,46 @@ test("README.md carries no angle-bracket argument placeholders", function()
       .. table.concat(offenders, "; "))
 end)
 
+-- ── The Tier 2 documentation map says what docs/ actually holds ─────────────────
+
+-- `documentation-§3` files a conditional doc as Present or as Not applicable, and Not applicable is
+-- a valid state that MUST be stated rather than left to an empty directory listing. What it must not
+-- be is wrong: a row reading Not applicable beside a trigger that has fired is indistinguishable, to
+-- everything except a human re-deriving the trigger, from a doc nobody has written yet. That is
+-- exactly what this repo carried -- seventeen verbs and a `PROFILE_VERBS` tree filed as "no
+-- subcommand tree" -- and it survived three audits because nothing checked it.
+--
+-- So the two halves are checked against the disk. Present must name a file; Not applicable must not.
+-- The trigger itself is prose and stays a human's to read; the status is not, and this is the half a
+-- machine can hold.
+
+test("every Tier 2 documentation-map row agrees with docs/", function()
+  local body = readFile("docs/ARCHITECTURE.md")
+  local section = body:match("### Conditional[^\n]*\n(.-)\n###")
+  assertTrue(section ~= nil,
+    "docs/ARCHITECTURE.md has no `### Conditional ... Tier 2` section to read")
+
+  local rows, offenders = 0, {}
+  for doc, status in section:gmatch("|%s*`([^`]+)`%s*|%s*([^|]-)%s*|") do
+    if status == "Present" or status == "Not applicable" then
+      rows = rows + 1
+      local path = "docs/" .. doc
+      local f = io.open(path, "r")
+      local exists = f ~= nil
+      if f then f:close() end
+      if status == "Present" and not exists then
+        offenders[#offenders + 1] = doc .. " is filed Present and does not exist"
+      elseif status == "Not applicable" and exists then
+        offenders[#offenders + 1] = doc .. " exists and is filed Not applicable"
+      end
+    end
+  end
+
+  assertTrue(rows >= 5, "read only " .. rows .. " Tier 2 rows -- the table shape changed")
+  assertEqual(#offenders, 0, "the map and the directory disagree: "
+    .. table.concat(offenders, "; "))
+end)
+
 -- ── US English across the addon's own files ────────────────────────────────────────────────
 
 local BRITISH = {

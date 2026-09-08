@@ -179,49 +179,20 @@ panel.
 
 ## Slash Commands
 
-Registered via AceConsole in `settings/Slash.lua`: `/at` and the alias `/absorbtracker` both
-dispatch to `Sl:OnSlash`, which hands the line straight to `LibKa0s-Slash-1.0`. The library
-lower-cases only the verb (preserving case in the remainder so schema paths survive) and looks it
-up in the ordered `NS.COMMANDS` table this addon passed in. Unknown verb →
-`unknown command '<verb>'` then the help index (generated from `NS.COMMANDS`).
+Registered via AceConsole in `settings/Slash.lua`: `/at` and the alias `/absorbtracker` both dispatch
+to `Sl:OnSlash`, which hands the line straight to `LibKa0s-Slash-1.0`. The library lowercases only
+the verb — preserving case in the remainder, so schema paths and profile names survive — and looks it
+up in the ordered `NS.COMMANDS` table this addon passed in. Seventeen verbs, of which `profile`
+carries a sub-verb table of its own (`PROFILE_VERBS`, dispatched at `settings/Slash.lua:386`) and
+`perf`, `debug` and `toggle` each parse a token.
 
 **Schema paths are fully qualified.** `/at set units.target.barWidth 250` works; the pre-1.9
 unqualified `/at set barWidth 250` is rejected, because `FindSchemaRow` has no bare-key row for a
-per-unit setting. Only the seven unit-agnostic rows — `enabled`, `visibility`, `scale`, `alpha`, `locked`,
-`throttleWindow` and the session-only `state.debugConsole` — take a bare path.
+per-unit setting. Only the seven unit-agnostic rows — `enabled`, `visibility`, `scale`, `alpha`,
+`locked`, `throttleWindow` and the session-only `state.debugConsole` — take a bare path.
 
-**What is library code and what is ours.** The dispatcher, the help renderer, the row formatter
-(gold command — em dash — white description), the key/value formatter, the value renderer, the
-`/at list` builder and the type-aware value parser (clamping, the case-sensitive enum check, the
-0-1 / 0-255 color rescale) all live in `libs/LibKa0s/Slash.lua`, shared across every Ka0s addon.
-`settings/Slash.lua` keeps `NS.COMMANDS`, the host verbs, and the mirror note attached through
-`cli:SetRowAnnotator` — a `(mirrored — the bar shows Player's appearance)` tail on the
-appearance rows of a unit that is currently mirroring, which reads `NS.Units.IsMirrored` and the
-row's `alwaysPerUnit` flag, neither of which a generic dispatcher knows about.
-
-`NS.COMMANDS` is passed **into** the library rather than owned by it, deliberately:
-`settings/About.lua` renders the same table via `NS.Slash:LandingRows()`, so a library that owned
-the verbs would force an options layer to consume this one — and two libraries reaching for each
-other is a real dependency cycle. The table crossing as plain data is what keeps them independent.
-
-| Command | What it does |
-|---------|--------------|
-| `/at help` (or bare `/at`) | Print the help index |
-| `/at config` (alias `/at options`) | Open the settings panel (combat-gated) |
-| `/at list` | List every setting and its current value |
-| `/at get <path>` | Print one setting's current value |
-| `/at set <path> <value>` | Set one setting (typed: bool/number/string/color) |
-| `/at reset <path>` | Reset one setting to its default (a whole page is the panel's Defaults button) |
-| `/at resetall` | Reset the **active profile** to the shipped defaults — a profile reset, and the same act as Profiles → Reset Profile (`options-ui-§12`). Shared `Helpers.RestoreAllDefaults`, which the panel's Reset All button and the popup also call. `resetProfile` is `db:ResetProfile()`; `skipRestoreAll` vetoes the Profiles page **and** every profile-backed row, leaving the library's walk only the `sessionOnly` rows a profile reset cannot reach. Saved positions live in the profile and come back with it — `ResetAllPositions` still backs `/at resetposition` and the General page's button, and is no longer on this path |
-| `/at resetposition` | Clear **every** unit's saved position and re-anchor all three bars to their stacked defaults (shared `Helpers.ResetAllPositions`, `settings/UnitPanel.lua` — the General page's Reset Position button calls the same path) |
-| `/at lock` / `/at unlock` | Flip the drag lock |
-| `/at toggle [player\|target\|focus]` | Bare: flip **every** bar — all off if any is on, otherwise all on. With a unit token: flip that one bar only. Writes `units.<unit>.enabled` through `SetByPath`, so it travels the same path as the General page checkbox |
-| `/at debug` (`on`/`off`) | Toggle the debug console window; `on`/`off` enable/disable logging |
-| `/at perf <sub>` | The performance probe — `LibKa0s-Perf-1.0` (vendored, `libs/LibKa0s/`), wired up by `core/PerfSetup.lua`. Bare `/at perf` opens the step panel, whose first row starts a run — the entry point. `start [label]`/`finish` bracket a run, `measure a\|b` arm a combat-gated experiment, `report` print it, `dump` emit JSON, `cancel` abandon it unsaved, `show`/`hide`/`toggle` drive the step panel. `measure b` owns the suspend; there is no manual verb for it. Its own `NS.COMMANDS` verb — a thin dispatch to `NS.Perf.OnCommand`. See [performance.md](./performance.md) |
-| `/at update` | Force a bar refresh |
-| `/at version` | Print the addon version |
-| `/at test [value] [hold-secs]` | Paint a fake value for visual tweaking |
-| `/at profile <subcmd>` | Profile management (list/current/use/new/copy/delete/reset) |
+The verb table, the sub-verb trees, the mirror note, the help convention and the degraded arm are in
+[slash-dispatch.md](./slash-dispatch.md).
 
 ## Event Subscriptions
 
@@ -322,7 +293,7 @@ file, the hub the map itself lives in. Frozen and generated directories are name
 
 | Doc | Status | Trigger |
 |---|---|---|
-| `slash-dispatch.md` | Not applicable | 17 verbs, but the generated table in `ARCHITECTURE.md` → `## Slash Commands` covers the flat verb set; no subcommand tree |
+| `slash-dispatch.md` | Present | Seventeen verbs, over the eight-or-more threshold, and `profile` carries a subcommand tree (`PROFILE_VERBS`) |
 | `midnight-quirks.md` | Present | Client-version workarounds of the addon’s own |
 | `profiles.md` | Present | AceDB profiles are user-visible — the Profiles settings page |
 | `message-bus.md` | Not applicable | Five messages; threshold is more than ten. The table lives in `ARCHITECTURE.md` → `## Message Bus` |
