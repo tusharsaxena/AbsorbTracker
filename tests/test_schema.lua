@@ -350,14 +350,23 @@ test("no color row carries `disabledIf`, and every pair declares whose class it 
 end)
 
 test("every media-backed row answers a populated option list", function()
-  -- The composers declare `values` as a closure returning O.LSMValues(kind) -- a closure returning
-  -- a CLOSURE, where the flow engine's enumList calls it once and expects a table. It gets a
-  -- function, answers an empty list, and its own "no options" report is gated on `row.values ==
-  -- nil`, so the dropdown renders empty and nothing says why. settings/Appearance.lua corrects
-  -- that on its own rows (never in libs/, which the next re-vendor would overwrite); this is what
-  -- proves the correction is still applied, and what will fail loudly the day upstream fixes it
-  -- and the workaround is left behind doing nothing.
-  -- red under: deleting fixMediaValues, or an upstream `values` shape that answers a non-table.
+  -- This case outlived the defect it was written for, and that is the point of it. Through
+  -- OptionsCompose minor 2 the composers declared `values` as a closure returning O.LSMValues(kind)
+  -- -- a closure returning a CLOSURE, where enumList unwraps exactly once and expects a table. It
+  -- got a function, answered an empty list, and gated its own "no options" report on `row.values ==
+  -- nil`, so the dropdown rendered empty and nothing said why. settings/Appearance.lua carried a
+  -- `fixMediaValues` that re-pointed each media row on the way past; LibKa0s v1.26.0 fixes it at
+  -- source and the workaround is deleted. Minor 3 reads `O.LSMValues(kind)` ONCE, at
+  -- row-declaration time, and assigns the deferred reader it hands back straight into `values`
+  -- (libs/LibKa0s/OptionsCompose.lua:240, :284, :313), so enumList's single unwrap lands on a
+  -- table. The contract at :182-186 is that a host's own `O.LSMValues` MUST RETURN A FUNCTION;
+  -- this addon's does, and tests/test_data.lua:192 is what pins that.
+  --
+  -- What survives is the assertion, which was never about the workaround: a media-backed row must
+  -- answer a list a player can open. It is now the ACCEPTANCE test for the upstream fix rather than
+  -- the guard on a local patch, and it is what would catch the composer regressing to a double wrap
+  -- in some future re-vendor -- the one failure mode that is silent in a live client.
+  -- red under: an upstream `values` shape that answers a non-table, or an empty one.
   local seen = 0
   for _, row in ipairs(NS.Schema) do
     if row.dialogControl then

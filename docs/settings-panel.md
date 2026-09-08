@@ -323,23 +323,36 @@ The dropdown's `values` table is supplied by `Helpers.LSMValues(mediaType)`, whi
 2. **TOC `Notes` blurb** — full-width `Label` with `GameFontHighlight`, left-justified. `spec.notes` is a **function**, because the library resolves it at render time and the TOC field is not readable when the spec is declared at file scope. The Notes string is read through `NS.Meta` (`core/EnvSetup.lua`, the `LibKa0s-Env-1.0` seam).
 3. **Slash Commands section** — a full-width `Heading` widget (`GameFontNormalLarge`) followed by one `Label` row per string returned by `NS.Slash:LandingRows()`, formatted `|cFFFFFF00/at <cmd>|r — |cFFFFFFFF<desc>|r`: gold command, an em dash with a **single** space either side, and a **white** description. That is `LibKa0s-Slash-1.0`'s one row formatter — literally the same function `/at help` prints through, minus the two-space chat indent, which belongs to the chat renderer because a settings-panel label sitting under a heading does not need one. So the about list and the help block cannot drift. The list itself is `NS.COMMANDS` (`settings/Slash.lua`), handed to the library rather than owned by it — as a `rows` function for the same reason `notes` is one: `NS.COMMANDS` keeps growing as later files load, so a re-render must re-read it.
 
-## An upstream defect this addon works around
+## An upstream defect this addon used to work around
 
-`OptionsCompose` minor 1 declares every media-backed row as `values = function() return
+Kept because the shape recurs, and because a reader meeting the composed media rows should know
+what they used to do. **It is history as of LibKa0s v1.26.0** — nothing in this repo works around
+it any more.
+
+`OptionsCompose` minor 2 and earlier declared every media-backed row as `values = function() return
 O.LSMValues(kind) end` — a closure returning a **closure**, where the flow engine's `enumList` calls
-it once and expects a table. It gets a function, its `type(v) ~= "table"` arm answers an empty list,
-and its own "no options" report is gated on `row.values == nil`, so the affected dropdowns render
-**with nothing in them and nothing says why**. That is three rows per unit here: `barTexture`,
+it once and expects a table. It got a function, its `type(v) ~= "table"` arm answered an empty list,
+and its own "no options" report was gated on `row.values == nil`, so the affected dropdowns rendered
+**with nothing in them and nothing said why**. That was three rows per unit here: `barTexture`,
 `border` and `font` — `bgTexture` is this addon's own hand-written row and sets its `values` directly,
 so it was never affected.
 
-`settings/Appearance.lua` corrects it on the rows it owns (`fixMediaValues`, which re-points each
-composed media row at `H.LSMValues(kind)` directly), and **not** in `libs/`. A downstream patch to a
+`settings/Appearance.lua` corrected it on the rows it owned, with a `fixMediaValues` that re-pointed
+each composed media row at `H.LSMValues(kind)`, and **not** in `libs/` — a downstream patch to a
 vendored file is overwritten by the next re-vendor and takes the fix with it, so a defect there is
-reported upstream and fixed there. `tests/test_schema.lua` asserts that every row carrying a
-`dialogControl` answers a **populated** list, which fails in both directions: if the workaround is
-deleted, and — usefully — it is also what a reviewer will look at the day upstream lands the fix and
-the workaround becomes dead code to delete.
+reported upstream and fixed there. That is what happened: minor 3 reads `O.LSMValues(kind)` once at
+row-declaration time and assigns the deferred reader straight into `values`
+(`libs/LibKa0s/OptionsCompose.lua:240`, `:284`, `:313`), so `enumList`'s single unwrap now lands on a
+table. The workaround and its three call sites were deleted in the v1.26.0 re-vendor.
+
+The **contract** that replaced it is worth knowing, because breaking it fails silently rather than
+loudly: a host supplying its own `O.LSMValues` must return **a function**
+(`libs/LibKa0s/OptionsCompose.lua:182-186`). Hand back a table instead and nothing errors — the row
+simply freezes its media list at whatever was registered when the file loaded, so media registered
+later never appears. This addon's `Helpers.LSMValues` returns a deferred closure and
+`tests/test_data.lua:192` pins that. `tests/test_schema.lua` still asserts that every row carrying a
+`dialogControl` answers a **populated** list; it is now the acceptance test for the upstream fix
+rather than the guard on a local patch.
 
 ## See also
 

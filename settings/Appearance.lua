@@ -111,30 +111,6 @@ local function appendBlock(rows, unit, block)
     end
 end
 
-local LSM_KIND = {
-    LSM30_Statusbar = "statusbar",
-    LSM30_Border    = "border",
-    LSM30_Font      = "font",
-}
-
--- UPSTREAM DEFECT, WORKED AROUND ON OUR OWN ROWS. OptionsCompose minor 1 declares each media-backed
--- row as `values = function() return O.LSMValues(kind) end` -- a closure returning a CLOSURE, where
--- the flow engine's `enumList` calls it once and expects a table. It gets a function, its
--- `type(v) ~= "table"` arm answers an empty list, and its own "no options" report is gated on
--- `row.values == nil`, so the dropdown renders with nothing in it and nothing says why.
---
--- Corrected on the ROW, which is ours, and never in libs/, which is not: a downstream patch is
--- overwritten by the next re-vendor and takes the fix with it. Reported upstream to LibKa0s; delete
--- this the re-vendor after the fix lands. tests/test_schema.lua pins that every media row answers a
--- populated list, so this cannot rot silently in either direction.
-local function fixMediaValues(rows)
-    for _, row in ipairs(rows) do
-        local kind = LSM_KIND[row.dialogControl]
-        if kind then row.values = H.LSMValues(kind) end
-    end
-    return rows
-end
-
 local function addUnitRows(unit)
     local p = "units." .. unit .. "."
     local classColor = classColorFor(unit)
@@ -178,7 +154,7 @@ local function addUnitRows(unit)
     -- `barAlpha` is the PER-UNIT opacity and stays here. It is not Master alpha, which is the
     -- addon-wide row on the General page's Master controls tab (options-ui-§15 forbids conflating
     -- the two); NS.GetBarAlpha multiplies them.
-    appendBlock(rows, unit, fixMediaValues(H.BarGroup({
+    appendBlock(rows, unit, H.BarGroup({
         prefix     = p,
         page       = PAGE,
         group      = "Bar",
@@ -190,7 +166,7 @@ local function addUnitRows(unit)
             barColor         = unitDefaults.barColor,
             useClassColorBar = unitDefaults.useClassColorBar,
         },
-    })))
+    }))
 
     -- ── Background ────────────────────────────────────────────────────────────
     --
@@ -234,7 +210,7 @@ local function addUnitRows(unit)
     --
     -- `keys` keeps the stored path `units.<unit>.border`, which is what every profile on disk holds
     -- and what `/at set units.player.border` names.
-    appendBlock(rows, unit, fixMediaValues(H.BorderGroup({
+    appendBlock(rows, unit, H.BorderGroup({
         prefix     = p,
         page       = PAGE,
         group      = "Border",
@@ -247,14 +223,14 @@ local function addUnitRows(unit)
             borderColor         = unitDefaults.borderColor,
             useClassColorBorder = unitDefaults.useClassColorBorder,
         },
-    })))
+    }))
 
     -- ── Text ──────────────────────────────────────────────────────────────────
     --
     -- The canonical font block, six rows over three lines. `keys` keeps `useClassColorText`, the path
     -- this addon has always stored the companion under; `fontShadow` is the one leaf that had no
     -- stored key at all before this pass.
-    appendBlock(rows, unit, fixMediaValues(H.FontGroup({
+    appendBlock(rows, unit, H.FontGroup({
         prefix     = p,
         page       = PAGE,
         group      = "Text",
@@ -269,7 +245,7 @@ local function addUnitRows(unit)
             fontFlags         = unitDefaults.fontFlags,
             fontShadow        = unitDefaults.fontShadow,
         },
-    })))
+    }))
 
     -- The mirror flag. Not rendered in the page body — Helpers.RenderUnitPanel draws it as a
     -- header checkbox above the tab strip — but kept in the schema so
