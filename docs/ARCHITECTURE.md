@@ -25,8 +25,15 @@ deep-copies once, then the unit diverges). Position is saved per-profile via Ace
 only (Interface 120007), English only.
 
 The addon is an **AceAddon** (`core/AbsorbTracker.lua`) mixing in AceEvent / AceTimer / AceConsole.
-`local addonName, NS = ...` is the shared private namespace bus in every file; there is no
-`_G[addonName]` table.
+`NS`, the second of the two varargs the client hands every TOC-loaded file, is the shared private
+namespace bus in every file; there is no `_G[addonName]` table. The FIRST vararg is the addon folder
+name, and only seven files read it, so only those seven bind it: `core/Namespace.lua`,
+`core/EnvSetup.lua`, `core/CoreSetup.lua`, `core/MediaSetup.lua`, `core/DebugLogSetup.lua`,
+`core/PerfSetup.lua` and `core/AbsorbTracker.lua` open `local addonName, NS = ...` because each
+hands the folder name to a vendored library that cannot infer which folder it was copied into. The
+other nineteen open `local _, NS = ...`. That is not a style split: binding a name nothing reads is
+what `M4c-06` found nineteen of behind the blanket `211/addonName` ignore, and `_` is the spelling
+that keeps luacheck able to say so the next time.
 
 ## Module Map
 
@@ -63,7 +70,6 @@ time, guarded with `if NS.X then … end` where the load-order coupling is soft.
 | `core/Data.lua` | The AceDB read/write seam (`GetSetting`/`SetSetting` — dotted-path aware, so `units.target.barWidth` and flat `locked` both work), LSM fetchers with fallbacks (each takes a `unit`, resolved through `NS.Units.Get`), and the class-color-aware color resolvers (each takes a `unit`; the class color is that unit's own, per options-ui-§17, and the background keeps its own darkened per-class palette — the one surface §17 exempts from the shared `NS.ResolveColor`). |
 | `core/Database.lua` | `NS:InitDB` (AceDB + profile callbacks) and `NS:RunMigrations` (schema-version seam). |
 | `core/Units.lua` | `NS.Units` — unit identity (`LIST`/`LABEL`), mirror resolution (`IsMirrored`/`SourceUnit`/`Get`), per-unit position read/write, and `CopyFromPlayer`. The only file that reads `db.profile.units` for appearance. |
-| `core/LSMPatch.lua` | `NS.ApplyLSMBorderPatch` — collapses the upstream LSM30_Border preview tile; run once on enable. |
 | `core/DebugLogSetup.lua` | Wires the addon into `LibKa0s-DebugLog-1.0` — the on-screen console (`debug-logging`) is a vendored library, not addon code. Builds `NS.DebugLog` via `lib:New{...}` and binds `NS.Debug` bare off it. What this file supplies: the frame-name prefix, the title, the monospace font, the `/at` slash name, the call-time `print`/`safeToString` hooks, the `onVisibilityChanged` panel refresh, the `[Init]` session summary, and — the part that must not move — `isEnabled`/`setEnabled` over `NS.State.debug`, so the logging flag stays this addon's single truth. Degrades to a stub that still flips the flag when the library is absent. The library's surface is unchanged: `FormatPlain`/`FormatColored`, `SetEnabled`, `Show`/`Hide`/`Toggle`/`IsShown`, the `debug-logging-§11` always-shown scrollbar (`UpdateScrollBar`) + bottom line counter (`UpdateStatus`, `lib.MAX_BUFFER = 1500`), `ConsoleCheckbox()` — the General page's checkbox spec that shows/hides the window (not the logging flag) — and the harness-facing `CopyText`/`FindLine`/`BufferSize`/`LastLine` plus the raw `buffer` array. The copy window itself is no longer DebugLog's own: as of minor 12 it is `LibKa0s-Widgets-1.0`'s `CopyWindow`, which the module hard-floors on (`NEEDS_WIDGETS = 7`) — the one place this addon reaches an eighth major, and it reaches it indirectly. |
 | `core/AbsorbTracker.lua` | AceAddon promotion; `OnInitialize` (font register, InitDB, slash register), `OnEnable` (the login sequence), event handlers, `OnProfileChanged`. |
 | `defaults/Profile.lua` | Six flat globals (`enabled`/`visibility`/`scale`/`alpha`/`locked`/`throttleWindow` — the first four are options-ui-§15's Master controls set; there is no `hidden` master toggle) + `NS.defaults.profile.units.{player,target,focus}` (each unit's own appearance table, built by a factory so no table is shared across units) + `NS.defaults.global.schemaVersion = 1` (the current schema is **5** — v3 introduced `profile.units`, v4 dropped the dead `hidden` toggle, v5 mapped `showOnlyInCombat` onto `visibility` — but the DEFAULT is the pre-ladder `1`, exactly like the per-profile stamp, because AceDB's `copyDefaults` fills it before `RunMigrations` reads it and a default of `4` would stamp every freshly-materialized global as already-migrated); `NS.flatDefaults` alias, `NS.unitDefaults` (= `defaults.profile.units.player`, the canonical per-row default source for `settings/Appearance.lua`). |
@@ -71,7 +77,7 @@ time, guarded with `if NS.X then … end` where the load-order coupling is soft.
 | `modules/Bar.lua` | `NS.CreateBar(unit, globalName)` builds one bar frame; `NS.bars` (keyed `player`/`target`/`focus`, frames `AbsorbTrackerFrame`/`AbsorbTrackerTargetFrame`/`AbsorbTrackerFocusFrame`) at file load, plus `NS.bar`/`statusBar`/`valueText`/`backdropInfo` as player aliases for pre-multi-unit call sites. Each bar owns its own `backdropInfo` table (border size differs per unit; `SetBackdrop` keys off table identity) and a `unitLabel` FontString above the frame naming its unit, shown only while unlocked. |
 | `modules/Display.lua` | Every function takes a `unit` (defaulting to `"player"`): `RestoreBarPosition`, `UpdateBarAppearance`, `ShouldShowBar`/`ApplyVisibility` (the four-step visibility ladder), `UpdateAbsorbBar` (the paint path). `NS.ForEachUnit(fn)` and `NS.DefaultPosition(unit)` (stacks target/focus above the player bar) also live here. Subscribes to `APPEARANCE`/`VISIBILITY`/`POSITION` on its own `NS.Display.__ev` bus target, fanning each handler out over `NS.ForEachUnit` so the bus messages stay payload-free. |
 | `modules/Timer.lua` | Coalescing repaint scheduler (`NS.RequestRepaint`) — a trailing-edge one-shot AceTimer throttle. |
-| `settings/Schema.lua` | The schema registry + read/write seam (`SetByPath`), value formatting, and `ValidateSchema`. `NS.FormatSchemaValue` is a thin delegate to `LibKa0s-Slash-1.0`'s `lib.FormatValue`, so the `/at get` echo and the `[Set]` debug line cannot disagree about how a color or an empty string reads; the type-aware parser is the library's `lib.ParseValue` (`NS.ParseSchemaValue` and the private `parseBool`/`parseNumber`/`parseString`/`parseColor` helpers are gone). Rows carry `unit`, `alwaysPerUnit`, and `skipRender` fields; `SchemaForPage(page, unit)` filters to one unit's rows (or all, when `unit` is omitted); `PartitionUnitRows` splits a unit page into always-editable rows vs. mirror-hidden appearance rows (kept and unit-tested, but with no production caller since the mirrored state became a hint under the tab strip); `ResolvePath`/`SetPath` walk dotted paths (`units.<unit>.<key>`) so flat globals and per-unit keys share one seam. |
+| `settings/Schema.lua` | The schema registry + read/write seam (`SetByPath`), value formatting, and `ValidateSchema`. `NS.FormatSchemaValue` is a thin delegate to `LibKa0s-Slash-1.0`'s `lib.FormatValue`, so the `/at get` echo and the `[Set]` debug line cannot disagree about how a color or an empty string reads; the type-aware parser is the library's `lib.ParseValue` (`NS.ParseSchemaValue` and the private `parseBool`/`parseNumber`/`parseString`/`parseColor` helpers are gone). Rows carry `unit`, `alwaysPerUnit`, and `skipRender` fields; `SchemaForPage(page, unit)` filters to one unit's rows (or all, when `unit` is omitted); `ResolvePath`/`SetPath` walk dotted paths (`units.<unit>.<key>`) so flat globals and per-unit keys share one seam. |
 | `settings/Slash.lua` | AceConsole registration, the ordered `NS.COMMANDS` verb table (17 verbs), and the host verbs that reach into this addon's own state (`lock`/`unlock`/`toggle`/`update`/`test`/`profile`/`debug`/`perf`/`resetall`/`resetposition`) plus the mirror note. The dispatcher itself, the help renderer, the row and key/value formatters, the value renderer, the `/at list` builder and the type-aware value parser are `LibKa0s-Slash-1.0` (vendored, `libs/LibKa0s/Slash.lua`); this file builds the CLI with `SlashLib:New{...}` and passes `NS.COMMANDS` in. Degrades to a stub that keeps the host verbs working — and names the missing library on each schema verb — when the library is absent. |
 | `settings/OptionsSetup.lua` | Wires the addon into `LibKa0s-Options-1.0` — the canvas shell, the schema-row → AceGUI translation, the schema composers, the two-column flow engine and the always-visible scrollbar patch are vendored library code (`libs/LibKa0s/{Options,OptionsWidgets,OptionsCompose,OptionsScroll}.lua`), not addon code. It replaces four files that used to be this addon's own toolkit (`Panel.lua`, `Helpers.lua`, `ScrollPatch.lua`, `Widgets.lua`). Holds the brand string as a **file-scope local** (`PARENT_TITLE`), handed to the library as `descriptor.parentTitle` rather than published on the namespace — the two files that used to read it off `NS` are inside the library now. Then assigns `NS.Helpers = lib:New(descriptor)` — the library instance **itself**, not a decorated copy, so every existing `NS.Helpers.*` call site keeps working — plus thin `NS.RegisterOptionsPage` / `NS.CreateOptionsPanel` / `NS.OpenOptionsPanel` / `NS.RefreshOptionsPanel`. What this file supplies is the part that is ours: `get`/`set` (through `NS.GetSetting`/`NS.SetByPath`, so a panel change takes exactly the path `/at set` takes), `applyDefault`, `allRows`, `rowsForPage`, `skipRestoreAll` (excludes the Profiles page — its rows are AceDBOptions-supplied and resetting them is data loss — and every profile-backed row), `resetProfile` (→ `db:ResetProfile()`, because Reset All Settings **is** a profile reset per options-ui-§12), `scheduleTimer`, `getLSM`, `validate`, `onAceGUI`, `buildMain`, `colorDecode`/`colorEncode`, `print` and `debug`. Its stub is **load-completing, not member-answering** — the one setup file that breaks the addon's honest-line-per-member pattern, because `settings/Appearance.lua` calls `NS.Helpers.LSMValues` inside schema-row literals at *file load* and a nil there would abort the file, taking most of `NS.Schema` with it. |
 | `settings/UnitPanel.lua` | The two pieces of the old toolkit that did not generalize. **Decorates** `NS.Helpers` — which *is* the library instance — rather than sitting beside it, so page files call `H.RenderUnitPanel` and `H.RenderSchema` interchangeably. `Helpers.RenderUnitPanel(ctx, pageKey)` draws the page's ONE **chrome block** (`PageHeader`, in the chrome band: the Unit picker — the panel's one and only — plus, for target and focus, the "Use same styling as Player" checkbox beside the "Copy styling from Player" button) and then the **tab strip** (`TabStrip`, one tab per `group`, drawn for every unit including a mirrored one, whose rows are replaced by a one-line hint), as a full rebuild via the library's `ClearScroll` + `RenderGrid` + `RenderRows`. The two mirror controls govern every tab, so options-ui-§14 puts them in the band above the strip and not in the scroll below it, and a page draws at most one block — so the picker goes inside `PageHeader`'s frame and `PageBanner` is never called. `PageHeader` pcalls the builder, so a raise inside the block costs the block rather than the strip and the rows under it; the block's AceGUI widgets are recorded on `ctx.__chromeWidgets` and released back to the pool after the following render. There is a re-entrancy guard and a two-tier refresher: always re-sync the mirror checkbox in place, re-render only when mirror state actually changed (an unconditional re-render would `ClearScroll` the very widget whose `OnValueChanged` is still on the stack). `Helpers.ResetAllPositions()` is the single reset-position implementation, shared by `/at resetposition` and the General page's Reset Position button (Reset All Settings is a profile reset now, and the saved positions come back with the profile, so it is no longer on that path). Loads after `settings/OptionsSetup.lua` (it takes `local Helpers = NS.Helpers` at load). |
@@ -170,57 +176,30 @@ in `tests/wow_mock.lua` models real `(message, target)` dispatch so `tests/test_
 two receivers of one message both fire (anti-pattern #33).
 
 Other cross-cutting refresh stays as explicit calls: `Helpers.RefreshAllPanels` (after `/at set` or
-a profile change) walks per-widget refresher closures — the implementation is the library's, walking
-`ctx.refreshers` on library-owned ctx tables. The other callback bus is **AceDB**:
+a profile change) is the STRUCTURAL tier: every settings page declares its body through
+`Helpers.SetRenderer`, so a page on screen re-renders and a hidden one is flagged dirty for its
+next `OnShow`. A panel widget's own write takes `Helpers.RefreshScalars` instead, which walks
+`ctx.refreshers` in place. Both implementations are the library's. The other callback bus is **AceDB**:
 `NS.OnProfileChanged` is registered for `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset` in
 `NS:InitDB`; it republishes `POSITION` / `APPEARANCE` / `REPAINT` on the bus and refreshes an open
 panel.
 
 ## Slash Commands
 
-Registered via AceConsole in `settings/Slash.lua`: `/at` and the alias `/absorbtracker` both
-dispatch to `Sl:OnSlash`, which hands the line straight to `LibKa0s-Slash-1.0`. The library
-lower-cases only the verb (preserving case in the remainder so schema paths survive) and looks it
-up in the ordered `NS.COMMANDS` table this addon passed in. Unknown verb →
-`unknown command '<verb>'` then the help index (generated from `NS.COMMANDS`).
+Registered via AceConsole in `settings/Slash.lua`: `/at` and the alias `/absorbtracker` both dispatch
+to `Sl:OnSlash`, which hands the line straight to `LibKa0s-Slash-1.0`. The library lowercases only
+the verb — preserving case in the remainder, so schema paths and profile names survive — and looks it
+up in the ordered `NS.COMMANDS` table this addon passed in. Seventeen verbs, of which `profile`
+carries a sub-verb table of its own (`PROFILE_VERBS`, dispatched at `settings/Slash.lua:386`) and
+`perf`, `debug` and `toggle` each parse a token.
 
 **Schema paths are fully qualified.** `/at set units.target.barWidth 250` works; the pre-1.9
 unqualified `/at set barWidth 250` is rejected, because `FindSchemaRow` has no bare-key row for a
-per-unit setting. Only the seven unit-agnostic rows — `enabled`, `visibility`, `scale`, `alpha`, `locked`,
-`throttleWindow` and the session-only `state.debugConsole` — take a bare path.
+per-unit setting. Only the seven unit-agnostic rows — `enabled`, `visibility`, `scale`, `alpha`,
+`locked`, `throttleWindow` and the session-only `state.debugConsole` — take a bare path.
 
-**What is library code and what is ours.** The dispatcher, the help renderer, the row formatter
-(gold command — em dash — white description), the key/value formatter, the value renderer, the
-`/at list` builder and the type-aware value parser (clamping, the case-sensitive enum check, the
-0-1 / 0-255 color rescale) all live in `libs/LibKa0s/Slash.lua`, shared across every Ka0s addon.
-`settings/Slash.lua` keeps `NS.COMMANDS`, the host verbs, and the mirror note attached through
-`cli:SetRowAnnotator` — a `(mirrored — the bar shows Player's appearance)` tail on the
-appearance rows of a unit that is currently mirroring, which reads `NS.Units.IsMirrored` and the
-row's `alwaysPerUnit` flag, neither of which a generic dispatcher knows about.
-
-`NS.COMMANDS` is passed **into** the library rather than owned by it, deliberately:
-`settings/About.lua` renders the same table via `NS.Slash:LandingRows()`, so a library that owned
-the verbs would force an options layer to consume this one — and two libraries reaching for each
-other is a real dependency cycle. The table crossing as plain data is what keeps them independent.
-
-| Command | What it does |
-|---------|--------------|
-| `/at help` (or bare `/at`) | Print the help index |
-| `/at config` (alias `/at options`) | Open the settings panel (combat-gated) |
-| `/at list` | List every setting and its current value |
-| `/at get <path>` | Print one setting's current value |
-| `/at set <path> <value>` | Set one setting (typed: bool/number/string/color) |
-| `/at reset <path>` | Reset one setting to its default (a whole page is the panel's Defaults button) |
-| `/at resetall` | Reset the **active profile** to the shipped defaults — a profile reset, and the same act as Profiles → Reset Profile (`options-ui-§12`). Shared `Helpers.RestoreAllDefaults`, which the panel's Reset All button and the popup also call. `resetProfile` is `db:ResetProfile()`; `skipRestoreAll` vetoes the Profiles page **and** every profile-backed row, leaving the library's walk only the `sessionOnly` rows a profile reset cannot reach. Saved positions live in the profile and come back with it — `ResetAllPositions` still backs `/at resetposition` and the General page's button, and is no longer on this path |
-| `/at resetposition` | Clear **every** unit's saved position and re-anchor all three bars to their stacked defaults (shared `Helpers.ResetAllPositions`, `settings/UnitPanel.lua` — the General page's Reset Position button calls the same path) |
-| `/at lock` / `/at unlock` | Flip the drag lock |
-| `/at toggle [player\|target\|focus]` | Bare: flip **every** bar — all off if any is on, otherwise all on. With a unit token: flip that one bar only. Writes `units.<unit>.enabled` through `SetByPath`, so it travels the same path as the General page checkbox |
-| `/at debug` (`on`/`off`) | Toggle the debug console window; `on`/`off` enable/disable logging |
-| `/at perf <sub>` | The performance probe — `LibKa0s-Perf-1.0` (vendored, `libs/LibKa0s/`), wired up by `core/PerfSetup.lua`. Bare `/at perf` opens the step panel, whose first row starts a run — the entry point. `start [label]`/`finish` bracket a run, `measure a\|b` arm a combat-gated experiment, `report` print it, `dump` emit JSON, `cancel` abandon it unsaved, `show`/`hide`/`toggle` drive the step panel. `measure b` owns the suspend; there is no manual verb for it. Its own `NS.COMMANDS` verb — a thin dispatch to `NS.Perf.OnCommand`. See [performance.md](./performance.md) |
-| `/at update` | Force a bar refresh |
-| `/at version` | Print the addon version |
-| `/at test [value] [hold-secs]` | Paint a fake value for visual tweaking |
-| `/at profile <subcmd>` | Profile management (list/current/use/new/copy/delete/reset) |
+The verb table, the sub-verb trees, the mirror note, the help convention and the degraded arm are in
+[slash-dispatch.md](./slash-dispatch.md).
 
 ## Event Subscriptions
 
@@ -229,7 +208,7 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
 - **`OnInitialize`** (ADDON_LOADED): register the monospace font with LSM, `NS:InitDB()`
   (AceDB + `RunMigrations` + profile callbacks), `NS.Slash:Register()`.
 - **`OnEnable`** (PLAYER_LOGIN timing): reproduces the old login sequence in order —
-  `ClearLSMCache` → `GetLSM` → `ApplyLSMBorderPatch` → **publish** `POSITION` → `APPEARANCE` →
+  `ClearLSMCache` → `GetLSM` → **publish** `POSITION` → `APPEARANCE` →
   `REPAINT` on the bus → register events → `CreateOptionsPanel`. The three publishes reach
   `RestoreBarPosition` / `UpdateBarAppearance` (Display) and `RequestRepaint` (Timer); the login
   paint therefore lands one `throttleWindow` later, not synchronously.
@@ -321,7 +300,7 @@ file, the hub the map itself lives in. Frozen and generated directories are name
 
 | Doc | Status | Trigger |
 |---|---|---|
-| `slash-dispatch.md` | Not applicable | 17 verbs, but the generated table in `ARCHITECTURE.md` → `## Slash Commands` covers the flat verb set; no subcommand tree |
+| `slash-dispatch.md` | Present | Seventeen verbs, over the eight-or-more threshold, and `profile` carries a subcommand tree (`PROFILE_VERBS`) |
 | `midnight-quirks.md` | Present | Client-version workarounds of the addon’s own |
 | `profiles.md` | Present | AceDB profiles are user-visible — the Profiles settings page |
 | `message-bus.md` | Not applicable | Five messages; threshold is more than ten. The table lives in `ARCHITECTURE.md` → `## Message Bus` |
@@ -351,10 +330,10 @@ reads the register first and records a match as accepted rather than re-filing i
 
 | Rule | What differs | Why | Decided | Re-check trigger |
 |---|---|---|---|---|
-| `events-frames-taint-§1` | `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` are registered on a private `CreateFrame` **per tracked unit** via `RegisterUnitEvent`, not through AceEvent-3.0 | Both events fire for every unit the client knows about; AceEvent shares one frame and structurally cannot `RegisterUnitEvent`, so it would pay a full C→Lua dispatch per unit only to discard all but ours. One frame each rather than packing tokens, because `RegisterUnitEvent` filters **at most two** tokens per registration. Argument in full below; filed as `AT-A-10` in `docs/audits/2026-08-05/` | 2026-07-14 | A client build where `RegisterUnitEvent` accepts more than two unit tokens |
+| `events-frames-taint-§1` | `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` are registered on a private `CreateFrame` **per tracked unit** via `RegisterUnitEvent`, not through AceEvent-3.0 | Both events fire for every unit the client knows about; AceEvent shares one frame and structurally cannot `RegisterUnitEvent`, so it would pay a full C→Lua dispatch per unit only to discard all but ours. One frame each rather than packing tokens, because `RegisterUnitEvent` filters **at most two** tokens per registration. Argument in full below; filed as `AT-31` in `docs/audits/2026-08-05/` | 2026-07-14 | A client build where `RegisterUnitEvent` accepts more than two unit tokens |
 | `savedvariables-§1` | A **per-profile** `schemaVersion` stamp at `db.profile.schemaVersion`, alongside the account-wide stamp in `db.global` | The v3 lift — flat appearance keys onto `profile.units.<unit>` — is a per-profile mutation, and an account-wide flag structurally cannot gate one: a second pre-v3 profile would have its stored appearance stranded forever. Argument in full below | 2026-07-28 | AceDB gaining a per-profile version stamp of its own, or the last per-profile migration being retired |
-| `events-frames-taint-§8` (SHOULD half) | 18 chat lines in `settings/Slash.lua` and `settings/Schema.lua` pre-format their arguments — `print(("%s bar %s"):format(...))`, `print("Switched to profile '" .. name .. "'")` — instead of handing the parts to the shared printer as `print("fmt", a, b)` | **Re-graded, not deferred.** §8's pre-formatting MUST is now **scoped** to call sites whose arguments can reach a value read from one of the named combat-protected APIs (`UnitGetTotalAbsorbs`, `UnitHealth`/`UnitHealthMax`, threat, aura amounts); outside that trigger set it is a **SHOULD NOT**, because the risk is drift, not secrets. Every one of the 18 sites formats only values this addon owns — a version string, a unit label, a profile name, a user-typed test number, a schema path — so none is in the trigger set and none can be handed a secret. The two sites that DO read `UnitGetTotalAbsorbs` (`core/AbsorbTracker.lua:168`, `:231`) already pass their arguments to the sink unformatted and guard with `NS.IsConcatSafe`; the seam's own guarantee (library stringifier, `table.concat`-based probe) is untouched and unconditional. Filed as `AT-A-03` in `docs/audits/2026-08-05/` against the pre-scoping text | 2026-08-05 | Any of these lines gaining an argument that is, or derives from, a return value of one of §8's named APIs — that site converts as a MUST — or §8's trigger set growing to cover one of them |
-| `localization-§1` | This addon ships **English only**: the `NS.L` seam is exported and `locales/enUS.lua` ships, but user-facing strings are hardcoded English rather than routed through `NS.L` | A deliberate decision, not a backlog item. `localization-§3` names this one of the routing SHOULD's **two terminal compliant states** — English-only, recorded — so this row IS the compliant end state and an audit records it as accepted rather than re-filing the SHOULD. Both localization MUSTs are met unconditionally: the seam is exported and `enUS.lua` ships, carrying no dead keys. Filed as `AT-A-09` in `docs/audits/2026-08-05/`; deferred twice before as [PLAN-02](https://github.com/tusharsaxena/AbsorbTracker/issues/24), closed here | 2026-08-05 | The first non-English locale file added to `locales/` |
+| `events-frames-taint-§8` (SHOULD half) | 18 chat lines in `settings/Slash.lua` and `settings/Schema.lua` pre-format their arguments — `print(("%s bar %s"):format(...))`, `print("Switched to profile '" .. name .. "'")` — instead of handing the parts to the shared printer as `print("fmt", a, b)` | **Re-graded, not deferred.** §8's pre-formatting MUST is now **scoped** to call sites whose arguments can reach a value read from one of the named combat-protected APIs (`UnitGetTotalAbsorbs`, `UnitHealth`/`UnitHealthMax`, threat, aura amounts); outside that trigger set it is a **SHOULD NOT**, because the risk is drift, not secrets. Every one of the 18 sites formats only values this addon owns — a version string, a unit label, a profile name, a user-typed test number, a schema path — so none is in the trigger set and none can be handed a secret. The two sites that DO read `UnitGetTotalAbsorbs` (`core/AbsorbTracker.lua:168`, `:231`) already pass their arguments to the sink unformatted and guard with `NS.IsConcatSafe`; the seam's own guarantee (library stringifier, `table.concat`-based probe) is untouched and unconditional. Filed as `AT-35` in `docs/audits/2026-08-05/` against the pre-scoping text | 2026-08-05 | Any of these lines gaining an argument that is, or derives from, a return value of one of §8's named APIs — that site converts as a MUST — or §8's trigger set growing to cover one of them |
+| `localization-§1` | This addon ships **English only**: the `NS.L` seam is exported and `locales/enUS.lua` ships, but user-facing strings are hardcoded English rather than routed through `NS.L` | A deliberate decision, not a backlog item. `localization-§3` names this one of the routing SHOULD's **two terminal compliant states** — English-only, recorded — so this row IS the compliant end state and an audit records it as accepted rather than re-filing the SHOULD. Both localization MUSTs are met unconditionally: the seam is exported and `enUS.lua` ships, carrying no dead keys. Filed as `AT-30` in `docs/audits/2026-08-05/`; deferred twice before as [PLAN-02](https://github.com/tusharsaxena/AbsorbTracker/issues/24), closed here | 2026-08-05 | The first non-English locale file added to `locales/` |
 
 **Retired on 2026-08-05** — four entries this register carried whose cited rule the standard has since
 changed, so the behavior is now permitted outright and a row for it reads as a deviation that is not

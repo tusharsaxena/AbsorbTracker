@@ -48,10 +48,12 @@ end)
 
 test("OnDefault reaches a defaultsOnClick parked AFTER the panel is built", function()
   -- The ordering is the whole reason the library forwards rather than assigns, and it is this
-  -- addon's shape that makes it matter: settings/General.lua, Bar.lua, Border.lua and Font.lua all
-  -- park their handler after CreatePanel returns, because the button does not exist until first
-  -- OnShow. A re-vendor that turned the forwarder back into an assignment would capture nil in all
-  -- four pages, silently, and only the footer control would notice — in game.
+  -- addon's shape that makes it matter: both pages that own a defaults button --
+  -- settings/General.lua and settings/Appearance.lua -- park their handler after CreatePanel
+  -- returns, because the button does not exist until first OnShow. A re-vendor that turned the
+  -- forwarder back into an assignment would capture nil in both, silently, and only the footer
+  -- control would notice — in game. (The three pages this comment used to name, Bar, Border and
+  -- Font, are the ones settings/Appearance.lua replaced.)
   local ctx = Helpers.CreatePanel("ATTestPanelCanvas2", "Canvas 2", { defaultsButton = true })
   local ran = 0
   ctx.panel.defaultsOnClick = function() ran = ran + 1 end
@@ -949,6 +951,13 @@ end)
 test("`/at set units.<unit>.mirror` re-syncs an open panel's mirror checkbox", function()
   local panel = barPanel()
   panel:__fire("OnShow")
+  -- SHOWN, and that is load-bearing rather than tidy-up. The page declares its body through
+  -- Helpers.SetRenderer now (settings/Appearance.lua), and the library's refresh is two-tier: an
+  -- on-screen ctx re-renders, a hidden one is flagged dirty and repaints on its next OnShow. A mock
+  -- panel nobody ever showed takes the second branch, so "the open panel followed the CLI write"
+  -- would be asserted against a page the library was entitled to leave alone. `open` is in this
+  -- case's name; this is the line that makes it true.
+  panel:Show()
   local ctx = NS.Helpers.__lastUnitCtx
   NS.db.profile.units.focus.mirror = false
   ctx.unit = "focus"
@@ -961,6 +970,7 @@ test("`/at set units.<unit>.mirror` re-syncs an open panel's mirror checkbox", f
   assertTrue(checked, "the CLI write must be reflected in the open panel's block checkbox")
   assertFalse(hasRows, "and the now-mirrored unit's appearance rows must disappear")
 
+  panel:Hide()
   ctx.unit = "player"
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
@@ -1066,6 +1076,11 @@ test("an ordinary schema write does NOT re-render the whole unit page", function
   walk(ctx.scroll)
   assertTrue(target ~= nil, "no Use class color checkbox on the unlinked focus page's Bar tab")
 
+  -- SHOWN, so the scalar refresh the write fires actually reaches the refreshers. Hidden, the
+  -- library would flag the ctx dirty and return, and this case would pass without the two-tier
+  -- refresher it exists to hold honest ever running -- green for the wrong reason, which is the
+  -- one outcome a regression case must never have.
+  panel:Show()
   local widgetsBefore = #NS.AceGUI.__created
   local firstChild    = ctx.scroll.children[1]
   target:__fire("OnValueChanged", true)
@@ -1075,6 +1090,7 @@ test("an ordinary schema write does NOT re-render the whole unit page", function
   assertEqual(ctx.scroll.children[1], firstChild,
     "the live widgets must survive the write, not be released under their own callback")
 
+  panel:Hide()
   NS.SetByPath("units.focus.useClassColorBar", false)
   NS.db.profile.units.focus.mirror = true
   ctx.unit = "player"
@@ -1092,6 +1108,9 @@ test("a mirror-state change DOES re-render -- the two-tier refresher keeps both 
   ctx.unit = "focus"
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
+  -- Shown for the reason the `/at set` case above spells out: RefreshAllPanels only re-renders a
+  -- ctx that is on screen, and a hidden one it merely flags dirty.
+  panel:Show()
   local widgetsBefore = #NS.AceGUI.__created
   NS.SetByPath("units.focus.mirror", true)
   NS.Helpers.RefreshAllPanels()
@@ -1102,6 +1121,7 @@ test("a mirror-state change DOES re-render -- the two-tier refresher keeps both 
   assertTrue(checked, "and the block's checkbox follows the new mirror state")
   assertFalse(hasRows, "and the mirrored unit's appearance rows are gone")
 
+  panel:Hide()
   ctx.unit = "player"
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)

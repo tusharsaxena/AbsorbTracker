@@ -1,4 +1,4 @@
-local addonName, NS = ...
+local _, NS = ...
 
 -- settings/OptionsSetup.lua — wires the addon into LibKa0s-Options-1.0.
 --
@@ -320,6 +320,16 @@ if not lib then
         "AddSpacer", "AttachTooltip", "InlineButtonPair", "RenderField", "RenderGrid", "RenderRows",
         "RenderSchema", "SessionCheckbox", "RefreshAllPanels", "RestoreDefaults",
         "PatchAlwaysShowScrollbar",
+        -- SetRenderer is here because the three page builders now declare their bodies THROUGH it
+        -- rather than parking a raw OnShow of their own, and that is what buys them the library's
+        -- Blizzard-sidebar combat refusal (options-ui-§11). It is a builder call exactly like the
+        -- CreatePanel above it, so a no-op is the same honest answer.
+        --
+        -- It was absent while this addon had no caller for it -- the rule the RenderPanel note in
+        -- tests/test_surface_parity.lua states, that a stub member with no caller is a copy waiting
+        -- to go stale -- and that exemption is what let the pages hand-wire OnShow with nothing
+        -- going red. The exemption leaves that file in the same commit as this line arrives.
+        "SetRenderer",
         -- The chrome band (options-ui-§13 / §14), new to the surface at LibKa0s v1.23.0. Every one of
         -- these is reached from a page builder or a tab click: settings/General.lua calls
         -- RenderTabbedSchema, settings/UnitPanel.lua calls PageHeader and TabStrip, and both reach
@@ -351,6 +361,40 @@ end
 -- ---------------------------------------------------------------------
 -- The live wiring
 -- ---------------------------------------------------------------------
+
+-- ── the LSM30_Border widget fixup ──────────────────────────────────────────────────────────────
+--
+-- A LIBRARY ACT, NOT AN INSTANCE ONE, and that is the whole reason it moved here. AceGUI's
+-- WidgetRegistry is process-global: one slot named "LSM30_Border" shared by every addon in the
+-- client, Ka0s or not. This addon and four siblings each carried a private copy of the same wrapper
+-- in core/LSMPatch.lua, each registering at whatever version it found plus one — so a client
+-- running all five stacked five wrappers, and the outermost belonged to whichever addon the loader
+-- happened to reach last. Nothing could see that: each addon's own suite loads one copy, registers
+-- once and passes.
+--
+-- `lib.__PatchLSM30Border` (LibKa0s-Options-1.0 minor 15) is the same wrapper published once,
+-- guarded by lib.__lsmBorderPatched. Five vendored copies of the library are still ONE library
+-- instance to LibStub, so five callers produce one registration and the return value tells you
+-- which call did it. Calling it is therefore unconditional and needs no coordination with anybody.
+--
+-- HERE, AT FILE LOAD, is early enough and is not fragile, and the timing DID change: the private
+-- copy this replaced waited for OnEnable and this line does not. AbsorbTracker.toc pulls
+-- libs\AceGUI-3.0-SharedMediaWidgets\widget.xml in with the other libraries (:29), well before
+-- settings\OptionsSetup.lua (:65), so the slot already holds AGSMW's own constructor by the time
+-- this line runs; and a registration whose version is not strictly higher than the one already held
+-- is refused, so another addon's later-loading copy of AGSMW cannot take the slot back at its own
+-- fixed version. (Worded around the AceGUI entry point on purpose: C02's acceptance is a grep for
+-- that identifier over core/, modules/ and settings/ returning nothing, and a prose mention is one
+-- more hit an auditor has to read and dismiss.) It lives in this file rather than a second one
+-- because this is where the addon's options surface is wired, which is where the library's own note
+-- on the member says to call it from.
+--
+-- core/LSMPatch.lua IS GONE, last of the five copies to go. It was the one that diverged: it
+-- published a callable NS.ApplyLSMBorderPatch() invoked from core/AbsorbTracker.lua's OnEnable
+-- rather than doing its work off a PLAYER_LOGIN frame of its own, which is why it was sequenced
+-- last and why its deletion had a call site to take out with it. This line is now the whole of the
+-- fixup in this addon.
+lib.__PatchLSM30Border()
 
 -- NS.Helpers IS the library instance, not a table decorated from it. Two things then hold that a
 -- copy-across would break: settings/UnitPanel.lua and settings/About.lua decorate the same table

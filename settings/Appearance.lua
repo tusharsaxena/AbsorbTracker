@@ -67,7 +67,7 @@
 -- (settings/Schema.lua: SchemaForPage). The `default =` values come from NS.unitDefaults so all
 -- three units share one canonical default.
 
-local addonName, NS = ...
+local _, NS = ...
 
 local unitDefaults = NS.unitDefaults
 
@@ -109,30 +109,6 @@ local function appendBlock(rows, unit, block)
         row.unit = unit
         rows[#rows + 1] = row
     end
-end
-
-local LSM_KIND = {
-    LSM30_Statusbar = "statusbar",
-    LSM30_Border    = "border",
-    LSM30_Font      = "font",
-}
-
--- UPSTREAM DEFECT, WORKED AROUND ON OUR OWN ROWS. OptionsCompose minor 1 declares each media-backed
--- row as `values = function() return O.LSMValues(kind) end` -- a closure returning a CLOSURE, where
--- the flow engine's `enumList` calls it once and expects a table. It gets a function, its
--- `type(v) ~= "table"` arm answers an empty list, and its own "no options" report is gated on
--- `row.values == nil`, so the dropdown renders with nothing in it and nothing says why.
---
--- Corrected on the ROW, which is ours, and never in libs/, which is not: a downstream patch is
--- overwritten by the next re-vendor and takes the fix with it. Reported upstream to LibKa0s; delete
--- this the re-vendor after the fix lands. tests/test_schema.lua pins that every media row answers a
--- populated list, so this cannot rot silently in either direction.
-local function fixMediaValues(rows)
-    for _, row in ipairs(rows) do
-        local kind = LSM_KIND[row.dialogControl]
-        if kind then row.values = H.LSMValues(kind) end
-    end
-    return rows
 end
 
 local function addUnitRows(unit)
@@ -178,7 +154,7 @@ local function addUnitRows(unit)
     -- `barAlpha` is the PER-UNIT opacity and stays here. It is not Master alpha, which is the
     -- addon-wide row on the General page's Master controls tab (options-ui-§15 forbids conflating
     -- the two); NS.GetBarAlpha multiplies them.
-    appendBlock(rows, unit, fixMediaValues(H.BarGroup({
+    appendBlock(rows, unit, H.BarGroup({
         prefix     = p,
         page       = PAGE,
         group      = "Bar",
@@ -190,7 +166,7 @@ local function addUnitRows(unit)
             barColor         = unitDefaults.barColor,
             useClassColorBar = unitDefaults.useClassColorBar,
         },
-    })))
+    }))
 
     -- ── Background ────────────────────────────────────────────────────────────
     --
@@ -234,7 +210,7 @@ local function addUnitRows(unit)
     --
     -- `keys` keeps the stored path `units.<unit>.border`, which is what every profile on disk holds
     -- and what `/at set units.player.border` names.
-    appendBlock(rows, unit, fixMediaValues(H.BorderGroup({
+    appendBlock(rows, unit, H.BorderGroup({
         prefix     = p,
         page       = PAGE,
         group      = "Border",
@@ -247,14 +223,14 @@ local function addUnitRows(unit)
             borderColor         = unitDefaults.borderColor,
             useClassColorBorder = unitDefaults.useClassColorBorder,
         },
-    })))
+    }))
 
     -- ── Text ──────────────────────────────────────────────────────────────────
     --
     -- The canonical font block, six rows over three lines. `keys` keeps `useClassColorText`, the path
     -- this addon has always stored the companion under; `fontShadow` is the one leaf that had no
     -- stored key at all before this pass.
-    appendBlock(rows, unit, fixMediaValues(H.FontGroup({
+    appendBlock(rows, unit, H.FontGroup({
         prefix     = p,
         page       = PAGE,
         group      = "Text",
@@ -269,7 +245,7 @@ local function addUnitRows(unit)
             fontFlags         = unitDefaults.fontFlags,
             fontShadow        = unitDefaults.fontShadow,
         },
-    })))
+    }))
 
     -- The mirror flag. Not rendered in the page body — Helpers.RenderUnitPanel draws it as a
     -- header checkbox above the tab strip — but kept in the schema so
@@ -317,9 +293,18 @@ local function build(mainCategory)
         H.RestoreDefaults(PAGE, ctx)
     end
 
-    ctx.panel:SetScript("OnShow", function()
-        H.EnsureDefaultsButton(ctx.panel)
-        H.RenderUnitPanel(ctx, PAGE)
+    -- Declared THROUGH SetRenderer rather than a hand-wired OnShow (options-ui-§11). The library
+    -- owns that script now: it builds the Defaults button, and it refuses to draw in combat and
+    -- closes the Settings window first. That refusal is the point -- the Blizzard AddOns sidebar
+    -- opens a canvas without going anywhere near OpenOptionsPanel, so this page was reachable
+    -- mid-pull while docs/settings-panel.md described a gate that could not see it.
+    --
+    -- RenderUnitPanel is safe to be the renderer because it was always written to be re-run: the
+    -- picker and the tab strip both call it, and it opens with Helpers.ClearScroll and drains the
+    -- chrome ledger, so nothing stacks. SetRenderer simply narrows WHEN it runs unprompted --
+    -- first show, and again on the next show after a refresh marked the page dirty while hidden.
+    H.SetRenderer(ctx, function(c)
+        H.RenderUnitPanel(c, PAGE)
     end)
 
     return Settings.RegisterCanvasLayoutSubcategory(

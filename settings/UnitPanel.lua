@@ -12,7 +12,7 @@
 -- (settings/OptionsSetup.lua). Decorating it rather than sitting beside it is what lets a page file
 -- call H.RenderUnitPanel and H.RenderSchema without knowing or caring which is which.
 
-local addonName, NS = ...
+local _, NS = ...
 
 local Helpers = NS.Helpers
 
@@ -222,8 +222,10 @@ local function buildChromeBlock(ctx, pageKey, frame, mirrored)
     kids[#kids + 1] = btn
     btn:SetText("Copy styling from Player")
     btn:SetCallback("OnClick", function()
+        -- No APPEARANCE publish of our own any more. CopyFromPlayer writes through NS.SetByPath,
+        -- and the schema's default onChange broadcasts APPEARANCE per row, so a publish here was a
+        -- twenty-first restyle after twenty that had already run.
         NS.Units.CopyFromPlayer(ctx.unit)
-        NS.bus:SendMessage(NS.MSG.APPEARANCE)
         Helpers.RenderUnitPanel(ctx, pageKey)
     end)
     Helpers.AttachTooltip(btn, "Copy styling from Player",

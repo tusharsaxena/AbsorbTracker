@@ -341,6 +341,31 @@ test("GetBarAlpha clamps a hand-edited SavedVariable to the slider's own range",
   NS.db.profile.units.player.barAlpha = saved
 end)
 
+test("GetThrottleWindow clamps a hand-edited SavedVariable to the row's own range", function()
+  -- ABSORBTRACKER-R-05. The three getters above clamp because a bad number reaching a paint call
+  -- looks like the addon having stopped working. This one clamps because a bad number reaching
+  -- AceTimer IS the addon stopping: `new()` compares `delay < 0.01`, so a string raises inside
+  -- ScheduleTimer, and modules/Timer.lua only clears `pending` in the callback — a raise on the way
+  -- in re-arms on the next absorb event and raises again, forever. The row offers 0.05 .. 1, so
+  -- those are the bounds; 0 is the other live failure, which AceTimer floors at 0.01 (a repaint per
+  -- frame).
+  -- red under: deleting NS.GetThrottleWindow's clamp arms.
+  -- Read every case FIRST, restore, and only then assert. The framework pcalls a test body, so an
+  -- assertion that raises mid-loop would skip the restore below and leave a bad throttle in the
+  -- profile for every later suite -- which is the sleeping-case failure mode in reverse.
+  local saved = NS.db.profile.throttleWindow
+  local cases = { { 0, 0.05 }, { -1, 0.05 }, { 9, 1 }, { 0.25, 0.25 }, { "0.4", 0.4 },
+                  { "not a number", NS.flatDefaults.throttleWindow } }
+  for _, c in ipairs(cases) do
+    NS.db.profile.throttleWindow = c[1]
+    c[3] = NS.GetThrottleWindow()
+  end
+  NS.db.profile.throttleWindow = saved
+  for _, c in ipairs(cases) do
+    approx(c[3], c[2], "stored " .. tostring(c[1]))
+  end
+end)
+
 test("the four class-color toggles are independent of each other", function()
   withSetting("units.player.useClassColorBar", true, function()
     withSetting("units.player.useClassColorBg", false, function()

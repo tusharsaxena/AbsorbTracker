@@ -1,4 +1,4 @@
-local addonName, NS = ...
+local _, NS = ...
 
 -- Single source of unit identity + per-unit config resolution for the player/target/focus
 -- tracking feature. modules/Bar.lua, modules/Display.lua and core/Data.lua never reach
@@ -71,7 +71,7 @@ function Units.SourceUnit(unit)
     return Units.IsMirrored(unit) and "player" or unit
 end
 
---- Mirror-resolved appearance read. THE read path for all fifteen appearance keys.
+--- Mirror-resolved appearance read. THE read path for all nineteen appearance keys.
 function Units.Get(unit, key)
     local src = Units.SourceUnit(unit)
     local c = Units.Config(src)
@@ -105,15 +105,34 @@ function Units.SetPosition(unit, pos)
     if c then c.position = pos end
 end
 
---- One-shot snapshot: deep-copy the player's fifteen appearance keys onto `unit`, then clear
+--- One-shot snapshot: deep-copy the player's nineteen appearance keys onto `unit`, then clear
 --- the mirror so the unit becomes independently editable. `position` and `enabled` are
 --- deliberately NOT copied — both stay per-unit by design.
+---
+--- Through NS.SetByPath, one call per key, rather than `dst[key] = …` onto the config table.
+--- This is twenty settings mutations, the largest single act the Appearance page offers, and
+--- debug-logging-§10 puts every mutation through that one write seam so the log can see it.
+--- Writing the table directly meant the one act that changes twenty values was the one act that
+--- left no `[Set]` line at all — which is precisely the trace you want when a player reports that
+--- copy did something they did not expect.
+---
+--- `deepcopy` has NOT become optional. SetByPath stores the value it is handed, so passing
+--- `src[key]` bare would leave the two units sharing one color table and one unit's color picker
+--- repainting the other unit's bar.
+---
+--- The mirror clear goes LAST, deliberately. Every write fires its row's onChange, and the
+--- appearance rows declare none, so each falls through to the schema's default APPEARANCE
+--- broadcast. Clearing the flag first would publish nineteen restyles of an already-unlinked unit
+--- reading a half-copied config; clearing it last makes the final broadcast the one that shows the
+--- finished snapshot. Nothing flickers either way — the values being written are the player's,
+--- which is what a mirrored unit was already drawing.
 function Units.CopyFromPlayer(unit)
     if unit == "player" then return end
-    local src, dst = Units.Config("player"), Units.Config(unit)
-    if not (src and dst) then return end
+    local src = Units.Config("player")
+    if not (src and Units.Config(unit)) then return end
+    local base = "units." .. unit .. "."
     for _, key in ipairs(Units.APPEARANCE_KEYS) do
-        dst[key] = deepcopy(src[key])
+        NS.SetByPath(base .. key, deepcopy(src[key]))
     end
-    dst.mirror = false
+    NS.SetByPath(base .. "mirror", false)
 end

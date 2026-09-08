@@ -9,7 +9,23 @@ ignore:
   - .luacheckrc
   - .gitattributes
   - .gitignore
+  - .pkgmeta         # packager configuration: consumed before the zip is built, of no use inside it
   - "*.bak"
+  # Agent tooling. Both are untracked here — .gitignore:11,15 names them and
+  # `git ls-files` returns nothing for either — so no packager clone has ever
+  # carried them, and neither line changes a single downloaded byte. They are
+  # listed because packaging.md:28 MUSTs that every root dot-entry present in
+  # the repo be named or justified, tracked or not: the check is about an
+  # enumeration going stale, not about a package growing.
+  - .claude          # untracked; listed under packaging.md:28
+  - .superpowers     # untracked; listed under packaging.md:28
+  # Tracked, and the only entries here that change a download. Four screenshots,
+  # 2.0M, project-page art the CurseForge CDN already serves. CLAUDE.md and
+  # DEPENDENCIES.md are developer documentation; README.md and LICENSE stay,
+  # because players do read those.
+  - media/screenshots
+  - CLAUDE.md
+  - DEPENDENCIES.md
   # Only the .tga logo is loadable at runtime; WoW cannot read .png or .jpg at all. The master .png
   # and the .jpg render exist for the project page and for regenerating the .tga, so shipping them
   # would add megabytes to every download for files the client physically cannot use.

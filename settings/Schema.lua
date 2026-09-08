@@ -1,4 +1,4 @@
-local addonName, NS = ...
+local _, NS = ...
 
 -- Single source of truth for every user-facing setting. Each settings/<page>.lua file populates
 -- this array via NS.RegisterSchemaRows({...}); the panel renderer (LibKa0s-Options-1.0:
@@ -94,20 +94,6 @@ function NS.SchemaForPage(pageKey, unit)
         return (a.order or 100) < (b.order or 100)
     end)
     return out
-end
-
---- Split a unit page's rows into those that stay editable while mirrored (alwaysPerUnit — the
---- enable toggle) and the appearance rows the mirror hides. Pure; unit-tested.
-function NS.PartitionUnitRows(rows)
-    local perUnit, styled = {}, {}
-    for _, row in ipairs(rows) do
-        if row.alwaysPerUnit then
-            perUnit[#perUnit + 1] = row
-        else
-            styled[#styled + 1] = row
-        end
-    end
-    return perUnit, styled
 end
 
 -- ---------------------------------------------------------------------

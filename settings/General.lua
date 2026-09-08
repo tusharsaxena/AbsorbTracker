@@ -3,7 +3,7 @@
 -- General sub-page — what `/at config` opens by default. The addon-wide controls, which bars exist,
 -- and how the ones that do behave.
 
-local addonName, NS = ...
+local _, NS = ...
 
 local print = NS.Print
 
@@ -155,6 +155,19 @@ local masterOnChange = {
         NS.bus:SendMessage(NS.MSG.APPEARANCE)
         NS.bus:SendMessage(NS.MSG.REPAINT)
     end,
+
+    -- EXPLICITLY NOTHING, and that is the whole content of this entry. Without it the row falls
+    -- through to settings/Schema.lua's `defaultOnChange`, which publishes APPEARANCE -- a full
+    -- three-bar restyle costing 48 WoW API calls and 384.5 bytes per pass (tests/perf.lua's
+    -- `appearancePass`, measured 2026-09-08) for a checkbox that only shows and hides a window.
+    -- The console's own visibility is the ConsoleCheckbox's `set`, registered above as a session
+    -- setting; nothing about a bar depends on it.
+    --
+    -- Written as a declared no-op rather than by changing `defaultOnChange`: APPEARANCE is the
+    -- right default for the appearance rows, which are the overwhelming majority. A row that
+    -- deliberately publishes nothing has to SAY so, or the next reader reads the absence as an
+    -- oversight and "fixes" it back.
+    [DEBUG_CONSOLE_PATH] = function() end,
 }
 
 for _, row in ipairs(masterRows) do
@@ -226,6 +239,12 @@ NS.RegisterSchemaRows({
         desc    = "Fastest the bar repaints during a burst of changes. Lower = snappier but more CPU.",
         default = flatDefaults.throttleWindow,
         min = 0.05, max = 1, step = 0.05, fmt = "%.2f sec",
+        -- Same declared no-op, same reason, and here the cost is per SLIDER STEP: a drag from 0.05
+        -- to 1 is nineteen restyles of three bars. Nothing needs republishing either -- the next
+        -- arm reads the value fresh (`NS.GetSetting("throttleWindow")` at modules/Timer.lua's
+        -- ScheduleTimer call), so a window already in flight finishes on the old value and every
+        -- window after it uses the new one, which is what a throttle change should do.
+        onChange = function() end,
     },
 })
 
@@ -276,14 +295,25 @@ local function build(mainCategory)
         H.RestoreDefaults("general", ctx)
     end
 
-    -- Defer the AceGUI render until the panel becomes visible: build
-    -- happens at PLAYER_LOGIN when ctx.body has 0 width, and AceGUI
-    -- lays children out against the container's current width.
-    local rendered = false
-    ctx.panel:SetScript("OnShow", function()
-        H.EnsureDefaultsButton(ctx.panel)
-        if rendered then return end
-        rendered = true
+    -- Declared THROUGH SetRenderer rather than a hand-wired OnShow, and the combat refusal is the
+    -- whole reason (options-ui-§11). The Blizzard AddOns sidebar reaches a canvas directly, never
+    -- through OpenOptionsPanel, so the gate docs/settings-panel.md describes covered `/at config`
+    -- and a `/run` caller and missed the one path a player is most likely to take mid-pull.
+    -- SetRenderer's OnShow builds the Defaults button, refuses under InCombatLockdown and closes
+    -- the Settings window, and only then renders -- so the refusal arrives by adopting the library
+    -- rather than by this file growing a second copy of it.
+    --
+    -- The deferral the old comment here explained is still why the body is not drawn in the
+    -- builder: ctx.body has zero width at PLAYER_LOGIN and AceGUI lays children out against the
+    -- container's current width. SetRenderer defers to first show for exactly that reason, and for
+    -- the skinning race EnsureDefaultsButton documents.
+    --
+    -- The `rendered` one-shot flag that used to guard this is gone because SetRenderer owns WHEN:
+    -- first show draws, and a page marked dirty while hidden draws again on its next show. That
+    -- second draw is newly reachable, so ClearScroll leads the body -- RenderTabbedSchema appends
+    -- to the scroll, and appending twice is how a page grows two of every control.
+    H.SetRenderer(ctx, function(c)
+        H.ClearScroll(c)
         -- RenderTabbedSchema, not RenderSchema: the page's two groups become the strip
         -- (options-ui-§13). THE GROUP NAME IS THE HOOK KEY -- H.MASTER_GROUP is both the literal
         -- the composer filed its rows under and the tab's label, so it is read off the instance
@@ -292,7 +322,7 @@ local function build(mainCategory)
         --
         -- No `pairWith` any more: its one user was the bespoke debug-console checkbox, which is a
         -- schema row on the Master controls tab now.
-        H.RenderTabbedSchema(ctx, "general", { [H.MASTER_GROUP] = masterTail })
+        H.RenderTabbedSchema(c, "general", { [H.MASTER_GROUP] = masterTail })
     end)
 
     return Settings.RegisterCanvasLayoutSubcategory(

@@ -1,7 +1,9 @@
 # Ka0s Absorb Tracker — Manual In-Game Smoke-Test Suite
 
 Run on a **live Retail (Midnight, 12.0.7 / Interface 120007) English client** in order — later
-tests assume the addon loaded cleanly. Enable Lua errors first (`/console scriptErrors 1`, or
+tests assume the addon loaded cleanly. **Section T is the exception**: it is the non-English-client
+pass, it needs a deDE or frFR client, and nothing else in this file looks at what the client
+translates. Enable Lua errors first (`/console scriptErrors 1`, or
 BugSack/BugGrabber). Watch chat for the cyan `[AT]` prefix and for any red error frame. The addon
 also ships a headless gate (`lua tests/run.lua` → all suites green, `luacheck .` → 0/0, `luac -p <file>`)
 that covers the pure logic; this suite covers everything that only runs against the live client.
@@ -26,6 +28,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 11a. **About page media (documented exceptions).** Open the parent **Ka0s Absorb Tracker** / About page → the addon **logo renders** (custom branding texture via `C.LOGO_PATH`, layout-§3 typed-subfolder exception — intentionally not user-swappable), Notes + slash-command list show — each row a gold `/at <verb>`, an em dash with a **single** space either side, then a **white** description (the same `LibKa0s-Slash-1.0` formatter `/at help` uses, without the chat indent) — no error.
 12. **Combat gate (refuse, options-ui-§2).** In combat, `/at config` → panel does **not** open; chat shows the gray notice `[AT] cannot open settings during combat — Blizzard's category-switch is protected`. Spam `/at config` a few times → the same refusal each time, **no queue**, **no taint warning**.
 13. **No auto-open on combat end.** Leave combat → the panel does **not** pop open by itself (nothing was queued). Then out of combat, `/at config` → opens immediately (tree expanded), **no taint warning**. *(`/run AbsorbTrackerNS and false` aside: the gate is inside `OpenOptionsPanel`, so a `/run`-triggered open in combat is refused too.)*
+13a. **The Blizzard sidebar refuses too (options-ui-§11, CX03).** The other door into these pages: **Esc → Options → AddOns** reaches a canvas directly, without going through `/at config`, so step 12's gate never sees it. Enter combat on a dummy and **stay in combat**. Open the sidebar and click **Ka0s Absorb Tracker**, then walk **General**, **Appearance** and **Profiles** in turn. Each must **close the Settings window** and print the same gray `[AT] cannot open settings during combat — Blizzard's category-switch is protected` notice; **no page may draw**, and no page may refuse while another renders. Leave combat and open each of the three from the sidebar again → all render normally, no error frame. *Run this against the current build rather than trusting the last green: before the pages moved onto `Helpers.SetRenderer` they had no guard on this path at all, so any earlier pass here was a pass for the wrong reason.*
 
 ### D. Sub-pages render & edit live
 14. **General — the tab strip.** The page opens on a strip reading **[ Master controls ][ Bars ]** in that order, with **Master controls** selected, and **no section headings** where a `group` would have drawn one (a group is a tab now; a heading repeating the tab you just clicked means the page fell back to `RenderSchema`). *Master controls* renders the canonical set two per line, in this order and no other: **[Enable Absorb Tracker | General visibility]**, **[Master scale | Master alpha]**, **[Lock frame | Debug console]**, then the **Reset position + Reset all settings** button pair. Click **Bars** → a **Tracked units** subsection heading, then **[Enable Player Bar | Enable Target Bar]**, **[Enable Focus Bar]** alone, then an **Updates** heading and **[Update throttle]**. Those two headings are the one place a heading is expected under a strip: the tab mixes kinds, and neither heading repeats the tab's own name. Check the pairing explicitly: a mis-ordered schema row silently re-columns a tab. Untick Enable Player Bar → the player bar disappears; Lock frame → drag disabled; shield gain/loss repaints the bar within ~0.1s; sitting idle with no shield produces no repaints.
@@ -35,7 +38,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 14d. **The visibility migration (upgrade only).** On a profile saved by 1.9.0 or earlier with *Show only in combat* **ticked**, log in on this build → **General visibility** reads **Only in combat**, and `/at get visibility` echoes `inCombat`. With it unticked before the upgrade → **Always**. Check a *second*, inactive profile the same way: switch to it after the upgrade and confirm its setting came across too — a migration that walked only the loaded profile is the failure this checks for.
 14b. **The strip is chrome, not a row.** Click between the two tabs several times → the strip stays pinned in place, the content below it swaps, and the first row of controls never lands *under* the tabs. Nothing stacks: click Master controls → Bars → Master controls and confirm you see one copy of each control, not two. Resize the Settings window (or open the panel for the first time on a fresh login, which is when the canvas has not measured itself yet) → the tabs sit on **one row**, not stacked vertically.
 14a. **Debug console checkbox (window show/hide).** Sits to the right of **Lock frame**, on the **Master controls** tab, where options-ui-§15 puts it. It is an ordinary schema row now rather than a bespoke partner, so `/at get state.debugConsole` and `/at set state.debugConsole true` reach it too — and `/at set state.debugConsole true` must open the window without writing anything to the profile (`/reload` → closed again). Tick on → the debug console window opens; untick → it hides (identical to the bare `/at debug`). It does **not** change logging: if logging was off, ticking on shows the window but no new lines stream until you enable logging (the window's own **Debug** header toggle, or `/at debug on`). Open/close the window by other means — bare `/at debug`, the window's **Close** button, or **Esc** — with the panel open → the checkbox tracks the window's visibility live. `/reload` → window closed and checkbox unchecked.
-15. **Appearance — the chrome block and the strip.** The page opens with a **Unit** dropdown pinned at the top (Player / Target / Focus), a thin rule under it, then the strip **[ Size ][ Bar ][ Background ][ Border ][ Text ]** in that order, **Size** selected. There must be exactly **one** Unit picker on the page — a second copy down in the scrollable area is the bug options-ui-§14 exists to prevent. Walk the tabs: *Size* → Width / Height (drag Width → widens live). *Bar* → **[Bar texture | Bar opacity]** then **[Bar color | Use class color]**. *Background* → Background Texture alone, then **[Background color | Use class color]**. *Border* → **[Border style | Border thickness (px)]** then **[Border color | Use class color]**; change Style → edge changes, drag Thickness → grows/shrinks (inset recomputes, no glitch). *Text* → **[Font | Font size]**, **[Font color | Use class color]**, **[Font flags | Font shadow]**; change Font/flags → text updates live. Every LSM dropdown must **open with entries in it** — an empty one is the composer's media-list defect resurfacing (see `settings/Appearance.lua`'s `fixMediaValues`). Tick **Font shadow** → a soft shadow appears behind the absorb number; untick → it goes away again rather than persisting until a `/reload`.
+15. **Appearance — the chrome block and the strip.** The page opens with a **Unit** dropdown pinned at the top (Player / Target / Focus), a thin rule under it, then the strip **[ Size ][ Bar ][ Background ][ Border ][ Text ]** in that order, **Size** selected. There must be exactly **one** Unit picker on the page — a second copy down in the scrollable area is the bug options-ui-§14 exists to prevent. Walk the tabs: *Size* → Width / Height (drag Width → widens live). *Bar* → **[Bar texture | Bar opacity]** then **[Bar color | Use class color]**. *Background* → Background Texture alone, then **[Background color | Use class color]**. *Border* → **[Border style | Border thickness (px)]** then **[Border color | Use class color]**; change Style → edge changes, drag Thickness → grows/shrinks (inset recomputes, no glitch). *Text* → **[Font | Font size]**, **[Font color | Use class color]**, **[Font flags | Font shadow]**; change Font/flags → text updates live. Every LSM dropdown must **open with entries in it** — an empty one is the composer's media-list defect resurfacing, which section O covers directly. Tick **Font shadow** → a soft shadow appears behind the absorb number; untick → it goes away again rather than persisting until a `/reload`.
 16. **The picker drives every tab.** On *Border*, switch the Unit picker to **Target** → the page stays on the **Border** tab and now shows the target's border rows. Switching pages used to mean re-picking the unit three times; it must now be one pick for the whole page.
 17. **Bar Opacity (new).** Appearance → Player → *Bar* → drag **Bar Opacity** down to ~0.4 → the **whole** bar fades — fill, background, border **and** the absorb number together, not just the fill. Gain a shield so a live repaint lands → it stays faded (all three paint sites honor the setting). `/at unlock` → the drag placeholder is faded too. Set it back to 1 → fully opaque. Its default is **1**, so a bar you never touch must look exactly as it did before this setting existed.
 17a. **Font color.** Appearance → *Text* → **Font color** ships **opaque white**, which is what the absorb number always drew at — confirm an untouched profile looks unchanged. Set it to something obvious (red) → the number recolors live. Drag its alpha down → the number fades while the bar does not. Tick **Use Class Color** beside it → the number takes your class color **and keeps the alpha you set** (that is the rule; an alpha that snaps back to 1 is the bug).
@@ -45,7 +48,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 20a. **Reset-All wording and blast radius.** The popup carries the collection's **one** wording (`options-ui-§12`), verbatim: *"Reset this profile to the addon's defaults? Everything you have configured or added in it is discarded — your other profiles are not affected."* The button tooltip names the equivalence rather than restating it. Accepting must be **the same act** as Profiles → **Reset Profile**: every setting back to shipped, every bar back at its default position, and — with a second profile made on the Profiles page beforehand — the profile **list unchanged** and you still on the profile you were on.
 
 ### E. LSM border-widget alignment fix
-21. Appearance → *Border* tab, **Border Style** dropdown closed → left edge flush with neighbors, **no ~42px gap** (LSMPatch suppresses the displayButton tile).
+21. Appearance → *Border* tab, **Border Style** dropdown closed → left edge flush with neighbors, **no ~42px gap** (`lib.__PatchLSM30Border()`, called from `settings/OptionsSetup.lua`'s live arm, suppresses the displayButton tile — the addon-side `core/LSMPatch.lua` that used to do it is deleted). **This step passes with the fixup broken as long as AbsorbTracker is the only Ka0s addon loaded**; section Q is the one that can see the real defect.
 22. Open the dropdown → per-row hover border previews still render; selecting applies.
 
 ### F. Slash verbs — read/write/reset
@@ -108,6 +111,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 58. **Enable the target bar.** General page → **Bars** tab → tick **Enable Target Bar** (no Unit picker involved — all three enable toggles are visible at once). With no target selected, the target bar does **not** appear (the visibility ladder's `UnitExists` step). Target a friendly or enemy unit → the target bar appears at its stacked default position (above the player bar); clear target (Esc or `/cleartarget`) → the target bar disappears again; re-target → reappears, live.
 59. **Mirror toggle.** With the target bar enabled and still mirrored (the default), the Appearance page shows the **chrome block** above the strip (the **Unit** picker, and under it the **Use same styling as Player** checkbox, ticked, beside the **Copy styling from Player** button), **the full five-tab strip**, and — under it, where the rows would be — the hint *"Linked to Player — uncheck to customize."* ⚠ The strip is drawn for a mirrored unit now; it used to be suppressed entirely. Click between the tabs while mirrored → the strip works, the hint stays, and nothing stacks. Untick **Use same styling as Player** → the hint is replaced by the selected tab's rows, editable and currently matching the player's values. Re-tick it → the rows hide again and the target bar visually snaps back to mirroring the player live (change a player Bar setting while target is mirrored → the target bar's appearance updates too).
 60. **Copy styling from Player.** With the target unlinked (mirror off) and its own custom Bar Width set, switch to **Player**, change its Bar Width, then back to **Target**, click **Copy styling from Player** → the target's rows immediately show the player's *current* values (a one-time snapshot, not a live link) and the mirror checkbox stays unticked. Change the player's Bar Width again afterward → the target's copied value does **not** follow (proving Copy is one-shot, not a second mirror).
+60a. ⚠ **Copy styling from Player is twenty settings writes, and the log now says so.** It used to assign the config table directly and publish one `APPEARANCE` from the button; it now goes through `NS.SetByPath` per key, and the button publishes nothing of its own. `/at debug on`, open the debug console, Appearance → **Target** with the mirror unticked, click **Copy styling from Player** → the console gains **twenty** `[Set]` lines in one burst — one per appearance key (`units.target.barTexture = …` and the rest) and a closing `units.target.mirror = false` — and the target bar visibly takes the player's look while you watch. The bar restyling is the half that matters: the broadcast that repaints it comes from the schema rows now, not from the button, so a bar that copies its values but keeps its old texture, border or font means the row-level publish is not firing. `/at debug off`.
 61. **Drag each bar independently.** Unlock (`/at unlock`), drag the player bar to one spot and the target bar to another → each bar moves independently and keeps its own position; `/reload` → both positions persist. Position is **not** shared even while the target mirrors the player's appearance (steps 59–60 do not move any bar).
 62. **The remaining global toggles govern all three.** With target (and optionally focus) enabled and visible, run `/at toggle` → **all** enabled bars hide together; run it again → all three come back on (including any you had left off — that is the documented all-on behavior). Set **General visibility** to *Only in combat* → out of combat, every enabled bar hides (target/focus still additionally require a valid unit); entering combat shows them again.
 63. **A page's Defaults button resets all three units.** With player, target, and focus all customized (different widths/colors), open Settings → **Appearance** and press **Defaults** → **all three** units' rows on **all five tabs** (width, height, opacity, textures, colors, class-color toggles, font) revert in one press, not just the unit the picker has selected and not just the tab you are on. This is where the old page-shaped `/at reset` lived, and it must be intact. `/at resetposition` similarly snaps **all three** bars back to their stacked default positions. The enable toggles are **not** in scope: they live on General, so an enabled target bar stays enabled.
@@ -138,11 +142,24 @@ that covers the pure logic; this suite covers everything that only runs against 
 81. **`report` and `dump`.** Close the debug console, then click **Report** in the panel → **the console opens by itself** and the summary is in it. Click **JSON Dump** → one JSON line starting `{"buckets":...`, carrying `"schema":2` and `"source":"ingame"`, appears **in the console** (not in a popup). Use the console's own **Copy** button → it pastes as valid JSON.
 82. **The console log is plain text.** Open the console's **Copy** window after a run → the `[Perf]` lines carry **no** `|cff…` color escapes, while the chat copies of the same lines are colored.
 83. **The step panel gates the workflow.** `/at perf start` → a small **Perf Run** panel appears with seven rows, each showing a status dot, the step name, and its slash command (`/at perf measure a` and so on). **No step list is printed to chat** — the panel replaced it. **Start** has a green dot; **Measure A** is the only clickable row (white text, gray dot); everything below is grayed out. Click **Measure A** → it turns gold (armed) and **Measure B** stays grayed. Pull → still gold while recording. Leave combat → **Measure A**'s dot goes green, and **Measure B** becomes the only clickable row. **Every row must show a visible dot — no empty boxes or missing glyphs.** Repeat for B → **Finish** unlocks. Click **Finish** → its dot goes green and **Report** / **JSON Dump** unlock. Clicking a grayed row does nothing. Drag the panel → it moves and stays put; `/at perf` re-shows it. The panel wears the **same shared Ka0s edge as the debug console** — flat 1px black border, 1px gray inner highlight, gold title — so put the two on screen together and check they match. (What this pins: the ordering is what makes a run valid, and out-of-order steps silently ruin a capture.)
-84. **Cancel is live only while a run is.** The window is titled **Absorb Tracker — Perf Run**. The **Cancel perf run** row is muted red and clickable mid-run, but **grayed and inert before `start` and after `finish`**. Mid-run, click it → chat shows `perf run CANCELLED`, the bars come back if Experiment B had suspended them, and **nothing is added to `AbsorbTrackerPerfDB`**. Start a fresh run → the panel is back at step one with no carry-over. `/at perf cancel` with no run → `no perf run to cancel`.
+84. **Cancel is live only while a run is.** The window is titled **Absorb Tracker — Perf Run**. The **Cancel perf run** row is muted red and clickable mid-run, but **grayed and inert before `start` and after `finish`**. Mid-run, click it → chat shows `perf run CANCELED`, the bars come back if Experiment B had suspended them, and **nothing is added to `AbsorbTrackerPerfDB`**. Start a fresh run → the panel is back at step one with no carry-over. `/at perf cancel` with no run → `no perf run to cancel`.
 84a. **Report and JSON Dump stay repeatable.** After `finish`, click **Report** → it turns green **and stays clickable**; click it again → it reprints. Same for **JSON Dump**.
 84b. **Closing the panel is non-destructive.** The close mark in the title bar (identical to the debug console's) is drawn by `libs/LibKa0s/PerfPanel.lua` from `core.MakeCloseButton(frame, P.HidePanel, d.addonName or d.name)` — **PerfPanel minor 4 or newer**. Against the minor-3 payload this panel drew a **multiplication sign** while the two console windows two inches away drew art, which is the regression signature to look for if this repo is ever re-vendored backwards: not a gap, an **×**, and only on this one window. `core/PerfSetup.lua` passes `addonName = addonName` beside `name` so the panel never has to infer it (`tests/test_perf.lua` pins that argument out of game). The mark  hides the panel; Esc does the same. Mid-run, do this → the run keeps going, the armed experiment survives, and `/at perf show` brings the panel back in the same state. `/at perf hide` / `show` / `toggle` do the same from chat. Bare `/at perf` prints the status **and re-shows** the panel — it is the entry point, so it never leaves you with no way back to the steps.
 85. **Panel and chat are the same path.** Click **Measure A** and separately type `/at perf measure a` → identical chat output and identical panel state. (The buttons call the lib's own `OnCommand` and print its lines through the descriptor's `print` hook — not this addon's slash layer.)
 86. **Zero cost when idle.** With no run active, sit out of combat with a shield up → no `[Perf]` lines at all, and no repaint activity. (The brackets are gated on `Perf.on`, which is only true inside an open experiment.)
+
+86a. **The report names the containment it OBSERVED, not the one the descriptor declares.**
+     (opportunistic — `M4-22`; fold into session 3, which already opens this panel for `M4-16`.) Run
+     a full capture — `/at perf start`, `measure a`, a pull, `measure b`, a pull, `finish` — then
+     click **Report**. The nesting sentence for **paintBar** must name `repaintPass` as an
+     **observed** parent, and both `paintBar` and `repaintPass` must show non-zero `calls`. Then
+     **JSON Dump** → **Copy** → the `paintBar` bucket carries `"observedWithin": "repaintPass"`
+     beside its `"within"`. Before `M4-22` the bracket at `modules/Display.lua` passed two arguments,
+     so the key was absent from every capture this addon has ever written — compare
+     `docs/perf-analysis/20260807-125002/dump.json`, which has `"within"` and no `"observedWithin"`.
+     **`paintBar` with calls but `repaintPass` with none is the finding**, and so is a `paintBar`
+     that still reports declared-only; the first would mean the parent is being supplied from
+     somewhere that is not the pass. `visibility` inside `appearance` is unchanged either way.
 
 ### M. Post-extraction regression pass (LibKa0s five-module split)
 
@@ -190,6 +207,232 @@ against the TOC, not against memory.
 and no combat-taint warning when the panel opens out of combat (step 13). On any failure, record the step number, observed vs.
 expected, and any error text.
 
+### O. LibKa0s v1.26.0 — the composed media lists, without the local workaround
+
+**Smoke, session 4.** Run after the re-vendor to LibKa0s v1.26.0 (`M3-03`). Until this release
+`settings/Appearance.lua` carried a `fixMediaValues` that re-pointed every composed media row on the
+way past, because `OptionsCompose` minor 2 handed `enumList` a closure wrapped one layer too deep and
+the dropdown came back empty with no report. Minor 3 fixes that at source and the workaround is
+deleted, so these dropdowns are now filled by library code this addon has never exercised in a
+client. **Headless cannot settle it**: `tests/test_schema.lua` proves the row answers a populated
+table, not that Blizzard's dropdown draws the entries.
+
+103. **The three composed media dropdowns fill.** `/at config` → **Appearance**. On *Bar* open
+     **Bar texture**, on *Border* open **Border style**, on *Text* open **Font**. Each must list
+     real entries — the stock Blizzard faces at minimum. **An empty dropdown here is the whole
+     reason this section exists** and means the re-vendor regressed the composer rather than fixing
+     it. Pick a different entry in each → the bar's fill, edge and text change live, and the choice
+     survives a `/reload`.
+104. **A late registration still shows up.** The list is read once at row-declaration time now, and
+     the value assigned is a deferred reader rather than a frozen table — which is the distinction
+     that keeps late media visible. With a media-providing addon loaded (SharedMedia and friends),
+     confirm a face it registers appears in **Font** and a texture it registers appears in **Bar
+     texture**. A list holding only the Blizzard stock entries means the reader froze, which is the
+     silent failure `libs/LibKa0s/OptionsCompose.lua:182-186` describes.
+
+### P. LibKa0s v1.27.0 — the pooled tab strip, and the perf strings
+
+**Smoke, session 3.** Run after the re-vendor to LibKa0s v1.27.0 (`M4-01`). Two things arrived with
+that payload that only a client can settle.
+
+`TabStrip` (`libs/LibKa0s/OptionsWidgets.lua`) no longer builds a button and a content panel per
+click: it acquires both from per-`ctx` `LibKa0s-Pool-1.0` pools and re-dresses them, re-setting
+`OnClick` on every dress. Its only headless proof counts `CreateFrame` calls on a second selection
+pass, and the case that would pin band geometry as invariant under selection cannot be written yet —
+the shared mock answers `GetHeight` with 0 for every frame, and that flips at kit 16, not here. **So
+a stale label, a mis-anchored button or a band that changes height on a re-dressed tab is invisible
+to every automated check in this repo.**
+
+The other is spelling. `LibKa0s-Perf-1.0` minor 8 changes five player-facing strings — two
+`CANCELLED` and three `unlabelled` become `CANCELED` and `unlabeled` — and no single capture shows
+all five, so step 106 runs two.
+
+105. **The tab strip survives being pooled and re-dressed.** `/at config` → **Appearance**. Cycle
+     every tab of the strip three times, ending back on the first. Watch three things on each pass:
+     the **label** is that tab's own, the **selected** tab is the one you pressed, and the strip's
+     **band height** does not move as you go through it. A label carried over from the
+     previously-dressed tab, a highlight on the wrong button, a body drawn under the wrong tab, or a
+     band that grows or shrinks between passes is the pool handing back a frame it did not finish
+     dressing.
+106. **The perf strings read US.** `/at perf start mylabel`, then `finish` — the started line names
+     the label and the report header names it too. Then `/at perf start` with no label, and
+     `cancel` — the start line, the report header and the cancel line must read **`unlabeled`** and
+     **`perf run CANCELED`**. A double-L in either is a copy of the string that did not come from
+     the vendored payload.
+
+### Q. The LSM30_Border patch, promoted to LibKa0s
+
+**Smoke, session 5. NOT YET RUN — no WoW client was available when `M4-08` landed.** Run after
+`M4-02` puts `lib.__PatchLSM30Border()` into `settings/OptionsSetup.lua`'s live arm, and again after
+**each** of the five `core/LSMPatch.lua` deletions (`M4-04`…`M4-08`). AbsorbTracker's copy was the
+fifth and last, deleted by `M4-08`, so **all five are gone now** and the outstanding run is the one
+with none of them present.
+
+AceGUI's `WidgetRegistry` is process-global, so the thing under test is not this addon. It is what
+five Ka0s addons do to **one** registry slot in **one** client. Each of the five used to register
+its own wrapper at whatever version it found plus one, so the wrapper a Border dropdown actually got
+belonged to whichever addon the client loaded last. No headless suite in any of the five repos can
+see that: each one loads a single copy, registers once and passes. Section E's steps 21 and 22 check
+the alignment with AbsorbTracker alone, which is exactly the check that stayed green through the
+defect.
+
+There is no second cover any more. Between `M4-02` and `M4-08` this addon was patched twice on
+purpose — the library call at settings file load, and `core/LSMPatch.lua`'s `NS.ApplyLSMBorderPatch()`
+at `OnEnable` — and both hid the same tile, so the second was a no-op in effect and the first could
+not be proved by looking. The private copy is gone, so **the library call is the only thing hiding
+that tile in this addon now**, and its timing moved with it: file load rather than `OnEnable`, which
+is earlier. Nothing headless can tell you whether that is early enough in a real client; step 107 can.
+
+**The debt this leaves.** `M4-03` — the same sweep with all five private copies still present, which
+`03_SPEC.md`'s non-goals ask for before any of them is deleted — was not run either. Five deletions
+therefore landed on a green suite and an argument rather than on a client. One run of step 107 with
+all five addons loaded settles it for all five; if it fails, the five separate deletion commits are
+what turn "one of them is wrong" into "this one is wrong".
+
+107. **Every Border dropdown is the same control, whatever loaded last.** Enable KickCD,
+     PanelMaster, AbsorbTracker, ConsumableMaster and MultiMeters together. Open each addon's Border
+     dropdown in turn — for this one, `/at config` → **Appearance** → *Border* → **Border style**.
+     In all five: the closed control's left edge is **flush** with the sliders and checkboxes
+     stacked with it, with **no ~42px gap**, and opening it still draws the per-row hover previews.
+     Then change the load order — disable and re-enable addons, or rename folders so a different one
+     is reached last — `/reload`, and walk the five dropdowns again. **Any dropdown that looks
+     different from the other four, or that changes between the two passes, is the finding**; the
+     whole point of the promotion is that the answer no longer depends on load order.
+
+### R. The v3 lift, after `migrateAllProfiles` became one call
+
+**Smoke, session 5. NOT YET RUN — no WoW client was available when `M4-20` landed.** Folded into
+session 5 because that is the outstanding client run in this repo, not because it has anything to do
+with the Border patch.
+
+`M4-20` reduced `core/Database.lua`'s `migrateAllProfiles` to `forEachProfile(NS.MigrateProfileToV3)`.
+The two were the same store walk written twice, down to a byte-identical four-line comment about
+`db.sv.profiles`; the only real difference was that the old copy skipped the active profile with an
+inline note saying the skip was redundant anyway, and `forEachProfile` skips it in the same place.
+So this is behavior-identical by inspection, and `tests/test_database.lua`'s multi-profile cases —
+"an inactive pre-v3 profile must be lifted too" and the `lifted 2 profile(s) to v3` line — hold it
+that way headlessly.
+
+What headless cannot reach is the store the walk actually walks. The suite hands it a mock AceDB;
+in a client, `NS.db.sv.profiles` is real AceDB-3.0's name → profile-table map, and `NS.db.profile`
+is a metatable-backed view whose identity against the entries in that map is what the skip compares.
+A walk that got that identity wrong would migrate the active profile twice — harmless, because
+`MigrateProfileToV3` stamps what it lifts — or, if the store lookup silently returned nothing, would
+migrate only the active profile and report a lower count. **The count is the tell**, which is why
+this step reads the console rather than the bar.
+
+108. **The `[Migrate]` output is what it was before the collapse.** Log out. In
+     `WTF/Account/<acct>/SavedVariables/AbsorbTracker.lua`, add a second profile block carrying a
+     flat `["barWidth"] = 333,` and `["schemaVersion"] = 1,` and **no `units` table** — a
+     hand-made pre-v3 profile, which is the only thing that makes the lift do work. Log in with a
+     different profile active, `/at debug on`, `/reload`, and read the console. Expect the
+     `[Migrate] lifted N profile(s) to v3` line with **N counting the hand-made profile**, followed
+     by the `vX → vY` ladder in the same order as before. Then `/at profile use <the hand-made
+     profile>` and `/at get units.player.barWidth` → **333**. A missing `lifted` line, an N that
+     does not count the inactive profile, or a width of 200 is the finding.
+
+### S. The perf panel's close control, now the library's
+
+**Smoke, session 3. NOT YET RUN — no WoW client was available when `M4-16` landed.** Run after
+`M4-16` deletes `core/PerfSetup.lua`'s `decorate` field.
+
+The hook and `libs/LibKa0s/PerfPanel.lua`'s else arm are **exclusive**, so this is not a change whose
+two sides ran side by side and can be compared: for as long as the descriptor carried `decorate` the
+library's own arm never executed once, in any client, ever. Deleting the field runs it for the first
+time. Headlessly the two are provably the same call — same `LibKa0s-Core-1.0` factory, same
+`TOPRIGHT` anchor, same `-(TITLE_H - 18) / 2` offset, same folder name arriving as the third
+argument — and `tests/test_coresetup.lua` shows the real panel against a spy on that factory to say
+so. What no suite in this repo can say is what the control **looks like**, because the mock answers
+nil for it: a texture path that is never built draws nothing and raises nothing, which is exactly the
+failure that hid here before and stayed green throughout.
+
+Numbered 109 rather than 108 because `M4-20` took 108 first.
+
+109. **`/at perf` opens with one close button, where it always was.** `/at perf` → the step panel.
+     Expect **exactly one** close control, in the panel's **top-right corner**, drawn as this
+     collection's own `close` mark — the same mark the debug console wears, so raise the console
+     (`/at debug on`, then `/at debug`) and compare the two corners side by side. Click it; the panel
+     hides. `/at perf` again; it re-opens with the control still there. **A multiplication sign
+     instead of the mark, an empty corner, two controls stacked in the same corner, or a control that
+     has moved off the corner is the finding** — the first three say the folder name is not reaching
+     `MakeCloseButton`, the last that the library's anchor is not the one the deleted hook used.
+
+### T. Non-English client (session 6, `M5-08`)
+
+**Smoke, session 6. NOT YET RUN — no WoW client, English or otherwise, was available when `M5-08`
+landed.** Every other section of this file assumes the English client the header names. This one is
+the exception, and it exists because the headless gate is structurally blind here: `tests/wow_mock.lua`
+answers enUS for every global it defines, so a path that keys off a localized string is green in the
+suite whether it is right or wrong — the test and the bug agree with each other.
+
+**Setup.** A client set to a non-English locale — deDE or frFR, the two the rest of the collection's
+locale steps use (`ConsumableMaster/docs/smoke-tests.md` § 3c, `KickCD/docs/smoke-tests.md` § 9b). A
+language pack on the PTR/beta client, or a non-English account, is enough; no particular class,
+spec or content is needed.
+
+**What this addon actually reads from the client in the player's language.** Two seams, and they are
+the whole list:
+
+- **`AbbreviateNumbers`** — the bar's value text (`modules/Display.lua:379`), the `/at test` line
+  (`settings/Slash.lua:277`, `:281`) and three debug lines (`core/AbsorbTracker.lua:176`, `:178`,
+  `:237`). Blizzard localizes both the suffix and the grouping: `1.2M` on enUS is not what a deDE
+  client returns for the same number.
+- **`UnitClass`** — `core/Data.lua:182` and `core/CoreSetup.lua:59` both `pcall` it and take the
+  **third** return, the English class token (`PRIEST`), never the first, which is the class name in
+  the player's language. `bgClassColors` is keyed on the token, so the class colors are supposed to
+  be locale-independent by construction. That is the claim this step checks rather than assumes.
+
+**What it does not read, checked and empty.** No chat or tooltip `_G` constant, no tooltip line
+parsed instead of an API return, no `subType` where a `classID` exists, and no header, token or key
+another tool parses — this addon exports nothing. `grep -rn '_G\[' core modules settings defaults`
+comes back with only `core/Constants.lua`'s texture paths. Recheck that grep rather than trusting
+this sentence: it is a claim, and an absent step is what it replaces.
+
+**The English UI is not a failure here.** Every label, tooltip and chat line this addon prints is a
+hardcoded English literal and stays English on a German client. That is the addon's scope, not a
+regression, and it is not what this section is looking for.
+
+110. **The value text renders and fits.** Log in on the non-English client with the player bar
+     visible. Take an absorb worth a few hundred (Power Word: Shield), then one worth over a
+     million (a fully stacked shield on a geared character, or `/at test 1500000`, which drives the
+     same `AbbreviateNumbers` call for a held number of seconds).
+
+     **Pass** — the number renders in the client's own convention, whatever that is, and stays
+     **inside the bar** at the default width at every magnitude. **Fail** — a `nil`, an error frame,
+     a raw unabbreviated integer where the enUS client abbreviates, or a string that overflows the
+     bar's right edge or is clipped by it. The last is the one to expect: a locale whose abbreviation
+     is longer than `M` has more glyphs to fit in a width that was chosen against English.
+
+111. **The class colors follow the token, not the name.** Tick **Use class color** for the bar, the
+     background, the border and the text (Settings ▸ Appearance ▸ Bar / Background / Border / Text,
+     Unit = Player). Then target a player of a **different** class and enable the target bar.
+
+     **Pass** — the player bar wears the player's class color and the target bar the target's, the
+     same colors they wear on an English client, and the background is the dimmed variant rather
+     than the raw one. **Fail** — any of the four falls back to the stored color, or every bar draws
+     the same color regardless of class. That is `UnitClass`'s localized first return reaching
+     `bgClassColors` where the English token belongs, and it is invisible on an English client
+     because there the two strings differ only in case.
+
+112. **The debug lines survive the locale.** `/at debug on`, open the console (`/at debug`), then
+     gain and lose an absorb out of combat and once more in combat.
+
+     **Pass** — `shield up:` / `shield gone:` and the `[Combat] left: N events, M repaints` rollup
+     all render, with the abbreviated values in the client's convention and **no** error. **Fail** —
+     an error thrown from the format call, or a `%s` left unreplaced. The combat pass is the one
+     that matters: in combat the absorb is a secret value, and this is the only step that puts a
+     secret and a localized formatter in the same line.
+
+**Sign-off without a non-English client.** Steps 110 to 112 all read the same two seams, and the
+headless suite reaches neither: `tests/wow_mock.lua:48` defines `AbbreviateNumbers` as
+`function(n) return tostring(n) end`, so `tests/test_display.lua:605` proves the value is *routed* to
+it and nothing about what it *renders*; and the class-color cases (`GetBarColor`, `GetBgColor`,
+`GetBorderColor`, `GetFontColor`, and `class color on a target bar is the TARGET's class`) feed the
+mock's own English token in, which is the answer they are checking for. So there is no headless
+stand-in to sign this off with, and **English steps are not sufficient** here — unlike
+`ConsumableMaster` § 3c, where the numeric-subclass cases genuinely do stand in. Until the pass runs,
+the honest state of this section is unrun, and it is recorded that way rather than as coverage.
+
 ### Triage references (if a step fails)
 - Bootstrap / events / profile repaint — `core/AbsorbTracker.lua` (`OnEnable`, `OnProfileChanged`)
 - TOC metadata (the `/at version` string, the About page's Notes blurb) — `LibKa0s-Env-1.0` (`libs/LibKa0s/Env.lua`), wired by `core/EnvSetup.lua` as `NS.Meta` / `NS.Version`
@@ -202,7 +445,7 @@ expected, and any error text.
 - Perf probe / suspend / capture ring / step panel — `LibKa0s-Perf-1.0` (`libs/LibKa0s/`), wired up by `core/PerfSetup.lua`; protocol in `docs/performance.md`
 - DB init + idempotent migration — `core/Database.lua`
 - Debug console — `LibKa0s-DebugLog-1.0` (`libs/LibKa0s/`), wired up by `core/DebugLogSetup.lua`
-- LSM border alignment fix — `core/LSMPatch.lua`
+- LSM border alignment fix — `LibKa0s-Options-1.0` (`libs/LibKa0s/Options.lua`, `lib.__PatchLSM30Border`), called from `settings/OptionsSetup.lua`'s live arm
 - Class-color-aware getters and the frame-alpha clamp — `core/Data.lua` (`GetBarColor`/`GetBgColor`/`GetBorderColor`/`GetFontColor`, all through one `resolveColor`; `GetBarAlpha`)
 - Mirror resolution / `CopyFromPlayer` / per-unit position — `core/Units.lua`
 - The Appearance page's chrome block (Unit picker, mirror checkbox, copy button) and its tab strip — `settings/UnitPanel.lua` (`Helpers.RenderUnitPanel`)

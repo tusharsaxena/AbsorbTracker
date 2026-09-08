@@ -101,6 +101,33 @@ test("RequestRepaint schedules the timer at the throttleWindow delay", function(
   mocks.__fireTimers()
 end)
 
+test("RequestRepaint hands AceTimer a clamped number, never the raw stored value", function()
+  -- ABSORBTRACKER-R-05: the seam, not the getter (tests/test_data.lua pins the clamp itself). The
+  -- case above asserts the delay equals the STORED value, which is true and stays true for every
+  -- value the slider can produce — so it could never see the line pass a hand-edited SavedVariables
+  -- string straight into AceTimer's `delay < 0.01`.
+  -- red under: putting NS.GetSetting("throttleWindow") back at modules/Timer.lua's ScheduleTimer
+  -- call, in place of NS.GetThrottleWindow().
+  -- Arm every case FIRST, restore, and only then assert, for the reason tests/test_data.lua's
+  -- twin gives: a raise inside the loop would skip the restore and leave a bad throttle behind for
+  -- every later case in this file.
+  local mocks = T.mocks
+  local saved = NS.db.profile.throttleWindow
+  local cases = { { 0, 0.05 }, { -1, 0.05 }, { 9, 1 }, { "0.4", 0.4 },
+                  { "wibble", NS.flatDefaults.throttleWindow } }
+  for _, c in ipairs(cases) do
+    NS.db.profile.throttleWindow = c[1]
+    mocks.__timers = {}
+    NS.RequestRepaint()
+    c[3] = mocks.__timers[1] and mocks.__timers[1].delay
+    mocks.__fireTimers()
+  end
+  NS.db.profile.throttleWindow = saved
+  for _, c in ipairs(cases) do
+    assertEqual(c[3], c[2], "stored " .. tostring(c[1]))
+  end
+end)
+
 -- ── Event wiring (core/AbsorbTracker.lua) ─────────────────────────────────────────
 test("OnAbsorbChanged requests a repaint for the player", function()
   local mocks = T.mocks

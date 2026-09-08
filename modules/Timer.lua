@@ -1,4 +1,4 @@
-local addonName, NS = ...
+local _, NS = ...
 
 -- Coalescing repaint scheduler (Ka0s standard library-stack-§1 — one-shot AceTimer, same pattern as
 -- LibKa0s-Options-1.0's widget makers). Repaints are event-driven (core/AbsorbTracker.lua wires the absorb /
@@ -30,8 +30,15 @@ local function doRepaint()
     -- were amplifying work. A pass in which no bar painted (all hidden, or a /at test hold) still
     -- counts nothing, so the "hidden bar is not a repaint" property is unchanged.
     local painted = false
+    -- The bucket this pass IS, handed down so `paintBar`'s note records the containment the run
+    -- OBSERVED rather than the one core/PerfSetup.lua merely declares (performance-§3). Derived
+    -- from `t0`, not from a constant: with capture off no bracket is open, so a dormant pass hands
+    -- down nil and paintBar honestly claims no parent. This is the cross-module twin of the
+    -- `openBucket` upvalue modules/Display.lua uses for appearance -> visibility; an upvalue
+    -- cannot cross the file boundary, so the parent travels as an argument instead.
+    local parent = t0 and "repaintPass" or nil
     NS.ForEachUnit(function(unit)
-        if NS.UpdateAbsorbBar(unit) then painted = true end
+        if NS.UpdateAbsorbBar(unit, parent) then painted = true end
     end)
     if painted and NS.NoteRepaint then NS.NoteRepaint() end
     -- One `repaintPass` note per coalesced pass, painted or not: the bucket measures what the
@@ -47,7 +54,10 @@ function NS.RequestRepaint()
     -- exists to zero out.
     if Perf.suspended then return end
     if pending then return end            -- a repaint is already queued; coalesce into it
-    pending = NS.addon:ScheduleTimer(doRepaint, NS.GetSetting("throttleWindow"))
+    -- The CLAMPED read (core/Data.lua), not the raw setting. This number goes straight into
+    -- AceTimer, which COMPARES it against 0.01 before it stores it, so a hand-edited
+    -- SavedVariables string raises inside ScheduleTimer and takes every later repaint with it.
+    pending = NS.addon:ScheduleTimer(doRepaint, NS.GetThrottleWindow())
 end
 
 --- Drop any queued repaint. Used by the perf probe's suspend path so a pass armed a moment before

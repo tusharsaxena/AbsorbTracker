@@ -153,7 +153,7 @@ end)
 
 test("the schema CLI's list header the library renders is prose, not its own STRINGS key",
   function()
-  -- settings/Slash.lua:424's descriptor omits `L`. `/at list` is the shortest path from a user
+  -- The `SlashLib:New` descriptor in settings/Slash.lua omits `L`. `/at list` is the shortest path from a user
   -- keystroke to a library-owned string: BuildListLines opens with Text("LIST_HEADER"), so the
   -- first captured chat line IS the rendered result. Driven through NS.Slash:OnSlash rather than
   -- the instance, because `cli` is a file-local and the dispatcher is the only real accessor.

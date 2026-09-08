@@ -24,6 +24,37 @@ different checkpoint (`automated-tests-§3`, *The release gate*):
 
 Both are documented in [performance.md](./performance.md).
 
+### What the lint gate is a statement about (lint-§1)
+
+`luacheck .` reading `0 warnings / 0 errors` is only worth something if the configuration is not the
+reason it reads that way. `.luacheckrc` therefore sets **no top-level `ignore`**, and
+`tests/test_lintconfig.lua` is the four-case gate that keeps it that way:
+
+| Case | What it refuses |
+|------|-----------------|
+| no top-level `ignore` | any `ignore` at the top of `.luacheckrc` — it reaches all 54 files whatever it names, so naming the variable does not rescue it |
+| no wholesale class switch | `unused_args = false` and eight relatives, which is the same blanket spelled as a switch |
+| every `files[...]` ignore is narrow | a stanza keyed to a directory whose entries name no variable |
+| no bare inline directive | `-- luacheck: ignore` with no code after it, which silences every code on the line rather than the one that was meant |
+
+It loads `.luacheckrc` as Lua under a sandbox rather than scanning it as text, so what it inspects is
+the table luacheck obeys and not a spelling a text scan would miss. It **fails rather than skips**
+when it cannot look — no config, no `io.popen`, no git — on the same bargain
+`tests/_kit/test_eol.lua` strikes.
+
+What survives suppression, and where: three `files[...]` stanzas naming one file each
+(`core/AbsorbTracker.lua`, `core/Database.lua`, `settings/Slash.lua`), every entry written
+`212/self`, each covering a receiver a calling convention forces on a body that has no use for it;
+plus one `-- luacheck: ignore 542` on the exempt-key branch in `tests/test_schema.lua`, the
+repository's only empty branch. The reasoning for each sits in the comment above it in
+`.luacheckrc`.
+
+This replaced `ignore = { "212/self", "212/event", "211/addonName", "431" }`, removed by `M4c-06`.
+Removing those four lines reported **32 findings**, and **19 were real defects**, not conventions:
+nineteen files bound an `addonName` they never read, and all nineteen now open `local _, NS = ...`.
+Two of the four entries were silencing nothing at all — this tree produces no `212/event`, and
+`431` is shadowing an *upvalue*, which is not what its comment claimed it was for.
+
 Toolchain: Lua 5.1 + luacheck + lizard. The full list — what each one is needed for, the evidence
 for it, the WSL2/Ubuntu install command and a one-line verification per tool — lives in the root
 **[DEPENDENCIES.md](../DEPENDENCIES.md)** (documentation-§7). That file answers *what to install*;
@@ -86,11 +117,43 @@ AbsorbTracker not being re-vendored, and both suites staying green the entire ti
 Run after any re-vendor, and before any release:
 
 ```sh
-diff -r --strip-trailing-cr ../LibKa0s/LibKa0s libs/LibKa0s     # content — MUST be empty
+diff -r --strip-trailing-cr ../LibKa0s/LibKa0s libs/LibKa0s     # content — empty vs the CLAIMED tag
 diff -r ../LibKa0s/LibKa0s libs/LibKa0s                         # bytes  — SHOULD be empty
-diff -r --strip-trailing-cr ../LibKa0s/testkit tests/_kit       # content — MUST be empty
+diff -r --strip-trailing-cr ../LibKa0s/testkit tests/_kit       # content — empty vs the CLAIMED tag
 diff -r ../LibKa0s/testkit tests/_kit                           # bytes  — SHOULD be empty
 ```
+
+### When these diffs are supposed to be non-empty
+
+They compare against the sibling checkout's **working tree** — whatever `../LibKa0s` happens to have
+checked out — which is a different question from *"is the vendored payload the release this addon
+claims?"*. The two questions give the same answer only while the library has tagged nothing newer
+than the tag this addon has taken.
+
+Between a library release and the re-vendor that carries it they disagree, and that disagreement is
+the normal state rather than a defect. It is the state as this is written: `../LibKa0s` sits on
+**v1.27.0**, [`CLAUDE.md`](../CLAUDE.md) names **v1.26.0**, and the commands above report **306**
+differing lines for the library and **947** for the test kit. Re-vendoring to quiet them would be
+the actual mistake — it would pull an untested library release for the sake of a clean diff.
+
+**The authoritative comparison is against the tag `CLAUDE.md` names**, and that one must be empty at
+every commit:
+
+```sh
+tag=$(grep -oE 'Bundles \[LibKa0s\]\([^)]*\) v[0-9]+\.[0-9]+\.[0-9]+' CLAUDE.md \
+        | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+')
+rm -rf "/tmp/libka0s-$tag" && mkdir -p "/tmp/libka0s-$tag"
+git -C ../LibKa0s archive "$tag" | tar -x -C "/tmp/libka0s-$tag"
+diff -r --strip-trailing-cr "/tmp/libka0s-$tag/LibKa0s" libs/LibKa0s   # MUST be empty
+diff -r --strip-trailing-cr "/tmp/libka0s-$tag/testkit" tests/_kit     # MUST be empty
+```
+
+`tests/test_vendor_sync.lua` asks exactly this question inside the suite — it greps the tag out of
+`CLAUDE.md` and reads that blob out of git — so **a green suite has already answered it**, and the
+block above is only the by-eye version for when you want to see the hunks. Which leaves the
+working-tree diffs above answering a real but different question: *how far behind the library is
+this addon?* That is release planning, not a gate.
+
 
 Both halves, because the two answers are different findings.
 

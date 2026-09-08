@@ -601,13 +601,12 @@ badge and any count quoted in the docs must agree with it.
 - the main page's About content renders on its first OnShow
 - re-rendering the About page replaces its body rather than stacking a second copy
 
-### test_docs.lua (5)
+### test_docs.lua (4)
 
 - README.md carries no angle-bracket argument placeholders
 - every Tier 2 documentation-map row agrees with docs/
 - every deviation id the register cites is assigned by a bundle in docs/audits/
 - the addon's own files use US spellings
-- docs/smoke-tests.md carries a non-English-client section
 
 ### test_ltrap.lua (8)
 
@@ -631,13 +630,6 @@ badge and any count quoted in the docs must agree with it.
 
 - libs/LibKa0s is the LibKa0s release CLAUDE.md says this addon bundles
 - tests/_kit is the test kit that shipped with that release
-
-### test_lintconfig.lua (4)
-
-- lintconfig: .luacheckrc sets no top-level ignore
-- lintconfig: .luacheckrc switches no warning class off wholesale
-- lintconfig: every files[...] ignore is narrowed to a file or a name
-- lintconfig: no source file carries a bare inline luacheck ignore
 
 ### test_eol.lua (1)
 
@@ -666,10 +658,9 @@ badge and any count quoted in the docs must agree with it.
 | test_optionssetup.lua | 6 |
 | test_slashcmds.lua | 111 |
 | test_widgets.lua | 55 |
-| test_docs.lua | 5 |
+| test_docs.lua | 4 |
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
-| test_lintconfig.lua | 4 |
 | test_eol.lua | 1 |
-| **Total** | **562** |
+| **Total** | **557** |

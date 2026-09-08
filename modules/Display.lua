@@ -1,4 +1,4 @@
-local addonName, NS = ...
+local _, NS = ...
 
 local floor, max = NS.floor, NS.max
 
@@ -328,7 +328,15 @@ end
 -- repaints` rollup exists to show that the throttle coalesced, and N counts player events only, so
 -- an M that scaled with the number of visible bars could exceed N and read as if the throttle were
 -- amplifying work. A pass that painted nothing still counts nothing, same as before.
-function NS.UpdateAbsorbBar(unit)
+--
+-- `parentBucket` is the perf bucket this paint is running inside, SUPPLIED BY THE CALLER rather
+-- than named here. doRepaint (modules/Timer.lua) is the only caller that has one, and it hands
+-- down "repaintPass" only while its own bracket is open; every other reach -- a test, a future
+-- direct call -- passes nothing and the note then claims no containment. Hard-coding
+-- "repaintPass" at the Note below would be the same unverified declaration core/PerfSetup.lua
+-- already makes, moved one file over, and performance-§3 asks the third argument to CHECK
+-- that declaration, not to repeat it.
+function NS.UpdateAbsorbBar(unit, parentBucket)
     unit = unit or "player"
     local bar = NS.bars[unit]
     if not bar then return false end
@@ -372,7 +380,13 @@ function NS.UpdateAbsorbBar(unit)
 
     -- Bracket opened AFTER the early-outs, so `paintBar` counts only passes that actually painted.
     -- A bucket whose call count included skipped bars would make ms/call meaningless.
-    if t0 then Perf.Note("paintBar", debugprofilestop() - t0) end
+    --
+    -- Third argument: the bucket THIS paint ran inside, as the `appearance` and `visibility`
+    -- brackets above already report theirs. It is the caller's `parentBucket` and not this
+    -- module's `openBucket` upvalue because the containment being recorded crosses a module
+    -- boundary -- doRepaint's bracket is opened in modules/Timer.lua, which this file's upvalue
+    -- cannot see.
+    if t0 then Perf.Note("paintBar", debugprofilestop() - t0, parentBucket) end
     return true
 end
 

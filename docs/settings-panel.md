@@ -16,7 +16,7 @@ How the addon registers its multi-page Blizzard Settings UI. The schema-driven c
 | `settings/UnitPanel.lua` | The two pieces that did not generalize: `Helpers.RenderUnitPanel(ctx, pageKey)` (the Appearance page's one chrome block — Unit picker + the two mirror controls — and its tab strip, full rebuild per call) and `Helpers.ResetAllPositions()`. |
 | `settings/About.lua` | `Helpers.BuildMainContent` — the top-level "Ka0s Absorb Tracker" page as a spec, drawn by the library's `BuildLandingPage` (logo + Notes + slash command list). |
 
-`NS.Helpers` **is** the library instance, not a table decorated from a copy of it. `settings/UnitPanel.lua` and `settings/About.lua` begin with `local addonName, NS = ...` then `local Helpers = NS.Helpers` and hang their members on that same table, so a page file calls `H.RenderUnitPanel` and `H.RenderSchema` without knowing or caring which side owns which. That identity is deliberate twice over: decoration only works because the library's own members live on the table being decorated, and a test that swaps a member out to spy on it (`tests/test_helpers.lua` does exactly that with `ResetAllPositions`) is swapping the one the library's own callers see.
+`NS.Helpers` **is** the library instance, not a table decorated from a copy of it. `settings/UnitPanel.lua` and `settings/About.lua` begin with `local _, NS = ...` then `local Helpers = NS.Helpers` and hang their members on that same table, so a page file calls `H.RenderUnitPanel` and `H.RenderSchema` without knowing or caring which side owns which. That identity is deliberate twice over: decoration only works because the library's own members live on the table being decorated, and a test that swaps a member out to spy on it (`tests/test_helpers.lua` does exactly that with `ResetAllPositions`) is swapping the one the library's own callers see.
 
 TOC order under `# Settings` is `settings/Schema.lua` → `Slash.lua` → `OptionsSetup.lua` → `UnitPanel.lua` → `About.lua` → `General` / `Appearance` / `Profiles`. `OptionsSetup.lua` must load before every page file, because those call `NS.Helpers.LSMValues` inside schema-row literals at **file load** — see [the degradation stub](#the-degradation-stub) below.
 
@@ -102,7 +102,7 @@ Every page (about + sub-pages) builds the same header via `Helpers.CreatePanel(n
    - Re-resolves AceGUI through LibStub and hands it out via `onAceGUI` (bails with a chat notice if it is unavailable). Re-resolved rather than trusting the handle taken at `:New` time, because an AceGUI absent at load may be present by PLAYER_LOGIN, and this is the one place that can report it.
    - Runs the descriptor's `validate` hook — `NS.ValidateSchema()`, which chat-prints any malformed rows or unresolvable paths and never blocks.
    - Builds the about-page canvas (`CreatePanel(..., { isMain = true })`) and registers it via `Settings.RegisterCanvasLayoutCategory` + `Settings.RegisterAddOnCategory`, deferring the body render — the descriptor's `buildMain`, which forwards to `Helpers.BuildMainContent` — to the panel's first `OnShow`.
-   - Walks the queued pages, calling `builder(mainCategory)` on each entry. Each builder constructs its own canvas via `Helpers.CreatePanel`, defers the AceGUI render to the panel's first `OnShow` (the body has 0 width at enable time; AceGUI lays out against current width), and returns the result of `Settings.RegisterCanvasLayoutSubcategory(mainCategory, panel, name)`.
+   - Walks the queued pages, calling `builder(mainCategory)` on each entry. Each builder constructs its own canvas via `Helpers.CreatePanel`, declares its body through `Helpers.SetRenderer` — which defers the AceGUI render to the panel's first `OnShow` (the body has 0 width at enable time; AceGUI lays out against current width) and carries the combat refusal with it — and returns the result of `Settings.RegisterCanvasLayoutSubcategory(mainCategory, panel, name)`.
    - If the builder returns `nil` (e.g. `settings/Profiles.lua` when AceDBOptions is missing), the page is silently skipped.
 
 ## `RegisterOptionsPage(key, name, builder)`
@@ -121,12 +121,13 @@ NS.RegisterOptionsPage("appearance", "Appearance", function(mainCategory)
         H.RestoreDefaults("appearance", ctx)
     end
 
-    -- No `rendered` one-shot guard: RenderUnitPanel does a full rebuild (ClearScroll +
-    -- re-render) every call — on first OnShow, AND every subsequent unit switch / tab
-    -- click / mirror toggle / copy — so re-running it on a later OnShow is intentional.
-    ctx.panel:SetScript("OnShow", function()
-        H.EnsureDefaultsButton(ctx.panel)
-        H.RenderUnitPanel(ctx, "appearance")
+    -- SetRenderer, never a hand-wired ctx.panel:SetScript("OnShow", ...): the library owns that
+    -- script, and with it the Defaults button and the combat refusal (see the sidebar note under
+    -- the combat-lockdown gate below). No `rendered` one-shot guard either -- SetRenderer owns
+    -- WHEN, and RenderUnitPanel is a full rebuild (ClearScroll + re-render) on every call, so a
+    -- later draw is intentional and safe.
+    H.SetRenderer(ctx, function(c)
+        H.RenderUnitPanel(c, "appearance")
     end)
 
     return Settings.RegisterCanvasLayoutSubcategory(mainCategory, ctx.panel, "Appearance")
@@ -141,9 +142,9 @@ end)
 
 The per-unit page renderer, and one of the two things `settings/UnitPanel.lua` keeps. It did not generalize: it reads `NS.Units` and the mirror partition, which no other Ka0s addon has. Everything it stands on — `ClearScroll`, `EnsureScroll`, `RenderGrid`, `RenderRows`, `PageHeader`, `TabStrip`, `AttachTooltip` — is the library's, reached through the same `NS.Helpers` table.
 
-On every call (first `OnShow`, a unit switch, a tab click, a mirror-checkbox toggle, or a Copy click) it does a **full rebuild**: `Helpers.ClearScroll(ctx)` releases every AceGUI child and resets the section-heading tracker + `ctx.refreshers`, then draws two bands, top to bottom:
+On every call (the first `OnShow`, a re-render after `RefreshAllPanels` marked the page dirty, a unit switch, a tab click, a mirror-checkbox toggle, or a Copy click) it does a **full rebuild**: `Helpers.ClearScroll(ctx)` releases every AceGUI child and resets the section-heading tracker + `ctx.refreshers`, then draws two bands, top to bottom:
 
-1. **The chrome block** (chrome, options-ui-§14) — always, and there is exactly **one**. `Helpers.PageHeader` pins a frame in the band above the strip and the host fills it: a **Unit** dropdown listing `NS.Units.LABEL` in `NS.Units.LIST` order (parked on `ctx.__bannerWidget` so a suite can drive the selection the way a click would), and — for target and focus, never the player, which is the mirror source — a **"Use same styling as Player"** checkbox (writes `units.<unit>.mirror` via `NS.SetByPath`, re-renders on change) beside a **"Copy styling from Player"** button (`NS.Units.CopyFromPlayer(unit)` — a one-shot deep-copy of the appearance keys that also clears `mirror`, then publishes `NS.MSG.APPEARANCE` and re-renders).
+1. **The chrome block** (chrome, options-ui-§14) — always, and there is exactly **one**. `Helpers.PageHeader` pins a frame in the band above the strip and the host fills it: a **Unit** dropdown listing `NS.Units.LABEL` in `NS.Units.LIST` order (parked on `ctx.__bannerWidget` so a suite can drive the selection the way a click would), and — for target and focus, never the player, which is the mirror source — a **"Use same styling as Player"** checkbox (writes `units.<unit>.mirror` via `NS.SetByPath`, re-renders on change) beside a **"Copy styling from Player"** button (`NS.Units.CopyFromPlayer(unit)` — a one-shot deep-copy of the appearance keys that also clears `mirror`, then re-renders). The button publishes **no** `NS.MSG.APPEARANCE` of its own: `CopyFromPlayer` writes all twenty values through `NS.SetByPath`, and every appearance row falls through to the schema's default `onChange`, which broadcasts it. A publish here would be a twenty-first restyle after twenty that had already run.
 
    **Why one block, and why the mirror controls are in it.** §14 puts every control that applies to the whole page in this band, *"above the strip — never in the scroll below it"*, and names *copy* among the page-wide acts. Both mirror controls govern all five tabs: mirroring replaces every tab's rows with the hint, and `CopyFromPlayer` copies every appearance key on every one of them. They were drawn in the **scroll**, below the strip, which is the failure that rule describes — a page-wide control that reads as belonging to whichever tab happens to be selected and disappears on the next click. And a page draws at most one chrome block (`PageHeader` and `PageBanner` release the same ledger and write the same `ctx.__bannerHeight`, so the second call replaces the first), so the picker is built **inside** the block's frame and `PageBanner` is not called at all — §14's own instruction for a page that needs a picker *and* other page-wide controls. Neither mirror control is a schema row and neither can be — neither has a path, which is why the mirror flag's own row carries `skipRender` — and that is the case options-ui-§13 exempts from its two-controls-per-tab rule; it says nothing about which *band* they belong in.
 
@@ -271,9 +272,9 @@ The throttle is a single re-armed **AceTimer** one-shot — `timer = NS.addon:Sc
 
 ## Profile change refresh
 
-When AceDB fires `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset` (registered in `NS:InitDB`, `core/Database.lua`), the active profile flips and `NS.OnProfileChanged` runs the bar repaint chain, then calls `NS.RefreshOptionsPanel()`. That routes to `Helpers.RefreshAllPanels()`, which walks every panel ctx in the library's registry and runs every registered refresher closure. Each refresher re-reads its row's value via `NS.GetSetting` and pushes it into the widget — values that didn't survive the profile flip update; values that did are no-ops.
+When AceDB fires `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset` (registered in `NS:InitDB`, `core/Database.lua`), the active profile flips and `NS.OnProfileChanged` runs the bar repaint chain, then calls `NS.RefreshOptionsPanel()`. That routes to `Helpers.RefreshAllPanels()`, which walks every panel ctx in the library's registry. It is the **structural** tier of a two-tier refresh, and since every page here declares a renderer through `SetRenderer` it means: a page that is on screen re-renders now, and a hidden one is flagged dirty and re-renders on its next `OnShow`. (A ctx with no renderer — none of this addon's — falls back to running its `ctx.refreshers` ungated, which is the migration seam the library keeps for hosts that have not adopted the helper.)
 
-The same `RefreshAllPanels` runs after every `/at set`, `/at reset`, and `/at resetall` write (via `settings/Slash.lua` → `NS.SetByPath` / `RefreshOptionsPanel`) and after every panel widget's `set()` (via the file-local `set()` in `libs/LibKa0s/OptionsWidgets.lua` — see [Widget makers](#widget-makers-and-refresher-closures) above), so panel-driven and slash-driven mutations both keep open panels in sync.
+The same `RefreshAllPanels` runs after every `/at set`, `/at reset` and `/at resetall` write (via `settings/Slash.lua` → `NS.SetByPath` / `RefreshOptionsPanel`). A panel widget's own `set()` takes the **scalar** tier instead — the file-local `set()` in `libs/LibKa0s/OptionsWidgets.lua` calls `RefreshScalars`, which re-runs `ctx.refreshers` in place on a page that is on screen and never rebuilds it. That distinction is what keeps a checkbox click from releasing, under its own `OnValueChanged`, the widget that fired it. Each refresher re-reads its row's value via `NS.GetSetting` and pushes it into the widget — values that did not survive the write update, values that did are no-ops. Panel-driven and slash-driven mutations both keep open panels in sync; they differ only in how much of the page they are entitled to redraw.
 
 ## `OpenOptionsPanel` and the combat-lockdown gate
 
@@ -288,6 +289,16 @@ The same `RefreshAllPanels` runs after every `/at set`, `/at reset`, and `/at re
 
 The user picks the sub-page they want from the expanded tree. There is no "default sub-page" mechanism — the parent always opens, the tree always expands.
 
+### The other door: the Blizzard AddOns sidebar
+
+`OpenOptionsPanel`'s gate covers `/at config`, `/at options` and any `/run` caller, because they all go through it. It does **not** cover the **Settings → AddOns** sidebar, and that is a second door into the same pages: Blizzard shows the canvas frame directly, so the panel's `OnShow` is the only code that runs. A page that parks its own `OnShow` is therefore ungated on the one path a player is most likely to take mid-pull, and all three of this addon's pages did exactly that until the `SetRenderer` adoption.
+
+Each page now declares its body through **`Helpers.SetRenderer(ctx, fn)`** (`libs/LibKa0s/Options.lua`) instead of setting `OnShow` itself. The library's `OnShow` builds the Defaults button, then — under `InCombatLockdown()` — closes the Settings window (`SettingsPanel:Close`), prints the same `lib.STRINGS.COMBAT_REFUSED` notice `/at config` prints, and returns without rendering. Closing the window is deliberate: a page that silently draws nothing reads as a broken addon. Nothing about the refusal is this addon's, including its wording — adopting the helper is the whole of the fix, which is why no page carries a copy of the guard.
+
+`SetRenderer` also owns **when** a page draws — first show, and again on the next show after `Helpers.RefreshAllPanels` marked it dirty while it was hidden (an on-screen page re-renders immediately). That replaced the per-page `rendered` one-shot flags, and it is why every renderer either opens with `Helpers.ClearScroll` or, like `RenderUnitPanel`, does its own.
+
+`tests/test_widgets.lua` drives the General and Appearance panels' `OnShow` under a mocked `InCombatLockdown` and asserts both closed the window and both said why. The Profiles page is on the same helper but cannot be driven headless — AceDBOptions is absent in the harness, so the page self-skips — and `docs/smoke-tests.md` § C step 13a walks all three in the client.
+
 ## LSM swatch dropdowns
 
 Texture / border / font select fields use `dialogControl = "LSM30_Statusbar"`, `"LSM30_Border"` or `"LSM30_Font"` on their schema row — all three live in `settings/Appearance.lua`, on the Bar / Background, Border and Text tabs respectively. `Helpers.RenderField` → `makeDropdown` reads `dialogControl` and creates the matching AceGUI widget directly:
@@ -300,7 +311,7 @@ end
 local dd = AceGUI:Create(widgetType)
 ```
 
-The LSM30_* widgets are the canonical upstream `AceGUI-3.0-SharedMediaWidgets` r65 lib, vendored folder-per-lib at `libs/AceGUI-3.0-SharedMediaWidgets/` and loaded via `widget.xml`. `LSM30_Statusbar` / `LSM30_Font` use upstream's `GetBaseFrame` (no preview tile); `LSM30_Border` uses `GetBaseFrameWithWindow`, which adds a 42×42 `displayButton` border-preview tile pinned to the widget's TOPLEFT. That tile clashes with our canvas-layout panel — `NS.ApplyLSMBorderPatch` (in `core/LSMPatch.lua`) is called from `addon:OnEnable`, by which point every addon's libs have loaded and the `LSM30_Border` registry slot is stable. It wraps whatever constructor AceGUI currently holds, re-registers the wrapper at `currentVersion + 1` (via `RegisterWidgetType`, to win the version race), and per-instance hides `displayButton` and re-anchors `frame.label` / `frame.DLeft` to the frame's left edge so the empty 42px slot collapses. The fixup lives in addon code (`RegisterWidgetType`, Ka0s standard library-stack-§5) rather than as an edit to the vendored lib, so a future r66+ refresh is a clean drop-in.
+The LSM30_* widgets are the canonical upstream `AceGUI-3.0-SharedMediaWidgets` r65 lib, vendored folder-per-lib at `libs/AceGUI-3.0-SharedMediaWidgets/` and loaded via `widget.xml`. `LSM30_Statusbar` / `LSM30_Font` use upstream's `GetBaseFrame` (no preview tile); `LSM30_Border` uses `GetBaseFrameWithWindow`, which adds a 42×42 `displayButton` border-preview tile pinned to the widget's TOPLEFT. That tile clashes with our canvas-layout panel — `lib.__PatchLSM30Border()` (`LibKa0s-Options-1.0`, minor 15) is called from the live arm of `settings/OptionsSetup.lua`, at file load, by which point the TOC has already pulled `widget.xml` in with the other libraries and the `LSM30_Border` registry slot holds AGSMW's own constructor. It wraps whatever constructor AceGUI currently holds, re-registers the wrapper one version above it to win the race, and per-instance hides `displayButton` and re-anchors `frame.label` / `frame.DLeft` to the frame's left edge so the empty 42px slot collapses. It is **the library's** and not this addon's for a reason worth keeping in view: AceGUI's widget registry is process-global, and this addon plus four siblings each used to carry a private copy of the wrapper in `core/LSMPatch.lua`, so the wrapper a Border dropdown got belonged to whichever addon loaded last. One lib-level member behind `lib.__lsmBorderPatched` means one registration however many copies of LibKa0s are vendored. The fixup still extends the widget rather than editing the vendored lib (Ka0s standard library-stack-§5), so a future r66+ refresh is a clean drop-in.
 
 The dropdown's `values` table is supplied by `Helpers.LSMValues(mediaType)`, which returns a deferred closure that pulls the live `NS.GetLSM():HashTable(mediaType)` at dropdown-render time. Schema rows in `settings/Appearance.lua` set `values = NS.Helpers.LSMValues("statusbar")` (etc.) at file-load — the closure is then invoked by `makeDropdown`'s `valuesHash()` every time the dropdown re-renders, so newly-registered LSM media show up without an addon reload.
 
@@ -312,23 +323,36 @@ The dropdown's `values` table is supplied by `Helpers.LSMValues(mediaType)`, whi
 2. **TOC `Notes` blurb** — full-width `Label` with `GameFontHighlight`, left-justified. `spec.notes` is a **function**, because the library resolves it at render time and the TOC field is not readable when the spec is declared at file scope. The Notes string is read through `NS.Meta` (`core/EnvSetup.lua`, the `LibKa0s-Env-1.0` seam).
 3. **Slash Commands section** — a full-width `Heading` widget (`GameFontNormalLarge`) followed by one `Label` row per string returned by `NS.Slash:LandingRows()`, formatted `|cFFFFFF00/at <cmd>|r — |cFFFFFFFF<desc>|r`: gold command, an em dash with a **single** space either side, and a **white** description. That is `LibKa0s-Slash-1.0`'s one row formatter — literally the same function `/at help` prints through, minus the two-space chat indent, which belongs to the chat renderer because a settings-panel label sitting under a heading does not need one. So the about list and the help block cannot drift. The list itself is `NS.COMMANDS` (`settings/Slash.lua`), handed to the library rather than owned by it — as a `rows` function for the same reason `notes` is one: `NS.COMMANDS` keeps growing as later files load, so a re-render must re-read it.
 
-## An upstream defect this addon works around
+## An upstream defect this addon used to work around
 
-`OptionsCompose` minor 1 declares every media-backed row as `values = function() return
+Kept because the shape recurs, and because a reader meeting the composed media rows should know
+what they used to do. **It is history as of LibKa0s v1.26.0** — nothing in this repo works around
+it any more.
+
+`OptionsCompose` minor 2 and earlier declared every media-backed row as `values = function() return
 O.LSMValues(kind) end` — a closure returning a **closure**, where the flow engine's `enumList` calls
-it once and expects a table. It gets a function, its `type(v) ~= "table"` arm answers an empty list,
-and its own "no options" report is gated on `row.values == nil`, so the affected dropdowns render
-**with nothing in them and nothing says why**. That is three rows per unit here: `barTexture`,
+it once and expects a table. It got a function, its `type(v) ~= "table"` arm answered an empty list,
+and its own "no options" report was gated on `row.values == nil`, so the affected dropdowns rendered
+**with nothing in them and nothing said why**. That was three rows per unit here: `barTexture`,
 `border` and `font` — `bgTexture` is this addon's own hand-written row and sets its `values` directly,
 so it was never affected.
 
-`settings/Appearance.lua` corrects it on the rows it owns (`fixMediaValues`, which re-points each
-composed media row at `H.LSMValues(kind)` directly), and **not** in `libs/`. A downstream patch to a
+`settings/Appearance.lua` corrected it on the rows it owned, with a `fixMediaValues` that re-pointed
+each composed media row at `H.LSMValues(kind)`, and **not** in `libs/` — a downstream patch to a
 vendored file is overwritten by the next re-vendor and takes the fix with it, so a defect there is
-reported upstream and fixed there. `tests/test_schema.lua` asserts that every row carrying a
-`dialogControl` answers a **populated** list, which fails in both directions: if the workaround is
-deleted, and — usefully — it is also what a reviewer will look at the day upstream lands the fix and
-the workaround becomes dead code to delete.
+reported upstream and fixed there. That is what happened: minor 3 reads `O.LSMValues(kind)` once at
+row-declaration time and assigns the deferred reader straight into `values`
+(`libs/LibKa0s/OptionsCompose.lua:240`, `:284`, `:313`), so `enumList`'s single unwrap now lands on a
+table. The workaround and its three call sites were deleted in the v1.26.0 re-vendor.
+
+The **contract** that replaced it is worth knowing, because breaking it fails silently rather than
+loudly: a host supplying its own `O.LSMValues` must return **a function**
+(`libs/LibKa0s/OptionsCompose.lua:182-186`). Hand back a table instead and nothing errors — the row
+simply freezes its media list at whatever was registered when the file loaded, so media registered
+later never appears. This addon's `Helpers.LSMValues` returns a deferred closure and
+`tests/test_data.lua:192` pins that. `tests/test_schema.lua` still asserts that every row carrying a
+`dialogControl` answers a **populated** list; it is now the acceptance test for the upstream fix
+rather than the guard on a local patch.
 
 ## See also
 

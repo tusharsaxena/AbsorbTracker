@@ -54,26 +54,28 @@ test("core: the close button is the library's, told which addon is asking", func
   assertTrue(sawClick == click, "the wrapper must carry the click handler through")
 end)
 
-test("core: the perf panel builds its close control through that one wrapper", function()
+test("core: the perf descriptor names the folder and leaves the close control to the library", function()
   -- ANTI-PATTERN #64, THE ONE THIS SUITE EXISTS FOR: a wrapper that does not carry every argument
   -- its target takes. core/PerfSetup.lua's `decorate` used to call
   -- NS.DebugLog.MakeCloseButton(frame, api.Hide) -- two arguments onto a three-argument function --
   -- so the panel drew a multiplication sign while every suite stayed green, because a texture path
   -- that is never built draws nothing and raises nothing.
   --
-  -- THIS USED TO BE A SOURCE GREP, and a source grep is not an argument test: it stays green under
-  -- any refactor that keeps the text and breaks the call, and it says nothing at all about whether
-  -- the descriptor still CARRIES `decorate`. That second half matters here more than it looks.
-  -- libs/LibKa0s/PerfPanel.lua branches on it: with `decorate` supplied the panel's close control
-  -- comes from this addon's wrapper and gets the mark; with it absent the library falls to its own
-  -- `core.MakeCloseButton(frame, P.HidePanel)` -- still a TWO-argument call onto the three-argument
-  -- function at the time of writing -- and the panel silently goes back to the multiplication sign.
-  -- So the descriptor is captured for real and its `decorate` is RUN, against a spy on the library
-  -- function, and the value the library is actually handed is what is asserted.
+  -- THE HOOK IS GONE, AND THAT IS THE POINT. `decorate` was repaired into a copy of what
+  -- libs/LibKa0s/PerfPanel.lua:185-196 does in its else arm -- same factory, same TOPRIGHT anchor,
+  -- same -(TITLE_H - 18) / 2 offset -- and PerfPanel minor 4 passes `d.addonName or d.name`, so the
+  -- library reaches the same texture the wrapper did. A duplicate that agrees today is a duplicate
+  -- that can disagree tomorrow, and the branch is EXCLUSIVE: a host supplying `decorate` never runs
+  -- the library's arm, so the collection's own close mark would silently become this addon's
+  -- private business again.
   --
-  -- red under: dropping `decorate` from the descriptor; calling the library's MakeCloseButton
-  -- directly instead of through NS.MakeCloseButton; any wrapper that stops carrying the third
-  -- argument, the parent or the click handler.
+  -- SO THE DESCRIPTOR IS ASSERTED IN BOTH DIRECTIONS -- `addonName` present, `decorate` absent --
+  -- and then the REAL panel is shown against a spy on the library's factory, because the descriptor
+  -- shape alone says nothing about what reaches the screen. Testing the ARGUMENT, not the
+  -- appearance: a source grep stays green under any refactor that keeps the text and breaks the call.
+  --
+  -- red under: re-adding `decorate` to the descriptor; dropping `addonName`; a vendored PerfPanel
+  -- whose else arm stops passing the folder name on to MakeCloseButton.
   local perfLib = T.mocks.LibStub("LibKa0s-Perf-1.0")
   local realNew = perfLib.New
   local descriptor
@@ -83,8 +85,8 @@ test("core: the perf panel builds its close control through that one wrapper", f
   end
 
   -- A scratch namespace that reads through to the live one, so the reloaded chunk sees the real
-  -- NS.MakeCloseButton wrapper (and the real NS.Print sinks) while its NS.Perf assignment lands
-  -- here rather than replacing the instance the rest of the suite shares.
+  -- NS.Print sinks while its NS.Perf assignment lands here rather than replacing the instance the
+  -- rest of the suite shares.
   local Loader = dofile("tests/_kit/loader.lua")
   Loader.addonName = "AbsorbTracker"
   local NS2 = setmetatable({}, { __index = NS })
@@ -94,29 +96,29 @@ test("core: the perf panel builds its close control through that one wrapper", f
 
   assertTrue(type(descriptor) == "table",
     "core/PerfSetup.lua did not hand LibKa0s-Perf a descriptor at all")
-  assertTrue(type(descriptor.decorate) == "function",
-    "the descriptor must carry `decorate` -- without it libs/LibKa0s/PerfPanel.lua builds the "
-      .. "panel's close control itself, two-argument, and the mark is never drawn")
+  assertEqual(descriptor.addonName, "AbsorbTracker",
+    "the descriptor must name the addon FOLDER explicitly -- `name` reaching the same string is "
+      .. "luck, and libs/LibKa0s/PerfPanel.lua reads `d.addonName or d.name`")
+  assertTrue(descriptor.decorate == nil,
+    "the descriptor must NOT carry `decorate` -- the hook was a copy of PerfPanel's own else arm, "
+      .. "and supplying it takes the library's close control off the panel entirely")
 
+  -- The live instance, built at load with the real descriptor, drawing its real panel.
   local core = T.mocks.LibStub("LibKa0s-Core-1.0")
   local realMake = core.MakeCloseButton
-  local calls, sawParent, sawClick, sawName = 0, nil, nil, nil
-  core.MakeCloseButton = function(parent, onClick, name)
+  local calls, sawClick, sawName = 0, nil, nil
+  core.MakeCloseButton = function(_, onClick, name)
     calls = calls + 1
-    sawParent, sawClick, sawName = parent, onClick, name
-    return nil   -- the factory answers nil where CreateFrame is unavailable; decorate must survive it
+    sawClick, sawName = onClick, name
+    return nil   -- the factory answers nil where CreateFrame is unavailable; the arm must survive it
   end
-  local frame, hide = {}, function() end
-  local ranOK, ranErr = pcall(descriptor.decorate, frame, {
-    Show = function() end, Hide = hide, Toggle = function() end,
-    TITLE_H = 22, PAD = 6, ROW_W = 200,
-  })
+  local shown, showErr = pcall(NS.Perf.ShowPanel)
+  NS.Perf.HidePanel()
   core.MakeCloseButton = realMake
-  assertTrue(ranOK, "the descriptor's decorate raised: " .. tostring(ranErr))
+  assertTrue(shown, "showing the perf panel raised: " .. tostring(showErr))
 
-  assertEqual(calls, 1, "decorate must build exactly one close control, through the library")
-  assertTrue(sawParent == frame, "the panel's own frame must be carried through as the parent")
-  assertTrue(sawClick == hide, "the panel's Hide must be carried through as the click handler")
+  assertEqual(calls, 1, "the library's else arm must build exactly one close control")
+  assertTrue(sawClick == NS.Perf.HidePanel, "the panel's own Hide must be the click handler")
   assertEqual(sawName, "AbsorbTracker",
     "the library was not told which addon folder to build the panel's close mark from")
 end)

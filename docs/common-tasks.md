@@ -25,7 +25,7 @@ The schema-driven design makes a flat setting a one-row change. The widget on th
 
    ```lua
    -- settings/General.lua
-   local addonName, NS = ...
+   local _, NS = ...
    local flatDefaults = NS.flatDefaults
 
    NS.RegisterSchemaRows({
@@ -108,7 +108,9 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
 1. **Create `settings/<NewPage>.lua`** with the standard shape:
 
    ```lua
-   local addonName, NS = ...
+   -- `_`, not `addonName`: a settings page never reads the addon folder name, and binding a
+   -- local nothing reads is a `211` that lint reports (see docs/module-map.md, "The `NS` bus").
+   local _, NS = ...
    local flatDefaults = NS.flatDefaults
 
    NS.RegisterSchemaRows({
@@ -136,18 +138,25 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
            H.RestoreDefaults("newpage", ctx)
        end
 
-       -- Defer the AceGUI render until the panel is visible: build runs at
-       -- PLAYER_LOGIN when ctx.body has 0 width, and AceGUI lays children out
-       -- against the container's current width.
-       local rendered = false
-       ctx.panel:SetScript("OnShow", function()
-           if rendered then return end
-           rendered = true
+       -- SetRenderer, never a hand-wired ctx.panel:SetScript("OnShow", ...). The library owns
+       -- that script: it builds the Defaults button, and it REFUSES to draw in combat and closes
+       -- the Settings window first (options-ui-§11). The Blizzard AddOns sidebar opens a canvas
+       -- without going through NS.OpenOptionsPanel, so a page holding its own OnShow has no
+       -- combat guard on the one path a player takes mid-pull.
+       --
+       -- It also owns WHEN, so there is no `rendered` one-shot flag: first show draws, and a page
+       -- flagged dirty by a refresh while it was hidden draws again on its next show. Deferring to
+       -- first show is still right for the original reason too -- build runs at PLAYER_LOGIN when
+       -- ctx.body has 0 width, and AceGUI lays children out against the current width.
+       H.SetRenderer(ctx, function(c)
+           -- ClearScroll leads, because that second draw is reachable and RenderTabbedSchema
+           -- APPENDS. Skipping it is how a page grows two of every control.
+           H.ClearScroll(c)
            -- RenderTabbedSchema, not RenderSchema: a `group` is a TAB (options-ui-§13), and
            -- the strip's order is the order each group's FIRST row was registered. A page
            -- with fewer than two groups falls back to RenderSchema and draws no strip --
            -- that is the library's behavior, not a bug.
-           H.RenderTabbedSchema(ctx, "newpage")
+           H.RenderTabbedSchema(c, "newpage")
        end)
 
        return Settings.RegisterCanvasLayoutSubcategory(
@@ -189,7 +198,7 @@ If the texture / border / font dropdowns only show Blizzard's built-in fallback 
 2. **Confirm `NS.ClearLSMCache` ran.** It fires once in `OnEnable` (core/AbsorbTracker.lua, PLAYER_LOGIN timing); if the addon loaded before another addon registered fresh LSM entries, the cache stays warm with the pre-registration view. Force a re-cache with `/reload`. `NS.GetLSM` / `NS.ClearLSMCache` live in `core/Data.lua`.
 3. **Confirm `dialogControl` is set on the schema row.** Without `dialogControl = "LSM30_Statusbar"` (or `_Border` / `_Font`), the panel renderer creates a plain AceGUI `Dropdown` instead of the swatch widget. LSM-backed rows also set `values = NS.Helpers.LSMValues("statusbar")` (or `"border"` / `"font"`).
 4. **Confirm the upstream widget lib is loaded.** `libs/AceGUI-3.0-SharedMediaWidgets/widget.xml` includes `prototypes.lua` (`AceGUISharedMediaWidgets-1.0` LibStub library) plus per-widget files that register `LSM30_Statusbar` / `LSM30_Border` / `LSM30_Font` via `AceGUI:RegisterWidgetType`. If the xml or any included file got skipped (TOC drift), the dropdown builder detects the missing version via `AceGUI:GetWidgetVersion(...)` and falls back to a plain `Dropdown` — the option still renders, just without the swatch.
-5. **If the Border dropdown shows a 42×42 preview tile to the left of the text**, `NS.ApplyLSMBorderPatch` (core/LSMPatch.lua) didn't run. It's called in `OnEnable` after `NS.ClearLSMCache` / `NS.GetLSM`. Check that `core/LSMPatch.lua` is listed in `AbsorbTracker.toc`, and that `LibStub("AceGUI-3.0", true)` returns non-nil by the time `OnEnable` fires.
+5. **If the Border dropdown shows a 42×42 preview tile to the left of the text**, `lib.__PatchLSM30Border()` didn't run — or ran too early. It is `LibKa0s-Options-1.0`'s (minor 15) and is called unconditionally from the live arm of `settings/OptionsSetup.lua`, at **file load**, not from `OnEnable`; the private `core/LSMPatch.lua` this addon used to carry is deleted. Check that `libs\AceGUI-3.0-SharedMediaWidgets\widget.xml` still precedes `settings\OptionsSetup.lua` in `AbsorbTracker.toc` (`:29` against `:65` — there is nothing to wrap if the slot is empty when the line runs), and that the vendored `libs/LibKa0s/Options.lua` is at minor 15 or above. The member is idempotent behind `lib.__lsmBorderPatched`, so a sibling Ka0s addon having already called it is not the fault: five vendored copies of the library are one instance to LibStub, and the tile is hidden for all of them or none.
 
 If the dropdowns show *some* entries but not all, check that the contributing addon registers its assets with `LibStub("LibSharedMedia-3.0"):Register("statusbar", "name", path)` — some addons declare assets differently and the registration call gets missed.
 
@@ -240,7 +249,7 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 | `tests/test_slashcmds.lua` | The remaining `/at` verbs: lock/unlock/toggle, update, `reset` (one setting path — usage, an unknown path, one row reverted with its neighbors untouched, and the argument NOT lower-cased)/resetall/resetposition (all units), get/set failure paths (fully-qualified only), `test`, the mirror note, the About page's rows going through the same formatter as `/at help`, and the full `/at profile` sub-dispatcher |
 | `tests/test_widgets.lua` | Schema-row → AceGUI widget translation as this addon's rows exercise it: the widget makers reached by `RenderField` dispatch, `SessionCheckbox`, `RenderRows`/`RenderSchema` layout (`skipRender` rows omitted), and the real pages driven through their deferred `OnShow`. The flow engine itself belongs to `LibKa0s-Options-1.0`; what this asserts is that our rows drive it into the layout we expect |
 | `tests/test_perf.lua` | This addon's side of the `LibKa0s-Perf-1.0` harness (issue #17): `core/PerfSetup.lua`'s descriptor is well-formed, the bracket call sites (silent when off), and suspend/resume (the `ShouldShowBar` step-0 gate, event teardown/restore, `RequestRepaint` no-op, `CancelPendingRepaint`). The probe's own bucket accounting, `EncodeJSON`, `BuildRecord`, the capture ring, and `FormatReport` are tested in the LibKa0s repo, not here |
-| `tests/test_units.lua` | `core/Units.lua`: `LIST`/`LABEL`, `IsEnabled`/`IsMirrored`/`SourceUnit` (player never mirrored), the mirror-resolved `Get`, `Position`/`SetPosition` (never mirrored), `CopyFromPlayer` (deep-copy + mirror clear, `position`/`enabled` untouched — and the only place `DeepCopy` is exercised). `Set` has no case and no production caller; see `docs/module-map.md` |
+| `tests/test_units.lua` | `core/Units.lua`: `LIST`/`LABEL`, `IsEnabled`/`IsMirrored`/`SourceUnit` (player never mirrored), the mirror-resolved `Get`, `Position`/`SetPosition` (never mirrored), `CopyFromPlayer` (deep-copy + mirror clear, `position`/`enabled` untouched, and all twenty writes through `NS.SetByPath` — and the only place `DeepCopy` is exercised). `Set` has no case and no production caller; see `docs/module-map.md` |
 | `tests/test_optionssetup.lua` | `settings/OptionsSetup.lua` as a **file** — the descriptor's half of the reset contract and the degradation stub, the panel toolkit itself being `LibKa0s-Options-1.0`'s to test: the live and degraded builds veto the same rows from Reset All, the stub publishes all six members reached at *file load* (`LSMValues` plus the five composers), the stub keeps no private copy of the library's layout constants, and `PARENT_TITLE` reaches the library through `descriptor.parentTitle` |
 | `tests/test_docs.lua` | The shipped prose, where it is checkable: `README.md` carries no angle-bracket argument placeholders (CurseForge strips them, backticks included), and US English across every authored string and comment in the addon's own files. `libs/`, `tests/_kit/` and the frozen dated bundles under `docs/` are out of scope by design |
 | `tests/test_ltrap.lua` | The `L` trap across all five LibKa0s seams: a source check that fails on any `L =` whose value can evaluate to `NS.L` (which answers every key, so it would render raw SCREAMING_SNAKE in game only), a non-vacuity case on `locales/enUS.lua`, three library-regression cases handing DebugLog / Slash / Perf the fallback-table shape and requiring the built-in English back, and two tripwires (Core, Options) for the majors that cannot express the trap today |

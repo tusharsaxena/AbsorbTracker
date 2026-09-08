@@ -15,6 +15,25 @@
 --   * Where a member is live-only on purpose, it is named in the `ignore` set with the reason,
 --     because otherwise a deliberate omission and a bug read identically.
 --
+-- THE THREE LIBRARY-BACKED SEAMS CALL THE KIT'S BY-NAME FORM — assertSurfaceParity(stub, major,
+-- ignore), new at kit 15 and vendored by M4-01. What it changes is which keys of the live half get
+-- walked: the by-name form compares only Kit.publicMembers, which drops LibStub's own MAJOR, MINOR
+-- and MODULES and every `__`-prefixed key. Those are the library talking to itself across its own
+-- file boundary — __bannerBand, __layoutTabs, __tabPlacement, __print — and a stub is obliged to
+-- carry none of them. Under the four-argument form this file exempted twelve of them BY HAND, and
+-- the list grew on every re-vendor that added an internal; libs/LibKa0s/Options.lua's own comment
+-- at O.__print states the rule the kit now enforces for us.
+--
+-- WHERE THE LIVE HALF COMES FROM, and why it is not the obvious place. tests/run.lua registers it
+-- with Kit.setSurfaceSource. It has to: all three stubs mirror an INSTANCE — what
+-- `lib:New(descriptor)` returned — and not the library table LibStub answers for the same name.
+-- Left to Kit.expose's auto-wiring, which reaches for the mock's LibStub, "LibKa0s-Options-1.0"
+-- would resolve a four-member table (LAYOUT, New, PatchAlwaysShowScrollbar, STRINGS) and this case
+-- would go red for three reasons that have nothing to do with the stub.
+--
+-- Core stays on the four-argument form, because it is not a major's surface at all: its two halves
+-- are two blocks of one file of ours, and what they have in common is a set of NS names.
+--
 -- The member lists below are not typed from memory; each case names the grep that produces it.
 
 local T = _G.AT_TEST
@@ -50,10 +69,13 @@ end)
 -- ── DebugLog ───────────────────────────────────────────────────────────────────────────────────
 
 test("parity: the DebugLog stub carries the whole live surface", function()
-  -- Live members from: grep -nE "^function D[:.]|^  [A-Za-z_]+ *= *function" libs/LibKa0s/DebugLog.lua
-  -- — but read off the built instance rather than the file, which is the same list without a parser.
+  -- The live half is the LibKa0s-DebugLog-1.0 instance core/DebugLogSetup.lua:72 builds, which
+  -- tests/run.lua registers under that name. Read off the built instance rather than the file,
+  -- which is the same list as
+  --   grep -nE "^function D[:.]|^  [A-Za-z_]+ *= *function" libs/LibKa0s/DebugLog.lua
+  -- without a parser.
   local NS2 = loadDegraded()
-  T.assertSurfaceParity(NS.DebugLog, NS2.DebugLog, "DebugLog stub", {
+  T.assertSurfaceParity(NS2.DebugLog, "LibKa0s-DebugLog-1.0", {
     -- The four formatters and the text accessors are live-only ON PURPOSE, and core/DebugLogSetup.lua
     -- says so where the stub is written: nothing in the addon calls them (they are reached only
     -- inside the library's own Add), and hand-copying the exact line format whose seven-way drift
@@ -61,9 +83,11 @@ test("parity: the DebugLog stub carries the whole live surface", function()
     --   grep -nE "DebugLog[.:](FormatPlain|FormatColored|CopyText|Text)" core modules settings
     -- returns nothing.
     "FormatPlain", "FormatColored", "CopyText", "Text",
-    -- Test seams the library stamps on the instance when it BUILDS the console window
-    -- (libs/LibKa0s/DebugLog.lua:357, :362). A library-less build has no window to build, so their
-    -- absence is the condition under test, not a gap in the stub.
+    -- Test seams the library stamps on the instance when it BUILDS the console window (its
+    -- `EnsureFrame`, in libs/LibKa0s/DebugLog.lua). They are on the live instance by the time this case
+    -- runs because tests/test_debuglog.lua showed the window; a library-less build has no window to
+    -- build, so their absence from the stub is the condition under test, not a gap in it. Single
+    -- underscore, so Kit.publicMembers does not filter them — that exclusion is the `__` prefix.
     "_frameForTest", "_toggleClickForTest",
   })
 end)
@@ -71,11 +95,12 @@ end)
 -- ── Options ────────────────────────────────────────────────────────────────────────────────────
 
 test("parity: the Options stub carries every helper the degraded build can reach", function()
-  -- Live surface = the LibKa0s-Options instance the live path assigns to NS.Helpers, decorated by
-  -- settings/UnitPanel.lua and settings/About.lua.
+  -- The live half is the LibKa0s-Options-1.0 instance the live arm of settings/OptionsSetup.lua
+  -- assigns to NS.Helpers, decorated by settings/UnitPanel.lua and settings/About.lua, and
+  -- registered under that name by tests/run.lua.
   --   grep -n "Helpers\.[A-Za-z_]" core modules settings   names the addon's call sites.
   local NS2 = loadDegraded()
-  T.assertSurfaceParity(NS.Helpers, NS2.Helpers, "Options stub", {
+  T.assertSurfaceParity(NS2.Helpers, "LibKa0s-Options-1.0", {
     -- Layout scalars. A host copy of a library constant is the copy that goes stale, and every
     -- degraded reader of these sits behind an AceGUI a library-less build never gets.
     -- tests/test_optionssetup.lua pins their absence directly, as a measured fact.
@@ -89,20 +114,12 @@ test("parity: the Options stub carries every helper the degraded build can reach
     -- 8 / 37 / 44 would still be three numbers with no reader and one re-vendor to go stale.
     -- tests/test_optionssetup.lua pins their absence beside the other three.
     "CHROME_GAP", "TAB_H", "BANNER_H",
-    -- The chrome band's PRIVATE arithmetic, published on the instance under a `__` prefix so the
-    -- library's own suite can test it without a live frame. No host calls any of them (the same
-    -- rule `__pages` below is exempted under: a stub member with no caller is a copy waiting to go
-    -- stale), and the four members that DO drive the band -- PageHeader, TabStrip,
-    -- RenderTabbedSchema, SetChromeHeight -- are in the stub, which is what the degraded build
-    -- can actually reach.
-    "__bannerBand", "__layoutTabs", "__releaseChrome", "__scrollTopInset", "__tabBand",
-    "__tabPlacement",
     -- The panel machinery itself. settings/OptionsSetup.lua's stub answers these on NS (a single
     -- honest "the settings panel is unavailable" line) rather than on Helpers, because there is no
     -- panel for them to act on: NS.CreateOptionsPanel / NS.OpenOptionsPanel / NS.RegisterOptionsPage
     -- are the degraded seam and tests/test_optionssetup.lua exercises them there.
     "CreateOptionsPanel", "OpenOptionsPanel", "RegisterOptionsPage",
-    "BuildLandingPage", "RefreshScalars", "SetRenderer", "TextRow", "__pages",
+    "BuildLandingPage", "RefreshScalars", "TextRow",
     -- The AceGUI handle the live panel stashes. There is no AceGUI on the degraded path — that is
     -- the condition, not a divergence.
     "AceGUI",
@@ -113,13 +130,10 @@ test("parity: the Options stub carries every helper the degraded build can reach
     -- and the Slash case below states the rule this follows: a stub member with no caller is a copy
     -- waiting to go stale. It joins the stub on the commit that gives it a caller.
     "RefreshPanel",
-    -- A test seam settings/UnitPanel.lua:60 stamps on the table as it RENDERS a unit panel. The
-    -- degraded build renders none, so the key is absent for the same reason AceGUI is.
-    "__lastUnitCtx",
     -- New at LibKa0s v1.24.0 (OptionsWidgets 13 / OptionsCompose 1), and exempt under the rule the
-    -- RefreshPanel entry above already states: a stub member with no caller is a copy waiting to go
-    -- stale. The five COMPOSERS this addon does call are in the stub, because they must be for the
-    -- page files to finish loading; these are the members it does not call.
+    -- RefreshPanel entry above states. The five COMPOSERS this addon does call are in the stub,
+    -- because they must be for the page files to finish loading; these are the members it does not
+    -- call.
     --
     --   * The published CONSTANTS. `grep -rn "FONT_FLAGS\|VISIBILITY_\|CLASS_COLOR_NOTE" core
     --     modules settings` returns nothing: the composers stamp those values onto the rows they
@@ -130,13 +144,15 @@ test("parity: the Options stub carries every helper the degraded build can reach
     --     PageHeader (settings/UnitPanel.lua) -- options-ui-§14 allows a page ONE block, and this
     --     one carries the Unit picker AND the two page-wide mirror controls, so the picker is built
     --     inside it and PageBanner is never called. No tab of the five holds a list of like
-    --     subjects that would earn a sub-strip, and `__releaseSubTabs` is SubTabStrip's own ledger
-    --     and has no host caller by construction.
-    "PageBanner", "SubTabStrip", "__releaseSubTabs",
-    --   * The strip's measured row pitch and its reset, published for the library's own suite
-    --     exactly as the six `__` chrome members above are. A live session cannot need the reset,
-    --     and this addon measures no chrome of its own.
-    "__resetTabArtHeight", "__tabArtHeight",
+    --     subjects that would earn a sub-strip.
+    "PageBanner", "SubTabStrip",
+    -- WHAT IS NO LONGER ON THIS LIST, and why the file got shorter rather than laxer. Twelve
+    -- `__`-prefixed live members used to be exempted here one at a time -- the six chrome
+    -- primitives, __pages, __lastUnitCtx, __releaseSubTabs, __resetTabArtHeight, __tabArtHeight and
+    -- __print. Kit.publicMembers drops the whole prefix, so the exemptions are the kit's rule now
+    -- instead of this file's typing, and the next internal the library publishes needs no edit
+    -- here. The library said as much where it published the last of them: O.__print's own comment
+    -- calls it "internal rather than surface" and cites this filter by name.
   })
 end)
 
@@ -145,12 +161,12 @@ end)
 test("parity: the Slash stub carries every dispatcher member the addon calls", function()
   -- Both arms are the object settings/Slash.lua builds with SlashLib:New(...) — the library's
   -- instance live, the file's own stub degraded — reached through Sl.__cli, because both are
-  -- otherwise file-scope locals.
+  -- otherwise file-scope locals. tests/run.lua registers the live one under the major's name.
   --   grep -nE "cli[:.][A-Za-z_]+" settings/Slash.lua   names what the addon actually calls.
   local NS2 = loadDegraded()
   assertTrue(type(NS.Slash.__cli) == "table", "the live dispatcher is published for introspection")
   assertTrue(type(NS2.Slash.__cli) == "table", "and so is the degraded one")
-  T.assertSurfaceParity(NS.Slash.__cli, NS2.Slash.__cli, "Slash stub", {
+  T.assertSurfaceParity(NS2.Slash.__cli, "LibKa0s-Slash-1.0", {
     -- Live-only, with no call site in this addon: the grep above returns nothing for any of them.
     -- The stub deliberately renders a plain help row instead of re-implementing the library's
     -- header, its coloring or its list builder — LootHistory calls HelpHeader and its stub carries
