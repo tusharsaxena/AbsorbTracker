@@ -154,3 +154,50 @@ test("PARENT_TITLE reaches the library through the descriptor, not the namespace
   assertEqual(T.mocks.__mainPanel.name, "Ka0s Absorb Tracker",
     "and the brand still reaches the canvas the library registers")
 end)
+
+-- ── the LSM30_Border patch, promoted to the library ────────────────────────────────
+
+test("the live arm patches LSM30_Border through the library, not through a private copy", function()
+  -- `lib.__PatchLSM30Border()` is LibKa0s-Options-1.0's since minor 15, and the reason it is the
+  -- library's is that AceGUI's widget registry is PROCESS-GLOBAL. Five Ka0s addons each carrying
+  -- their own registration means five wrappers stacked in one client, whose outermost belongs to
+  -- whichever addon loaded last; one lib-level member behind lib.__lsmBorderPatched means one
+  -- registration no matter how many copies of the library are vendored.
+  --
+  -- WHY A WHOLE SECOND LOAD, and why the registry is seeded first. The call happens once, at
+  -- settings/OptionsSetup.lua's file load, and the shared environment in tests/run.lua made it long
+  -- before any case runs -- with an EMPTY WidgetRegistry, which models AGSMW being absent, so it
+  -- registered nothing and returned false. The wrap only exists to be seen when there is a
+  -- constructor to wrap. So this builds a second full environment the way tests/test_debuglog.lua
+  -- does, puts a stand-in LSM30_Border in the registry before the addon loads, and then asks the
+  -- registry what came out.
+  --
+  -- core/LSMPatch.lua is still on disk and does not interfere: it only publishes
+  -- NS.ApplyLSMBorderPatch, which is called from OnEnable, and nothing here fires OnEnable. It is
+  -- deleted last of the five copies, after the in-client check with all five present.
+  -- red under: dropping the lib.__PatchLSM30Border() call from the live arm.
+  local Loader     = dofile("tests/_kit/loader.lua")
+  local buildMocks = dofile("tests/wow_mock.lua")
+  Loader.addonName = "AbsorbTracker"
+  local mocks2, NS2 = buildMocks(), {}
+
+  -- The stand-in for AceGUI-3.0-SharedMediaWidgets' own constructor, at its own version. Identity
+  -- is what the assertion reads, so it needs no behavior beyond being a distinguishable function.
+  local upstream = function() return { frame = {} } end
+  local AceGUI = mocks2.LibStub("AceGUI-3.0")
+  AceGUI:RegisterWidgetType("LSM30_Border", upstream, 20)
+
+  Loader.loadAll(Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml"), NS2, mocks2)
+  Loader.loadAll(Loader.tocFiles("AbsorbTracker.toc"), NS2, mocks2)
+
+  assertFalse(AceGUI.WidgetRegistry["LSM30_Border"] == upstream,
+    "settings/OptionsSetup.lua's live arm never called lib.__PatchLSM30Border()")
+  assertEqual(AceGUI:GetWidgetVersion("LSM30_Border"), 21,
+    "the wrapper must register one version above what it wrapped, to win the race")
+
+  -- The sentinel is set, so a second caller in the same session -- a sibling addon's copy of the
+  -- library, which LibStub hands the same instance -- registers nothing.
+  local lib = mocks2.LibStub("LibKa0s-Options-1.0")
+  assertFalse(lib.__PatchLSM30Border(), "the second call must be a no-op")
+  assertEqual(AceGUI:GetWidgetVersion("LSM30_Border"), 21, "and must leave the registration alone")
+end)

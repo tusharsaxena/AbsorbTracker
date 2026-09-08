@@ -362,6 +362,36 @@ end
 -- The live wiring
 -- ---------------------------------------------------------------------
 
+-- ── the LSM30_Border widget fixup ──────────────────────────────────────────────────────────────
+--
+-- A LIBRARY ACT, NOT AN INSTANCE ONE, and that is the whole reason it moved here. AceGUI's
+-- WidgetRegistry is process-global: one slot named "LSM30_Border" shared by every addon in the
+-- client, Ka0s or not. This addon and four siblings each carried a private copy of the same wrapper
+-- in core/LSMPatch.lua, each registering at whatever version it found plus one — so a client
+-- running all five stacked five wrappers, and the outermost belonged to whichever addon the loader
+-- happened to reach last. Nothing could see that: each addon's own suite loads one copy, registers
+-- once and passes.
+--
+-- `lib.__PatchLSM30Border` (LibKa0s-Options-1.0 minor 15) is the same wrapper published once,
+-- guarded by lib.__lsmBorderPatched. Five vendored copies of the library are still ONE library
+-- instance to LibStub, so five callers produce one registration and the return value tells you
+-- which call did it. Calling it is therefore unconditional and needs no coordination with anybody.
+--
+-- HERE, AT FILE LOAD, is early enough and is not fragile. AbsorbTracker.toc pulls
+-- libs\AceGUI-3.0-SharedMediaWidgets\widget.xml in with the other libraries, so the slot already
+-- holds AGSMW's own constructor by the time this line runs; and AceGUI:RegisterWidgetType refuses a
+-- version that is not strictly higher than the one it holds, so another addon's later-loading copy
+-- of AGSMW cannot take the slot back at its own fixed version. It lives in this file rather than a
+-- second one because this is where the addon's options surface is wired, which is where the
+-- library's own note on the member says to call it from.
+--
+-- core/LSMPatch.lua IS STILL ON DISK AND STILL CALLED from core/AbsorbTracker.lua's OnEnable, on
+-- purpose. Its wrapper hides the same tile and re-anchors the same two regions, so running after
+-- this one is a no-op in effect rather than a conflict, and it is the fallback while the promoted
+-- surface has not yet been seen working in a client with all five copies present. It comes out
+-- last of the five, after that check.
+lib.__PatchLSM30Border()
+
 -- NS.Helpers IS the library instance, not a table decorated from it. Two things then hold that a
 -- copy-across would break: settings/UnitPanel.lua and settings/About.lua decorate the same table
 -- the library's own members live on (so RenderUnitPanel can call RenderRows through `Helpers` like

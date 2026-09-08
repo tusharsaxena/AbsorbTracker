@@ -415,13 +415,14 @@ badge and any count quoted in the docs must agree with it.
 - /at resetposition does not claim success when the settings helpers are absent
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_optionssetup.lua (5)
+### test_optionssetup.lua (6)
 
 - the live and degraded builds veto exactly the same rows from Reset All
 - the degraded stub publishes LSMValues, the one member reached at file load
 - the degraded stub publishes the five composers, the other load-time members
 - the degraded stub keeps no private copy of the library's layout constants
 - PARENT_TITLE reaches the library through the descriptor, not the namespace
+- the live arm patches LSM30_Border through the library, not through a private copy
 
 ### test_slashcmds.lua (111)
 
@@ -647,7 +648,7 @@ badge and any count quoted in the docs must agree with it.
 | test_data.lua | 31 |
 | test_display.lua | 53 |
 | test_helpers.lua | 56 |
-| test_optionssetup.lua | 5 |
+| test_optionssetup.lua | 6 |
 | test_slashcmds.lua | 111 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 2 |
@@ -655,4 +656,4 @@ badge and any count quoted in the docs must agree with it.
 | test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
 | test_eol.lua | 1 |
-| **Total** | **549** |
+| **Total** | **550** |

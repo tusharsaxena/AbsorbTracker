@@ -244,6 +244,36 @@ all five, so step 106 runs two.
      **`perf run CANCELED`**. A double-L in either is a copy of the string that did not come from
      the vendored payload.
 
+### Q. The LSM30_Border patch, promoted to LibKa0s
+
+**Smoke, session 5.** Run after `M4-02` puts `lib.__PatchLSM30Border()` into
+`settings/OptionsSetup.lua`'s live arm, and again after **each** of the five `core/LSMPatch.lua`
+deletions (`M4-04`…`M4-08`) — AbsorbTracker's copy is the last of the five to go.
+
+AceGUI's `WidgetRegistry` is process-global, so the thing under test is not this addon. It is what
+five Ka0s addons do to **one** registry slot in **one** client. Each of the five used to register
+its own wrapper at whatever version it found plus one, so the wrapper a Border dropdown actually got
+belonged to whichever addon the client loaded last. No headless suite in any of the five repos can
+see that: each one loads a single copy, registers once and passes. Section E's steps 21 and 22 check
+the alignment with AbsorbTracker alone, which is exactly the check that stayed green through the
+defect.
+
+Right now this addon is doubly covered on purpose — the library call runs at settings file load and
+`core/LSMPatch.lua`'s `NS.ApplyLSMBorderPatch()` still runs at `OnEnable`. Both hide the same tile
+and re-anchor the same two regions, so the second is a no-op in effect. The step below must pass
+with the private copy present **and** after it is deleted; a difference between those two runs is
+the finding.
+
+107. **Every Border dropdown is the same control, whatever loaded last.** Enable KickCD,
+     PanelMaster, AbsorbTracker, ConsumableMaster and MultiMeters together. Open each addon's Border
+     dropdown in turn — for this one, `/at config` → **Appearance** → *Border* → **Border style**.
+     In all five: the closed control's left edge is **flush** with the sliders and checkboxes
+     stacked with it, with **no ~42px gap**, and opening it still draws the per-row hover previews.
+     Then change the load order — disable and re-enable addons, or rename folders so a different one
+     is reached last — `/reload`, and walk the five dropdowns again. **Any dropdown that looks
+     different from the other four, or that changes between the two passes, is the finding**; the
+     whole point of the promotion is that the answer no longer depends on load order.
+
 ### Triage references (if a step fails)
 - Bootstrap / events / profile repaint — `core/AbsorbTracker.lua` (`OnEnable`, `OnProfileChanged`)
 - TOC metadata (the `/at version` string, the About page's Notes blurb) — `LibKa0s-Env-1.0` (`libs/LibKa0s/Env.lua`), wired by `core/EnvSetup.lua` as `NS.Meta` / `NS.Version`
