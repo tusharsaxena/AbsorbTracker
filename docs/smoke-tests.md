@@ -283,6 +283,38 @@ what turn "one of them is wrong" into "this one is wrong".
      different from the other four, or that changes between the two passes, is the finding**; the
      whole point of the promotion is that the answer no longer depends on load order.
 
+### R. The v3 lift, after `migrateAllProfiles` became one call
+
+**Smoke, session 5. NOT YET RUN — no WoW client was available when `M4-20` landed.** Folded into
+session 5 because that is the outstanding client run in this repo, not because it has anything to do
+with the Border patch.
+
+`M4-20` reduced `core/Database.lua`'s `migrateAllProfiles` to `forEachProfile(NS.MigrateProfileToV3)`.
+The two were the same store walk written twice, down to a byte-identical four-line comment about
+`db.sv.profiles`; the only real difference was that the old copy skipped the active profile with an
+inline note saying the skip was redundant anyway, and `forEachProfile` skips it in the same place.
+So this is behavior-identical by inspection, and `tests/test_database.lua`'s multi-profile cases —
+"an inactive pre-v3 profile must be lifted too" and the `lifted 2 profile(s) to v3` line — hold it
+that way headlessly.
+
+What headless cannot reach is the store the walk actually walks. The suite hands it a mock AceDB;
+in a client, `NS.db.sv.profiles` is real AceDB-3.0's name → profile-table map, and `NS.db.profile`
+is a metatable-backed view whose identity against the entries in that map is what the skip compares.
+A walk that got that identity wrong would migrate the active profile twice — harmless, because
+`MigrateProfileToV3` stamps what it lifts — or, if the store lookup silently returned nothing, would
+migrate only the active profile and report a lower count. **The count is the tell**, which is why
+this step reads the console rather than the bar.
+
+108. **The `[Migrate]` output is what it was before the collapse.** Log out. In
+     `WTF/Account/<acct>/SavedVariables/AbsorbTracker.lua`, add a second profile block carrying a
+     flat `["barWidth"] = 333,` and `["schemaVersion"] = 1,` and **no `units` table** — a
+     hand-made pre-v3 profile, which is the only thing that makes the lift do work. Log in with a
+     different profile active, `/at debug on`, `/reload`, and read the console. Expect the
+     `[Migrate] lifted N profile(s) to v3` line with **N counting the hand-made profile**, followed
+     by the `vX → vY` ladder in the same order as before. Then `/at profile use <the hand-made
+     profile>` and `/at get units.player.barWidth` → **333**. A missing `lifted` line, an N that
+     does not count the inactive profile, or a width of 200 is the finding.
+
 ### Triage references (if a step fails)
 - Bootstrap / events / profile repaint — `core/AbsorbTracker.lua` (`OnEnable`, `OnProfileChanged`)
 - TOC metadata (the `/at version` string, the About page's Notes blurb) — `LibKa0s-Env-1.0` (`libs/LibKa0s/Env.lua`), wired by `core/EnvSetup.lua` as `NS.Meta` / `NS.Version`

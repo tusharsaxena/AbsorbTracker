@@ -23,7 +23,7 @@ badge and any count quoted in the docs must agree with it.
 - loadorder: LibStub returns nil for a missing major with the silent flag
 - loadorder: LibStub keeps the higher minor when a major registers twice
 
-### test_schema.lua (45)
+### test_schema.lua (44)
 
 - FormatSchemaValue formats by type
 - SchemaForPage keeps groups in registration order, which IS the Appearance tab strip
@@ -59,7 +59,6 @@ badge and any count quoted in the docs must agree with it.
 - ValidateSchema resolves nested paths against defaults.profile
 - SchemaForPage with no unit returns every unit's rows
 - SchemaForPage filtered to a unit excludes the other units' rows
-- PartitionUnitRows splits alwaysPerUnit rows from the mirrored appearance rows
 - the appearance page carries a full row set for all three units
 - each unit's row set for a page is the same size
 - the enable row is per-unit, lives on General, and survives mirroring
@@ -633,7 +632,7 @@ badge and any count quoted in the docs must agree with it.
 | Suite | Cases |
 |-------|------:|
 | test_loadorder.lua | 14 |
-| test_schema.lua | 45 |
+| test_schema.lua | 44 |
 | test_database.lua | 31 |
 | test_units.lua | 15 |
 | test_envsetup.lua | 6 |
@@ -656,4 +655,4 @@ badge and any count quoted in the docs must agree with it.
 | test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
 | test_eol.lua | 1 |
-| **Total** | **550** |
+| **Total** | **549** |

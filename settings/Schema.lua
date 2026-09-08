@@ -96,20 +96,6 @@ function NS.SchemaForPage(pageKey, unit)
     return out
 end
 
---- Split a unit page's rows into those that stay editable while mirrored (alwaysPerUnit — the
---- enable toggle) and the appearance rows the mirror hides. Pure; unit-tested.
-function NS.PartitionUnitRows(rows)
-    local perUnit, styled = {}, {}
-    for _, row in ipairs(rows) do
-        if row.alwaysPerUnit then
-            perUnit[#perUnit + 1] = row
-        else
-            styled[#styled + 1] = row
-        end
-    end
-    return perUnit, styled
-end
-
 -- ---------------------------------------------------------------------
 -- Dotted-path walkers
 -- ---------------------------------------------------------------------

@@ -197,14 +197,6 @@ NS.SchemaForPage(pageKey, unit)         -> { rows }   -- groups kept in first-se
                                                               -- get every unit's rows (what
                                                               -- RestoreDefaults / RestoreAllDefaults
                                                               -- / `/at list` want).
-NS.PartitionUnitRows(rows)              -> perUnit, styled   -- splits a unit page's rows into
-                                                              -- alwaysPerUnit rows (stay editable
-                                                              -- while mirrored) vs. the appearance
-                                                              -- rows the mirror hides. NO PRODUCTION
-                                                              -- CALLER since the mirrored state
-                                                              -- became a hint under the strip;
-                                                              -- exercised only by
-                                                              -- tests/test_schema.lua
 
 -- Dotted-path walkers (per-unit settings live at units.<unit>.<key>; flat keys pass through
 -- unchanged so the flat globals need no special case)
@@ -262,7 +254,7 @@ here instead of being rediscovered from three files.
 |-------|--------|-----|
 | **`NS.Units.Get(unit, key)`** (`core/Units.lua`) | **Resolved** — follows the mirror. While `units.focus.mirror` is true it returns the **player's** value. | This is what the bar renders. `modules/Bar.lua`, `modules/Display.lua` and `core/Data.lua` read appearance *only* through here, so "mirror the player" lives in exactly one place. |
 | **`NS.GetSetting(path)`** (`core/Data.lua`) | **Stored** — `ResolvePath(db.profile, path)`, mirror ignored. Returns focus's *own* saved `barWidth`, whatever the bar is currently showing. | It is the read half of the same seam `/at set` writes through. Resolving on read would make `get` and `set` asymmetric: `/at set units.focus.barWidth 400` followed by `/at get units.focus.barWidth` would echo the player's number. `NS.Units.Set` is deliberately unresolved for the same reason — a write while mirrored must never silently edit the *player's* bar. |
-| **The panel** (`Helpers.RenderUnitPanel`) | **Hidden** — while a unit is mirrored its appearance rows are not rendered at all; the chrome block and the tab strip are drawn exactly as they are for any other unit, and a one-line hint takes the rows' place. | The stored value is not what the user would see on screen, so offering a widget for it would be a lie. `Helpers.RenderUnitPanel` makes that call directly off `NS.Units.IsMirrored(ctx.unit)`; `NS.PartitionUnitRows` is the row-level split it no longer needs, and has no production caller left. |
+| **The panel** (`Helpers.RenderUnitPanel`) | **Hidden** — while a unit is mirrored its appearance rows are not rendered at all; the chrome block and the tab strip are drawn exactly as they are for any other unit, and a one-line hint takes the rows' place. | The stored value is not what the user would see on screen, so offering a widget for it would be a lie. `Helpers.RenderUnitPanel` makes that call directly off `NS.Units.IsMirrored(ctx.unit)` and hides the whole row set, so there is no row-level split to apply — `NS.PartitionUnitRows`, which was that split, is gone. |
 
 The seam is only dangerous where it is **silent**, so the slash surface says so out loud: `/at get`,
 `/at set` and `/at list` append a subordinate gray `(mirrored — the bar shows Player's appearance)`

@@ -88,33 +88,10 @@ function NS.MigrateProfileToV3(profile)
     return lifted
 end
 
--- Lift EVERY profile in the saved store, not just whichever one happens to be active at InitDB.
--- Without this, a user with "Default" and "Raid" who upgrades while on Default migrates Default,
--- flips the account-wide stamp, and Raid's flat barWidth / barColor / position become unreachable
--- forever — their raid layout silently reverts to factory defaults.
-local function migrateAllProfiles()
-    local n = 0
-    if NS.MigrateProfileToV3(NS.db.profile) then n = n + 1 end
-
-    -- AceDB-3.0 keeps the raw name -> profile-table map at db.sv.profiles. Guarded rather than
-    -- assumed: the no-AceDB fallback (NS.db = { profile = AbsorbTrackerDB, global = {} }) has no
-    -- `sv` at all, and there the single profile handled above IS the whole store.
-    local sv = NS.db.sv
-    local store = (type(sv) == "table") and sv.profiles or nil
-    if type(store) == "table" then
-        for _, p in pairs(store) do
-            -- Skip the active profile: already done above, and MigrateProfileToV3's own stamp
-            -- would make a second pass a no-op anyway.
-            if p ~= NS.db.profile and NS.MigrateProfileToV3(p) then n = n + 1 end
-        end
-    end
-    return n
-end
-
--- Run `fn(profile)` over EVERY profile in the store, not just the active one. Same reasoning as
--- migrateAllProfiles: a change made only to the profile that happens to be loaded is a change an
--- inactive profile silently undoes the moment the user switches to it. `fn` returns true when it
--- actually changed that profile; the count of those is what a [Migrate] line may report.
+-- Run `fn(profile)` over EVERY profile in the store, not just the active one: a change made only
+-- to the profile that happens to be loaded is a change an inactive profile silently undoes the
+-- moment the user switches to it. `fn` returns true when it actually changed that profile; the
+-- count of those is what a [Migrate] line may report.
 local function forEachProfile(fn)
     local n = 0
     if fn(NS.db.profile) then n = n + 1 end
@@ -132,6 +109,15 @@ local function forEachProfile(fn)
         end
     end
     return n
+end
+
+-- Lift EVERY profile in the saved store, not just whichever one happens to be active at InitDB.
+-- Without this, a user with "Default" and "Raid" who upgrades while on Default migrates Default,
+-- flips the account-wide stamp, and Raid's flat barWidth / barColor / position become unreachable
+-- forever — their raid layout silently reverts to factory defaults. The active profile needs no
+-- guard against a second pass: MigrateProfileToV3 stamps what it lifts, so a repeat is a no-op.
+local function migrateAllProfiles()
+    return forEachProfile(NS.MigrateProfileToV3)
 end
 
 -- Delete one dead profile key from every profile. Returns how many actually carried it.

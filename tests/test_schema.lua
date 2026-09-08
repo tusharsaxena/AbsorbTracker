@@ -1,7 +1,6 @@
 local T = _G.AT_TEST
 local NS = T.NS
-local test, assertEqual, assertTrue, assertFalse =
-  T.test, T.assertEqual, T.assertTrue, T.assertFalse
+local test, assertEqual, assertTrue = T.test, T.assertEqual, T.assertTrue
 
 -- The type-aware parser is LibKa0s-Slash-1.0's now (`lib.ParseValue`), and its cases live in that
 -- repo's tests/test_slash.lua — the bool vocabulary, the clamp, the case-sensitive enum, the
@@ -528,18 +527,6 @@ test("SchemaForPage filtered to a unit excludes the other units' rows", function
   -- excluded — which is false here, so this also catches that no-op).
   assertTrue(#focusRows < #all,
     "the focus-filtered set must be strictly smaller than the unfiltered set")
-end)
-
-test("PartitionUnitRows splits alwaysPerUnit rows from the mirrored appearance rows", function()
-  local rows = {
-    { path = "units.focus.enabled",  alwaysPerUnit = true },
-    { path = "units.focus.barWidth" },
-    { path = "units.focus.barColor" },
-  }
-  local perUnit, styled = NS.PartitionUnitRows(rows)
-  assertEqual(#perUnit, 1)
-  assertEqual(perUnit[1].path, "units.focus.enabled")
-  assertEqual(#styled, 2)
 end)
 
 test("the appearance page carries a full row set for all three units", function()
