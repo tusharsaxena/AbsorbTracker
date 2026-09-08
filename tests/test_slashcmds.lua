@@ -1026,11 +1026,19 @@ test("/at perf bare reports the armed window", function()
 end)
 
 test("the perf usage block documents the measure workflow", function()
+  -- This block is LibKa0s-Perf's text, printed through this addon's slash handler, so what is
+  -- pinned here has to be the CONCEPT rather than the sentence. It asserted the exact phrase
+  -- "suspends the addon first" until v1.28.0 reworded the block, and went red on a re-vendor that
+  -- had changed nothing about this addon -- a case that fails when an upstream sentence is edited
+  -- is reporting on the wrong thing.
+  --
+  -- What matters is that the block names the two experiments, says what B changes (the addon is
+  -- suspended) and says what report does. Any wording that does those things should pass.
   perfReset()
   local out = slash("perf")
   assertTrue(contains(out, "measure a"), "lists measure a")
   assertTrue(contains(out, "measure b"), "lists measure b")
-  assertTrue(contains(out, "suspends the addon first"), "explains what measure b changes")
+  assertTrue(contains(out, "suspend"), "explains what measure b changes")
   assertTrue(contains(out, "opens the log window"), "and what report does")
 end)
 
