@@ -601,10 +601,11 @@ badge and any count quoted in the docs must agree with it.
 - the main page's About content renders on its first OnShow
 - re-rendering the About page replaces its body rather than stacking a second copy
 
-### test_docs.lua (3)
+### test_docs.lua (4)
 
 - README.md carries no angle-bracket argument placeholders
 - every Tier 2 documentation-map row agrees with docs/
+- every deviation id the register cites is assigned by a bundle in docs/audits/
 - the addon's own files use US spellings
 
 ### test_ltrap.lua (8)
@@ -657,9 +658,9 @@ badge and any count quoted in the docs must agree with it.
 | test_optionssetup.lua | 6 |
 | test_slashcmds.lua | 111 |
 | test_widgets.lua | 55 |
-| test_docs.lua | 3 |
+| test_docs.lua | 4 |
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
 | test_eol.lua | 1 |
-| **Total** | **556** |
+| **Total** | **557** |
