@@ -138,6 +138,7 @@ profile", or swapped out by a profile switch.
 | Stamp | Addon version | Label | What it measured | Bundle |
 |---|---|---|---|---|
 | `20260807-125002` | 1.9.0 | `2026-08-07 12:47` | First in-game capture. Murder Row, party of 5, 26.6 s active arm: **0.34 ms/s** of accounted addon cost. Frame-time delta **unresolved** (−0.18 ms/frame, backwards-signed — two loading screens and a 62 s gap between the arms). `appearance` never fired. | [20260807-125002](20260807-125002/ANALYSIS.md) |
+| `20260909-013016` | 1.9.0 | `2026-09-09 01:24` | Solo, Silvermoon City — The Bazaar, 90.7 s active arm: **0.14 ms/s** of accounted addon cost, 0.014% of a 13.05 ms frame. Frame-time delta **unresolved** (+0.26 ms/frame — inside the floor, so its sign carries no information either; no reload or zone change between the arms). First capture in which `paintBar`'s nesting inside `repaintPass` is **observed** rather than declared. `appearance` never fired, for the second run running. | [20260909-013016](20260909-013016/ANALYSIS.md) |
 
 ## Field notes
 
@@ -152,6 +153,10 @@ profile", or swapped out by a profile switch.
   per-frame cost of the addon being active, with load order and shared-frame ownership held fixed by
   suspend rather than by disabling the addon. It reports `0` unless **both** arms were sampled; with
   one arm empty a subtraction would bill the entire frame time to the addon.
+- **`observedWithin` is what turns a nesting claim into a measurement.** A bucket carrying only
+  `within` is repeating the descriptor; one carrying `observedWithin` was measured inside that
+  parent at the call site. `20260909-013016` is the first capture in this store where `paintBar`
+  carries it, so it is the first whose parent total may be trusted to already contain the child.
 - **`buckets[*].totalMs` is Lua execution time only.** It does not include client-side cost behind a
   WoW API call.
 - **Buckets nest — never sum the column.** `within` names the declared parent; an analysis says
