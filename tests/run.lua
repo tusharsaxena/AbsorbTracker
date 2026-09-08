@@ -38,6 +38,22 @@ NS:InitDB()
 -- AceDBOptions / AceConfigDialog, which are not mocked.
 NS.CreateOptionsPanel()
 
+-- Where Kit.assertSurfaceParity's by-name form looks the LIVE half up (kit 15, vendored by M4-01).
+-- Registered explicitly, and the explicitness is the point. Kit.expose auto-wires the mock's
+-- LibStub for a repo whose stubs mirror LIBRARY TABLES; all three of this addon's library-backed
+-- degradation stubs mirror an INSTANCE instead -- what `lib:New(descriptor)` returned. Left to the
+-- auto-wiring, "LibKa0s-Options-1.0" resolves the four-member library table (LAYOUT, New,
+-- PatchAlwaysShowScrollbar, STRINGS) rather than the surface the page files actually call, and
+-- tests/test_surface_parity.lua goes red naming three members no stub was ever meant to carry.
+--
+-- Set BEFORE Kit.expose, which is what makes it stick: expose registers a source only when none is
+-- registered yet, precisely so a runner like this one keeps its own.
+Kit.setSurfaceSource{
+  ["LibKa0s-Options-1.0"]  = NS.Helpers,
+  ["LibKa0s-DebugLog-1.0"] = NS.DebugLog,
+  ["LibKa0s-Slash-1.0"]    = NS.Slash and NS.Slash.__cli,
+}
+
 -- Kit.expose merges `test` and the assertions in, so the key set every existing suite file reads is
 -- unchanged by the move to the shared harness.
 _G.AT_TEST = Kit.expose{
