@@ -14,7 +14,7 @@
 -- away from it in the one way that shows: it never cleared the scroll, so every
 -- re-render stacked a second logo, description and command list under the first.
 
-local addonName, NS = ...
+local _, NS = ...
 
 local Helpers = NS.Helpers
 

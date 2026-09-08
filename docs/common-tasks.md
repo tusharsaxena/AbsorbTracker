@@ -25,7 +25,7 @@ The schema-driven design makes a flat setting a one-row change. The widget on th
 
    ```lua
    -- settings/General.lua
-   local addonName, NS = ...
+   local _, NS = ...
    local flatDefaults = NS.flatDefaults
 
    NS.RegisterSchemaRows({
@@ -108,7 +108,9 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
 1. **Create `settings/<NewPage>.lua`** with the standard shape:
 
    ```lua
-   local addonName, NS = ...
+   -- `_`, not `addonName`: a settings page never reads the addon folder name, and binding a
+   -- local nothing reads is a `211` that lint reports (see docs/module-map.md, "The `NS` bus").
+   local _, NS = ...
    local flatDefaults = NS.flatDefaults
 
    NS.RegisterSchemaRows({

@@ -229,7 +229,11 @@ test("every persisted profile default is reachable from a schema row", function(
   local paths = {}
   for _, row in ipairs(NS.Schema) do paths[row.path] = true end
   for key, val in pairs(NS.defaults.profile) do
-    if EXEMPT[key] then -- luacheck: ignore
+    -- 542 by name, not a bare `-- luacheck: ignore`: bare silences EVERY code on the line,
+    -- so a genuine finding here would go quiet too. The empty branch is the point -- an
+    -- exempt key is asserted about in neither direction -- and spelling it as a first arm
+    -- keeps the three cases (exempt / units / flat) readable as one list.
+    if EXEMPT[key] then -- luacheck: ignore 542
       -- bookkeeping, not a setting
     elseif key == "units" then
       for unitName, unitDefaults in pairs(val) do

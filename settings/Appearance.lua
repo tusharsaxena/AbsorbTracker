@@ -67,7 +67,7 @@
 -- (settings/Schema.lua: SchemaForPage). The `default =` values come from NS.unitDefaults so all
 -- three units share one canonical default.
 
-local addonName, NS = ...
+local _, NS = ...
 
 local unitDefaults = NS.unitDefaults
 

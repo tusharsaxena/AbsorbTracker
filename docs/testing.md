@@ -24,6 +24,37 @@ different checkpoint (`automated-tests-§3`, *The release gate*):
 
 Both are documented in [performance.md](./performance.md).
 
+### What the lint gate is a statement about (lint-§1)
+
+`luacheck .` reading `0 warnings / 0 errors` is only worth something if the configuration is not the
+reason it reads that way. `.luacheckrc` therefore sets **no top-level `ignore`**, and
+`tests/test_lintconfig.lua` is the four-case gate that keeps it that way:
+
+| Case | What it refuses |
+|------|-----------------|
+| no top-level `ignore` | any `ignore` at the top of `.luacheckrc` — it reaches all 54 files whatever it names, so naming the variable does not rescue it |
+| no wholesale class switch | `unused_args = false` and eight relatives, which is the same blanket spelled as a switch |
+| every `files[...]` ignore is narrow | a stanza keyed to a directory whose entries name no variable |
+| no bare inline directive | `-- luacheck: ignore` with no code after it, which silences every code on the line rather than the one that was meant |
+
+It loads `.luacheckrc` as Lua under a sandbox rather than scanning it as text, so what it inspects is
+the table luacheck obeys and not a spelling a text scan would miss. It **fails rather than skips**
+when it cannot look — no config, no `io.popen`, no git — on the same bargain
+`tests/_kit/test_eol.lua` strikes.
+
+What survives suppression, and where: three `files[...]` stanzas naming one file each
+(`core/AbsorbTracker.lua`, `core/Database.lua`, `settings/Slash.lua`), every entry written
+`212/self`, each covering a receiver a calling convention forces on a body that has no use for it;
+plus one `-- luacheck: ignore 542` on the exempt-key branch in `tests/test_schema.lua`, the
+repository's only empty branch. The reasoning for each sits in the comment above it in
+`.luacheckrc`.
+
+This replaced `ignore = { "212/self", "212/event", "211/addonName", "431" }`, removed by `M4c-06`.
+Removing those four lines reported **32 findings**, and **19 were real defects**, not conventions:
+nineteen files bound an `addonName` they never read, and all nineteen now open `local _, NS = ...`.
+Two of the four entries were silencing nothing at all — this tree produces no `212/event`, and
+`431` is shadowing an *upvalue*, which is not what its comment claimed it was for.
+
 Toolchain: Lua 5.1 + luacheck + lizard. The full list — what each one is needed for, the evidence
 for it, the WSL2/Ubuntu install command and a one-line verification per tool — lives in the root
 **[DEPENDENCIES.md](../DEPENDENCIES.md)** (documentation-§7). That file answers *what to install*;

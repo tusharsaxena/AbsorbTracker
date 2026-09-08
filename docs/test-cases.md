@@ -632,6 +632,13 @@ badge and any count quoted in the docs must agree with it.
 - libs/LibKa0s is the LibKa0s release CLAUDE.md says this addon bundles
 - tests/_kit is the test kit that shipped with that release
 
+### test_lintconfig.lua (4)
+
+- lintconfig: .luacheckrc sets no top-level ignore
+- lintconfig: .luacheckrc switches no warning class off wholesale
+- lintconfig: every files[...] ignore is narrowed to a file or a name
+- lintconfig: no source file carries a bare inline luacheck ignore
+
 ### test_eol.lua (1)
 
 - eol: every tracked file carries the terminator .gitattributes declares for it
@@ -663,5 +670,6 @@ badge and any count quoted in the docs must agree with it.
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
+| test_lintconfig.lua | 4 |
 | test_eol.lua | 1 |
-| **Total** | **558** |
+| **Total** | **562** |

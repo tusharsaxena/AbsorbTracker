@@ -25,8 +25,15 @@ deep-copies once, then the unit diverges). Position is saved per-profile via Ace
 only (Interface 120007), English only.
 
 The addon is an **AceAddon** (`core/AbsorbTracker.lua`) mixing in AceEvent / AceTimer / AceConsole.
-`local addonName, NS = ...` is the shared private namespace bus in every file; there is no
-`_G[addonName]` table.
+`NS`, the second of the two varargs the client hands every TOC-loaded file, is the shared private
+namespace bus in every file; there is no `_G[addonName]` table. The FIRST vararg is the addon folder
+name, and only seven files read it, so only those seven bind it: `core/Namespace.lua`,
+`core/EnvSetup.lua`, `core/CoreSetup.lua`, `core/MediaSetup.lua`, `core/DebugLogSetup.lua`,
+`core/PerfSetup.lua` and `core/AbsorbTracker.lua` open `local addonName, NS = ...` because each
+hands the folder name to a vendored library that cannot infer which folder it was copied into. The
+other nineteen open `local _, NS = ...`. That is not a style split: binding a name nothing reads is
+what `M4c-06` found nineteen of behind the blanket `211/addonName` ignore, and `_` is the spelling
+that keeps luacheck able to say so the next time.
 
 ## Module Map
 

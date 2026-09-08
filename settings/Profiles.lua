@@ -9,7 +9,7 @@
 -- Optional dependency: if AceDBOptions / AceConfigDialog isn't loaded
 -- the page is skipped silently.
 
-local addonName, NS = ...
+local _, NS = ...
 
 local APPNAME = "AbsorbTracker-Profiles"
 

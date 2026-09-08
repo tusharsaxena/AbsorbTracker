@@ -70,7 +70,7 @@ The array itself and its helpers live in `settings/Schema.lua` (`NS.Schema`). Th
 `settings/General.lua` registers `H.MasterControls`'s composed block **first**, then loops `NS.Units.LIST` for one `units.<unit>.enabled` toggle per unit (the only unit-scoped rows outside the Appearance page), then the throttle. That order is load-bearing rather than tidy: options-ui-§15 requires `Master controls` to be the **first** tab, and the strip's order is the order each group's first row was registered. `settings/Appearance.lua` instead defines an `addUnitRows(unit)` function and calls it once per tracked unit:
 
 ```lua
-local addonName, NS = ...
+local _, NS = ...
 local unitDefaults = NS.unitDefaults
 
 local function addUnitRows(unit)

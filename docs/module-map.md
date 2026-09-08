@@ -4,13 +4,16 @@ The `NS` bus, the public APIs each module publishes, and the load-order rules. P
 
 ## The `NS` bus
 
-Every Lua file begins with:
+Every Lua file begins by taking `NS` off the vararg pair, and binds the folder name beside it only if it reads it:
 
 ```lua
-local addonName, NS = ...
+local _, NS = ...          -- the nineteen files that never read the folder name
+local addonName, NS = ...  -- the seven that hand it to a vendored library
 ```
 
-`...` is the WoW-supplied vararg pair. **`NS` is the same table for every file in this addon**, so writing `NS.foo = ...` in one file makes it readable from any other file loaded afterward. `NS` is the addon's single private table — there is no `_G[addonName]`.
+`...` is the WoW-supplied vararg pair: the addon FOLDER name, then the shared table. **`NS` is the same table for every file in this addon**, so writing `NS.foo = ...` in one file makes it readable from any other file loaded afterward. `NS` is the addon's single private table — there is no `_G[addonName]`.
+
+The seven that bind `addonName` are `core/Namespace.lua` (which stamps it onto `NS.name`), `core/EnvSetup.lua`, `core/CoreSetup.lua`, `core/MediaSetup.lua`, `core/DebugLogSetup.lua`, `core/PerfSetup.lua` and `core/AbsorbTracker.lua`. Every one of them passes it to a vendored LibKa0s entry point or to `AceAddon:NewAddon` — a copied library cannot infer which addon folder it was copied into, so the host has to say. Everywhere else the name is `_`, because a bound local nothing reads is dead code that luacheck reports as `211`, and `M4c-06` removed the blanket ignore that had been hiding nineteen of them.
 
 `NS` is also the AceAddon object. `core/AbsorbTracker.lua` promotes the bootstrap table:
 
@@ -754,7 +757,7 @@ Every non-vendored file, by directory. Folded in from the retired `file-index.md
 
 Where each responsibility lives in the source tree. Match this map to the actual files before editing — `AbsorbTracker.toc` is the source of truth for load order.
 
-The tree is modular (Ka0s standard): `core/` (bootstrap + data + infrastructure), `defaults/` (AceDB defaults), `locales/` (strings), `modules/` (the bar runtime), `settings/` (schema + slash CLI + the panel wiring and the two bespoke renderers), `tests/` (headless harness). Every file opens with `local addonName, NS = ...`; `NS` is the single shared private table, promoted to an AceAddon object in `core/AbsorbTracker.lua`.
+The tree is modular (Ka0s standard): `core/` (bootstrap + data + infrastructure), `defaults/` (AceDB defaults), `locales/` (strings), `modules/` (the bar runtime), `settings/` (schema + slash CLI + the panel wiring and the two bespoke renderers), `tests/` (headless harness). Every file opens by taking `NS` off the vararg pair — `local _, NS = ...`, or `local addonName, NS = ...` in the seven files that read the folder name (see [The `NS` bus](#the-ns-bus)); `NS` is the single shared private table, promoted to an AceAddon object in `core/AbsorbTracker.lua`.
 
 ### locales/
 

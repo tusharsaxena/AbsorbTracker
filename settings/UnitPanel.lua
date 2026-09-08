@@ -12,7 +12,7 @@
 -- (settings/OptionsSetup.lua). Decorating it rather than sitting beside it is what lets a page file
 -- call H.RenderUnitPanel and H.RenderSchema without knowing or caring which is which.
 
-local addonName, NS = ...
+local _, NS = ...
 
 local Helpers = NS.Helpers
 

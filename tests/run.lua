@@ -98,6 +98,7 @@ Kit.run{
     "test_ltrap",
     "test_surface_parity",
     "test_vendor_sync",
+    "test_lintconfig",
     -- Shipped in the kit, so every consumer inherits the gate instead of re-typing it; the
     -- inventory assertion goes red in any repo that vendors it and leaves it undeclared.
     { name = "test_eol", dir = "tests/_kit/" },

@@ -3,7 +3,7 @@
 -- General sub-page — what `/at config` opens by default. The addon-wide controls, which bars exist,
 -- and how the ones that do behave.
 
-local addonName, NS = ...
+local _, NS = ...
 
 local print = NS.Print
 
