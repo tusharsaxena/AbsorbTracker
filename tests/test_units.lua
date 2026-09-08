@@ -129,6 +129,32 @@ test("CopyFromPlayer is a no-op for the player itself", function()
   end)
 end)
 
+test("CopyFromPlayer writes through the settings seam, so the log sees all twenty", function()
+  -- ABSORBTRACKER-R-02 (debug-logging-§10). The cases above assert the VALUES land, and they
+  -- passed while CopyFromPlayer assigned `dst[key]` directly — which is why none of them could see
+  -- that the largest single act on the Appearance page produced no `[Set]` line at all. The write
+  -- seam is where every mutation is supposed to become visible; a twenty-value act that skips it is
+  -- the one a bug report most needs the log to explain.
+  -- red under: putting the direct `dst[key] = deepcopy(src[key])` writes back in core/Units.lua.
+  withUnits(function()
+    NS.db.profile.units.focus.mirror = true
+    local before = #NS.DebugLog.buffer
+    NS.State.debug = true
+    local ok, err = pcall(NS.Units.CopyFromPlayer, "focus")
+    NS.State.debug = false
+    assertTrue(ok, "CopyFromPlayer raised: " .. tostring(err))
+    local logged = {}
+    for i = before + 1, #NS.DebugLog.buffer do
+      local key = NS.DebugLog.buffer[i]:match("units%.focus%.(%w+) =")
+      if key then logged[key] = true end
+    end
+    for _, key in ipairs(NS.Units.APPEARANCE_KEYS) do
+      assertTrue(logged[key], key .. " was copied without a [Set] line")
+    end
+    assertTrue(logged.mirror, "and clearing the mirror is a settings write too")
+  end)
+end)
+
 test("IsEnabled reads the per-unit flag and ignores the global hidden toggle", function()
   withUnits(function()
     local savedHidden = NS.db.profile.hidden

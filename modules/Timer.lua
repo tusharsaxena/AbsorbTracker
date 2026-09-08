@@ -54,7 +54,10 @@ function NS.RequestRepaint()
     -- exists to zero out.
     if Perf.suspended then return end
     if pending then return end            -- a repaint is already queued; coalesce into it
-    pending = NS.addon:ScheduleTimer(doRepaint, NS.GetSetting("throttleWindow"))
+    -- The CLAMPED read (core/Data.lua), not the raw setting. This number goes straight into
+    -- AceTimer, which COMPARES it against 0.01 before it stores it, so a hand-edited
+    -- SavedVariables string raises inside ScheduleTimer and takes every later repaint with it.
+    pending = NS.addon:ScheduleTimer(doRepaint, NS.GetThrottleWindow())
 end
 
 --- Drop any queued repaint. Used by the perf probe's suspend path so a pass armed a moment before

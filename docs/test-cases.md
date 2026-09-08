@@ -104,7 +104,7 @@ badge and any count quoted in the docs must agree with it.
 - a fresh install logs no [Migrate] lift line -- nothing was actually lifted
 - a real upgrade still logs the lift, with an accurate count
 
-### test_units.lua (15)
+### test_units.lua (16)
 
 - LIST is player, target, focus in render order
 - Get reads the unit's own value when it is not mirrored
@@ -117,6 +117,7 @@ badge and any count quoted in the docs must agree with it.
 - CopyFromPlayer deep-copies color tables rather than sharing them
 - CopyFromPlayer leaves position and enabled alone
 - CopyFromPlayer is a no-op for the player itself
+- CopyFromPlayer writes through the settings seam, so the log sees all twenty
 - IsEnabled reads the per-unit flag and ignores the global hidden toggle
 - target and focus ship disabled so an upgrade changes nothing on screen
 - target and focus ship mirrored so a first enable looks like the player bar
@@ -184,7 +185,7 @@ badge and any count quoted in the docs must agree with it.
 - SetByPath logs one [Set] path = value line (debug-logging-§10)
 - the schema CLI's list header the library renders is prose, not its own STRINGS key
 
-### test_timer.lua (11)
+### test_timer.lua (12)
 
 - RequestRepaint coalesces multiple requests into one scheduled repaint
 - the coalesced repaint paints every tracked unit, not just the player
@@ -192,6 +193,7 @@ badge and any count quoted in the docs must agree with it.
 - a pass in which no bar painted counts no repaint
 - a pass counts one repaint when only some of the bars painted
 - RequestRepaint schedules the timer at the throttleWindow delay
+- RequestRepaint hands AceTimer a clamped number, never the raw stored value
 - OnAbsorbChanged requests a repaint for the player
 - OnAbsorbChanged requests a repaint for any tracked unit, not just the player
 - OnMaxHealthChanged requests a repaint for the player
@@ -268,7 +270,7 @@ badge and any count quoted in the docs must agree with it.
 - APPEARANCE / VISIBILITY / POSITION route to their Display consumers
 - sending a message with no subscribers is a harmless no-op
 
-### test_data.lua (31)
+### test_data.lua (32)
 
 - GetSetting reads the value out of the active profile
 - GetSetting falls back to flatDefaults when the key is missing from the profile
@@ -291,6 +293,7 @@ badge and any count quoted in the docs must agree with it.
 - GetFontColor honors useClassColorText and keeps its own alpha
 - an unknown class keeps the CONFIGURED color, never a hue invented for the occasion
 - GetBarAlpha clamps a hand-edited SavedVariable to the slider's own range
+- GetThrottleWindow clamps a hand-edited SavedVariable to the row's own range
 - the four class-color toggles are independent of each other
 - media getters read through the unit's mirror resolution
 - a media getter with no unit still resolves the player
@@ -637,17 +640,17 @@ badge and any count quoted in the docs must agree with it.
 | test_loadorder.lua | 14 |
 | test_schema.lua | 44 |
 | test_database.lua | 31 |
-| test_units.lua | 15 |
+| test_units.lua | 16 |
 | test_envsetup.lua | 6 |
 | test_coresetup.lua | 6 |
 | test_mediasetup.lua | 10 |
 | test_debuglog.lua | 12 |
 | test_slash.lua | 13 |
-| test_timer.lua | 11 |
+| test_timer.lua | 12 |
 | test_perf.lua | 33 |
 | test_visibility.lua | 21 |
 | test_bus.lua | 7 |
-| test_data.lua | 31 |
+| test_data.lua | 32 |
 | test_display.lua | 53 |
 | test_helpers.lua | 56 |
 | test_optionssetup.lua | 6 |
@@ -658,4 +661,4 @@ badge and any count quoted in the docs must agree with it.
 | test_surface_parity.lua | 4 |
 | test_vendor_sync.lua | 2 |
 | test_eol.lua | 1 |
-| **Total** | **552** |
+| **Total** | **555** |

@@ -281,3 +281,30 @@ function NS.GetBarAlpha(unit)
     if v > 1 then return 1 end
     return v
 end
+
+-- ── the coalescing window ────────────────────────────────────────────────────────────────────
+
+--- The repaint throttle, clamped to the row's own 0.05 .. 1 (settings/General.lua:219-229).
+---
+--- Here for the same reason the three getters above clamp, and with a sharper edge. This value
+--- does not reach a paint call, it reaches AceTimer: `new()` opens with `if delay < 0.01 then`
+--- (libs/AceTimer-3.0/AceTimer-3.0.lua:33), which is a COMPARISON — so a hand-edited SavedVariables
+--- string raises "attempt to compare string with number" inside `ScheduleTimer`. modules/Timer.lua
+--- clears `pending` inside the callback, so a raise on the way IN leaves `pending` nil: the next
+--- absorb event re-arms, raises again, and every repaint for the rest of the session is lost with
+--- an error frame apiece.
+---
+--- The other end matters too. A stored 0 compares fine and AceTimer floors it at its own 0.01,
+--- which is a repaint every frame — the storm the throttle exists to prevent, reached by editing
+--- the file that configures it.
+---
+--- The bounds are the slider's own rather than AceTimer's, for the same reason the alpha getters
+--- use the slider's: a bad value should read as the nearest setting the row would have let the
+--- player pick. A non-number reads as the default.
+function NS.GetThrottleWindow()
+    local v = tonumber(NS.GetSetting("throttleWindow"))
+    if not v then return NS.flatDefaults.throttleWindow end
+    if v < 0.05 then return 0.05 end
+    if v > 1 then return 1 end
+    return v
+end
