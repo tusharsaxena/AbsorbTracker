@@ -1,7 +1,9 @@
 # Ka0s Absorb Tracker — Manual In-Game Smoke-Test Suite
 
 Run on a **live Retail (Midnight, 12.0.7 / Interface 120007) English client** in order — later
-tests assume the addon loaded cleanly. Enable Lua errors first (`/console scriptErrors 1`, or
+tests assume the addon loaded cleanly. **Section T is the exception**: it is the non-English-client
+pass, it needs a deDE or frFR client, and nothing else in this file looks at what the client
+translates. Enable Lua errors first (`/console scriptErrors 1`, or
 BugSack/BugGrabber). Watch chat for the cyan `[AT]` prefix and for any red error frame. The addon
 also ships a headless gate (`lua tests/run.lua` → all suites green, `luacheck .` → 0/0, `luac -p <file>`)
 that covers the pure logic; this suite covers everything that only runs against the live client.
@@ -354,6 +356,82 @@ Numbered 109 rather than 108 because `M4-20` took 108 first.
      instead of the mark, an empty corner, two controls stacked in the same corner, or a control that
      has moved off the corner is the finding** — the first three say the folder name is not reaching
      `MakeCloseButton`, the last that the library's anchor is not the one the deleted hook used.
+
+### T. Non-English client (session 6, `M5-08`)
+
+**Smoke, session 6. NOT YET RUN — no WoW client, English or otherwise, was available when `M5-08`
+landed.** Every other section of this file assumes the English client the header names. This one is
+the exception, and it exists because the headless gate is structurally blind here: `tests/wow_mock.lua`
+answers enUS for every global it defines, so a path that keys off a localized string is green in the
+suite whether it is right or wrong — the test and the bug agree with each other.
+
+**Setup.** A client set to a non-English locale — deDE or frFR, the two the rest of the collection's
+locale steps use (`ConsumableMaster/docs/smoke-tests.md` § 3c, `KickCD/docs/smoke-tests.md` § 9b). A
+language pack on the PTR/beta client, or a non-English account, is enough; no particular class,
+spec or content is needed.
+
+**What this addon actually reads from the client in the player's language.** Two seams, and they are
+the whole list:
+
+- **`AbbreviateNumbers`** — the bar's value text (`modules/Display.lua:379`), the `/at test` line
+  (`settings/Slash.lua:277`, `:281`) and three debug lines (`core/AbsorbTracker.lua:176`, `:178`,
+  `:237`). Blizzard localizes both the suffix and the grouping: `1.2M` on enUS is not what a deDE
+  client returns for the same number.
+- **`UnitClass`** — `core/Data.lua:182` and `core/CoreSetup.lua:59` both `pcall` it and take the
+  **third** return, the English class token (`PRIEST`), never the first, which is the class name in
+  the player's language. `bgClassColors` is keyed on the token, so the class colors are supposed to
+  be locale-independent by construction. That is the claim this step checks rather than assumes.
+
+**What it does not read, checked and empty.** No chat or tooltip `_G` constant, no tooltip line
+parsed instead of an API return, no `subType` where a `classID` exists, and no header, token or key
+another tool parses — this addon exports nothing. `grep -rn '_G\[' core modules settings defaults`
+comes back with only `core/Constants.lua`'s texture paths. Recheck that grep rather than trusting
+this sentence: it is a claim, and an absent step is what it replaces.
+
+**The English UI is not a failure here.** Every label, tooltip and chat line this addon prints is a
+hardcoded English literal and stays English on a German client. That is the addon's scope, not a
+regression, and it is not what this section is looking for.
+
+110. **The value text renders and fits.** Log in on the non-English client with the player bar
+     visible. Take an absorb worth a few hundred (Power Word: Shield), then one worth over a
+     million (a fully stacked shield on a geared character, or `/at test 1500000`, which drives the
+     same `AbbreviateNumbers` call for a held number of seconds).
+
+     **Pass** — the number renders in the client's own convention, whatever that is, and stays
+     **inside the bar** at the default width at every magnitude. **Fail** — a `nil`, an error frame,
+     a raw unabbreviated integer where the enUS client abbreviates, or a string that overflows the
+     bar's right edge or is clipped by it. The last is the one to expect: a locale whose abbreviation
+     is longer than `M` has more glyphs to fit in a width that was chosen against English.
+
+111. **The class colors follow the token, not the name.** Tick **Use class color** for the bar, the
+     background, the border and the text (Settings ▸ Appearance ▸ Bar / Background / Border / Text,
+     Unit = Player). Then target a player of a **different** class and enable the target bar.
+
+     **Pass** — the player bar wears the player's class color and the target bar the target's, the
+     same colors they wear on an English client, and the background is the dimmed variant rather
+     than the raw one. **Fail** — any of the four falls back to the stored color, or every bar draws
+     the same color regardless of class. That is `UnitClass`'s localized first return reaching
+     `bgClassColors` where the English token belongs, and it is invisible on an English client
+     because there the two strings differ only in case.
+
+112. **The debug lines survive the locale.** `/at debug on`, open the console (`/at debug`), then
+     gain and lose an absorb out of combat and once more in combat.
+
+     **Pass** — `shield up:` / `shield gone:` and the `[Combat] left: N events, M repaints` rollup
+     all render, with the abbreviated values in the client's convention and **no** error. **Fail** —
+     an error thrown from the format call, or a `%s` left unreplaced. The combat pass is the one
+     that matters: in combat the absorb is a secret value, and this is the only step that puts a
+     secret and a localized formatter in the same line.
+
+**Sign-off without a non-English client.** Steps 110 to 112 all read the same two seams, and the
+headless suite reaches neither: `tests/wow_mock.lua:48` defines `AbbreviateNumbers` as
+`function(n) return tostring(n) end`, so `tests/test_display.lua:605` proves the value is *routed* to
+it and nothing about what it *renders*; and the class-color cases (`GetBarColor`, `GetBgColor`,
+`GetBorderColor`, `GetFontColor`, and `class color on a target bar is the TARGET's class`) feed the
+mock's own English token in, which is the answer they are checking for. So there is no headless
+stand-in to sign this off with, and **English steps are not sufficient** here — unlike
+`ConsumableMaster` § 3c, where the numeric-subclass cases genuinely do stand in. Until the pass runs,
+the honest state of this section is unrun, and it is recorded that way rather than as coverage.
 
 ### Triage references (if a step fails)
 - Bootstrap / events / profile repaint — `core/AbsorbTracker.lua` (`OnEnable`, `OnProfileChanged`)
