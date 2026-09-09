@@ -17,30 +17,6 @@ anywhere on screen and can be restyled down to the texture, the border and the f
 the Player bar so it simply follows along. Fill, background, border and the absorb number itself
 will each take a class color if you prefer — the class of that bar's own unit.
 
-## What's new in 1.9.0
-
-- Target and Focus bars, each with its own switch on the General page. Both start off. The old
-  **Show Bar** master toggle is gone, and a bar you turn off now stops receiving events rather than
-  merely hiding.
-- A Target or Focus bar can live-link to the Player bar's appearance (**Use same styling as
-  Player**), or take a one-time snapshot with **Copy styling from Player** and go its own way
-  afterwards.
-- Slash paths are fully qualified now. `/at set units.player.barWidth 250` replaces the old
-  `/at set barWidth 250` — see [Breaking change](#breaking-change-slash-paths) if you keep macros.
-- A General option to show the bars only while you are fighting.
-- Shield changes redraw the bar immediately instead of waiting on the next tick of a timer, which
-  tracks a fast-moving absorb far better.
-- Debug output moved out of chat and into a window of its own. `/at debug` opens it, `/at debug on`
-  and `off` start and stop logging, every line tagged with what triggered it, and the **Debug
-  console** checkbox on the General page shows or hides the window without a slash command.
-
-### Breaking change: slash paths
-
-Every `/at set` and `/at get` path now carries its unit: `/at set units.player.barWidth 250`, not
-the old `/at set barWidth 250`. Macros and keybinds on the old unqualified form need updating to
-`units.player.setting` (or `units.target.` / `units.focus.` for those bars). `/at reset` takes a
-path of the same shape. `/at list` and the settings panel are unaffected.
-
 ## Screenshots
 
 _**Absorb Tracker in Action**_
