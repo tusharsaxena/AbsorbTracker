@@ -135,7 +135,7 @@ or focus and its bar disappears until you have one again.
 
 ## Troubleshooting
 
-| Problem | Fix |
+| Symptom | Fix |
 |---------|-----|
 | The Player bar never shows up | Check three things: **Enable Player Bar** is ticked on the General page (or run `/at toggle player`), the addon is enabled on the character-select screen, and — if **General visibility** is set to *Only in combat* — that you're actually in combat. The background and border show even with no shield, so if you see *nothing* at all the bar is hidden, not just empty. |
 | The Target/Focus bar never shows up | Confirm **Enable Target Bar** / **Enable Focus Bar** is ticked on the General page. Even enabled, it only appears while you actually have that target or focus set — no target/focus means no bar, by design. |
