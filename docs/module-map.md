@@ -59,7 +59,7 @@ Two consequences:
 
 ```lua
 NS.name    -- addonName
-NS.version -- "1.9.0" string constant
+NS.version -- "1.10.0" string constant
 NS.PREFIX  -- "|cFF00FFFF[AT]|r" — the one shared cyan [AT] chat tag
 
 -- Cached math on NS to avoid global lookups in the bar paint path.

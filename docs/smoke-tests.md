@@ -195,7 +195,7 @@ from, never what it is. A wrong folder name reads another addon's manifest, or n
 nil **without raising**, so the only way this fails is by looking blank or stale. Read the values
 against the TOC, not against memory.
 
-94. `/at version` → prints `v1.9.0` — the `## Version` line of `AbsorbTracker.toc` **verbatim**, not
+94. `/at version` → prints `v1.10.0` — the `## Version` line of `AbsorbTracker.toc` **verbatim**, not
     `?` and not an empty `v`. Bump the TOC's `## Version` by hand, `/reload`, run it again → the new
     string. (That second half is what distinguishes the TOC read from the `NS.version` constant in
     `core/Namespace.lua`, which is the seam's *fallback* and reads the same today.)

@@ -1,10 +1,10 @@
 # Ka0s Absorb Tracker
 
-![WoW](https://img.shields.io/badge/WoW-Midnight_12.0.7-purple)
+![WoW](https://img.shields.io/badge/WoW-Midnight_12.1.0-purple)
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-562%2F562_passing-green)
+![Tests](https://img.shields.io/badge/Tests-561%2F561_passing-green)
 
 Ka0s Absorb Tracker puts your absorb shields on screen as a movable bar. Every shield on the unit,
 added into one number, so a glance tells you how much damage you can eat before your health starts
@@ -121,6 +121,7 @@ Please file new reports there rather than in comments, so nothing gets lost.
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.10.0 | 2026-09-10 | The settings panel is now three tabbed pages with a **Master controls** group, replacing the single scrolling wall<br>Target and Focus bars take composed appearance groups and unit-scoped class coloring<br>Fixed the unlocked placeholder fill vanishing when a bar repainted<br>Updated for game patch 12.1.0 |
 | 1.9.0 | 2026-07-20 | Added **Target and Focus absorb bars**, each switched on independently from the General page — the old single **Show Bar** master toggle is gone, and a bar you turn off stops receiving events entirely<br>A Target/Focus bar can **mirror** the Player bar's look live, or take a one-time **Copy styling from Player** snapshot and then be customized on its own<br>`/at set` and `/at get` paths are now **fully qualified** — `/at set units.player.barWidth 250` replaces `/at set barWidth 250`; update any macros<br>Added a **Show only in combat** option that hides the bar out of combat<br>The bar now redraws the instant a shield changes instead of on a fixed timer, for smoother tracking<br>Added an on-screen debug window with a General-page **Debug console** toggle — `/at debug` opens it, `/at debug on`/`off` turns logging on or off (no more chat spam), each line tagged by what triggered it |
 | 1.8.0 | 2026-05-03 | Redesigned the settings panel with breadcrumb navigation and an About page<br>Added a hold-time to `/at test` (`/at test value seconds`) and reshaped the Bar and Border pages |
 | 1.7.0 | 2026-04-24 | Rebranded to **Ka0s Absorb Tracker** with new artwork<br>Split the settings into separate pages<br>Chat messages now use a cyan `[AT]` tag |
