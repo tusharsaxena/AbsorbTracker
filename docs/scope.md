@@ -12,7 +12,7 @@ What's in scope, what's out, and the resolved decisions that shaped the contract
 - **Per-profile saved bar position** (the bar is unlocked by default — `flatDefaults.locked = false`; drag to position, `/at lock` to fix once placed).
 - **Five-page Blizzard Settings panel** (General, Bar, Border, Font, Profiles) plus a matching `/at` slash CLI for every panel-shaped operation via `/at list / get / set / reset / resetall`.
 - **Cyan `[AT]` chat prefix** on all addon output.
-- **Retail Midnight only** (Interface 120007). English only.
+- **Retail Midnight only** (Interface 120100). English only.
 
 ## Out of scope
 
@@ -60,7 +60,7 @@ Decisions made during requirements review and earlier releases — these are set
 
 ## Testing posture
 
-- **A headless test harness exists** at `tests/` (`run.lua`, `wow_mock.lua`, and `_kit/` — the shared harness vendored from LibKa0s — plus `test_loadorder` / `test_schema` / `test_database` / `test_units` / `test_envsetup` / `test_coresetup` / `test_mediasetup` / `test_debuglog` / `test_slash` / `test_timer` / `test_perf` / `test_visibility` / `test_bus` / `test_data` / `test_display` / `test_helpers` / `test_slashcmds` / `test_widgets` / `test_optionssetup` / `test_docs` / `test_ltrap` / `test_surface_parity` / `test_vendor_sync`). It runs outside WoW against a mock and is the green gate together with `luacheck .` (0/0) and `luac -p`. Any claim that "there are no automated tests" is stale.
+- **A headless test harness exists** at `tests/` (`run.lua`, `wow_mock.lua`, and `_kit/` — the shared harness vendored from LibKa0s — plus `test_loadorder` / `test_schema` / `test_database` / `test_units` / `test_envsetup` / `test_coresetup` / `test_mediasetup` / `test_debuglog` / `test_slash` / `test_timer` / `test_perf` / `test_visibility` / `test_bus` / `test_data` / `test_display` / `test_helpers` / `test_slashcmds` / `test_widgets` / `test_optionssetup` / `test_docs` / `test_ltrap` / `test_surface_parity` / `test_vendor_sync` / `test_lintconfig`). It runs outside WoW against a mock and is the green gate together with `luacheck .` (0/0) and `luac -p`. Any claim that "there are no automated tests" is stale.
 - **In-game smoke tests remain the manual layer.** The harness cannot exercise real frames, protected APIs, or the live absorb engine; [docs/smoke-tests.md](./smoke-tests.md) is still the manual QA recipe run before a release.
 
 ## Where the contract lives

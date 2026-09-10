@@ -1,4 +1,4 @@
-local addonName, NS = ...
+local _, NS = ...
 NS.Util = NS.Util or {}
 local Util = NS.Util
 
@@ -77,11 +77,6 @@ if not lib then
     end
     Util.print = NS.Print
 
-    -- Kept EXACTLY as the DebugLog stub spells it: a close button is worth degrading over, not
-    -- erroring over, and nil is what every call site already branches on. Present here only so the
-    -- degraded surface matches the live one — tests/test_surface_parity.lua derives that set from
-    -- this file's own NS publications, so a live member with no stub twin fails the suite.
-    NS.MakeCloseButton = function() return nil end
     return
 end
 
@@ -95,33 +90,6 @@ NS.SafeToString = lib.SafeToString
 -- core/Data.lua's four color getters come through here. Handed over by reference: it closes over
 -- nothing of ours, and the memoized player color is the library's to keep.
 NS.ResolveColor = lib.ResolveColor
-
--- WRAPPED, TO SAY WHO IS ASKING — the one member of this seam that is not handed over by reference.
--- `lib.MakeCloseButton(parent, onClick, addonName)` takes THREE arguments, and the third is what lets
--- it draw this collection's own `close` mark out of LibKa0s-Media-1.0 instead of the multiplication
--- sign it has always drawn. The library cannot work that out for itself: it is vendored, so there is
--- no one path to it and a copy cannot know which addon folder it was copied into. `addonName`, this
--- file's first vararg, is the answer, supplied once here for every close control the addon builds.
---
--- THE WRAPPER CARRIES EVERY ARGUMENT ITS TARGET TAKES. A two-argument passthrough onto a
--- three-argument function is green in every suite and visible only in a screenshot, because a missing
--- texture path draws nothing and raises nothing. tests/test_coresetup.lua spies on the library
--- function and asserts the folder name arrived, rather than looking at what got drawn.
---
--- NO CALL SITE TODAY, AND THAT IS RECORDED HERE RATHER THAN LEFT TO BE REDISCOVERED, the way
--- core/MediaSetup.lua's NS.Icon already is. core/PerfSetup.lua's `decorate` hook was the last one,
--- and M4-16 deleted it: the perf panel's close control now comes from libs/LibKa0s/PerfPanel.lua's
--- own else arm, which calls LibKa0s-Core's factory directly with the folder name the descriptor's
--- `addonName` supplies, and the debug console's control was always the library's too. This wrapper
--- is kept because it is the live half of a two-sided seam -- the degradation branch above publishes
--- the same name, and tests/test_surface_parity.lua derives its set from this file's publications,
--- so deleting one side means deleting both -- and because the first close control this addon draws
--- itself must come through here rather than reaching for lib.MakeCloseButton and dropping the
--- argument again. If the collection's dead-export sweep reaches it before such a control arrives,
--- deleting the pair is the right answer.
-NS.MakeCloseButton = function(parent, onClick)
-    return lib.MakeCloseButton(parent, onClick, addonName)
-end
 
 -- The prefix is passed as a FUNCTION, not as the value of NS.PREFIX. It reads the same here, where
 -- core/Namespace.lua has already run — but the printer is built once at load and the function form

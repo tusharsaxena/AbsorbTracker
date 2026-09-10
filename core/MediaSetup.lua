@@ -89,16 +89,17 @@ local Media = LibStub and LibStub("LibKa0s-Media-1.0", true)
 --- collection's marks — the debug console with its Copy window, and the perf
 --- step panel — never come through here: they are drawn entirely inside
 --- libs/LibKa0s, which builds its own paths through `Media.Icon(addonName, …)`
---- once it is handed our folder name in core/DebugLogSetup.lua's descriptor and
---- by core/CoreSetup.lua's MakeCloseButton wrapper. Delete this function and not
---- one pixel moves.
+--- once it is handed our folder name in core/DebugLogSetup.lua's descriptor.
+--- (core/CoreSetup.lua's NS.MakeCloseButton wrapper was the other route and was
+--- deleted by the dead-export sweep on 2026-09-11, exactly as its own note said
+--- it should be.) Delete this function and not one pixel moves.
 ---
 --- It is published anyway, as the other half of a two-function seam whose font
 --- half core/Constants.lua does call, and for the first control this addon draws
 --- itself. If the collection's dead-export sweep reaches it and no such control
 --- has arrived, deleting it is the right answer — tests/test_mediasetup.lua's
 --- NS.Icon cases go with it, and the marks that reach the screen stay covered by
---- the addonName spies in tests/test_debuglog.lua and tests/test_coresetup.lua.
+--- the addonName spy in tests/test_debuglog.lua.
 ---
 --- EXTENSIONLESS by contract: this answers `...\media\icons\close`, never
 --- `close.tga`. The client appends the extension, and the collection has already

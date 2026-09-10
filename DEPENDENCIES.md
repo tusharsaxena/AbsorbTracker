@@ -20,7 +20,7 @@ Three groups, and most readers need exactly one:
 
 ## Runtime (in-game)
 
-**World of Warcraft (Retail)** at the interface the TOC declares — `## Interface: 120007`
+**World of Warcraft (Retail)** at the interface the TOC declares — `## Interface: 120100`
 (`AbsorbTracker.toc:1`). That is the whole runtime requirement.
 
 The addon declares **no** `## Dependencies` line. Its `## OptionalDeps` (`AbsorbTracker.toc:8`) reads

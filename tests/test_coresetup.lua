@@ -27,33 +27,6 @@ test("core: the secret seam is the library's, not a private copy", function()
   assertEqual(NS.SafeToString(secretMock), lib.SECRET)
 end)
 
-test("core: the close button is the library's, told which addon is asking", function()
-  -- The one member of this seam that is WRAPPED rather than handed over by reference. LibKa0s draws
-  -- this collection's own close mark when it can build a texture path, and it cannot work that out
-  -- itself: it is vendored, so there is no one path to it and a copy cannot know which folder it was
-  -- copied into. The wrapper supplies the answer once, for every close control the addon builds.
-  --
-  -- THE ARGUMENT IS WHAT IS TESTED, not the appearance. lib.MakeCloseButton takes three arguments;
-  -- a two-argument passthrough onto it is green in every suite and visible only in a screenshot,
-  -- because a texture path that is never built draws nothing and raises nothing.
-  -- red under: NS.MakeCloseButton = lib.MakeCloseButton, or a wrapper that drops the third argument.
-  local lib = T.mocks.LibStub("LibKa0s-Core-1.0")
-  local real = lib.MakeCloseButton
-  local seen, sawParent, sawClick
-  lib.MakeCloseButton = function(parent, onClick, name)
-    sawParent, sawClick, seen = parent, onClick, name
-    return nil
-  end
-  local parent, click = {}, function() end
-  NS.MakeCloseButton(parent, click)
-  lib.MakeCloseButton = real
-
-  assertEqual(seen, "AbsorbTracker",
-    "the library was not told which addon folder to build the mark's path from")
-  assertTrue(sawParent == parent, "the wrapper must carry the parent through")
-  assertTrue(sawClick == click, "the wrapper must carry the click handler through")
-end)
-
 test("core: the perf descriptor names the folder and leaves the close control to the library", function()
   -- ANTI-PATTERN #64, THE ONE THIS SUITE EXISTS FOR: a wrapper that does not carry every argument
   -- its target takes. core/PerfSetup.lua's `decorate` used to call

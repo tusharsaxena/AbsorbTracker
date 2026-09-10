@@ -22,7 +22,7 @@ mirrored, whatever the mirror flag says. The two ways of bringing a unit in line
 distinct: **mirror** is a live link (`units.<unit>.mirror = true` — the unit re-reads the player's
 settings on every paint), **copy** is a one-shot snapshot (`NS.Units.CopyFromPlayer(unit)` —
 deep-copies once, then the unit diverges). Position is saved per-profile via AceDB. Retail Midnight
-only (Interface 120007), English only.
+only (Interface 120100), English only.
 
 The addon is an **AceAddon** (`core/AbsorbTracker.lua`) mixing in AceEvent / AceTimer / AceConsole.
 `NS`, the second of the two varargs the client hands every TOC-loaded file, is the shared private
@@ -273,7 +273,7 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
 
 ## Known Limitations
 
-- **Retail Midnight only** (Interface 120007); no game-flavor branching.
+- **Retail Midnight only** (Interface 120100); no game-flavor branching.
 - **English only** — a ratified decision, not an unfinished job: the row lives in
   [Documented deviations](#documented-deviations) below (`localization-§1`), which is its single home.
   The `NS.L` seam is exported and `locales/enUS.lua` ships; no string is routed through it yet.

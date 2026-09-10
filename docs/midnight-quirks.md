@@ -1,6 +1,6 @@
 # Midnight quirks — WoW retail API gotchas
 
-Catalog of WoW Midnight (Interface 12.0.x) behaviors and Blizzard-API conventions that bite the addon. When something breaks at patch time, this is where to look first.
+Catalog of WoW Midnight (Interface 12.x) behaviors and Blizzard-API conventions that bite the addon. When something breaks at patch time, this is where to look first.
 
 ## Secret values from `UnitGetTotalAbsorbs`
 
@@ -81,7 +81,7 @@ The gate lives **inside** `OpenOptionsPanel` (not just the `/at config` slash di
 `AbsorbTracker.toc` declares a single retail build number:
 
 ```
-## Interface: 120007
+## Interface: 120100
 ```
 
 The value is `(major * 10000) + (minor * 100) + patch` for the current Live Servers (Retail) patch. AbsorbTracker targets the current Midnight build. **When a new patch ships, replace the number with the new build** so the addon reads as up-to-date in the AddOn list. The `## Interface:` line accepts a comma-separated list on retail clients 10.0+ if you ever need to declare compatibility with several builds at once, but the addon tracks a single current build.

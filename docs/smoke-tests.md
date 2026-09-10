@@ -1,6 +1,6 @@
 # Ka0s Absorb Tracker — Manual In-Game Smoke-Test Suite
 
-Run on a **live Retail (Midnight, 12.0.7 / Interface 120007) English client** in order — later
+Run on a **live Retail (Midnight, 12.1.0 / Interface 120100) English client** in order — later
 tests assume the addon loaded cleanly. **Section T is the exception**: it is the non-English-client
 pass, it needs a deDE or frFR client, and nothing else in this file looks at what the client
 translates. Enable Lua errors first (`/console scriptErrors 1`, or

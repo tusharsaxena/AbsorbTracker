@@ -207,7 +207,7 @@ If the dropdowns show *some* entries but not all, check that the contributing ad
 When a new retail patch ships:
 
 1. Open `AbsorbTracker.toc`.
-2. Replace the number on the `## Interface:` line with the new build (e.g. `120007` → `120008`). The value is `(major * 10000) + (minor * 100) + patch` for the current Live Servers patch.
+2. Replace the number on the `## Interface:` line with the new build (e.g. `120100` → `120101`). The value is `(major * 10000) + (minor * 100) + patch` for the current Live Servers patch.
 3. Test in-game on the new patch — see [smoke-tests.md](./smoke-tests.md) for the full manual QA recipe.
 4. Commit. **Don't bump the addon version** — Interface compatibility is independent of addon version. The user decides when to cut a release.
 
@@ -255,6 +255,7 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 | `tests/test_ltrap.lua` | The `L` trap across all five LibKa0s seams: a source check that fails on any `L =` whose value can evaluate to `NS.L` (which answers every key, so it would render raw SCREAMING_SNAKE in game only), a non-vacuity case on `locales/enUS.lua`, three library-regression cases handing DebugLog / Slash / Perf the fallback-table shape and requiring the built-in English back, and two tripwires (Core, Options) for the majors that cannot express the trap today |
 | `tests/test_surface_parity.lua` | Every degradation stub carries the whole live surface, asserted as a **set** per seam (Core / DebugLog / Options / Slash) via the kit's `assertSurfaceParity`. The degraded arm is a real load with `libs/` absent (`tests/degraded_env.lua`), never a hand-stub; live-only members are named in an `ignore` set with their reason (testing-§8) |
 | `tests/test_vendor_sync.lua` | `libs/LibKa0s/` and `tests/_kit/` are exactly what LibKa0s published at the tag `CLAUDE.md`'s provenance line names. Compared against the **tag**, not upstream's working tree; the provenance line is an input, not a constant; a missing sibling checkout **skips with its reason** rather than passing. The comparator is `tests/_kit/vendor_sync.lua` — part of the payload it checks |
+| `tests/test_lintconfig.lua` | The lint gate is a statement about the code, not the configuration: `.luacheckrc` sets no top-level `ignore`, switches no warning class off wholesale, narrows every `files[...]` ignore to a file or a name, and no source file carries a bare inline `-- luacheck: ignore`. The config is loaded as **Lua under a sandbox**, so what is inspected is the table luacheck obeys; it fails rather than skips when it cannot look |
 
 Add a new setting or page? `test_schema.lua`'s integrity invariants already require a label, a desc, a
 default that agrees with `defaults.profile`, and (for numbers) a `min`/`max` bracketing that default —

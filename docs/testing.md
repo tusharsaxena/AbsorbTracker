@@ -131,10 +131,15 @@ claims?"*. The two questions give the same answer only while the library has tag
 than the tag this addon has taken.
 
 Between a library release and the re-vendor that carries it they disagree, and that disagreement is
-the normal state rather than a defect. It is the state as this is written: `../LibKa0s` sits on
-**v1.27.0**, [`CLAUDE.md`](../CLAUDE.md) names **v1.26.0**, and the commands above report **306**
-differing lines for the library and **947** for the test kit. Re-vendoring to quiet them would be
-the actual mistake — it would pull an untested library release for the sake of a clean diff.
+the normal state rather than a defect. It was the live state on **2026-09-08**: `../LibKa0s` sat on
+**v1.27.0**, [`CLAUDE.md`](../CLAUDE.md) named **v1.26.0**, and the commands above reported **306**
+differing lines for the library and **947** for the test kit. Re-vendoring to quiet them would have
+been the actual mistake — it would pull an untested library release for the sake of a clean diff.
+
+The re-vendor has since landed, so today the two questions give the same answer: `CLAUDE.md` names
+**v1.29.0**, the vendored payloads are that tag, and all four commands above come back empty. An
+empty diff is what the state *after* a re-vendor looks like — not a stronger guarantee than the
+tag comparison below, which is the one that actually gates.
 
 **The authoritative comparison is against the tag `CLAUDE.md` names**, and that one must be empty at
 every commit:

@@ -5,7 +5,8 @@ local addonName, NS = ...
 -- The probe itself lives in libs/LibKa0s/Perf.lua and is shared across every Ka0s addon; this file
 -- is only the part that is ours: which hot paths get buckets, what "suspended" means here, and where
 -- the output goes. The descriptor contract is documented in the LibKa0s repo (its README's
--- descriptor table, and docs/record-schema.md for what a saved run looks like).
+-- descriptor table, and that repo's docs/record-schema.md for what a saved run looks like — neither
+-- file is vendored here).
 --
 -- The instance is created at LOAD TIME, before any module takes `local Perf = NS.Perf` as an
 -- upvalue — this file sits immediately after core/CoreSetup.lua in the TOC for exactly that reason,

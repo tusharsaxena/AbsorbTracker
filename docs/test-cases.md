@@ -132,10 +132,9 @@ badge and any count quoted in the docs must agree with it.
 - EnvSetup degraded: an install with no LibKa0s still reads its own TOC
 - EnvSetup: the deleted shim is gone, and so is the file that was only ever the shim
 
-### test_coresetup.lua (6)
+### test_coresetup.lua (5)
 
 - core: the secret seam is the library's, not a private copy
-- core: the close button is the library's, told which addon is asking
 - core: the perf descriptor names the folder and leaves the close control to the library
 - core: NS.Print carries the [AT] tag and survives a secret arg
 - core: NS.Print and NS.Util.print are the same object after the AceConsole reclaim
@@ -429,7 +428,7 @@ badge and any count quoted in the docs must agree with it.
 - PARENT_TITLE reaches the library through the descriptor, not the namespace
 - the live arm patches LSM30_Border through the library, not through a private copy
 
-### test_slashcmds.lua (111)
+### test_slashcmds.lua (110)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -505,8 +504,8 @@ badge and any count quoted in the docs must agree with it.
 - /at perf finish lifts a suspend left over from the capture
 - /at perf report prints without stopping the capture
 - /at perf routes output to the debug console, not chat
-- /at perf dump writes to the console, not the copy window
-- /at perf dump emits parseable JSON carrying the schema stamp
+- /at perf report writes the JSON to the console, not to a copy window
+- /at perf report emits parseable JSON carrying the schema stamp, as its LAST line
 - /at perf with an unknown sub falls back to the usage block
 - /at debug on|off still toggles logging with perf present
 - perf is a top-level verb in the help index
@@ -536,8 +535,7 @@ badge and any count quoted in the docs must agree with it.
 - /at perf no longer offers suspend or resume
 - /at perf finish resumes before it saves, so a later error cannot strand the addon
 - /at perf report opens the debug console when it is hidden
-- /at perf dump opens the debug console when it is hidden
-- /at perf dump marks itself reviewed exactly once
+- /at perf report marks itself reviewed exactly once
 - parity: both dispatchers fold the verb and preserve the rest's case
 - parity: both dispatchers resolve the `options` alias to `config`
 - parity: an unknown verb reaches no handler and prints the same shape in both
@@ -652,7 +650,7 @@ badge and any count quoted in the docs must agree with it.
 | test_database.lua | 31 |
 | test_units.lua | 16 |
 | test_envsetup.lua | 6 |
-| test_coresetup.lua | 6 |
+| test_coresetup.lua | 5 |
 | test_mediasetup.lua | 10 |
 | test_debuglog.lua | 12 |
 | test_slash.lua | 13 |
@@ -664,7 +662,7 @@ badge and any count quoted in the docs must agree with it.
 | test_display.lua | 53 |
 | test_helpers.lua | 56 |
 | test_optionssetup.lua | 6 |
-| test_slashcmds.lua | 111 |
+| test_slashcmds.lua | 110 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 5 |
 | test_ltrap.lua | 8 |
@@ -672,4 +670,4 @@ badge and any count quoted in the docs must agree with it.
 | test_vendor_sync.lua | 2 |
 | test_lintconfig.lua | 4 |
 | test_eol.lua | 1 |
-| **Total** | **562** |
+| **Total** | **560** |
