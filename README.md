@@ -6,13 +6,11 @@
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
 ![Tests](https://img.shields.io/badge/Tests-562%2F562_passing-green)
 
-![Logo](https://media.forgecdn.net/attachments/1659/653/absorbracker-logo-v2-jpg.jpg)
-
 Ka0s Absorb Tracker puts your absorb shields on screen as a movable bar. Every shield on the unit,
 added into one number, so a glance tells you how much damage you can eat before your health starts
 moving.
 
-Three bars, in fact: Player, Target and Focus. The last two ship switched off. Each one goes
+There are three bars: Player, Target and Focus - the last two ship switched off. Each one goes
 anywhere on screen and can be restyled down to the texture, the border and the font, or linked to
 the Player bar so it simply follows along. Fill, background, border and the absorb number itself
 will each take a class color if you prefer — the class of that bar's own unit.
@@ -21,19 +19,11 @@ will each take a class color if you prefer — the class of that bar's own unit.
 
 _**Absorb Tracker in Action**_
 
-![Absorb Tracker in Action](https://media.forgecdn.net/attachments/1506/197/absorbtracker-schreenshot-1-png.png)
-
-_**Settings Panel**_
-
-![Settings Panel](https://media.forgecdn.net/attachments/1804/983/absorbtracker-screenshot-02-png.png)
-
-![Settings Panel](https://media.forgecdn.net/attachments/1804/985/absorbtracker-screenshot-03-png.png)
-
-![Settings Panel](https://media.forgecdn.net/attachments/1804/986/absorbtracker-screenshot-04-png.png)
+![Absorb Tracker in Action](https://media.forgecdn.net/attachments/1936/457/absorbtracker-screenshot-01-png.png)
 
 ## Usage
 
-Install it and the Player bar turns up centered and unlocked, so drag it where you want it and type
+On the first run after installing, the Player bar turns up centered and unlocked, so drag it where you want it and type
 `/at lock` to pin it there. While the bars are unlocked each one paints a partial fill and its unit
 name, so there is something to grab even with no shield up. To see a bar carrying a number instead,
 `/at test` puts a fake absorb on every visible bar — 50000 held for five seconds by default, and
