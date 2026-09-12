@@ -44,7 +44,7 @@ The schema-driven design makes a flat setting a one-row change. The widget on th
    onChange = function(v) NS.SomeOtherReaction(v) end,
    ```
 
-That's it. The widget renders on the General sub-page on the next `/reload`; `/at set myNewKnob 75` works immediately; `/at get myNewKnob` and `/at list` show the new row; `/at reset myNewKnob` and `/at resetall` reset it via `ApplyDefault`. Every write — panel widget, `/at set`, and `/at reset` — funnels through `NS.SetByPath`, which calls `SetSetting` then fires the row's `onChange`.
+That's it. The widget renders on the General sub-page on the next `/reload`; `/at set myNewKnob 75` works immediately; `/at get myNewKnob` and `/at list` show the new row; `/at reset myNewKnob` and `/at resetall` reset it via `ApplyDefault`. A panel widget and `/at set` write through `NS.SetByPath`, and `/at reset` through its sibling `NS.ApplyDefault`; both call `SetSetting` then fire the row's `onChange`.
 
 `NS.ValidateSchema` (run once at panel-registration time) will warn in chat if the new row's `path` doesn't resolve against `NS.defaults.profile` — a cheap guard against typos between step 1 and step 2.
 

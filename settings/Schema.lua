@@ -150,12 +150,15 @@ local function fireOnChange(row, value)
     fn(value)
 end
 
---- Write a value for `path`, fire its onChange. Used by /at set, by /at reset, and by every
---- panel widget — single dispatch path so no code duplication between UI and CLI.
+--- Write a value for `path`, fire its onChange. Used by /at set, /at lock, /at unlock, /at toggle
+--- and every panel widget, so the UI and the CLI share one dispatch path. A reset to a row's
+--- default does NOT come through here: /at reset and the Defaults buttons call NS.ApplyDefault
+--- below, which is the same SetSetting + fireOnChange pair without the [Set] line.
 function NS.SetByPath(path, value)
     NS.SetSetting(path, value)
     local row = NS.FindSchemaRow(path)
-    -- debug-logging-§10: log every settings mutation once, at this single write seam. Gate the
+    -- debug-logging-§10: log every write that comes through this seam once (a reset through
+    -- NS.ApplyDefault below does not, so it is not logged). Gate the
     -- whole line (including the value formatting) behind the debug flag so a ColorPicker drag —
     -- many writes per second — does zero string work when debug is off.
     if NS.State and NS.State.debug then
@@ -164,8 +167,8 @@ function NS.SetByPath(path, value)
     if row then fireOnChange(row, value) end
 end
 
---- Reset one row to its default. Used by /at reset <page> and /at resetall, plus the per-panel
---- Defaults button.
+--- Reset one row to its default. Used by /at reset <path> and the per-page Defaults button, and
+--- by /at resetall for the sessionOnly rows its veto leaves (the rest is a profile reset).
 function NS.ApplyDefault(row)
     if row.default == nil then return end
     -- Copy a table default before storing it, so two profiles can't end up sharing the same
