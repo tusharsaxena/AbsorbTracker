@@ -77,6 +77,41 @@ test("the live and degraded builds veto exactly the same rows from Reset All", f
   T.mocks.__fireTimers()
 end)
 
+-- Run one build's Reset All against a probe sessionOnly row -- the one kind of row both walks
+-- still reset -- and report what the reset did to it: the stored value and each onChange value.
+-- The probe binds its own session storage, so the write never reaches a profile.
+local function resetAllProbe(ns, restoreAll)
+  local path = "__probe.resetAllSession"
+  local store = { value = false }
+  ns.RegisterSessionSetting(path, {
+    get = function() return store.value end,
+    set = function(v) store.value = v end,
+  })
+  local changes = {}
+  local n = #ns.Schema
+  table.insert(ns.Schema, { page = "general", path = path, type = "bool", default = true,
+                            sessionOnly = true, onChange = function(v) changes[#changes + 1] = v end })
+  local ok, err = pcall(restoreAll)
+  for i = #ns.Schema, n + 1, -1 do ns.Schema[i] = nil end
+  if not ok then error(err) end
+  return store.value, changes
+end
+
+test("Reset All resets a sessionOnly row and fires its onChange once, on both builds", function()
+  -- Characterization for #30: the live walk reaches the row through the descriptor's applyDefault
+  -- (libs/LibKa0s/Options.lua), the degraded stub through its own loop. Both end in
+  -- NS.ApplyDefault, and both must write the default and react to it exactly once.
+  local NS2 = loadDegraded()
+  for label, pair in pairs({ live = { NS, Helpers.RestoreAllDefaults },
+                             degraded = { NS2, NS2.Helpers.RestoreAllDefaults } }) do
+    local value, changes = resetAllProbe(pair[1], pair[2])
+    assertEqual(value, true, label .. ": the sessionOnly row is back at its default")
+    assertEqual(#changes, 1, label .. ": one onChange for the reset row")
+    assertEqual(changes[1], true, label .. ": and it receives the default")
+  end
+  T.mocks.__fireTimers()
+end)
+
 -- ── the stub's member set ──────────────────────────────────────────────────────────
 
 test("the degraded stub publishes LSMValues, the one member reached at file load", function()

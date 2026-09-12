@@ -222,6 +222,45 @@ test("/at reset restores one setting and leaves its neighbors alone", function()
   NS.Helpers.RestoreDefaults("border")
 end)
 
+test("/at reset <path> writes the default and fires the row's onChange exactly once", function()
+  -- Characterization for #30: the reset reaches the row's reaction once, with the default.
+  local row = NS.FindSchemaRow("units.player.barWidth")
+  local saved, calls, got = row.onChange, 0, nil
+  NS.SetByPath("units.player.barWidth", 250)
+  row.onChange = function(v) calls = calls + 1; got = v end
+  local ok, err = pcall(slash, "reset units.player.barWidth")
+  row.onChange = saved
+  if not ok then error(err) end
+  assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth)
+  assertEqual(calls, 1, "one onChange per reset")
+  assertEqual(got, NS.unitDefaults.barWidth, "and it receives the default")
+end)
+
+test("/at reset <path> logs exactly one [Set] line and fires onChange exactly once", function()
+  -- #30: a reset is a schema-row write, so it goes through the one helper and its [Set] line
+  -- (architecture-§5, debug-logging-§10) like every other write.
+  -- red under: NS.ApplyDefault writing through NS.SetSetting instead of NS.SetByPath.
+  local row = NS.FindSchemaRow("units.player.barWidth")
+  local saved, calls = row.onChange, 0
+  NS.SetByPath("units.player.barWidth", 250)
+  row.onChange = function() calls = calls + 1 end
+  NS.State.debug = true
+  local before = #NS.DebugLog.buffer
+  local ok, err = pcall(slash, "reset units.player.barWidth")
+  NS.State.debug = false
+  row.onChange = saved
+  if not ok then error(err) end
+  local sets = {}
+  for i = before + 1, #NS.DebugLog.buffer do
+    local line = NS.DebugLog.buffer[i]
+    if line:find("[Set]", 1, true) then sets[#sets + 1] = line end
+  end
+  assertEqual(#sets, 1, "exactly one [Set] line: " .. table.concat(sets, " | "))
+  assertTrue(sets[1]:find("units.player.barWidth = " .. NS.unitDefaults.barWidth, 1, true) ~= nil,
+    "it names the path and the default: " .. sets[1])
+  assertEqual(calls, 1, "and the row's onChange fires once")
+end)
+
 test("/at reset does NOT lower-case its argument", function()
   -- The inverse of the rule the page form had. Pages were a closed lower-case set; a path is
   -- case-sensitive, so folding case here would reset a setting the user never named.

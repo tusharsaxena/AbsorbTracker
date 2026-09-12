@@ -360,7 +360,7 @@ badge and any count quoted in the docs must agree with it.
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_helpers.lua (56)
+### test_helpers.lua (57)
 
 - CreatePanel returns a ctx wired to a panel, a body and an empty refresher list
 - the canvas frame carries OnCommit, OnDefault and OnRefresh from the library
@@ -379,6 +379,7 @@ badge and any count quoted in the docs must agree with it.
 - RestoreDefaults runs the ctx refreshers so open widgets re-read
 - RestoreDefaults survives a refresher that throws
 - RestoreDefaults on a page with no rows is a harmless no-op
+- the Defaults button fires each reset row's onChange exactly once
 - RestoreAllDefaults resets every schema row that is not on the profiles page
 - RestoreAllDefaults clears the saved bar position so the bar recenters
 - RestoreAllDefaults publishes POSITION so the bar moves immediately
@@ -419,16 +420,17 @@ badge and any count quoted in the docs must agree with it.
 - /at resetposition does not claim success when the settings helpers are absent
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_optionssetup.lua (6)
+### test_optionssetup.lua (7)
 
 - the live and degraded builds veto exactly the same rows from Reset All
+- Reset All resets a sessionOnly row and fires its onChange once, on both builds
 - the degraded stub publishes LSMValues, the one member reached at file load
 - the degraded stub publishes the five composers, the other load-time members
 - the degraded stub keeps no private copy of the library's layout constants
 - PARENT_TITLE reaches the library through the descriptor, not the namespace
 - the live arm patches LSM30_Border through the library, not through a private copy
 
-### test_slashcmds.lua (110)
+### test_slashcmds.lua (112)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -443,6 +445,8 @@ badge and any count quoted in the docs must agree with it.
 - /at reset with no path prints usage rather than resetting anything
 - /at reset rejects a path that is not a setting
 - /at reset restores one setting and leaves its neighbors alone
+- /at reset <path> writes the default and fires the row's onChange exactly once
+- /at reset <path> logs exactly one [Set] line and fires onChange exactly once
 - /at reset does NOT lower-case its argument
 - /at resetall goes through the one shared RestoreAllDefaults helper
 - /at resetall really does restore the defaults end to end
@@ -661,9 +665,9 @@ badge and any count quoted in the docs must agree with it.
 | test_bus.lua | 7 |
 | test_data.lua | 32 |
 | test_display.lua | 53 |
-| test_helpers.lua | 56 |
-| test_optionssetup.lua | 6 |
-| test_slashcmds.lua | 110 |
+| test_helpers.lua | 57 |
+| test_optionssetup.lua | 7 |
+| test_slashcmds.lua | 112 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 5 |
 | test_ltrap.lua | 8 |
@@ -671,4 +675,4 @@ badge and any count quoted in the docs must agree with it.
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_eol.lua | 1 |
-| **Total** | **561** |
+| **Total** | **565** |

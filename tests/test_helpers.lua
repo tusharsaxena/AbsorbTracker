@@ -202,6 +202,21 @@ test("RestoreDefaults on a page with no rows is a harmless no-op", function()
   assertTrue(pcall(Helpers.RestoreDefaults, "nosuchpage"))
 end)
 
+test("the Defaults button fires each reset row's onChange exactly once", function()
+  -- Characterization for #30: the page reset reaches every row through the descriptor's
+  -- applyDefault, and must neither skip a row's reaction nor double it.
+  local row = NS.FindSchemaRow("units.player.barWidth")
+  local saved, calls, got = row.onChange, 0, nil
+  row.onChange = function(v) calls = calls + 1; got = v end
+  NS.SetSetting("units.player.barWidth", 250)
+  local ok, err = pcall(Helpers.RestoreDefaults, "appearance")
+  row.onChange = saved
+  if not ok then error(err) end
+  assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth)
+  assertEqual(calls, 1, "one onChange per reset row")
+  assertEqual(got, NS.unitDefaults.barWidth, "and it receives the default")
+end)
+
 -- ── RestoreAllDefaults ─────────────────────────────────────────────────────────────
 
 test("RestoreAllDefaults resets every schema row that is not on the profiles page", function()

@@ -124,7 +124,7 @@ Each call generates three rows per appearance key — one per `NS.Units.LIST` en
                                    widgets against the new value)
 ```
 
-`NS.SetByPath` (in `settings/Schema.lua`) is the write seam for a value: it calls `NS.SetSetting` then fires the row's `onChange`. A reset to a row's default goes through its sibling `NS.ApplyDefault`, the same `SetSetting` + `onChange` pair without the `[Set]` debug line. It does **not** itself refresh the panel — the slash path calls `NS.RefreshOptionsPanel` afterward (inside the `set` / `applyDefault` closures `settings/Slash.lua` hands the library), and the panel widgets' own `set()` closures end with `Helpers.RefreshAllPanels`.
+`NS.SetByPath` (in `settings/Schema.lua`) is the single write seam: it calls `NS.SetSetting`, logs the `[Set]` debug line, then fires the row's `onChange`. A reset to a row's default comes through it too: `NS.ApplyDefault` builds the copied default and calls `SetByPath`. It does **not** itself refresh the panel — the slash path calls `NS.RefreshOptionsPanel` afterward (inside the `set` / `applyDefault` closures `settings/Slash.lua` hands the library), and the panel widgets' own `set()` closures end with `Helpers.RefreshAllPanels`.
 
 ## Behavior knobs
 
@@ -204,10 +204,11 @@ NS.ResolvePath(tbl, path)               -> value | nil
 NS.SetPath(tbl, path, value)
 
 -- Write / reset (fires row.onChange; reads go through NS.GetSetting)
-NS.SetByPath(path, value)               -- SetSetting + onChange (the documented single seam
-                                                -- both /at set and the panel widget set() use)
-NS.ApplyDefault(row)                    -- reset to row.default + onChange (deep-copies table
-                                                -- defaults; used by /at reset, /at resetall,
+NS.SetByPath(path, value)               -- SetSetting + [Set] line + onChange (the documented
+                                                -- single seam: /at set, the panel widget set(),
+                                                -- and every reset through ApplyDefault)
+NS.ApplyDefault(row)                    -- reset to row.default through SetByPath (deep-copies
+                                                -- table defaults; used by /at reset, /at resetall,
                                                 -- and per-page Defaults buttons)
 
 -- Slash IO (formatting only — the type-aware parser is LibKa0s-Slash-1.0's lib.ParseValue)
