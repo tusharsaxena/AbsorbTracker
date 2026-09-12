@@ -434,7 +434,7 @@ badge and any count quoted in the docs must agree with it.
 - /at resetposition does not claim success when the settings helpers are absent
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_optionssetup.lua (9)
+### test_optionssetup.lua (10)
 
 - the live and degraded builds veto exactly the same rows from Reset All
 - Reset All resets a sessionOnly row and fires its onChange once, on both builds
@@ -445,6 +445,7 @@ badge and any count quoted in the docs must agree with it.
 - the degraded stub keeps no private copy of the library's layout constants
 - PARENT_TITLE reaches the library through the descriptor, not the namespace
 - the live arm patches LSM30_Border through the library, not through a private copy
+- the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
 
 ### test_slashcmds.lua (118)
 
@@ -688,7 +689,7 @@ badge and any count quoted in the docs must agree with it.
 | test_data.lua | 32 |
 | test_display.lua | 53 |
 | test_helpers.lua | 70 |
-| test_optionssetup.lua | 9 |
+| test_optionssetup.lua | 10 |
 | test_slashcmds.lua | 118 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 5 |
@@ -697,4 +698,4 @@ badge and any count quoted in the docs must agree with it.
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_eol.lua | 1 |
-| **Total** | **587** |
+| **Total** | **588** |

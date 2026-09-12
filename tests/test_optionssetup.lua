@@ -285,3 +285,59 @@ test("the live arm patches LSM30_Border through the library, not through a priva
   assertFalse(lib.__PatchLSM30Border(), "the second call must be a no-op")
   assertEqual(AceGUI:GetWidgetVersion("LSM30_Border"), 21, "and must leave the registration alone")
 end)
+
+-- ── the Profiles page draws ──────────────────────────────────────────────────────
+
+test("the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one", function()
+  -- AceGUI:Release hides a widget's frame before pooling it, and neither AceGUI:Create nor
+  -- AceConfigDialog:Open shows it again. settings/Profiles.lua creates its SimpleGroup on first
+  -- show, when AceGUI's pool is rarely empty, so AceConfigDialog could fill a hidden frame and the
+  -- page would read as blank under its header. The Create wrap below hands out every SimpleGroup
+  -- hidden, which is exactly the pooled case.
+  --
+  -- A second full environment, because the shared one has no AceDBOptions and its Profiles page
+  -- self-skips (tests/test_widgets.lua pins that). The fakes go into the kit's library table
+  -- before the addon loads. AbsorbTrackerDB is process-global, so it is parked around InitDB and
+  -- the shared suite's database is never touched.
+  -- red under: the renderer not calling container.frame:Show().
+  local Loader     = dofile("tests/_kit/loader.lua")
+  local buildMocks = dofile("tests/wow_mock.lua")
+  Loader.addonName = "AbsorbTracker"
+  local mocks2, NS2 = buildMocks(), {}
+
+  local opened = {}
+  mocks2.__libs["AceDBOptions-3.0"] = {
+    GetOptionsTable = function() return { type = "group", args = {} } end,
+  }
+  mocks2.__libs["AceConfig-3.0"] = { RegisterOptionsTable = function() end }
+  mocks2.__libs["AceConfigDialog-3.0"] = {
+    Open = function(_, app, container) opened[#opened + 1] = { app = app, container = container } end,
+  }
+  local AceGUI = mocks2.LibStub("AceGUI-3.0")
+  local create = AceGUI.Create
+  AceGUI.Create = function(self, wtype)
+    local w = create(self, wtype)
+    if wtype == "SimpleGroup" then w.frame:Hide() end
+    return w
+  end
+
+  Loader.loadAll(Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml"), NS2, mocks2)
+  Loader.loadAll(Loader.tocFiles("AbsorbTracker.toc"), NS2, mocks2)
+  local savedDB = _G.AbsorbTrackerDB
+  _G.AbsorbTrackerDB = nil
+  local ok, err = pcall(function()
+    NS2:InitDB()
+    NS2.CreateOptionsPanel()
+  end)
+  _G.AbsorbTrackerDB = savedDB
+  assertTrue(ok, "the second environment failed to build: " .. tostring(err))
+
+  local panel = mocks2.__subcategories["Profiles"]
+  assertTrue(panel ~= nil, "with AceDBOptions present the Profiles page registers")
+  panel:__fire("OnShow")
+  assertEqual(#opened, 1, "the first show opens the AceDBOptions table once")
+  assertEqual(opened[1].app, "AbsorbTracker-Profiles")
+  local frame = opened[1].container and opened[1].container.frame
+  assertTrue(frame ~= nil, "AceConfigDialog is handed an AceGUI container")
+  assertTrue(frame:IsShown(), "the container AceConfigDialog fills is shown")
+end)
