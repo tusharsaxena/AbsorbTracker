@@ -137,7 +137,7 @@ differing lines for the library and **947** for the test kit. Re-vendoring to qu
 been the actual mistake — it would pull an untested library release for the sake of a clean diff.
 
 The re-vendor has since landed, so today the two questions give the same answer: `CLAUDE.md` names
-**v1.31.0**, the vendored payloads are that tag, and all four commands above come back empty. An
+**v1.32.0**, the vendored payloads are that tag, and all four commands above come back empty. An
 empty diff is what the state *after* a re-vendor looks like — not a stronger guarantee than the
 tag comparison below, which is the one that actually gates.
 
