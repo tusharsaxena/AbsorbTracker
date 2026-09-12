@@ -145,6 +145,30 @@ every `path` resolves against `NS.defaults.profile`; it returns `(errors, resolv
 the test harness to assert (`sessionOnly` rows are exempt from the path check — their value is
 deliberately not in the profile). Row grammar detail: [schema.md](./schema.md).
 
+**Named non-setting state: `units.<unit>.position`** (architecture-§5). Each bar's saved anchor,
+`db.profile.units.<unit>.position = { point, relPoint, x, y }`, is geometry only a drag
+determines. No schema row addresses it and no control chooses it, so it is written outside
+`NS.SetByPath` and needs no register row. Its **one owner is `core/Units.lua`**:
+`Units.SetPosition(unit, pos)` is the only function that assigns the key (`Units.Position` reads
+it, never mirror-resolved). Every writer, with the act that reaches it:
+
+- **Drag-stop.** The bar's `OnDragStop` handler (`modules/Bar.lua`) saves the dragged frame's own
+  anchor through `Units.SetPosition(self.unit, …)`.
+- **Reset position.** `Helpers.ResetAllPositions` (`settings/UnitPanel.lua`) clears every unit's
+  position through `Units.SetPosition(unit, nil)`, then publishes `POSITION`. Two acts reach it:
+  `/at resetposition` (`settings/Slash.lua`) and the General page's **Reset Position** button
+  (`onResetPosition`, `settings/General.lua`). The button puts back the shipped default (no saved
+  anchor, so each bar re-stacks at `NS.DefaultPosition`) and chooses nothing, so it does not make
+  the position a preference.
+
+Nothing else writes it at runtime. Reset All Settings (`/at resetall`, the descriptor's
+`resetProfile` and the degraded-path `Helpers.RestoreAllDefaults`) is the options-ui-§12 profile
+reset: `db:ResetProfile()` replaces the profile whole, positions with it. The `afterRestoreAll`
+hook that once called `ResetAllPositions` is gone. AceDB's profile swap and copy replace it the same
+way. The v3 lift (`NS.MigrateProfileToV3`, `core/Database.lua`) moves a pre-v3 flat
+`profile.position` onto `units.player.position`; that is the load pass. `Units.CopyFromPlayer`
+deliberately does not copy it. The `[Set]` log does not trace it (debug-logging-§10).
+
 ## Message Bus
 
 Cross-module communication runs through a closed, named message bus (`core/Bus.lua`,

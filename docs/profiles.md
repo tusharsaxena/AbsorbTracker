@@ -127,7 +127,7 @@ Two mechanisms, composing on the one stamp so they cannot double-apply:
 
 ## Bar position is per-profile *and* per-unit
 
-Each bar's saved position lives at `db.profile.units.<unit>.position = { point, relPoint, x, y }`, read and written only through `NS.Units.Position` / `NS.Units.SetPosition` (`core/Units.lua`). It is **not** a schema row — it is written by dragging — and it is **never mirrored**: a mirrored position would stack all three bars on one spot, so `position` (like `enabled`) stays per-unit even while a unit mirrors the player's appearance.
+Each bar's saved position lives at `db.profile.units.<unit>.position = { point, relPoint, x, y }`, read and written only through `NS.Units.Position` / `NS.Units.SetPosition` (`core/Units.lua`). It is **not** a schema row — it is written by dragging, architecture-§5 named non-setting state whose owner and writers are named in [ARCHITECTURE.md → Settings Schema](./ARCHITECTURE.md#settings-schema) — and it is **never mirrored**: a mirrored position would stack all three bars on one spot, so `position` (like `enabled`) stays per-unit even while a unit mirrors the player's appearance.
 
 There is no flat `db.profile.position` any more; the v3 lift moves the pre-v3 key to `units.player.position` and deletes it.
 

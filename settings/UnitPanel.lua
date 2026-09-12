@@ -22,9 +22,10 @@ local Helpers = NS.Helpers
 
 -- Clear EVERY unit's saved position and republish POSITION so all three bars re-anchor to their
 -- stacked defaults. This is the single "reset position" implementation: `/at resetposition`
--- (settings/Slash.lua), the General page's "Reset Position" button (settings/General.lua) and the
--- descriptor's afterRestoreAll hook (settings/OptionsSetup.lua) all call it, so the CLI, the panel
--- and Reset All can never diverge.
+-- (settings/Slash.lua) and the General page's "Reset Position" button (settings/General.lua) both
+-- call it, so the CLI and the panel can never diverge. Reset All no longer does: it is a profile
+-- reset (settings/OptionsSetup.lua), and the positions come back with the profile. This is one of
+-- the two writers of units.<unit>.position that docs/ARCHITECTURE.md -> Settings Schema names.
 --
 -- They diverged here once already: the panel button nil'd `db.profile.position`, the pre-v3 FLAT
 -- key that the v3 migration DELETES, so the assignment cleared an already-nil key and the POSITION
