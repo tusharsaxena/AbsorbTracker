@@ -169,6 +169,21 @@ way. The v3 lift (`NS.MigrateProfileToV3`, `core/Database.lua`) moves a pre-v3 f
 `profile.position` onto `units.player.position`; that is the load pass. `Units.CopyFromPlayer`
 deliberately does not copy it. The `[Set]` log does not trace it (debug-logging-§10).
 
+**Named non-setting state: `AbsorbTrackerPerfDB`** (architecture-§5, recorded data written by a
+vendored library). The perf capture ring is the second SavedVariables global, `{ schema, runs }`,
+which savedvariables-§4 sanctions and keeps outside the AceDB tree. Each record is a capture the
+library measured, so the player authors no entry's value. Its **one owner is
+`core/PerfSetup.lua`**: its descriptor hands `LibKa0s-Perf-1.0` the global's name (`sv`) and sets no
+`ring`, so the library default applies. Nothing in this addon's own code writes it. The one writer
+is the library's `P.Save` (`libs/LibKa0s/Perf.lua`). One act reaches it: `/at perf finish`
+(`SUBS.finish`). That call does three things in one pass:
+
+- appends the run;
+- trims the oldest records past the ring's size, which is the retention prune;
+- discards a ring stored under an older record schema, and logs a line when it drops records.
+
+`/at perf cancel` saves nothing. AceDB's profile reset, swap and copy never reach this global.
+
 ## Message Bus
 
 Cross-module communication runs through a closed, named message bus (`core/Bus.lua`,
