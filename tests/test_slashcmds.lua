@@ -635,8 +635,9 @@ test("/at profile new logs the switch line, then a (0 rows) reset line", functio
 end)
 
 test("a profile copy logs one [Set] line naming both profiles", function()
-  -- AceDB hands OnProfileCopied the SOURCE profile's name as its third argument. The kit's mock
-  -- hands it the current name, so the wording is pinned by calling the handler as AceDB does.
+  -- AceDB hands OnProfileCopied the SOURCE profile's name as its third argument, and so has the
+  -- kit's mock since revision 18. The wording is still pinned by calling the handler as AceDB does,
+  -- so this case never depends on which fake fires the event.
   local lines = debugLines(function() NS.OnProfileCopied("OnProfileCopied", NS.db, "Raid") end)
   T.mocks.__fireTimers()
   assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
