@@ -1433,3 +1433,19 @@ test("parity: a bare /at reaches no handler and prints help in both", function()
   assertParity("", ("verb=nil rest=\"nil\" lines=%d"):format(#NS.COMMANDS + 1))
   assertParity("   ", ("verb=nil rest=\"nil\" lines=%d"):format(#NS.COMMANDS + 1))
 end)
+
+-- ── a string value keeps every word ────────────────────────────────────────────────
+
+test("/at set stores a multi-word string value whole", function()
+  -- LibKa0s-Slash-1.0 minor 10 hands a string row the whole remainder, trimmed. Through minor 9
+  -- it took the first word, so the font-flag entry "OUTLINE, MONOCHROME" could not be set at all:
+  -- "OUTLINE," is not one of the row's values and was refused.
+  -- red under: Slash.lua minor 9 (the parse splitting a string row's value on whitespace).
+  local path = "units.player.fontFlags"
+  local before = NS.GetSetting(path)
+  local out = slash("set " .. path .. "   OUTLINE, MONOCHROME  ")
+  assertEqual(NS.GetSetting(path), "OUTLINE, MONOCHROME", joined(out))
+  slash("reset " .. path)
+  T.mocks.__fireTimers()
+  assertEqual(NS.GetSetting(path), before, "the reset put the shipped value back")
+end)

@@ -434,7 +434,7 @@ badge and any count quoted in the docs must agree with it.
 - /at resetposition does not claim success when the settings helpers are absent
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_optionssetup.lua (10)
+### test_optionssetup.lua (11)
 
 - the live and degraded builds veto exactly the same rows from Reset All
 - Reset All resets a sessionOnly row and fires its onChange once, on both builds
@@ -446,8 +446,9 @@ badge and any count quoted in the docs must agree with it.
 - PARENT_TITLE reaches the library through the descriptor, not the namespace
 - the live arm patches LSM30_Border through the library, not through a private copy
 - the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
+- General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
 
-### test_slashcmds.lua (118)
+### test_slashcmds.lua (119)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -567,6 +568,7 @@ badge and any count quoted in the docs must agree with it.
 - parity: both dispatchers resolve the `options` alias to `config`
 - parity: an unknown verb reaches no handler and prints the same shape in both
 - parity: a bare /at reaches no handler and prints help in both
+- /at set stores a multi-word string value whole
 
 ### test_widgets.lua (55)
 
@@ -689,8 +691,8 @@ badge and any count quoted in the docs must agree with it.
 | test_data.lua | 32 |
 | test_display.lua | 53 |
 | test_helpers.lua | 70 |
-| test_optionssetup.lua | 10 |
-| test_slashcmds.lua | 118 |
+| test_optionssetup.lua | 11 |
+| test_slashcmds.lua | 119 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 5 |
 | test_ltrap.lua | 8 |
@@ -698,4 +700,4 @@ badge and any count quoted in the docs must agree with it.
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_eol.lua | 1 |
-| **Total** | **588** |
+| **Total** | **590** |
