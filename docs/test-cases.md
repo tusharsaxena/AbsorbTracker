@@ -625,10 +625,11 @@ badge and any count quoted in the docs must agree with it.
 - parity: the Options stub carries every helper the degraded build can reach
 - parity: the Slash stub carries every dispatcher member the addon calls
 
-### test_vendor_sync.lua (2)
+### test_vendor_sync.lua (3)
 
 - libs/LibKa0s is the LibKa0s release CLAUDE.md says this addon bundles
 - tests/_kit is the test kit that shipped with that release
+- the automated-test runner is recorded executable (100755)
 
 ### test_lintconfig.lua (4)
 
@@ -667,7 +668,7 @@ badge and any count quoted in the docs must agree with it.
 | test_docs.lua | 5 |
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 4 |
-| test_vendor_sync.lua | 2 |
+| test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_eol.lua | 1 |
-| **Total** | **560** |
+| **Total** | **561** |

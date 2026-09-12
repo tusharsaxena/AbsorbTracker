@@ -12,30 +12,8 @@ local base = dofile("tests/_kit/mock_base.lua")
 return function()
   local M = base()
 
-  -- AceGUI:Release. The shared kit's AceGUI factory hands widgets out and never takes one back,
-  -- because until settings/UnitPanel.lua's chrome block nothing in the collection released one:
-  -- everything a page draws goes into the scroll, and ClearScroll's ReleaseChildren covers it. The
-  -- chrome band has no equivalent -- the library's ledger hides and unparents the FRAME a host drew
-  -- into and knows nothing about the AceGUI widgets parented to it -- so the host releases them
-  -- itself, and a mock with no Release would make that call raise rather than be asserted on.
-  --
-  -- Modeled on the real one's observable effects (the widget is hidden, detached from its parent,
-  -- and its callbacks and children are dropped) plus one recorder, `__released`, so a suite can see
-  -- that the release actually happened. This belongs in tests/_kit/mock_base.lua and is reported
-  -- upstream; it lives here because the kit is vendored and this addon does not patch it.
-  local aceGUI = M.__libs["AceGUI-3.0"]
-  aceGUI.__released = {}
-  function aceGUI:Release(widget)
-    if not widget then return end
-    widget.__released = true
-    widget.callbacks  = {}
-    widget.children   = {}
-    if widget.frame then
-      widget.frame:Hide()
-      widget.frame:SetParent(nil)
-    end
-    self.__released[#self.__released + 1] = widget
-  end
+  -- AceGUI:Release is the kit's (kit revision 16, LibKa0s v1.30.0): settings/UnitPanel.lua's
+  -- chrome block releases its widgets, and tests/test_helpers.lua reads the kit's `w.__released`.
 
   -- Absorb and health, the two values this addon exists to read. Unit-taking so a test can vary
   -- target/focus independently of the player.
