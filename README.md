@@ -62,7 +62,7 @@ units.target.useClassColorBar true`); the globals — `enabled`, `visibility`, `
 `locked`, `throttleWindow` — go by their plain names instead. Reverting comes in three widths:
 `/at reset` for a single setting, `/at resetposition` to move every bar home, and `/at resetall` to
 put the lot back and recenter them. `/at toggle` flips all the bars at once or one by name, `/at
-update` forces a repaint, and `/at profile` and `/at perf` each print their own verbs when run
+update` forces a repaint, `/at version` prints the installed version, and `/at profile` and `/at perf` each print their own verbs when run
 bare. Addon output arrives in chat behind a cyan `[AT]` tag.
 
 Everything else is configuration, and it lives in two places: the addon's own page under Settings →

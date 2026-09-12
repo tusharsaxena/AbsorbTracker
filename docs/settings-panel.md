@@ -351,12 +351,12 @@ each composed media row at `H.LSMValues(kind)`, and **not** in `libs/` — a dow
 vendored file is overwritten by the next re-vendor and takes the fix with it, so a defect there is
 reported upstream and fixed there. That is what happened: minor 3 reads `O.LSMValues(kind)` once at
 row-declaration time and assigns the deferred reader straight into `values`
-(`libs/LibKa0s/OptionsCompose.lua:240`, `:284`, `:313`), so `enumList`'s single unwrap now lands on a
+(`libs/LibKa0s/OptionsCompose.lua:324`, `:368`, `:397`), so `enumList`'s single unwrap now lands on a
 table. The workaround and its three call sites were deleted in the v1.26.0 re-vendor.
 
 The **contract** that replaced it is worth knowing, because breaking it fails silently rather than
 loudly: a host supplying its own `O.LSMValues` must return **a function**
-(`libs/LibKa0s/OptionsCompose.lua:182-186`). Hand back a table instead and nothing errors — the row
+(`libs/LibKa0s/OptionsCompose.lua:248-255`). Hand back a table instead and nothing errors — the row
 simply freezes its media list at whatever was registered when the file loaded, so media registered
 later never appears. This addon's `Helpers.LSMValues` returns a deferred closure and
 `tests/test_data.lua:192` pins that. `tests/test_schema.lua` still asserts that every row carrying a

@@ -230,7 +230,7 @@ table, not that Blizzard's dropdown draws the entries.
      that keeps late media visible. With a media-providing addon loaded (SharedMedia and friends),
      confirm a face it registers appears in **Font** and a texture it registers appears in **Bar
      texture**. A list holding only the Blizzard stock entries means the reader froze, which is the
-     silent failure `libs/LibKa0s/OptionsCompose.lua:182-186` describes.
+     silent failure `libs/LibKa0s/OptionsCompose.lua:248-255` describes.
 
 ### P. LibKa0s v1.27.0 — the pooled tab strip, and the perf strings
 
@@ -427,7 +427,7 @@ regression, and it is not what this section is looking for.
      secret and a localized formatter in the same line.
 
 **Sign-off without a non-English client.** Steps 110 to 112 all read the same two seams, and the
-headless suite reaches neither: `tests/wow_mock.lua:48` defines `AbbreviateNumbers` as
+headless suite reaches neither: `tests/wow_mock.lua:26` defines `AbbreviateNumbers` as
 `function(n) return tostring(n) end`, so `tests/test_display.lua:605` proves the value is *routed* to
 it and nothing about what it *renders*; and the class-color cases (`GetBarColor`, `GetBgColor`,
 `GetBorderColor`, `GetFontColor`, and `class color on a target bar is the TARGET's class`) feed the
