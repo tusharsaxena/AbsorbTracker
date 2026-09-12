@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-587%2F587_passing-green)
+![Tests](https://img.shields.io/badge/Tests-590%2F590_passing-green)
 
 Ka0s Absorb Tracker puts your absorb shields on screen as a movable bar. Every shield on the unit,
 added into one number, so a glance tells you how much damage you can eat before your health starts
@@ -62,7 +62,7 @@ units.target.useClassColorBar true`); the globals — `enabled`, `visibility`, `
 `locked`, `throttleWindow` — go by their plain names instead. Reverting comes in three widths:
 `/at reset` for a single setting, `/at resetposition` to move every bar home, and `/at resetall` to
 put the lot back and recenter them. `/at toggle` flips all the bars at once or one by name, `/at
-update` forces a repaint, and `/at profile` and `/at perf` each print their own verbs when run
+update` forces a repaint, `/at version` prints the installed version, and `/at profile` and `/at perf` each print their own verbs when run
 bare. Addon output arrives in chat behind a cyan `[AT]` tag.
 
 Everything else is configuration, and it lives in two places: the addon's own page under Settings →

@@ -13,7 +13,7 @@ parse one word. The trigger fires on either half.
 
 ## Registration
 
-`Sl:Register` (`settings/Slash.lua:499`) registers both names through AceConsole-3.0, called once
+`Sl:Register` (`settings/Slash.lua:501`) registers both names through AceConsole-3.0, called once
 from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:44`, guarded so a load where
 `settings/Slash.lua` never ran degrades rather than errors):
 
@@ -57,7 +57,7 @@ The library lowercases only the verb; the remainder is passed through untouched.
 here, because every schema path in this addon is camelCase and per-unit —
 `/at set units.target.barWidth 250` is the shipped form, and folding the whole line would address a
 row that does not exist. `/at profile` repeats the rule one level down: `runProfile`
-(`settings/Slash.lua:373`) lowercases the sub-verb and leaves its argument alone, because AceDB
+(`settings/Slash.lua:375`) lowercases the sub-verb and leaves its argument alone, because AceDB
 profile names are case-sensitive and a folded name deletes or switches to the wrong profile.
 
 **Schema paths are fully qualified.** The pre-1.9 unqualified `/at set barWidth 250` is rejected:
@@ -92,7 +92,7 @@ Four verbs parse a remainder of their own. Three of them parse one word; only `p
 dispatch table, and it is the one this page is really about.
 
 **`profile`** — `PROFILE_VERBS` (`settings/Slash.lua:327`), a table keyed by the lowercased sub-verb,
-built once at load and dispatched at `:386`:
+built once at load and dispatched at `:388`:
 
 | Sub-verb | Takes a name | What it does |
 |---|---|---|
@@ -136,7 +136,7 @@ anybody. So bare `toggle` turns everything off if anything is on, and everything
 ## The mirror note
 
 `MirrorNote` (`settings/Slash.lua:48`) is handed to the library through `cli:SetRowAnnotator`
-(`:481`). It appends `(mirrored — the bar shows Player's appearance)` in gray to a row whose unit is
+(`:483`). It appends `(mirrored — the bar shows Player's appearance)` in gray to a row whose unit is
 currently mirroring, and it exists because `/at get` and `/at set` resolve through `NS.GetSetting`,
 which walks the raw profile path and never consults `NS.Units.Get`. They therefore read and write the
 unit's **stored** value, not the mirror-resolved one. That is deliberate and self-consistent — it is
@@ -171,7 +171,7 @@ generic dispatcher knows nothing about.
 ## When the library is absent
 
 `/at` is registered unconditionally, so something has to answer it. With `LibKa0s-Slash-1.0` missing,
-`settings/Slash.lua:406` installs a stand-in: dispatch and a plain help index still render, the host
+`settings/Slash.lua:408` installs a stand-in: dispatch and a plain help index still render, the host
 verbs — which never went to the library — keep working untouched, and each schema verb (`list`,
 `get`, `set`, `reset`, `resetall`) prints one honest line naming the missing library through
 `NS.LIBKA0S_MISSING`.

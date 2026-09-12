@@ -45,7 +45,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 18. **Profiles** — AceDBOptions UI renders **inside** the canvas panel (Current/New/Copy/Reset/Delete + scopes), no error.
 19. **Page Defaults button (position isolation).** Change Appearance values on more than one tab **and drag the bar off-center**, click Defaults → every Appearance row on every tab and every unit reverts, the General page's throttle does **not**, and **the bar stays where you dragged it** (a page-level reset never moves the bar); panel refreshes.
 20. **Reset All popup (recenter regression).** Drag the bar off-center and change values on several pages, then General → Reset All Settings → confirm popup → Yes → General/Appearance revert, `[AT] All settings reset to defaults.`, Profiles untouched, **and the bar recenters**. This must be an *identical* outcome to `/at resetall` (step 28) — both call the shared `Helpers.RestoreAllDefaults`; pre-fix the button reset settings but left the bar off-center.
-20a. **Reset-All wording and blast radius.** The popup carries the collection's **one** wording (`options-ui-§12`), verbatim: *"Reset this profile to the addon's defaults? Everything you have configured or added in it is discarded — your other profiles are not affected."* The button tooltip names the equivalence rather than restating it. Accepting must be **the same act** as Profiles → **Reset Profile**: every setting back to shipped, every bar back at its default position, and — with a second profile made on the Profiles page beforehand — the profile **list unchanged** and you still on the profile you were on.
+20a. **Reset-All wording and blast radius.** The popup carries the collection's **one** wording (`options-ui-§12`), verbatim: *"Reset this profile to the addon's defaults? Everything you have configured or added in it is discarded — your other profiles are not affected."* Hover the button first: its tooltip reads, verbatim, *"Reset the current profile to its defaults — the same thing Profiles → Reset Profile does. Your other profiles are not affected."* (the composer's wording, chosen by `profilesPage = true` on the descriptor). Accepting must be **the same act** as Profiles → **Reset Profile**: every setting back to shipped, every bar back at its default position, and — with a second profile made on the Profiles page beforehand — the profile **list unchanged** and you still on the profile you were on.
 
 ### E. LSM border-widget alignment fix
 21. Appearance → *Border* tab, **Border Style** dropdown closed → left edge flush with neighbors, **no ~42px gap** (`lib.__PatchLSM30Border()`, called from `settings/OptionsSetup.lua`'s live arm, suppresses the displayButton tile — the addon-side `core/LSMPatch.lua` that used to do it is deleted). **This step passes with the fixup broken as long as AbsorbTracker is the only Ka0s addon loaded**; section Q is the one that can see the real defect.
@@ -73,6 +73,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 38. `/at profile copy SmokeTest` → copies + repaints.
 39. `/at profile delete <current>` → refused; switch away, delete SmokeTest → deleted.
 40. **Panel-driven switch** — Profiles page dropdown switch → bar repaints live.
+40a. **The page draws.** Open another addon's options page first, then Absorb Tracker → Profiles → the AceDBOptions controls render (current profile, New, Copy From, Delete, Reset Profile): never a blank page under the header.
 
 ### H. Debug console (`debug-logging`)
 41. `/at debug` → **Absorb Tracker — Debug** window appears (dark, draggable); `/at debug` again → hides. **Its edge is the shared Ka0s edge, not this addon's** (standalone-windows): a flat **1px black** outer border with a **1px light-gray highlight** immediately inside it, a **gold** title, and a **gray divider** under the title bar — *not* the soft 12px brown tooltip frame with a black divider and an untinted title, which is what this window drew before LibKa0s v1.3.0. The close control is the library's, and it is now the shared **close mark** — a small white glyph on exactly the tint ladder the old **×** always had: resting **gray** `0.7, 0.7, 0.72`, brightening to **red** `1, 0.3, 0.3` under the pointer (`libs/LibKa0s/Core.lua`'s `CLOSE_REST` / `CLOSE_HOT`) — not the multiplication sign. It is a texture out of `LibKa0s-Media-1.0`, reached because `core/DebugLogSetup.lua`'s descriptor hands the library our folder name (`addonName = addonName`). **Side-by-side check:** open another Ka0s addon's debug console next to this one — the two edges, dividers and title tints must be **indistinguishable**. If they differ, either that addon is on a pre-v1.3.0 LibKa0s or one of the two is passing its own `applySkin` (this addon passes none — `core/DebugLogSetup.lua`'s descriptor carries no `skin`, no `applySkin`, no `makeCloseButton`).
@@ -229,7 +230,7 @@ table, not that Blizzard's dropdown draws the entries.
      that keeps late media visible. With a media-providing addon loaded (SharedMedia and friends),
      confirm a face it registers appears in **Font** and a texture it registers appears in **Bar
      texture**. A list holding only the Blizzard stock entries means the reader froze, which is the
-     silent failure `libs/LibKa0s/OptionsCompose.lua:182-186` describes.
+     silent failure `libs/LibKa0s/OptionsCompose.lua:248-255` describes.
 
 ### P. LibKa0s v1.27.0 — the pooled tab strip, and the perf strings
 
@@ -240,8 +241,8 @@ that payload that only a client can settle.
 click: it acquires both from per-`ctx` `LibKa0s-Pool-1.0` pools and re-dresses them, re-setting
 `OnClick` on every dress. Its only headless proof counts `CreateFrame` calls on a second selection
 pass, and the case that would pin band geometry as invariant under selection cannot be written yet —
-the shared mock answers `GetHeight` with 0 for every frame, and that flips in the kit (not at kit 16 or 17,
-which shipped Ace-fake fixes and Ace surfaces instead; revision 18 at the earliest), not here. **So
+the shared mock answers `GetHeight` with 0 for every frame, and that flips in the kit (not at kit 16, 17, 18 or 19,
+which shipped Ace-fake fixes, Ace surfaces, a profile-copy fix and a profile-reset fix instead; revision 20 at the earliest), not here. **So
 a stale label, a mis-anchored button or a band that changes height on a re-dressed tab is invisible
 to every automated check in this repo.**
 
@@ -426,7 +427,7 @@ regression, and it is not what this section is looking for.
      secret and a localized formatter in the same line.
 
 **Sign-off without a non-English client.** Steps 110 to 112 all read the same two seams, and the
-headless suite reaches neither: `tests/wow_mock.lua:48` defines `AbbreviateNumbers` as
+headless suite reaches neither: `tests/wow_mock.lua:26` defines `AbbreviateNumbers` as
 `function(n) return tostring(n) end`, so `tests/test_display.lua:605` proves the value is *routed* to
 it and nothing about what it *renders*; and the class-color cases (`GetBarColor`, `GetBgColor`,
 `GetBorderColor`, `GetFontColor`, and `class color on a target bar is the TARGET's class`) feed the

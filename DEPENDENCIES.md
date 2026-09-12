@@ -175,13 +175,13 @@ Lua 5.1 has no directory API and this repo deliberately does not depend on LuaFi
 suites list directories by shelling out:
 
 ```
-tests/test_docs.lua:41           io.popen("ls -1 " .. pattern .. " 2>/dev/null")
-tests/_kit/vendor_sync.lua:122   collect('cd "%s" && find . -type f 2>/dev/null')
+tests/test_docs.lua:42           io.popen("ls -1 " .. pattern .. " 2>/dev/null")
+tests/_kit/vendor_sync.lua:126   collect('cd "%s" && find . -type f 2>/dev/null')
 ```
 
 The comparator recurses, so it lists with `find`, not `ls` — a vendored payload has subdirectories
 (`libs/LibKa0s/media/fonts/`, `media/icons/`) and a flat listing would report every file in them as
-missing. `tests/_kit/vendor_sync.lua:125` falls back to `dir /b /s /a-d` for `cmd.exe`, so that suite
+missing. `tests/_kit/vendor_sync.lua:129` falls back to `dir /b /s /a-d` for `cmd.exe`, so that suite
 survives a Windows shell; `tests/test_docs.lua` does not, and needs a POSIX shell. Under WSL2 you
 already have both and there is nothing to install.
 
@@ -201,7 +201,7 @@ you are likely to be missing it. The second command uses process substitution, s
 
 Recorded so nobody installs them by mistake:
 
-- **LuaFileSystem** — *not* used. `tests/_kit/vendor_sync.lua:103-104` says so explicitly and shells out
+- **LuaFileSystem** — *not* used. `tests/_kit/vendor_sync.lua:107-108` says so explicitly and shells out
   instead. `luacheck` pulls LFS in as its own dependency; that is LuaRocks' business, not this
   addon's.
 - **A CI runner** — there is none. No GitHub Action, no dynamic badge; every gate is local and

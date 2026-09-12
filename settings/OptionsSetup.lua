@@ -95,6 +95,12 @@ local descriptor = {
         if db and db.ResetProfile then NS.ResetProfileCounted(db) end
     end,
 
+    -- This addon ships the AceDBOptions Profiles page (settings/Profiles.lua), so the General
+    -- page's Reset all settings tooltip names the equivalence options-ui-§12 asks for: "the same
+    -- thing Profiles → Reset Profile does". The library cannot see which pages a host registers,
+    -- so the host says so (LibKa0s-Options-1.0 minor 18). It changes that tooltip and nothing else.
+    profilesPage = true,
+
     -- The bulk bracket (LibKa0s-Options-1.0 minor 16, debug-logging-§10). RestoreDefaults and
     -- RestoreAllDefaults call these around their walks, so a Defaults press is one
     -- `[Set] reset <page>: N rows` line rather than one `[Set]` per row. A Reset All carries

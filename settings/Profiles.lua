@@ -72,6 +72,11 @@ local function build(mainCategory)
             container.frame:SetPoint("TOPLEFT",     ctx.body, "TOPLEFT",      8, -8)
             container.frame:SetPoint("BOTTOMRIGHT", ctx.body, "BOTTOMRIGHT", -8, 8)
         end
+        -- SHOWN EXPLICITLY, every render. AceGUI:Release hides a frame before pooling it, and
+        -- neither AceGUI:Create nor AceConfigDialog:Open shows it again; created on first show,
+        -- this group is usually a pooled one, and AceConfigDialog would fill a hidden frame: a
+        -- blank page under the header.
+        container.frame:Show()
         AceConfigDialog:Open(APPNAME, container)
     end)
 

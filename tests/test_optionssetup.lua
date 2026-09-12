@@ -285,3 +285,102 @@ test("the live arm patches LSM30_Border through the library, not through a priva
   assertFalse(lib.__PatchLSM30Border(), "the second call must be a no-op")
   assertEqual(AceGUI:GetWidgetVersion("LSM30_Border"), 21, "and must leave the registration alone")
 end)
+
+-- ── the Profiles page draws ──────────────────────────────────────────────────────
+
+test("the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one", function()
+  -- AceGUI:Release hides a widget's frame before pooling it, and neither AceGUI:Create nor
+  -- AceConfigDialog:Open shows it again. settings/Profiles.lua creates its SimpleGroup on first
+  -- show, when AceGUI's pool is rarely empty, so AceConfigDialog could fill a hidden frame and the
+  -- page would read as blank under its header. The Create wrap below hands out every SimpleGroup
+  -- hidden, which is exactly the pooled case.
+  --
+  -- A second full environment, because the shared one has no AceDBOptions and its Profiles page
+  -- self-skips (tests/test_widgets.lua pins that). The fakes go into the kit's library table
+  -- before the addon loads. AbsorbTrackerDB is process-global, so it is parked around InitDB and
+  -- the shared suite's database is never touched.
+  -- red under: the renderer not calling container.frame:Show().
+  local Loader     = dofile("tests/_kit/loader.lua")
+  local buildMocks = dofile("tests/wow_mock.lua")
+  Loader.addonName = "AbsorbTracker"
+  local mocks2, NS2 = buildMocks(), {}
+
+  local opened = {}
+  mocks2.__libs["AceDBOptions-3.0"] = {
+    GetOptionsTable = function() return { type = "group", args = {} } end,
+  }
+  mocks2.__libs["AceConfig-3.0"] = { RegisterOptionsTable = function() end }
+  mocks2.__libs["AceConfigDialog-3.0"] = {
+    Open = function(_, app, container) opened[#opened + 1] = { app = app, container = container } end,
+  }
+  local AceGUI = mocks2.LibStub("AceGUI-3.0")
+  local create = AceGUI.Create
+  AceGUI.Create = function(self, wtype)
+    local w = create(self, wtype)
+    if wtype == "SimpleGroup" then w.frame:Hide() end
+    return w
+  end
+
+  Loader.loadAll(Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml"), NS2, mocks2)
+  Loader.loadAll(Loader.tocFiles("AbsorbTracker.toc"), NS2, mocks2)
+  local savedDB = _G.AbsorbTrackerDB
+  _G.AbsorbTrackerDB = nil
+  local ok, err = pcall(function()
+    NS2:InitDB()
+    NS2.CreateOptionsPanel()
+  end)
+  _G.AbsorbTrackerDB = savedDB
+  assertTrue(ok, "the second environment failed to build: " .. tostring(err))
+
+  local panel = mocks2.__subcategories["Profiles"]
+  assertTrue(panel ~= nil, "with AceDBOptions present the Profiles page registers")
+  panel:__fire("OnShow")
+  assertEqual(#opened, 1, "the first show opens the AceDBOptions table once")
+  assertEqual(opened[1].app, "AbsorbTracker-Profiles")
+  local frame = opened[1].container and opened[1].container.frame
+  assertTrue(frame ~= nil, "AceConfigDialog is handed an AceGUI container")
+  assertTrue(frame:IsShown(), "the container AceConfigDialog fills is shown")
+end)
+
+-- ── the Reset all settings tooltip names Profiles → Reset Profile ──────────────────────────────
+--
+-- options-ui-§12: the global reset IS a profile reset here (the descriptor supplies resetProfile)
+-- and this addon ships a Profiles page, so the button's tooltip SHOULD name the equivalence. The
+-- composer is the only writer of that text; it picks the wording from the descriptor
+-- (LibKa0s-Options-1.0 minor 18), and `profilesPage = true` is how the host says the page exists.
+-- Read the way AttachTooltip shows it: fire the real button's OnEnter with GameTooltip:AddLine spied.
+
+local RESET_ALL_TIP = "Reset the current profile to its defaults \226\128\148 the same thing "
+  .. "Profiles \226\134\146 Reset Profile does. Your other profiles are not affected."
+
+local function findButton(w, text, depth)
+  depth = depth or 0
+  if type(w) ~= "table" or depth > 8 then return nil end
+  if w.text == text and w.callbacks then return w end
+  for _, child in ipairs(w.children or {}) do
+    local hit = findButton(child, text, depth + 1)
+    if hit then return hit end
+  end
+  return nil
+end
+
+test("General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile", function()
+  -- red under: dropping `profilesPage = true` from the descriptor in settings/OptionsSetup.lua.
+  local ctx = Helpers.__panelFor("general")
+  assertTrue(ctx ~= nil, "the General page is registered")
+  ctx.activeTab = Helpers.MASTER_GROUP
+  ctx.panel:Show()
+  Helpers.RefreshPanel(ctx, true)
+  local btn = findButton(ctx.scroll, "Reset all settings")
+  assertTrue(btn ~= nil, "the Master controls tab draws a Reset all settings button")
+  assertTrue(btn.callbacks.OnEnter ~= nil, "the button carries a tooltip")
+
+  local tip, lines = T.mocks.GameTooltip, {}
+  local saved = rawget(tip, "AddLine")
+  rawset(tip, "AddLine", function(_, text) lines[#lines + 1] = text end)
+  local ok, err = pcall(btn.callbacks.OnEnter)
+  rawset(tip, "AddLine", saved)
+  assertTrue(ok, tostring(err))
+  assertEqual(#lines, 1, "one tooltip body line")
+  assertEqual(lines[1], RESET_ALL_TIP)
+end)

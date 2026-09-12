@@ -32,6 +32,7 @@ TOC order under `# Settings` is `settings/Schema.lua` → `Slash.lua` → `Optio
 | `rowsForPage(pageKey, filter)` / `allRows` | `NS.SchemaForPage` and `NS.Schema`. `filter` is `ctx.unit`, passed through uninterpreted — that is what makes a per-unit page render only the selected unit's rows while General (`ctx.unit` nil) gets every unit's. |
 | `skipRestoreAll` | Skips `row.page == "profiles"` (those rows are AceDBOptions-supplied and resetting them would delete user data) **and** every profile-backed row, leaving the walk only the `sessionOnly` rows a profile reset cannot reach. |
 | `resetProfile` | `db:ResetProfile()` — Reset All Settings **is** a profile reset (options-ui-§12), so the library empties the active profile rather than writing each row's default back. Saved positions live in the profile and come back with it, which is why `Helpers.ResetAllPositions` is no longer on this path. |
+| `profilesPage` | `true` — this addon ships the AceDBOptions Profiles page, so the Master controls tab's *Reset all settings* tooltip reads *"Reset the current profile to its defaults — the same thing Profiles → Reset Profile does. Your other profiles are not affected."* (options-ui-§12). LibKa0s-Options-1.0 minor 18; it changes that tooltip and nothing else. |
 | `scheduleTimer` | `NS.addon:ScheduleTimer` (Ka0s standard library-stack-§1, not a raw `C_Timer`), backing the color picker's 50 ms drag throttle. The library takes it as a descriptor field because embedding AceTimer would be its second dependency-budget breach. |
 | `getLSM` / `validate` | `NS.GetLSM` and `NS.ValidateSchema`. |
 | `onAceGUI` | `function(AceGUI) NS.AceGUI = AceGUI end` — see below. |
@@ -350,12 +351,12 @@ each composed media row at `H.LSMValues(kind)`, and **not** in `libs/` — a dow
 vendored file is overwritten by the next re-vendor and takes the fix with it, so a defect there is
 reported upstream and fixed there. That is what happened: minor 3 reads `O.LSMValues(kind)` once at
 row-declaration time and assigns the deferred reader straight into `values`
-(`libs/LibKa0s/OptionsCompose.lua:240`, `:284`, `:313`), so `enumList`'s single unwrap now lands on a
+(`libs/LibKa0s/OptionsCompose.lua:324`, `:368`, `:397`), so `enumList`'s single unwrap now lands on a
 table. The workaround and its three call sites were deleted in the v1.26.0 re-vendor.
 
 The **contract** that replaced it is worth knowing, because breaking it fails silently rather than
 loudly: a host supplying its own `O.LSMValues` must return **a function**
-(`libs/LibKa0s/OptionsCompose.lua:182-186`). Hand back a table instead and nothing errors — the row
+(`libs/LibKa0s/OptionsCompose.lua:248-255`). Hand back a table instead and nothing errors — the row
 simply freezes its media list at whatever was registered when the file loaded, so media registered
 later never appears. This addon's `Helpers.LSMValues` returns a deferred closure and
 `tests/test_data.lua:192` pins that. `tests/test_schema.lua` still asserts that every row carrying a
