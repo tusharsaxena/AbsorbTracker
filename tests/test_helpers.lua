@@ -319,13 +319,116 @@ test("a page reset that raises still unmutes the seam", function()
   T.mocks.__fireTimers()
 end)
 
+test("a bulk act that raises logs its one line marked as stopped by an error", function()
+  -- debug-logging-§10's one line is still owed when the act dies half way: it says how many rows
+  -- the act DID change, and that it did not finish. Still exactly one line, the mute still
+  -- released, and the error still reaches the caller unchanged.
+  -- red under: a bulkEnd that ignores its `err`, so a half-done act reads as a finished one.
+  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth)
+  local ok, err
+  local lines = linesOf(function()
+    ok, err = pcall(NS.Bulk.Run, "reset", "probe", function()
+      NS.SetByPath("units.player.barWidth", NS.unitDefaults.barWidth + 7)
+      error("boom", 0)
+    end)
+  end)
+  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth)
+  assertFalse(ok, "the walk's error reaches the caller")
+  assertEqual(err, "boom", "re-raised unchanged")
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  local want = "[Set] reset probe: 1 rows (stopped by an error)"
+  assertTrue(lines[1]:find(want, 1, true) ~= nil, "want '" .. want .. "', got " .. lines[1])
+  local after = linesOf(function() NS.SetByPath("units.player.barWidth", 222) end)
+  assertEqual(#after, 1, "the next single write logs again")
+  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth)
+  T.mocks.__fireTimers()
+end)
+
+test("a library page reset that raises logs its one line marked as stopped by an error", function()
+  -- The same marker on the library's bracket: RestoreDefaults hands bulkEnd the raised value.
+  local row = NS.FindSchemaRow("units.player.barWidth")
+  local saved = row.onChange
+  row.onChange = function() error("boom") end
+  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth + 3)
+  local ok
+  local lines = linesOf(function() ok = pcall(Helpers.RestoreDefaults, "appearance") end)
+  row.onChange = saved
+  assertFalse(ok, "the raising row's error reaches the caller")
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find("%[Set%] reset appearance: %d+ rows %(stopped by an error%)$") ~= nil,
+    lines[1])
+  Helpers.RestoreDefaults("appearance")
+  T.mocks.__fireTimers()
+end)
+
+-- ── the profile reset's count (debug-logging-§10) ──────────────────────────────────
+--
+-- `[Set] reset profile '<name>' to defaults (N rows)`: N is the rows the reset CHANGED, counted
+-- just before an addon-driven db:ResetProfile() (NS.ResetProfileCounted), never the schema size.
+-- A reset the addon did not drive (an AceDBOptions button, a /run) has no count and says none.
+
+local function resetLine(n)
+  local line = ("[Set] reset profile '%s' to defaults"):format(NS.db:GetCurrentProfile())
+  return n and (line .. (" (%d rows)"):format(n)) or line
+end
+
+-- Put the active profile back at its defaults, unlogged. A reset the addon did not drive.
+local function cleanProfile()
+  NS.db:ResetProfile()
+  T.mocks.__fireTimers()
+end
+
+test("Reset All on a clean profile logs (0 rows)", function()
+  -- red under: a count of every row the profile stores (the schema size).
+  cleanProfile()
+  local lines = linesOf(function() Helpers.RestoreAllDefaults() end)
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertEqual(lines[1]:match("%[Set%].*$"), resetLine(0))
+  T.mocks.__fireTimers()
+end)
+
+test("a reset the addon did not drive logs the reset line with no count", function()
+  -- An AceDBOptions Reset Profile press or a /run calls db:ResetProfile() straight: nothing counted
+  -- before the profile was replaced, so the line carries no `(N rows)` rather than a made-up one.
+  cleanProfile()
+  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth + 1)
+  local lines = linesOf(function() NS.db:ResetProfile() end)
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertEqual(lines[1]:match("%[Set%].*$"), resetLine(nil))
+  T.mocks.__fireTimers()
+end)
+
+test("a counted reset that never reached the handler leaks no count into a later reset", function()
+  -- The pending count is cleared when the handler takes it, AND when the counted reset returns or
+  -- raises without the handler taking it (AceDB's noCallbacks, a reset that aborts). Otherwise the
+  -- next, unrelated reset would carry a stale number.
+  -- red under: a pending count cleared only by the handler.
+  cleanProfile()
+  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth + 1)
+  local silent = { ResetProfile = function() end }
+  local raising = { ResetProfile = function() error("aborted", 0) end }
+  NS.ResetProfileCounted(silent)
+  local ok, err = pcall(NS.ResetProfileCounted, raising)
+  assertFalse(ok, "an aborted reset's error reaches the caller")
+  assertEqual(err, "aborted")
+  local lines = linesOf(function() NS.db:ResetProfile() end)
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertEqual(lines[1]:match("%[Set%].*$"), resetLine(nil))
+  T.mocks.__fireTimers()
+end)
+
 test("Reset All logs exactly one line in total, the profile handler's", function()
   -- debug-logging-§10: a whole-profile reset is logged ONCE, by the profile-event handler, worded
   -- by the event, and no bulk bracket adds a second line. The library says which case it is through
   -- bulkEnd's info.profileReset. A probe sessionOnly row with a default makes the walk write one
-  -- row under the mute first, so the case is not vacuous: that write must not log either.
-  -- red under: bulkEnd logging `[Set] reset all: N rows` when info.profileReset is true, or
-  -- OnProfileReset still sharing the switch handler's `[Profile] changed` line.
+  -- row under the mute first, so the case is not vacuous: that write must not log either, nor count.
+  -- N is the two rows moved off their defaults first, not the rows the profile stores.
+  -- red under: bulkEnd logging `[Set] reset all: N rows` when info.profileReset is true,
+  -- OnProfileReset still sharing the switch handler's `[Profile] changed` line, or an N that is the
+  -- schema size.
+  cleanProfile()
+  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth + 1)
+  NS.SetSetting("units.target.fontSize", NS.unitDefaults.fontSize + 1)
   local path, store = "__probe.bulkSession", { value = false }
   NS.RegisterSessionSetting(path, {
     get = function() return store.value end,
@@ -339,9 +442,7 @@ test("Reset All logs exactly one line in total, the profile handler's", function
   if not ok then error(lines, 0) end
   assertEqual(store.value, true, "the session row was still written")
   assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
-  local want = ("[Set] reset profile '%s' to defaults (%d rows)")
-    :format(NS.db:GetCurrentProfile(), NS.ProfileRowCount())
-  assertTrue(lines[1]:find(want, 1, true) ~= nil, "want '" .. want .. "', got " .. lines[1])
+  assertEqual(lines[1]:match("%[Set%].*$"), resetLine(2))
   T.mocks.__fireTimers()
 end)
 

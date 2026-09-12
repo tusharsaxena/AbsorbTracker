@@ -361,7 +361,7 @@ badge and any count quoted in the docs must agree with it.
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_helpers.lua (65)
+### test_helpers.lua (70)
 
 - CreatePanel returns a ctx wired to a panel, a body and an empty refresher list
 - the canvas frame carries OnCommit, OnDefault and OnRefresh from the library
@@ -388,6 +388,11 @@ badge and any count quoted in the docs must agree with it.
 - a nested bulk act logs exactly one line, the outer act's, summing every level
 - a nested bulk act that includes a profile reset logs only the handler's line
 - a page reset that raises still unmutes the seam
+- a bulk act that raises logs its one line marked as stopped by an error
+- a library page reset that raises logs its one line marked as stopped by an error
+- Reset All on a clean profile logs (0 rows)
+- a reset the addon did not drive logs the reset line with no count
+- a counted reset that never reached the handler leaks no count into a later reset
 - Reset All logs exactly one line in total, the profile handler's
 - RestoreAllDefaults resets every schema row that is not on the profiles page
 - RestoreAllDefaults clears the saved bar position so the bar recenters
@@ -441,7 +446,7 @@ badge and any count quoted in the docs must agree with it.
 - PARENT_TITLE reaches the library through the descriptor, not the namespace
 - the live arm patches LSM30_Border through the library, not through a private copy
 
-### test_slashcmds.lua (117)
+### test_slashcmds.lua (118)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -490,8 +495,9 @@ badge and any count quoted in the docs must agree with it.
 - /at profile delete removes a profile that is not in use
 - /at profile delete with no name prints usage
 - /at profile reset restores the current profile's defaults in place
-- /at profile reset logs one [Set] line from the reset handler
+- /at profile reset logs one [Set] line from the reset handler, counting the rows it changed
 - /at resetall logs one line in total, the same reset handler's
+- /at profile new logs the switch line, then a (0 rows) reset line
 - a profile copy logs one [Set] line naming both profiles
 - /at profile copy reaches the copy handler, one line
 - a profile switch keeps its [Profile] line and logs no [Set] line
@@ -681,9 +687,9 @@ badge and any count quoted in the docs must agree with it.
 | test_bus.lua | 7 |
 | test_data.lua | 32 |
 | test_display.lua | 53 |
-| test_helpers.lua | 65 |
+| test_helpers.lua | 70 |
 | test_optionssetup.lua | 9 |
-| test_slashcmds.lua | 117 |
+| test_slashcmds.lua | 118 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 5 |
 | test_ltrap.lua | 8 |
@@ -691,4 +697,4 @@ badge and any count quoted in the docs must agree with it.
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_eol.lua | 1 |
-| **Total** | **581** |
+| **Total** | **587** |

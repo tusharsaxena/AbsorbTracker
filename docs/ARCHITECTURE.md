@@ -142,7 +142,9 @@ library brackets a page's Defaults and Reset All through the Options descriptor'
 `Units.CopyFromPlayer` and the degraded Reset All. N counts rows actually written, so a Defaults
 press on a page already at its defaults logs `0 rows`. A nested bracket is one act, logged once at
 depth 0, and an act that reset the whole profile logs no bulk line: the profile-event handler logs
-it (see Message Bus below). `/at resetall` does not reach `LibKa0s-Slash-1.0`'s `CliResetAll`, so
+it (see Message Bus below). An act that ends with an error (`bulkEnd` handed an `err`, or
+`NS.Bulk.Run` catching one) still logs its one line, with ` (stopped by an error)` appended; the
+mute is released and the error re-raised. `/at resetall` does not reach `LibKa0s-Slash-1.0`'s `CliResetAll`, so
 the Slash descriptor carries no bracket. **This addon holds no structural registry** in architecture-§5's sense: the tracked units
 are the fixed `Units.LIST` (`player`, `target`, `focus`, `core/Units.lua:16`), which the player
 cannot add to or remove from, and `units.<unit>.*` is a fixed-key map the schema rows address
@@ -246,9 +248,13 @@ next `OnShow`. A panel widget's own write takes `Helpers.RefreshScalars` instead
 republish `UNITS` / `POSITION` / `APPEARANCE` / `REPAINT` on the bus and refresh an open panel.
 They differ only in their one debug line, worded by the event (debug-logging-§10):
 `[Profile] changed → <name>` for a switch, `[Set] copied profile '<source>' → '<name>'` for a copy,
-and `[Set] reset profile '<name>' to defaults (N rows)` for a reset. For a reset, N is
-`NS.ProfileRowCount()`, the rows the profile stores. That reset line is the only line Reset All
-logs.
+and `[Set] reset profile '<name>' to defaults (N rows)` for a reset. For a reset, N is the rows
+the reset changed, never the schema size: every reset the addon drives goes through
+`NS.ResetProfileCounted` (`settings/Schema.lua`), which counts the rows off their default just
+before `db:ResetProfile()` and leaves the number for the handler to take once
+(`NS.ConsumeResetCount`). The number is cleared when the reset returns or raises, so it cannot
+leak into a later reset. A reset the addon did not drive (AceDBOptions' button, a `/run`) has no
+count, and its line omits `(N rows)`. That reset line is the only line Reset All logs.
 
 ## Slash Commands
 

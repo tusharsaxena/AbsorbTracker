@@ -130,9 +130,12 @@ test("the degraded Reset All logs one line in total, the profile handler's", fun
   -- walk, so the probe session row it writes first is muted, and the profile reset is logged once
   -- by OnProfileReset. The fake db is AceDB-shaped: ResetProfile fires the handler, as AceDB does.
   -- red under: the stub's walk outside NS.Bulk.Run, which logs the session row as well.
+  -- N is the rows the reset changed, counted before the stub's own db:ResetProfile(): one row is
+  -- moved off its default first. red under: a count of every row the profile stores.
   local NS2 = loadDegraded()
   local profile = NS2.Units.DeepCopy(NS2.defaults.profile)
   profile.schemaVersion = 3
+  profile.units.player.barWidth = profile.units.player.barWidth + 1
   local db = { profile = profile, global = {} }
   function db.GetCurrentProfile() return "Default" end
   function db.ResetProfile(self) NS2.OnProfileReset("OnProfileReset", self) end
@@ -144,8 +147,7 @@ test("the degraded Reset All logs one line in total, the profile handler's", fun
     if line:find("^%[Set%]") or line:find("^%[Profile%]") then lines[#lines + 1] = line end
   end
   assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
-  assertEqual(lines[1], ("[Set] reset profile 'Default' to defaults (%d rows)")
-    :format(NS2.ProfileRowCount()))
+  assertEqual(lines[1], "[Set] reset profile 'Default' to defaults (1 rows)")
   T.mocks.__fireTimers()
 end)
 

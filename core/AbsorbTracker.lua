@@ -275,12 +275,18 @@ function NS.OnProfileChanged()
     adoptProfile("Profile", "changed \226\134\146 %s", currentProfile())
 end
 
--- `db:ResetProfile()` — the Profiles page, `/at profile reset`, and Reset All Settings on both the
--- live and degraded paths. The count is every row the profile stores, since the whole profile is
--- replaced; it is cheap, so debug-logging-§10 has it included.
+-- `db:ResetProfile()` — the Profiles page, `/at profile reset` / `new`, and Reset All Settings on
+-- both the live and degraded paths. debug-logging-§10: N is the rows the reset CHANGED, never every
+-- row the profile stores. The resets this addon drives count the rows off their default just before
+-- (NS.ResetProfileCounted, settings/Schema.lua) and the count is taken here, once. A reset the addon
+-- did not drive (the Profiles page's AceDBOptions button, a /run) has none, so the line omits it.
 function NS.OnProfileReset()
-    adoptProfile("Set", "reset profile '%s' to defaults (%d rows)", currentProfile(),
-        NS.ProfileRowCount and NS.ProfileRowCount() or 0)
+    local n = NS.ConsumeResetCount and NS.ConsumeResetCount()
+    if n then
+        adoptProfile("Set", "reset profile '%s' to defaults (%d rows)", currentProfile(), n)
+    else
+        adoptProfile("Set", "reset profile '%s' to defaults", currentProfile())
+    end
 end
 
 -- AceDB hands a copy's callback the SOURCE profile's name as its third argument.

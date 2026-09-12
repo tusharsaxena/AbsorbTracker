@@ -27,3 +27,28 @@ Calls made along the way:
   count-where-cheap clause lets it be left out.
 
 No issue was filed, and none is owed.
+
+## Addendum (2026-09-12): the reset line's N was wrong
+
+The last call above is **withdrawn**. The rule's clarification after the rollout (the
+"Profile-reset count" ruling) says the `(N rows)` on `[Set] reset profile '<name>' to defaults
+(N rows)` must be the rows the reset actually changed, or be left out. It must never be every row
+the profile stores. `NS.ProfileRowCount()` returned the schema size (68) on every reset, including
+one on a clean profile, and an independent verifier flagged it HIGH.
+
+It was also wrong about cost. Counting the changed rows needs no snapshot: a pass over the schema
+just before `db:ResetProfile()`, comparing each stored value with its default, is the same walk
+`ProfileRowCount` already made. That is WhatGroup's `Settings.ConsumeResetCount` pattern.
+
+What replaced it, on `fix/2026-09-12-triage`:
+
+- `NS.ProfileRowCount` is gone. `NS.ProfileRowsOffDefault()` counts the profile rows off their
+  default. `NS.ResetProfileCounted(db)` stores that count as pending, calls `db:ResetProfile()`,
+  and clears the count when the reset returns or raises. `NS.OnProfileReset` takes the count once
+  through `NS.ConsumeResetCount()`.
+- All four addon-driven resets are counted: the descriptor's `resetProfile`, the degraded stub,
+  `/at profile reset` and `/at profile new`.
+- A reset the addon did not drive (AceDBOptions' button, a `/run`) has no pending count, and its
+  line omits `(N rows)`.
+
+This file's body stays as written. The corrected lines are in 05_SUMMARY.md's addendum.

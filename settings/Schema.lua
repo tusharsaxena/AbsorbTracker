@@ -162,7 +162,9 @@ end
 -- profile handler that resets a page) is still one act: the tally runs across every level and the
 -- line is emitted only when the outermost bracket closes. If any level reports a whole-profile
 -- reset the act emits no bulk line at all: OnProfileReset (core/AbsorbTracker.lua) logs it once.
-local bulkDepth, bulkWrites, bulkProfileReset = 0, 0, false
+-- If any level ended with an error the line says so, ` (stopped by an error)`: N is then the rows
+-- changed before the act died, and the act did not finish.
+local bulkDepth, bulkWrites, bulkProfileReset, bulkFailed = 0, 0, false, false
 
 -- Stored-value equality for the tally. Tables are compared by content: a reset or a copy hands the
 -- seam a fresh color table, which is a change only if a channel differs.
@@ -204,18 +206,22 @@ NS.Bulk = {}
 --- Open a bracket. The library's descriptor field `bulkBegin` (settings/OptionsSetup.lua) and
 --- NS.Bulk.Run below both land here. The outermost bracket starts a fresh tally.
 function NS.Bulk.Begin()
-    if bulkDepth == 0 then bulkWrites, bulkProfileReset = 0, false end
+    if bulkDepth == 0 then bulkWrites, bulkProfileReset, bulkFailed = 0, false, false end
     bulkDepth = bulkDepth + 1
 end
 
 --- Close a bracket: `bulkEnd(act, scope, count, err, info)`'s shape, `count` ignored (see above).
---- Emits the act's one line when the outermost bracket closes, unless a level reset the profile.
-function NS.Bulk.End(act, scope, _, _, info)
+--- Emits the act's one line when the outermost bracket closes, unless a level reset the profile;
+--- a non-nil `err` at any level marks that line ` (stopped by an error)`. Never raises the error
+--- itself: the library and NS.Bulk.Run re-raise it after this returns.
+function NS.Bulk.End(act, scope, _, err, info)
     if bulkDepth == 0 then return end
     bulkDepth = bulkDepth - 1
     if info and info.profileReset then bulkProfileReset = true end
+    if err ~= nil then bulkFailed = true end
     if bulkDepth > 0 or bulkProfileReset then return end
-    NS.Debug("Set", "%s %s: %d rows", tostring(act), tostring(scope), bulkWrites)
+    NS.Debug("Set", "%s %s: %d rows%s", tostring(act), tostring(scope), bulkWrites,
+        bulkFailed and " (stopped by an error)" or "")
 end
 
 --- Run a host-owned bulk act inside a bracket: `walk(info)` does the writes through SetByPath and
@@ -231,13 +237,43 @@ function NS.Bulk.Run(act, scope, walk)
     if not ok then error(err, 0) end
 end
 
---- The rows a whole-profile reset rewrites: every schema row the profile stores, so not a
---- sessionOnly row and not an AceDBOptions profiles-page one. The count OnProfileReset's line carries.
-function NS.ProfileRowCount()
+-- ── the profile reset's count (debug-logging-§10) ─────────────────────────────────────────────
+--
+-- `[Set] reset profile '<name>' to defaults (N rows)` is OnProfileReset's line, and N is the rows
+-- the reset CHANGED, never every row the profile stores. Only a caller that runs BEFORE the reset
+-- can know that, so every reset this addon drives goes through NS.ResetProfileCounted, which counts
+-- the rows off their default and leaves the number pending for the handler to take once. A reset
+-- the addon did not drive (an AceDBOptions button, a /run) has nothing pending, and its line
+-- carries no count. The WhatGroup pattern (Settings.ConsumeResetCount).
+local pendingResetCount
+
+--- The profile rows whose stored value differs from their default: the rows a reset would change.
+--- Not a sessionOnly row (its storage is not the profile) and not an AceDBOptions profiles-page one.
+function NS.ProfileRowsOffDefault()
     local n = 0
     for _, row in ipairs(NS.Schema) do
-        if not row.sessionOnly and row.page ~= "profiles" then n = n + 1 end
+        if row.path and not row.sessionOnly and row.page ~= "profiles"
+            and not sameValue(NS.GetSetting(row.path), row.default) then
+            n = n + 1
+        end
     end
+    return n
+end
+
+--- `db:ResetProfile()`, counted. The count is cleared once the reset returns or raises, whether or
+--- not the handler took it, so a reset that never reached the handler (AceDB's noCallbacks, an
+--- abort) cannot hand its number to a later, unrelated one. An error is re-raised unchanged.
+function NS.ResetProfileCounted(db)
+    pendingResetCount = NS.ProfileRowsOffDefault()
+    local ok, err = pcall(db.ResetProfile, db)
+    pendingResetCount = nil
+    if not ok then error(err, 0) end
+end
+
+--- OnProfileReset's count, taken once. nil when the reset did not come through ResetProfileCounted.
+function NS.ConsumeResetCount()
+    local n = pendingResetCount
+    pendingResetCount = nil
     return n
 end
 

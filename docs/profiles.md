@@ -44,7 +44,7 @@ Each AceDB callback has its own handler in `core/AbsorbTracker.lua` — `NS.OnPr
 |---|---|
 | `OnProfileChanged` (a switch) | `[Profile] changed → <name>` |
 | `OnProfileCopied` | `[Set] copied profile '<source>' → '<name>'` (AceDB passes the source name) |
-| `OnProfileReset` | `[Set] reset profile '<name>' to defaults (N rows)`, N = `NS.ProfileRowCount()`, every row the profile stores |
+| `OnProfileReset` | `[Set] reset profile '<name>' to defaults (N rows)`. N is the rows the reset **changed**, never the schema size: every reset the addon drives (Reset All, `/at profile reset` / `new`) goes through `NS.ResetProfileCounted`, which counts the profile rows off their default just before `db:ResetProfile()`, and the handler takes that count once (`NS.ConsumeResetCount`). A reset the addon did not drive (the AceDBOptions Reset Profile button, a `/run`) has no count, so its line ends at `to defaults` |
 
 The reset line is the whole log of **Reset All Settings** (`/at resetall`, the General page's button): the session rows the reset writes first are muted inside the bulk bracket, and the bracket emits nothing when the act reset the profile. After the line, all three run the same body:
 

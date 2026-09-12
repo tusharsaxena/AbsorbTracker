@@ -215,9 +215,18 @@ NS.ApplyDefault(row)                    -- reset to row.default through SetByPat
 NS.Bulk.Begin(act, scope)               -- open; the descriptor's bulkBegin
 NS.Bulk.End(act, scope, count, err, info) -- close; the descriptor's bulkEnd. At depth 0 emits
                                                 -- `[Set] <act> <scope>: N rows`, N = writes that
-                                                -- changed a value; nothing if info.profileReset
-NS.Bulk.Run(act, scope, walk)           -- a host act in a bracket that always closes
-NS.ProfileRowCount()                    -> number    -- rows the profile stores (OnProfileReset's N)
+                                                -- changed a value; nothing if info.profileReset;
+                                                -- ` (stopped by an error)` appended if any level
+                                                -- got a non-nil err
+NS.Bulk.Run(act, scope, walk)           -- a host act in a bracket that always closes, then
+                                                -- re-raises the walk's error unchanged
+
+-- The profile reset's count (OnProfileReset's `(N rows)`, debug-logging-§10)
+NS.ProfileRowsOffDefault()              -> number    -- profile rows whose value differs from default
+NS.ResetProfileCounted(db)              -- db:ResetProfile() with that count left pending;
+                                                -- cleared on return or raise, error re-raised
+NS.ConsumeResetCount()                  -> number|nil -- the pending count, taken once (nil when
+                                                -- the reset was not addon-driven: no `(N rows)`)
 
 -- Slash IO (formatting only — the type-aware parser is LibKa0s-Slash-1.0's lib.ParseValue)
 NS.FormatSchemaValue(row, value)        -> string    -- thin delegate to lib.FormatValue

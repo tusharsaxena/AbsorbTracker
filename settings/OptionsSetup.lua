@@ -81,9 +81,10 @@ local descriptor = {
     --
     -- One call, and the same act as the Profiles page's Reset Profile. AceDB empties the ACTIVE
     -- profile -- and only that one; the profile LIST is untouched, which is the line the veto
-    -- exists for -- the defaults merge back, and `OnProfileReset` reaches NS.OnProfileChanged
-    -- (core/Database.lua), which repaints the bar and refreshes an open panel exactly as it does
-    -- for a profile switch.
+    -- exists for -- the defaults merge back, and `OnProfileReset` reaches NS.OnProfileReset
+    -- (core/Database.lua), which repaints the bar and refreshes an open panel exactly as a profile
+    -- switch does. Counted (NS.ResetProfileCounted), so that handler's one line carries the rows the
+    -- reset changed (debug-logging-§10).
     --
     -- `position` comes back with it. It is written by dragging rather than by a schema row, so
     -- ApplyDefault never touched it and this hook used to call ResetAllPositions to clear it -- but
@@ -91,7 +92,7 @@ local descriptor = {
     -- and the General page's button; it simply has no business here any more.
     resetProfile = function()
         local db = NS.db
-        if db and db.ResetProfile then db:ResetProfile() end
+        if db and db.ResetProfile then NS.ResetProfileCounted(db) end
     end,
 
     -- The bulk bracket (LibKa0s-Options-1.0 minor 16, debug-logging-§10). RestoreDefaults and
@@ -323,9 +324,10 @@ if not lib then
             -- library makes this call through the descriptor's `resetProfile`; here there is no
             -- library, so the stub makes it. The saved positions come back with the profile, which
             -- is why the ResetAllPositions call that used to close this function is gone from it.
+            -- Counted, as on the live path, so the handler's line carries the rows it changed.
             local db = NS.db
             if db and db.ResetProfile then
-                db:ResetProfile()
+                NS.ResetProfileCounted(db)
                 info.profileReset = true
             end
         end)

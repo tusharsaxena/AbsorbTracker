@@ -46,3 +46,18 @@ The Slash bracket, because `/at resetall` never reaches `CliResetAll`. No issue 
 
 `tests/test_vendor_sync.lua` compared both payloads against the tag CLAUDE.md names and skipped
 none. Every changed file is CRLF, with CR equal to LF. Nothing was pushed.
+
+## Addendum (2026-09-12): corrected reset lines
+
+The two `(68 rows)` rows in the table above are **wrong**. 68 is the schema size, and the
+"Profile-reset count" ruling forbids that number. See 03_DECISIONS.md's addendum for the fix. The
+affected rows now read:
+
+| Act | Lines logged |
+|---|---|
+| **Reset all settings** (popup) / `/at resetall`, live or degraded | `[Set] reset profile 'Default' to defaults (N rows)`, the only line. N = rows off their default just before the reset, so a clean profile logs `(0 rows)` |
+| `/at profile reset` | `[Set] reset profile '<name>' to defaults (N rows)`, same N |
+| `/at profile new <name>` | `[Profile] changed → <name>`, then `[Set] reset profile '<name>' to defaults (0 rows)` for a new name (two AceDB events) |
+| Profiles page **Reset Profile** (AceDBOptions), or a `/run db:ResetProfile()` | `[Set] reset profile '<name>' to defaults`, with no count |
+
+Bulk acts that end with an error now log their one line with ` (stopped by an error)` appended.

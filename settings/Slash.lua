@@ -344,10 +344,12 @@ local PROFILE_VERBS = {
     end),
 
     -- SetProfile first, THEN ResetProfile: the reset has to land on the new profile, not the one
-    -- being left behind.
+    -- being left behind. It is not redundant: `new` on a name that already exists resets that
+    -- profile. Both resets here are counted (NS.ResetProfileCounted), so OnProfileReset's line
+    -- carries the rows changed — `(0 rows)` for a profile that did not exist (debug-logging-§10).
     new = needsName("new", function(db, name)
         db:SetProfile(name)
-        db:ResetProfile()
+        NS.ResetProfileCounted(db)
         print("Created and switched to new profile '" .. name .. "'")
     end),
 
@@ -365,7 +367,7 @@ local PROFILE_VERBS = {
     end),
 
     reset = function(db)
-        db:ResetProfile()
+        NS.ResetProfileCounted(db)
         print("Profile reset to defaults")
     end,
 }

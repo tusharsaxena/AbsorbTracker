@@ -588,24 +588,50 @@ local function debugLines(fn)
   return out
 end
 
-local function resetLine()
-  return ("[Set] reset profile '%s' to defaults (%d rows)")
-    :format(NS.db:GetCurrentProfile(), NS.ProfileRowCount())
+-- The reset handler's line. N is the rows the reset changed, counted before an addon-driven reset
+-- (debug-logging-§10), never the schema size.
+local function resetLine(n)
+  return ("[Set] reset profile '%s' to defaults (%d rows)"):format(NS.db:GetCurrentProfile(), n)
 end
 
-test("/at profile reset logs one [Set] line from the reset handler", function()
-  -- red under: OnProfileReset still wired to the switch handler, which logs `[Profile] changed`.
+-- Put the active profile back at its defaults, unlogged.
+local function cleanProfile()
+  NS.db:ResetProfile()
+  T.mocks.__fireTimers()
+end
+
+test("/at profile reset logs one [Set] line from the reset handler, counting the rows it changed", function()
+  -- red under: OnProfileReset still wired to the switch handler, which logs `[Profile] changed`,
+  -- or a count of every row the profile stores.
+  cleanProfile()
+  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth + 1)
   local lines = debugLines(function() slash("profile reset") end)
   T.mocks.__fireTimers()
   assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
-  assertTrue(lines[1]:find(resetLine(), 1, true) ~= nil, "want '" .. resetLine() .. "', got " .. lines[1])
+  assertTrue(lines[1]:find(resetLine(1), 1, true) ~= nil, "want '" .. resetLine(1) .. "', got " .. lines[1])
 end)
 
 test("/at resetall logs one line in total, the same reset handler's", function()
+  cleanProfile()
   local lines = debugLines(function() slash("resetall") end)
   T.mocks.__fireTimers()
   assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
-  assertTrue(lines[1]:find(resetLine(), 1, true) ~= nil, "want '" .. resetLine() .. "', got " .. lines[1])
+  assertTrue(lines[1]:find(resetLine(0), 1, true) ~= nil, "want '" .. resetLine(0) .. "', got " .. lines[1])
+end)
+
+test("/at profile new logs the switch line, then a (0 rows) reset line", function()
+  -- Two AceDB events, so two lines: SetProfile's switch and the reset that follows it. A freshly
+  -- created profile is already at its defaults, so the reset changes nothing and says so.
+  local lines = debugLines(function() slash("profile new FreshOne") end)
+  T.mocks.__fireTimers()
+  local current = NS.db:GetCurrentProfile()
+  backToDefault()
+  NS.db:DeleteProfile("FreshOne", true)
+  assertEqual(current, "FreshOne")
+  assertEqual(#lines, 2, "two lines: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find("[Profile] changed \226\134\146 FreshOne", 1, true) ~= nil, lines[1])
+  local want = "[Set] reset profile 'FreshOne' to defaults (0 rows)"
+  assertTrue(lines[2]:find(want, 1, true) ~= nil, "want '" .. want .. "', got " .. lines[2])
 end)
 
 test("a profile copy logs one [Set] line naming both profiles", function()
