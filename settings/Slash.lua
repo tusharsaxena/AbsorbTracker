@@ -157,7 +157,7 @@ function runReset(rest) cli:CliReset(rest) end
 function runResetAll()
     -- Delegate to the single shared helper so the slash command and the
     -- "Reset All Settings" popup can never diverge — same rows reset,
-    -- same position clear + recenter, same panel refresh.
+    -- same profile reset, same panel refresh.
     -- The acknowledgment lives INSIDE the guard, for the reason runResetPosition spells out
     -- below: on a load where settings/OptionsSetup.lua never ran there is nothing to delegate to,
     -- and printing the ack anyway would claim success for work that did not happen.

@@ -132,8 +132,9 @@ is `[ Size | Bar | Background | Border | Text ]` (2 / 4 / 3 / 4 / 6 rows, per un
 page → tab → count partition. Every panel and `/at set` write to a schema-row path funnels through
 the single seam **`NS.SetByPath`** (`SetSetting` + `fireOnChange`), whose `onChange` defaults to
 `UpdateBarAppearance`; a reset to a row's default (`/at reset`, a page's Defaults button, and the
-`sessionOnly` rows `/at resetall` touches before its profile reset) goes through its sibling `NS.ApplyDefault`, which is the same `SetSetting` + `fireOnChange`
-pair. **This addon holds no structural registry** in architecture-§5's sense: the tracked units
+`sessionOnly` rows `/at resetall` touches before its profile reset) goes through its sibling
+`NS.ApplyDefault`, which is the same `SetSetting` + `fireOnChange` pair. **This addon holds no
+structural registry** in architecture-§5's sense: the tracked units
 are the fixed `Units.LIST` (`player`, `target`, `focus`, `core/Units.lua:16`), which the player
 cannot add to or remove from, and `units.<unit>.*` is a fixed-key map the schema rows address
 directly. So there is no registry writer and no registry load pass to name here. The seeding of
