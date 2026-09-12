@@ -129,12 +129,23 @@ composer changes what is *declared*, never what is *persisted*.
 group's rows must stay contiguous. General is `[ Master controls | Bars ]` (6 / 4 rows); Appearance
 is `[ Size | Bar | Background | Border | Text ]` (2 / 4 / 3 / 4 / 6 rows, per unit) under a chrome block
 (options-ui-§14) carrying the panel's only unit picker and the page-wide mirror controls. `tests/test_schema.lua` asserts that
-page → tab → count partition. Every panel and `/at set` write to a schema-row path funnels through
-the single seam **`NS.SetByPath`** (`SetSetting` + `fireOnChange`), whose `onChange` defaults to
-`UpdateBarAppearance`; a reset to a row's default (`/at reset`, a page's Defaults button, and the
-`sessionOnly` rows `/at resetall` touches before its profile reset) goes through its sibling
-`NS.ApplyDefault`, which is the same `SetSetting` + `fireOnChange` pair. **This addon holds no
-structural registry** in architecture-§5's sense: the tracked units
+page → tab → count partition. Every write to a schema-row path funnels through the single seam
+**`NS.SetByPath`** (`SetSetting`, the `[Set]` debug line, then `fireOnChange`), whose `onChange`
+defaults to `UpdateBarAppearance`. The panel widgets and `/at set` call it directly; a reset to a
+row's default (`/at reset`, a page's Defaults button, and the `sessionOnly` rows `/at resetall`
+touches before its profile reset) reaches it through `NS.ApplyDefault`, which only builds the
+copied default. A **bulk copy or reset** is one `[Set] <act> <scope>: N rows` line
+(debug-logging-§10): the seam keeps a bracket depth (`NS.Bulk`, `settings/Schema.lua`), and inside
+a bracket it mutes its per-row line and tallies the writes that changed a stored value. The
+library brackets a page's Defaults and Reset All through the Options descriptor's
+`bulkBegin`/`bulkEnd` (LibKa0s-Options-1.0 minor 16). `NS.Bulk.Run` brackets the two host acts,
+`Units.CopyFromPlayer` and the degraded Reset All. N counts rows actually written, so a Defaults
+press on a page already at its defaults logs `0 rows`. A nested bracket is one act, logged once at
+depth 0, and an act that reset the whole profile logs no bulk line: the profile-event handler logs
+it (see Message Bus below). An act that ends with an error (`bulkEnd` handed an `err`, or
+`NS.Bulk.Run` catching one) still logs its one line, with ` (stopped by an error)` appended; the
+mute is released and the error re-raised. `/at resetall` does not reach `LibKa0s-Slash-1.0`'s `CliResetAll`, so
+the Slash descriptor carries no bracket. **This addon holds no structural registry** in architecture-§5's sense: the tracked units
 are the fixed `Units.LIST` (`player`, `target`, `focus`, `core/Units.lua:16`), which the player
 cannot add to or remove from, and `units.<unit>.*` is a fixed-key map the schema rows address
 directly. So there is no registry writer and no registry load pass to name here. The seeding of
@@ -144,6 +155,49 @@ default-shape repair over that fixed list, not registry membership. Boot-time
 every `path` resolves against `NS.defaults.profile`; it returns `(errors, resolved, missing)` for
 the test harness to assert (`sessionOnly` rows are exempt from the path check — their value is
 deliberately not in the profile). Row grammar detail: [schema.md](./schema.md).
+
+**Named non-setting state: `units.<unit>.position`** (architecture-§5). Each bar's saved anchor,
+`db.profile.units.<unit>.position = { point, relPoint, x, y }`, is geometry only a drag
+determines. No schema row addresses it and no control chooses it, so it is written outside
+`NS.SetByPath` and needs no register row. Its **one owner is `core/Units.lua`**:
+`Units.SetPosition(unit, pos)` is the only function that assigns the key (`Units.Position` reads
+it, never mirror-resolved). Every writer, with the act that reaches it:
+
+- **Drag-stop.** The bar's `OnDragStop` handler (`modules/Bar.lua`) saves the dragged frame's own
+  anchor through `Units.SetPosition(self.unit, …)`.
+- **Reset position.** `Helpers.ResetAllPositions` (`settings/UnitPanel.lua`) clears every unit's
+  position through `Units.SetPosition(unit, nil)`, then publishes `POSITION`. Two acts reach it:
+  `/at resetposition` (`settings/Slash.lua`) and the General page's **Reset Position** button
+  (`onResetPosition`, `settings/General.lua`). The button puts back the shipped default (no saved
+  anchor, so each bar re-stacks at `NS.DefaultPosition`) and chooses nothing, so it does not make
+  the position a preference.
+
+Nothing else writes it at runtime. Reset All Settings (`/at resetall`, the descriptor's
+`resetProfile` and the degraded-path `Helpers.RestoreAllDefaults`) is the options-ui-§12 profile
+reset: `db:ResetProfile()` replaces the profile whole, positions with it. The `afterRestoreAll`
+hook that once called `ResetAllPositions` is gone. AceDB's profile swap and copy replace it the same
+way. The v3 lift (`NS.MigrateProfileToV3`, `core/Database.lua`) moves a pre-v3 flat
+`profile.position` onto `units.player.position`; that is the load pass. `Units.CopyFromPlayer`
+deliberately does not copy it. The `[Set]` log does not trace it (debug-logging-§10).
+
+**Named non-setting state: `AbsorbTrackerPerfDB`** (architecture-§5, recorded data written by a
+vendored library). The perf capture ring is the second SavedVariables global, `{ schema, runs }`,
+which savedvariables-§4 sanctions and keeps outside the AceDB tree. Each record is a capture the
+library measured, so the player authors no entry's value. Its **one owner is
+`core/PerfSetup.lua`**: its descriptor hands `LibKa0s-Perf-1.0` the global's name (`sv`) and sets no
+`ring`, so the library default applies. Nothing in this addon's own code writes it. The one writer
+is the library's `P.Save` (`libs/LibKa0s/Perf.lua`). One act reaches it: `/at perf finish`
+(`SUBS.finish`). That call does three things in one pass:
+
+- appends the run;
+- trims the oldest records past the ring's size, which is the retention prune, and logs one line
+  when it trims;
+- discards a ring stored under an older record schema, and logs one line when it drops records.
+
+Both drops are logged, each once per save as a single summary line, never one line per record
+(debug-logging-§8/§9). The trim has been traced since `LibKa0s-Perf-1.0` minor 11.
+
+`/at perf cancel` saves nothing. AceDB's profile reset, swap and copy never reach this global.
 
 ## Message Bus
 
@@ -189,9 +243,18 @@ a profile change) is the STRUCTURAL tier: every settings page declares its body 
 `Helpers.SetRenderer`, so a page on screen re-renders and a hidden one is flagged dirty for its
 next `OnShow`. A panel widget's own write takes `Helpers.RefreshScalars` instead, which walks
 `ctx.refreshers` in place. Both implementations are the library's. The other callback bus is **AceDB**:
-`NS.OnProfileChanged` is registered for `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset` in
-`NS:InitDB`; it republishes `POSITION` / `APPEARANCE` / `REPAINT` on the bus and refreshes an open
-panel.
+`NS:InitDB` registers one handler per event: `NS.OnProfileChanged`, `NS.OnProfileCopied` and
+`NS.OnProfileReset` (`core/AbsorbTracker.lua`). All three share one body: they lift the profile,
+republish `UNITS` / `POSITION` / `APPEARANCE` / `REPAINT` on the bus and refresh an open panel.
+They differ only in their one debug line, worded by the event (debug-logging-§10):
+`[Profile] changed → <name>` for a switch, `[Set] copied profile '<source>' → '<name>'` for a copy,
+and `[Set] reset profile '<name>' to defaults (N rows)` for a reset. For a reset, N is the rows
+the reset changed, never the schema size: every reset the addon drives goes through
+`NS.ResetProfileCounted` (`settings/Schema.lua`), which counts the rows off their default just
+before `db:ResetProfile()` and leaves the number for the handler to take once
+(`NS.ConsumeResetCount`). The number is cleared when the reset returns or raises, so it cannot
+leak into a later reset. A reset the addon did not drive (AceDBOptions' button, a `/run`) has no
+count, and its line omits `(N rows)`. That reset line is the only line Reset All logs.
 
 ## Slash Commands
 

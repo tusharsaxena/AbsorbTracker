@@ -129,29 +129,53 @@ test("CopyFromPlayer is a no-op for the player itself", function()
   end)
 end)
 
-test("CopyFromPlayer writes through the settings seam, so the log sees all twenty", function()
-  -- ABSORBTRACKER-R-02 (debug-logging-§10). The cases above assert the VALUES land, and they
-  -- passed while CopyFromPlayer assigned `dst[key]` directly — which is why none of them could see
-  -- that the largest single act on the Appearance page produced no `[Set]` line at all. The write
-  -- seam is where every mutation is supposed to become visible; a twenty-value act that skips it is
-  -- the one a bug report most needs the log to explain.
+test("CopyFromPlayer writes every key through the settings seam", function()
+  -- ABSORBTRACKER-R-02. The cases above assert the VALUES land, and they passed while
+  -- CopyFromPlayer assigned `dst[key]` directly, round the seam that fires each row's onChange.
+  -- Twenty writes: the nineteen appearance keys and the mirror clear, which goes last.
   -- red under: putting the direct `dst[key] = deepcopy(src[key])` writes back in core/Units.lua.
   withUnits(function()
     NS.db.profile.units.focus.mirror = true
+    local seen, orig = {}, NS.SetByPath
+    NS.SetByPath = function(path, value)
+      seen[#seen + 1] = path
+      return orig(path, value)
+    end
+    local ok, err = pcall(NS.Units.CopyFromPlayer, "focus")
+    NS.SetByPath = orig
+    assertTrue(ok, "CopyFromPlayer raised: " .. tostring(err))
+    assertEqual(#seen, #NS.Units.APPEARANCE_KEYS + 1, "one seam write per key, plus the mirror")
+    assertEqual(seen[#seen], "units.focus.mirror", "and the mirror clear goes last")
+  end)
+end)
+
+test("CopyFromPlayer logs one [Set] copy line with its row count, and no per-row line", function()
+  -- debug-logging-§10 (standard v2.44.0): a bulk copy through the settings helper is ONE
+  -- `[Set] <act> <scope>: N rows` line, and N is the rows the act actually wrote. This FLIPS the
+  -- case it replaces, "the log sees all twenty": the twenty writes still go through the seam (the
+  -- case above), but the log names the act, not each row. N counts only the keys whose stored
+  -- value the copy changed, so two player keys are moved off the focus unit's first.
+  -- red under: CopyFromPlayer writing outside the NS.Bulk bracket, so each row logs `path = value`.
+  withUnits(function()
+    local player, focus = NS.db.profile.units.player, NS.db.profile.units.focus
+    for _, key in ipairs(NS.Units.APPEARANCE_KEYS) do focus[key] = NS.Units.DeepCopy(player[key]) end
+    player.barWidth, player.fontSize = 277, 19
+    focus.mirror = true
     local before = #NS.DebugLog.buffer
     NS.State.debug = true
     local ok, err = pcall(NS.Units.CopyFromPlayer, "focus")
     NS.State.debug = false
     assertTrue(ok, "CopyFromPlayer raised: " .. tostring(err))
-    local logged = {}
+    local sets = {}
     for i = before + 1, #NS.DebugLog.buffer do
-      local key = NS.DebugLog.buffer[i]:match("units%.focus%.(%w+) =")
-      if key then logged[key] = true end
+      local line = NS.DebugLog.buffer[i]
+      if line:find("[Set]", 1, true) then sets[#sets + 1] = line end
     end
-    for _, key in ipairs(NS.Units.APPEARANCE_KEYS) do
-      assertTrue(logged[key], key .. " was copied without a [Set] line")
-    end
-    assertTrue(logged.mirror, "and clearing the mirror is a settings write too")
+    assertEqual(#sets, 1, "exactly one [Set] line: " .. table.concat(sets, " | "))
+    -- barWidth, fontSize and the mirror clear: the other seventeen keys already matched.
+    local want = "[Set] copy player\226\134\146focus: 3 rows"
+    assertTrue(sets[1]:find(want, 1, true) ~= nil, "want '" .. want .. "', got " .. sets[1])
+    assertEqual(NS.db.profile.units.focus.mirror, false, "the copy still unlinked the unit")
   end)
 end)
 

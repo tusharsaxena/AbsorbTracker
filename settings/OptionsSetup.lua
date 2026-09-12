@@ -81,9 +81,10 @@ local descriptor = {
     --
     -- One call, and the same act as the Profiles page's Reset Profile. AceDB empties the ACTIVE
     -- profile -- and only that one; the profile LIST is untouched, which is the line the veto
-    -- exists for -- the defaults merge back, and `OnProfileReset` reaches NS.OnProfileChanged
-    -- (core/Database.lua), which repaints the bar and refreshes an open panel exactly as it does
-    -- for a profile switch.
+    -- exists for -- the defaults merge back, and `OnProfileReset` reaches NS.OnProfileReset
+    -- (core/Database.lua), which repaints the bar and refreshes an open panel exactly as a profile
+    -- switch does. Counted (NS.ResetProfileCounted), so that handler's one line carries the rows the
+    -- reset changed (debug-logging-§10).
     --
     -- `position` comes back with it. It is written by dragging rather than by a schema row, so
     -- ApplyDefault never touched it and this hook used to call ResetAllPositions to clear it -- but
@@ -91,8 +92,16 @@ local descriptor = {
     -- and the General page's button; it simply has no business here any more.
     resetProfile = function()
         local db = NS.db
-        if db and db.ResetProfile then db:ResetProfile() end
+        if db and db.ResetProfile then NS.ResetProfileCounted(db) end
     end,
+
+    -- The bulk bracket (LibKa0s-Options-1.0 minor 16, debug-logging-§10). RestoreDefaults and
+    -- RestoreAllDefaults call these around their walks, so a Defaults press is one
+    -- `[Set] reset <page>: N rows` line rather than one `[Set]` per row. A Reset All carries
+    -- info.profileReset and logs nothing here: OnProfileReset logs it once. Both fields, always as
+    -- a pair, because a mute with no end would silence every later write.
+    bulkBegin = function(act, scope) NS.Bulk.Begin(act, scope) end,
+    bulkEnd   = function(act, scope, count, err, info) NS.Bulk.End(act, scope, count, err, info) end,
 
     -- AceTimer through the addon object (Ka0s standard library-stack-§1) rather than a raw C_Timer. Backs the
     -- color picker's 50 ms drag throttle; the library takes it as a descriptor field because
@@ -301,17 +310,27 @@ if not lib then
     end
 
     Helpers.RestoreAllDefaults = function()
-        -- The rows are the schema's and the schema loaded fine, so a reset still works without any
-        -- panel at all. Losing the panel is survivable; losing the reset would not be.
-        for _, row in ipairs(NS.Schema or {}) do
-            if not vetoedFromResetAll(row) then NS.ApplyDefault(row) end
-        end
-        -- Then the profile itself, which IS the reset (options-ui-§12). On the live path the
-        -- library makes this call through the descriptor's `resetProfile`; here there is no
-        -- library, so the stub makes it. The saved positions come back with the profile, which is
-        -- why the ResetAllPositions call that used to close this function is gone from it.
-        local db = NS.db
-        if db and db.ResetProfile then db:ResetProfile() end
+        -- Bracketed exactly as the library brackets the live walk (debug-logging-§10): the session
+        -- rows are written under the mute, and a profile reset is logged once, by OnProfileReset.
+        -- With no AceDB there is no profile reset and the bracket's own `[Set] reset all` line is
+        -- the record.
+        NS.Bulk.Run("reset", "all", function(info)
+            -- The rows are the schema's and the schema loaded fine, so a reset still works without
+            -- any panel at all. Losing the panel is survivable; losing the reset would not be.
+            for _, row in ipairs(NS.Schema or {}) do
+                if not vetoedFromResetAll(row) then NS.ApplyDefault(row) end
+            end
+            -- Then the profile itself, which IS the reset (options-ui-§12). On the live path the
+            -- library makes this call through the descriptor's `resetProfile`; here there is no
+            -- library, so the stub makes it. The saved positions come back with the profile, which
+            -- is why the ResetAllPositions call that used to close this function is gone from it.
+            -- Counted, as on the live path, so the handler's line carries the rows it changed.
+            local db = NS.db
+            if db and db.ResetProfile then
+                NS.ResetProfileCounted(db)
+                info.profileReset = true
+            end
+        end)
     end
 
     -- Reached only from a builder or a user action, so a no-op is the honest answer.

@@ -14,7 +14,7 @@ OnInitialize (ADDON_LOADED)
     ├─▶ NS:InitDB()                     -- core/Database.lua
     │     ├─ AceDB:New("AbsorbTrackerDB", NS.defaults, true) → NS.db
     │     │     └─ RegisterCallback OnProfileChanged / OnProfileCopied /
-    │     │        OnProfileReset → NS.OnProfileChanged (guarded for headless)
+    │     │        OnProfileReset → NS.OnProfile<Event> (guarded for headless)
     │     ├─ fallback when AceDB absent:
     │     │     NS.db = { profile = AbsorbTrackerDB, global = {} }
     │     └─ NS:RunMigrations()          -- idempotent; v3 lifts flat appearance
@@ -154,7 +154,7 @@ cli:CliSet(rest) → lib.ParseValue        local set(row, value)
                    (no caching — class color toggles "just work")
 ```
 
-The slash and panel paths converge on `NS.SetByPath` (`settings/Schema.lua`) — the write seam for a value, which does `SetSetting` + `fireOnChange`. A reset to a row's default (`/at reset`, a page's Defaults button) takes its sibling `NS.ApplyDefault` instead: the same `SetSetting` + `fireOnChange` pair, without the `[Set]` debug line. `fireOnChange` runs `row.onChange` or, absent one, the default handler that publishes `NS.MSG.APPEARANCE` on the bus (so the write path signals the display module instead of calling `UpdateBarAppearance` across the module boundary). The panel's local `set(row, value)` is library code — `libs/LibKa0s/OptionsWidgets.lua`, file-local to the widget makers — and reaches `SetByPath` through the `set` closure the addon declares in its options descriptor (`settings/OptionsSetup.lua`), then calls `Helpers.RefreshScalars` -- the value tier, which re-runs `ctx.refreshers` in place on a page that is on screen and never rebuilds it, so a checkbox click cannot release the widget whose callback is still on the stack; the slash path (LibKa0s-Slash-1.0's `CliSet`, through the `set` closure in the descriptor `settings/Slash.lua` hands it) calls `SetByPath` then `NS.RefreshOptionsPanel` (which itself routes to `Helpers.RefreshAllPanels`). Color getters resolve `useClassColor*` at call time, so no explicit "switch class color on" wiring is needed — the next paint reads the current toggle state and produces the right color.
+The slash and panel paths converge on `NS.SetByPath` (`settings/Schema.lua`) — the single write seam that does `SetSetting` + `fireOnChange`. A reset to a row's default (`/at reset`, a page's Defaults button) reaches the same seam through `NS.ApplyDefault`, which only builds the copied default and hands it to `SetByPath`, so a single-row reset logs the same `[Set]` line as any other write. A bulk act — a page's Defaults, Reset All, **Copy styling from Player** — runs inside the `NS.Bulk` bracket instead: every row is still written and still fires its `onChange`, but the log collapses to one `[Set] <act> <scope>: N rows` line, N being the rows whose stored value changed (debug-logging-§10). `fireOnChange` runs `row.onChange` or, absent one, the default handler that publishes `NS.MSG.APPEARANCE` on the bus (so the write path signals the display module instead of calling `UpdateBarAppearance` across the module boundary). The panel's local `set(row, value)` is library code — `libs/LibKa0s/OptionsWidgets.lua`, file-local to the widget makers — and reaches `SetByPath` through the `set` closure the addon declares in its options descriptor (`settings/OptionsSetup.lua`), then calls `Helpers.RefreshScalars` -- the value tier, which re-runs `ctx.refreshers` in place on a page that is on screen and never rebuilds it, so a checkbox click cannot release the widget whose callback is still on the stack; the slash path (LibKa0s-Slash-1.0's `CliSet`, through the `set` closure in the descriptor `settings/Slash.lua` hands it) calls `SetByPath` then `NS.RefreshOptionsPanel` (which itself routes to `Helpers.RefreshAllPanels`). Color getters resolve `useClassColor*` at call time, so no explicit "switch class color on" wiring is needed — the next paint reads the current toggle state and produces the right color.
 
 The color-picker widget takes a separate throttled route: mid-drag it writes through `SetByPath` on a 50 ms window (the library's `COLOR_THROTTLE`, backed by the descriptor's `scheduleTimer` → `NS.addon:ScheduleTimer`, a one-shot AceTimer) and deliberately skips `RefreshAllPanels` to avoid churning the panel every frame of a drag. The throttle is optional at the library level: a host that supplies no `scheduleTimer` commits every drag frame immediately.
 
@@ -162,14 +162,18 @@ The color-picker widget takes a separate throttled route: mid-drag it writes thr
 
 ## Profile-change refresh
 
-When AceDB fires one of its profile callbacks, the active `db.profile` flips. The callbacks were wired inside `NS:InitDB` (`core/Database.lua`); all three land on `NS.OnProfileChanged` (`core/AbsorbTracker.lua`), which re-renders the bar and the panel against the new values:
+When AceDB fires one of its profile callbacks, the active `db.profile` flips. The callbacks were wired inside `NS:InitDB` (`core/Database.lua`), one handler per event (`core/AbsorbTracker.lua`). Each logs its event's one debug line and then runs the same body, which re-renders the bar and the panel against the new values:
 
 ```
-OnProfileChanged / OnProfileCopied / OnProfileReset
+OnProfileChanged → NS.OnProfileChanged   [Profile] changed → <name>
+OnProfileCopied  → NS.OnProfileCopied    [Set] copied profile '<source>' → '<name>'
+OnProfileReset   → NS.OnProfileReset     [Set] reset profile '<name>' to defaults (N rows)
     │
     ▼
-NS.OnProfileChanged()
+adoptProfile()   -- the shared body
     │
+    ├─▶ NS.MigrateProfileToV3(db.profile)
+    ├─▶ NS.bus:SendMessage(NS.MSG.UNITS)       -- ▶ the unit event registrations follow the profile
     ├─▶ NS.bus:SendMessage(NS.MSG.POSITION)    -- ▶ Display: new profile's saved position
     ├─▶ NS.bus:SendMessage(NS.MSG.APPEARANCE)  -- ▶ Display: size, textures, colors, border, font
     ├─▶ NS.bus:SendMessage(NS.MSG.REPAINT)     -- ▶ Timer: repaint absorb value against new profile
@@ -224,4 +228,4 @@ end of every phase transition inside the library, wired up by `core/PerfSetup.lu
 
 ## Saved variables
 
-The TOC declares two: `AbsorbTrackerDB, AbsorbTrackerPerfDB`. Only the first is the addon's own state — the perf ring is a separate global written straight by `LibKa0s-Perf-1.0`, deliberately outside any profile (see [ARCHITECTURE.md → Documented deviations](./ARCHITECTURE.md#documented-deviations)). With AceDB `AbsorbTrackerDB` holds the full profile structure (`profiles`, `profileKeys`, `char` map, etc.); `db.profile` holds the six flat globals (`enabled`, `visibility`, `scale`, `alpha`, `locked`, `throttleWindow`) plus `units.{player,target,focus}` (each unit's own appearance + position table), and the persisted schema-version stamp lives at `db.global.schemaVersion` (account-wide, the DB-wide marker — currently `5`; v3 introduced `profile.units`, v4 dropped the dead `hidden` master toggle, v5 mapped `showOnlyInCombat` onto `visibility`) with a second, **per-profile** stamp at `db.profile.schemaVersion` gating the per-profile v3 lift (a documented savedvariables-§1 deviation — see [profiles.md](./profiles.md)). Without AceDB, `NS:InitDB` builds a minimal `{ profile = AbsorbTrackerDB, global = {} }` shim so `GetSetting` / `SetSetting` reads and writes stay consistent across the two modes. Either way, `NS:RunMigrations` runs once at init and backfills any missing profile key (flat or per-unit) from `NS.defaults.profile`.
+The TOC declares two: `AbsorbTrackerDB, AbsorbTrackerPerfDB`. Only the first is the addon's own state — the perf ring is a separate global written straight by `LibKa0s-Perf-1.0`, deliberately outside any profile. Its owner and writer are named in [ARCHITECTURE.md → Settings Schema](./ARCHITECTURE.md#settings-schema). With AceDB `AbsorbTrackerDB` holds the full profile structure (`profiles`, `profileKeys`, `char` map, etc.); `db.profile` holds the six flat globals (`enabled`, `visibility`, `scale`, `alpha`, `locked`, `throttleWindow`) plus `units.{player,target,focus}` (each unit's own appearance + position table), and the persisted schema-version stamp lives at `db.global.schemaVersion` (account-wide, the DB-wide marker — currently `5`; v3 introduced `profile.units`, v4 dropped the dead `hidden` master toggle, v5 mapped `showOnlyInCombat` onto `visibility`) with a second, **per-profile** stamp at `db.profile.schemaVersion` gating the per-profile v3 lift (a documented savedvariables-§1 deviation — see [profiles.md](./profiles.md)). Without AceDB, `NS:InitDB` builds a minimal `{ profile = AbsorbTrackerDB, global = {} }` shim so `GetSetting` / `SetSetting` reads and writes stay consistent across the two modes. Either way, `NS:RunMigrations` runs once at init and backfills any missing profile key (flat or per-unit) from `NS.defaults.profile`.

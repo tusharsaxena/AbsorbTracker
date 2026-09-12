@@ -150,25 +150,138 @@ local function fireOnChange(row, value)
     fn(value)
 end
 
---- Write a value for `path`, fire its onChange. Used by /at set, /at lock, /at unlock, /at toggle
---- and every panel widget, so the UI and the CLI share one dispatch path. A reset to a row's
---- default does NOT come through here: /at reset and the Defaults buttons call NS.ApplyDefault
---- below, which is the same SetSetting + fireOnChange pair without the [Set] line.
+-- ── the bulk bracket (debug-logging-§10) ──────────────────────────────────────────────────────
+--
+-- A bulk copy or reset through this seam is ONE `[Set] <act> <scope>: N rows` line, never one per
+-- row. While a bracket is open SetByPath still validates, stores and fires each row's onChange, but
+-- instead of logging it tallies the writes that CHANGED a stored value, because N is the rows the
+-- act actually wrote: a row already at its default is not counted. That is also why the library's
+-- own bulkEnd `count` is not used: it counts every row whose applyDefault returned, changed or not.
+--
+-- A DEPTH, not a flag, so a bracket inside a bracket (a host act that wraps a library reset, or a
+-- profile handler that resets a page) is still one act: the tally runs across every level and the
+-- line is emitted only when the outermost bracket closes. If any level reports a whole-profile
+-- reset the act emits no bulk line at all: OnProfileReset (core/AbsorbTracker.lua) logs it once.
+-- If any level ended with an error the line says so, ` (stopped by an error)`: N is then the rows
+-- changed before the act died, and the act did not finish.
+local bulkDepth, bulkWrites, bulkProfileReset, bulkFailed = 0, 0, false, false
+
+-- Stored-value equality for the tally. Tables are compared by content: a reset or a copy hands the
+-- seam a fresh color table, which is a change only if a channel differs.
+local function sameValue(a, b)
+    if a == b then return true end
+    if type(a) ~= "table" or type(b) ~= "table" then return false end
+    for k, v in pairs(a) do
+        if not sameValue(v, b[k]) then return false end
+    end
+    for k in pairs(b) do
+        if a[k] == nil then return false end
+    end
+    return true
+end
+
+--- Write a value for `path`, fire its onChange. The single write seam for every schema-row path
+--- (architecture-§5): /at set, /at lock, /at unlock, /at toggle and every panel widget call it
+--- directly, and every reset to a row's default reaches it through NS.ApplyDefault below. So the
+--- UI and the CLI share one dispatch path.
 function NS.SetByPath(path, value)
+    -- Read the old value only inside a bracket: outside one this seam carries every ColorPicker
+    -- drag frame, and the comparison is needed for nothing but the tally.
+    local changed = bulkDepth > 0 and not sameValue(NS.GetSetting(path), value)
     NS.SetSetting(path, value)
     local row = NS.FindSchemaRow(path)
-    -- debug-logging-§10: log every write that comes through this seam once (a reset through
-    -- NS.ApplyDefault below does not, so it is not logged). Gate the
+    -- debug-logging-§10: log every settings mutation once, at this single write seam. Gate the
     -- whole line (including the value formatting) behind the debug flag so a ColorPicker drag —
     -- many writes per second — does zero string work when debug is off.
-    if NS.State and NS.State.debug then
+    if bulkDepth > 0 then
+        if changed then bulkWrites = bulkWrites + 1 end
+    elseif NS.State and NS.State.debug then
         NS.Debug("Set", "%s = %s", path, row and NS.FormatSchemaValue(row, value) or tostring(value))
     end
     if row then fireOnChange(row, value) end
 end
 
+NS.Bulk = {}
+
+--- Open a bracket. The library's descriptor field `bulkBegin` (settings/OptionsSetup.lua) and
+--- NS.Bulk.Run below both land here. The outermost bracket starts a fresh tally.
+function NS.Bulk.Begin()
+    if bulkDepth == 0 then bulkWrites, bulkProfileReset, bulkFailed = 0, false, false end
+    bulkDepth = bulkDepth + 1
+end
+
+--- Close a bracket: `bulkEnd(act, scope, count, err, info)`'s shape, `count` ignored (see above).
+--- Emits the act's one line when the outermost bracket closes, unless a level reset the profile;
+--- a non-nil `err` at any level marks that line ` (stopped by an error)`. Never raises the error
+--- itself: the library and NS.Bulk.Run re-raise it after this returns.
+function NS.Bulk.End(act, scope, _, err, info)
+    if bulkDepth == 0 then return end
+    bulkDepth = bulkDepth - 1
+    if info and info.profileReset then bulkProfileReset = true end
+    if err ~= nil then bulkFailed = true end
+    if bulkDepth > 0 or bulkProfileReset then return end
+    NS.Debug("Set", "%s %s: %d rows%s", tostring(act), tostring(scope), bulkWrites,
+        bulkFailed and " (stopped by an error)" or "")
+end
+
+--- Run a host-owned bulk act inside a bracket: `walk(info)` does the writes through SetByPath and
+--- sets `info.profileReset` if it reset the profile. The bracket always closes, even when the walk
+--- raises, so the mute cannot stick; the error is then re-raised unchanged.
+function NS.Bulk.Run(act, scope, walk)
+    local info = { profileReset = false }
+    local ok, err = pcall(function()
+        NS.Bulk.Begin(act, scope)
+        walk(info)
+    end)
+    NS.Bulk.End(act, scope, nil, err, info)
+    if not ok then error(err, 0) end
+end
+
+-- ── the profile reset's count (debug-logging-§10) ─────────────────────────────────────────────
+--
+-- `[Set] reset profile '<name>' to defaults (N rows)` is OnProfileReset's line, and N is the rows
+-- the reset CHANGED, never every row the profile stores. Only a caller that runs BEFORE the reset
+-- can know that, so every reset this addon drives goes through NS.ResetProfileCounted, which counts
+-- the rows off their default and leaves the number pending for the handler to take once. A reset
+-- the addon did not drive (an AceDBOptions button, a /run) has nothing pending, and its line
+-- carries no count. The WhatGroup pattern (Settings.ConsumeResetCount).
+local pendingResetCount
+
+--- The profile rows whose stored value differs from their default: the rows a reset would change.
+--- Not a sessionOnly row (its storage is not the profile) and not an AceDBOptions profiles-page one.
+function NS.ProfileRowsOffDefault()
+    local n = 0
+    for _, row in ipairs(NS.Schema) do
+        if row.path and not row.sessionOnly and row.page ~= "profiles"
+            and not sameValue(NS.GetSetting(row.path), row.default) then
+            n = n + 1
+        end
+    end
+    return n
+end
+
+--- `db:ResetProfile()`, counted. The count is cleared once the reset returns or raises, whether or
+--- not the handler took it, so a reset that never reached the handler (AceDB's noCallbacks, an
+--- abort) cannot hand its number to a later, unrelated one. An error is re-raised unchanged.
+function NS.ResetProfileCounted(db)
+    pendingResetCount = NS.ProfileRowsOffDefault()
+    local ok, err = pcall(db.ResetProfile, db)
+    pendingResetCount = nil
+    if not ok then error(err, 0) end
+end
+
+--- OnProfileReset's count, taken once. nil when the reset did not come through ResetProfileCounted.
+function NS.ConsumeResetCount()
+    local n = pendingResetCount
+    pendingResetCount = nil
+    return n
+end
+
 --- Reset one row to its default. Used by /at reset <path> and the per-page Defaults button, and
 --- by /at resetall for the sessionOnly rows its veto leaves (the rest is a profile reset).
+--- It only builds the value: the write goes through NS.SetByPath like any other, so a reset logs
+--- the same [Set] line and fires the row's onChange exactly once. SetByPath fires the onChange of
+--- the schema row it finds at `row.path`, which is `row` itself for every caller.
 function NS.ApplyDefault(row)
     if row.default == nil then return end
     -- Copy a table default before storing it, so two profiles can't end up sharing the same
@@ -181,8 +294,7 @@ function NS.ApplyDefault(row)
         for k, vv in pairs(v) do copy[k] = vv end
         v = copy
     end
-    NS.SetSetting(row.path, v)
-    fireOnChange(row, v)
+    NS.SetByPath(row.path, v)
 end
 
 -- ---------------------------------------------------------------------

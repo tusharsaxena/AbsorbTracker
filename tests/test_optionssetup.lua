@@ -77,6 +77,89 @@ test("the live and degraded builds veto exactly the same rows from Reset All", f
   T.mocks.__fireTimers()
 end)
 
+-- Run one build's Reset All against a probe sessionOnly row -- the one kind of row both walks
+-- still reset -- and report what the reset did to it: the stored value and each onChange value.
+-- The probe binds its own session storage, so the write never reaches a profile.
+local function resetAllProbe(ns, restoreAll)
+  local path = "__probe.resetAllSession"
+  local store = { value = false }
+  ns.RegisterSessionSetting(path, {
+    get = function() return store.value end,
+    set = function(v) store.value = v end,
+  })
+  local changes = {}
+  local n = #ns.Schema
+  table.insert(ns.Schema, { page = "general", path = path, type = "bool", default = true,
+                            sessionOnly = true, onChange = function(v) changes[#changes + 1] = v end })
+  local ok, err = pcall(restoreAll)
+  for i = #ns.Schema, n + 1, -1 do ns.Schema[i] = nil end
+  if not ok then error(err) end
+  return store.value, changes
+end
+
+test("Reset All resets a sessionOnly row and fires its onChange once, on both builds", function()
+  -- Characterization for #30: the live walk reaches the row through the descriptor's applyDefault
+  -- (libs/LibKa0s/Options.lua), the degraded stub through its own loop. Both end in
+  -- NS.ApplyDefault, and both must write the default and react to it exactly once.
+  local NS2 = loadDegraded()
+  for label, pair in pairs({ live = { NS, Helpers.RestoreAllDefaults },
+                             degraded = { NS2, NS2.Helpers.RestoreAllDefaults } }) do
+    local value, changes = resetAllProbe(pair[1], pair[2])
+    assertEqual(value, true, label .. ": the sessionOnly row is back at its default")
+    assertEqual(#changes, 1, label .. ": one onChange for the reset row")
+    assertEqual(changes[1], true, label .. ": and it receives the default")
+  end
+  T.mocks.__fireTimers()
+end)
+
+-- The degraded build's Reset All, observed through a spy on its NS.Debug: with no library the sink
+-- is a no-op stub and there is no buffer to read. The seam and the profile handler both look
+-- NS.Debug up at call time, so the spy sees what the live console would.
+local function degradedResetAllLines(NS2, db)
+  local lines = {}
+  NS2.Debug = function(tag, fmt, ...) lines[#lines + 1] = ("[%s] " .. fmt):format(tag, ...) end
+  NS2.State.debug, NS2.db = true, db
+  local ok, err = pcall(resetAllProbe, NS2, NS2.Helpers.RestoreAllDefaults)
+  NS2.State.debug, NS2.db = false, nil
+  if not ok then error(err, 0) end
+  return lines
+end
+
+test("the degraded Reset All logs one line in total, the profile handler's", function()
+  -- debug-logging-§10, on the path with no library to bracket for it: the stub brackets its own
+  -- walk, so the probe session row it writes first is muted, and the profile reset is logged once
+  -- by OnProfileReset. The fake db is AceDB-shaped: ResetProfile fires the handler, as AceDB does.
+  -- red under: the stub's walk outside NS.Bulk.Run, which logs the session row as well.
+  -- N is the rows the reset changed, counted before the stub's own db:ResetProfile(): one row is
+  -- moved off its default first. red under: a count of every row the profile stores.
+  local NS2 = loadDegraded()
+  local profile = NS2.Units.DeepCopy(NS2.defaults.profile)
+  profile.schemaVersion = 3
+  profile.units.player.barWidth = profile.units.player.barWidth + 1
+  local db = { profile = profile, global = {} }
+  function db.GetCurrentProfile() return "Default" end
+  function db.ResetProfile(self) NS2.OnProfileReset("OnProfileReset", self) end
+  -- The handler's repaint reaches this build's Display reactor, which traces each bar's visibility
+  -- as `[Bar]`. Reactor lines are not settings lines and §10 keeps them, so only the `[Set]` and
+  -- `[Profile]` lines are counted.
+  local lines = {}
+  for _, line in ipairs(degradedResetAllLines(NS2, db)) do
+    if line:find("^%[Set%]") or line:find("^%[Profile%]") then lines[#lines + 1] = line end
+  end
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertEqual(lines[1], "[Set] reset profile 'Default' to defaults (1 rows)")
+  T.mocks.__fireTimers()
+end)
+
+test("the degraded Reset All with no AceDB logs its own one line with the rows it wrote", function()
+  -- The no-AceDB fallback db has no ResetProfile, so no handler runs and the bracket's own line is
+  -- the only record: `[Set] reset all: N rows`, N being the probe session row the walk wrote.
+  local NS2 = loadDegraded()
+  local lines = degradedResetAllLines(NS2, { profile = {}, global = {} })
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertEqual(lines[1], "[Set] reset all: 1 rows")
+end)
+
 -- ── the stub's member set ──────────────────────────────────────────────────────────
 
 test("the degraded stub publishes LSMValues, the one member reached at file load", function()

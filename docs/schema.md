@@ -124,7 +124,7 @@ Each call generates three rows per appearance key — one per `NS.Units.LIST` en
                                    widgets against the new value)
 ```
 
-`NS.SetByPath` (in `settings/Schema.lua`) is the write seam for a value: it calls `NS.SetSetting` then fires the row's `onChange`. A reset to a row's default goes through its sibling `NS.ApplyDefault`, the same `SetSetting` + `onChange` pair without the `[Set]` debug line. It does **not** itself refresh the panel — the slash path calls `NS.RefreshOptionsPanel` afterward (inside the `set` / `applyDefault` closures `settings/Slash.lua` hands the library), and the panel widgets' own `set()` closures end with `Helpers.RefreshAllPanels`.
+`NS.SetByPath` (in `settings/Schema.lua`) is the single write seam: it calls `NS.SetSetting`, logs the `[Set]` debug line, then fires the row's `onChange`. A reset to a row's default comes through it too: `NS.ApplyDefault` builds the copied default and calls `SetByPath`. Inside an `NS.Bulk` bracket — a page's Defaults, Reset All, Copy styling from Player — the seam logs nothing per row and instead tallies the writes that changed a stored value; the bracket then emits one `[Set] <act> <scope>: N rows` line when it closes (debug-logging-§10). The library opens and closes that bracket through the options descriptor's `bulkBegin`/`bulkEnd`, and the host's own acts use `NS.Bulk.Run`. It does **not** itself refresh the panel — the slash path calls `NS.RefreshOptionsPanel` afterward (inside the `set` / `applyDefault` closures `settings/Slash.lua` hands the library), and the panel widgets' own `set()` closures end with `Helpers.RefreshAllPanels`.
 
 ## Behavior knobs
 
@@ -204,11 +204,29 @@ NS.ResolvePath(tbl, path)               -> value | nil
 NS.SetPath(tbl, path, value)
 
 -- Write / reset (fires row.onChange; reads go through NS.GetSetting)
-NS.SetByPath(path, value)               -- SetSetting + onChange (the documented single seam
-                                                -- both /at set and the panel widget set() use)
-NS.ApplyDefault(row)                    -- reset to row.default + onChange (deep-copies table
-                                                -- defaults; used by /at reset, /at resetall,
+NS.SetByPath(path, value)               -- SetSetting + [Set] line + onChange (the documented
+                                                -- single seam: /at set, the panel widget set(),
+                                                -- and every reset through ApplyDefault)
+NS.ApplyDefault(row)                    -- reset to row.default through SetByPath (deep-copies
+                                                -- table defaults; used by /at reset, /at resetall,
                                                 -- and per-page Defaults buttons)
+
+-- The bulk bracket (debug-logging-§10): one [Set] line per bulk copy or reset
+NS.Bulk.Begin(act, scope)               -- open; the descriptor's bulkBegin
+NS.Bulk.End(act, scope, count, err, info) -- close; the descriptor's bulkEnd. At depth 0 emits
+                                                -- `[Set] <act> <scope>: N rows`, N = writes that
+                                                -- changed a value; nothing if info.profileReset;
+                                                -- ` (stopped by an error)` appended if any level
+                                                -- got a non-nil err
+NS.Bulk.Run(act, scope, walk)           -- a host act in a bracket that always closes, then
+                                                -- re-raises the walk's error unchanged
+
+-- The profile reset's count (OnProfileReset's `(N rows)`, debug-logging-§10)
+NS.ProfileRowsOffDefault()              -> number    -- profile rows whose value differs from default
+NS.ResetProfileCounted(db)              -- db:ResetProfile() with that count left pending;
+                                                -- cleared on return or raise, error re-raised
+NS.ConsumeResetCount()                  -> number|nil -- the pending count, taken once (nil when
+                                                -- the reset was not addon-driven: no `(N rows)`)
 
 -- Slash IO (formatting only — the type-aware parser is LibKa0s-Slash-1.0's lib.ParseValue)
 NS.FormatSchemaValue(row, value)        -> string    -- thin delegate to lib.FormatValue
@@ -253,7 +271,7 @@ here instead of being rediscovered from three files.
 | Layer | Answer | Why |
 |-------|--------|-----|
 | **`NS.Units.Get(unit, key)`** (`core/Units.lua`) | **Resolved** — follows the mirror. While `units.focus.mirror` is true it returns the **player's** value. | This is what the bar renders. `modules/Bar.lua`, `modules/Display.lua` and `core/Data.lua` read appearance *only* through here, so "mirror the player" lives in exactly one place. |
-| **`NS.GetSetting(path)`** (`core/Data.lua`) | **Stored** — `ResolvePath(db.profile, path)`, mirror ignored. Returns focus's *own* saved `barWidth`, whatever the bar is currently showing. | It is the read half of the same seam `/at set` writes through. Resolving on read would make `get` and `set` asymmetric: `/at set units.focus.barWidth 400` followed by `/at get units.focus.barWidth` would echo the player's number. `NS.Units.Set` is deliberately unresolved for the same reason — a write while mirrored must never silently edit the *player's* bar. |
+| **`NS.GetSetting(path)`** (`core/Data.lua`) | **Stored** — `ResolvePath(db.profile, path)`, mirror ignored. Returns focus's *own* saved `barWidth`, whatever the bar is currently showing. | It is the read half of the same seam `/at set` writes through. Resolving on read would make `get` and `set` asymmetric: `/at set units.focus.barWidth 400` followed by `/at get units.focus.barWidth` would echo the player's number. The write half is unresolved for the same reason: `NS.SetByPath` writes the path it is given, so a write while mirrored never silently edits the *player's* bar. |
 | **The panel** (`Helpers.RenderUnitPanel`) | **Hidden** — while a unit is mirrored its appearance rows are not rendered at all; the chrome block and the tab strip are drawn exactly as they are for any other unit, and a one-line hint takes the rows' place. | The stored value is not what the user would see on screen, so offering a widget for it would be a lie. `Helpers.RenderUnitPanel` makes that call directly off `NS.Units.IsMirrored(ctx.unit)` and hides the whole row set, so there is no row-level split to apply — `NS.PartitionUnitRows`, which was that split, is gone. |
 
 The seam is only dangerous where it is **silent**, so the slash surface says so out loud: `/at get`,
@@ -332,7 +350,7 @@ Appearance counts are **per unit** (the page renders one unit at a time behind t
 | `useClassColorText` | bool | `false` | — | When true, the absorb amount uses the bar's own unit's class color, keeping `fontColor`'s alpha. The composer's canonical leaf is `useClassColorFont`; `keys` keeps the stored path this addon has always used. Label "Use class color". Composed by `H.FontGroup`. **Text** tab. |
 | `fontFlags` | string | `"OUTLINE"` | `""` / `OUTLINE` / `THICKOUTLINE` / `MONOCHROME` / `OUTLINE, MONOCHROME` | Font outline and monochrome flags. `select` widget with explicit `sorting`, both from `H.FONT_FLAGS` / `H.FONT_FLAGS_SORT`. The value set is the collection's now rather than this file's, which drops the two combinations this addon alone offered (`MONOCHROME, OUTLINE` and `MONOCHROME, THICKOUTLINE`); a profile still holding one renders exactly as before — `SetFont` takes the string either way — but the dropdown no longer offers it. Label "Font flags", where it was "Font Outline". Composed by `H.FontGroup`. **Text** tab. |
 | `fontShadow` | bool | `false` | — | **New.** A soft shadow behind the absorb amount, for legibility over bright art — the sixth row of the canonical font block (options-ui-§16), which this addon lacked. Honored in `NS.UpdateBarAppearance` beside `SetFont`: on writes `SetShadowColor(0,0,0,1)` + `SetShadowOffset(1,-1)`, off **clears** both rather than skipping the call, so turning it back off works. Composed by `H.FontGroup`. **Text** tab. |
-| `position` | table | `nil` | — | Saved bar position `{ point, relPoint, x, y }`, per unit. **Not** a schema row — read/written via `NS.Units.Position` / `NS.Units.SetPosition`, never mirrored even when the rest of the unit's appearance is. Listed here for completeness. |
+| `position` | table | `nil` | — | Saved bar position `{ point, relPoint, x, y }`, per unit. **Not** a schema row — read/written via `NS.Units.Position` / `NS.Units.SetPosition`, never mirrored even when the rest of the unit's appearance is. It is architecture-§5 **named non-setting state** (geometry only a drag determines): its owner, `core/Units.lua`, and every writer (the bar's drag-stop, and `Helpers.ResetAllPositions` behind `/at resetposition` and the Reset Position button) are named in [ARCHITECTURE.md → Settings Schema](./ARCHITECTURE.md#settings-schema), so it needs no register row. Listed here for completeness. |
 
 ## See also
 

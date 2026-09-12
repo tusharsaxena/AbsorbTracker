@@ -222,6 +222,45 @@ test("/at reset restores one setting and leaves its neighbors alone", function()
   NS.Helpers.RestoreDefaults("border")
 end)
 
+test("/at reset <path> writes the default and fires the row's onChange exactly once", function()
+  -- Characterization for #30: the reset reaches the row's reaction once, with the default.
+  local row = NS.FindSchemaRow("units.player.barWidth")
+  local saved, calls, got = row.onChange, 0, nil
+  NS.SetByPath("units.player.barWidth", 250)
+  row.onChange = function(v) calls = calls + 1; got = v end
+  local ok, err = pcall(slash, "reset units.player.barWidth")
+  row.onChange = saved
+  if not ok then error(err) end
+  assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth)
+  assertEqual(calls, 1, "one onChange per reset")
+  assertEqual(got, NS.unitDefaults.barWidth, "and it receives the default")
+end)
+
+test("/at reset <path> logs exactly one [Set] line and fires onChange exactly once", function()
+  -- #30: a reset is a schema-row write, so it goes through the one helper and its [Set] line
+  -- (architecture-§5, debug-logging-§10) like every other write.
+  -- red under: NS.ApplyDefault writing through NS.SetSetting instead of NS.SetByPath.
+  local row = NS.FindSchemaRow("units.player.barWidth")
+  local saved, calls = row.onChange, 0
+  NS.SetByPath("units.player.barWidth", 250)
+  row.onChange = function() calls = calls + 1 end
+  NS.State.debug = true
+  local before = #NS.DebugLog.buffer
+  local ok, err = pcall(slash, "reset units.player.barWidth")
+  NS.State.debug = false
+  row.onChange = saved
+  if not ok then error(err) end
+  local sets = {}
+  for i = before + 1, #NS.DebugLog.buffer do
+    local line = NS.DebugLog.buffer[i]
+    if line:find("[Set]", 1, true) then sets[#sets + 1] = line end
+  end
+  assertEqual(#sets, 1, "exactly one [Set] line: " .. table.concat(sets, " | "))
+  assertTrue(sets[1]:find("units.player.barWidth = " .. NS.unitDefaults.barWidth, 1, true) ~= nil,
+    "it names the path and the default: " .. sets[1])
+  assertEqual(calls, 1, "and the row's onChange fires once")
+end)
+
 test("/at reset does NOT lower-case its argument", function()
   -- The inverse of the rule the page form had. Pages were a closed lower-case set; a path is
   -- case-sensitive, so folding case here would reset a setting the user never named.
@@ -529,6 +568,97 @@ test("/at profile reset restores the current profile's defaults in place", funct
   assertEqual(NS.db:GetCurrentProfile(), "Default", "reset does not switch profiles")
   assertTrue(contains(out, "Profile reset to defaults"), joined(out))
   T.mocks.__fireTimers()
+end)
+
+-- ── the profile-event handler's one line (debug-logging-§10) ───────────────────────
+--
+-- AceDB replacing the whole profile is not a batch through the helper. It is logged ONCE, by the
+-- profile-event handler, in words chosen by the event: a reset and a copy are `[Set]` lines, a
+-- switch keeps its `[Profile]` line. core/Database.lua wires each event to its own handler.
+
+-- The debug lines one act appends, with debug on for its duration.
+local function debugLines(fn)
+  local before = #NS.DebugLog.buffer
+  NS.State.debug = true
+  local ok, err = pcall(fn)
+  NS.State.debug = false
+  if not ok then error(err, 0) end
+  local out = {}
+  for i = before + 1, #NS.DebugLog.buffer do out[#out + 1] = NS.DebugLog.buffer[i] end
+  return out
+end
+
+-- The reset handler's line. N is the rows the reset changed, counted before an addon-driven reset
+-- (debug-logging-§10), never the schema size.
+local function resetLine(n)
+  return ("[Set] reset profile '%s' to defaults (%d rows)"):format(NS.db:GetCurrentProfile(), n)
+end
+
+-- Put the active profile back at its defaults, unlogged.
+local function cleanProfile()
+  NS.db:ResetProfile()
+  T.mocks.__fireTimers()
+end
+
+test("/at profile reset logs one [Set] line from the reset handler, counting the rows it changed", function()
+  -- red under: OnProfileReset still wired to the switch handler, which logs `[Profile] changed`,
+  -- or a count of every row the profile stores.
+  cleanProfile()
+  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth + 1)
+  local lines = debugLines(function() slash("profile reset") end)
+  T.mocks.__fireTimers()
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find(resetLine(1), 1, true) ~= nil, "want '" .. resetLine(1) .. "', got " .. lines[1])
+end)
+
+test("/at resetall logs one line in total, the same reset handler's", function()
+  cleanProfile()
+  local lines = debugLines(function() slash("resetall") end)
+  T.mocks.__fireTimers()
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find(resetLine(0), 1, true) ~= nil, "want '" .. resetLine(0) .. "', got " .. lines[1])
+end)
+
+test("/at profile new logs the switch line, then a (0 rows) reset line", function()
+  -- Two AceDB events, so two lines: SetProfile's switch and the reset that follows it. A freshly
+  -- created profile is already at its defaults, so the reset changes nothing and says so.
+  local lines = debugLines(function() slash("profile new FreshOne") end)
+  T.mocks.__fireTimers()
+  local current = NS.db:GetCurrentProfile()
+  backToDefault()
+  NS.db:DeleteProfile("FreshOne", true)
+  assertEqual(current, "FreshOne")
+  assertEqual(#lines, 2, "two lines: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find("[Profile] changed \226\134\146 FreshOne", 1, true) ~= nil, lines[1])
+  local want = "[Set] reset profile 'FreshOne' to defaults (0 rows)"
+  assertTrue(lines[2]:find(want, 1, true) ~= nil, "want '" .. want .. "', got " .. lines[2])
+end)
+
+test("a profile copy logs one [Set] line naming both profiles", function()
+  -- AceDB hands OnProfileCopied the SOURCE profile's name as its third argument. The kit's mock
+  -- hands it the current name, so the wording is pinned by calling the handler as AceDB does.
+  local lines = debugLines(function() NS.OnProfileCopied("OnProfileCopied", NS.db, "Raid") end)
+  T.mocks.__fireTimers()
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find("[Set] copied profile 'Raid' \226\134\146 'Default'", 1, true) ~= nil,
+    lines[1])
+end)
+
+test("/at profile copy reaches the copy handler, one line", function()
+  -- red under: OnProfileCopied still wired to the switch handler.
+  NS.db:SetProfile("CopyFrom")
+  backToDefault()
+  local lines = debugLines(function() slash("profile copy CopyFrom") end)
+  T.mocks.__fireTimers()
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find("[Set] copied profile '", 1, true) ~= nil, lines[1])
+end)
+
+test("a profile switch keeps its [Profile] line and logs no [Set] line", function()
+  local lines = debugLines(function() slash("profile use Alt") end)
+  backToDefault()
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find("[Profile] changed \226\134\146 Alt", 1, true) ~= nil, lines[1])
 end)
 
 test("/at profile rejects an unknown subcommand and reprints the sub-help", function()

@@ -241,9 +241,16 @@ function addon:OnLeaveCombat()
     end
 end
 
--- AceDB profile-change callback (registered in core/Database.lua). Repaint the bar from the new
--- profile and refresh an open settings panel.
-function NS.OnProfileChanged()
+local function currentProfile()
+    return (NS.db and NS.db.GetCurrentProfile and NS.db:GetCurrentProfile()) or "?"
+end
+
+-- The body the three AceDB profile callbacks share (registered in core/Database.lua): lift, log
+-- the event's ONE line, then repaint the bar from the new profile and refresh an open panel.
+-- debug-logging-§10: AceDB replacing the profile whole is not a batch through the settings seam,
+-- so it is logged once, here, worded by the event — never per row, and never a second time by a
+-- bulk bracket (NS.Bulk stays silent when the act reset the profile).
+local function adoptProfile(tag, fmt, ...)
     -- Belt and braces for the per-profile v3 lift. NS:InitDB sweeps every profile in the saved
     -- store, but a profile that only APPEARS afterwards — copied in from another character,
     -- restored from a backup SavedVariables file, or reset back to the shipped defaults — never
@@ -254,14 +261,38 @@ function NS.OnProfileChanged()
     if NS.MigrateProfileToV3 and NS.db then
         NS.MigrateProfileToV3(NS.db.profile)
     end
-    NS.Debug("Profile", "changed \226\134\146 %s",
-        (NS.db and NS.db.GetCurrentProfile and NS.db:GetCurrentProfile()) or "?")
+    NS.Debug(tag, fmt, ...)
     -- The new profile carries its own enable flags, so the event registrations have to follow it.
     NS.bus:SendMessage(NS.MSG.UNITS)
     NS.bus:SendMessage(NS.MSG.POSITION)
     NS.bus:SendMessage(NS.MSG.APPEARANCE)
     NS.bus:SendMessage(NS.MSG.REPAINT)
     if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
+end
+
+-- A switch rewrites no rows, so it keeps this addon's `[Profile]` trace.
+function NS.OnProfileChanged()
+    adoptProfile("Profile", "changed \226\134\146 %s", currentProfile())
+end
+
+-- `db:ResetProfile()` — the Profiles page, `/at profile reset` / `new`, and Reset All Settings on
+-- both the live and degraded paths. debug-logging-§10: N is the rows the reset CHANGED, never every
+-- row the profile stores. The resets this addon drives count the rows off their default just before
+-- (NS.ResetProfileCounted, settings/Schema.lua) and the count is taken here, once. A reset the addon
+-- did not drive (the Profiles page's AceDBOptions button, a /run) has none, so the line omits it.
+function NS.OnProfileReset()
+    local n = NS.ConsumeResetCount and NS.ConsumeResetCount()
+    if n then
+        adoptProfile("Set", "reset profile '%s' to defaults (%d rows)", currentProfile(), n)
+    else
+        adoptProfile("Set", "reset profile '%s' to defaults", currentProfile())
+    end
+end
+
+-- AceDB hands a copy's callback the SOURCE profile's name as its third argument.
+function NS.OnProfileCopied(_, _, source)
+    adoptProfile("Set", "copied profile '%s' \226\134\146 '%s'", tostring(source or "?"),
+        currentProfile())
 end
 
 -- Bus subscription (architecture-§4). This module owns the SOLE subscription to UNITS, on its own

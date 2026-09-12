@@ -13,8 +13,8 @@ function NS:InitDB()
         NS.db = AceDB:New("AbsorbTrackerDB", NS.defaults, true)
         if NS.db.RegisterCallback then
             NS.db.RegisterCallback(NS, "OnProfileChanged", NS.OnProfileChanged)
-            NS.db.RegisterCallback(NS, "OnProfileCopied", NS.OnProfileChanged)
-            NS.db.RegisterCallback(NS, "OnProfileReset", NS.OnProfileChanged)
+            NS.db.RegisterCallback(NS, "OnProfileCopied", NS.OnProfileCopied)
+            NS.db.RegisterCallback(NS, "OnProfileReset", NS.OnProfileReset)
         end
     end
     if not NS.db then
@@ -38,12 +38,21 @@ Defaults come from `defaults/Profile.lua`:
 
 ## OnProfileChanged refresh chain
 
-All three AceDB callbacks (`OnProfileChanged`, `OnProfileCopied`, `OnProfileReset`) wire into the same handler, `NS.OnProfileChanged`, defined in `core/AbsorbTracker.lua`:
+Each AceDB callback has its own handler in `core/AbsorbTracker.lua` — `NS.OnProfileChanged`, `NS.OnProfileCopied`, `NS.OnProfileReset` — because debug-logging-§10 logs a profile-wide replacement **once, worded by the event**:
+
+| Event | Debug line |
+|---|---|
+| `OnProfileChanged` (a switch) | `[Profile] changed → <name>` |
+| `OnProfileCopied` | `[Set] copied profile '<source>' → '<name>'` (AceDB passes the source name) |
+| `OnProfileReset` | `[Set] reset profile '<name>' to defaults (N rows)`. N is the rows the reset **changed**, never the schema size: every reset the addon drives (Reset All, `/at profile reset` / `new`) goes through `NS.ResetProfileCounted`, which counts the profile rows off their default just before `db:ResetProfile()`, and the handler takes that count once (`NS.ConsumeResetCount`). A reset the addon did not drive (the AceDBOptions Reset Profile button, a `/run`) has no count, so its line ends at `to defaults` |
+
+The reset line is the whole log of **Reset All Settings** (`/at resetall`, the General page's button): the session rows the reset writes first are muted inside the bulk bracket, and the bracket emits nothing when the act reset the profile. After the line, all three run the same body:
 
 ```
-NS.OnProfileChanged()
+adoptProfile()
     │
     ├─▶ NS.MigrateProfileToV3(db.profile)   -- lift this profile if its own stamp predates v3
+    ├─▶ bus: MSG.UNITS         -- the unit event registrations follow the new enable flags
     │
     ├─▶ bus: MSG.POSITION      -- Display: RestoreBarPosition(unit) for every unit
     ├─▶ bus: MSG.APPEARANCE    -- Display: UpdateBarAppearance(unit) for every unit
@@ -127,7 +136,7 @@ Two mechanisms, composing on the one stamp so they cannot double-apply:
 
 ## Bar position is per-profile *and* per-unit
 
-Each bar's saved position lives at `db.profile.units.<unit>.position = { point, relPoint, x, y }`, read and written only through `NS.Units.Position` / `NS.Units.SetPosition` (`core/Units.lua`). It is **not** a schema row — it is written by dragging — and it is **never mirrored**: a mirrored position would stack all three bars on one spot, so `position` (like `enabled`) stays per-unit even while a unit mirrors the player's appearance.
+Each bar's saved position lives at `db.profile.units.<unit>.position = { point, relPoint, x, y }`, read and written only through `NS.Units.Position` / `NS.Units.SetPosition` (`core/Units.lua`). It is **not** a schema row — it is written by dragging, architecture-§5 named non-setting state whose owner and writers are named in [ARCHITECTURE.md → Settings Schema](./ARCHITECTURE.md#settings-schema) — and it is **never mirrored**: a mirrored position would stack all three bars on one spot, so `position` (like `enabled`) stays per-unit even while a unit mirrors the player's appearance.
 
 There is no flat `db.profile.position` any more; the v3 lift moves the pre-v3 key to `units.player.position` and deletes it.
 
