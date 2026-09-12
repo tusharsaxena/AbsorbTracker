@@ -80,3 +80,32 @@ Nothing.
 `docs/test-cases.md` still matches `lua tests/run.lua --list`, and the README `Tests` badge (565/565)
 is unchanged. No Lua outside `libs/` and `tests/_kit/` changed, so the lizard figures cannot have
 moved. Nothing was pushed.
+
+## Addendum, 2026-09-12: the v1.31.0 tag was re-cut before release
+
+This bundle was written against the first cut of the `v1.31.0` tag (commit `30db4ed`). Before anything
+was pushed, a review of that release found defects in the kit-17 fakes, and LibKa0s re-cut the tag on the
+fixed tree: **`v1.31.0` now points at `e7e1962`**. The re-vendor commit that follows this bundle copied
+both payloads whole from the re-cut tag, and the vendor-sync cases pass against it.
+
+What the re-cut changed, relative to the tables above:
+
+| File | First cut | Re-cut |
+|---|---|---|
+| `Perf.lua` | minor 10 (unchanged) | **minor 11**: `P.Save` traces the ring trim once past its cap (debug-logging-§8) |
+| `OptionsWidgets.lua` | minor 15 | minor 15 (review fixes land inside the unreleased minor: `pairWith` keyed by `row.path or row.field`; a bound row's `disabledIf` reads through `row.get`) |
+| `OptionsCompose.lua` | minor 4 | minor 4 (unchanged surface) |
+| kit (`tests/_kit/`) | revision 17 | revision 17 (review fixes: repeating-timer delay no longer drifts; the nameless `NewAddon` path is exactly one table argument; the timer handle field is AceTimer's own `cancelled`, and `NewTimer` handles answer `IsCancelled()`; dispatch survives a handler error; `ADDON_LOADED` after login enables a load-on-demand addon; the AceEvent library object carries the message API) |
+
+So three files in `LibKa0s/` move in this release, not two. This bundle's own `[upstream]` finding, the
+§8 purge-trace check in `05_SUMMARY.md` ("the retention trim past the ring's size ... is **not** traced",
+`Perf.lua:752`), is **resolved upstream by Perf minor 11**: `P.Save` now logs one summary line when it
+drops the oldest records past its cap (`libs/LibKa0s/Perf.lua:757`), next to the schema-discard line it
+already logged (`:744`). Upstream, the re-cut adds `bab743c` (Perf minor 11), `1f1790c` (the review
+fixes) and `e7e1962` (the release record, re-taken) on top of `30db4ed`.
+
+The gate was re-run on the re-cut payload in this repo's re-vendor commit, **`4af0d74`** ("Re-vendor the
+reviewed LibKa0s v1.31.0 (tag moved to e7e1962)"): `lua tests/run.lua` 565 passed, 0 failed, 0 skipped,
+565 total; `luacheck .` 0 / 0 in 54 files. `tests/test_vendor_sync.lua` compared both payloads against
+the sibling at `e7e1962` and skipped none. The case count did not move, so `docs/test-cases.md` and the
+README `Tests` badge (565/565) stand.

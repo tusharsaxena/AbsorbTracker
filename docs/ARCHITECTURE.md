@@ -179,8 +179,12 @@ is the library's `P.Save` (`libs/LibKa0s/Perf.lua`). One act reaches it: `/at pe
 (`SUBS.finish`). That call does three things in one pass:
 
 - appends the run;
-- trims the oldest records past the ring's size, which is the retention prune;
-- discards a ring stored under an older record schema, and logs a line when it drops records.
+- trims the oldest records past the ring's size, which is the retention prune, and logs one line
+  when it trims;
+- discards a ring stored under an older record schema, and logs one line when it drops records.
+
+Both drops are logged, each once per save as a single summary line, never one line per record
+(debug-logging-§8/§9). The trim has been traced since `LibKa0s-Perf-1.0` minor 11.
 
 `/at perf cancel` saves nothing. AceDB's profile reset, swap and copy never reach this global.
 
