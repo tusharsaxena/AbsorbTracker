@@ -134,7 +134,16 @@ page → tab → count partition. Every write to a schema-row path funnels throu
 defaults to `UpdateBarAppearance`. The panel widgets and `/at set` call it directly; a reset to a
 row's default (`/at reset`, a page's Defaults button, and the `sessionOnly` rows `/at resetall`
 touches before its profile reset) reaches it through `NS.ApplyDefault`, which only builds the
-copied default. **This addon holds no structural registry** in architecture-§5's sense: the tracked units
+copied default. A **bulk copy or reset** is one `[Set] <act> <scope>: N rows` line
+(debug-logging-§10): the seam keeps a bracket depth (`NS.Bulk`, `settings/Schema.lua`), and inside
+a bracket it mutes its per-row line and tallies the writes that changed a stored value. The
+library brackets a page's Defaults and Reset All through the Options descriptor's
+`bulkBegin`/`bulkEnd` (LibKa0s-Options-1.0 minor 16). `NS.Bulk.Run` brackets the two host acts,
+`Units.CopyFromPlayer` and the degraded Reset All. N counts rows actually written, so a Defaults
+press on a page already at its defaults logs `0 rows`. A nested bracket is one act, logged once at
+depth 0, and an act that reset the whole profile logs no bulk line: the profile-event handler logs
+it (see Message Bus below). `/at resetall` does not reach `LibKa0s-Slash-1.0`'s `CliResetAll`, so
+the Slash descriptor carries no bracket. **This addon holds no structural registry** in architecture-§5's sense: the tracked units
 are the fixed `Units.LIST` (`player`, `target`, `focus`, `core/Units.lua:16`), which the player
 cannot add to or remove from, and `units.<unit>.*` is a fixed-key map the schema rows address
 directly. So there is no registry writer and no registry load pass to name here. The seeding of
@@ -232,9 +241,14 @@ a profile change) is the STRUCTURAL tier: every settings page declares its body 
 `Helpers.SetRenderer`, so a page on screen re-renders and a hidden one is flagged dirty for its
 next `OnShow`. A panel widget's own write takes `Helpers.RefreshScalars` instead, which walks
 `ctx.refreshers` in place. Both implementations are the library's. The other callback bus is **AceDB**:
-`NS.OnProfileChanged` is registered for `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset` in
-`NS:InitDB`; it republishes `POSITION` / `APPEARANCE` / `REPAINT` on the bus and refreshes an open
-panel.
+`NS:InitDB` registers one handler per event: `NS.OnProfileChanged`, `NS.OnProfileCopied` and
+`NS.OnProfileReset` (`core/AbsorbTracker.lua`). All three share one body: they lift the profile,
+republish `UNITS` / `POSITION` / `APPEARANCE` / `REPAINT` on the bus and refresh an open panel.
+They differ only in their one debug line, worded by the event (debug-logging-§10):
+`[Profile] changed → <name>` for a switch, `[Set] copied profile '<source>' → '<name>'` for a copy,
+and `[Set] reset profile '<name>' to defaults (N rows)` for a reset. For a reset, N is
+`NS.ProfileRowCount()`, the rows the profile stores. That reset line is the only line Reset All
+logs.
 
 ## Slash Commands
 

@@ -150,20 +150,95 @@ local function fireOnChange(row, value)
     fn(value)
 end
 
+-- ── the bulk bracket (debug-logging-§10) ──────────────────────────────────────────────────────
+--
+-- A bulk copy or reset through this seam is ONE `[Set] <act> <scope>: N rows` line, never one per
+-- row. While a bracket is open SetByPath still validates, stores and fires each row's onChange, but
+-- instead of logging it tallies the writes that CHANGED a stored value, because N is the rows the
+-- act actually wrote: a row already at its default is not counted. That is also why the library's
+-- own bulkEnd `count` is not used: it counts every row whose applyDefault returned, changed or not.
+--
+-- A DEPTH, not a flag, so a bracket inside a bracket (a host act that wraps a library reset, or a
+-- profile handler that resets a page) is still one act: the tally runs across every level and the
+-- line is emitted only when the outermost bracket closes. If any level reports a whole-profile
+-- reset the act emits no bulk line at all: OnProfileReset (core/AbsorbTracker.lua) logs it once.
+local bulkDepth, bulkWrites, bulkProfileReset = 0, 0, false
+
+-- Stored-value equality for the tally. Tables are compared by content: a reset or a copy hands the
+-- seam a fresh color table, which is a change only if a channel differs.
+local function sameValue(a, b)
+    if a == b then return true end
+    if type(a) ~= "table" or type(b) ~= "table" then return false end
+    for k, v in pairs(a) do
+        if not sameValue(v, b[k]) then return false end
+    end
+    for k in pairs(b) do
+        if a[k] == nil then return false end
+    end
+    return true
+end
+
 --- Write a value for `path`, fire its onChange. The single write seam for every schema-row path
 --- (architecture-§5): /at set, /at lock, /at unlock, /at toggle and every panel widget call it
 --- directly, and every reset to a row's default reaches it through NS.ApplyDefault below. So the
 --- UI and the CLI share one dispatch path.
 function NS.SetByPath(path, value)
+    -- Read the old value only inside a bracket: outside one this seam carries every ColorPicker
+    -- drag frame, and the comparison is needed for nothing but the tally.
+    local changed = bulkDepth > 0 and not sameValue(NS.GetSetting(path), value)
     NS.SetSetting(path, value)
     local row = NS.FindSchemaRow(path)
     -- debug-logging-§10: log every settings mutation once, at this single write seam. Gate the
     -- whole line (including the value formatting) behind the debug flag so a ColorPicker drag —
     -- many writes per second — does zero string work when debug is off.
-    if NS.State and NS.State.debug then
+    if bulkDepth > 0 then
+        if changed then bulkWrites = bulkWrites + 1 end
+    elseif NS.State and NS.State.debug then
         NS.Debug("Set", "%s = %s", path, row and NS.FormatSchemaValue(row, value) or tostring(value))
     end
     if row then fireOnChange(row, value) end
+end
+
+NS.Bulk = {}
+
+--- Open a bracket. The library's descriptor field `bulkBegin` (settings/OptionsSetup.lua) and
+--- NS.Bulk.Run below both land here. The outermost bracket starts a fresh tally.
+function NS.Bulk.Begin()
+    if bulkDepth == 0 then bulkWrites, bulkProfileReset = 0, false end
+    bulkDepth = bulkDepth + 1
+end
+
+--- Close a bracket: `bulkEnd(act, scope, count, err, info)`'s shape, `count` ignored (see above).
+--- Emits the act's one line when the outermost bracket closes, unless a level reset the profile.
+function NS.Bulk.End(act, scope, _, _, info)
+    if bulkDepth == 0 then return end
+    bulkDepth = bulkDepth - 1
+    if info and info.profileReset then bulkProfileReset = true end
+    if bulkDepth > 0 or bulkProfileReset then return end
+    NS.Debug("Set", "%s %s: %d rows", tostring(act), tostring(scope), bulkWrites)
+end
+
+--- Run a host-owned bulk act inside a bracket: `walk(info)` does the writes through SetByPath and
+--- sets `info.profileReset` if it reset the profile. The bracket always closes, even when the walk
+--- raises, so the mute cannot stick; the error is then re-raised unchanged.
+function NS.Bulk.Run(act, scope, walk)
+    local info = { profileReset = false }
+    local ok, err = pcall(function()
+        NS.Bulk.Begin(act, scope)
+        walk(info)
+    end)
+    NS.Bulk.End(act, scope, nil, err, info)
+    if not ok then error(err, 0) end
+end
+
+--- The rows a whole-profile reset rewrites: every schema row the profile stores, so not a
+--- sessionOnly row and not an AceDBOptions profiles-page one. The count OnProfileReset's line carries.
+function NS.ProfileRowCount()
+    local n = 0
+    for _, row in ipairs(NS.Schema) do
+        if not row.sessionOnly and row.page ~= "profiles" then n = n + 1 end
+    end
+    return n
 end
 
 --- Reset one row to its default. Used by /at reset <path> and the per-page Defaults button, and

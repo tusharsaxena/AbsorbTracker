@@ -217,6 +217,134 @@ test("the Defaults button fires each reset row's onChange exactly once", functio
   assertEqual(got, NS.unitDefaults.barWidth, "and it receives the default")
 end)
 
+-- ── the bulk bracket (debug-logging-§10, LibKa0s-Options-1.0 minor 16) ─────────────
+--
+-- A bulk reset through the settings helper is ONE `[Set] <act> <scope>: N rows` line, never one
+-- `[Set]` per row, and N is the rows the act actually wrote: a row already at its default is not
+-- counted. The library brackets its walks through the descriptor's bulkBegin / bulkEnd; the seam
+-- (NS.SetByPath) mutes its per-row line inside and tallies the writes that CHANGED a stored value.
+-- The library's own `count` is not N: it counts every row whose applyDefault returned, changed or
+-- not, and General's `state.debugConsole` (no default, so nothing written) among them.
+
+-- The debug lines one act appends, with debug on for its duration.
+local function linesOf(fn)
+  local before = #NS.DebugLog.buffer
+  NS.State.debug = true
+  local ok, err = pcall(fn)
+  NS.State.debug = false
+  if not ok then error(err, 0) end
+  local out = {}
+  for i = before + 1, #NS.DebugLog.buffer do out[#out + 1] = NS.DebugLog.buffer[i] end
+  return out
+end
+
+-- Put `pageKey` at its defaults, then move its first `k` number rows off them, unlogged.
+local function dirtyPage(pageKey, k)
+  Helpers.RestoreDefaults(pageKey)
+  local moved = 0
+  for _, row in ipairs(NS.SchemaForPage(pageKey)) do
+    if moved < k and row.type == "number" and row.default ~= nil then
+      NS.SetSetting(row.path, row.default + 1)
+      moved = moved + 1
+    end
+  end
+  assertEqual(moved, k, pageKey .. " has " .. k .. " number rows to move")
+end
+
+for _, page in ipairs({ "appearance", "general" }) do
+  test("the " .. page .. " page's Defaults logs one [Set] line counting the rows it changed",
+    function()
+    -- red under: a descriptor with no bulkBegin / bulkEnd, where every row logs `path = value`,
+    -- or a count of rows walked rather than rows changed.
+    dirtyPage(page, 2)
+    local lines = linesOf(function() Helpers.RestoreDefaults(page) end)
+    assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+    local want = ("[Set] reset %s: 2 rows"):format(page)
+    assertTrue(lines[1]:find(want, 1, true) ~= nil, "want '" .. want .. "', got " .. lines[1])
+    T.mocks.__fireTimers()
+  end)
+
+  test("the " .. page .. " page's Defaults at defaults already logs 0 rows", function()
+    -- The line still names the act, so a press is visible in the log even when it changed nothing.
+    Helpers.RestoreDefaults(page)
+    local lines = linesOf(function() Helpers.RestoreDefaults(page) end)
+    assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+    local want = ("[Set] reset %s: 0 rows"):format(page)
+    assertTrue(lines[1]:find(want, 1, true) ~= nil, "want '" .. want .. "', got " .. lines[1])
+    T.mocks.__fireTimers()
+  end)
+end
+
+test("a nested bulk act logs exactly one line, the outer act's, summing every level", function()
+  -- debug-logging-§10 is one line per act. A host act that wraps two library page resets is one
+  -- act: the depth counter holds the line until the outermost bracket closes.
+  -- red under: bulkEnd logging at every level instead of when the depth returns to zero.
+  dirtyPage("appearance", 2)
+  dirtyPage("general", 1)
+  local lines = linesOf(function()
+    NS.Bulk.Run("reset", "both pages", function()
+      Helpers.RestoreDefaults("appearance")
+      Helpers.RestoreDefaults("general")
+    end)
+  end)
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find("[Set] reset both pages: 3 rows", 1, true) ~= nil, lines[1])
+  T.mocks.__fireTimers()
+end)
+
+test("a nested bulk act that includes a profile reset logs only the handler's line", function()
+  -- Any level that reports info.profileReset silences the whole act's bulk line.
+  local lines = linesOf(function()
+    NS.Bulk.Run("reset", "everything", function() Helpers.RestoreAllDefaults() end)
+  end)
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find("[Set] reset profile '", 1, true) ~= nil, lines[1])
+  T.mocks.__fireTimers()
+end)
+
+test("a page reset that raises still unmutes the seam", function()
+  -- The library runs the walk inside a pcall and always calls bulkEnd, so a raising row cannot
+  -- leave every later write unlogged. The error still reaches the caller.
+  -- red under: a bulkEnd that does not release the mute.
+  local row = NS.FindSchemaRow("units.player.barWidth")
+  local saved = row.onChange
+  row.onChange = function() error("boom") end
+  local ok = pcall(Helpers.RestoreDefaults, "appearance")
+  row.onChange = saved
+  assertFalse(ok, "the raising row's error reaches the caller")
+  local lines = linesOf(function() NS.SetByPath("units.player.barWidth", 222) end)
+  assertEqual(#lines, 1, "the next single write logs again")
+  assertTrue(lines[1]:find("[Set] units.player.barWidth = 222", 1, true) ~= nil, lines[1])
+  Helpers.RestoreDefaults("appearance")
+  T.mocks.__fireTimers()
+end)
+
+test("Reset All logs exactly one line in total, the profile handler's", function()
+  -- debug-logging-§10: a whole-profile reset is logged ONCE, by the profile-event handler, worded
+  -- by the event, and no bulk bracket adds a second line. The library says which case it is through
+  -- bulkEnd's info.profileReset. A probe sessionOnly row with a default makes the walk write one
+  -- row under the mute first, so the case is not vacuous: that write must not log either.
+  -- red under: bulkEnd logging `[Set] reset all: N rows` when info.profileReset is true, or
+  -- OnProfileReset still sharing the switch handler's `[Profile] changed` line.
+  local path, store = "__probe.bulkSession", { value = false }
+  NS.RegisterSessionSetting(path, {
+    get = function() return store.value end,
+    set = function(v) store.value = v end,
+  })
+  local n = #NS.Schema
+  NS.Schema[n + 1] = { page = "general", path = path, type = "bool", default = true,
+                       sessionOnly = true, onChange = function() end }
+  local ok, lines = pcall(linesOf, function() Helpers.RestoreAllDefaults() end)
+  NS.Schema[n + 1] = nil
+  if not ok then error(lines, 0) end
+  assertEqual(store.value, true, "the session row was still written")
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  local want = ("[Set] reset profile '%s' to defaults (%d rows)")
+    :format(NS.db:GetCurrentProfile(), NS.ProfileRowCount())
+  assertTrue(lines[1]:find(want, 1, true) ~= nil, "want '" .. want .. "', got " .. lines[1])
+  T.mocks.__fireTimers()
+end)
+
 -- ── RestoreAllDefaults ─────────────────────────────────────────────────────────────
 
 test("RestoreAllDefaults resets every schema row that is not on the profiles page", function()

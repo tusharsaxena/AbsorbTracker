@@ -104,7 +104,7 @@ badge and any count quoted in the docs must agree with it.
 - a fresh install logs no [Migrate] lift line -- nothing was actually lifted
 - a real upgrade still logs the lift, with an accurate count
 
-### test_units.lua (16)
+### test_units.lua (17)
 
 - LIST is player, target, focus in render order
 - Get reads the unit's own value when it is not mirrored
@@ -117,7 +117,8 @@ badge and any count quoted in the docs must agree with it.
 - CopyFromPlayer deep-copies color tables rather than sharing them
 - CopyFromPlayer leaves position and enabled alone
 - CopyFromPlayer is a no-op for the player itself
-- CopyFromPlayer writes through the settings seam, so the log sees all twenty
+- CopyFromPlayer writes every key through the settings seam
+- CopyFromPlayer logs one [Set] copy line with its row count, and no per-row line
 - IsEnabled reads the per-unit flag and ignores the global hidden toggle
 - target and focus ship disabled so an upgrade changes nothing on screen
 - target and focus ship mirrored so a first enable looks like the player bar
@@ -360,7 +361,7 @@ badge and any count quoted in the docs must agree with it.
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_helpers.lua (57)
+### test_helpers.lua (65)
 
 - CreatePanel returns a ctx wired to a panel, a body and an empty refresher list
 - the canvas frame carries OnCommit, OnDefault and OnRefresh from the library
@@ -380,6 +381,14 @@ badge and any count quoted in the docs must agree with it.
 - RestoreDefaults survives a refresher that throws
 - RestoreDefaults on a page with no rows is a harmless no-op
 - the Defaults button fires each reset row's onChange exactly once
+- the appearance page's Defaults logs one [Set] line counting the rows it changed
+- the appearance page's Defaults at defaults already logs 0 rows
+- the general page's Defaults logs one [Set] line counting the rows it changed
+- the general page's Defaults at defaults already logs 0 rows
+- a nested bulk act logs exactly one line, the outer act's, summing every level
+- a nested bulk act that includes a profile reset logs only the handler's line
+- a page reset that raises still unmutes the seam
+- Reset All logs exactly one line in total, the profile handler's
 - RestoreAllDefaults resets every schema row that is not on the profiles page
 - RestoreAllDefaults clears the saved bar position so the bar recenters
 - RestoreAllDefaults publishes POSITION so the bar moves immediately
@@ -420,17 +429,19 @@ badge and any count quoted in the docs must agree with it.
 - /at resetposition does not claim success when the settings helpers are absent
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_optionssetup.lua (7)
+### test_optionssetup.lua (9)
 
 - the live and degraded builds veto exactly the same rows from Reset All
 - Reset All resets a sessionOnly row and fires its onChange once, on both builds
+- the degraded Reset All logs one line in total, the profile handler's
+- the degraded Reset All with no AceDB logs its own one line with the rows it wrote
 - the degraded stub publishes LSMValues, the one member reached at file load
 - the degraded stub publishes the five composers, the other load-time members
 - the degraded stub keeps no private copy of the library's layout constants
 - PARENT_TITLE reaches the library through the descriptor, not the namespace
 - the live arm patches LSM30_Border through the library, not through a private copy
 
-### test_slashcmds.lua (112)
+### test_slashcmds.lua (117)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -479,6 +490,11 @@ badge and any count quoted in the docs must agree with it.
 - /at profile delete removes a profile that is not in use
 - /at profile delete with no name prints usage
 - /at profile reset restores the current profile's defaults in place
+- /at profile reset logs one [Set] line from the reset handler
+- /at resetall logs one line in total, the same reset handler's
+- a profile copy logs one [Set] line naming both profiles
+- /at profile copy reaches the copy handler, one line
+- a profile switch keeps its [Profile] line and logs no [Set] line
 - /at profile rejects an unknown subcommand and reprints the sub-help
 - /at profile sub-verbs are case-insensitive
 - /at profile degrades gracefully when AceDB is unavailable
@@ -653,7 +669,7 @@ badge and any count quoted in the docs must agree with it.
 | test_loadorder.lua | 14 |
 | test_schema.lua | 44 |
 | test_database.lua | 31 |
-| test_units.lua | 16 |
+| test_units.lua | 17 |
 | test_envsetup.lua | 6 |
 | test_coresetup.lua | 5 |
 | test_mediasetup.lua | 10 |
@@ -665,9 +681,9 @@ badge and any count quoted in the docs must agree with it.
 | test_bus.lua | 7 |
 | test_data.lua | 32 |
 | test_display.lua | 53 |
-| test_helpers.lua | 57 |
-| test_optionssetup.lua | 7 |
-| test_slashcmds.lua | 112 |
+| test_helpers.lua | 65 |
+| test_optionssetup.lua | 9 |
+| test_slashcmds.lua | 117 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 5 |
 | test_ltrap.lua | 8 |
@@ -675,4 +691,4 @@ badge and any count quoted in the docs must agree with it.
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_eol.lua | 1 |
-| **Total** | **565** |
+| **Total** | **581** |

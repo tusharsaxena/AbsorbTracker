@@ -95,12 +95,10 @@ end
 --- the mirror so the unit becomes independently editable. `position` and `enabled` are
 --- deliberately NOT copied — both stay per-unit by design.
 ---
---- Through NS.SetByPath, one call per key, rather than `dst[key] = …` onto the config table.
---- This is twenty settings mutations, the largest single act the Appearance page offers, and
---- debug-logging-§10 puts every mutation through that one write seam so the log can see it.
---- Writing the table directly meant the one act that changes twenty values was the one act that
---- left no `[Set]` line at all — which is precisely the trace you want when a player reports that
---- copy did something they did not expect.
+--- Through NS.SetByPath, one call per key, rather than `dst[key] = …` onto the config table, so
+--- each row's onChange fires. It is a BULK COPY, so debug-logging-§10 logs it as one line, not
+--- twenty: the writes run inside NS.Bulk.Run (settings/Schema.lua), which mutes the per-row line
+--- and emits `[Set] copy player→<unit>: N rows`, N being the keys whose stored value changed.
 ---
 --- `deepcopy` has NOT become optional. SetByPath stores the value it is handed, so passing
 --- `src[key]` bare would leave the two units sharing one color table and one unit's color picker
@@ -117,8 +115,10 @@ function Units.CopyFromPlayer(unit)
     local src = Units.Config("player")
     if not (src and Units.Config(unit)) then return end
     local base = "units." .. unit .. "."
-    for _, key in ipairs(Units.APPEARANCE_KEYS) do
-        NS.SetByPath(base .. key, deepcopy(src[key]))
-    end
-    NS.SetByPath(base .. "mirror", false)
+    NS.Bulk.Run("copy", "player\226\134\146" .. unit, function()
+        for _, key in ipairs(Units.APPEARANCE_KEYS) do
+            NS.SetByPath(base .. key, deepcopy(src[key]))
+        end
+        NS.SetByPath(base .. "mirror", false)
+    end)
 end

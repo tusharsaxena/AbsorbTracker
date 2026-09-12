@@ -570,6 +570,71 @@ test("/at profile reset restores the current profile's defaults in place", funct
   T.mocks.__fireTimers()
 end)
 
+-- ── the profile-event handler's one line (debug-logging-§10) ───────────────────────
+--
+-- AceDB replacing the whole profile is not a batch through the helper. It is logged ONCE, by the
+-- profile-event handler, in words chosen by the event: a reset and a copy are `[Set]` lines, a
+-- switch keeps its `[Profile]` line. core/Database.lua wires each event to its own handler.
+
+-- The debug lines one act appends, with debug on for its duration.
+local function debugLines(fn)
+  local before = #NS.DebugLog.buffer
+  NS.State.debug = true
+  local ok, err = pcall(fn)
+  NS.State.debug = false
+  if not ok then error(err, 0) end
+  local out = {}
+  for i = before + 1, #NS.DebugLog.buffer do out[#out + 1] = NS.DebugLog.buffer[i] end
+  return out
+end
+
+local function resetLine()
+  return ("[Set] reset profile '%s' to defaults (%d rows)")
+    :format(NS.db:GetCurrentProfile(), NS.ProfileRowCount())
+end
+
+test("/at profile reset logs one [Set] line from the reset handler", function()
+  -- red under: OnProfileReset still wired to the switch handler, which logs `[Profile] changed`.
+  local lines = debugLines(function() slash("profile reset") end)
+  T.mocks.__fireTimers()
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find(resetLine(), 1, true) ~= nil, "want '" .. resetLine() .. "', got " .. lines[1])
+end)
+
+test("/at resetall logs one line in total, the same reset handler's", function()
+  local lines = debugLines(function() slash("resetall") end)
+  T.mocks.__fireTimers()
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find(resetLine(), 1, true) ~= nil, "want '" .. resetLine() .. "', got " .. lines[1])
+end)
+
+test("a profile copy logs one [Set] line naming both profiles", function()
+  -- AceDB hands OnProfileCopied the SOURCE profile's name as its third argument. The kit's mock
+  -- hands it the current name, so the wording is pinned by calling the handler as AceDB does.
+  local lines = debugLines(function() NS.OnProfileCopied("OnProfileCopied", NS.db, "Raid") end)
+  T.mocks.__fireTimers()
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find("[Set] copied profile 'Raid' \226\134\146 'Default'", 1, true) ~= nil,
+    lines[1])
+end)
+
+test("/at profile copy reaches the copy handler, one line", function()
+  -- red under: OnProfileCopied still wired to the switch handler.
+  NS.db:SetProfile("CopyFrom")
+  backToDefault()
+  local lines = debugLines(function() slash("profile copy CopyFrom") end)
+  T.mocks.__fireTimers()
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find("[Set] copied profile '", 1, true) ~= nil, lines[1])
+end)
+
+test("a profile switch keeps its [Profile] line and logs no [Set] line", function()
+  local lines = debugLines(function() slash("profile use Alt") end)
+  backToDefault()
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find("[Profile] changed \226\134\146 Alt", 1, true) ~= nil, lines[1])
+end)
+
 test("/at profile rejects an unknown subcommand and reprints the sub-help", function()
   local out = slash("profile frobnicate")
   assertTrue(contains(out, "Unknown profile subcommand 'frobnicate'"), joined(out))

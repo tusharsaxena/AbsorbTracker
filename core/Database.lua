@@ -7,11 +7,13 @@ function NS:InitDB()
     if AceDB then
         NS.db = AceDB:New("AbsorbTrackerDB", NS.defaults, true)
         -- Profile changes repaint the bar and refresh an open panel. Guard RegisterCallback so
-        -- the headless AceDB mock (no CallbackHandler) doesn't error.
+        -- the headless AceDB mock (no CallbackHandler) doesn't error. One handler per event,
+        -- because debug-logging-§10 words each event's one line by the event
+        -- (core/AbsorbTracker.lua); all three share the same repaint.
         if NS.db.RegisterCallback then
             NS.db.RegisterCallback(NS, "OnProfileChanged", NS.OnProfileChanged)
-            NS.db.RegisterCallback(NS, "OnProfileCopied", NS.OnProfileChanged)
-            NS.db.RegisterCallback(NS, "OnProfileReset", NS.OnProfileChanged)
+            NS.db.RegisterCallback(NS, "OnProfileCopied", NS.OnProfileCopied)
+            NS.db.RegisterCallback(NS, "OnProfileReset", NS.OnProfileReset)
         end
     end
     -- Fallback when AceDB is unavailable: a minimal db-like table backed by the raw SV global.

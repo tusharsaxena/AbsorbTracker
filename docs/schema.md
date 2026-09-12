@@ -124,7 +124,7 @@ Each call generates three rows per appearance key — one per `NS.Units.LIST` en
                                    widgets against the new value)
 ```
 
-`NS.SetByPath` (in `settings/Schema.lua`) is the single write seam: it calls `NS.SetSetting`, logs the `[Set]` debug line, then fires the row's `onChange`. A reset to a row's default comes through it too: `NS.ApplyDefault` builds the copied default and calls `SetByPath`. It does **not** itself refresh the panel — the slash path calls `NS.RefreshOptionsPanel` afterward (inside the `set` / `applyDefault` closures `settings/Slash.lua` hands the library), and the panel widgets' own `set()` closures end with `Helpers.RefreshAllPanels`.
+`NS.SetByPath` (in `settings/Schema.lua`) is the single write seam: it calls `NS.SetSetting`, logs the `[Set]` debug line, then fires the row's `onChange`. A reset to a row's default comes through it too: `NS.ApplyDefault` builds the copied default and calls `SetByPath`. Inside an `NS.Bulk` bracket — a page's Defaults, Reset All, Copy styling from Player — the seam logs nothing per row and instead tallies the writes that changed a stored value; the bracket then emits one `[Set] <act> <scope>: N rows` line when it closes (debug-logging-§10). The library opens and closes that bracket through the options descriptor's `bulkBegin`/`bulkEnd`, and the host's own acts use `NS.Bulk.Run`. It does **not** itself refresh the panel — the slash path calls `NS.RefreshOptionsPanel` afterward (inside the `set` / `applyDefault` closures `settings/Slash.lua` hands the library), and the panel widgets' own `set()` closures end with `Helpers.RefreshAllPanels`.
 
 ## Behavior knobs
 
@@ -210,6 +210,14 @@ NS.SetByPath(path, value)               -- SetSetting + [Set] line + onChange (t
 NS.ApplyDefault(row)                    -- reset to row.default through SetByPath (deep-copies
                                                 -- table defaults; used by /at reset, /at resetall,
                                                 -- and per-page Defaults buttons)
+
+-- The bulk bracket (debug-logging-§10): one [Set] line per bulk copy or reset
+NS.Bulk.Begin(act, scope)               -- open; the descriptor's bulkBegin
+NS.Bulk.End(act, scope, count, err, info) -- close; the descriptor's bulkEnd. At depth 0 emits
+                                                -- `[Set] <act> <scope>: N rows`, N = writes that
+                                                -- changed a value; nothing if info.profileReset
+NS.Bulk.Run(act, scope, walk)           -- a host act in a bracket that always closes
+NS.ProfileRowCount()                    -> number    -- rows the profile stores (OnProfileReset's N)
 
 -- Slash IO (formatting only — the type-aware parser is LibKa0s-Slash-1.0's lib.ParseValue)
 NS.FormatSchemaValue(row, value)        -> string    -- thin delegate to lib.FormatValue

@@ -13,8 +13,8 @@ function NS:InitDB()
         NS.db = AceDB:New("AbsorbTrackerDB", NS.defaults, true)
         if NS.db.RegisterCallback then
             NS.db.RegisterCallback(NS, "OnProfileChanged", NS.OnProfileChanged)
-            NS.db.RegisterCallback(NS, "OnProfileCopied", NS.OnProfileChanged)
-            NS.db.RegisterCallback(NS, "OnProfileReset", NS.OnProfileChanged)
+            NS.db.RegisterCallback(NS, "OnProfileCopied", NS.OnProfileCopied)
+            NS.db.RegisterCallback(NS, "OnProfileReset", NS.OnProfileReset)
         end
     end
     if not NS.db then
@@ -38,12 +38,21 @@ Defaults come from `defaults/Profile.lua`:
 
 ## OnProfileChanged refresh chain
 
-All three AceDB callbacks (`OnProfileChanged`, `OnProfileCopied`, `OnProfileReset`) wire into the same handler, `NS.OnProfileChanged`, defined in `core/AbsorbTracker.lua`:
+Each AceDB callback has its own handler in `core/AbsorbTracker.lua` — `NS.OnProfileChanged`, `NS.OnProfileCopied`, `NS.OnProfileReset` — because debug-logging-§10 logs a profile-wide replacement **once, worded by the event**:
+
+| Event | Debug line |
+|---|---|
+| `OnProfileChanged` (a switch) | `[Profile] changed → <name>` |
+| `OnProfileCopied` | `[Set] copied profile '<source>' → '<name>'` (AceDB passes the source name) |
+| `OnProfileReset` | `[Set] reset profile '<name>' to defaults (N rows)`, N = `NS.ProfileRowCount()`, every row the profile stores |
+
+The reset line is the whole log of **Reset All Settings** (`/at resetall`, the General page's button): the session rows the reset writes first are muted inside the bulk bracket, and the bracket emits nothing when the act reset the profile. After the line, all three run the same body:
 
 ```
-NS.OnProfileChanged()
+adoptProfile()
     │
     ├─▶ NS.MigrateProfileToV3(db.profile)   -- lift this profile if its own stamp predates v3
+    ├─▶ bus: MSG.UNITS         -- the unit event registrations follow the new enable flags
     │
     ├─▶ bus: MSG.POSITION      -- Display: RestoreBarPosition(unit) for every unit
     ├─▶ bus: MSG.APPEARANCE    -- Display: UpdateBarAppearance(unit) for every unit
