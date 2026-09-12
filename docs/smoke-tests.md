@@ -241,8 +241,8 @@ that payload that only a client can settle.
 click: it acquires both from per-`ctx` `LibKa0s-Pool-1.0` pools and re-dresses them, re-setting
 `OnClick` on every dress. Its only headless proof counts `CreateFrame` calls on a second selection
 pass, and the case that would pin band geometry as invariant under selection cannot be written yet —
-the shared mock answers `GetHeight` with 0 for every frame, and that flips in the kit (not at kit 16, 17 or 18,
-which shipped Ace-fake fixes, Ace surfaces and a profile-copy fix instead; revision 19 at the earliest), not here. **So
+the shared mock answers `GetHeight` with 0 for every frame, and that flips in the kit (not at kit 16, 17, 18 or 19,
+which shipped Ace-fake fixes, Ace surfaces, a profile-copy fix and a profile-reset fix instead; revision 20 at the earliest), not here. **So
 a stale label, a mis-anchored button or a band that changes height on a re-dressed tab is invisible
 to every automated check in this repo.**
 
