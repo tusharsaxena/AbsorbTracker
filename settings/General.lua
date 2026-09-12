@@ -148,9 +148,10 @@ local masterOnChange = {
         -- unlocking drops it too so what the user drags is the placeholder fill. The APPEARANCE
         -- pass is what paints, or stops painting, that placeholder.
         --
-        -- Wired here rather than in the lock/unlock verbs because this is the single seam every
-        -- writer goes through — the checkbox, `/at lock`, `/at unlock`, `/at set locked` and the
-        -- Defaults button all land in NS.SetByPath, which fires this.
+        -- Wired here rather than in the lock/unlock verbs because every row writer fires this
+        -- onChange: the checkbox, `/at lock`, `/at unlock` and `/at set locked` land in
+        -- NS.SetByPath, and `/at reset locked` and the Defaults button land in its sibling
+        -- NS.ApplyDefault. A profile switch or reset fires neither; NS.OnProfileChanged repaints.
         NS.ClearPreview()
         NS.bus:SendMessage(NS.MSG.APPEARANCE)
         NS.bus:SendMessage(NS.MSG.REPAINT)

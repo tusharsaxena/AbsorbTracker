@@ -124,7 +124,7 @@ Each call generates three rows per appearance key — one per `NS.Units.LIST` en
                                    widgets against the new value)
 ```
 
-`NS.SetByPath` (in `settings/Schema.lua`) is the single write seam: it calls `NS.SetSetting` then fires the row's `onChange`. It does **not** itself refresh the panel — the slash path calls `NS.RefreshOptionsPanel` afterward (inside the `set` / `applyDefault` closures `settings/Slash.lua` hands the library), and the panel widgets' own `set()` closures end with `Helpers.RefreshAllPanels`.
+`NS.SetByPath` (in `settings/Schema.lua`) is the write seam for a value: it calls `NS.SetSetting` then fires the row's `onChange`. A reset to a row's default goes through its sibling `NS.ApplyDefault`, the same `SetSetting` + `onChange` pair without the `[Set]` debug line. It does **not** itself refresh the panel — the slash path calls `NS.RefreshOptionsPanel` afterward (inside the `set` / `applyDefault` closures `settings/Slash.lua` hands the library), and the panel widgets' own `set()` closures end with `Helpers.RefreshAllPanels`.
 
 ## Behavior knobs
 
