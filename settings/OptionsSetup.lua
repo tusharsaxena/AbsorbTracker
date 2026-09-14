@@ -372,6 +372,11 @@ if not lib then
     }) do
         Helpers[name] = function() end
     end
+    -- LibKa0s v1.35.0's render-time members, carried inert because the owner asked for them on every consumer.
+    Helpers.ChoiceGrid, Helpers.IdInput, Helpers.IdList = function() end, function() end, function() end
+    Helpers.ResolveId         = function() return nil end
+    Helpers.UnnamedCandidates = function() return nil end
+    Helpers.ID_NAME_HINT      = {}
     Helpers.__panels   = function() return {} end
     Helpers.__panelFor = function() return nil end
 
