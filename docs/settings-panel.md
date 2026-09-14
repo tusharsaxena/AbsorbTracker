@@ -55,6 +55,8 @@ The stub's composers draw a line, and the line is what keeps them from being the
 
 `RenderUnitPanel` is deliberately **absent** from the stub: `settings/UnitPanel.lua` loads after this file and publishes the real one either way, and it already bails on a nil `NS.AceGUI`. A no-op here would read as though the degraded build had its own, which it does not.
 
+The six members LibKa0s v1.35.0 added — `ChoiceGrid`, `IdInput`, `IdList`, `ResolveId`, `UnnamedCandidates` and the `ID_NAME_HINT` table — are in the stub even though no file here calls them: the owner asked for them inert on every consumer's stub, so the three widget makers are no-ops, the two resolvers answer nil and the hint is an empty table. `tests/test_surface_parity.lua` records why they are not on its `ignore` list.
+
 Note what is also not here: no copy of a widget maker, no copy of the flow engine, no copy of the header. Hand-copying the code whose drift the extraction exists to end is the one duplicate [testing.md](./testing.md) §8 most specifically forbids. The guard is `tests/test_perf.lua`'s `loadDegraded()`, which loads the whole TOC without the library and asserts `#NS.Schema` against the fully-loaded environment. That case is the only thing standing between this stub and a silent half-load.
 
 ## Three pages plus an about page
