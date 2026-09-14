@@ -146,6 +146,12 @@ test("parity: the Options stub carries every helper the degraded build can reach
     --     inside it and PageBanner is never called. No tab of the five holds a list of like
     --     subjects that would earn a sub-strip.
     "PageBanner", "SubTabStrip",
+    -- New at LibKa0s v1.35.0 (Options 18.16.5.3): the choice grid and the ID widgets, with the
+    -- resolver, the candidate helper and the name-hint table behind them. Exempt under the same
+    -- RefreshPanel rule: this addon renders no choice grid and takes no spell or item IDs, so
+    --   grep -rn "ChoiceGrid\|IdInput\|IdList\|ResolveId\|UnnamedCandidates\|ID_NAME_HINT" core modules settings
+    -- returns nothing. Each joins the stub on the commit that gives it a caller.
+    "ChoiceGrid", "IdInput", "IdList", "ResolveId", "UnnamedCandidates", "ID_NAME_HINT",
     -- WHAT IS NO LONGER ON THIS LIST, and why the file got shorter rather than laxer. Twelve
     -- `__`-prefixed live members used to be exempted here one at a time -- the six chrome
     -- primitives, __pages, __lastUnitCtx, __releaseSubTabs, __resetTabArtHeight, __tabArtHeight and
