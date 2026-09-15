@@ -377,6 +377,11 @@ if not lib then
     Helpers.ResolveId         = function() return nil end
     Helpers.UnnamedCandidates = function() return nil end
     Helpers.ID_NAME_HINT      = {}
+    -- SelectTab, new at LibKa0s v1.36.0: reached only from a tab click on an already-rendered
+    -- page, so a no-op is the same honest answer as the builder/user-action list above. This
+    -- addon does not adopt tab-scoped refresh; the stub exists so the degraded build's surface
+    -- keeps matching the live one.
+    Helpers.SelectTab = function() end
     Helpers.__panels   = function() return {} end
     Helpers.__panelFor = function() return nil end
 
