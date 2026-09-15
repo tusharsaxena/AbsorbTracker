@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-604%2F604_passing-green)
+![Tests](https://img.shields.io/badge/Tests-609%2F609_passing-green)
 
 Ka0s Absorb Tracker puts your absorb shields on screen as a movable bar. Every shield on the unit,
 added into one number, so a glance tells you how much damage you can eat before your health starts
@@ -25,13 +25,15 @@ _**Absorb Tracker in Action**_
 
 On the first run after installing, the Player bar turns up centered and unlocked, so drag it where you want it and type
 `/at lock` to pin it there. While the bars are unlocked each one paints a partial fill and its unit
-name, so there is something to grab even with no shield up. **Test mode** on General → Master
-controls shows the same fill with the bars locked, and it also brings up an enabled Target or Focus
-bar when you have nothing targeted or focused, so you can see where that bar sits. It stays on until
-you untick it or enter combat. To see a bar carrying a number instead,
-`/at test` puts a fake absorb on every visible bar — 50000 held for five seconds by default, and
-both of those are arguments if you want a bigger figure or a longer look at it. At least one bar
-has to be enabled for the preview to land anywhere.
+name, so there is something to grab even with no shield up. **Test mode** shows the same fill with
+the bars locked, and it also brings up an enabled Target or Focus bar when you have nothing targeted
+or focused, so you can see where that bar sits. Turn it on with `/at test` or the **Test mode** box
+on General → Master controls; they are the same switch. It stays on until you type `/at test`
+again, untick the box or enter combat, and `/at test on` or `/at test off` sets it outright.
+
+To see a bar carrying a number instead, give `/at test` a value: `/at test 50000` puts that absorb on
+every visible bar for five seconds, and a second number changes how long it stays (`/at test
+250000 10`). At least one bar has to be enabled for the value to land anywhere.
 
 Tick **Enable Target Bar** or **Enable Focus Bar** on General → Bars to bring the other two up. All
 three switches sit together there, next to **Update throttle**, so turning a bar on never means a
@@ -107,7 +109,7 @@ So the bar is a live picture of how much a unit can take before its health start
 | The Player bar never shows up | Check that **Enable Player Bar** is ticked on the General page (or run `/at toggle player`) and that the addon is enabled on the character-select screen. If **General visibility** is *Only in combat*, you also have to be in combat. The background and border show even with no shield, so seeing *nothing* means the bar is hidden rather than empty. |
 | The Target/Focus bar never shows up | Confirm **Enable Target Bar** / **Enable Focus Bar** is ticked on the General page. Even enabled, it only appears while you actually have that target or focus set — no target/focus means no bar, by design. |
 | The bar(s) disappear when I leave combat | **General visibility** is set to *Only in combat*. Set it back to *Always* on **General ▸ Master controls**. |
-| `/at test` does nothing | A bar has to be enabled to preview a test value on it. If every bar is off, run `/at toggle` (or tick an **Enable ... Bar** box) first, then try `/at test` again. |
+| `/at test 50000` does nothing | A bar has to be enabled to preview a test value on it. If every bar is off, run `/at toggle` (or tick an **Enable ... Bar** box) first, then try again. Bare `/at test` is test mode, which shows placeholder fills rather than a number. |
 | A bar won't stay where I put it | Lock it after positioning: `/at lock`, or tick **Lock frame** on **General ▸ Master controls**. Unlock again whenever you want to drag it. |
 | My class color isn't showing | The bar has to be visible and have an active shield for the color to appear. Check that the matching **Use class color** toggle is on. Remember it follows the *bar's own unit* — a Target bar takes your target's class, and falls back to your picked color when there is no target to read one from. |
 | Custom textures or fonts aren't in the dropdowns | Install a media pack addon (one that includes SharedMedia). Without one you still get WoW's built-in options plus the shared Ka0s textures and fonts the bundled library registers (JetBrains Mono, the face the debug console prints in, is one of them) — but nothing beyond those. |

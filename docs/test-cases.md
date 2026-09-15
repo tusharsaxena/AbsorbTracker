@@ -462,7 +462,7 @@ badge and any count quoted in the docs must agree with it.
 - the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
 - General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
 
-### test_slashcmds.lua (119)
+### test_slashcmds.lua (124)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -492,9 +492,14 @@ badge and any count quoted in the docs must agree with it.
 - /at set rejects a non-numeric value for a number setting
 - /at set writes a color from `r g b a` and echoes the STORED value
 - /at set accepts a bool written as a human word
-- /at test refuses while every bar is disabled and tells the user how to fix it
+- bare /at test toggles test mode through the checkbox's seam
+- /at test on and /at test off set test mode rather than flip it
+- /at test in combat is refused, says why, and leaves test mode off
+- /at test with a word it does not know prints the usage and changes nothing
+- the test verb's help line names both forms
+- /at test with a value refuses while every bar is disabled and says how to fix it
 - /at test paints the given value and arms the hold window
-- /at test defaults to 50000 held for 5 seconds
+- /at test with a value and no hold holds it for 5 seconds
 - /at test keeps the bar scale usable for a value below the 100k floor
 - /at test schedules the expiry it just announced
 - re-locking the bars clears a live /at test preview
@@ -706,7 +711,7 @@ badge and any count quoted in the docs must agree with it.
 | test_display.lua | 65 |
 | test_helpers.lua | 70 |
 | test_optionssetup.lua | 11 |
-| test_slashcmds.lua | 119 |
+| test_slashcmds.lua | 124 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 5 |
 | test_ltrap.lua | 8 |
@@ -714,4 +719,4 @@ badge and any count quoted in the docs must agree with it.
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_eol.lua | 1 |
-| **Total** | **604** |
+| **Total** | **609** |

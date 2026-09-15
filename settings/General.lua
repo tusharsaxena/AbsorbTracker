@@ -88,7 +88,8 @@ end
 -- the same way as the console row, to NS.State.testMode rather than the profile. On until turned
 -- off or until combat starts (core/AbsorbTracker.lua ends it); a start in combat is refused and the
 -- box stays unticked, since the mode would end the moment it began. What the mode shows is
--- modules/Display.lua's (NS.InPreview, and the test-mode rung of NS.ShouldShowBar).
+-- modules/Display.lua's (NS.InPreview, and the test-mode rung of NS.ShouldShowBar). `/at test [on|off]`
+-- (settings/Slash.lua) writes this same path through NS.SetByPath, so chat and the box share one state.
 local TEST_MODE_PATH = "state.testMode"
 
 -- Whether the last write actually moved the mode. NS.SetByPath runs the session set() below and then
@@ -112,8 +113,8 @@ NS.RegisterSessionSetting(TEST_MODE_PATH, {
 })
 local TEST_MODE_TIP = "Show a placeholder fill on every bar you have turned on, so you can see and "
     .. "place them without waiting for an absorb. Target and focus bars show even with nothing "
-    .. "targeted or focused. The bars stay locked, and combat turns it off. For a timed fake "
-    .. "value, use /at test."
+    .. "targeted or focused. The bars stay locked, and combat turns it off. The same as /at test "
+    .. "in chat."
 
 -- The canonical block. `defaults` names this addon's own starting values without changing any
 -- stored path: every leaf here already IS the path the composer derives, so `keys` is unnecessary

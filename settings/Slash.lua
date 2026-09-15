@@ -94,7 +94,7 @@ NS.COMMANDS = {
         function() runUpdate() end},
     {"version",       "Print the addon version",
         function() print(("v%s"):format(NS.Version())) end},
-    {"test",          "Test display with a fake value \226\128\148 `/at test [value] [hold-secs]`",
+    {"test",          "Test mode \226\128\148 `/at test [on|off]`; `/at test <value> [secs]` holds a fake value",
         function(rest) runTest(rest) end},
     {"profile",       "Profile management \226\128\148 try `/at profile` for the list",
         function(rest) runProfile(rest) end},
@@ -257,10 +257,29 @@ function runUpdate()
     print("Forced refresh")
 end
 
-function runTest(rest)
-    local args = {}
-    for w in (rest or ""):gmatch("%S+") do args[#args + 1] = w end
-    local n    = tonumber(args[1]) or 50000
+-- `/at test` is test mode (preview-mode): bare it toggles, `on`/`off` set it. It is the SAME state as
+-- Master controls' Test mode checkbox and goes through the same seam, NS.SetByPath on the session
+-- row settings/General.lua registers, so the row's onChange runs, a start in combat is refused by
+-- the row's own set(), and combat ends it exactly as it ends the checkbox. A number first is the
+-- older one-shot: that value painted on every visible bar and held for a few seconds.
+local TEST_MODE_PATH = "state.testMode"
+local TEST_USAGE = "Usage: /at test [on|off] toggles test mode; /at test <value> [secs] holds a fake value"
+
+local function runTestMode(word)
+    local on
+    if word == "" then on = not NS.GetSetting(TEST_MODE_PATH) else on = (word == "on") end
+    NS.SetByPath(TEST_MODE_PATH, on)
+    -- SetByPath does not refresh the panel (a widget write does that itself), so the verb does,
+    -- or an open Test mode box would lag the chat command.
+    if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
+    -- A refused start has already said why (the row's set()); claiming "on" after it would lie.
+    if NS.GetSetting(TEST_MODE_PATH) ~= on then return end
+    print(on and "Test mode on \226\128\148 placeholders on every enabled bar; combat turns it off"
+        or "Test mode off")
+end
+
+local function runTestHold(args)
+    local n    = tonumber(args[1])
     local hold = tonumber(args[2]) or 5
 
     -- Nothing to paint if every bar is off. Checks `enabled` per unit rather than a master
@@ -288,6 +307,15 @@ function runTest(rest)
     -- is what this used to do, left the fake value on the bar past the announced window until the
     -- next absorb event happened to arrive.
     NS.HoldPreview(hold)
+end
+
+function runTest(rest)
+    local args = {}
+    for w in (rest or ""):gmatch("%S+") do args[#args + 1] = w end
+    local word = (args[1] or ""):lower()
+    if word == "" or word == "on" or word == "off" then return runTestMode(word) end
+    if not tonumber(args[1]) then return print(TEST_USAGE) end
+    runTestHold(args)
 end
 
 -- ---------------------------------------------------------------------

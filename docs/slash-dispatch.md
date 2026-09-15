@@ -13,7 +13,7 @@ parse one word. The trigger fires on either half.
 
 ## Registration
 
-`Sl:Register` (`settings/Slash.lua:501`) registers both names through AceConsole-3.0, called once
+`Sl:Register` (`settings/Slash.lua:529`) registers both names through AceConsole-3.0, called once
 from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:44`, guarded so a load where
 `settings/Slash.lua` never ran degrades rather than errors):
 
@@ -57,7 +57,7 @@ The library lowercases only the verb; the remainder is passed through untouched.
 here, because every schema path in this addon is camelCase and per-unit —
 `/at set units.target.barWidth 250` is the shipped form, and folding the whole line would address a
 row that does not exist. `/at profile` repeats the rule one level down: `runProfile`
-(`settings/Slash.lua:375`) lowercases the sub-verb and leaves its argument alone, because AceDB
+(`settings/Slash.lua:403`) lowercases the sub-verb and leaves its argument alone, because AceDB
 profile names are case-sensitive and a folded name deletes or switches to the wrong profile.
 
 **Schema paths are fully qualified.** The pre-1.9 unqualified `/at set barWidth 250` is rejected:
@@ -83,7 +83,7 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 | `/at perf [sub]` | `runPerf` → `NS.Perf.OnCommand` | The guided perf run. Sub-verbs are the library's; see [performance.md](./performance.md). |
 | `/at update` | `runUpdate` | Publish `MSG.REPAINT`. |
 | `/at version` | inline | `v<version>` from `NS.Version()`. |
-| `/at test [value] [hold-secs]` | `runTest` | Paint a fake absorb for visual tweaking, held for the announced duration by `NS.HoldPreview`. A one-shot, not test mode: test mode is Master controls' **Test mode** checkbox (`/at set state.testMode true`), on until turned off or until combat starts. |
+| `/at test [on\|off]` / `/at test <value> [secs]` | `runTest` | Test mode. Bare, it toggles; `on`/`off` set it. Both write `NS.SetByPath("state.testMode", v)`, the seam Master controls' **Test mode** checkbox writes through, so the row's onChange runs, a start in combat is refused, combat ends it, and `NS.RefreshOptionsPanel` keeps an open box in step. A number first is the one-shot timed hold instead: that value painted on every visible bar and held by `NS.HoldPreview` for the seconds given (default 5), refused while every bar is disabled. Any other word prints the usage. |
 | `/at profile <sub> [name]` | `runProfile` | The sub-verb tree below. |
 
 ## The sub-verb trees
@@ -91,7 +91,7 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 Four verbs parse a remainder of their own. Three of them parse one word; only `profile` carries a
 dispatch table, and it is the one this page is really about.
 
-**`profile`** — `PROFILE_VERBS` (`settings/Slash.lua:327`), a table keyed by the lowercased sub-verb,
+**`profile`** — `PROFILE_VERBS` (`settings/Slash.lua:355`), a table keyed by the lowercased sub-verb,
 built once at load and dispatched at `:388`:
 
 | Sub-verb | Takes a name | What it does |
@@ -171,7 +171,7 @@ generic dispatcher knows nothing about.
 ## When the library is absent
 
 `/at` is registered unconditionally, so something has to answer it. With `LibKa0s-Slash-1.0` missing,
-`settings/Slash.lua:408` installs a stand-in: dispatch and a plain help index still render, the host
+`settings/Slash.lua:436` installs a stand-in: dispatch and a plain help index still render, the host
 verbs — which never went to the library — keep working untouched, and each schema verb (`list`,
 `get`, `set`, `reset`, `resetall`) prints one honest line naming the missing library through
 `NS.LIBKA0S_MISSING`.
