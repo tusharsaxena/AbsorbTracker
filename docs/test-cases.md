@@ -23,7 +23,7 @@ badge and any count quoted in the docs must agree with it.
 - loadorder: LibStub returns nil for a missing major with the silent flag
 - loadorder: LibStub keeps the higher minor when a major registers twice
 
-### test_schema.lua (44)
+### test_schema.lua (46)
 
 - FormatSchemaValue formats by type
 - SchemaForPage keeps groups in registration order, which IS the Appearance tab strip
@@ -63,6 +63,8 @@ badge and any count quoted in the docs must agree with it.
 - each unit's row set for a page is the same size
 - the enable row is per-unit, lives on General, and survives mirroring
 - the Master controls tab is the canonical set, in order, and leads the General page
+- the Test mode row is session-only, on its own line, and never reaches the profile
+- Reset all settings ends test mode
 - the Bars tab is the three enable toggles then the throttle, under their own headings
 - the mirror row exists for target and focus but not the player
 - the mirror row is kept out of the auto-rendered body
@@ -305,7 +307,7 @@ badge and any count quoted in the docs must agree with it.
 - three bar frames exist and the player alias points at the player frame
 - each bar carries its own unit tag and its own backdrop table
 
-### test_display.lua (53)
+### test_display.lua (65)
 
 - RestoreBarPosition centers the bar when no position is saved
 - RestoreBarPosition restores the saved anchor verbatim
@@ -335,6 +337,18 @@ badge and any count quoted in the docs must agree with it.
 - the expiry timer clears the hold and republishes REPAINT
 - a hold that expires while unlocked falls back to the placeholder
 - ClearPreview reports whether a hold was actually live
+- test mode is off until something turns it on
+- test mode paints the placeholder on a LOCKED bar
+- a live repaint stands down in test mode even while locked
+- turning test mode on leaves the lock where it was
+- turning test mode off ends any /at test hold and restores live data
+- test mode shows a bar the visibility dropdown or a missing unit would hide
+- test mode does not override the addon-wide or per-unit switch
+- unlocking alone does not bypass the visibility dropdown
+- a hold that expires in test mode falls back to the placeholder
+- combat ends test mode, says so, and refreshes the panel
+- combat with test mode off says nothing and leaves the panel alone
+- test mode will not start in combat, and says why
 - the unit label follows the unit's own font face
 - UpdateBarAppearance re-applies the font from the profile
 - UpdateBarAppearance tolerates a nil fontFlags by passing an empty flag string
@@ -676,7 +690,7 @@ badge and any count quoted in the docs must agree with it.
 | Suite | Cases |
 |-------|------:|
 | test_loadorder.lua | 14 |
-| test_schema.lua | 44 |
+| test_schema.lua | 46 |
 | test_database.lua | 31 |
 | test_units.lua | 17 |
 | test_envsetup.lua | 6 |
@@ -689,7 +703,7 @@ badge and any count quoted in the docs must agree with it.
 | test_visibility.lua | 21 |
 | test_bus.lua | 7 |
 | test_data.lua | 32 |
-| test_display.lua | 53 |
+| test_display.lua | 65 |
 | test_helpers.lua | 70 |
 | test_optionssetup.lua | 11 |
 | test_slashcmds.lua | 119 |
@@ -700,4 +714,4 @@ badge and any count quoted in the docs must agree with it.
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_eol.lua | 1 |
-| **Total** | **590** |
+| **Total** | **604** |

@@ -460,6 +460,204 @@ test("ClearPreview reports whether a hold was actually live", function()
   NS.testHoldUntil = savedHold
 end)
 
+-- ── test mode (preview-mode, options-ui-§15) ───────────────────────────────────────
+-- The third preview, and the only one that is a MODE: on until turned off, independent of the lock,
+-- session-only, ended by combat. Switched by Master controls' `Test mode` row at `state.testMode`.
+
+local TEST_MODE = "state.testMode"
+
+-- Straight to the session store, so no onChange fires: these cases pin what the paint path does IN
+-- the mode, not what switching it publishes (the cases after them do that through NS.SetByPath).
+local function withTestMode(body)
+  NS.SetSetting(TEST_MODE, true)
+  local ok, err = pcall(body)
+  NS.SetSetting(TEST_MODE, false)
+  if not ok then error(err) end
+end
+
+-- Chat output, through the sink every NS.Print ends in (same seam as tests/test_slashcmds.lua).
+local function capture(fn)
+  local out = {}
+  local cf = T.mocks.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function(_, msg) out[#out + 1] = msg end
+  local ok, err = pcall(fn)
+  cf.AddMessage = old
+  if not ok then error(err) end
+  return table.concat(out, "\n")
+end
+
+test("test mode is off until something turns it on", function()
+  assertEqual(NS.GetSetting(TEST_MODE), false, "a boolean false, not a missing profile key")
+end)
+
+test("test mode paints the placeholder on a LOCKED bar", function()
+  local value
+  withLocked(function()
+    withTestMode(function()
+      withoutVisibility(function()
+        value = record(NS.statusBar, "SetValue", function() NS.UpdateBarAppearance("player") end)
+      end)
+    end)
+  end)
+  assertEqual(#value, 1, "test mode is independent of the lock: a locked bar still previews")
+  assertTrue(value[1][1] > 0 and value[1][1] < 1, "the same placeholder fraction unlocking paints")
+end)
+
+test("a live repaint stands down in test mode even while locked", function()
+  local savedHold = NS.testHoldUntil
+  NS.testHoldUntil = nil
+  local calls, painted
+  withLocked(function()
+    withTestMode(function()
+      withUnitSetting("player", "enabled", true, function()
+        calls = record(NS.statusBar, "SetValue", function() painted = NS.UpdateAbsorbBar("player") end)
+      end)
+    end)
+  end)
+  NS.testHoldUntil = savedHold
+  assertEqual(#calls, 0, "an absorb event must not paint over the placeholder")
+  assertEqual(painted, false, "and a skipped bar is not a repaint")
+end)
+
+test("turning test mode on leaves the lock where it was", function()
+  local mouse
+  withLocked(function()
+    NS.SetByPath(TEST_MODE, true)
+    mouse = record(NS.bar, "EnableMouse", function()
+      withoutVisibility(function() NS.UpdateBarAppearance("player") end)
+    end)
+    assertEqual(NS.GetSetting("locked"), true, "test mode must not unlock the bars")
+    NS.SetByPath(TEST_MODE, false)
+  end)
+  assertEqual(mouse[1][1], false, "a locked bar in test mode is still not draggable")
+  T.mocks.__fireTimers()
+end)
+
+test("turning test mode off ends any /at test hold and restores live data", function()
+  local appearance, repaint = 0, 0
+  local ev = NS.NewBusTarget()
+  ev:RegisterMessage(NS.MSG.APPEARANCE, function() appearance = appearance + 1 end)
+  ev:RegisterMessage(NS.MSG.REPAINT, function() repaint = repaint + 1 end)
+  local painted
+  withLocked(function()
+    withUnitSetting("player", "enabled", true, function()
+      NS.SetByPath(TEST_MODE, true)
+      NS.HoldPreview(30)
+      appearance, repaint = 0, 0
+      NS.SetByPath(TEST_MODE, false)
+      painted = NS.UpdateAbsorbBar("player")
+    end)
+  end)
+  ev:UnregisterMessage(NS.MSG.APPEARANCE)
+  ev:UnregisterMessage(NS.MSG.REPAINT)
+  T.mocks.__fireTimers()
+  assertEqual(NS.testHoldUntil, nil, "the fake value must not outlive the mode")
+  assertTrue(appearance >= 1, "the appearance pass is what stops painting the placeholder")
+  assertTrue(repaint >= 1, "and the repaint is what puts live data back")
+  assertEqual(painted, true, "locked and out of test mode, a repaint paints again")
+end)
+
+-- The point of the mode is to SEE the bars, so it has to reach the two bars a player cannot
+-- otherwise see out of combat: a target or focus bar with no target or focus, and every bar under
+-- a `visibility` that hides it right now. Only those two rungs: the addon-wide switch, the per-unit
+-- switch and a perf suspend still win.
+test("test mode shows a bar the visibility dropdown or a missing unit would hide", function()
+  local savedExists = T.mocks.__unitExists.target
+  T.mocks.__unitExists.target = nil
+  local before, during
+  withUnitSetting("target", "enabled", true, function()
+    withSetting("visibility", "never", function()
+      before = { NS.ShouldShowBar("target"), NS.ShouldShowBar("player") }
+      withTestMode(function()
+        during = { NS.ShouldShowBar("target"), NS.ShouldShowBar("player") }
+      end)
+    end)
+  end)
+  T.mocks.__unitExists.target = savedExists
+  assertEqual(before[1], false)
+  assertEqual(before[2], false)
+  assertEqual(during[1], true, "no target, but the target bar is what the player came to place")
+  assertEqual(during[2], true, "visibility=never, but test mode is how the bar is seen at all")
+end)
+
+test("test mode does not override the addon-wide or per-unit switch", function()
+  local addonOff, unitOff
+  withTestMode(function()
+    withSetting("enabled", false, function() addonOff = NS.ShouldShowBar("player") end)
+    withUnitSetting("focus", "enabled", false, function() unitOff = NS.ShouldShowBar("focus") end)
+  end)
+  assertEqual(addonOff, false, "Enable Absorb Tracker off means nothing draws")
+  assertEqual(unitOff, false, "a bar that is turned off does not exist to preview")
+end)
+
+test("unlocking alone does not bypass the visibility dropdown", function()
+  local shown
+  withSetting("locked", false, function()
+    withSetting("visibility", "never", function() shown = NS.ShouldShowBar("player") end)
+  end)
+  assertEqual(shown, false, "the bypass is test mode's, not the lock's")
+end)
+
+test("a hold that expires in test mode falls back to the placeholder", function()
+  local savedHold = NS.testHoldUntil
+  local value
+  withLocked(function()
+    withTestMode(function()
+      NS.HoldPreview(5)
+      local armed = T.mocks.__timers[#T.mocks.__timers]
+      value = record(NS.statusBar, "SetValue", armed.fn)
+    end)
+  end)
+  NS.testHoldUntil = savedHold
+  T.mocks.__fireTimers()
+  assertTrue(#value >= 1, "the announced window must end in something the user can see")
+  assertTrue(value[#value][1] > 0 and value[#value][1] < 1,
+    "in test mode the fake value gives way to the placeholder, not to live data")
+end)
+
+-- PLAYER_REGEN_DISABLED ends it, says so in one line, and redraws an open panel so the box unticks.
+test("combat ends test mode, says so, and refreshes the panel", function()
+  local savedRefresh = NS.RefreshOptionsPanel
+  local refreshed = 0
+  NS.RefreshOptionsPanel = function() refreshed = refreshed + 1 end
+  NS.SetSetting(TEST_MODE, true)
+  local ok, out = pcall(capture, function() NS.addon:OnEnterCombat() end)
+  NS.RefreshOptionsPanel = savedRefresh
+  NS.SetSetting(TEST_MODE, false)
+  T.mocks.__fireTimers()
+  if not ok then error(out) end
+  assertEqual(NS.GetSetting(TEST_MODE), false, "combat must end test mode")
+  assertTrue(out:find("Test mode off", 1, true) ~= nil, "one line saying why: " .. out)
+  assertTrue(out:find("combat", 1, true) ~= nil, out)
+  assertEqual(refreshed, 1, "the Test mode box must untick in an open panel")
+end)
+
+test("combat with test mode off says nothing and leaves the panel alone", function()
+  local savedRefresh = NS.RefreshOptionsPanel
+  local refreshed = 0
+  NS.RefreshOptionsPanel = function() refreshed = refreshed + 1 end
+  local ok, out = pcall(capture, function() NS.addon:OnEnterCombat() end)
+  NS.RefreshOptionsPanel = savedRefresh
+  T.mocks.__fireTimers()
+  if not ok then error(out) end
+  assertEqual(out, "")
+  assertEqual(refreshed, 0)
+end)
+
+test("test mode will not start in combat, and says why", function()
+  local savedUAC = T.mocks.UnitAffectingCombat
+  T.mocks.UnitAffectingCombat = function() return true end
+  local ok, out = pcall(capture, function() NS.SetByPath(TEST_MODE, true) end)
+  T.mocks.UnitAffectingCombat = savedUAC
+  local on = NS.GetSetting(TEST_MODE)
+  NS.SetSetting(TEST_MODE, false)
+  T.mocks.__fireTimers()
+  if not ok then error(out) end
+  assertEqual(on, false, "a refused start leaves the box unticked")
+  assertTrue(out:find("combat", 1, true) ~= nil, "the refusal says why: " .. out)
+end)
+
 test("the unit label follows the unit's own font face", function()
   local calls
   withSetting("locked", false, function()

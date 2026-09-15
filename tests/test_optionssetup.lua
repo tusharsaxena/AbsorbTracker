@@ -206,6 +206,18 @@ test("the degraded stub publishes the five composers, the other load-time member
   assertEqual(master[6].path, "state.debugConsole", "the console path is verbatim and unprefixed")
   assertEqual(master[6].sessionOnly, true)
   assertEqual(type(tail), "function", "the afterGroup hook is a no-op, not a nil")
+
+  -- The optional Test mode row, mirrored from the library's compose minor 6: present exactly when
+  -- the host names `testModePath`, verbatim, after the console, and carrying the caller's default.
+  -- red under: a stub that drops the leaf (tests/test_perf.lua's path-set parity goes red too).
+  local withTest = NS2.Helpers.MasterControls({
+    page = "general", debugConsolePath = "state.debugConsole",
+    testModePath = "state.testMode", defaults = { testMode = false },
+  })
+  assertEqual(#withTest, 7, "a host with a test mode gets a seventh row")
+  assertEqual(withTest[7].path, "state.testMode", "the test mode path is verbatim and unprefixed")
+  assertEqual(withTest[7].sessionOnly, true)
+  assertEqual(withTest[7].default, false, "and `defaults` reaches it, so a reset ends the mode")
 end)
 
 test("the degraded stub keeps no private copy of the library's layout constants", function()

@@ -18,6 +18,7 @@ local H = NS.Helpers
 --     Master controls  [Enable Absorb Tracker]  [General visibility]
 --                      [Master scale]           [Master alpha]
 --                      [Lock frame]             [Debug console]
+--                      [Test mode]                                     <- own line, startsLine
 --                      [Reset position]         [Reset all settings]   <- button pair, afterGroup
 --     Bars             -- Tracked units --                             <- subgroup, options-ui-§7
 --                      [Enable Player Bar]      [Enable Target Bar]
@@ -37,10 +38,11 @@ local H = NS.Helpers
 -- MASTER CONTROLS LEADS, AND IS NOT OPTIONAL (options-ui-§15). The one thing every player looks for
 -- first -- how do I turn this off, how do I make it smaller, how do I put it back -- is in the same
 -- place, under the same words, in every Ka0s addon. The set is canonical rather than a menu: it may
--- not be reordered, renamed or split, and this addon draws all eight rows because it HAS a movable
--- frame (modules/Bar.lua calls SetMovable(true) on every bar), so nothing is omitted.
+-- not be reordered, renamed or split, and this addon draws all nine rows because it HAS a movable
+-- frame (modules/Bar.lua calls SetMovable(true) on every bar), so nothing is omitted. That includes
+-- Test mode: every addon with a positionable display ships one (preview-mode).
 --
--- IT IS COMPOSED, NEVER TYPED OUT. H.MasterControls emits the eight from one declaration, so nine
+-- IT IS COMPOSED, NEVER TYPED OUT. H.MasterControls emits the nine from one declaration, so nine
 -- addons cannot drift into nine orders; hand-writing the block is anti-pattern #73. What this file
 -- supplies is the part that is genuinely ours -- the defaults each row starts from and the
 -- `onChange` each one fires.
@@ -82,6 +84,37 @@ if NS.DebugLog and NS.DebugLog.ConsoleCheckbox then
     NS.RegisterSessionSetting(DEBUG_CONSOLE_PATH, NS.DebugLog:ConsoleCheckbox())
 end
 
+-- Test mode (preview-mode, options-ui-§15): the row the composer emits from `testModePath`, bound
+-- the same way as the console row, to NS.State.testMode rather than the profile. On until turned
+-- off or until combat starts (core/AbsorbTracker.lua ends it); a start in combat is refused and the
+-- box stays unticked, since the mode would end the moment it began. What the mode shows is
+-- modules/Display.lua's (NS.InPreview, and the test-mode rung of NS.ShouldShowBar).
+local TEST_MODE_PATH = "state.testMode"
+
+-- Whether the last write actually moved the mode. NS.SetByPath runs the session set() below and then
+-- the row's onChange back to back, so the onChange reads what the write did: a refused start, or a
+-- Reset all settings that finds the mode already off, publishes nothing rather than a three-bar
+-- restyle and a repaint for no change.
+local testModeMoved = false
+
+NS.RegisterSessionSetting(TEST_MODE_PATH, {
+    get = function() return NS.State.testMode == true end,
+    set = function(v)
+        local on = v and true or nil
+        if on and not NS.State.testMode and (UnitAffectingCombat("player") or InCombatLockdown()) then
+            print("Cannot start test mode during combat")
+            testModeMoved = false
+            return
+        end
+        testModeMoved = on ~= NS.State.testMode
+        NS.State.testMode = on
+    end,
+})
+local TEST_MODE_TIP = "Show a placeholder fill on every bar you have turned on, so you can see and "
+    .. "place them without waiting for an absorb. Target and focus bars show even with nothing "
+    .. "targeted or focused. The bars stay locked, and combat turns it off. For a timed fake "
+    .. "value, use /at test."
+
 -- The canonical block. `defaults` names this addon's own starting values without changing any
 -- stored path: every leaf here already IS the path the composer derives, so `keys` is unnecessary
 -- and nothing about what is stored moves.
@@ -94,12 +127,16 @@ local masterRows, masterTail = H.MasterControls({
     -- field that silently REMOVES four mandated rows.
     frameless        = false,
     debugConsolePath = DEBUG_CONSOLE_PATH,
+    testModePath     = TEST_MODE_PATH,
     defaults         = {
         enabled    = flatDefaults.enabled,
         visibility = flatDefaults.visibility,
         scale      = flatDefaults.scale,
         alpha      = flatDefaults.alpha,
         locked     = flatDefaults.locked,
+        -- Not in flatDefaults: session state has no profile default. The composer gives the row
+        -- none, and without one Reset all settings could not end the mode (options-ui-§12).
+        testMode   = false,
     },
     -- The same shared helper `/at resetposition` calls, so the button and the slash verb can never
     -- diverge. They did once: the old body nil'd `db.profile.position`, the pre-v3 flat key the v3
@@ -170,11 +207,24 @@ local masterOnChange = {
     -- deliberately publishes nothing has to SAY so, or the next reader reads the absence as an
     -- oversight and "fixes" it back.
     [DEBUG_CONSOLE_PATH] = function() end,
+
+    -- Entering or leaving test mode, the same three steps as the lock: drop any `/at test` hold,
+    -- restyle (which paints the placeholder, or stops painting it, and re-runs visibility), then
+    -- repaint, which is what puts live data back once the mode is off.
+    [TEST_MODE_PATH] = function()
+        if not testModeMoved then return end
+        testModeMoved = false
+        NS.ClearPreview()
+        NS.bus:SendMessage(NS.MSG.APPEARANCE)
+        NS.bus:SendMessage(NS.MSG.REPAINT)
+    end,
 }
 
 for _, row in ipairs(masterRows) do
     local fn = masterOnChange[row.path]
     if fn then row.onChange = fn end
+    -- The composer's tooltip is generic; this one says what the placeholders are here.
+    if row.path == TEST_MODE_PATH then row.tooltip = TEST_MODE_TIP end
 end
 
 NS.RegisterSchemaRows(masterRows)

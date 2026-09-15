@@ -49,11 +49,11 @@ end)
 -- to no tab, and is drawn bespoke in the header.
 test("the page -> tab -> row-count partition is the designed one", function()
   local want = {
-    -- Master controls is FIRST and holds exactly the six schema rows options-ui-§15 entitles this
-    -- addon to: enable, general visibility, master scale, master alpha, lock frame, debug console.
-    -- The two resets are the tab's closing BUTTON PAIR rather than rows, so they are not counted
-    -- here -- tests/test_widgets.lua is what pins them onto this tab.
-    { page = "general", unit = nil, tabs = { { "Master controls", 6 }, { "Bars", 4 } } },
+    -- Master controls is FIRST and holds exactly the seven schema rows options-ui-§15 entitles this
+    -- addon to: enable, general visibility, master scale, master alpha, lock frame, debug console,
+    -- test mode. The two resets are the tab's closing BUTTON PAIR rather than rows, so they are not
+    -- counted here -- tests/test_widgets.lua is what pins them onto this tab.
+    { page = "general", unit = nil, tabs = { { "Master controls", 7 }, { "Bars", 4 } } },
     { page = "appearance", unit = "player", tabs = {
       { "Size", 2 }, { "Bar", 4 }, { "Background", 3 }, { "Border", 4 }, { "Text", 6 },
     } },
@@ -200,15 +200,19 @@ test("every row's default matches the value in defaults.profile", function()
   -- Two sources for one value: the schema row drives /at reset, defaults.profile drives a fresh
   -- profile and the RunMigrations backfill. If they disagree, resetting a setting lands somewhere
   -- other than where a brand-new profile starts.
+  --
+  -- A `sessionOnly` row is skipped: it has no profile value at all, so defaults.profile has nothing
+  -- to agree with. Its `default` (test mode's `false`) is only the value a reset writes back through
+  -- its session set().
   local defaults = NS.defaults.profile
   for _, row in ipairs(NS.Schema) do
     local want = NS.ResolvePath(defaults, row.path)
-    if type(row.default) == "table" then
+    if type(row.default) == "table" and not row.sessionOnly then
       assertEqual(type(want), "table", row.path .. " default should be a table in both places")
       for k, v in pairs(row.default) do
         assertEqual(want[k], v, row.path .. "." .. tostring(k) .. " disagrees")
       end
-    else
+    elseif not row.sessionOnly then
       assertEqual(row.default, want, row.path .. " default disagrees with defaults.profile")
     end
   end
@@ -573,12 +577,14 @@ end)
 --
 -- The set is asserted WHOLE and in order. An addon may omit only the four frame-only rows and only
 -- when it is frameless, and this one is not -- modules/Bar.lua calls SetMovable(true) on every bar
--- -- so all six schema rows are here. The two resets are the tab's closing BUTTON PAIR rather than
+-- -- so all seven schema rows are here. The two resets are the tab's closing BUTTON PAIR rather than
 -- rows; tests/test_widgets.lua pins those onto this group's afterGroup hook.
 -- red under: a reordered composer, a `frameless = true` this addon is not entitled to, or a row
 -- moved back to the tab it came from.
 test("the Master controls tab is the canonical set, in order, and leads the General page", function()
-  local want = { "enabled", "visibility", "scale", "alpha", "locked", "state.debugConsole" }
+  local want = {
+    "enabled", "visibility", "scale", "alpha", "locked", "state.debugConsole", "state.testMode",
+  }
   local got, firstGroup = {}, nil
   for _, r in ipairs(NS.SchemaForPage("general")) do
     firstGroup = firstGroup or r.group
@@ -601,6 +607,38 @@ test("the Master controls tab is the canonical set, in order, and leads the Gene
     "the console path must round-trip through its live get/set pair")
   assertEqual(NS.db.profile.state, nil, "and must never reach db.profile")
   NS.SetSetting("state.debugConsole", wasShown)
+end)
+
+-- The Test mode row (options-ui-§15, preview-mode): composed from `testModePath`, directly after the
+-- console on its own line, session-only, and defaulted so Reset all settings ends the mode.
+-- red under: the row typed out by hand, a missing `default`, or its state stored in the profile.
+test("the Test mode row is session-only, on its own line, and never reaches the profile", function()
+  local row = NS.FindSchemaRow("state.testMode")
+  assertTrue(row ~= nil, "Master controls has no Test mode row")
+  assertEqual(row.group, "Master controls")
+  assertEqual(row.type, "bool")
+  assertEqual(row.label, "Test mode")
+  assertEqual(row.sessionOnly, true)
+  assertEqual(row.startsLine, true, "the row sits on its own line below Lock frame / Debug console")
+  assertEqual(row.default, false, "without a default, Reset all settings could not end the mode")
+  assertTrue(type(row.tooltip) == "string" and row.tooltip:find("/at test", 1, true) ~= nil,
+    "the tooltip is this addon's, not the composer's generic one")
+
+  NS.SetSetting("state.testMode", true)
+  local on = NS.GetSetting("state.testMode")
+  local stored = NS.db.profile.state
+  NS.SetSetting("state.testMode", false)
+  assertEqual(on, true, "the path must round-trip through its session get/set pair")
+  assertEqual(stored, nil, "and must never reach db.profile")
+end)
+
+test("Reset all settings ends test mode", function()
+  NS.SetSetting("state.testMode", true)
+  NS.Helpers.RestoreAllDefaults()
+  local on = NS.GetSetting("state.testMode")
+  NS.SetSetting("state.testMode", false)
+  T.mocks.__fireTimers()
+  assertEqual(on, false, "the global reset restores every session row, this one included")
 end)
 
 test("the Bars tab is the three enable toggles then the throttle, under their own headings",

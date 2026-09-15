@@ -104,21 +104,22 @@ Rules the code depends on that reading one file will not reveal. The visual/tain
 
 ## Settings Schema
 
-`NS.Schema` is a flat array of **69 rows**; each `settings/<page>.lua` calls
+`NS.Schema` is a flat array of **70 rows**; each `settings/<page>.lua` calls
 `NS.RegisterSchemaRows({...})` at file-load time. The same array drives both the AceGUI panel widgets
 (via `NS.Helpers.RenderTabbedSchema` / `RenderRows` / `RenderField`, all supplied by
 `LibKa0s-Options-1.0` and fed the rows through the descriptor's `rowsForPage`) and the
 `/at list|get|set|reset|resetall` CLI — adding an option is one schema row.
 
-Exactly **seven** of the 69 carry an absolute, unit-agnostic path — the six flat globals (`enabled`,
-`visibility`, `scale`, `alpha`, `locked`, `throttleWindow`) plus the session-only
-`state.debugConsole`, all on the General page. The other **62 are unit-relative**
+Exactly **eight** of the 70 carry an absolute, unit-agnostic path — the six flat globals (`enabled`,
+`visibility`, `scale`, `alpha`, `locked`, `throttleWindow`) plus the two session-only rows
+`state.debugConsole` and `state.testMode`, all on the General page. The other **62 are unit-relative**
 (`units.<unit>.<key>`): the three `units.<unit>.enabled` toggles, also on General, plus the
 Appearance page's 59, generated as **nineteen appearance keys × three units** with a `mirror` row
-for target and focus. So General holds ten rows (seven absolute, three unit-relative) and Appearance
-the remaining 59.
+for target and focus. So General holds eleven rows (eight absolute, three unit-relative) and
+Appearance the remaining 59.
 
-Sixteen of the nineteen per-unit keys and five of the seven globals are **composed**, not typed out:
+Sixteen of the nineteen per-unit keys and seven of the eight unit-agnostic rows (all but
+`throttleWindow`) are **composed**, not typed out:
 `H.MasterControls`, `H.BarGroup`, `H.BorderGroup`, `H.FontGroup` and `H.ColorPair`
 (`LibKa0s-Options-1.0`'s `OptionsCompose`) emit the canonical blocks options-ui-§15/§16/§17 mandate
 from one declaration each. The host passes `keys` and `defaults` so **nothing stored moved** — the
@@ -126,7 +127,7 @@ composer changes what is *declared*, never what is *persisted*.
 
 **A row's `group` is a TAB.** Both schema-bearing pages draw their sections as a tab strip
 (options-ui-§13), partitioned by `group` **in declaration order**, so the array *is* the strip and a
-group's rows must stay contiguous. General is `[ Master controls | Bars ]` (6 / 4 rows); Appearance
+group's rows must stay contiguous. General is `[ Master controls | Bars ]` (7 / 4 rows); Appearance
 is `[ Size | Bar | Background | Border | Text ]` (2 / 4 / 3 / 4 / 6 rows, per unit) under a chrome block
 (options-ui-§14) carrying the panel's only unit picker and the page-wide mirror controls. `tests/test_schema.lua` asserts that
 page → tab → count partition. Every write to a schema-row path funnels through the single seam
@@ -267,8 +268,9 @@ carries a sub-verb table of its own (`PROFILE_VERBS`, dispatched at `settings/Sl
 
 **Schema paths are fully qualified.** `/at set units.target.barWidth 250` works; the pre-1.9
 unqualified `/at set barWidth 250` is rejected, because `FindSchemaRow` has no bare-key row for a
-per-unit setting. Only the seven unit-agnostic rows — `enabled`, `visibility`, `scale`, `alpha`,
-`locked`, `throttleWindow` and the session-only `state.debugConsole` — take a bare path.
+per-unit setting. Only the eight unit-agnostic rows — `enabled`, `visibility`, `scale`, `alpha`,
+`locked`, `throttleWindow` and the session-only `state.debugConsole` and `state.testMode` — take a
+bare path.
 
 The verb table, the sub-verb trees, the mirror note, the help convention and the degraded arm are in
 [slash-dispatch.md](./slash-dispatch.md).
@@ -305,7 +307,8 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
 - **AceEvent** subscriptions (registered in `OnEnable`): `PLAYER_ENTERING_WORLD` (`OnEnterWorld` →
   publishes `VisibilityChanged` + `RepaintRequested`), the combat-state pair
   `PLAYER_REGEN_DISABLED` (`OnEnterCombat`) / `PLAYER_REGEN_ENABLED` (`OnLeaveCombat`) — each
-  publishes `VisibilityChanged` (the `visibility` gate) and `RepaintRequested`. These three
+  publishes `VisibilityChanged` (the `visibility` gate) and `RepaintRequested`, and `OnEnterCombat`
+  first ends test mode if it is on (preview-mode). These three
   are global, payload-free events with no unit to filter, so they stay on AceEvent unconditionally.
 
   `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` (both → `OnUnitSwap`, which publishes

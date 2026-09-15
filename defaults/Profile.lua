@@ -70,8 +70,8 @@ NS.defaults.profile = {
     -- Globals: one value shared by all three bars.
     --
     -- The Master controls block (options-ui-§15) is five of them — `enabled`, `visibility`,
-    -- `scale`, `alpha` and `locked`; its sixth row, the debug console, is session state and stores
-    -- nothing here. `enabled` is the addon-wide
+    -- `scale`, `alpha` and `locked`; its sixth and seventh rows, the debug console and test mode,
+    -- are session state and store nothing here. `enabled` is the addon-wide
     -- switch the three per-unit `enabled` flags are NOT — §15 forbids conflating an addon-wide row
     -- with a per-instance one, so both exist and the addon-wide one gates the per-unit ones
     -- (NS.ShouldShowBar). `visibility` REPLACES the old `showOnlyInCombat` boolean, which could

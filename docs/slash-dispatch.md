@@ -83,7 +83,7 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 | `/at perf [sub]` | `runPerf` → `NS.Perf.OnCommand` | The guided perf run. Sub-verbs are the library's; see [performance.md](./performance.md). |
 | `/at update` | `runUpdate` | Publish `MSG.REPAINT`. |
 | `/at version` | inline | `v<version>` from `NS.Version()`. |
-| `/at test [value] [hold-secs]` | `runTest` | Paint a fake absorb for visual tweaking, held for the announced duration by `NS.HoldPreview`. |
+| `/at test [value] [hold-secs]` | `runTest` | Paint a fake absorb for visual tweaking, held for the announced duration by `NS.HoldPreview`. A one-shot, not test mode: test mode is Master controls' **Test mode** checkbox (`/at set state.testMode true`), on until turned off or until combat starts. |
 | `/at profile <sub> [name]` | `runProfile` | The sub-verb tree below. |
 
 ## The sub-verb trees

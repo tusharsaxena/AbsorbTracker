@@ -31,10 +31,10 @@ end
 
 -- ── session settings ───────────────────────────────────────────────────────────────────────
 --
--- A schema row whose value is NOT in the profile and must never reach it. There is exactly one
--- today: the Master controls tab's `state.debugConsole`, which is the console WINDOW's visibility
--- (options-ui-§15) — transient UI, reset by a /reload, and a setting the next character must not
--- inherit.
+-- A schema row whose value is NOT in the profile and must never reach it. There are two today,
+-- both on the Master controls tab (options-ui-§15): `state.debugConsole`, the console WINDOW's
+-- visibility, and `state.testMode`, whether test mode is on (preview-mode). Both are transient UI,
+-- reset by a /reload, and a setting the next character must not inherit.
 --
 -- There is deliberately NO `IsSessionSetting(path)` query beside the two accessors. It existed and
 -- nothing called it: settings/Schema.lua's validator exempts the row by testing `row.sessionOnly`,

@@ -216,6 +216,15 @@ end
 -- settings/OptionsSetup.lua) rather than deferring, so there
 -- is no combat-deferred /at config for OnLeaveCombat to replay — it only handles visibility now.
 function addon:OnEnterCombat()
+    -- Combat ends test mode (preview-mode), here at PLAYER_REGEN_DISABLED so the fight starts on
+    -- live data. Through the seam, so the row's onChange restores the bars exactly as the checkbox
+    -- does; then one line saying why, and a panel refresh so an open Test mode box unticks. The path
+    -- is the session row settings/General.lua registers.
+    if NS.State and NS.State.testMode then
+        NS.SetByPath("state.testMode", false)
+        NS.Print("Test mode off \226\128\148 combat started")
+        if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
+    end
     NS.bus:SendMessage(NS.MSG.VISIBILITY)
     NS.bus:SendMessage(NS.MSG.REPAINT)
     -- Reset the coalescing counters unconditionally (two assignments, harmless when debug is off)

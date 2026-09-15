@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-590%2F590_passing-green)
+![Tests](https://img.shields.io/badge/Tests-604%2F604_passing-green)
 
 Ka0s Absorb Tracker puts your absorb shields on screen as a movable bar. Every shield on the unit,
 added into one number, so a glance tells you how much damage you can eat before your health starts
@@ -25,7 +25,10 @@ _**Absorb Tracker in Action**_
 
 On the first run after installing, the Player bar turns up centered and unlocked, so drag it where you want it and type
 `/at lock` to pin it there. While the bars are unlocked each one paints a partial fill and its unit
-name, so there is something to grab even with no shield up. To see a bar carrying a number instead,
+name, so there is something to grab even with no shield up. **Test mode** on General → Master
+controls shows the same fill with the bars locked, and it also brings up an enabled Target or Focus
+bar when you have nothing targeted or focused, so you can see where that bar sits. It stays on until
+you untick it or enter combat. To see a bar carrying a number instead,
 `/at test` puts a fake absorb on every visible bar — 50000 held for five seconds by default, and
 both of those are arguments if you want a bigger figure or a longer look at it. At least one bar
 has to be enabled for the preview to land anywhere.
@@ -49,7 +52,7 @@ from Player** takes a snapshot instead and leaves you free to diverge afterwards
 
 General → Master controls governs all three bars at once: the addon's own off switch, **General
 visibility** (always, only in combat, only out of combat, never), master scale, master alpha, the
-lock, the debug console, and the two reset buttons. Master alpha is not the per-bar **Bar opacity**
+lock, the debug console, **Test mode**, and the two reset buttons. Master alpha is not the per-bar **Bar opacity**
 on the Appearance page — that one dims a single bar, and the two multiply, so 50% under a master
 alpha of 50% draws at 25%. General and Appearance each carry a **Defaults** button that reverts
 that page across all three bars in one go. Profiles has a page to itself for saving setups and
@@ -88,7 +91,7 @@ So the bar is a live picture of how much a unit can take before its health start
 | Does this replace the shield display on my unit frames? | No. These are separate movable bars. Blizzard's shield overlay on the player, target, and focus frames is left alone — hide it in *Edit Mode* if you don't want to see both. |
 | How do I turn on the Target or Focus bar? | General page → **Bars** tab → tick **Enable Target Bar** or **Enable Focus Bar**. It only appears while you actually have that unit. |
 | Can the Target/Focus bar match my Player bar automatically? | That is what **Use same styling as Player** is for. It is a live link, so anything you change on the Player bar carries over at once. Uncheck it whenever you want that bar styled on its own, or use **Copy styling from Player** for a one-time copy you then take in your own direction. |
-| How do I move a bar? | Type `/at unlock`, drag the bar you want where you want it, then `/at lock`. Each bar remembers its own position. Use `/at resetposition` to snap all of them back to their default spots. |
+| How do I move a bar? | Type `/at unlock`, drag the bar you want where you want it, then `/at lock`. Each bar remembers its own position. Use `/at resetposition` to snap all of them back to their default spots. To place the Target or Focus bar with nothing targeted, tick **Test mode** on **General ▸ Master controls** first so the bar shows. |
 | Can I show the bars only while I'm fighting? | Yes. Set **General visibility** to *Only in combat* on **General ▸ Master controls**. Every enabled bar hides out of combat and reappears the instant you enter combat. |
 | Can I have different setups? | Yes. Use the Profiles page in the settings panel to save and switch between setups. New characters start on the shared **Default** profile, so your changes carry over until you choose a separate setup. |
 | Why is my bar empty? | The fill only shows a value when that unit has an absorb up. With no shield it sits empty, though the background and border stay where you placed them. |
