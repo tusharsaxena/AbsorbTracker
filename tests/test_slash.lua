@@ -36,8 +36,26 @@ test("NS.Print survives AceConsole's embed and stays the [AT]-prefixed printer",
   assertTrue(stripColor(out[1]):find(":%s*$") == nil, "no trailing colon: " .. tostring(out[1]))
 end)
 
-test("bare /at prints the help index: header + one row per command", function()
-  local out = capture(function() NS.Slash:OnSlash("") end)
+test("bare /at opens the settings panel through the config verb, not the help index", function()
+  -- LibKa0s-Slash-1.0 minor 11 (slash-commands-§4): an empty or whitespace-only line runs the
+  -- `config` handler, whose NS.OpenOptionsPanel opens the landing page. Spied at the NS seam the
+  -- handler reads at call time, so the assertion is the route and not the headless no-op.
+  local orig, opened = NS.OpenOptionsPanel, 0
+  NS.OpenOptionsPanel = function() opened = opened + 1 end
+  local ok, err = pcall(function()
+    for _, line in ipairs({ "", "   ", "\t " }) do
+      local before = opened
+      local out = capture(function() NS.Slash:OnSlash(line) end)
+      assertEqual(opened, before + 1, ("input %q opens the panel once"):format(line))
+      assertEqual(#out, 0, ("input %q prints nothing, help included"):format(line))
+    end
+  end)
+  NS.OpenOptionsPanel = orig
+  if not ok then error(err) end
+end)
+
+test("/at help prints the help index: header + one row per command", function()
+  local out = capture(function() NS.Slash:OnSlash("help") end)
   assertEqual(#out, #NS.COMMANDS + 1)
   assertTrue(out[1]:find("slash commands") ~= nil, "first line is the header")
   -- No chat line the addon prints ends in a trailing colon (slash-commands-§4 house style).

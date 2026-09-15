@@ -456,15 +456,25 @@ if not SlashLib then
             print(("v%s \226\128\148 slash commands"):format(d.version()))
             for _, row in ipairs(stub.LandingRows()) do print("  " .. row) end
         end
+        local function find(name)
+            for _, e in ipairs(d.commands) do
+                if e[1] == name then return e end
+            end
+        end
         stub.OnSlash = function(_, msg)
             local raw = (msg or ""):match("^%s*(.-)%s*$") or ""
-            if raw == "" then return stub.PrintHelp() end
+            -- Bare /at runs the host's `config` verb, as the library does (slash-commands-§4);
+            -- help is only the fallback for a descriptor that registered none.
+            if raw == "" then
+                local config = find("config")
+                if config then return config[3]("") end
+                return stub.PrintHelp()
+            end
             local cmd, rest = raw:match("^(%S+)%s*(.*)$")
             cmd = (cmd or ""):lower()
             cmd = (d.aliases or {})[cmd] or cmd
-            for _, e in ipairs(d.commands) do
-                if e[1] == cmd then return e[3](rest or "") end
-            end
+            local e = find(cmd)
+            if e then return e[3](rest or "") end
             print("unknown command '" .. cmd .. "'")
             stub.PrintHelp()
         end

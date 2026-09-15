@@ -86,7 +86,7 @@ test("the About rows carry the help colors, without the chat indent", function()
   assertTrue(rows[1]:sub(1, 1) ~= " ", "a panel row starts at the margin")
   -- The chat form is the same row with the indent, after the [AT] tag every line carries.
   local want = "  " .. rows[1]
-  local help = capture(function() NS.Slash:OnSlash("") end)
+  local help = capture(function() NS.Slash:OnSlash("help") end)
   assertEqual(help[2]:sub(-#want), want, "the chat form is that row, indented: " .. help[2])
 end)
 
@@ -1514,9 +1514,12 @@ test("parity: an unknown verb reaches no handler and prints the same shape in bo
   assertParity("nosuchverb", ("verb=nil rest=\"nil\" lines=%d"):format(#NS.COMMANDS + 2))
 end)
 
-test("parity: a bare /at reaches no handler and prints help in both", function()
-  assertParity("", ("verb=nil rest=\"nil\" lines=%d"):format(#NS.COMMANDS + 1))
-  assertParity("   ", ("verb=nil rest=\"nil\" lines=%d"):format(#NS.COMMANDS + 1))
+test("parity: a bare /at reaches the config handler with an empty rest in both", function()
+  -- Slash minor 11: empty and whitespace-only input run `config` rather than printing help.
+  assertParity("", 'verb=config rest="" lines=0')
+  assertParity("   ", 'verb=config rest="" lines=0')
+  -- `help` is where the index went, and it is an ordinary verb in both builds.
+  assertParity("help", 'verb=help rest="" lines=0')
 end)
 
 -- ── a string value keeps every word ────────────────────────────────────────────────

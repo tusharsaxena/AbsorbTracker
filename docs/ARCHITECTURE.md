@@ -264,7 +264,9 @@ to `Sl:OnSlash`, which hands the line straight to `LibKa0s-Slash-1.0`. The libra
 the verb — preserving case in the remainder, so schema paths and profile names survive — and looks it
 up in the ordered `NS.COMMANDS` table this addon passed in. Seventeen verbs, of which `profile`
 carries a sub-verb table of its own (`PROFILE_VERBS`, dispatched at `settings/Slash.lua:416`) and
-`perf`, `debug` and `toggle` each parse a token.
+`perf`, `debug` and `toggle` each parse a token. A bare `/at`, empty or whitespace-only, runs the
+`config` verb and opens the settings panel on its landing page; `/at help` prints the command list
+(slash-commands-§4).
 
 **Schema paths are fully qualified.** `/at set units.target.barWidth 250` works; the pre-1.9
 unqualified `/at set barWidth 250` is rejected, because `FindSchemaRow` has no bare-key row for a

@@ -17,8 +17,8 @@ that covers the pure logic; this suite covers everything that only runs against 
 5a. **Secret-in-combat + debug on (regression).** `/at debug on`, enter combat, gain/consume absorbs → **zero Lua errors** (no `invalid value (secret) … for 'concat'`). Per-event/per-repaint logging is coalesced (`debug-logging-§9`): no `[Absorb]`/repaint line fires per event in combat since the value is a secret there; leave combat → one `[Combat] left: N events, M repaints` rollup line appears, with `final=<value>` only if the post-combat read happens to be non-secret (otherwise counts only, no `final=`), and the **bar keeps updating** throughout. Leave combat, `/at debug off`, re-enter combat → bar still updates. (Pre-fix this froze the bar until `/reload`.)
 
 ### B. Slash surface
-6. `/at` alone → help block (version line + command list).
-7. `/absorbtracker` → identical help block.
+6. `/at` alone → the settings panel opens on the **Ka0s Absorb Tracker** landing page (the About page, not a sub-page), tree expanded; no help block prints. `/at` followed by only spaces → the same. In combat → the single gray refusal line and no panel.
+7. `/absorbtracker` → identical: the panel opens on the landing page.
 8. `/at help` → gold command + em-dash + white desc for all 17 verbs: help, config, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, perf, update, version, test, profile. `toggle` reads *"Toggle bars on or off — `/at toggle [player|target|focus]`"*, and `debug` reads *"Toggle the debug console — `on`/`off` enable/disable logging"* and `perf` reads *"Measure performance — try `/at perf` for the workflow"*.
 9. `/at wibble` → `unknown command 'wibble'` then help.
 10. `/at options` → opens the panel (back-compat alias for `config`).
@@ -171,7 +171,7 @@ into `libs/LibKa0s/`. Almost everything here is behavior the sections above alre
 whole point is that **none of it changed**. The three exceptions are marked ⚠ — those are *supposed
 to look different*, so check them against the expected output written here, **not against memory**.
 
-87. `/at` → the help index renders; **every** verb listed; gold command, white description, two-space chat indent. ⚠ `/at reset` now reads `reset <path>` — **the page form is gone from the help text**.
+87. `/at help` → the help index renders; **every** verb listed; gold command, white description, two-space chat indent. ⚠ `/at reset` now reads `reset <path>` — **the page form is gone from the help text**.
 88. `/at config` → the panel opens, the tree expands, **all three sub-pages present** (General/Appearance/Profiles). In combat → the single gray refusal line and **no panel**. ⚠ On the About page, the slash-command list now renders in the `/at help` colors: **brighter yellow** command, **white** description, em dash with a single space either side. (Pre-extraction these rows had their own coloring; they now go through `LibKa0s-Slash-1.0`'s one row formatter, so the About list and the help block cannot drift.)
 89. `/at debug` → the console opens: monospace, aligned columns, scrollbar and line counter present. `/at debug on` → green `ON` ack in chat, `[Debug] logging enabled`, then the `[Init]` line naming version, schema and profile. `/at debug off` → red `OFF`, and the disabled line still lands.
 90. Console header **Debug** toggle, **Clear**, **Copy** (Ctrl+C selects), **Esc** closes. Reopen → the buffer is intact.

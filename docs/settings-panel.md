@@ -85,7 +85,7 @@ three separate times over three copies of one piece of session state. options-ui
 picker belongs in the page's chrome band and that there must be exactly **one** of it. No path moved with
 them — a row's `page` is where it is *edited*, never where it is *stored*.
 
-`/at config` opens the parent page and expands the sub-page tree so every sub-page is visible at once. The user clicks the page they want from the tree.
+`/at config` opens the parent page and expands the sub-page tree so every sub-page is visible at once. The user clicks the page they want from the tree. A bare `/at` does the same, because the slash library runs the `config` verb for an empty line (slash-commands-§4); the command list moved to `/at help`.
 
 The parent and every sub-page register as **canvas-layout categories**: a custom Blizzard `Frame` is registered with `Settings.RegisterCanvasLayoutCategory` (parent) / `Settings.RegisterCanvasLayoutSubcategory` (each sub-page) and Blizzard renders it in its own settings panel slot. The schema-driven sub-pages (General / Appearance) lay out their schema rows as **AceGUI widgets** (`CheckBox` / `Slider` / `Dropdown` / `ColorPicker`) inside an AceGUI `ScrollFrame` parented to the page's `body` frame, under a pinned **chrome band** holding the page's tab strip and, on Appearance, the chrome block above it.
 
@@ -306,7 +306,7 @@ The user picks the sub-page they want from the expanded tree. There is no "defau
 
 ### The other door: the Blizzard AddOns sidebar
 
-`OpenOptionsPanel`'s gate covers `/at config`, `/at options` and any `/run` caller, because they all go through it. It does **not** cover the **Settings → AddOns** sidebar, and that is a second door into the same pages: Blizzard shows the canvas frame directly, so the panel's `OnShow` is the only code that runs. A page that parks its own `OnShow` is therefore ungated on the one path a player is most likely to take mid-pull, and all three of this addon's pages did exactly that until the `SetRenderer` adoption.
+`OpenOptionsPanel`'s gate covers a bare `/at`, `/at config`, `/at options` and any `/run` caller, because they all go through it. It does **not** cover the **Settings → AddOns** sidebar, and that is a second door into the same pages: Blizzard shows the canvas frame directly, so the panel's `OnShow` is the only code that runs. A page that parks its own `OnShow` is therefore ungated on the one path a player is most likely to take mid-pull, and all three of this addon's pages did exactly that until the `SetRenderer` adoption.
 
 Each page now declares its body through **`Helpers.SetRenderer(ctx, fn)`** (`libs/LibKa0s/Options.lua`) instead of setting `OnShow` itself. The library's `OnShow` builds the Defaults button, then — under `InCombatLockdown()` — closes the Settings window (`SettingsPanel:Close`), prints the same `lib.STRINGS.COMBAT_REFUSED` notice `/at config` prints, and returns without rendering. Closing the window is deliberate: a page that silently draws nothing reads as a broken addon. Nothing about the refusal is this addon's, including its wording — adopting the helper is the whole of the fix, which is why no page carries a copy of the guard.
 

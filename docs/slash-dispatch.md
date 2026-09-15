@@ -13,7 +13,7 @@ parse one word. The trigger fires on either half.
 
 ## Registration
 
-`Sl:Register` (`settings/Slash.lua:529`) registers both names through AceConsole-3.0, called once
+`Sl:Register` (`settings/Slash.lua:539`) registers both names through AceConsole-3.0, called once
 from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:44`, guarded so a load where
 `settings/Slash.lua` never ran degrades rather than errors):
 
@@ -69,7 +69,8 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 
 | Command | Handler | Behavior |
 |---|---|---|
-| `/at` (no args) / `/at help` | `cli:PrintHelp` (library) | Version header, then one row per `NS.COMMANDS` entry. |
+| `/at` (no args) | the `config` handler (library) | Runs `config` with an empty rest, so a bare `/at` opens the settings panel on its landing page (slash-commands-§4). Whitespace-only input counts as bare. The library prints help instead only for a host with no `config` verb, which is not this one. |
+| `/at help` | `cli:PrintHelp` (library) | Version header, then one row per `NS.COMMANDS` entry. |
 | `/at config` (alias `/at options`) | `NS.OpenOptionsPanel` (library) | Open the settings category. Combat-gated inside `OpenOptionsPanel`, so every caller is refused, not just this verb. The alias is declared on the descriptor's `aliases` map, not as a second row. |
 | `/at list` | `cli:CliList` | Every schema row and its current value, grouped by `groupKey` — `[appearance / player]` for a per-unit page, a bare `[general]` otherwise. |
 | `/at get <path>` | `cli:CliGet` | One row's stored value, in the same `key = value` shape `/at list` prints. |
@@ -171,7 +172,8 @@ generic dispatcher knows nothing about.
 ## When the library is absent
 
 `/at` is registered unconditionally, so something has to answer it. With `LibKa0s-Slash-1.0` missing,
-`settings/Slash.lua:436` installs a stand-in: dispatch and a plain help index still render, the host
+`settings/Slash.lua:436` installs a stand-in: dispatch and a plain help index still render, a bare
+`/at` still runs the `config` verb exactly as the library does, the host
 verbs — which never went to the library — keep working untouched, and each schema verb (`list`,
 `get`, `set`, `reset`, `resetall`) prints one honest line naming the missing library through
 `NS.LIBKA0S_MISSING`.

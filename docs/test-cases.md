@@ -171,10 +171,11 @@ badge and any count quoted in the docs must agree with it.
 - /at debug on writes an [Init] summary naming our version, schema and profile
 - the console checkbox label the library renders is prose, not its own STRINGS key
 
-### test_slash.lua (13)
+### test_slash.lua (14)
 
 - NS.Print survives AceConsole's embed and stays the [AT]-prefixed printer
-- bare /at prints the help index: header + one row per command
+- bare /at opens the settings panel through the config verb, not the help index
+- /at help prints the help index: header + one row per command
 - unknown verb prints 'unknown command' then the help index
 - /at version prints the addon version (slash-commands-§3)
 - /at get <path> dispatches to the schema read
@@ -586,7 +587,7 @@ badge and any count quoted in the docs must agree with it.
 - parity: both dispatchers fold the verb and preserve the rest's case
 - parity: both dispatchers resolve the `options` alias to `config`
 - parity: an unknown verb reaches no handler and prints the same shape in both
-- parity: a bare /at reaches no handler and prints help in both
+- parity: a bare /at reaches the config handler with an empty rest in both
 - /at set stores a multi-word string value whole
 
 ### test_widgets.lua (55)
@@ -702,7 +703,7 @@ badge and any count quoted in the docs must agree with it.
 | test_coresetup.lua | 5 |
 | test_mediasetup.lua | 10 |
 | test_debuglog.lua | 12 |
-| test_slash.lua | 13 |
+| test_slash.lua | 14 |
 | test_timer.lua | 12 |
 | test_perf.lua | 33 |
 | test_visibility.lua | 21 |
@@ -719,4 +720,4 @@ badge and any count quoted in the docs must agree with it.
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_eol.lua | 1 |
-| **Total** | **609** |
+| **Total** | **610** |
