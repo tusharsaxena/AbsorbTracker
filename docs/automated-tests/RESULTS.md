@@ -23,6 +23,7 @@ The **Tests** cell reads `passed/skipped/total`.
 
 | Run | Version | Lint w/e | Files | Tests | Perf | NLOC | Funcs | Avg NLOC | Avg CCN | Max CCN | CCN warn | Verdict |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
+| [`20260916-184524`](20260916-184524/) | 1.10.0 | 0/0 | 56 | 635/0/635 | pass | 10555 | 1479 | 6.5 | 1.7 | 14 | 0 | **green** |
 | [`20260916-094435`](20260916-094435/) | 1.10.0 | 0/0 | 54 | 610/0/610 | pass | 10092 | 1425 | 6.4 | 1.7 | 15 | 0 | **green** |
 | [`20260910-234511`](20260910-234511/) | 1.9.0 → 1.10.0 | 0/0 | 54 | 561/0/561 | pass | 9240 | 1266 | 6.6 | 1.7 | 15 | 0 | **green** |
 | [`20260908-180922`](20260908-180922/) | 1.9.0 | 0/0 | 53 | 557/0/557 | pass | 9043 | 1261 | 6.5 | 1.7 | 15 | 0 | **green** |
@@ -36,18 +37,18 @@ The **Tests** cell reads `passed/skipped/total`.
 
 ## Test suite
 
-**610 cases** — 610 passed, 0 failed, 0 skipped. The generated inventory
-[`20260916-094435/test-cases.md`](20260916-094435/test-cases.md) is the authority on which cases existed at this run;
+**635 cases** — 635 passed, 0 failed, 0 skipped. The generated inventory
+[`20260916-184524/test-cases.md`](20260916-184524/test-cases.md) is the authority on which cases existed at this run;
 `docs/test-cases.md` is that same list at HEAD.
 
-Moved **561 → 610** since the previous run.
+Moved **610 → 635** since the previous run.
 
 No case reported a `skip`, so passed and total agree and nothing in this row claims coverage
 that was not exercised.
 
 ## Lint
 
-**0 warnings / 0 errors over 54 files** (`luacheck .`).
+**0 warnings / 0 errors over 56 files** (`luacheck .`).
 
 Read that figure with its scope attached: `.luacheckrc` sets `exclude_files = { "libs/", "docs/audits/", "docs/reviews/", "_dev/", "tests/_kit/" }`, so those paths
 are not in it. A `0/0` that never moves is partly a statement about what was never looked at, which
@@ -56,14 +57,14 @@ is why the exclusion is restated on every run.
 ## Perf
 
 **6 scenarios** from `tests/perf.lua`; the measurements are in
-[`20260916-094435/perf.json`](20260916-094435/perf.json).
+[`20260916-184524/perf.json`](20260916-184524/perf.json).
 
 `perf` never fails a run and never blocks a commit — it is recorded, read and compared, not
 thresholded (`performance-§9`). It does gate the **tag** (`automated-tests-§3`).
 
 ## Complexity watch list
 
-Current as of [`20260916-094435`](20260916-094435/) — **this run's measurement, not its diff.** Max CCN **15** across 1425
+Current as of [`20260916-184524`](20260916-184524/) — **this run's measurement, not its diff.** Max CCN **14** across 1479
 functions, **0** of them warned on; 1 file(s) in the 1000–1500 band and 1 over the 1500 cap
 (`layout-§1`).
 
@@ -80,8 +81,8 @@ None.
 
 | Band | File | LOC | Disposition |
 |---|---|---|---|
-| 1000–1500 (on notice) | `tests/test_helpers.lua` | 1415 | **Peel next.** It crossed the 1400 line the previous disposition set as its trigger: 893 lines two runs ago, 1171 at `20260910-234511`, 1415 today. Still a flat list of independent helper cases at avg CCN 1.5, so the length is case count and not tangle — but the trigger has fired, and the agreed fix is to peel by helper group before it reaches the 1500 cap. ||
-| > 1500 (over cap) | `tests/test_slashcmds.lua` | 1539 | **Peel next — newly over cap.** It sat in the on-notice band from 1256 on [`20260804-233138`](20260804-233138/) through 1304 at [`20260910-234511`](20260910-234511/), and the slash/test-mode work took it to 1539, past the `layout-§1` cap. Its own disposition already named 1400 as the peel trigger, so this is the pre-agreed action arriving late rather than a new argument: avg CCN 1.2 over 172 functions, a flat list of independent cases, no tangle to unpick — peel by verb group. `layout-§1` gives an over-cap file three terminal states (peeled, issue-tracked, register-recorded); this run records it as owed a peel and it is not ratified as a deviation. |
+| 1000–1500 (on notice) | `tests/test_helpers.lua` | 1415 | **Peel next — carried forward, unchanged.** It crossed the 1400 line the previous disposition set as its trigger: 893 lines two runs ago, 1171 at [`20260910-234511`](20260910-234511/), 1415 at [`20260916-094435`](20260916-094435/) and 1415 again today — the file has not moved. Still a flat list of independent helper cases at avg CCN 1.5 over 137 functions, so the length is case count and dense defaulting, not tangled control flow. The trigger has fired and the agreed fix is unchanged: peel by helper group before it reaches the 1500 cap. |
+| > 1500 (over cap) | `tests/test_slashcmds.lua` | 1745 | **Peel next — now overdue.** It sat in the on-notice band from 1256 on [`20260804-233138`](20260804-233138/) through 1304 at [`20260910-234511`](20260910-234511/), crossed the `layout-§1` cap at 1539 on [`20260916-094435`](20260916-094435/), and the launcher and enable/disable work has since taken it to 1745 — a further 206 lines added while already over cap, with the peel its own disposition called for not yet done. Avg CCN 1.3 over 182 functions: a flat list of independent cases, dense defaulting rather than tangle, nothing to unpick — peel by verb group. `layout-§1` gives an over-cap file three terminal states (peeled, issue-tracked, register-recorded); it is still in none of them and `docs/ARCHITECTURE.md`'s `## Documented deviations` has no row for it, so this run records it as an owed peel that grew, not a ratified deviation. |
 
 `lizard` counts every `and`/`or` short-circuit as a decision, so in Lua a run of
 `t.k = rec.k or D.k` defaulting lines scores high with no visible branching at all: a large CCN
