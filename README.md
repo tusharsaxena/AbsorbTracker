@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-608%2F608_passing-green)
+![Tests](https://img.shields.io/badge/Tests-625%2F625_passing-green)
 
 Ka0s Absorb Tracker puts your absorb shields on screen as a movable bar. Every shield on the unit,
 added into one number, so a glance tells you how much damage you can eat before your health starts
@@ -68,6 +68,13 @@ units.target.useClassColorBar true`); the globals — `enabled`, `visibility`, `
 put the lot back and recenter them. `/at toggle` flips all the bars at once or one by name, `/at
 update` forces a repaint, `/at version` prints the installed version, and `/at profile` and `/at perf` each print their own verbs when run
 bare. Addon output arrives in chat behind a cyan `[AT]` tag.
+
+There is a **minimap button** too, wearing the addon's logo — left-click unlocks and re-locks the
+bars, right-click opens the settings panel, and you can drag it anywhere around the ring. If you run
+Titan Panel, Bazooka or ElvUI's data texts, the same plugin turns up there and behaves the same way.
+Untick **Minimap button** on **General ▸ Master controls** if you would rather not have it; it stays
+gone across profile switches. `/at disable` turns the addon off without uninstalling it, and
+`/at enable` brings it back — both still work with the addon off.
 
 Everything else is configuration, and it lives on the addon's own page under Settings → AddOns in
 game. Typing `/at` (or `/absorbtracker`) on its own opens that page, and `/at help` prints the full

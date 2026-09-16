@@ -6,7 +6,7 @@ row and key/value formatters, the `/at list` builder and the type-aware value pa
 the table it builds has to see every page's handlers — supplies the descriptor, owns the
 `NS.COMMANDS` table, and implements the verbs that are genuinely this addon's.
 
-This page exists because the verb set is no longer flat. Seventeen verbs is over
+This page exists because the verb set is no longer flat. Nineteen verbs is over
 `documentation-§3`'s eight, and four of them take a sub-verb or a token: `profile` dispatches through
 a table of its own, `perf` hands its remainder to the perf library, and `debug` and `toggle` each
 parse one word. The trigger fires on either half.
@@ -61,9 +61,9 @@ row that does not exist. `/at profile` repeats the rule one level down: `runProf
 profile names are case-sensitive and a folded name deletes or switches to the wrong profile.
 
 **Schema paths are fully qualified.** The pre-1.9 unqualified `/at set barWidth 250` is rejected:
-`FindSchemaRow` has no bare-key row for a per-unit setting. Only the seven unit-agnostic rows —
-`enabled`, `visibility`, `scale`, `alpha`, `locked`, `throttleWindow` and the session-only
-`state.debugConsole` — take a bare path.
+`FindSchemaRow` has no bare-key row for a per-unit setting. Only the eight unit-agnostic rows —
+`enabled`, `visibility`, `scale`, `alpha`, `locked`, `throttleWindow`, the session-only
+`state.debugConsole` and the global-store `global.minimap.hide` — take a bare path.
 
 ## The verbs
 
@@ -72,13 +72,14 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 | `/at` (no args) | the `config` handler (library) | Runs `config` with an empty rest, so a bare `/at` opens the settings panel on its landing page (slash-commands-§4). Whitespace-only input counts as bare. The library prints help instead only for a host with no `config` verb, which is not this one. |
 | `/at help` | `cli:PrintHelp` (library) | Version header, then one row per `NS.COMMANDS` entry. |
 | `/at config` (alias `/at options`) | `NS.OpenOptionsPanel` (library) | Open the settings category. Combat-gated inside `OpenOptionsPanel`, so every caller is refused, not just this verb. The alias is declared on the descriptor's `aliases` map, not as a second row. |
+| `/at enable` / `/at disable` | `setEnabled` | The reserved pair (slash-commands-§2), and **aliases rather than a second switch**: each writes the `enabled` path the Master controls tab's Enable checkbox writes, through the same `NS.SetByPath` seam, so the row's `onChange` runs whichever surface was used and neither surface can hold a different answer. No second key, no session flag. The echo is slash-commands-§5's single-line `path = value` form, read back from the store. **The pair is not one-way:** `enabled` gates `NS.ShouldShowBar`'s second rung and nothing else — nothing unloads, no event registration changes, and `OnInitialize` registers the chat command unconditionally — so a bare `/at`, `/at help`, `/at version` and `/at enable` itself all still answer with the addon off. |
 | `/at list` | `cli:CliList` | Every schema row and its current value, grouped by `groupKey` — `[appearance / player]` for a per-unit page, a bare `[general]` otherwise. |
 | `/at get <path>` | `cli:CliGet` | One row's stored value, in the same `key = value` shape `/at list` prints. |
 | `/at set <path> <value>` | `cli:CliSet` | Type-aware parse, then `NS.SetByPath` plus `NS.RefreshOptionsPanel` — the same seam the panel widget writes through. The echo **re-reads** what was stored, so a clamp is visible. |
 | `/at reset <path>` | `cli:CliReset` | Reset one row to its default via `NS.ApplyDefault`. A whole page is the panel's Defaults button, not a verb. |
 | `/at resetall` | `runResetAll` → `NS.Helpers.RestoreAllDefaults` | Reset the active profile to the shipped defaults. Shared with the panel's Reset All button and the popup; the acknowledgment sits **inside** the guard, so a load without `settings/OptionsSetup.lua` says it cannot rather than claiming success. |
 | `/at resetposition` | `runResetPosition` → `NS.Helpers.ResetAllPositions` | Clear every unit's saved position and re-anchor. Same guard, same reason. |
-| `/at lock` / `/at unlock` | inline | `NS.SetByPath("locked", …)`. |
+| `/at lock` / `/at unlock` | inline | `NS.SetByPath("locked", …)`. The launcher's LEFT-click is the third writer of the same path, through the same seam (launcher-§2 rung (b), `core/LauncherSetup.lua`). |
 | `/at toggle [player\|target\|focus]` | `runToggle` | Bare: flip **every** bar — all off if any is on, otherwise all on. With a unit token: that one bar. See the note below. |
 | `/at debug [on\|off]` | `runDebug` | Bare toggles the console **window**; `on`/`off` set session logging through `NS.DebugLog:SetEnabled`. |
 | `/at perf [sub]` | `runPerf` → `NS.Perf.OnCommand` | The guided perf run. Sub-verbs are the library's; see [performance.md](./performance.md). |

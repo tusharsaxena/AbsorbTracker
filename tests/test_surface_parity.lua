@@ -15,7 +15,7 @@
 --   * Where a member is live-only on purpose, it is named in the `ignore` set with the reason,
 --     because otherwise a deliberate omission and a bug read identically.
 --
--- THE THREE LIBRARY-BACKED SEAMS CALL THE KIT'S BY-NAME FORM — assertSurfaceParity(stub, major,
+-- THE FOUR LIBRARY-BACKED SEAMS CALL THE KIT'S BY-NAME FORM — assertSurfaceParity(stub, major,
 -- ignore), new at kit 15 and vendored by M4-01. What it changes is which keys of the live half get
 -- walked: the by-name form compares only Kit.publicMembers, which drops LibStub's own MAJOR, MINOR
 -- and MODULES and every `__`-prefixed key. Those are the library talking to itself across its own

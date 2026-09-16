@@ -83,19 +83,20 @@ upstream and re-vendor. `tests/_kit/` is vendored the same way (from LibKa0s/tes
 
 `libs/LibKa0s/LibKa0s.xml` loads eleven modules across sixteen files — Core, Env, Pool, Item, Media,
 Widgets, DebugLog, Slash, Launcher, Options (`Options` + `OptionsWidgets` + `OptionsTabs` +
-`OptionsCompose` + `OptionsScroll`) and Perf (`Perf` + `PerfPanel`). Pool, Item and Launcher came in
-with the payload and nothing binds them — they register and sit there. Widgets is not idle any
+`OptionsCompose` + `OptionsScroll`) and Perf (`Perf` + `PerfPanel`). Pool and Item came in with the
+payload and nothing binds them — they register and sit there. Widgets is not idle any
 more: `DebugLog` minor 12 draws its copy window with
 `LibKa0s-Widgets-1.0`'s `CopyWindow` and hard-floors on it (`NEEDS_WIDGETS = 7`,
 `libs/LibKa0s/DebugLog.lua:34`), so this addon reaches it through the console it does bind, never
-directly. Of the seven majors it binds by name, five take a descriptor;
+directly. Of the eight majors it binds by name, six take a descriptor;
 `LibKa0s-Media-1.0` and `LibKa0s-Env-1.0` do not — the first is a path resolver, the second a TOC
 manifest reader, and each seam (`core/MediaSetup.lua`, `core/EnvSetup.lua`) only has to tell it this
 addon's FOLDER name, which a vendored library cannot work out for itself. This addon binds them in
-seven seams: **`core/EnvSetup.lua`**, **`core/MediaSetup.lua`**,
+eight seams: **`core/EnvSetup.lua`**, **`core/MediaSetup.lua`**,
 **`core/CoreSetup.lua`**, **`core/DebugLogSetup.lua`**, **`core/PerfSetup.lua`**,
-**`settings/OptionsSetup.lua`** and **`settings/Slash.lua`** — the last being the one major wired
-without a separate setup file, because `NS.COMMANDS` has to stay host-owned anyway
+**`core/LauncherSetup.lua`**, **`settings/OptionsSetup.lua`** and **`settings/Slash.lua`** — the
+last being the one major wired without a separate setup file, because `NS.COMMANDS` has to stay
+host-owned anyway
 (`settings/UnitPanel.lua` then decorates `NS.Helpers` with the two pieces that did not
 generalize). Each seam MUST publish the same `NS` names whether the library
 loaded or not — that symmetry is what the rest of the addon codes against.

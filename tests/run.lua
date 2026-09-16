@@ -40,7 +40,7 @@ NS.CreateOptionsPanel()
 
 -- Where Kit.assertSurfaceParity's by-name form looks the LIVE half up (kit 15, vendored by M4-01).
 -- Registered explicitly, and the explicitness is the point. Kit.expose auto-wires the mock's
--- LibStub for a repo whose stubs mirror LIBRARY TABLES; all three of this addon's library-backed
+-- LibStub for a repo whose stubs mirror LIBRARY TABLES; all four of this addon's library-backed
 -- degradation stubs mirror an INSTANCE instead -- what `lib:New(descriptor)` returned. Left to the
 -- auto-wiring, "LibKa0s-Options-1.0" resolves the four-member library table (LAYOUT, New,
 -- PatchAlwaysShowScrollbar, STRINGS) rather than the surface the page files actually call, and

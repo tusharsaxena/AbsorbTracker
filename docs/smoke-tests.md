@@ -19,7 +19,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 ### B. Slash surface
 6. `/at` alone → the settings panel opens on the **Ka0s Absorb Tracker** landing page (the About page, not a sub-page), tree expanded; no help block prints. `/at` followed by only spaces → the same. In combat → the single gray refusal line and no panel.
 7. `/absorbtracker` → identical: the panel opens on the landing page.
-8. `/at help` → gold command + em-dash + white desc for all 17 verbs: help, config, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, perf, update, version, test, profile. `toggle` reads *"Toggle bars on or off — `/at toggle [player|target|focus]`"*, and `debug` reads *"Toggle the debug console — `on`/`off` enable/disable logging"* and `perf` reads *"Measure performance — try `/at perf` for the workflow"*.
+8. `/at help` → gold command + em-dash + white desc for all 19 verbs: help, config, enable, disable, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, perf, update, version, test, profile. `toggle` reads *"Toggle bars on or off — `/at toggle [player|target|focus]`"*, and `debug` reads *"Toggle the debug console — `on`/`off` enable/disable logging"* and `perf` reads *"Measure performance — try `/at perf` for the workflow"*.
 9. `/at wibble` → `unknown command 'wibble'` then help.
 10. `/at options` → opens the panel (back-compat alias for `config`).
 
@@ -437,6 +437,44 @@ stand-in to sign this off with, and **English steps are not sufficient** here �
 `ConsumableMaster` § 3c, where the numeric-subclass cases genuinely do stand in. Until the pass runs,
 the honest state of this section is unrun, and it is recorded that way rather than as coverage.
 
+### U. The launcher — the minimap button and the broker plugin (LibKa0s v1.39.0, launcher-§1–§4)
+
+The one section whose failures are all SILENT: a wrong icon path or a wrong TGA format draws nothing
+and raises nothing, and a second click implementation agrees with the first until the day it does
+not. Every step here is therefore a look, not a log line.
+
+1. **The AddOns list.** Log in, open the AddOns list at the character-select or in-game menu. Absorb
+   Tracker's row wears **this addon's own logo**, not a Blizzard icon and not a blank square. That is
+   `## IconTexture` reading `media/logos/absorbtracker.logo.128.tga`; a blank square means the file is
+   missing, the path is misspelled, or the TGA is RLE-compressed or 24-bit.
+2. **The button is there.** A button wearing the same logo sits on the minimap ring. Drag it around
+   the ring — it follows, and stays where you left it after a `/reload`. (That is LibDBIcon writing
+   `minimapPos` into `db.global.minimap`; if it snaps back, the launcher was handed a copy of that
+   table rather than the table itself.)
+3. **LEFT-click toggles the lock** — the bars become draggable and paint their placeholder fill, and
+   a second left-click pins them again. Exactly what **General ▸ Master controls ▸ Lock frame** does,
+   because it is the same write: open the panel, leave it open, and left-click the button — the
+   checkbox moves with it.
+4. **Left-click in combat is refused.** Pull something, and while locked, left-click the button: chat
+   says `Cannot unlock the bars during combat` and nothing unlocks. Re-locking mid-combat is always
+   allowed, so you can never be stranded unlocked.
+5. **RIGHT-click opens the settings panel**, on its landing page, wherever the left click sits.
+6. **The visibility row.** Untick **General ▸ Master controls ▸ Minimap button**: the button vanishes
+   **immediately**, not on the next reload. Tick it back: it returns, at the angle you dragged it to.
+7. **It survives a profile switch.** With the button hidden, switch profiles on the Profiles page.
+   The button stays hidden — it is installation furniture, not a profile setting.
+8. **Reset all settings does not bring it back.** With the button hidden, press **Reset all settings**
+   and confirm. Every bar setting returns to default; the button stays hidden.
+9. **A broker display, if you have one.** Install Titan Panel / Bazooka / use ElvUI's data texts and
+   add the *Absorb Tracker* plugin. It shows the same logo and the same label, and its row answers
+   the left and right clicks exactly as the minimap button does — because it is the same object.
+   There is deliberately **no setting** that hides the addon from a broker display; the display has
+   its own per-plugin toggle.
+10. **`/at enable` / `/at disable`.** `/at disable` echoes `enabled = false` and the bars stop
+    drawing. **Then check the way back is still open:** `/at` still opens the panel, `/at help` still
+    lists every verb, and `/at enable` turns it back on. That is the MUST slash-commands-§2 makes,
+    and the one that keeps the pair from being a one-way switch.
+
 ### Triage references (if a step fails)
 - Bootstrap / events / profile repaint — `core/AbsorbTracker.lua` (`OnEnable`, `OnProfileChanged`)
 - TOC metadata (the `/at version` string, the About page's Notes blurb) — `LibKa0s-Env-1.0` (`libs/LibKa0s/Env.lua`), wired by `core/EnvSetup.lua` as `NS.Meta` / `NS.Version`
@@ -449,6 +487,7 @@ the honest state of this section is unrun, and it is recorded that way rather th
 - Perf probe / suspend / capture ring / step panel — `LibKa0s-Perf-1.0` (`libs/LibKa0s/`), wired up by `core/PerfSetup.lua`; protocol in `docs/performance.md`
 - DB init + idempotent migration — `core/Database.lua`
 - Debug console — `LibKa0s-DebugLog-1.0` (`libs/LibKa0s/`), wired up by `core/DebugLogSetup.lua`
+- The minimap button, the broker plugin and the click rung — `LibKa0s-Launcher-1.0` (`libs/LibKa0s/Launcher.lua`), wired up by `core/LauncherSetup.lua`; the icon file itself is `media/logos/absorbtracker.logo.128.tga` and the visibility row's inversion is in `core/Data.lua`
 - LSM border alignment fix — `LibKa0s-Options-1.0` (`libs/LibKa0s/Options.lua`, `lib.__PatchLSM30Border`), called from `settings/OptionsSetup.lua`'s live arm
 - Class-color-aware getters and the frame-alpha clamp — `core/Data.lua` (`GetBarColor`/`GetBgColor`/`GetBorderColor`/`GetFontColor`, all through one `resolveColor`; `GetBarAlpha`)
 - Mirror resolution / `CopyFromPlayer` / per-unit position — `core/Units.lua`

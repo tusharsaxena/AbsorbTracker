@@ -4,7 +4,7 @@ Recipes for the routine modifications. For deeper context on any module, see [mo
 
 ## Add a new setting (General page — a flat, unit-agnostic global)
 
-This recipe is for a **flat** setting like `locked` / `visibility` / `throttleWindow` — one that governs all three bars at once and belongs on the General page. Note the one thing it is **not** for: the eight rows of the **Master controls** tab are options-ui-§15's canonical set, emitted by `H.MasterControls`, and that set may not be reordered, renamed or added to. For a Appearance appearance setting that should exist per unit, see [Add a per-unit setting](#add-a-per-unit-setting) below instead.
+This recipe is for a **flat** setting like `locked` / `visibility` / `throttleWindow` — one that governs all three bars at once and belongs on the General page. Note the one thing it is **not** for: the seven rows of the **Master controls** tab are options-ui-§15's canonical set, emitted by `H.MasterControls`, and that set may not be reordered, renamed or added to. For a Appearance appearance setting that should exist per unit, see [Add a per-unit setting](#add-a-per-unit-setting) below instead.
 
 The schema-driven design makes a flat setting a one-row change. The widget on the General sub-page AND the `/at set <path>` CLI come for free.
 
