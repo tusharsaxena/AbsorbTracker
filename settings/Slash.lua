@@ -112,6 +112,68 @@ NS.COMMANDS = {
         function(rest) runProfile(rest) end},
 }
 
+-- ── the disabled gate (slash-commands-§2) ──────────────────────────────────────────────────────
+--
+-- A disabled addon ANSWERS a feature verb rather than acting on it. Acting is wrong twice over: the
+-- player asked for something the addon is currently standing down from doing, and a silent no-op
+-- leaves them with no clue why nothing happened. One tagged line naming `/at enable`, and nothing
+-- else — no partial work, no side effect, no second line, because a paragraph explaining the state
+-- is a lecture stapled to a command the player is about to re-run anyway.
+--
+-- IT IS A SHOULD, and this addon takes it.
+--
+-- WHAT STAYS LIVE IS NAMED ONCE, AS DATA, AND IT IS THE LIVE SET RATHER THAN THE GATED ONE. That
+-- polarity is the whole design: the gate is applied to every verb NOT in this table, so a verb added
+-- to NS.COMMANDS tomorrow is gated by DEFAULT and has to argue its way onto this list. A per-verb
+-- guard pasted into each handler is a dozen places to forget, and the thirteenth verb forgets it for
+-- free.
+--
+-- slash-commands-§2 names the first twelve, and the reasoning is that a player must be able to READ
+-- AND REPAIR SETTINGS, and to reach the panel, while the addon is off — which is precisely when they
+-- are most likely to need to — and `enable` above all, or the pair is one-way. `debug` and `perf`
+-- are diagnostics rather than features: the usual reason to reach for either is that the addon is
+-- misbehaving.
+--
+-- THE LAST TWO ARE THIS ADDON'S OWN READING, not the standard's list, and each is here because it
+-- fails §2's own definition of a feature verb — it neither draws, shows, hides, tracks, records,
+-- tests, clears nor exports anything — while sitting squarely in the interest the live list protects:
+--
+--   `resetposition`  is `reset` for the one piece of stored state no schema row addresses
+--                    (`units.<unit>.position`, architecture-§5's named non-setting state). Refusing
+--                    it would withhold from a bar's anchor the repair the schema CLI guarantees for
+--                    every value beside it, purely because of where that anchor is stored.
+--   `profile`        is settings management — list, switch, copy, create, delete, reset. A player
+--                    who turned the addon off to get out from under a broken profile is exactly the
+--                    player who needs to switch away from it.
+local ALWAYS_LIVE = {
+    help     = true, config   = true, version = true,
+    enable   = true, disable  = true,
+    debug    = true, perf     = true,
+    get      = true, set      = true, list = true, reset = true, resetall = true,
+    resetposition = true, profile = true,
+}
+
+-- The refusal, routed through NS.L (localization-§1) so the one line a disabled addon says is not
+-- the one line a translator cannot reach. The key is the English source string (localization-§2).
+local DISABLED = "Absorb Tracker is disabled \226\128\148 /at enable turns it back on"
+
+-- THE GATE, IN ONE PLACE. Every verb is dispatched by reading `entry[3]` out of this table, so
+-- wrapping the handlers here is the same as wrapping the dispatcher — and it is the only seam that
+-- works, because the dispatcher itself is LibKa0s-Slash-1.0's and this addon does not own it.
+--
+-- Reads the live value at CALL time rather than closing over it, and refuses only on an explicit
+-- `false`: a build with no db at all reads the declared default through NS.GetSetting's fallback,
+-- and a launcher-less, panel-less install must not have its verbs silently taken away too.
+for _, entry in ipairs(NS.COMMANDS) do
+    if not ALWAYS_LIVE[entry[1]] then
+        local act = entry[3]
+        entry[3] = function(rest)
+            if NS.GetSetting("enabled") == false then return print(NS.L[DISABLED]) end
+            return act(rest)
+        end
+    end
+end
+
 -- ---------------------------------------------------------------------
 -- /at help
 -- ---------------------------------------------------------------------

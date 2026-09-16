@@ -264,7 +264,7 @@ Registered via AceConsole in `settings/Slash.lua`: `/at` and the alias `/absorbt
 to `Sl:OnSlash`, which hands the line straight to `LibKa0s-Slash-1.0`. The library lowercases only
 the verb — preserving case in the remainder, so schema paths and profile names survive — and looks it
 up in the ordered `NS.COMMANDS` table this addon passed in. Nineteen verbs, of which `profile`
-carries a sub-verb table of its own (`PROFILE_VERBS`, dispatched at `settings/Slash.lua:416`) and
+carries a sub-verb table of its own (`PROFILE_VERBS`, dispatched at `settings/Slash.lua:506`) and
 `perf`, `debug` and `toggle` each parse a token. A bare `/at`, empty or whitespace-only, runs the
 `config` verb and opens the settings panel on its landing page; `/at help` prints the command list
 (slash-commands-§4).
@@ -280,6 +280,17 @@ the `enabled` path the Master controls tab's Enable checkbox writes, through the
 seam, and hold no state of their own. The dispatcher survives the disabled state — `enabled` gates
 `NS.ShouldShowBar`'s second rung and nothing else, so no file unloads and the chat command is
 registered unconditionally — which is what keeps the pair from being one-way.
+
+**A disabled addon refuses a FEATURE verb, on one tagged line naming `/at enable`** (slash-commands-§2,
+a SHOULD this addon takes). Implemented **once**, by wrapping `entry[3]` for every verb not on the
+`ALWAYS_LIVE` list right after `NS.COMMANDS` is declared — not as a guard per handler. The polarity
+is what makes it hold: the **live** set is the data, so a verb added later is gated by default. Live
+are `help`, `config`, `version`, `enable`, `disable`, `debug`, `perf` and the schema CLI (`get`,
+`set`, `list`, `reset`, `resetall`) — the standard's own list, because a player must be able to read
+and repair settings and reach the panel while the addon is off — plus `resetposition` and `profile`,
+which are this addon's reading and are argued in [slash-dispatch.md](./slash-dispatch.md). Refusing
+are `lock`, `unlock`, `toggle`, `update` and `test`. The refusal line is the addon's **one** string
+routed through `NS.L`.
 
 The verb table, the sub-verb trees, the mirror note, the help convention and the degraded arm are in
 [slash-dispatch.md](./slash-dispatch.md).
@@ -403,7 +414,8 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
 - **Retail Midnight only** (Interface 120100); no game-flavor branching.
 - **English only** — a ratified decision, not an unfinished job: the row lives in
   [Documented deviations](#documented-deviations) below (`localization-§1`), which is its single home.
-  The `NS.L` seam is exported and `locales/enUS.lua` ships; no string is routed through it yet.
+  The `NS.L` seam is exported and `locales/enUS.lua` ships. Exactly **one** string is routed through
+  it — `settings/Slash.lua`'s disabled-verb refusal — and everything else is hardcoded English.
 - **Three bars — player, target, focus.** Group / raid / arena / boss units are out of scope
   ([scope.md](./scope.md)).
 
@@ -460,7 +472,7 @@ reads the register first and records a match as accepted rather than re-filing i
 | `events-frames-taint-§1` | `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` are registered on a private `CreateFrame` **per tracked unit** via `RegisterUnitEvent`, not through AceEvent-3.0 | Both events fire for every unit the client knows about; AceEvent shares one frame and structurally cannot `RegisterUnitEvent`, so it would pay a full C→Lua dispatch per unit only to discard all but ours. One frame each rather than packing tokens, because `RegisterUnitEvent` filters **at most two** tokens per registration. Argument in full below; filed as `AT-31` in `docs/audits/2026-08-05/` | 2026-07-14 | A client build where `RegisterUnitEvent` accepts more than two unit tokens |
 | `savedvariables-§1` | A **per-profile** `schemaVersion` stamp at `db.profile.schemaVersion`, alongside the account-wide stamp in `db.global` | The v3 lift — flat appearance keys onto `profile.units.<unit>` — is a per-profile mutation, and an account-wide flag structurally cannot gate one: a second pre-v3 profile would have its stored appearance stranded forever. Argument in full below | 2026-07-28 | AceDB gaining a per-profile version stamp of its own, or the last per-profile migration being retired |
 | `events-frames-taint-§8` (SHOULD half) | 18 chat lines in `settings/Slash.lua` and `settings/Schema.lua` pre-format their arguments — `print(("%s bar %s"):format(...))`, `print("Switched to profile '" .. name .. "'")` — instead of handing the parts to the shared printer as `print("fmt", a, b)` | **Re-graded, not deferred.** §8's pre-formatting MUST is now **scoped** to call sites whose arguments can reach a value read from one of the named combat-protected APIs (`UnitGetTotalAbsorbs`, `UnitHealth`/`UnitHealthMax`, threat, aura amounts); outside that trigger set it is a **SHOULD NOT**, because the risk is drift, not secrets. Every one of the 18 sites formats only values this addon owns — a version string, a unit label, a profile name, a user-typed test number, a schema path — so none is in the trigger set and none can be handed a secret. The two sites that DO read `UnitGetTotalAbsorbs` (`core/AbsorbTracker.lua:171`, `:243`) already pass their arguments to the sink unformatted and guard with `NS.IsConcatSafe`; the seam's own guarantee (library stringifier, `table.concat`-based probe) is untouched and unconditional. Filed as `AT-35` in `docs/audits/2026-08-05/` against the pre-scoping text | 2026-08-05 | Any of these lines gaining an argument that is, or derives from, a return value of one of §8's named APIs — that site converts as a MUST — or §8's trigger set growing to cover one of them |
-| `localization-§1` | This addon ships **English only**: the `NS.L` seam is exported and `locales/enUS.lua` ships, but user-facing strings are hardcoded English rather than routed through `NS.L` | A deliberate decision, not a backlog item. `localization-§3` names this one of the routing SHOULD's **two terminal compliant states** — English-only, recorded — so this row IS the compliant end state and an audit records it as accepted rather than re-filing the SHOULD. Both localization MUSTs are met unconditionally: the seam is exported and `enUS.lua` ships, carrying no dead keys. Filed as `AT-30` in `docs/audits/2026-08-05/`; deferred twice before as [PLAN-02](https://github.com/tusharsaxena/AbsorbTracker/issues/24), closed here | 2026-08-05 | The first non-English locale file added to `locales/` |
+| `localization-§1` | This addon ships **English only**: the `NS.L` seam is exported and `locales/enUS.lua` ships, but user-facing strings are hardcoded English rather than routed through `NS.L`. One exception, and it does not weaken the row: the disabled-verb refusal `slash-commands-§2` added is routed, because a recorded English-only decision is not a license to leave the seam unused (`localization-§3`) | A deliberate decision, not a backlog item. `localization-§3` names this one of the routing SHOULD's **two terminal compliant states** — English-only, recorded — so this row IS the compliant end state and an audit records it as accepted rather than re-filing the SHOULD. Both localization MUSTs are met unconditionally: the seam is exported and `enUS.lua` ships, carrying no dead keys. Filed as `AT-30` in `docs/audits/2026-08-05/`; deferred twice before as [PLAN-02](https://github.com/tusharsaxena/AbsorbTracker/issues/24), closed here | 2026-08-05 | The first non-English locale file added to `locales/` |
 
 **Retired on 2026-08-05** — four entries this register carried whose cited rule the standard has since
 changed, so the behavior is now permitted outright and a row for it reads as a deviation that is not

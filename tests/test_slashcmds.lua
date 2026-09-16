@@ -1583,3 +1583,163 @@ test("enable and disable hold no state of their own", function()
 
   slash("enable")
 end)
+
+
+-- ── the disabled gate (slash-commands-§2) ──────────────────────────────────────────────────────
+--
+-- A disabled addon answers a feature verb instead of acting on it, on ONE tagged line that names
+-- `/at enable`. The suite above pins the other half of §2 — that the dispatcher SURVIVES the
+-- disabled state — and these two rules pull against each other, which is why the live set is
+-- asserted as hard as the refusal: read literally, "refuse while disabled" takes the whole command
+-- surface down with it, `enable` included, and the pair becomes one-way again.
+
+-- The verbs that keep answering with the addon off. Twelve of the fourteen are slash-commands-§2's
+-- own list; `resetposition` and `profile` are this addon's reading, argued at the ALWAYS_LIVE table
+-- in settings/Slash.lua. Spelled out HERE rather than read off the production table, because a test
+-- that imports the answer it is checking asserts nothing.
+local LIVE_WHILE_DISABLED = {
+  help = true, config = true, version = true, enable = true, disable = true,
+  debug = true, perf = true,
+  get = true, set = true, list = true, reset = true, resetall = true,
+  resetposition = true, profile = true,
+}
+
+local REFUSAL = "Absorb Tracker is disabled"
+
+--- Run one verb with the addon off, with the panel-open call stubbed (a live `config` would
+--- otherwise reach the real Settings API mid-suite). Re-disables first, because two of the live
+--- verbs — `enable` and `resetall` — turn the addon back on as their whole job.
+local function slashWhileDisabled(verb)
+  NS.SetByPath("enabled", false)
+  local real = NS.OpenOptionsPanel
+  NS.OpenOptionsPanel = function() end
+  local out = slash(verb)
+  NS.OpenOptionsPanel = real
+  return out
+end
+
+test("every verb is either on the live list or refuses while disabled, and none is unclassified", function()
+  -- THE GATE IS ONE PLACE, and this is the case that says so from the outside: it walks the whole
+  -- COMMANDS table rather than a list of verbs someone remembered to add. A verb added tomorrow is
+  -- gated by DEFAULT (settings/Slash.lua wraps everything not in ALWAYS_LIVE), so the only way this
+  -- goes red is a real decision — and then it goes red until someone makes it deliberately.
+  --
+  -- red under: a per-verb guard, which would drift the moment the next verb is added; a gated verb
+  -- promoted to the live list without argument; any of §2's twelve losing its answer.
+  for _, entry in ipairs(NS.COMMANDS) do
+    local verb = entry[1]
+    local out = slashWhileDisabled(verb)
+    if LIVE_WHILE_DISABLED[verb] then
+      assertFalse(contains(out, REFUSAL),
+        "`/at " .. verb .. "` must keep answering while disabled: " .. joined(out))
+    else
+      assertEqual(#out, 1, "`/at " .. verb .. "` refuses on ONE line: " .. joined(out))
+      assertTrue(contains(out, REFUSAL), "`/at " .. verb .. "`: " .. joined(out))
+      assertTrue(contains(out, "/at enable"),
+        "the refusal must name the way back: " .. joined(out))
+    end
+  end
+  NS.SetByPath("enabled", true)
+end)
+
+test("the refusal carries the addon's tag and comes out of NS.L", function()
+  -- Routed rather than hardcoded (localization-§1), asserted by OVERRIDING the key and watching the
+  -- printed line move — a check that the string is merely spelled somewhere in locales/enUS.lua
+  -- would pass over a call site that never reads it.
+  local key = "Absorb Tracker is disabled \226\128\148 /at enable turns it back on"
+  rawset(NS.L, key, "UEBERSETZT")
+  local out
+  local ok, err = pcall(function() out = slashWhileDisabled("toggle") end)
+  rawset(NS.L, key, nil)
+  assertTrue(ok, tostring(err))
+  assertEqual(#out, 1)
+  assertTrue(out[1]:find("UEBERSETZT", 1, true) ~= nil,
+    "the refusal must be read through NS.L at call time: " .. joined(out))
+
+  -- And the tag, on the raw line: it is the addon's own printer, not a bare print().
+  local raw = capture(function() NS.SetByPath("enabled", false) NS.Slash:OnSlash("toggle") end)
+  assertEqual(#raw, 1)
+  assertTrue(raw[1]:find("[AT]", 1, true) ~= nil, "one TAGGED line: " .. raw[1])
+  NS.SetByPath("enabled", true)
+end)
+
+test("a refused `toggle` does not touch a single bar's enabled flag", function()
+  -- THE HALF A MESSAGE-ONLY CASE PASSES OVER. A verb that printed the refusal and then acted anyway
+  -- would satisfy every assertion above; what says it did nothing is the state it did not move.
+  --
+  -- red under: a gate that prints and falls through; a gate placed after the handler's own work.
+  local before = {}
+  for _, unit in ipairs(NS.Units.LIST) do before[unit] = NS.Units.IsEnabled(unit) end
+
+  local out = slashWhileDisabled("toggle")
+  assertTrue(contains(out, REFUSAL), joined(out))
+  for _, unit in ipairs(NS.Units.LIST) do
+    assertEqual(NS.Units.IsEnabled(unit), before[unit], unit .. " bar was flipped by a refused verb")
+  end
+
+  -- The per-unit form takes the same route and must be refused identically.
+  out = slashWhileDisabled("toggle target")
+  assertTrue(contains(out, REFUSAL), joined(out))
+  assertEqual(NS.Units.IsEnabled("target"), before.target)
+
+  NS.SetByPath("enabled", true)
+end)
+
+test("a refused `unlock` leaves the lock exactly where it was", function()
+  -- `lock` / `unlock` drive the addon's PREVIEW — the unlocked view is this addon's test mode
+  -- (options-ui-§15's exemption) — so they are feature verbs, and the launcher's left click sits on
+  -- the same state. Asserted at the SEAM as well as the value: the refusal must not reach
+  -- NS.SetByPath at all, or the row's onChange would fire its APPEARANCE and REPAINT for a write
+  -- that was refused.
+  NS.SetByPath("locked", true)
+  local real, seen = NS.SetByPath, 0
+  NS.SetByPath = function(path, value)
+    if path == "locked" then seen = seen + 1 end
+    return real(path, value)
+  end
+  local out = slashWhileDisabled("unlock")
+  NS.SetByPath = real
+
+  assertTrue(contains(out, REFUSAL), joined(out))
+  assertEqual(seen, 0, "a refused verb must not reach the write seam")
+  assertTrue(NS.GetSetting("locked"), "the bars are still locked")
+
+  NS.SetByPath("enabled", true)
+end)
+
+test("a refused `update` publishes nothing on the bus", function()
+  -- `update` exists to force a repaint, so "did not act" is exactly "did not publish".
+  --
+  -- The spy goes on AFTER the addon is disabled: writing `enabled` is itself a publish (the row's
+  -- onChange fires VISIBILITY then REPAINT), and catching the setup would read as the verb acting.
+  NS.SetByPath("enabled", false)
+  local real, sent = NS.bus.SendMessage, {}
+  NS.bus.SendMessage = function(self, msg, ...)
+    sent[#sent + 1] = msg
+    return real(self, msg, ...)
+  end
+  local out = slash("update")
+  NS.bus.SendMessage = real
+
+  assertTrue(contains(out, REFUSAL), joined(out))
+  assertEqual(#sent, 0, "a refused verb published: " .. table.concat(sent, ", "))
+
+  NS.SetByPath("enabled", true)
+end)
+
+test("a refused `test <value>` paints nothing and arms no hold", function()
+  -- The value hold is the one verb whose side effect is a TIMER: a gate that let the handler run
+  -- would leave a fake value on a bar for five seconds with no line saying why.
+  local real, armed = NS.HoldPreview, 0
+  NS.HoldPreview = function(...) armed = armed + 1 return real(...) end
+  local painted = NS.bars.player and NS.bars.player.valueText:GetText()
+  local out = slashWhileDisabled("test 123456")
+  NS.HoldPreview = real
+
+  assertTrue(contains(out, REFUSAL), joined(out))
+  assertEqual(armed, 0, "a refused verb armed the preview hold")
+  assertEqual(NS.bars.player and NS.bars.player.valueText:GetText(), painted,
+    "and it must not have painted the fake value either")
+
+  NS.SetByPath("enabled", true)
+end)

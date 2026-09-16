@@ -482,7 +482,7 @@ badge and any count quoted in the docs must agree with it.
 - the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
 - General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
 
-### test_slashcmds.lua (126)
+### test_slashcmds.lua (132)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -610,6 +610,12 @@ badge and any count quoted in the docs must agree with it.
 - /at disable echoes the stored value in the set shape, and /at enable undoes it
 - the pair is never one-way: the dispatcher still answers while the addon is disabled
 - enable and disable hold no state of their own
+- every verb is either on the live list or refuses while disabled, and none is unclassified
+- the refusal carries the addon's tag and comes out of NS.L
+- a refused `toggle` does not touch a single bar's enabled flag
+- a refused `unlock` leaves the lock exactly where it was
+- a refused `update` publishes nothing on the bus
+- a refused `test <value>` paints nothing and arms no hold
 
 ### test_widgets.lua (55)
 
@@ -735,7 +741,7 @@ badge and any count quoted in the docs must agree with it.
 | test_helpers.lua | 70 |
 | test_launcher.lua | 16 |
 | test_optionssetup.lua | 11 |
-| test_slashcmds.lua | 126 |
+| test_slashcmds.lua | 132 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 5 |
 | test_ltrap.lua | 8 |
@@ -743,4 +749,4 @@ badge and any count quoted in the docs must agree with it.
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_eol.lua | 1 |
-| **Total** | **629** |
+| **Total** | **635** |

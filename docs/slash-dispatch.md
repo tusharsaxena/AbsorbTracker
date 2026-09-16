@@ -29,7 +29,7 @@ to `DEFAULT_CHAT_FRAME`.
 
 ## The `COMMANDS` table
 
-`NS.COMMANDS` (`settings/Slash.lua:60`) is an ordered list of positional triples
+`NS.COMMANDS` (`settings/Slash.lua:61`) is an ordered list of positional triples
 `{name, description, fn(rest)}` — the shape the library reads as `entry[1]` / `[2]` / `[3]`. A table
 of named fields is silently invisible to it. The handler takes `rest` **alone**, never `self` plus
 `rest`.
@@ -42,6 +42,43 @@ plain data is what keeps them independent.
 
 Order in the table is the order of both `/at help` and the About page's command list. Adding a verb
 is one row, wherever it reads sensibly.
+
+### The disabled gate wraps this table, once
+
+`slash-commands-§2` says a **disabled** addon SHOULD answer a feature verb rather than act on it:
+one tagged line naming `/at enable`, and nothing else. This addon takes it.
+
+It is implemented **once**, immediately after the table is declared, by wrapping `entry[3]` for
+every verb that is not on a live list — not as a guard pasted into each handler, which would be a
+dozen places to forget and a thirteenth verb that forgets it for free. The wrap is the closest
+thing this addon has to the dispatcher itself: the dispatcher is `LibKa0s-Slash-1.0`'s and this
+addon does not own it, but every verb it dispatches is read out of `entry[3]` in this table.
+
+The polarity is deliberate. `ALWAYS_LIVE` names what keeps answering, so **a verb added tomorrow is
+gated by default** and has to argue its way onto the list:
+
+| Verb | Why it stays live |
+|---|---|
+| `help`, `config`, `version` | A player must be able to reach the panel and see what they are running while the addon is off. |
+| `enable`, `disable` | `enable` above all, or the pair is one-way — the standard MUSTs this one. |
+| `debug`, `perf` | Diagnostics, not features. The usual reason to reach for either is that the addon is misbehaving. |
+| `get`, `set`, `list`, `reset`, `resetall` | The schema CLI. Reading and repairing settings is exactly what a player does while the addon is off. |
+| `resetposition` | **This addon's own reading, not the standard's list.** It is `reset` for the one piece of stored state no schema row addresses (`units.<unit>.position`); refusing it would withhold from a bar's anchor the repair the CLI guarantees for every value beside it, purely because of where that anchor is stored. |
+| `profile` | **Also ours.** Settings management — list, switch, copy, create, delete, reset. A player who turned the addon off to get out from under a broken profile is the one who needs to switch away from it. |
+
+Everything else refuses: `lock`, `unlock`, `toggle`, `update`, `test`. Each draws, shows, hides or
+tests the thing the addon exists to do, which is `§2`'s own definition of a feature verb.
+
+The refusal reads the live value at **call** time and fires only on an explicit `false`, so a build
+with no database at all (`NS.GetSetting` falls back to the declared default) keeps every verb. It is
+the one string in this addon routed through **`NS.L`** (`locales/enUS.lua`, localization-§1/§2) —
+the line a player is guaranteed to meet at the moment they are least sure what is happening is the
+worst one to leave unreachable to a translator.
+
+`tests/test_slashcmds.lua` walks the whole `COMMANDS` table rather than a remembered list, so an
+unclassified verb goes red; and for each refusing verb it asserts **both** that the line was printed
+**and** that the state did not move — a case that only checks the message passes over a gate that
+prints and then acts anyway.
 
 Forward declarations above the table let it name handlers defined below it:
 
