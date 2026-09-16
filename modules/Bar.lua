@@ -75,6 +75,16 @@ function NS.CreateBar(unit, globalName)
     unitLabel:Hide()
     bar.unitLabel = unitLabel
 
+    -- CREATED HIDDEN, for the same reason the label above it is. CreateFrame returns a SHOWN
+    -- frame, and these three are built at file scope -- before a profile is read, before
+    -- RestoreBarPosition has run and before the show ladder has decided anything. So every login
+    -- and every /reload flashed three full blue bars stacked dead center on UIParent, at the
+    -- default CENTER anchor, until the first VISIBILITY message reached modules/Display.lua.
+    -- Owner-reported, and visible long enough to be screenshotted.
+    -- NS.ApplyVisibility is the ONLY thing that shows a bar (modules/Display.lua): starting hidden
+    -- makes that true at load as well as afterwards, rather than only afterwards.
+    bar:Hide()
+
     return bar
 end
 
