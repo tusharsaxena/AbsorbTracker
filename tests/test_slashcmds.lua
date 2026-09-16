@@ -1488,3 +1488,98 @@ test("/at set stores a multi-word string value whole", function()
   T.mocks.__fireTimers()
   assertEqual(NS.GetSetting(path), before, "the reset put the shipped value back")
 end)
+
+-- ── /at enable | /at disable (slash-commands-§2) ────────────────────────────────────
+
+test("/at enable and /at disable write the Enable row's OWN path, through the one seam", function()
+  -- THE RESERVED PAIR, and they are ALIASES rather than a second switch. The failure this case
+  -- exists to prevent is not "the verb does nothing" — it is a verb that keeps its own flag beside
+  -- the checkbox, so the panel says on and the addon is off (or the other way round) and neither
+  -- surface is wrong about itself.
+  --
+  -- Asserted at the SEAM, not at the value: a handler that wrote `db.profile.enabled` directly
+  -- would leave `enabled` reading the same and silently skip the row's onChange — VISIBILITY then
+  -- REPAINT (settings/General.lua) — so the bars would keep drawing after `/at disable`.
+  --
+  -- red under: a second stored key; a session flag; a handler that writes the profile itself; a
+  -- verb renamed or re-used for enabling a module or a unit (that is `/at toggle`'s job).
+  local real, seen = NS.SetByPath, {}
+  NS.SetByPath = function(path, value)
+    seen[#seen + 1] = { path = path, value = value }
+    return real(path, value)
+  end
+  local ok, err = pcall(function()
+    slash("disable")
+    slash("enable")
+  end)
+  NS.SetByPath = real
+  assertTrue(ok, tostring(err))
+
+  assertEqual(#seen, 2, "one write per verb, no more")
+  assertEqual(seen[1].path, "enabled", "/at disable writes the Enable row's own path")
+  assertEqual(seen[1].value, false)
+  assertEqual(seen[2].path, "enabled", "/at enable writes the same path")
+  assertEqual(seen[2].value, true)
+  assertTrue(NS.GetSetting("enabled"), "and the addon is back on")
+end)
+
+test("/at disable echoes the stored value in the set shape, and /at enable undoes it", function()
+  -- slash-commands-§5's single-line `path = value` form, read back from the STORE rather than from
+  -- the argument, so a coerced or refused write is what the player is told about.
+  local out = slash("disable")
+  assertFalse(NS.GetSetting("enabled"), "the addon is off")
+  assertTrue(contains(out, "enabled = false"), joined(out))
+
+  out = slash("enable")
+  assertTrue(NS.GetSetting("enabled"), "and on again")
+  assertTrue(contains(out, "enabled = true"), joined(out))
+end)
+
+test("the pair is never one-way: the dispatcher still answers while the addon is disabled", function()
+  -- slash-commands-§2 makes this a MUST, and the reason is blunt: an addon that unregisters its
+  -- chat command or drops its COMMANDS table when disabled has built a switch that only goes one
+  -- way — the player turns it off, and the verb that turns it back on no longer exists.
+  --
+  -- The dispatcher and the settings registration are SETUP, not features: they come up on load in
+  -- either state. In this addon `enabled` gates NS.ShouldShowBar's second rung and nothing else —
+  -- no file unloads and no event registration changes — which is what makes that true here.
+  --
+  -- red under: a `return` guard on `enabled` anywhere in Sl:OnSlash or the COMMANDS handlers; an
+  -- OnInitialize that registers the chat command conditionally; an `enable` verb that needs the
+  -- panel, which is the one place the player was trying not to go.
+  slash("disable")
+  assertFalse(NS.GetSetting("enabled"), "precondition: the addon is off")
+
+  -- A bare /at is the `config` verb (slash-commands-\194\1674), and it has to keep being that with
+  -- the addon off: it is the route to the checkbox the verbs alias.
+  local real, opened = NS.OpenOptionsPanel, 0
+  NS.OpenOptionsPanel = function() opened = opened + 1 end
+  local ok, err = pcall(slash, "")
+  NS.OpenOptionsPanel = real
+  assertTrue(ok, "a bare /at raised while disabled: " .. tostring(err))
+  assertEqual(opened, 1, "a bare /at still opens the settings panel while disabled")
+
+  local help = slash("help")
+  assertTrue(contains(help, "/at enable"), "`/at help` still lists the way back: " .. joined(help))
+  assertTrue(contains(help, "/at config"), joined(help))
+
+  assertTrue(contains(slash("version"), "v"), "`/at version` still answers")
+
+  local out = slash("enable")
+  assertTrue(NS.GetSetting("enabled"), "and `/at enable` itself works from the off state")
+  assertTrue(contains(out, "enabled = true"), joined(out))
+end)
+
+test("enable and disable hold no state of their own", function()
+  -- The other direction of the alias rule: writing the path by any OTHER route must move what the
+  -- verbs report, because there is only one record. Written here through the row's long name, which
+  -- slash-commands-§2 says an addon MAY accept as the same write.
+  slash("set enabled false")
+  assertFalse(NS.GetSetting("enabled"))
+  assertTrue(contains(slash("get enabled"), "enabled = false"))
+
+  NS.Helpers.RestoreDefaults("general")
+  assertTrue(NS.GetSetting("enabled"), "a page Defaults press moves the same one record")
+
+  slash("enable")
+end)

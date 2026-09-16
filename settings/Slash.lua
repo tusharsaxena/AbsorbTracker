@@ -56,12 +56,24 @@ end
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
 local runDebug, runUpdate, runTest, runProfile, runToggle, runPerf
+local setEnabled
 
 NS.COMMANDS = {
     {"help",          "List available commands",
         function() printHelp() end},
     {"config",        "Open the settings panel",
         function() NS.OpenOptionsPanel() end},
+    -- THE RESERVED PAIR (slash-commands-§2), and ALIASES rather than a second switch: both write
+    -- the `enabled` path the Master controls tab's `Enable Absorb Tracker` checkbox writes, through
+    -- the same NS.SetByPath seam, so the checkbox and the verbs can never show two answers.
+    --
+    -- Listed HERE, second and third, rather than down beside `lock`/`toggle`. The player most
+    -- likely to be reading `/at help` at all is the one who just turned the addon off and wants it
+    -- back, and a recovery verb below eleven others is a recovery verb they scroll past.
+    {"enable",        "Turn the addon on",
+        function() setEnabled(true) end},
+    {"disable",       "Turn the addon off \226\128\148 `/at enable` turns it back on",
+        function() setEnabled(false) end},
     {"list",          "List every setting and its current value",
         function() listSettings() end},
     {"get",           "Print a setting's current value \226\128\148 `/at get <path>`",
@@ -250,6 +262,33 @@ function runToggle(rest)
         NS.SetByPath("units." .. unit .. ".enabled", on)
     end
     print(on and "All bars shown" or "All bars hidden")
+end
+
+-- ── /at enable | /at disable ───────────────────────────────────────────────────
+--
+-- NO STATE OF THEIR OWN (slash-commands-§2): no second key, no session flag, no `NS.enabled` local.
+-- The one write goes through NS.SetByPath, which is the seam the Master-controls checkbox,
+-- `/at set enabled true` and the Defaults button all go through, so the row's `onChange` --
+-- VISIBILITY then REPAINT (settings/General.lua) -- runs whichever surface was used.
+--
+-- THE VERBS ARE NOT A SECOND DEFINITION OF *DISABLED* EITHER. `enabled` gates NS.ShouldShowBar's
+-- second rung and nothing else: no file unloads, no event registration changes, and the dispatcher
+-- is registered unconditionally in OnInitialize. That is what keeps the pair from being one-way --
+-- `/at`, `/at enable`, `/at help` and `/at config` all still answer with the addon off, which
+-- slash-commands-§2 makes a MUST because the alternative strands a player in a settings panel they
+-- were trying not to open. tests/test_slashcmds.lua pins it.
+--
+-- The echo is slash-commands-§5's `set` shape, read back from the STORE rather than from the
+-- argument, through the same formatter `/at get` and the [Set] debug line use. The colored pair is
+-- the library's; with the library absent it renders plainly, exactly as the degraded help rows do,
+-- rather than this file carrying a second copy of the color codes (testing-§8).
+function setEnabled(on)
+    NS.SetByPath("enabled", on)
+    if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
+    local row    = NS.FindSchemaRow("enabled")
+    local stored = NS.GetSetting("enabled")
+    local value  = row and NS.FormatSchemaValue(row, stored) or tostring(stored)
+    print(SlashLib.FormatKV and SlashLib.FormatKV("enabled", value) or ("enabled = " .. value))
 end
 
 function runUpdate()
