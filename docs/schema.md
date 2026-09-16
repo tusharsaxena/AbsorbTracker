@@ -245,7 +245,7 @@ Called once through the descriptor's `validate` hook (`settings/OptionsSetup.lua
 - the row is a table with a non-empty string `path`,
 - `page` is one of `general`, `appearance`, `profiles`,
 - `type` is one of `bool`, `number`, `string`, `color`,
-- **(Ka0s standard architecture-§5)** the `path` resolves against `NS.defaults.profile` via `NS.ResolvePath` — dotted per-unit paths (`units.target.barWidth`) walk the nested `units` table the same way flat paths (`locked`) index directly, so a typo anywhere in a per-unit path is caught the same as a flat one. Rows on the `profiles` page are exempt (their options are AceDBOptions-supplied).
+- **(Ka0s standard architecture-§5)** the `path` resolves against `NS.defaults.profile` via `NS.ResolvePath` — or, for a `global.` path, against `NS.defaults.global`, which is where launcher-§3 puts the minimap button's table and the only place it could be checked — — dotted per-unit paths (`units.target.barWidth`) walk the nested `units` table the same way flat paths (`locked`) index directly, so a typo anywhere in a per-unit path is caught the same as a flat one. Rows on the `profiles` page are exempt (their options are AceDBOptions-supplied).
 
 It returns **three** counts — `errors` (shape violations), `resolved` (paths found in `defaults.profile`), and `missing` (present rows whose `path` has no matching default). The validator only *prints* malformed rows through `NS.Print`; it never refuses to register.
 

@@ -356,12 +356,25 @@ local function _printSchemaError(prefix, msg)
     end
 end
 
+--- Whether a row's stored path resolves against the defaults table that actually holds it
+--- (architecture-§5). Almost every row means `defaults.profile`; a `global.` path means
+--- `defaults.global`, which is where launcher-§3 puts the minimap button's table and the only place
+--- it could be checked. Lifted out of the walk below rather than written inline: it is the one
+--- branch in this file with a second answer, and the walk was already at the complexity ceiling.
+local function pathResolves(row)
+    local key  = row.path
+    local root = (NS.defaults and NS.defaults.profile) or {}
+    if key:match("^global%.") then
+        root, key = (NS.defaults and NS.defaults.global) or {}, key:sub(8)
+    end
+    return NS.ResolvePath(root, key) ~= nil
+end
+
 --- Walk the assembled schema and surface any malformed row. Returns three counts for the test
---- harness to assert: shape `errors`, paths `resolved` against defaults.profile, and `missing`
---- paths (present rows whose path has no matching default).
+--- harness to assert: shape `errors`, paths `resolved` against the defaults that hold them, and
+--- `missing` paths (present rows whose path has no matching default).
 function NS.ValidateSchema()
     local errors, resolved, missing = 0, 0, 0
-    local defaults = (NS.defaults and NS.defaults.profile) or {}
     for i, row in ipairs(NS.Schema or {}) do
         local where = "row #" .. i .. " (" .. tostring(row.path or "<no path>") .. ")"
         if type(row) ~= "table" then
@@ -396,11 +409,7 @@ function NS.ValidateSchema()
             -- button's `global.minimap.hide` is the one such row today (launcher-§3), and checking
             -- it against defaults.profile would report a correctly-declared row as missing.
             if hasPath and row.page ~= "profiles" and not row.sessionOnly then
-                local root, key = defaults, row.path
-                if key:match("^global%.") then
-                    root, key = (NS.defaults and NS.defaults.global) or {}, key:sub(8)
-                end
-                if NS.ResolvePath(root, key) ~= nil then
+                if pathResolves(row) then
                     resolved = resolved + 1
                 else
                     _printSchemaError(where, "`path` does not resolve against defaults.profile")

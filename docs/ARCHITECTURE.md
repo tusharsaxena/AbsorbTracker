@@ -154,7 +154,7 @@ directly. So there is no registry writer and no registry load pass to name here.
 `units[unit]` in `core/Database.lua` (`MigrateProfileToV3`, `backfillUnitKeys`) is savedvariables-§1
 default-shape repair over that fixed list, not registry membership. Boot-time
 `NS.ValidateSchema` checks each row's shape (`page`/`type` enums, non-empty `path`) **and** that
-every `path` resolves against `NS.defaults.profile`; it returns `(errors, resolved, missing)` for
+every `path` resolves against `NS.defaults.profile` (a `global.` path resolves against `NS.defaults.global` instead — the minimap button's row is the only one, launcher-§3); it returns `(errors, resolved, missing)` for
 the test harness to assert (`sessionOnly` rows are exempt from the path check — their value is
 deliberately not in the profile). Row grammar detail: [schema.md](./schema.md).
 
