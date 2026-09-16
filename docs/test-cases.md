@@ -482,7 +482,7 @@ badge and any count quoted in the docs must agree with it.
 - the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
 - General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
 
-### test_slashcmds.lua (132)
+### test_slashcmds.lua (90)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -559,6 +559,24 @@ badge and any count quoted in the docs must agree with it.
 - /at set echoes the mirrored note alongside the value it just stored
 - /at list annotates only the mirrored units' appearance rows
 - the mirrored note keeps the Ka0s color scheme intact and stays subordinate
+- parity: both dispatchers fold the verb and preserve the rest's case
+- parity: both dispatchers resolve the `options` alias to `config`
+- parity: an unknown verb reaches no handler and prints the same shape in both
+- parity: a bare /at reaches the config handler with an empty rest in both
+- /at set stores a multi-word string value whole
+- /at enable and /at disable write the Enable row's OWN path, through the one seam
+- /at disable echoes the stored value in the set shape, and /at enable undoes it
+- the pair is never one-way: the dispatcher still answers while the addon is disabled
+- enable and disable hold no state of their own
+- every verb is either on the live list or refuses while disabled, and none is unclassified
+- the refusal carries the addon's tag and comes out of NS.L
+- a refused `toggle` does not touch a single bar's enabled flag
+- a refused `unlock` leaves the lock exactly where it was
+- a refused `update` publishes nothing on the bus
+- a refused `test <value>` paints nothing and arms no hold
+
+### test_perfcmds.lua (42)
+
 - /at perf (bare) reports status and prints usage
 - /at perf start starts a capture
 - /at perf start resets the counters from the previous capture
@@ -601,21 +619,6 @@ badge and any count quoted in the docs must agree with it.
 - /at perf finish resumes before it saves, so a later error cannot strand the addon
 - /at perf report opens the debug console when it is hidden
 - /at perf report marks itself reviewed exactly once
-- parity: both dispatchers fold the verb and preserve the rest's case
-- parity: both dispatchers resolve the `options` alias to `config`
-- parity: an unknown verb reaches no handler and prints the same shape in both
-- parity: a bare /at reaches the config handler with an empty rest in both
-- /at set stores a multi-word string value whole
-- /at enable and /at disable write the Enable row's OWN path, through the one seam
-- /at disable echoes the stored value in the set shape, and /at enable undoes it
-- the pair is never one-way: the dispatcher still answers while the addon is disabled
-- enable and disable hold no state of their own
-- every verb is either on the live list or refuses while disabled, and none is unclassified
-- the refusal carries the addon's tag and comes out of NS.L
-- a refused `toggle` does not touch a single bar's enabled flag
-- a refused `unlock` leaves the lock exactly where it was
-- a refused `update` publishes nothing on the bus
-- a refused `test <value>` paints nothing and arms no hold
 
 ### test_widgets.lua (55)
 
@@ -741,7 +744,8 @@ badge and any count quoted in the docs must agree with it.
 | test_helpers.lua | 70 |
 | test_launcher.lua | 16 |
 | test_optionssetup.lua | 11 |
-| test_slashcmds.lua | 132 |
+| test_slashcmds.lua | 90 |
+| test_perfcmds.lua | 42 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 5 |
 | test_ltrap.lua | 8 |

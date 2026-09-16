@@ -95,6 +95,9 @@ Kit.run{
     "test_launcher",
     "test_optionssetup",
     "test_slashcmds",
+    -- Peeled out of test_slashcmds when that file crossed the layout-§1 cap; it runs
+    -- straight after its sibling so the two halves stay adjacent in a red.
+    "test_perfcmds",
     "test_widgets",
     "test_docs",
     "test_ltrap",
