@@ -63,8 +63,8 @@ badge and any count quoted in the docs must agree with it.
 - each unit's row set for a page is the same size
 - the enable row is per-unit, lives on General, and survives mirroring
 - the Master controls tab is the canonical set, in order, and leads the General page
-- the Test mode row is session-only, on its own line, and never reaches the profile
-- Reset all settings ends test mode
+- there is no Test mode row beside Lock frame
+- Reset all settings returns the lock to its shipped default
 - the Bars tab is the three enable toggles then the throttle, under their own headings
 - the mirror row exists for target and focus but not the player
 - the mirror row is kept out of the auto-rendered body
@@ -239,7 +239,7 @@ badge and any count quoted in the docs must agree with it.
 - every perf step label the library renders is prose, not its own STRINGS key
 - Perf: the descriptor hands the library the FOLDER name, not just the frame name
 
-### test_visibility.lua (21)
+### test_visibility.lua (22)
 
 - ShouldShowBar: a disabled unit wins even in combat
 - ShouldShowBar: default (enabled, visibility=always) is shown
@@ -262,6 +262,7 @@ badge and any count quoted in the docs must agree with it.
 - combat rollup: OnLeaveCombat logs one [Combat] left summary with counts
 - OnAbsorbChanged is silent on an unchanged value (no per-event spam)
 - [Absorb] transition logs on a non-secret 0->nonzero change
+- ShouldShowBar: unlocking bypasses visibility entirely
 
 ### test_bus.lua (7)
 
@@ -308,7 +309,7 @@ badge and any count quoted in the docs must agree with it.
 - three bar frames exist and the player alias points at the player frame
 - each bar carries its own unit tag and its own backdrop table
 
-### test_display.lua (65)
+### test_display.lua (64)
 
 - RestoreBarPosition centers the bar when no position is saved
 - RestoreBarPosition restores the saved anchor verbatim
@@ -338,18 +339,17 @@ badge and any count quoted in the docs must agree with it.
 - the expiry timer clears the hold and republishes REPAINT
 - a hold that expires while unlocked falls back to the placeholder
 - ClearPreview reports whether a hold was actually live
-- test mode is off until something turns it on
-- test mode paints the placeholder on a LOCKED bar
-- a live repaint stands down in test mode even while locked
-- turning test mode on leaves the lock where it was
-- turning test mode off ends any /at test hold and restores live data
-- test mode shows a bar the visibility dropdown or a missing unit would hide
-- test mode does not override the addon-wide or per-unit switch
-- unlocking alone does not bypass the visibility dropdown
-- a hold that expires in test mode falls back to the placeholder
-- combat ends test mode, says so, and refreshes the panel
-- combat with test mode off says nothing and leaves the panel alone
-- test mode will not start in combat, and says why
+- there is no test-mode flag left behind the lock
+- a LOCKED bar does not preview
+- a live repaint stands down while unlocked
+- re-locking ends any /at test hold and restores live data
+- unlocking shows a bar the visibility dropdown or a missing unit would hide
+- unlocking does not override the addon-wide or per-unit switch
+- a hold that expires while unlocked falls back to the placeholder
+- combat re-locks the bars, says so, and refreshes the panel
+- combat with the bars already locked says nothing and leaves the panel alone
+- unlocking will not happen in combat, and says why
+- re-locking in combat is always allowed
 - the unit label follows the unit's own font face
 - UpdateBarAppearance re-applies the font from the profile
 - UpdateBarAppearance tolerates a nil fontFlags by passing an empty flag string
@@ -463,7 +463,7 @@ badge and any count quoted in the docs must agree with it.
 - the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
 - General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
 
-### test_slashcmds.lua (124)
+### test_slashcmds.lua (122)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -493,11 +493,9 @@ badge and any count quoted in the docs must agree with it.
 - /at set rejects a non-numeric value for a number setting
 - /at set writes a color from `r g b a` and echoes the STORED value
 - /at set accepts a bool written as a human word
-- bare /at test toggles test mode through the checkbox's seam
-- /at test on and /at test off set test mode rather than flip it
-- /at test in combat is refused, says why, and leaves test mode off
 - /at test with a word it does not know prints the usage and changes nothing
-- the test verb's help line names both forms
+- bare /at test prints the usage and toggles nothing
+- the test verb's help line describes the value hold, not a mode
 - /at test with a value refuses while every bar is disabled and says how to fix it
 - /at test paints the given value and arms the hold window
 - /at test with a value and no hold holds it for 5 seconds
@@ -706,13 +704,13 @@ badge and any count quoted in the docs must agree with it.
 | test_slash.lua | 14 |
 | test_timer.lua | 12 |
 | test_perf.lua | 33 |
-| test_visibility.lua | 21 |
+| test_visibility.lua | 22 |
 | test_bus.lua | 7 |
 | test_data.lua | 32 |
-| test_display.lua | 65 |
+| test_display.lua | 64 |
 | test_helpers.lua | 70 |
 | test_optionssetup.lua | 11 |
-| test_slashcmds.lua | 124 |
+| test_slashcmds.lua | 122 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 5 |
 | test_ltrap.lua | 8 |
@@ -720,4 +718,4 @@ badge and any count quoted in the docs must agree with it.
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_eol.lua | 1 |
-| **Total** | **610** |
+| **Total** | **608** |

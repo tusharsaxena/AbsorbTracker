@@ -172,15 +172,15 @@ for you; a hand-written pair must set it itself.
 The row's value is **not** in the profile and must never reach it. `core/Data.lua` keeps a small
 **session-settings registry** — `NS.RegisterSessionSetting(path, { get, set })` — and `NS.GetSetting`
 / `NS.SetSetting` check it before touching `db.profile`, so the panel widget, `/at get` and `/at set`
-all reach the live value down the same path every other row takes. There are two such rows, both
+all reach the live value down the same path every other row takes. There is one such row,
 on Master controls: `state.debugConsole`, the console toggle, bound to the `{ get, set }` pair
-`NS.DebugLog:ConsoleCheckbox()` answers, and `state.testMode`, test mode's switch, bound to
-`NS.State.testMode` in `settings/General.lua`. `NS.ValidateSchema` exempts these rows from the
-"path must resolve against `defaults.profile`" check — not being in the profile is the point of them
-— and `tests/test_schema.lua` exempts them from "every row declares a default", because there is
-nothing for a reset to restore such a row *to*. Test mode carries one anyway, `false`, because ending
-the mode is exactly what Reset all settings owes it; the default-parity case skips session rows, since
-`defaults.profile` holds nothing for them.
+`NS.DebugLog:ConsoleCheckbox()` answers. (`state.testMode` was the second until options-ui-§15
+exempted this addon from the Test mode row — unlocking already is the preview.)
+`NS.ValidateSchema` exempts such a row from the
+"path must resolve against `defaults.profile`" check — not being in the profile is the point of it
+— and `tests/test_schema.lua` exempts it from "every row declares a default", because there is
+nothing for a reset to restore a window's visibility *to*. The default-parity case skips session
+rows, since `defaults.profile` holds nothing for them.
 
 ## Public API
 
@@ -324,9 +324,8 @@ Appearance counts are **per unit** (the page renders one unit at a time behind t
 | `visibility` | string | `"always"` | `always` / `inCombat` / `outOfCombat` / `never` | **New, and it replaced a boolean.** When the addon's display is shown at all. `showOnlyInCombat` could only ever answer two of the four, so the row's stored *type* changed — carried across by `core/Database.lua`'s **v5** step (`true` → `"inCombat"`, `false` → `"always"`, on every profile in the store). `onChange` publishes `NS.MSG.VISIBILITY` (and `REPAINT` when the change makes a bar visible). Label "General visibility". **Master controls** tab, order 10. |
 | `scale` | number | `1.0` | 0.5 – 2 (step 0.05) | **New.** Addon-wide scale, applied as `bar:SetScale` in `NS.UpdateBarAppearance` — in the appearance pass rather than once at `CreateBar`, because it is a setting and a restyle has to re-apply it. Label "Master scale". **Master controls** tab, order 20. |
 | `alpha` | number | `1.0` | 0 – 1 (step 0.05) | **New.** Addon-wide opacity. **Not** the per-unit `barAlpha`: this one dims all three bars, and `NS.GetBarAlpha` **multiplies** the two so all three paint sites take the product. Label "Master alpha". **Master controls** tab, order 30. |
-| `locked` | bool | `false` | — | If true, no bar is movable, and the per-bar unit labels are hidden with it. `/at lock` / `/at unlock` flip this. Governs every unit. Label "Lock frame". **Master controls** tab, order 40. |
+| `locked` | bool | `false` | — | **The addon's one preview switch** (options-ui-§15, which exempts an addon whose unlocked view already is its preview from a Test mode row). If true, no bar is movable, the per-bar unit labels are hidden, and the bars show live data under the ordinary `visibility` / `UnitExists` rungs. If false, every bar is movable, every enabled bar paints the placeholder fill, live repaints stand down, and **rungs 3 and 4 of `NS.ShouldShowBar` are skipped**, so a target or focus bar shows with nothing targeted and under any `visibility` — the capability the removed Test mode row used to carry. `/at lock` / `/at unlock` flip this, entering combat forces it true (`OnEnterCombat`), and unlocking is refused in combat. Governs every unit. Label "Lock frame". **Master controls** tab, order 40. |
 | `state.debugConsole` | bool | *(none)* | — | **New as a row**, and `sessionOnly` — the value is the console *window's* visibility, answered by `NS.DebugLog:ConsoleCheckbox()` through `core/Data.lua`'s session-settings registry, never by `db.profile`. It was a bespoke `SessionCheckbox` injected via `pairWith`; being a row is what lets `/at get state.debugConsole` and `/at set state.debugConsole true` reach it. Carries no `default`: there is nothing for a reset to restore a window's visibility *to*. Label "Debug console". **Master controls** tab, order 50. |
-| `state.testMode` | bool | `false` | — | **New.** Test mode (preview-mode), `sessionOnly`: bound to `NS.State.testMode` through the session-settings registry, never `db.profile`, so it is off after every `/reload`. On, every enabled bar shows the placeholder fill whether or not the bars are locked, live repaints stand down, and target/focus bars skip the `visibility` and `UnitExists` rungs of `NS.ShouldShowBar`. The lock is untouched. Combat ends it (`OnEnterCombat`), a start in combat is refused, and the `false` default is what lets Reset all settings end it. Composed from `testModePath`, on its own line (`startsLine`), with this addon's own tooltip. Label "Test mode". **Master controls** tab, order 60. |
 | `units.<unit>.enabled` | bool | `true` (player) / `false` (target, focus) | — | Track and display absorbs for that unit — *which bars exist*, as distinct from the addon-wide `enabled` above it. One row per `NS.Units.LIST` entry, labeled "Enable Player/Target/Focus Bar", orders 10 / 20 / 30, on the **Bars** tab under `subgroup = "Tracked units"`, where they pair with each other rather than with a global. The **only** unit-scoped rows on this page: `alwaysPerUnit = true`, so they stay honored — and free of the `/at get` "(mirrored)" note — even while that unit mirrors the player. Target and focus additionally need `UnitExists` before the bar appears. |
 | `throttleWindow` | number | `0.1` | 0.05 – 1 s (step 0.05) | Fastest any bar repaints during a burst of changes, via `NS.RequestRepaint`'s trailing-edge one-shot AceTimer. Label "Update throttle (in sec)". Display hint `"%.2f sec"`. **Bars** tab, `subgroup = "Updates"`, order 40. It was the old Behavior tab's last survivor once lock moved to Master controls and the combat gate became `visibility`; a tab holding one control is a click that reveals one widget, so it merged into the tab whose subject contains it, under its own subsection heading. |
 

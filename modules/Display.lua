@@ -25,10 +25,10 @@ local LABEL_FONT_SIZE = 10
 
 -- ── preview mode (preview-mode) ─────────────────────────────────────────────────────────────
 --
--- Three things count as a preview here: the timed `/at test` fill, the unlocked state in which the
--- user is dragging the bars into place, and test mode (NS.State.testMode, Master controls' Test mode
--- row), which shows the same placeholder with the bars locked or not, until it is turned off or
--- combat starts.
+-- Two things count as a preview here: the timed `/at test <value>` fill, and the UNLOCKED state in
+-- which the user is positioning the bars. There were three until the Test mode row was removed
+-- (options-ui-§15); the lock is now the only switch, and entering combat re-locks so a fight always
+-- starts on live data.
 --
 -- PLACEHOLDER_FRACTION is how full an unlocked bar reads when nothing live has painted over it.
 -- Deliberately not 1.0: a full bar is indistinguishable from a real full-strength absorb, and the
@@ -43,11 +43,17 @@ local PLACEHOLDER_TEXT     = "Absorb"
 -- duration to be honored, so the hold now arms a one-shot that clears it and repaints.
 local previewTimer
 
---- True while the bars show the placeholder instead of live data: unlocked, or in test mode. The
---- one question all three preview sites ask (the appearance pass, the live repaint's stand-down and
---- the `/at test` expiry), so a way into preview that reached two of them could not strand the third.
+--- True while the bars show the placeholder instead of live data — which is exactly while they are
+--- UNLOCKED. The one question all three preview sites ask (the appearance pass, the live repaint's
+--- stand-down and the `/at test` expiry), so a way into preview that reached two of them could not
+--- strand the third.
+---
+--- There used to be a second way in, `NS.State.testMode`, and `options-ui-§15` now forbids it: an
+--- addon whose unlocked view already IS its preview omits the Test mode row, because two switches
+--- for one state is the finding (anti-pattern #80). What test mode did that unlocking did not —
+--- skip the visibility and unit-exists rungs of ShouldShowBar — unlocking now does, so nothing was
+--- lost with it.
 function NS.InPreview()
-    if NS.State and NS.State.testMode then return true end
     return not NS.GetSetting("locked")
 end
 
@@ -100,8 +106,8 @@ function NS.HoldPreview(seconds)
         previewTimer = NS.addon:ScheduleTimer(function()
             previewTimer = nil
             NS.ClearPreview()
-            -- The previews overlap: `/at test` can be run with the bars unlocked or in test mode,
-            -- and a repaint stands down in both (see NS.UpdateAbsorbBar). Publishing REPAINT alone
+            -- The previews overlap: `/at test <value>` can be run with the bars unlocked, and a
+            -- repaint stands down there too (see NS.UpdateAbsorbBar). Publishing REPAINT alone
             -- would therefore leave the fake value on the bar for good -- past the window this
             -- timer exists to enforce. Hand the bars back to the placeholder first; out of preview,
             -- this arm does not run and the repaint below restores live data as before.
@@ -229,8 +235,8 @@ function NS.UpdateBarAppearance(unit)
 
     -- Unlocked means "being positioned", and out of combat the bar the user is trying to grab is
     -- usually empty — a transparent strip with no text. Paint the placeholder fill so there is
-    -- something to see and drag (preview-mode). Test mode paints the same placeholder with the
-    -- bars locked. Leaving preview (re-locking, or turning test mode off) runs this same pass and
+    -- something to see and drag (preview-mode). Leaving preview — re-locking, whether by the player
+    -- or by combat starting — runs this same pass and
     -- does not repaint the placeholder; the REPAINT published beside it is what restores live
     -- data, and it can only paint because the bars are out of preview again (see UpdateAbsorbBar).
     if NS.InPreview() then NS.PaintPlaceholder(unit) end
@@ -271,14 +277,19 @@ end
 --   0. the perf probe's suspend switch
 --   1. the addon-wide `enabled` flag
 --   2. the per-unit `enabled` flag
---      (test mode answers true here, skipping 3 and 4)
+--      (UNLOCKED answers true here, skipping 3 and 4)
 --   3. the `visibility` dropdown
 --   4. for target/focus only, whether the unit exists
 --
--- Test mode skips exactly the two rungs that hide a bar the player has asked for: it exists so the
--- bars can be seen and placed, and out of combat with no target those are the two that hide them.
--- The rungs above it still win, because a disabled addon, a disabled bar or a perf suspend is not
--- something to preview. Unlocking does NOT skip them; the lock only makes the bars draggable.
+-- UNLOCKING skips exactly the two rungs that hide a bar the player has asked for: you unlock to see
+-- and place the bars, and out of combat with no target those are the two that hide them. The rungs
+-- above it still win, because a disabled addon, a disabled bar or a perf suspend is not something to
+-- preview.
+--
+-- This rung used to read `NS.State.testMode`, and moving it onto the lock is what let the Test mode
+-- row go (options-ui-§15). Unlocking previously made the bars draggable and painted the placeholder
+-- on whatever was already visible, which left the player unable to place a target bar with no
+-- target — the gap test mode existed to fill. One switch now does both halves.
 --
 -- Step 0 is what makes `/at debug perf suspend` airtight. Suspend could have hidden the bars
 -- imperatively, but then any later VISIBILITY publish — a combat transition, a target swap, a
@@ -299,7 +310,7 @@ function NS.ShouldShowBar(unit)
     if Perf.suspended then return false end
     if not NS.GetSetting("enabled") then return false end
     if not NS.Units.IsEnabled(unit) then return false end
-    if NS.State and NS.State.testMode then return true end
+    if not NS.GetSetting("locked") then return true end
     if not visibilityAllows() then return false end
     if unit ~= "player" and not UnitExists(unit) then return false end
     return true
@@ -313,7 +324,7 @@ local function visibilityReason(unit)
     if Perf.suspended then return "perf suspended" end
     if not NS.GetSetting("enabled") then return "addon disabled" end
     if not NS.Units.IsEnabled(unit) then return "unit disabled" end
-    if NS.State and NS.State.testMode then return "test mode" end
+    if not NS.GetSetting("locked") then return "unlocked" end
     if not visibilityAllows() then
         return "visibility=" .. NS.SafeToString(NS.GetSetting("visibility"))
     end
@@ -370,7 +381,7 @@ function NS.UpdateAbsorbBar(unit, parentBucket)
     end
 
     -- The other half of preview mode (preview-mode). Unlocked means the user is positioning the
-    -- bars, and in test mode they are being looked at; either way the appearance pass has painted
+    -- bars, so the appearance pass has painted
     -- the placeholder onto every one of them (NS.InPreview), and a live
     -- paint landing afterwards would replace it with an empty strip reading 0, which is the exact
     -- "nothing to grab" the placeholder exists to prevent.

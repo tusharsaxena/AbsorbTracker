@@ -12,18 +12,26 @@ local test, assertTrue, assertFalse = T.test, T.assertTrue, T.assertFalse
 -- now the PLAYER's own `enabled` flag — a step of the ladder in either case. The second used to be
 -- the `showOnlyInCombat` BOOLEAN; schema v5 replaced it with the four-value `visibility` dropdown
 -- (options-ui-§15), so it is a MODE STRING now and the two states it could express are two of four.
+-- LOCKED throughout, and that is load-bearing rather than incidental. The `visibility` dropdown and
+-- the unit-exists check are rungs 3 and 4 of the ladder, and UNLOCKING now short-circuits both
+-- (modules/Display.lua) -- that is what let the Test mode row go under options-ui-§15. So a case
+-- about what `visibility` decides has to hold the lock still, or it is measuring the bypass instead.
+-- The bypass has its own case at the bottom of this file.
 local function withState(enabled, visibility, inCombat, body)
   local savedEnabled    = NS.db.profile.units.player.enabled
   local savedVisibility = NS.GetSetting("visibility")
+  local savedLocked     = NS.GetSetting("locked")
   local savedICL        = T.mocks.InCombatLockdown
   local savedUAC        = T.mocks.UnitAffectingCombat
   NS.db.profile.units.player.enabled = enabled
   NS.SetSetting("visibility", visibility)
+  NS.SetSetting("locked", true)
   T.mocks.InCombatLockdown    = function() return inCombat end
   T.mocks.UnitAffectingCombat = function() return inCombat end
   local ok, err = pcall(body)
   NS.db.profile.units.player.enabled = savedEnabled
   NS.SetSetting("visibility", savedVisibility)
+  NS.SetSetting("locked", savedLocked)
   T.mocks.InCombatLockdown    = savedICL
   T.mocks.UnitAffectingCombat = savedUAC
   if not ok then error(err) end
@@ -335,4 +343,17 @@ test("[Absorb] transition logs on a non-secret 0->nonzero change", function()
   mocks.UnitGetTotalAbsorbs = savedAbs
   NS.State.debug = false
   mocks.__fireTimers()
+end)
+
+-- The other side of every case above: unlocking short-circuits rungs 3 and 4, so a `visibility` that
+-- hides the bar stops mattering the moment the player unlocks to position it. This is the capability
+-- the removed Test mode row used to provide, and the reason removing it cost nothing.
+test("ShouldShowBar: unlocking bypasses visibility entirely", function()
+  withState(true, "never", false, function()
+    assertFalse(NS.ShouldShowBar(), "locked, visibility=never hides it")
+    local savedLocked = NS.GetSetting("locked")
+    NS.SetSetting("locked", false)
+    assertTrue(NS.ShouldShowBar(), "unlocked, the same setting is bypassed so the bar can be placed")
+    NS.SetSetting("locked", savedLocked)
+  end)
 end)

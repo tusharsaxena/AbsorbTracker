@@ -94,7 +94,7 @@ NS.COMMANDS = {
         function() runUpdate() end},
     {"version",       "Print the addon version",
         function() print(("v%s"):format(NS.Version())) end},
-    {"test",          "Test mode \226\128\148 `/at test [on|off]`; `/at test <value> [secs]` holds a fake value",
+    {"test",          "Hold a fake absorb value on the bars \226\128\148 `/at test <value> [secs]`",
         function(rest) runTest(rest) end},
     {"profile",       "Profile management \226\128\148 try `/at profile` for the list",
         function(rest) runProfile(rest) end},
@@ -257,26 +257,15 @@ function runUpdate()
     print("Forced refresh")
 end
 
--- `/at test` is test mode (preview-mode): bare it toggles, `on`/`off` set it. It is the SAME state as
--- Master controls' Test mode checkbox and goes through the same seam, NS.SetByPath on the session
--- row settings/General.lua registers, so the row's onChange runs, a start in combat is refused by
--- the row's own set(), and combat ends it exactly as it ends the checkbox. A number first is the
--- older one-shot: that value painted on every visible bar and held for a few seconds.
-local TEST_MODE_PATH = "state.testMode"
-local TEST_USAGE = "Usage: /at test [on|off] toggles test mode; /at test <value> [secs] holds a fake value"
-
-local function runTestMode(word)
-    local on
-    if word == "" then on = not NS.GetSetting(TEST_MODE_PATH) else on = (word == "on") end
-    NS.SetByPath(TEST_MODE_PATH, on)
-    -- SetByPath does not refresh the panel (a widget write does that itself), so the verb does,
-    -- or an open Test mode box would lag the chat command.
-    if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
-    -- A refused start has already said why (the row's set()); claiming "on" after it would lie.
-    if NS.GetSetting(TEST_MODE_PATH) ~= on then return end
-    print(on and "Test mode on \226\128\148 placeholders on every enabled bar; combat turns it off"
-        or "Test mode off")
-end
+-- `/at test <value> [secs]` paints that value on every visible bar and holds it for a few
+-- seconds. It is a DIAGNOSTIC, not a visibility switch: it fakes an absorb amount so the bar's text,
+-- fill and abbreviation can be eyeballed without waiting for a real shield.
+--
+-- The `[on|off]` form is gone with test mode itself (options-ui-§15): this addon's unlocked view is
+-- its preview, so `/at unlock` and `/at lock` are the switch, and a second verb for the same state
+-- was the finding (anti-pattern #80). The value hold survives because it answers a different
+-- question and nothing else in the addon answers it.
+local TEST_USAGE = "Usage: /at test <value> [secs] holds a fake value on the bars"
 
 local function runTestHold(args)
     local n    = tonumber(args[1])
@@ -312,8 +301,8 @@ end
 function runTest(rest)
     local args = {}
     for w in (rest or ""):gmatch("%S+") do args[#args + 1] = w end
-    local word = (args[1] or ""):lower()
-    if word == "" or word == "on" or word == "off" then return runTestMode(word) end
+    -- A bare `/at test` used to toggle test mode and now has nothing to toggle, so it prints the
+    -- usage rather than silently doing nothing — a player with the old habit gets told what changed.
     if not tonumber(args[1]) then return print(TEST_USAGE) end
     runTestHold(args)
 end

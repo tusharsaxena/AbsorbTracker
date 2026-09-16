@@ -73,6 +73,10 @@ local H = NS.Helpers
 -- The console toggle's stored path, VERBATIM and unprefixed: session state lives outside the
 -- block's own prefix, and this is the literal the composer defaults to. Named once because the
 -- registration below has to spell the same string.
+-- Re-entrancy guard for the in-combat unlock refusal in the `locked` onChange below: the corrective
+-- NS.SetByPath fires that same onChange, which would test the combat condition again and recurse.
+local unlockGuard = false
+
 local DEBUG_CONSOLE_PATH = "state.debugConsole"
 
 -- Bind that path to the console WINDOW's own show/hide state rather than to the profile
@@ -83,38 +87,6 @@ local DEBUG_CONSOLE_PATH = "state.debugConsole"
 if NS.DebugLog and NS.DebugLog.ConsoleCheckbox then
     NS.RegisterSessionSetting(DEBUG_CONSOLE_PATH, NS.DebugLog:ConsoleCheckbox())
 end
-
--- Test mode (preview-mode, options-ui-§15): the row the composer emits from `testModePath`, bound
--- the same way as the console row, to NS.State.testMode rather than the profile. On until turned
--- off or until combat starts (core/AbsorbTracker.lua ends it); a start in combat is refused and the
--- box stays unticked, since the mode would end the moment it began. What the mode shows is
--- modules/Display.lua's (NS.InPreview, and the test-mode rung of NS.ShouldShowBar). `/at test [on|off]`
--- (settings/Slash.lua) writes this same path through NS.SetByPath, so chat and the box share one state.
-local TEST_MODE_PATH = "state.testMode"
-
--- Whether the last write actually moved the mode. NS.SetByPath runs the session set() below and then
--- the row's onChange back to back, so the onChange reads what the write did: a refused start, or a
--- Reset all settings that finds the mode already off, publishes nothing rather than a three-bar
--- restyle and a repaint for no change.
-local testModeMoved = false
-
-NS.RegisterSessionSetting(TEST_MODE_PATH, {
-    get = function() return NS.State.testMode == true end,
-    set = function(v)
-        local on = v and true or nil
-        if on and not NS.State.testMode and (UnitAffectingCombat("player") or InCombatLockdown()) then
-            print("Cannot start test mode during combat")
-            testModeMoved = false
-            return
-        end
-        testModeMoved = on ~= NS.State.testMode
-        NS.State.testMode = on
-    end,
-})
-local TEST_MODE_TIP = "Show a placeholder fill on every bar you have turned on, so you can see and "
-    .. "place them without waiting for an absorb. Target and focus bars show even with nothing "
-    .. "targeted or focused. The bars stay locked, and combat turns it off. The same as /at test "
-    .. "in chat."
 
 -- The canonical block. `defaults` names this addon's own starting values without changing any
 -- stored path: every leaf here already IS the path the composer derives, so `keys` is unnecessary
@@ -128,16 +100,12 @@ local masterRows, masterTail = H.MasterControls({
     -- field that silently REMOVES four mandated rows.
     frameless        = false,
     debugConsolePath = DEBUG_CONSOLE_PATH,
-    testModePath     = TEST_MODE_PATH,
     defaults         = {
         enabled    = flatDefaults.enabled,
         visibility = flatDefaults.visibility,
         scale      = flatDefaults.scale,
         alpha      = flatDefaults.alpha,
         locked     = flatDefaults.locked,
-        -- Not in flatDefaults: session state has no profile default. The composer gives the row
-        -- none, and without one Reset all settings could not end the mode (options-ui-§12).
-        testMode   = false,
     },
     -- The same shared helper `/at resetposition` calls, so the button and the slash verb can never
     -- diverge. They did once: the old body nil'd `db.profile.position`, the pre-v3 flat key the v3
@@ -181,10 +149,34 @@ local masterOnChange = {
     ["alpha"] = function() NS.bus:SendMessage(NS.MSG.APPEARANCE) end,
 
     ["locked"] = function()
+        -- THE ONE PREVIEW SWITCH (options-ui-§15). This addon ships no Test mode row: unlocking
+        -- already paints the placeholder, and since the visibility and unit-exists rungs of
+        -- NS.ShouldShowBar moved onto the lock, unlocking also shows a target or focus bar with
+        -- nothing targeted — which is the whole of what the removed row did. Two switches for one
+        -- state was the finding (anti-pattern #80).
+        --
+        -- UNLOCKING IS REFUSED IN COMBAT. That refusal came off the removed row, which would not
+        -- start in a fight because combat ended it the moment it began; combat now re-locks
+        -- (core/AbsorbTracker.lua), so the same reasoning lands here. Re-LOCKING is always allowed,
+        -- so this can never strand a player unlocked mid-fight. Enforced at the onChange rather
+        -- than in the verbs because this is the single seam every writer goes through, and
+        -- `unlockGuard` stops the corrective write re-entering it.
+        if not NS.GetSetting("locked") and not unlockGuard
+           and (UnitAffectingCombat("player") or InCombatLockdown()) then
+            unlockGuard = true
+            NS.SetByPath("locked", true)
+            unlockGuard = false
+            print("Cannot unlock the bars during combat")
+            if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
+            return
+        end
+
         -- Both directions of the lock end preview mode (preview-mode): re-locking drops any live
-        -- `/at test` hold so the bar returns to live data instead of keeping the fake value, and
-        -- unlocking drops it too so what the user drags is the placeholder fill. The APPEARANCE
-        -- pass is what paints, or stops painting, that placeholder.
+        -- `/at test <value>` hold so the bar returns to live data instead of keeping the fake
+        -- value, and unlocking drops it too so what the user drags is the placeholder fill. The
+        -- APPEARANCE pass is what paints, or stops painting, that placeholder — and it re-runs the
+        -- visibility ladder itself (NS.UpdateBarAppearance calls NS.ApplyVisibility), which is why
+        -- no separate VISIBILITY publish is needed even though the lock now decides which bars show.
         --
         -- Wired here rather than in the lock/unlock verbs because this is the single seam every
         -- writer goes through — the checkbox, `/at lock`, `/at unlock`, `/at set locked`,
@@ -209,23 +201,11 @@ local masterOnChange = {
     -- oversight and "fixes" it back.
     [DEBUG_CONSOLE_PATH] = function() end,
 
-    -- Entering or leaving test mode, the same three steps as the lock: drop any `/at test` hold,
-    -- restyle (which paints the placeholder, or stops painting it, and re-runs visibility), then
-    -- repaint, which is what puts live data back once the mode is off.
-    [TEST_MODE_PATH] = function()
-        if not testModeMoved then return end
-        testModeMoved = false
-        NS.ClearPreview()
-        NS.bus:SendMessage(NS.MSG.APPEARANCE)
-        NS.bus:SendMessage(NS.MSG.REPAINT)
-    end,
 }
 
 for _, row in ipairs(masterRows) do
     local fn = masterOnChange[row.path]
     if fn then row.onChange = fn end
-    -- The composer's tooltip is generic; this one says what the placeholders are here.
-    if row.path == TEST_MODE_PATH then row.tooltip = TEST_MODE_TIP end
 end
 
 NS.RegisterSchemaRows(masterRows)

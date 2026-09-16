@@ -378,88 +378,39 @@ end)
 
 -- ── /at test ───────────────────────────────────────────────────────────────────────
 --
--- Two forms. Bare or with `on`/`off` it is test mode, the same state as Master controls' Test mode
--- checkbox and through the same seam (NS.SetByPath("state.testMode", v)), so the box follows and
--- the combat refusal applies. With a number first it is the one-shot timed hold.
-
--- Run `body` with test mode forced off before and after, and the panel refresh counted.
-local function withTestModeOff(body)
-  NS.SetSetting("state.testMode", false)
-  local savedRefresh = NS.RefreshOptionsPanel
-  local refreshed = { n = 0 }
-  NS.RefreshOptionsPanel = function() refreshed.n = refreshed.n + 1 end
-  local ok, err = pcall(body, refreshed)
-  NS.RefreshOptionsPanel = savedRefresh
-  NS.SetSetting("state.testMode", false)
-  T.mocks.__fireTimers()
-  if not ok then error(err) end
-end
-
-test("bare /at test toggles test mode through the checkbox's seam", function()
-  withTestModeOff(function(refreshed)
-    local savedHold = NS.testHoldUntil
-    local seen = {}
-    local row = NS.FindSchemaRow("state.testMode")
-    local savedOnChange = row.onChange
-    row.onChange = function(v) seen[#seen + 1] = v; return savedOnChange(v) end
-    local ok, err = pcall(function()
-      local on = slash("test")
-      assertEqual(NS.GetSetting("state.testMode"), true, "bare /at test turns test mode on")
-      assertTrue(contains(on, "Test mode on"), joined(on))
-      local off = slash("test")
-      assertEqual(NS.GetSetting("state.testMode"), false, "and a second one turns it off")
-      assertTrue(contains(off, "Test mode off"), joined(off))
-    end)
-    row.onChange = savedOnChange
-    if not ok then error(err) end
-    assertEqual(#seen, 2, "both writes went through NS.SetByPath, which fires the row's onChange")
-    assertEqual(refreshed.n, 2, "an open panel's Test mode box follows each change")
-    assertEqual(NS.testHoldUntil, savedHold, "the toggle arms no timed hold")
-  end)
-end)
-
-test("/at test on and /at test off set test mode rather than flip it", function()
-  withTestModeOff(function()
-    slash("test on")
-    slash("test ON")
-    assertEqual(NS.GetSetting("state.testMode"), true, "on twice is still on")
-    slash("test off")
-    slash("test off")
-    assertEqual(NS.GetSetting("state.testMode"), false, "off twice is still off")
-  end)
-end)
-
-test("/at test in combat is refused, says why, and leaves test mode off", function()
-  withTestModeOff(function()
-    local savedUAC = T.mocks.UnitAffectingCombat
-    T.mocks.UnitAffectingCombat = function() return true end
-    local ok, out = pcall(slash, "test")
-    T.mocks.UnitAffectingCombat = savedUAC
-    if not ok then error(out) end
-    assertEqual(NS.GetSetting("state.testMode"), false, "the same refusal the checkbox gets")
-    assertTrue(contains(out, "Cannot start test mode during combat"), joined(out))
-    assertFalse(contains(out, "Test mode on"), "no claim of success for a refused start")
-  end)
-end)
+-- ONE form. `/at test <value> [secs]` paints a fake absorb amount on every visible bar and holds it
+-- for a few seconds -- a diagnostic, not a switch. The `[on|off]` form went with the Test mode row
+-- itself (options-ui-§15): this addon's unlocked view is its preview, so `/at unlock` / `/at lock`
+-- are the switch and a second verb for the same state was the finding (anti-pattern #80).
 
 test("/at test with a word it does not know prints the usage and changes nothing", function()
-  withTestModeOff(function()
-    local savedHold = NS.testHoldUntil
-    local out = slash("test wibble")
-    assertEqual(NS.GetSetting("state.testMode"), false)
-    assertEqual(NS.testHoldUntil, savedHold, "no hold either")
-    assertTrue(contains(out, "/at test"), joined(out))
-  end)
+  local savedHold = NS.testHoldUntil
+  local out = slash("test wibble")
+  assertEqual(NS.testHoldUntil, savedHold, "no hold")
+  assertTrue(contains(out, "/at test"), joined(out))
 end)
 
-test("the test verb's help line names both forms", function()
+-- A bare `/at test` used to toggle the mode. It now has nothing to toggle, and prints the usage
+-- rather than silently doing nothing, so a player with the old habit is told what changed.
+test("bare /at test prints the usage and toggles nothing", function()
+  local savedLocked = NS.GetSetting("locked")
+  local savedHold = NS.testHoldUntil
+  local out = slash("test")
+  assertEqual(NS.GetSetting("locked"), savedLocked, "the lock is the switch, and this is not it")
+  assertEqual(NS.testHoldUntil, savedHold, "no hold either")
+  assertTrue(contains(out, "/at test"), joined(out))
+end)
+
+test("the test verb's help line describes the value hold, not a mode", function()
   local desc
   for _, entry in ipairs(NS.COMMANDS) do
     if entry[1] == "test" then desc = entry[2] end
   end
-  assertTrue(desc and desc:find("Test mode", 1, true) ~= nil, tostring(desc))
-  assertTrue(desc:find("on|off", 1, true) ~= nil, desc)
-  assertTrue(desc:find("secs", 1, true) ~= nil, "the timed hold is still documented: " .. desc)
+  assertTrue(desc and desc:find("secs", 1, true) ~= nil, "the timed hold is documented: " .. tostring(desc))
+  assertFalse(desc:find("on|off", 1, true) ~= nil,
+    "the toggle form is gone with the Test mode row (options-ui-§15): " .. desc)
+  assertFalse(desc:find("Test mode", 1, true) ~= nil,
+    "and the help line must not advertise a mode the addon no longer has: " .. desc)
 end)
 
 test("/at test with a value refuses while every bar is disabled and says how to fix it", function()
@@ -500,7 +451,7 @@ test("/at test with a value and no hold holds it for 5 seconds", function()
   rawset(sb, "SetValue", nil)
   assertEqual(painted, 50000)
   assertEqual(NS.testHoldUntil, T.mocks.GetTime() + 5)
-  assertEqual(NS.GetSetting("state.testMode"), false, "the numeric form is the hold, not test mode")
+  assertEqual(NS.State.testMode, nil, "the numeric form is a hold, and there is no mode to enter")
   NS.ClearPreview()
 end)
 

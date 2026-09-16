@@ -216,17 +216,25 @@ end
 -- settings/OptionsSetup.lua) rather than deferring, so there
 -- is no combat-deferred /at config for OnLeaveCombat to replay — it only handles visibility now.
 function addon:OnEnterCombat()
-    -- Combat ends test mode (preview-mode), here at PLAYER_REGEN_DISABLED so the fight starts on
-    -- live data. Through the seam, so the row's onChange restores the bars exactly as the checkbox
-    -- does; then one line saying why, and a panel refresh so an open Test mode box unticks. The path
-    -- is the session row settings/General.lua registers.
-    if NS.State and NS.State.testMode then
-        NS.SetByPath("state.testMode", false)
-        NS.Print("Test mode off \226\128\148 combat started")
+    -- Combat RE-LOCKS the bars (preview-mode), here at PLAYER_REGEN_DISABLED so the fight starts on
+    -- live data. This used to end a separate test mode; since options-ui-§15 made the lock the only
+    -- preview switch, ending preview and locking are the same act. Through the seam, so the row's
+    -- onChange restores the bars exactly as the checkbox does; then one line saying why, and a panel
+    -- refresh so an open Lock frame box ticks.
+    --
+    -- EITHER/OR, not both. The re-lock goes through NS.SetByPath, whose `locked` onChange already
+    -- publishes APPEARANCE and REPAINT -- and the appearance pass calls NS.ApplyVisibility itself
+    -- (NS.UpdateBarAppearance), so visibility is re-evaluated on that path too. Publishing again
+    -- here would run the whole ladder over all three bars a second time on every pull that started
+    -- unlocked: six ApplyVisibility calls where three is the answer.
+    if not NS.GetSetting("locked") then
+        NS.SetByPath("locked", true)
+        NS.Print("Bars locked \226\128\148 combat started")
         if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
+    else
+        NS.bus:SendMessage(NS.MSG.VISIBILITY)
+        NS.bus:SendMessage(NS.MSG.REPAINT)
     end
-    NS.bus:SendMessage(NS.MSG.VISIBILITY)
-    NS.bus:SendMessage(NS.MSG.REPAINT)
     -- Reset the coalescing counters unconditionally (two assignments, harmless when debug is off)
     -- so a fight that began before `/at debug on` still yields an accurate leave-rollup instead of
     -- carrying stale residue from the previous debug-on combat.

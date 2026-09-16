@@ -84,7 +84,7 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 | `/at perf [sub]` | `runPerf` → `NS.Perf.OnCommand` | The guided perf run. Sub-verbs are the library's; see [performance.md](./performance.md). |
 | `/at update` | `runUpdate` | Publish `MSG.REPAINT`. |
 | `/at version` | inline | `v<version>` from `NS.Version()`. |
-| `/at test [on\|off]` / `/at test <value> [secs]` | `runTest` | Test mode. Bare, it toggles; `on`/`off` set it. Both write `NS.SetByPath("state.testMode", v)`, the seam Master controls' **Test mode** checkbox writes through, so the row's onChange runs, a start in combat is refused, combat ends it, and `NS.RefreshOptionsPanel` keeps an open box in step. A number first is the one-shot timed hold instead: that value painted on every visible bar and held by `NS.HoldPreview` for the seconds given (default 5), refused while every bar is disabled. Any other word prints the usage. |
+| `/at test <value> [secs]` | `runTest` | The one-shot timed hold, and the verb's only form: `<value>` painted on every visible bar and held by `NS.HoldPreview` for the seconds given (default 5), refused while every bar is disabled. A diagnostic, not a switch. The `[on\|off]` form went with the Test mode row under options-ui-§15 — `/at unlock` / `/at lock` are the preview switch — so a bare `/at test`, or any non-numeric word, prints the usage. |
 | `/at profile <sub> [name]` | `runProfile` | The sub-verb tree below. |
 
 ## The sub-verb trees

@@ -49,11 +49,13 @@ end)
 -- to no tab, and is drawn bespoke in the header.
 test("the page -> tab -> row-count partition is the designed one", function()
   local want = {
-    -- Master controls is FIRST and holds exactly the seven schema rows options-ui-§15 entitles this
-    -- addon to: enable, general visibility, master scale, master alpha, lock frame, debug console,
-    -- test mode. The two resets are the tab's closing BUTTON PAIR rather than rows, so they are not
-    -- counted here -- tests/test_widgets.lua is what pins them onto this tab.
-    { page = "general", unit = nil, tabs = { { "Master controls", 7 }, { "Bars", 4 } } },
+    -- Master controls is FIRST and holds exactly the six schema rows options-ui-§15 entitles this
+    -- addon to: enable, general visibility, master scale, master alpha, lock frame, debug console.
+    -- NOT test mode: §15 exempts an addon whose unlocked view already is its preview, which this one
+    -- is, and a seventh row here would be the duplicate switch anti-pattern #80 names. The two
+    -- resets are the tab's closing BUTTON PAIR rather than rows, so they are not counted here --
+    -- tests/test_widgets.lua is what pins them onto this tab.
+    { page = "general", unit = nil, tabs = { { "Master controls", 6 }, { "Bars", 4 } } },
     { page = "appearance", unit = "player", tabs = {
       { "Size", 2 }, { "Bar", 4 }, { "Background", 3 }, { "Border", 4 }, { "Text", 6 },
     } },
@@ -575,15 +577,18 @@ end)
 -- chose: the canonical set in the canonical order, composed by H.MasterControls and spliced at the
 -- HEAD of the general page so it is the first tab in the strip.
 --
--- The set is asserted WHOLE and in order. An addon may omit only the four frame-only rows and only
--- when it is frameless, and this one is not -- modules/Bar.lua calls SetMovable(true) on every bar
--- -- so all seven schema rows are here. The two resets are the tab's closing BUTTON PAIR rather than
--- rows; tests/test_widgets.lua pins those onto this group's afterGroup hook.
--- red under: a reordered composer, a `frameless = true` this addon is not entitled to, or a row
--- moved back to the tab it came from.
+-- The set is asserted WHOLE and in order. An addon may omit the four frame-only rows only when it is
+-- frameless, and this one is not -- modules/Bar.lua calls SetMovable(true) on every bar -- so those
+-- four are here. The Test mode row is the one legitimate omission: options-ui-§15 exempts an addon
+-- whose unlocked view already IS its preview, and unlocking here both paints the placeholder and
+-- short-circuits the visibility and unit-exists rungs of NS.ShouldShowBar. Six rows, not seven.
+-- The two resets are the tab's closing BUTTON PAIR rather than rows; tests/test_widgets.lua pins
+-- those onto this group's afterGroup hook.
+-- red under: a reordered composer, a `frameless = true` this addon is not entitled to, a row moved
+-- back to the tab it came from, or a Test mode row creeping back in beside the lock.
 test("the Master controls tab is the canonical set, in order, and leads the General page", function()
   local want = {
-    "enabled", "visibility", "scale", "alpha", "locked", "state.debugConsole", "state.testMode",
+    "enabled", "visibility", "scale", "alpha", "locked", "state.debugConsole",
   }
   local got, firstGroup = {}, nil
   for _, r in ipairs(NS.SchemaForPage("general")) do
@@ -609,36 +614,31 @@ test("the Master controls tab is the canonical set, in order, and leads the Gene
   NS.SetSetting("state.debugConsole", wasShown)
 end)
 
--- The Test mode row (options-ui-§15, preview-mode): composed from `testModePath`, directly after the
--- console on its own line, session-only, and defaulted so Reset all settings ends the mode.
--- red under: the row typed out by hand, a missing `default`, or its state stored in the profile.
-test("the Test mode row is session-only, on its own line, and never reaches the profile", function()
+-- The Test mode row's ABSENCE (options-ui-§15, preview-mode, anti-pattern #80). This addon is
+-- exempt: unlocking already is its preview, so a Test mode checkbox beside Lock frame would be two
+-- switches for one state. Asserted rather than left to the row-count case above, because a count
+-- that is right for the wrong reason (some other row removed, this one added) would still pass.
+test("there is no Test mode row beside Lock frame", function()
   local row = NS.FindSchemaRow("state.testMode")
-  assertTrue(row ~= nil, "Master controls has no Test mode row")
-  assertEqual(row.group, "Master controls")
-  assertEqual(row.type, "bool")
-  assertEqual(row.label, "Test mode")
-  assertEqual(row.sessionOnly, true)
-  assertEqual(row.startsLine, true, "the row sits on its own line below Lock frame / Debug console")
-  assertEqual(row.default, false, "without a default, Reset all settings could not end the mode")
-  assertTrue(type(row.tooltip) == "string" and row.tooltip:find("/at test", 1, true) ~= nil,
-    "the tooltip is this addon's, not the composer's generic one")
-
-  NS.SetSetting("state.testMode", true)
-  local on = NS.GetSetting("state.testMode")
-  local stored = NS.db.profile.state
-  NS.SetSetting("state.testMode", false)
-  assertEqual(on, true, "the path must round-trip through its session get/set pair")
-  assertEqual(stored, nil, "and must never reach db.profile")
+  assertTrue(row == nil, "options-ui-§15 exempts this addon; the lock is the only preview switch")
+  for _, r in ipairs(NS.SchemaForPage("general")) do
+    assertTrue(r.label ~= "Test mode",
+      "a row labeled Test mode is the duplicate switch anti-pattern #80 names")
+  end
 end)
 
-test("Reset all settings ends test mode", function()
-  NS.SetSetting("state.testMode", true)
+-- This case used to read "Reset all settings ends test mode". With the lock as the only preview
+-- switch the act changes sign, and deliberately so: `locked` is a PROFILE row whose shipped default
+-- is false, so the global reset returns the bars to the fresh-install state -- unlocked, every
+-- enabled bar on screen with its placeholder, ready to be positioned. That is the same thing a new
+-- install gets, which is what "restore defaults" is supposed to mean.
+test("Reset all settings returns the lock to its shipped default", function()
+  NS.SetSetting("locked", true)
   NS.Helpers.RestoreAllDefaults()
-  local on = NS.GetSetting("state.testMode")
-  NS.SetSetting("state.testMode", false)
+  local locked = NS.GetSetting("locked")
   T.mocks.__fireTimers()
-  assertEqual(on, false, "the global reset restores every session row, this one included")
+  assertEqual(locked, false, "the shipped default is unlocked, so a reset unlocks")
+  assertTrue(NS.InPreview(), "and unlocked is preview, so the placeholders come back with it")
 end)
 
 test("the Bars tab is the three enable toggles then the throttle, under their own headings",

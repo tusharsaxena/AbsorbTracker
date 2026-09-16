@@ -309,8 +309,10 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
 - **AceEvent** subscriptions (registered in `OnEnable`): `PLAYER_ENTERING_WORLD` (`OnEnterWorld` →
   publishes `VisibilityChanged` + `RepaintRequested`), the combat-state pair
   `PLAYER_REGEN_DISABLED` (`OnEnterCombat`) / `PLAYER_REGEN_ENABLED` (`OnLeaveCombat`) — each
-  publishes `VisibilityChanged` (the `visibility` gate) and `RepaintRequested`, and `OnEnterCombat`
-  first ends test mode if it is on (preview-mode). These three
+  publishes `VisibilityChanged` (the `visibility` gate) and `RepaintRequested` — except that
+  `OnEnterCombat` **re-locks** the bars first if they are unlocked (preview-mode), and then
+  publishes neither, because the `locked` onChange already publishes `AppearanceChanged` (which
+  re-runs the ladder) and `RepaintRequested`. These three
   are global, payload-free events with no unit to filter, so they stay on AceEvent unconditionally.
 
   `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` (both → `OnUnitSwap`, which publishes
