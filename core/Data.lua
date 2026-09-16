@@ -56,11 +56,37 @@ function NS.RegisterSessionSetting(path, spec)
     sessionSettings[path] = spec
 end
 
+-- ── the minimap button's one boolean (launcher-§3) ───────────────────────────────────────
+--
+-- C.MINIMAP_PATH is the ONE path in this addon whose stored value is not in the profile and is not
+-- session state: it is LibDBIcon's own `hide` key, in the GLOBAL store, and LibDBIcon writes it too
+-- (core/Constants.lua says why it lives there and why the sense is inverted). So the two accessors
+-- below branch on it exactly as they branch on a session setting -- one path, resolved before the
+-- profile is ever consulted, because `db.profile.global.minimap.hide` is nowhere and the fallback
+-- to NS.flatDefaults would answer nil for a row the panel draws.
+--
+-- NOT registered through NS.RegisterSessionSetting, which is the shape it most resembles. That
+-- registry means "this value's home is not the db and a /reload ends it", and both halves are wrong
+-- here: the value IS stored, and settings/Schema.lua's validator, NS.ProfileRowsOffDefault and
+-- settings/OptionsSetup.lua's reset veto all read `row.sessionOnly` to decide what a reset may
+-- touch. A stored row wearing that flag would be reset by `/at resetall`, which is a profile reset
+-- and must not reach an installation-scoped button.
+local function minimapTable()
+    local g = NS.db and NS.db.global
+    return type(g) == "table" and g.minimap or nil
+end
+
 -- Generic setting getter with fallback to the defaults when a key or the DB is absent. Accepts
 -- both a flat global key ("locked") and a dotted per-unit path ("units.target.barWidth").
 function NS.GetSetting(path)
     local session = sessionSettings[path]
     if session then return session.get() end
+    -- The row's sense is SHOWN and the stored key says HIDDEN, so it inverts here. An absent table
+    -- reads as shown, which is the declared default (defaults/Profile.lua).
+    if path == C.MINIMAP_PATH then
+        local t = minimapTable()
+        return not (t and t.hide)
+    end
     local db = NS.db
     if db and db.profile then
         local val = NS.ResolvePath(db.profile, path)
@@ -74,6 +100,25 @@ function NS.SetSetting(path, value)
     local session = sessionSettings[path]
     if session then
         session.set(value)
+        return
+    end
+    -- The other half of the inversion, plus the button itself: launcher-§3 wants the minimap button
+    -- to follow the checkbox immediately rather than at the next reload, and this is the single seam
+    -- every writer of that row reaches -- the panel widget, `/at set`, `/at reset` and the Defaults
+    -- button all land here through NS.SetByPath.
+    --
+    -- The store is written HERE and again inside Lb:SetShown, with the same value, which is the
+    -- library's stated bargain (libs/LibKa0s/Launcher.lua): a writer that is not this seam gets the
+    -- store updated without having to remember the inversion a second time. Writing it here anyway
+    -- is what keeps a build with no launcher at all -- no LibKa0s, no LibDBIcon -- still storing what
+    -- the player chose.
+    if path == C.MINIMAP_PATH then
+        local g = NS.db and NS.db.global
+        if type(g) == "table" then
+            g.minimap = g.minimap or {}
+            g.minimap.hide = not value
+        end
+        if NS.Launcher then NS.Launcher:SetShown(value and true or false) end
         return
     end
     local db = NS.db

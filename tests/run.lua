@@ -52,6 +52,7 @@ Kit.setSurfaceSource{
   ["LibKa0s-Options-1.0"]  = NS.Helpers,
   ["LibKa0s-DebugLog-1.0"] = NS.DebugLog,
   ["LibKa0s-Slash-1.0"]    = NS.Slash and NS.Slash.__cli,
+  ["LibKa0s-Launcher-1.0"] = NS.Launcher,
 }
 
 -- Kit.expose merges `test` and the assertions in, so the key set every existing suite file reads is
@@ -91,6 +92,7 @@ Kit.run{
     "test_data",
     "test_display",
     "test_helpers",
+    "test_launcher",
     "test_optionssetup",
     "test_slashcmds",
     "test_widgets",

@@ -3,7 +3,7 @@
 ## Notes: Display your total absorb shield value in a clean, customizable bar interface.
 ## Author: add1kted2ka0s
 ## Version: 1.10.0
-## IconTexture: 512902
+## IconTexture: Interface\AddOns\AbsorbTracker\media\logos\absorbtracker.logo.128.tga
 ## SavedVariables: AbsorbTrackerDB, AbsorbTrackerPerfDB
 ## OptionalDeps: Ace3, LibStub, CallbackHandler-1.0, LibSharedMedia-3.0, LibDataBroker-1.1, LibDBIcon-1.0
 ## DefaultState: enabled
@@ -51,6 +51,10 @@ core\Data.lua
 core\Units.lua
 core\Database.lua
 core\DebugLogSetup.lua
+# The launcher seam. Builds the object at load and publishes NS.Launcher; the Register() that
+# hands it to LibDataBroker and LibDBIcon waits for OnInitialize, because db.global.minimap does
+# not exist until NS:InitDB has run.
+core\LauncherSetup.lua
 core\AbsorbTracker.lua
 
 # Defaults

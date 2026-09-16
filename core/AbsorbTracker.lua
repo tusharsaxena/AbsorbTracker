@@ -42,6 +42,12 @@ function addon:OnInitialize()
     NS:InitDB()
 
     if NS.Slash and NS.Slash.Register then NS.Slash:Register() end
+
+    -- AFTER InitDB, and that is the whole reason it is here rather than at file load: the launcher
+    -- hands LibDBIcon `db.global.minimap` itself, and until InitDB has run there is no such table
+    -- (core/LauncherSetup.lua). Idempotent by the library's own design, so a second call from a
+    -- login handler would not build a second button over the first.
+    if NS.Launcher then NS.Launcher:Register() end
 end
 
 -- OnEnable fires at PLAYER_LOGIN timing, so this reproduces the old Events.lua PLAYER_LOGIN

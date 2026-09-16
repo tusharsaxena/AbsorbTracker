@@ -212,6 +212,12 @@ if not lib then
         local rows = {}
         for _, leaf in ipairs(leaves) do
             if not omit[leaf.leaf] then
+                -- The caller's override first, then the leaf's own -- which only the minimap leaf
+                -- declares, because it is the one canonical row whose default the LIVE composer
+                -- hard-codes (`default = true`) rather than taking from the host. An explicit nil
+                -- test, not `or`, so a declared `false` survives.
+                local default = defaults[leaf.leaf]
+                if default == nil then default = leaf.default end
                 rows[#rows + 1] = {
                     path        = leaf.path
                         or ((spec.prefix or "") .. (keys[leaf.leaf] or leaf.leaf)),
@@ -220,7 +226,7 @@ if not lib then
                     subgroup    = spec.subgroup,
                     order       = (tonumber(spec.order) or 0) + (#rows * ORDER_STEP),
                     type        = leaf.type,
-                    default     = defaults[leaf.leaf],
+                    default     = default,
                     sessionOnly = leaf.sessionOnly,
                 }
             end
@@ -305,6 +311,20 @@ if not lib then
             { leaf = "debugConsole", type = "bool", sessionOnly = true,
               path = spec.debugConsolePath or "state.debugConsole" },
         }
+        -- The Minimap button row, mirroring the library's since compose minor 7 (launcher-§3): only
+        -- when the host names `minimapPath`, taken verbatim like the console path. STORED, so no
+        -- `sessionOnly` -- and `default = true`, the row's own SHOWN sense, which the live composer
+        -- hard-codes and this arm therefore has to carry rather than read off `spec.defaults`.
+        --
+        -- Emitted BEFORE Test mode because that is the live order: every addon has a minimap button
+        -- and only some have a test mode, so the always-present row takes the column that always
+        -- exists.
+        local minimapLeaf
+        if spec.minimapPath then
+            minimapLeaf = { leaf = "minimap", type = "bool", default = true,
+                            path = spec.minimapPath }
+            leaves[#leaves + 1] = minimapLeaf
+        end
         -- The Test mode row, mirroring the library's since compose minor 6 (options-ui-§15): only
         -- when the host names `testModePath`, taken verbatim like the console path.
         if spec.testModePath then

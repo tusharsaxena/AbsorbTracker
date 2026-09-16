@@ -113,6 +113,28 @@ NS.defaults.global = {
     -- was wiped while its profiles still carried pre-v5 data. Every step is idempotent, so running
     -- the ladder on a genuinely new install costs four no-ops and stamps 5.
     schemaVersion = 1,
+
+    -- LibDBIcon's OWN table, handed to it whole by core/LauncherSetup.lua (launcher-§3). Declaring
+    -- it here is what MATERIALIZES it: AceDB's copyDefaults fills it in the moment the global
+    -- section is instantiated, so the launcher's `minimap` closure always answers a real table and
+    -- nothing in the addon ever writes `minimap = { ... }` over a path a schema row addresses
+    -- (architecture-§5).
+    --
+    -- `hide = false` is the DEFAULT SENSE INVERTED: the Master-controls row is "Minimap button" and
+    -- defaults to SHOWN, which is `hide = false` in LibDBIcon's spelling. core/Data.lua pays that
+    -- inversion once, at the read/write seam.
+    --
+    -- `minimapPos` is deliberately NOT declared beside it. LibDBIcon writes the angle the player
+    -- dragged the button to, and a declared default would be this addon asserting an angle it has
+    -- no opinion about; the library adds the key itself on the first drag.
+    --
+    -- GLOBAL, not profile, and that is the decision rather than an accident of where the file's
+    -- other tables live: a button is furniture the player arranged once, so a profile switch must
+    -- not move it and options-ui-§12's *Reset all settings* -- a profile reset by definition -- must
+    -- not un-hide one they deliberately hid.
+    minimap = {
+        hide = false,
+    },
 }
 
 -- Flat alias for the no-AceDB fallback path: GetSetting reads this when NS.db is absent. It now

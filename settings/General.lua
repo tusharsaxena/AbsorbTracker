@@ -100,6 +100,16 @@ local masterRows, masterTail = H.MasterControls({
     -- field that silently REMOVES four mandated rows.
     frameless        = false,
     debugConsolePath = DEBUG_CONSOLE_PATH,
+    -- The minimap button's row (launcher-§3, compose minor 7). Parallel to the console path and
+    -- taken just as VERBATIM, and for a related but distinct reason: the console's value is session
+    -- state and this one is stored, but BOTH live outside the block's own profile prefix -- this one
+    -- in the GLOBAL store, because a button is furniture the player arranged once and a profile
+    -- switch must not move it (core/Constants.lua).
+    --
+    -- The row is unconditional and carries `default = true`, its own SHOWN sense; the composer
+    -- emits it wherever this key is present. This addon declares no `testModePath` (the lock is its
+    -- preview), so the fourth line of the canonical set renders as [Minimap button] alone.
+    minimapPath      = NS.Constants.MINIMAP_PATH,
     defaults         = {
         enabled    = flatDefaults.enabled,
         visibility = flatDefaults.visibility,
@@ -200,6 +210,12 @@ local masterOnChange = {
     -- deliberately publishes nothing has to SAY so, or the next reader reads the absence as an
     -- oversight and "fixes" it back.
     [DEBUG_CONSOLE_PATH] = function() end,
+
+    -- EXPLICITLY NOTHING, for the same reason and with the same cost avoided: a checkbox that shows
+    -- and hides a minimap button has no business restyling three bars. The button itself is moved
+    -- by the `set` side of core/Data.lua's seam, which calls NS.Launcher:SetShown -- so this is not
+    -- a handler that was forgotten, it is one that would have nothing left to do.
+    [NS.Constants.MINIMAP_PATH] = function() end,
 
 }
 

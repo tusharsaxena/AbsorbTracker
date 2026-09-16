@@ -1,7 +1,7 @@
 -- tests/test_surface_parity.lua — every degradation stub carries the whole live surface.
 --
--- The addon adopts four LibKa0s seams — Core, DebugLog, Options and Slash — and each of the four
--- setup files carries a degradation stub for the install where libs/LibKa0s is missing. A stub is a
+-- The addon adopts five LibKa0s seams — Core, DebugLog, Options, Slash and Launcher — and each of
+-- the five setup files carries a degradation stub for the install where libs/LibKa0s is missing. A stub is a
 -- second implementation of somebody else's surface, so it drifts the moment the library grows a
 -- member the host starts calling: the live path stays green, and the degraded path raises in
 -- exactly the install the stub exists for.
@@ -177,4 +177,22 @@ test("parity: the Slash stub carries every dispatcher member the addon calls", f
     -- one; this addon does not, and a stub member with no caller is a copy waiting to go stale.
     "HelpHeader", "HelpRows", "BuildListLines", "CliVersion", "Text",
   })
+end)
+
+-- ── Launcher ───────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the Launcher stub carries the whole live surface", function()
+  -- The live half is the LibKa0s-Launcher-1.0 instance core/LauncherSetup.lua builds, which
+  -- tests/run.lua registers under that name. Read off the built instance rather than the file:
+  --   grep -nE "^  function Lb[:.]" libs/LibKa0s/Launcher.lua
+  -- names the same five.
+  --
+  -- NO `ignore` LIST, and that is the point of this stub rather than an oversight. The other three
+  -- seams have live-only members because the library owns formatting and drawing this addon never
+  -- calls; the launcher's whole surface is five questions about one button, and core/Data.lua and
+  -- core/AbsorbTracker.lua call three of them on the degraded path. A stub short one member would
+  -- raise inside NS.SetSetting — on the very install the stub exists for.
+  local NS2 = loadDegraded()
+  assertTrue(type(NS2.Launcher) == "table", "core/LauncherSetup.lua publishes NS.Launcher either way")
+  T.assertSurfaceParity(NS2.Launcher, "LibKa0s-Launcher-1.0", {})
 end)

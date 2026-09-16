@@ -36,3 +36,32 @@ C.FONT_MONO_NAME = "JetBrains Mono"
 
 -- About-page logo. Moved to media/logos/ per layout-§3 (typed media subfolders).
 C.LOGO_PATH = "Interface\\AddOns\\AbsorbTracker\\media\\logos\\absorbtracker.logo.tga"
+
+-- The ICON-sized logo, and a DIFFERENT FILE from the one above rather than the same art at another
+-- size (layout-§4). One is drawn by the settings panel's landing page at 300x300; this one is read
+-- by the client as an icon, at icon size, in three places at once -- the AddOns list (the TOC's
+-- `## IconTexture`), the minimap button and a broker display (launcher-§4) -- so a player who has
+-- seen the addon once recognizes it in all three.
+--
+-- 128x128, uncompressed 32-bit (TGA image type 2, 32 bpp), regenerated from the 2000x2000 `.png`
+-- beside it by layout-§4's recipe rather than hand-exported. The format is not a style preference:
+-- an RLE-compressed or 24-bit TGA in this role draws NOTHING and raises nothing, so no gate reports
+-- it and the button the player adopted the launcher for is simply invisible (anti-pattern #82).
+--
+-- THE TOC SPELLS THIS PATH AGAIN, and that duplication is the client's, not ours: `## IconTexture`
+-- is read out of the TOC before a single line of Lua runs, so there is no constant it could read.
+-- tests/test_docs.lua pins the two spellings together.
+C.LOGO_ICON_PATH = "Interface\\AddOns\\AbsorbTracker\\media\\logos\\absorbtracker.logo.128.tga"
+
+-- The minimap button's visibility, as a stored path (launcher-§3). VERBATIM and unprefixed: the
+-- table it names lives in the GLOBAL store, outside the Master-controls block's profile prefix,
+-- because a minimap button belongs to the INSTALLATION rather than to a profile -- switching
+-- profiles must not move the player's buttons, and options-ui-§12's *Reset all settings*, a profile
+-- reset by definition, must not un-hide a button they deliberately hid.
+--
+-- THE PATH SAYS `hide` AND THE ROW SAYS SHOWN. That inversion is the whole cost of storing
+-- LibDBIcon's OWN key rather than a second boolean beside it, and it is paid once, at the
+-- read/write seam in core/Data.lua. A parallel `showMinimapIcon` would be a copy of one state that
+-- a library also writes, free to disagree the first time the player used LibDBIcon's own menu
+-- (anti-pattern #81).
+C.MINIMAP_PATH = "global.minimap.hide"

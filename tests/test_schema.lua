@@ -49,13 +49,15 @@ end)
 -- to no tab, and is drawn bespoke in the header.
 test("the page -> tab -> row-count partition is the designed one", function()
   local want = {
-    -- Master controls is FIRST and holds exactly the six schema rows options-ui-§15 entitles this
-    -- addon to: enable, general visibility, master scale, master alpha, lock frame, debug console.
-    -- NOT test mode: §15 exempts an addon whose unlocked view already is its preview, which this one
-    -- is, and a seventh row here would be the duplicate switch anti-pattern #80 names. The two
-    -- resets are the tab's closing BUTTON PAIR rather than rows, so they are not counted here --
-    -- tests/test_widgets.lua is what pins them onto this tab.
-    { page = "general", unit = nil, tabs = { { "Master controls", 6 }, { "Bars", 4 } } },
+    -- Master controls is FIRST and holds exactly the seven schema rows options-ui-§15 entitles this
+    -- addon to: enable, general visibility, master scale, master alpha, lock frame, debug console,
+    -- minimap button. NOT test mode: §15 exempts an addon whose unlocked view already is its
+    -- preview, which this one is, and that row here would be the duplicate switch anti-pattern #80
+    -- names. The minimap row is the one that ARRIVED (launcher-§3, compose minor 7) -- it is
+    -- unconditional for every addon, which is why it takes the column Test mode would have paired
+    -- beside. The two resets are the tab's closing BUTTON PAIR rather than rows, so they are not
+    -- counted here -- tests/test_widgets.lua is what pins them onto this tab.
+    { page = "general", unit = nil, tabs = { { "Master controls", 7 }, { "Bars", 4 } } },
     { page = "appearance", unit = "player", tabs = {
       { "Size", 2 }, { "Bar", 4 }, { "Background", 3 }, { "Border", 4 }, { "Text", 6 },
     } },
@@ -204,17 +206,24 @@ test("every row's default matches the value in defaults.profile", function()
   -- other than where a brand-new profile starts.
   --
   -- A `sessionOnly` row is skipped: it has no profile value at all, so defaults.profile has nothing
-  -- to agree with. Its `default` (test mode's `false`) is only the value a reset writes back through
-  -- its session set().
+  -- to agree with. Its `default` (the console's `false`) is only the value a reset writes back
+  -- through its session set().
+  --
+  -- The minimap button is skipped for a DIFFERENT reason, not that one: its value is genuinely
+  -- stored, but in the GLOBAL store and in LibDBIcon's own INVERTED spelling, so defaults.profile
+  -- has nothing to say about it and defaults.global disagrees with the row on purpose (`hide =
+  -- false` is `Minimap button = true`). tests/test_launcher.lua pins that pair head-on, which is
+  -- where a reader should look for it.
   local defaults = NS.defaults.profile
   for _, row in ipairs(NS.Schema) do
+    local skip = row.sessionOnly or row.path == NS.Constants.MINIMAP_PATH
     local want = NS.ResolvePath(defaults, row.path)
-    if type(row.default) == "table" and not row.sessionOnly then
+    if type(row.default) == "table" and not skip then
       assertEqual(type(want), "table", row.path .. " default should be a table in both places")
       for k, v in pairs(row.default) do
         assertEqual(want[k], v, row.path .. "." .. tostring(k) .. " disagrees")
       end
-    elseif not row.sessionOnly then
+    elseif not skip then
       assertEqual(row.default, want, row.path .. " default disagrees with defaults.profile")
     end
   end
@@ -581,7 +590,9 @@ end)
 -- frameless, and this one is not -- modules/Bar.lua calls SetMovable(true) on every bar -- so those
 -- four are here. The Test mode row is the one legitimate omission: options-ui-§15 exempts an addon
 -- whose unlocked view already IS its preview, and unlocking here both paints the placeholder and
--- short-circuits the visibility and unit-exists rungs of NS.ShouldShowBar. Six rows, not seven.
+-- short-circuits the visibility and unit-exists rungs of NS.ShouldShowBar. Seven rows, not eight --
+-- the seventh is the Minimap button (launcher-§3), which is unconditional for every addon in the
+-- collection and so sits in the column Test mode would otherwise have paired beside.
 -- The two resets are the tab's closing BUTTON PAIR rather than rows; tests/test_widgets.lua pins
 -- those onto this group's afterGroup hook.
 -- red under: a reordered composer, a `frameless = true` this addon is not entitled to, a row moved
@@ -589,6 +600,7 @@ end)
 test("the Master controls tab is the canonical set, in order, and leads the General page", function()
   local want = {
     "enabled", "visibility", "scale", "alpha", "locked", "state.debugConsole",
+    NS.Constants.MINIMAP_PATH,
   }
   local got, firstGroup = {}, nil
   for _, r in ipairs(NS.SchemaForPage("general")) do

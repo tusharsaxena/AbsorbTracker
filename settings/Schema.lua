@@ -252,7 +252,11 @@ local pendingResetCount
 function NS.ProfileRowsOffDefault()
     local n = 0
     for _, row in ipairs(NS.Schema) do
+        -- The minimap button is excluded for the same reason a sessionOnly row is: a profile reset
+        -- cannot reach it. Its value is stored, but in the GLOBAL store (launcher-§3), so counting
+        -- it here would promise a row the reset was never going to change.
         if row.path and not row.sessionOnly and row.page ~= "profiles"
+            and row.path ~= NS.Constants.MINIMAP_PATH
             and not sameValue(NS.GetSetting(row.path), row.default) then
             n = n + 1
         end
@@ -386,8 +390,17 @@ function NS.ValidateSchema()
             -- its value is deliberately NOT in the profile (core/Data.lua's session-settings
             -- registry answers it), so resolving against defaults.profile is the wrong question.
             -- The Master controls tab's `state.debugConsole` is the one such row today.
+            --
+            -- And a `global.` path resolves against defaults.GLOBAL, for the third reason: its
+            -- value is stored, but in the account-wide store rather than the profile. The minimap
+            -- button's `global.minimap.hide` is the one such row today (launcher-§3), and checking
+            -- it against defaults.profile would report a correctly-declared row as missing.
             if hasPath and row.page ~= "profiles" and not row.sessionOnly then
-                if NS.ResolvePath(defaults, row.path) ~= nil then
+                local root, key = defaults, row.path
+                if key:match("^global%.") then
+                    root, key = (NS.defaults and NS.defaults.global) or {}, key:sub(8)
+                end
+                if NS.ResolvePath(root, key) ~= nil then
                     resolved = resolved + 1
                 else
                     _printSchemaError(where, "`path` does not resolve against defaults.profile")
