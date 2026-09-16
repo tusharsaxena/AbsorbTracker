@@ -465,15 +465,28 @@ not. Every step here is therefore a look, not a log line.
    The button stays hidden — it is installation furniture, not a profile setting.
 8. **Reset all settings does not bring it back.** With the button hidden, press **Reset all settings**
    and confirm. Every bar setting returns to default; the button stays hidden.
-9. **A broker display, if you have one.** Install Titan Panel / Bazooka / use ElvUI's data texts and
-   add the *Absorb Tracker* plugin. It shows the same logo and the same label, and its row answers
-   the left and right clicks exactly as the minimap button does — because it is the same object.
-   There is deliberately **no setting** that hides the addon from a broker display; the display has
-   its own per-plugin toggle.
-10. **`/at enable` / `/at disable`.** `/at disable` echoes `enabled = false` and the bars stop
+9. **The page's own Defaults button does not bring it back either.** With the button hidden, go to
+   **General ▸ Master controls** and press **Defaults**. Every other row on the page returns to its
+   shipped value — check *Master scale* and *Lock frame* moved — and the minimap button **stays
+   hidden**. This is the one a profile-scope argument never covered: the page Defaults walk resets
+   every row on the page regardless of where it stores, and before the exemption one press put a
+   deliberately hidden button back (launcher-§3).
+10. **A broker display, if you have one.** Install Titan Panel / Bazooka / use ElvUI's data texts and
+    add the plugin. Its row reads **`Ka0s Absorb Tracker`** in plain text — the brand name, filed
+    beside the other Ka0s addons rather than alphabetically away from them — wearing the same logo,
+    and it answers the left and right clicks exactly as the minimap button does, because it is the
+    same object. There is deliberately **no setting** that hides the addon from a broker display;
+    the display has its own per-plugin toggle.
+11. **`/at enable` / `/at disable`.** `/at disable` echoes `enabled = false` and the bars stop
     drawing. **Then check the way back is still open:** `/at` still opens the panel, `/at help` still
     lists every verb, and `/at enable` turns it back on. That is the MUST slash-commands-§2 makes,
     and the one that keeps the pair from being a one-way switch.
+12. **A disabled addon refuses a feature verb, and does not act.** Still disabled, run `/at toggle`,
+    `/at unlock`, `/at update` and `/at test 100000`. Each answers with **one** `[AT]` line naming
+    `/at enable`, and nothing happens — no bar appears, nothing becomes draggable, no fake value is
+    painted. Then confirm the repair verbs are still live: `/at list`, `/at get scale`,
+    `/at set scale 1.2`, `/at profile list`, `/at resetposition` and `/at perf` all still answer.
+    Turn it back on with `/at enable`.
 
 ### Triage references (if a step fails)
 - Bootstrap / events / profile repaint — `core/AbsorbTracker.lua` (`OnEnable`, `OnProfileChanged`)
