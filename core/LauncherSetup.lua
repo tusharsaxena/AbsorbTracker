@@ -102,11 +102,20 @@ NS.Launcher = lib:New({
     -- REQUIRED. The addon's own logo, the same file the TOC's `## IconTexture` names (launcher-§4);
     -- core/Constants.lua holds the path and says why it is a different file from the About page's.
     icon  = NS.Constants.LOGO_ICON_PATH,
-    -- What a broker display prints beside the icon. The short player-facing name, matching the
-    -- Master-controls block's `addonName`, rather than the full brand: a Titan Panel row is a strip
-    -- a dozen addons share, and "Ka0s " in front of it buys the player nothing they cannot see from
-    -- the logo already sitting next to it.
-    label = "Absorb Tracker",
+    -- What a broker display prints in its own row, and it is the BRAND NAME IN PLAIN TEXT
+    -- (launcher-§1). Not a judgment call: a Titan Panel strip is exactly the place the eleven Ka0s
+    -- addons are seen TOGETHER, so `label` is the one field that decides whether they read as one
+    -- collection or as eleven unrelated addons. Across the adoptions it came out three ways --
+    -- "Absorb Tracker", "Ka0s KickCD", "Ka0s Pretty Chat" -- and a display sorting its plugins
+    -- alphabetically filed this one under A while the rest sat together under K. That is the whole
+    -- of the argument the short spelling used to make here, answered.
+    --
+    -- DELIBERATELY NOT THE TOC'S `## Title`, and the two are not wired to each other. A Title may
+    -- carry color escapes and one in the collection does (Ka0s Pretty Chat's), which a display
+    -- drawing the string raw would splatter across a row of otherwise plain text. Not the folder
+    -- name either -- that is `name` above, which LibDBIcon keys the saved position by and which a
+    -- player reads nowhere as prose. Three fields, three jobs.
+    label = "Ka0s Absorb Tracker",
 
     -- REQUIRED, and a FUNCTION for the ordering reason at the head of this file.
     minimap = function()

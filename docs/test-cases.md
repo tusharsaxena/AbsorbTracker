@@ -449,11 +449,13 @@ badge and any count quoted in the docs must agree with it.
 - /at resetposition does not claim success when the settings helpers are absent
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_launcher.lua (14)
+### test_launcher.lua (16)
 
 - launcher: Register builds ONE broker object and hands that same object to LibDBIcon
 - launcher: LibDBIcon is handed db.global.minimap ITSELF, not a copy
 - launcher: Register is idempotent
+- launcher: the broker label is the BRAND NAME in plain text
+- launcher: the label is not WIRED to the TOC Title, even though both read the same today
 - launcher: LEFT-click toggles the lock, through the seam the checkbox writes through
 - launcher: RIGHT-click always opens the settings panel, and touches nothing else
 - launcher: the icon file is the one the TOC names, and is a format the client can load
@@ -731,7 +733,7 @@ badge and any count quoted in the docs must agree with it.
 | test_data.lua | 32 |
 | test_display.lua | 64 |
 | test_helpers.lua | 70 |
-| test_launcher.lua | 14 |
+| test_launcher.lua | 16 |
 | test_optionssetup.lua | 11 |
 | test_slashcmds.lua | 126 |
 | test_widgets.lua | 55 |
@@ -741,4 +743,4 @@ badge and any count quoted in the docs must agree with it.
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_eol.lua | 1 |
-| **Total** | **627** |
+| **Total** | **629** |

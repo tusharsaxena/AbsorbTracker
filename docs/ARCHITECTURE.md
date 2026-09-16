@@ -291,8 +291,12 @@ The verb table, the sub-verb trees, the mirror note, the help convention and the
 vararg), handed to LibDBIcon-1.0 under that same name — LibDBIcon keys the button's saved position
 by it, so the spelling is not cosmetic. LibDBIcon draws the minimap button from that table and any
 broker display draws its own row from it, so there is one `OnClick`, one icon and one identity
-(launcher-§1). Both libraries are vendored under `libs/` and resolved with `LibStub(..., true)` at
-`Register()` time; a host missing either gets an honest report rather than a raise.
+(launcher-§1). Its **`label` is `Ka0s Absorb Tracker`** — the brand name in plain text, because a
+broker row is printed beside the other ten Ka0s addons and that one string is what decides whether
+they read as one collection; it is a literal, deliberately **not** wired to the TOC's `## Title`
+(which may carry color escapes) and not the folder name (which is `name`). Both libraries are
+vendored under `libs/` and resolved with `LibStub(..., true)` at `Register()` time; a host missing
+either gets an honest report rather than a raise.
 
 **The rung is (b)** (launcher-§2, and the standard's `ADDONS.md` records it): left-click toggles the
 addon's preview switch, which here is the **lock** — options-ui-§15 exempts an addon whose unlocked

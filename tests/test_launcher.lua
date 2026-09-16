@@ -122,6 +122,43 @@ test("launcher: Register is idempotent", function()
   assertTrue(NS.Launcher:IsRegistered(), "IsRegistered agrees with Register")
 end)
 
+test("launcher: the broker label is the BRAND NAME in plain text", function()
+  -- launcher-§1, and the reason it is a rule rather than a preference: `label` is what a broker
+  -- display prints in its own row, BESIDE the other ten Ka0s addons. This one used to say
+  -- "Absorb Tracker", so a display sorting its plugins alphabetically filed it under A while every
+  -- sibling sat together under K -- one collection reading as eleven unrelated addons.
+  --
+  -- red under: the short spelling coming back; the folder name (that is `name`, which LibDBIcon
+  -- keys the saved position by); any color escape, which is what makes this NOT the TOC `## Title`
+  -- -- a Title may carry them and one in the collection does.
+  fakes()
+  NS.Launcher:Register()
+  local object = NS.Launcher:Object()
+
+  assertEqual(object.label, "Ka0s Absorb Tracker", "the brand name, `Ka0s <Name>`")
+  assertTrue(object.label:find("|", 1, true) == nil,
+    "plain text: no escape sequence of any kind may reach a broker row")
+  assertTrue(object.label ~= FOLDER, "the folder name is an identifier, not prose")
+  assertTrue(object.label ~= object.name, "and `name` is the registration, not the label")
+end)
+
+test("launcher: the label is not WIRED to the TOC Title, even though both read the same today", function()
+  -- The two strings match in this addon because its Title happens to carry no color escapes. The
+  -- rule is about the WIRING, not the value: `label` is a literal in core/LauncherSetup.lua, read
+  -- from nothing. Ka0s Pretty Chat's Title is `Ka0s |cffff0000P|cffff9900r|...`, and an addon that
+  -- fed `NS.Meta("Title")` into this field would be one TOC edit away from splattering its row
+  -- across a display.
+  --
+  -- red under: `label = NS.Meta("Title")` or any other read of the manifest.
+  local src = io.open("core/LauncherSetup.lua", "r")
+  assertTrue(src ~= nil, "cannot open core/LauncherSetup.lua (tests run from the repo root)")
+  local body = src:read("*a")
+  src:close()
+  local assigned = body:match("\n%s*label%s*=%s*(.-),\r?\n")
+  assertEqual(assigned, '"Ka0s Absorb Tracker"',
+    "`label` must be a plain-text literal, never a read of `## Title` or of the folder name")
+end)
+
 -- ── the rung ───────────────────────────────────────────────────────────────────────────────────
 
 test("launcher: LEFT-click toggles the lock, through the seam the checkbox writes through", function()
