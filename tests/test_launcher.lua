@@ -295,6 +295,65 @@ test("launcher: Reset all settings cannot un-hide the button", function()
   NS.SetByPath(NS.Constants.MINIMAP_PATH, true)
 end)
 
+test("launcher: the General page's Defaults button cannot un-hide the button either", function()
+  -- DECISION A, AND THE HALF THIS ADDON ACTUALLY FAILED. launcher-§3 states the survival as a
+  -- PROPERTY of the setting rather than deriving it from where the value is stored: whether the
+  -- button is shown is a per-installation display preference, in the same class as the ANGLE the
+  -- player dragged it to, which LibDBIcon keeps in this very table and which no reset touches.
+  --
+  -- The old derivation -- Reset all settings is a profile reset, the table is global, therefore it
+  -- cannot be reached -- is true of THAT reset and says nothing about this one. The General page's
+  -- Defaults button walks `rowsForPage("general")`, the minimap row is on that page carrying
+  -- `default = true`, and LibKa0s-Options' RestoreDefaults consults no veto at all: before the
+  -- exemption in settings/OptionsSetup.lua, one press put a deliberately hidden button back.
+  --
+  -- Exercised through the button the page actually parks, not through the library entry point it
+  -- calls, so a rewiring of `defaultsOnClick` is caught too.
+  --
+  -- red under: dropping `survivesEveryReset` from the descriptor's `applyDefault`.
+  local b = fakes()
+  NS.Launcher:Register()
+
+  NS.SetByPath(NS.Constants.MINIMAP_PATH, false)
+  assertEqual(NS.db.global.minimap.hide, true, "precondition: the player hid the button")
+  local shown, hidden = #b.icons.shown, #b.icons.hidden
+
+  local ctx = NS.Helpers.__panelFor("general")
+  assertTrue(ctx ~= nil, "the General page is registered")
+  assertTrue(type(ctx.panel.defaultsOnClick) == "function",
+    "settings/General.lua parks the page's Defaults handler on the panel")
+  ctx.panel.defaultsOnClick()
+
+  assertEqual(NS.db.global.minimap.hide, true, "a hidden button stays hidden through page Defaults")
+  assertFalse(NS.GetSetting(NS.Constants.MINIMAP_PATH), "and the row still reads unchecked")
+  assertEqual(#b.icons.shown, shown, "the button was never told to come back")
+  assertEqual(#b.icons.hidden, hidden, "and it was not re-hidden either -- the row was not written")
+
+  NS.SetByPath(NS.Constants.MINIMAP_PATH, true)
+end)
+
+test("launcher: the page Defaults button still resets every OTHER General row", function()
+  -- The exemption is ONE ROW. A veto that swallowed the page would be a worse bug than the one it
+  -- fixed, and it would go unnoticed: a Defaults press that does nothing looks like a page already
+  -- at its defaults.
+  --
+  -- red under: a veto keyed on the page, the group, or `row.default == true`.
+  fakes()
+  NS.Launcher:Register()
+
+  NS.SetByPath(NS.Constants.MINIMAP_PATH, false)
+  NS.SetByPath("scale", 0.5)
+  NS.SetByPath("locked", not NS.flatDefaults.locked)
+
+  NS.Helpers.__panelFor("general").panel.defaultsOnClick()
+
+  assertEqual(NS.GetSetting("scale"), NS.flatDefaults.scale, "scale came back")
+  assertEqual(NS.GetSetting("locked"), NS.flatDefaults.locked, "and so did the lock")
+  assertEqual(NS.db.global.minimap.hide, true, "while the one exempt row did not move")
+
+  NS.SetByPath(NS.Constants.MINIMAP_PATH, true)
+end)
+
 -- ── degradation ────────────────────────────────────────────────────────────────────────────────
 
 local function freshEnv()

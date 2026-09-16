@@ -303,11 +303,20 @@ so the in-combat unlock refusal, the preview clear and the repaint all come from
 
 **Visibility is one row and one boolean.** `Minimap button` on Master controls stores LibDBIcon's
 own `hide` key at `db.global.minimap.hide` — **global**, so a profile switch does not move the
-player's buttons and options-ui-§12's *Reset all settings*, a profile reset by definition, cannot
-un-hide one they hid. The row says *shown* and the key says *hidden*, so `NS.GetSetting` /
+player's buttons. The row says *shown* and the key says *hidden*, so `NS.GetSetting` /
 `NS.SetSetting` invert it (`core/Data.lua`, beside the session-settings branch it most resembles);
 the set also calls `NS.Launcher:SetShown`, so the button follows the checkbox immediately. The
-**icon** is `media/logos/absorbtracker.logo.128.tga`, the same file `## IconTexture` names
+**The row survives every reset, as a property of the setting** (launcher-§3): a minimap button's
+visibility is a per-installation display preference, like the angle LibDBIcon keeps beside it in the
+same table. *Reset all settings* never reached it — it is a profile reset and the value is global —
+but the **General page's Defaults button did**, because `LibKa0s-Options-1.0`'s `RestoreDefaults`
+walks every row on the page and consults no veto. The exemption is one predicate,
+`survivesEveryReset` (`settings/OptionsSetup.lua`), applied at the descriptor's `applyDefault`,
+which is the one seam both library resets write through. `/at reset global.minimap.hide` is
+deliberately outside it: that verb goes through the Slash descriptor, and naming the row is asking
+for it. Detail in [settings-panel.md](./settings-panel.md).
+
+The **icon** is `media/logos/absorbtracker.logo.128.tga`, the same file `## IconTexture` names
 (launcher-§4) — 128×128, uncompressed 32-bit, regenerated from the `.png` beside it by layout-§4's
 recipe. `tests/test_launcher.lua` reads its header bytes, because a wrong format there draws nothing
 and raises nothing.

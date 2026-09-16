@@ -227,8 +227,7 @@ the optional one pairs beside it. This addon names no `testModePath`, so the row
 `H.MasterControls` call, and the path is taken **verbatim and unprefixed** because the table it
 names is outside the block's profile prefix: `global.minimap.hide`, which is LibDBIcon's **own**
 `minimap` table in the **global** store. Global is the decision rather than an accident — a minimap
-button belongs to the installation, so a profile switch must not move it, and options-ui-§12's
-*Reset all settings*, a profile reset by definition, must not un-hide one the player hid. Storing
+button belongs to the installation, so a profile switch must not move it. Storing
 LibDBIcon's own key rather than a second boolean beside it is what keeps the checkbox and the
 library's own writes from ever disagreeing (anti-pattern #81); the price is that the row's `get` and
 `set` **invert**, and it is paid once, in `core/Data.lua`'s read/write seam, next to the
@@ -236,6 +235,28 @@ session-settings branch it most resembles. The `set` also calls `NS.Launcher:Set
 button appears or vanishes immediately rather than at the next reload. The row is **stored**, not
 `sessionOnly`: a reload must not bring back a button the player dismissed. See
 [ARCHITECTURE.md](./ARCHITECTURE.md) → Launcher for the object itself.
+
+**This one row survives every reset, and that is a property of the setting — not of where it is
+stored.** Whether the button is shown is a per-installation *display preference*, in the same class
+as the **angle** the player dragged it to, which LibDBIcon keeps in the very same table and which no
+reset touches. launcher-§3 therefore requires it to survive **both** options-ui-§12's *Reset all
+settings* **and** a page-scoped **Defaults** button, and this page ships both. They are not the same
+problem:
+
+| Act | Reaches the row? | Why |
+|---|---|---|
+| *Reset all settings* (button, `/at resetall`, the popup) | **No** | It is a profile reset (`resetProfile` → `db:ResetProfile()`), and the value is in `db.global`. The library also narrows its row walk to the `sessionOnly` rows, and `vetoedFromResetAll` vetoes the row on top of that. Three independent reasons. |
+| **Defaults** on General | **It did** | `LibKa0s-Options-1.0`'s `RestoreDefaults` walks `rowsForPage("general")` and consults **no veto at all**. The minimap row is on that page carrying `default = true`, so one press put a deliberately hidden button back. |
+
+The second is the half the old *"global store, profile reset, therefore unreachable"* argument never
+covered: it was a true claim about one act, restated as if it were about all of them. The exemption
+is one named predicate, `survivesEveryReset` in `settings/OptionsSetup.lua`, applied at the
+descriptor's **`applyDefault`** — the single seam both library resets write through, so a third
+reset added upstream inherits it. `/at reset global.minimap.hide` is deliberately **not** covered:
+that verb reaches `NS.ApplyDefault` through `settings/Slash.lua`'s own descriptor, and a player who
+names this row is asking for exactly this row. `tests/test_launcher.lua` presses the page's real
+`defaultsOnClick` and asserts the stored `hide` survived, and that every other General row still
+came back.
 
 **It is composed, never typed out.** `H.MasterControls` emits the block from one declaration and
 returns the closing button pair as its second value; hand-writing it is anti-pattern #73. What

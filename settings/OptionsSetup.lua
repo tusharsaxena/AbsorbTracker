@@ -37,7 +37,31 @@ local PARENT_TITLE = "Ka0s Absorb Tracker"
 -- profile would fire the panel refresh once per row for values about to be discarded whole. What the
 -- walk is left with is exactly what a profile reset cannot reach: the sessionOnly rows, whose
 -- storage is their own `set()` rather than the db.
+-- ONE ROW SURVIVES EVERY RESET, and launcher-§3 states that as a PROPERTY of the setting rather
+-- than deriving it from where the value happens to live. Whether the minimap button is shown is a
+-- per-installation display preference, in the same class as the ANGLE the player dragged it to --
+-- which LibDBIcon keeps in the very same table, and which no reset in the collection touches.
+-- Nobody has ever wanted *reset my settings* to mean *and put the button back on my minimap*.
+--
+-- THE DERIVATION THAT USED TO STAND IN FOR THIS WAS TRUE AND INSUFFICIENT. Reset all settings is a
+-- profile reset (options-ui-§12) and this row is in the GLOBAL store, so that reset genuinely
+-- cannot reach it -- twice over here, because `vetoedFromResetAll` below already vetoes every
+-- non-sessionOnly row. But the argument was only ever about that ONE act, and this addon ships a
+-- second: the General page's Defaults button, which walks `rowsForPage("general")` and resets each
+-- row it finds. The minimap row is on that page, carrying `default = true`, and the library's
+-- RestoreDefaults consults no veto at all -- so one press put a deliberately hidden button back.
+--
+-- ENFORCED AT `applyDefault`, WHICH IS THE SEAM BOTH RESETS SHARE. RestoreDefaults and
+-- RestoreAllDefaults each write only through the descriptor field below, so one guard there covers
+-- both and cannot be forgotten by a third reset added later. `/at reset global.minimap.hide` is
+-- deliberately NOT covered: it goes through settings/Slash.lua's own descriptor, and a player who
+-- names this row is asking for exactly this row.
+local function survivesEveryReset(row)
+    return row.path == NS.Constants.MINIMAP_PATH
+end
+
 local function vetoedFromResetAll(row)
+    if survivesEveryReset(row) then return true end
     if row.page == "profiles" then return true end
     return not row.sessionOnly
 end
@@ -59,7 +83,12 @@ local descriptor = {
     -- path a `/at set` takes: the [Set] debug line, the row's onChange, and the panel refresh.
     get          = function(path) return NS.GetSetting(path) end,
     set          = function(path, value) NS.SetByPath(path, value) end,
-    applyDefault = function(row) NS.ApplyDefault(row) end,
+    -- The exemption above, at the one seam every library-driven reset writes through: the page
+    -- Defaults button, Reset all settings, and whatever reset the library grows next.
+    applyDefault = function(row)
+        if survivesEveryReset(row) then return end
+        NS.ApplyDefault(row)
+    end,
     allRows      = function() return NS.Schema end,
 
     -- `filter` is ctx.unit, which the library passes through without interpreting. That is what

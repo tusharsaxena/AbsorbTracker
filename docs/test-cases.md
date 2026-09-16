@@ -449,7 +449,7 @@ badge and any count quoted in the docs must agree with it.
 - /at resetposition does not claim success when the settings helpers are absent
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_launcher.lua (12)
+### test_launcher.lua (14)
 
 - launcher: Register builds ONE broker object and hands that same object to LibDBIcon
 - launcher: LibDBIcon is handed db.global.minimap ITSELF, not a copy
@@ -460,6 +460,8 @@ badge and any count quoted in the docs must agree with it.
 - launcher: the Minimap button row is stored, global, and says SHOWN
 - launcher: the row's get/set invert onto `hide`, and the button follows immediately
 - launcher: Reset all settings cannot un-hide the button
+- launcher: the General page's Defaults button cannot un-hide the button either
+- launcher: the page Defaults button still resets every OTHER General row
 - launcher: with BOTH broker libraries absent, Register reports absent and does not raise
 - launcher: with LibDataBroker but no LibDBIcon, the plugin exists and the button does not
 - launcher: with LibKa0s absent the seam still answers, and still remembers the choice
@@ -729,7 +731,7 @@ badge and any count quoted in the docs must agree with it.
 | test_data.lua | 32 |
 | test_display.lua | 64 |
 | test_helpers.lua | 70 |
-| test_launcher.lua | 12 |
+| test_launcher.lua | 14 |
 | test_optionssetup.lua | 11 |
 | test_slashcmds.lua | 126 |
 | test_widgets.lua | 55 |
@@ -739,4 +741,4 @@ badge and any count quoted in the docs must agree with it.
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_eol.lua | 1 |
-| **Total** | **625** |
+| **Total** | **627** |
