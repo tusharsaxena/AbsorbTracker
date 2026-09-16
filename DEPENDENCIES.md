@@ -24,11 +24,11 @@ Three groups, and most readers need exactly one:
 (`AbsorbTracker.toc:1`). That is the whole runtime requirement.
 
 The addon declares **no** `## Dependencies` line. Its `## OptionalDeps` (`AbsorbTracker.toc:8`) reads
-`Ace3, LibStub, CallbackHandler-1.0, LibSharedMedia-3.0`, and **every one of those is vendored** under
-`libs/` and listed in the TOC's `# Libraries` block (`AbsorbTracker.toc:16-30`), alongside `LibKa0s`
-(`libs\LibKa0s\LibKa0s.xml`). `OptionalDeps` exists so the client loads a *standalone* copy first when
-the user happens to have one; it is not an install instruction. **A player installs the addon and
-nothing else** (`library-stack`).
+`Ace3, LibStub, CallbackHandler-1.0, LibSharedMedia-3.0, LibDataBroker-1.1, LibDBIcon-1.0`, and
+**every one of those is vendored** under `libs/` and listed in the TOC's `# Libraries` block
+(`AbsorbTracker.toc:16-32`), alongside `LibKa0s` (`libs\LibKa0s\LibKa0s.xml`). `OptionalDeps` exists
+so the client loads a *standalone* copy first when the user happens to have one; it is not an
+install instruction. **A player installs the addon and nothing else** (`library-stack`).
 
 ---
 
@@ -206,8 +206,9 @@ Recorded so nobody installs them by mistake:
   addon's.
 - **A CI runner** — there is none. No GitHub Action, no dynamic badge; every gate is local and
   hand-run (`docs/testing.md`, `testing-§5`).
-- **Ace3, LibStub, LibSharedMedia-3.0, LibKa0s** — vendored and committed under `libs/`. Listing them
-  here does **not** license fetching them at build time (`library-stack`, `packaging`).
+- **Ace3, LibStub, LibSharedMedia-3.0, LibDataBroker-1.1, LibDBIcon-1.0, LibKa0s** — vendored and
+  committed under `libs/`. Listing them here does **not** license fetching them at build time
+  (`library-stack`, `packaging`).
 
 ---
 
