@@ -277,20 +277,22 @@ per-unit setting. Only the eight unit-agnostic rows — `enabled`, `visibility`,
 
 **`/at enable` and `/at disable` are ALIASES, not a second switch** (slash-commands-§2). Both write
 the `enabled` path the Master controls tab's Enable checkbox writes, through the same `NS.SetByPath`
-seam, and hold no state of their own. The dispatcher survives the disabled state — `enabled` gates
-`NS.ShouldShowBar`'s second rung and nothing else, so no file unloads and the chat command is
-registered unconditionally — which is what keeps the pair from being one-way.
+seam, and hold no state of their own. The dispatcher survives the disabled state — it is **setup,
+not a feature** — which is what keeps the pair from being one-way. What the write actually does is
+in [The disabled state is total](#the-disabled-state-is-total) below.
 
 **A disabled addon refuses a FEATURE verb, on one tagged line naming `/at enable`** (slash-commands-§2,
-a SHOULD this addon takes). Implemented **once**, by wrapping `entry[3]` for every verb not on the
-`ALWAYS_LIVE` list right after `NS.COMMANDS` is declared — not as a guard per handler. The polarity
-is what makes it hold: the **live** set is the data, so a verb added later is gated by default. Live
-are `help`, `config`, `version`, `enable`, `disable`, `debug`, `perf` and the schema CLI (`get`,
-`set`, `list`, `reset`, `resetall`) — the standard's own list, because a player must be able to read
-and repair settings and reach the panel while the addon is off — plus `resetposition` and `profile`,
-which are this addon's reading and are argued in [slash-dispatch.md](./slash-dispatch.md). Refusing
-are `lock`, `unlock`, `toggle`, `update` and `test`. The refusal line is the addon's **one** string
-routed through `NS.L`.
+a SHOULD this addon takes). The gate is **`LibKa0s-Slash-1.0`'s** since the v1.42.0 re-vendor (Slash minor 14):
+`settings/Slash.lua` passes `isEnabled`, `brandName` and a `liveVerbs` array built from
+`SlashLib.LIVE_VERBS`, and the dispatcher applies it. Live are `help`, `config`, `version`,
+`enable`, `disable`, `debug`, `perf` and the schema CLI (`get`, `set`, `list`, `reset`, `resetall`)
+— the standard's own twelve, because a player must be able to read and repair settings and reach
+the panel while the addon is off — plus `resetposition` and `profile`, which are this addon's
+reading and are argued in [slash-dispatch.md](./slash-dispatch.md). The **bare `/at` opens the
+settings panel**, which is the case that reversed the standard's brief v2.56.0 narrowing. Refusing
+are `lock`, `unlock`, `toggle`, `update` and `test`. The refusal line is the **collection's** one
+wording (`lib.DISABLED_LINE_FORMAT`), published as `NS.Slash:DisabledLine()` and reused verbatim by
+the launcher's refused left click; it is deliberately **not** routed through `NS.L`.
 
 The verb table, the sub-verb trees, the mirror note, the help convention and the degraded arm are in
 [slash-dispatch.md](./slash-dispatch.md).
@@ -304,8 +306,11 @@ by it, so the spelling is not cosmetic. LibDBIcon draws the minimap button from 
 broker display draws its own row from it, so there is one `OnClick`, one icon and one identity
 (launcher-§1). Its **`label` is `Ka0s Absorb Tracker`** — the brand name in plain text, because a
 broker row is printed beside the other ten Ka0s addons and that one string is what decides whether
-they read as one collection; it is a literal, deliberately **not** wired to the TOC's `## Title`
-(which may carry color escapes) and not the folder name (which is `name`). Both libraries are
+they read as one collection. It is `NS.Constants.BRAND`, the **one** plain-text brand constant —
+the same string `settings/Slash.lua` hands the dispatcher as `brandName`, because slash-commands-§7
+makes the disabled refusal line carry exactly this spelling and two literals would be two brand
+names. Deliberately **not** wired to the TOC's `## Title` (which may carry color escapes) and not
+the folder name (which is `name`). Both libraries are
 vendored under `libs/` and resolved with `LibStub(..., true)` at `Register()` time; a host missing
 either gets an honest report rather than a raise.
 
@@ -315,6 +320,17 @@ view already is its preview, and this one took that exemption. The click writes 
 `NS.SetByPath`, the same seam the Lock frame checkbox and `/at lock` / `/at unlock` write through,
 so the in-combat unlock refusal, the preview clear and the repaint all come from the row's own
 `onChange` rather than being reimplemented. **Right-click always opens the settings panel.**
+
+**While the addon is disabled the left click is refused** (launcher-§2, slash-commands-§7). Rung (b)
+drives a preview switch, which is a feature, so the click prints `NS.Slash:DisabledLine()` — the
+dispatcher's own line, not a second spelling — and does **nothing else**; in particular it reaches
+no write seam, which is the audit finding it fixes: an ungated minimap button writes the stored tree
+of an addon the player switched off, and a mouse click is a game event in every sense that matters.
+The gate sits **before** the write, because `NS.SetByPath` would fire the `locked` `onChange` and
+land in SavedVariables whatever the click printed. **Right-click is unchanged in either state** —
+the panel is setup rather than a feature, so the right button opens it for the same reason `config` and the bare `/at` still do — and the button
+itself stays on the minimap, because `minimap.hide` is a per-installation display preference that
+says nothing about whether the addon is running. `tests/test_disabled.lua` step 8 pins all three.
 
 **Visibility is one row and one boolean.** `Minimap button` on Master controls stores LibDBIcon's
 own `hide` key at `db.global.minimap.hide` — **global**, so a profile switch does not move the
@@ -336,17 +352,104 @@ The **icon** is `media/logos/absorbtracker.logo.128.tga`, the same file `## Icon
 recipe. `tests/test_launcher.lua` reads its header bytes, because a wrong format there draws nothing
 and raises nothing.
 
+## The disabled state is total
+
+`slash-commands-§7`. **Disabled means the addon is not running** — not hidden, not quiet, not
+skipping a repaint. A player who unticks *Enable Absorb Tracker* has asked for the same outcome they
+would get by unticking the addon in Blizzard's own AddOns list, minus the `/reload`.
+
+**This addon used to implement a draw gate**, and the entry that described it was accurate: `enabled`
+was one rung of `NS.ShouldShowBar`'s ladder and nothing else, so the bars went away and every
+registration stayed live. That is the shape `anti-pattern #85` names. An early-returning handler did
+not stop watching — it stopped reacting, and the client went on walking the registration list on
+every `UNIT_ABSORB_AMOUNT_CHANGED` in a raid, building the argument frame and entering Lua to run
+the comparison that decided to leave.
+
+### One latch, two named holds
+
+`core/Lifecycle.lua` owns a single `LibKa0s-Lifecycle-1.0` instance, `NS.lifecycle`:
+
+| Hold | Taken by | Lifetime |
+|---|---|---|
+| `disabled` | the stored `enabled` path, through `NS.SyncEnabledHold()` | **persisted** — surviving a `/reload` is the entire point of the setting |
+| `perf` | `LibKa0s-Perf-1.0`'s Experiment B, which takes and releases it itself | **session-only**, never written to SavedVariables |
+
+The addon is stood down whenever **at least one** hold is taken and stood up only when the **last**
+one is released. There is no `:StandUp()` member to call, and its absence is the feature: a resume
+that stood the addon up would resurrect one the player disabled mid-capture, and a disable that did
+the same would end a run that was still recording. Both go through release-and-re-evaluate.
+
+`NS.SyncEnabledHold()` is the one line every surface reaches — the Master controls checkbox and
+`/at enable` / `/at disable` / `/at set enabled` through the `enabled` row's `onChange`, a Defaults
+press through the same row, and AceDB's `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset`
+through `adoptProfile`, which re-reads the store and calls `:Reevaluate()` because a profile switch
+can flip the path with nothing else being touched.
+
+**There is no second teardown path.** `core/PerfSetup.lua` no longer carries `suspend` / `resume`:
+those bodies **are** `NS.StandDown` / `NS.StandUp`, and the perf descriptor passes the latch
+instead. Two mechanisms that both mean "be inert" diverge on the first module added after the second
+one was written.
+
+### What stands down
+
+- **Every AceEvent registration on the addon object** — `PLAYER_ENTERING_WORLD`, the combat pair,
+  and the two swap events — actually `UnregisterEvent`ed.
+- **All three per-unit `RegisterUnitEvent` frames**, `UnregisterAllEvents`'d.
+- **Every bus subscription.** A `RegisterMessage` is a registration like any other. The subscribing
+  modules hold their targets as file-locals, so `core/Bus.lua` keeps a register — `NS.BusSubscribe`
+  records the triple and `NS.BusUnsubscribeAll` / `NS.BusResubscribeAll` drive it — and no module
+  learns that the latch exists.
+- **Every timer**: the coalescing repaint (`NS.CancelPendingRepaint`) and the `/at test` preview
+  hold (`NS.ClearPreview`).
+- **The bars, at the source.** `StandDown` publishes `VISIBILITY` *before* it takes the bus down, and
+  `NS.ShouldShowBar`'s rung 0 asks `NS.IsStoodDown()` — the latch, never the stored `enabled` — so it
+  already answers no, so nothing — a combat transition, a target swap, a settings
+  change — can re-show a bar behind the switch's back.
+- **No SavedVariables write from a game event.** The finding this fixes: entering combat while
+  disabled used to write `locked = true` and print `Bars locked — combat started`. `OnEnterCombat`
+  is **unchanged**; what changed is that `PLAYER_REGEN_DISABLED` is no longer registered, so the
+  client never calls it. That is the difference between standing down and gating.
+
+**No secure work is held pending**, and that is a statement about this addon rather than an omission.
+§7 requires `UnregisterStateDriver` / `UnregisterAttributeDriver` / a secure-attribute rewrite to
+wait for `PLAYER_REGEN_ENABLED`; this addon owns no secure frame, no state driver and no attribute
+driver — the bars are plain `CreateFrame("Frame", …, "BackdropTemplate")` — so the whole stand-down
+is combat-safe and completes in the same turn as the write. The day a secure element arrives here it
+holds its half pending, and `core/Lifecycle.lua` carries that note.
+
+### What survives, because it is setup
+
+The chat command registration, the dispatcher and `NS.COMMANDS`; the settings-category registration
+and the panel body (`CreateOptionsPanel` is deliberately outside `OnEnable`'s latch gate); the AceDB
+handle, the single write seam and the three profile callbacks; and the launcher's registration. The
+addon is inert; its command surface is not the addon.
+
+### Standing up rebuilds from current state
+
+Never from a snapshot taken on the way down. `StandUp` re-subscribes the bus, calls
+`RegisterLifecycleEvents` and `SyncUnitEventFrames` — which read the enabled set **as it is now** —
+and publishes `POSITION` → `VISIBILITY` → `APPEARANCE` → `REPAINT`. `POSITION` is there and is not
+symmetric with `StandDown` for a reason: a login that came up disabled never applied the stored
+anchors, so a later enable has to place the bars before it shows them.
+
+`tests/test_disabled.lua` is the conformance suite §7 requires, and it asserts on the **registration
+set** through the kit's recording mocks — never on a handler's return value, because a suite written
+against an early return certifies the draw gate it exists to catch.
+
 ## Event Subscriptions
 
 AceAddon lifecycle in `core/AbsorbTracker.lua`:
 
 - **`OnInitialize`** (ADDON_LOADED): register the monospace font with LSM, `NS:InitDB()`
   (AceDB + `RunMigrations` + profile callbacks), `NS.Slash:Register()`.
-- **`OnEnable`** (PLAYER_LOGIN timing): reproduces the old login sequence in order —
-  `ClearLSMCache` → `GetLSM` → **publish** `POSITION` → `APPEARANCE` →
-  `REPAINT` on the bus → register events → `CreateOptionsPanel`. The three publishes reach
-  `RestoreBarPosition` / `UpdateBarAppearance` (Display) and `RequestRepaint` (Timer); the login
-  paint therefore lands one `throttleWindow` later, not synchronously.
+- **`OnEnable`** (PLAYER_LOGIN timing): `ClearLSMCache` → `GetLSM` → **`NS.SyncEnabledHold()`** →
+  and then, **only while the latch is up**, publish `POSITION` → `APPEARANCE` → `REPAINT` on the bus
+  and register the events. `CreateOptionsPanel` is outside that gate, because the settings
+  registration is setup rather than a feature. The three publishes reach `RestoreBarPosition` /
+  `UpdateBarAppearance` (Display) and `RequestRepaint` (Timer); the login paint therefore lands one
+  `throttleWindow` later, not synchronously. **An addon that comes up disabled registers nothing at
+  all** — it does not register five events and three unit frames only to tear them down in the same
+  turn.
 - **One private unit-event frame per unit** (`addon:SyncUnitEventFrames()`) for the `UNIT_*` events:
   `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` fire for *every* unit the client knows about
   (all raid members, pets, nameplates, target/focus), and AceEvent-3.0 routes all events through
@@ -414,8 +517,12 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
 - **Retail Midnight only** (Interface 120100); no game-flavor branching.
 - **English only** — a ratified decision, not an unfinished job: the row lives in
   [Documented deviations](#documented-deviations) below (`localization-§1`), which is its single home.
-  The `NS.L` seam is exported and `locales/enUS.lua` ships. Exactly **one** string is routed through
-  it — `settings/Slash.lua`'s disabled-verb refusal — and everything else is hardcoded English.
+  The `NS.L` seam is exported and `locales/enUS.lua` ships, carrying **no keys at all**. The one
+  string this addon used to route was the disabled-verb refusal, and it left the addon at LibKa0s
+  v1.42.0: `slash-commands-§7` makes that line the **collection's** wording, built by
+  `LibKa0s-Slash-1.0` from one exported format string so four Ka0s addons cannot give a player four
+  answers to the same question. `enUS.lua` carries no key nothing reads (`localization-§3`), so the
+  key went with the call site. Everything else is hardcoded English.
 - **Three bars — player, target, focus.** Group / raid / arena / boss units are out of scope
   ([scope.md](./scope.md)).
 
@@ -472,7 +579,7 @@ reads the register first and records a match as accepted rather than re-filing i
 | `events-frames-taint-§1` | `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` are registered on a private `CreateFrame` **per tracked unit** via `RegisterUnitEvent`, not through AceEvent-3.0 | Both events fire for every unit the client knows about; AceEvent shares one frame and structurally cannot `RegisterUnitEvent`, so it would pay a full C→Lua dispatch per unit only to discard all but ours. One frame each rather than packing tokens, because `RegisterUnitEvent` filters **at most two** tokens per registration. Argument in full below; filed as `AT-31` in `docs/audits/2026-08-05/` | 2026-07-14 | A client build where `RegisterUnitEvent` accepts more than two unit tokens |
 | `savedvariables-§1` | A **per-profile** `schemaVersion` stamp at `db.profile.schemaVersion`, alongside the account-wide stamp in `db.global` | The v3 lift — flat appearance keys onto `profile.units.<unit>` — is a per-profile mutation, and an account-wide flag structurally cannot gate one: a second pre-v3 profile would have its stored appearance stranded forever. Argument in full below | 2026-07-28 | AceDB gaining a per-profile version stamp of its own, or the last per-profile migration being retired |
 | `events-frames-taint-§8` (SHOULD half) | 18 chat lines in `settings/Slash.lua` and `settings/Schema.lua` pre-format their arguments — `print(("%s bar %s"):format(...))`, `print("Switched to profile '" .. name .. "'")` — instead of handing the parts to the shared printer as `print("fmt", a, b)` | **Re-graded, not deferred.** §8's pre-formatting MUST is now **scoped** to call sites whose arguments can reach a value read from one of the named combat-protected APIs (`UnitGetTotalAbsorbs`, `UnitHealth`/`UnitHealthMax`, threat, aura amounts); outside that trigger set it is a **SHOULD NOT**, because the risk is drift, not secrets. Every one of the 18 sites formats only values this addon owns — a version string, a unit label, a profile name, a user-typed test number, a schema path — so none is in the trigger set and none can be handed a secret. The two sites that DO read `UnitGetTotalAbsorbs` (`core/AbsorbTracker.lua:171`, `:243`) already pass their arguments to the sink unformatted and guard with `NS.IsConcatSafe`; the seam's own guarantee (library stringifier, `table.concat`-based probe) is untouched and unconditional. Filed as `AT-35` in `docs/audits/2026-08-05/` against the pre-scoping text | 2026-08-05 | Any of these lines gaining an argument that is, or derives from, a return value of one of §8's named APIs — that site converts as a MUST — or §8's trigger set growing to cover one of them |
-| `localization-§1` | This addon ships **English only**: the `NS.L` seam is exported and `locales/enUS.lua` ships, but user-facing strings are hardcoded English rather than routed through `NS.L`. One exception, and it does not weaken the row: the disabled-verb refusal `slash-commands-§2` added is routed, because a recorded English-only decision is not a license to leave the seam unused (`localization-§3`) | A deliberate decision, not a backlog item. `localization-§3` names this one of the routing SHOULD's **two terminal compliant states** — English-only, recorded — so this row IS the compliant end state and an audit records it as accepted rather than re-filing the SHOULD. Both localization MUSTs are met unconditionally: the seam is exported and `enUS.lua` ships, carrying no dead keys. Filed as `AT-30` in `docs/audits/2026-08-05/`; deferred twice before as [PLAN-02](https://github.com/tusharsaxena/AbsorbTracker/issues/24), closed here | 2026-08-05 | The first non-English locale file added to `locales/` |
+| `localization-§1` | This addon ships **English only**: the `NS.L` seam is exported and `locales/enUS.lua` ships, but user-facing strings are hardcoded English rather than routed through `NS.L`. The one string that WAS routed — the disabled-verb refusal — left the addon at LibKa0s v1.41.0, because `slash-commands-§7` makes that line the collection's wording rather than the addon's and `lib.L` does not reach it; `enUS.lua` now carries no keys, which `localization-§3` requires rather than merely permits | A deliberate decision, not a backlog item. `localization-§3` names this one of the routing SHOULD's **two terminal compliant states** — English-only, recorded — so this row IS the compliant end state and an audit records it as accepted rather than re-filing the SHOULD. Both localization MUSTs are met unconditionally: the seam is exported and `enUS.lua` ships, carrying no dead keys. Filed as `AT-30` in `docs/audits/2026-08-05/`; deferred twice before as [PLAN-02](https://github.com/tusharsaxena/AbsorbTracker/issues/24), closed here | 2026-08-05 | The first non-English locale file added to `locales/` |
 
 **Retired on 2026-08-05** — four entries this register carried whose cited rule the standard has since
 changed, so the behavior is now permitted outright and a row for it reads as a deviation that is not

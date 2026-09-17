@@ -21,9 +21,9 @@ degrades to a stub whose `Note` is a no-op but whose `OnCommand` answers honestl
 the missing library and where it is expected — which is the same degradation philosophy every setup
 file in this addon follows. This addon supplies only a **descriptor**: `core/PerfSetup.lua` calls
 `lib:New(descriptor)` with this addon's name, its `AbsorbTrackerPerfDB` SavedVariables global, the
-ordered bucket declarations, and what
-"suspend"/"resume" mean for *this* addon's events and frames. That call returns the `NS.Perf`
-instance every bracket and slash verb below reads.
+ordered bucket declarations, and — since the LibKa0s v1.42.0 re-vendor — **the stand-down latch**
+(`core/Lifecycle.lua`) rather than a `suspend` / `resume` pair of its own. That call returns the
+`NS.Perf` instance every bracket and slash verb below reads.
 
 **Nesting is declared *and* observed.** A bucket's `within` is what the descriptor claims;
 `Perf.Note(key, ms, parentKey)` reports what the run actually saw, and the report distinguishes the
@@ -106,16 +106,27 @@ when you explicitly ask for one. Everything also acknowledges in chat.
 | `/at perf report` | Print the summary. The only thing that does — `finish` deliberately stays quiet |
 | `/at perf dump` | Write the run as one line of JSON into the debug console. Same data the summary is built from; the console's own **Copy** button lifts it out |
 
-### Suspend
+### Suspend — one of two holds on one latch
 
 Experiment B suspends the addon: every event unregistered, any pending repaint canceled, all bars
-hidden — **without a reload**. `NS.ShouldShowBar` checks the suspended flag as step 0 of its ladder,
+hidden — **without a reload**. `NS.ShouldShowBar` asks the latch (`NS.IsStoodDown()`) as step 0 of its ladder,
 so nothing (a combat transition, a target swap, a settings edit) can re-show a bar mid-measurement.
 
+**It is not a second teardown path.** Since Perf minor 12 the arm takes the `perf` hold on
+`NS.lifecycle` and the host's `StandDown` is what runs — the *same* function `/at disable` reaches
+through the `disabled` hold ([ARCHITECTURE.md → The disabled state is
+total](./ARCHITECTURE.md#the-disabled-state-is-total)). `NS.Perf.suspended` is now a **view** of that
+latch rather than a boolean beside it, and assigning to it raises. The reason is one specific
+session: the player types `/at disable` halfway through a capture. With two booleans, whichever was
+written last decided whether the addon came back, and a `Resume` at the end of the run resurrected an
+addon they had switched off. With a hold set, `Resume` releases `perf`, `disabled` is still taken,
+and the addon stays down — `finish` says `perf hold RELEASED — the addon stays down` rather than
+claiming a restore that did not happen.
+
 There is no manual `suspend` verb — `measure b` owns it, which is what guarantees the two
-experiments differ by the addon and nothing else. It is session-only, `/at perf finish` lifts it
-before it saves or formats anything (so no later failure can strand the addon inert), and `/reload`
-clears it regardless.
+experiments differ by the addon and nothing else. The `perf` hold is session-only and **never
+persisted**, `/at perf finish` releases it before it saves or formats anything (so no later failure
+can strand it for the rest of the session), and `/reload` clears it regardless.
 
 Suspend matters because **disabling an addon is not a clean experiment**. WoW's built-in Addon
 Profiler bills a shared library's dispatch frame to whichever addon created it — the first to load
@@ -393,7 +404,8 @@ Every one of them follows the same shape: the algorithms are lib code, and this 
 | `LibKa0s-DebugLog-1.0` | `core/DebugLogSetup.lua` | frame-name prefix, title, monospace font, `/at`, call-time `print`/`safeToString`, the `[Init]` summary, and `isEnabled`/`setEnabled` over `NS.State.debug` | `NS.DebugLog`, `NS.Debug` |
 | `LibKa0s-Slash-1.0` | `settings/Slash.lua` (no separate setup file) | `NS.COMMANDS`, the schema read/write/default seams, `groupKey`, the mirror annotator | `NS.Slash`, an addon-owned table wrapping the private dispatcher instance |
 | `LibKa0s-Options-1.0` | `settings/OptionsSetup.lua` | the brand, the schema seams, the reset policy hooks, the color codec, AceTimer, LSM | `NS.Helpers` (the instance itself), `NS.AceGUI`, the four `NS.*OptionsPanel*` wrappers |
-| `LibKa0s-Perf-1.0` | `core/PerfSetup.lua` | name, SavedVariables global, bucket declarations, and what "suspend"/"resume" mean for *this* addon | `NS.Perf` |
+| `LibKa0s-Perf-1.0` | `core/PerfSetup.lua` | name, SavedVariables global, bucket declarations, and the stand-down **latch** (`suspend`/`resume` are no longer descriptor fields) | `NS.Perf` |
+| `LibKa0s-Lifecycle-1.0` | `core/Lifecycle.lua` | the addon's folder name, `standDown`, `standUp` and the tagged printer | `NS.lifecycle` |
 
 Each setup file also carries a degradation stub, so the addon still loads and runs with the library
 absent. The stubs are honest rather than silent: they answer each member the addon calls with a line

@@ -112,67 +112,30 @@ NS.COMMANDS = {
         function(rest) runProfile(rest) end},
 }
 
--- ── the disabled gate (slash-commands-§2) ──────────────────────────────────────────────────────
+-- ── the disabled gate lives in the LIBRARY now (slash-commands-§2, §7) ───────────────────
 --
--- A disabled addon ANSWERS a feature verb rather than acting on it. Acting is wrong twice over: the
--- player asked for something the addon is currently standing down from doing, and a silent no-op
--- leaves them with no clue why nothing happened. One tagged line naming `/at enable`, and nothing
--- else — no partial work, no side effect, no second line, because a paragraph explaining the state
--- is a lecture stapled to a command the player is about to re-run anyway.
+-- THIS FILE USED TO CARRY THE GATE, as a loop that wrapped every handler not named in a local
+-- ALWAYS_LIVE table, and a refusal line of its own routed through NS.L. Both are gone, and the
+-- deletion is the adoption rather than a simplification: LibKa0s-Slash-1.0 minor 12 grew the gate
+-- and minor 14 (LibKa0s v1.42.0) settled what it refuses, so the wrapper here was a second implementation of a rule
+-- the dispatcher now applies -- and a second wording of the one line the whole collection says.
 --
--- IT IS A SHOULD, and this addon takes it.
+-- WHAT MOVED, EXACTLY. The descriptor at the foot of this file gains `isEnabled`, `brandName` and
+-- `liveVerbs`, and the library does the rest at DISPATCH time:
 --
--- WHAT STAYS LIVE IS NAMED ONCE, AS DATA, AND IT IS THE LIVE SET RATHER THAN THE GATED ONE. That
--- polarity is the whole design: the gate is applied to every verb NOT in this table, so a verb added
--- to NS.COMMANDS tomorrow is gated by DEFAULT and has to argue its way onto this list. A per-verb
--- guard pasted into each handler is a dozen places to forget, and the thirteenth verb forgets it for
--- free.
+--   * every one of slash-commands-§2's twelve reserved verbs answers normally while disabled, and
+--     so does the bare `/at`, which runs `config` and opens the settings panel. That is the case
+--     that settled it: a player reaches for the panel precisely when the addon is off, and the
+--     narrowing that refused it (standard v2.56.0, Slash minor 12) was reversed the same day.
+--   * this addon's own FEATURE verbs -- `lock`, `unlock`, `toggle`, `update`, `test` -- get ONE
+--     tagged line naming `/at enable` and reach no seam. §2's SHOULD, and this addon takes it.
+--   * a TYPO still gets `unknown command` and the index, because the addon did not understand it;
+--     the gate sits after the COMMANDS lookup, which is what tells the two cases apart.
 --
--- slash-commands-§2 names the first twelve, and the reasoning is that a player must be able to READ
--- AND REPAIR SETTINGS, and to reach the panel, while the addon is off — which is precisely when they
--- are most likely to need to — and `enable` above all, or the pair is one-way. `debug` and `perf`
--- are diagnostics rather than features: the usual reason to reach for either is that the addon is
--- misbehaving.
---
--- THE LAST TWO ARE THIS ADDON'S OWN READING, not the standard's list, and each is here because it
--- fails §2's own definition of a feature verb — it neither draws, shows, hides, tracks, records,
--- tests, clears nor exports anything — while sitting squarely in the interest the live list protects:
---
---   `resetposition`  is `reset` for the one piece of stored state no schema row addresses
---                    (`units.<unit>.position`, architecture-§5's named non-setting state). Refusing
---                    it would withhold from a bar's anchor the repair the schema CLI guarantees for
---                    every value beside it, purely because of where that anchor is stored.
---   `profile`        is settings management — list, switch, copy, create, delete, reset. A player
---                    who turned the addon off to get out from under a broken profile is exactly the
---                    player who needs to switch away from it.
-local ALWAYS_LIVE = {
-    help     = true, config   = true, version = true,
-    enable   = true, disable  = true,
-    debug    = true, perf     = true,
-    get      = true, set      = true, list = true, reset = true, resetall = true,
-    resetposition = true, profile = true,
-}
-
--- The refusal, routed through NS.L (localization-§1) so the one line a disabled addon says is not
--- the one line a translator cannot reach. The key is the English source string (localization-§2).
-local DISABLED = "Absorb Tracker is disabled \226\128\148 /at enable turns it back on"
-
--- THE GATE, IN ONE PLACE. Every verb is dispatched by reading `entry[3]` out of this table, so
--- wrapping the handlers here is the same as wrapping the dispatcher — and it is the only seam that
--- works, because the dispatcher itself is LibKa0s-Slash-1.0's and this addon does not own it.
---
--- Reads the live value at CALL time rather than closing over it, and refuses only on an explicit
--- `false`: a build with no db at all reads the declared default through NS.GetSetting's fallback,
--- and a launcher-less, panel-less install must not have its verbs silently taken away too.
-for _, entry in ipairs(NS.COMMANDS) do
-    if not ALWAYS_LIVE[entry[1]] then
-        local act = entry[3]
-        entry[3] = function(rest)
-            if NS.GetSetting("enabled") == false then return print(NS.L[DISABLED]) end
-            return act(rest)
-        end
-    end
-end
+-- THE WORDING IS NOT OURS AND IS NO LONGER ROUTED THROUGH NS.L. `lib.DISABLED_LINE_FORMAT` is the
+-- one spelling for eleven addons; a translated override here would give a player running four of
+-- them four different answers to the same question. The NS.L seam is unchanged and still exists --
+-- what left it is a key nothing reads any more (localization-§3).
 
 -- ---------------------------------------------------------------------
 -- /at help
@@ -529,6 +492,17 @@ if not SlashLib then
 
     function SlashLib:New(d)
         local stub = { SetRowAnnotator = function() end }
+        -- The one line a disabled addon says, and the degraded arm has to be able to say it: the
+        -- launcher's left click calls this member directly (core/LauncherSetup.lua), and a nil
+        -- there would raise on a click rather than refuse it.
+        --
+        -- PLAINLY, exactly as the degraded help rows render -- same words, no color escapes. The
+        -- library's `DISABLED_LINE_FORMAT` is not copied here: hand-copying the strings whose drift
+        -- the extraction exists to end is the one duplicate testing-§8 most specifically forbids,
+        -- and the copy would be the thing that survives the day the collection re-words the line.
+        stub.DisabledLine = function()
+            return NS.Constants.BRAND .. " is disabled \226\128\148 enable it with /at enable"
+        end
         local function absent(verb)
             return function() print("/at " .. verb .. missing) end
         end
@@ -584,6 +558,42 @@ cli = SlashLib:New({
     print   = function(line) print(line) end,
     version = NS.Version,
 
+    -- ── the disabled gate ──────────────────────────────────────────────────────
+    --
+    -- Asked at DISPATCH time and never cached, which is what makes the command straight after an
+    -- `/at enable` work. It reads the STORE, not the latch: `enabled` has no state of its own
+    -- (slash-commands-§2), and a read of the perf hold here would refuse a player's feature verb
+    -- mid-capture with a line telling them to enable an addon they never disabled.
+    isEnabled = function() return NS.GetSetting("enabled") ~= false end,
+
+    -- The plain-text brand name the refusal line is about, and the SAME string the LDB object
+    -- carries as `label` (core/Constants.lua). launcher-§1 forbids escape sequences in that field,
+    -- which is exactly what makes it safe to drop into a colored line.
+    brandName = NS.Constants.BRAND,
+
+    -- §2's twelve, PLUS two this addon argues for -- and built FROM the library's own array
+    -- rather than re-typed, so a thirteenth reserved verb arrives here by re-vendoring instead of
+    -- by someone remembering. Re-typing the twelve is how a host ends up quietly narrowing the
+    -- surface it meant to keep.
+    --
+    --   `resetposition`  is `reset` for the one piece of stored state no schema row addresses
+    --                    (`units.<unit>.position`, architecture-§5's named non-setting state).
+    --                    Refusing it would withhold from a bar's anchor the repair the schema CLI
+    --                    guarantees for every value beside it, purely over where that anchor lives.
+    --   `profile`        is settings management -- list, switch, copy, create, delete, reset. A
+    --                    player who turned the addon off to get out from under a broken profile is
+    --                    exactly the player who needs to switch away from it.
+    --
+    -- Everything NOT here is gated by default, which is the polarity that matters: a verb added to
+    -- NS.COMMANDS tomorrow refuses while disabled until someone argues it onto this list.
+    liveVerbs = (function()
+        local out = {}
+        for _, verb in ipairs(SlashLib.LIVE_VERBS or {}) do out[#out + 1] = verb end
+        out[#out + 1] = "resetposition"
+        out[#out + 1] = "profile"
+        return out
+    end)(),
+
     -- The schema seams. SetByPath rather than a bare write, so a CLI change takes the same path a
     -- panel change does: the [Set] debug line, the row's onChange, and the panel refresh.
     get          = function(path) return NS.GetSetting(path) end,
@@ -616,6 +626,12 @@ cli:SetRowAnnotator(MirrorNote)
 -- instance are otherwise both file-scope locals, and a stub surface that cannot be reached cannot
 -- be compared. tests/test_surface_parity.lua is the only reader.
 Sl.__cli = cli
+
+--- The one line a disabled addon says, built by the library and re-spelled nowhere
+--- (slash-commands-§7). Published because the LAUNCHER's refused left click prints the very same
+--- line (core/LauncherSetup.lua), and a second copy of one sentence across two files is how eleven
+--- addons ended up with eleven wordings.
+function Sl:DisabledLine() return cli:DisabledLine() end
 
 --- The command list the About page renders. Same coloring and spacing as `/at help`, without the
 --- chat indent: each row there is its own label, where a leading indent reads as a mistake.

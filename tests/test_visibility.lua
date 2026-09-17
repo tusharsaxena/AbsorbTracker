@@ -2,6 +2,16 @@ local T = _G.AT_TEST
 local NS = T.NS
 local test, assertTrue, assertFalse = T.test, T.assertTrue, T.assertFalse
 
+--- Drain the coalescing repaint scheduler. A write to `enabled` through NS.SetByPath crosses a
+--- lifecycle edge (slash-commands-§7), and a stand-up ends by publishing REPAINT -- which arms the
+--- one-shot in modules/Timer.lua. Headlessly nothing fires a timer unless a case says so, so a
+--- `pending` left armed here would make the first repaint a LATER suite asks for coalesce into a
+--- timer it never armed.
+local function settle()
+  NS.CancelPendingRepaint()
+  for i = #T.mocks.__timers, 1, -1 do T.mocks.__timers[i] = nil end
+end
+
 -- Run `body` with a specific per-unit enabled / `visibility` / in-combat state, then restore
 -- everything. The loader binds WoW globals live through the mock table, so swapping the combat mocks
 -- is seen by addon code (same pattern as tests/test_slash.lua). `inCombat` drives both combat
@@ -95,19 +105,25 @@ end)
 -- The ADDON-WIDE enable (options-ui-§15's first row), which is a different setting from the
 -- per-unit flags above it and gates all three at once. red under: a ladder that drops this rung, or
 -- one that conflates it with `units.player.enabled`.
+--
+-- WRITTEN THROUGH NS.SetByPath, not NS.SetSetting, and the difference is the whole of
+-- slash-commands-§7. The raw store write skips the row's onChange, so it moves the stored value
+-- without taking the `disabled` hold -- and the ladder's rung 0 is that hold, not a second read of
+-- the setting. A case that still used the raw write would be asserting that a draw gate exists.
 test("ShouldShowBar: the addon-wide enable gates every unit, whatever the per-unit flag says",
   function()
   local savedEnabled = NS.GetSetting("enabled")
   local savedUnit    = NS.db.profile.units.player.enabled
   NS.db.profile.units.player.enabled = true
-  NS.SetSetting("enabled", false)
+  NS.SetByPath("enabled", false)
   local ok, err = pcall(function()
     assertFalse(NS.ShouldShowBar("player"), "the addon is off, so nothing draws")
-    NS.SetSetting("enabled", true)
+    NS.SetByPath("enabled", true)
     assertTrue(NS.ShouldShowBar("player"), "and back on again with nothing else changed")
   end)
-  NS.SetSetting("enabled", savedEnabled)
+  NS.SetByPath("enabled", savedEnabled)
   NS.db.profile.units.player.enabled = savedUnit
+  settle()
   if not ok then error(err) end
 end)
 

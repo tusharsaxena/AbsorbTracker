@@ -149,14 +149,23 @@ test("launcher: the label is not WIRED to the TOC Title, even though both read t
   -- fed `NS.Meta("Title")` into this field would be one TOC edit away from splattering its row
   -- across a display.
   --
-  -- red under: `label = NS.Meta("Title")` or any other read of the manifest.
+  -- It is now the ONE brand constant rather than a literal spelled here, and that is a tightening
+  -- rather than a loosening of the same rule: slash-commands-§7 makes the disabled refusal line
+  -- carry this exact string, so `label` and the dispatcher's `brandName` have to be the same
+  -- spelling. Two literals would be two brand names. What the rule forbids is a read of the
+  -- MANIFEST, and this reads a plain-text constant in core/Constants.lua.
+  --
+  -- red under: `label = NS.Meta("Title")` or any other read of the manifest; a second literal here
+  -- that drifts from the constant the refusal line is built out of.
   local src = io.open("core/LauncherSetup.lua", "r")
   assertTrue(src ~= nil, "cannot open core/LauncherSetup.lua (tests run from the repo root)")
   local body = src:read("*a")
   src:close()
   local assigned = body:match("\n%s*label%s*=%s*(.-),\r?\n")
-  assertEqual(assigned, '"Ka0s Absorb Tracker"',
-    "`label` must be a plain-text literal, never a read of `## Title` or of the folder name")
+  assertEqual(assigned, "NS.Constants.BRAND",
+    "`label` must be the one brand constant, never a read of `## Title` or of the folder name")
+  assertEqual(NS.Constants.BRAND, "Ka0s Absorb Tracker", "and that constant is the plain-text brand")
+  assertEqual(NS.Launcher:Object().label, "Ka0s Absorb Tracker", "which is what the object carries")
 end)
 
 -- ── the rung ───────────────────────────────────────────────────────────────────────────────────

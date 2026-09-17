@@ -12,16 +12,13 @@ NS.L = setmetatable(NS.L or {}, { __index = function(_, k) return k end })
 -- seam is here so a future pass can wrap them (`NS.L["Bar Width (in px)"]`) without touching call
 -- sites.
 --
--- ONE STRING IS ROUTED, and the register is not weakened by it: a recorded English-only decision is
--- not a license to leave the seam unused, and a string the addon DOES route stays routed
--- (localization-§3). Keys are the English source strings (localization-§2).
-local L = NS.L
-
--- settings/Slash.lua's disabled-verb refusal (slash-commands-§2). It is the single line a disabled
--- addon says, and the one verb-surface string a player is guaranteed to meet at the moment they are
--- least sure what is happening -- which is the worst line in the addon to leave unreachable to a
--- translator. Listed here rather than left to the metatable fallback so a `deDE.lua` has something
--- to override; enUS.lua carries no key nothing reads (localization-§3), and this one is read on
--- every refusal.
-L["Absorb Tracker is disabled \226\128\148 /at enable turns it back on"] =
-    "Absorb Tracker is disabled \226\128\148 /at enable turns it back on"
+-- NO KEY IS LISTED HERE, and that is the register holding rather than weakening. The one string
+-- this addon used to route was settings/Slash.lua's disabled-verb refusal, and it left the addon
+-- entirely at LibKa0s v1.42.0: slash-commands-§7 makes that line the COLLECTION's wording, built by
+-- LibKa0s-Slash-1.0 out of one exported format string, precisely so a player running four Ka0s
+-- addons does not read four different answers to the same question. `lib.L` does not reach it
+-- either. enUS.lua carries no key nothing reads (localization-§3), so the key went with the call
+-- site.
+--
+-- The seam above is untouched and still the place a future pass wraps `NS.L["Bar Width (in px)"]`
+-- without editing call sites; what is gone is a dead entry, not the mechanism.

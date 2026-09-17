@@ -14,9 +14,14 @@ local secretMock = setmetatable({}, {
 local function chatOf(mocks, fn)
   local out = {}
   local frame = mocks.DEFAULT_CHAT_FRAME
+  -- RESTORE what was there, rather than clearing the field. From kit revision 22 the mock's chat
+  -- frame carries a real AddMessage that records into `M.__printed()`, and `rawset(..., nil)` did
+  -- not put the frame back the way it was -- it DELETED the recorder for every suite that ran
+  -- after this one, whose "nothing was printed" then became a statement about the harness.
+  local old = rawget(frame, "AddMessage")
   rawset(frame, "AddMessage", function(_, msg) out[#out + 1] = msg end)
   fn()
-  rawset(frame, "AddMessage", nil)
+  rawset(frame, "AddMessage", old)
   return out
 end
 

@@ -227,7 +227,11 @@ test("vendored Perf resolves a fallback-only override to its own strings", funct
   assertTrue(lib ~= nil, "the vendored Perf major must be registered")
   local P = lib:New({
     name = "LTrapProbe", sv = "LTrapProbeDB",
-    suspend = function() end, resume = function() end,
+    -- Perf 12 requires a latch and no longer reads `suspend`/`resume`. A probe-local one, so this
+    -- case cannot move the addon's own inert state while checking a string table.
+    lifecycle = T.mocks.LibStub("LibKa0s-Lifecycle-1.0", true):New({
+      name = "LTrapProbe", standDown = function() end, standUp = function() end,
+    }),
     L = fallbackLocale(),
   })
   assertTrue(#(P.STEPS or {}) > 0, "the probe instance must have built its step list")

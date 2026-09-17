@@ -49,10 +49,11 @@ local function doRepaint()
 end
 
 function NS.RequestRepaint()
-    -- Suspended = inert. Bail before arming rather than inside doRepaint: an armed timer would
-    -- still allocate, still fire, and still show up as work in the very capture that suspend
-    -- exists to zero out.
-    if Perf.suspended then return end
+    -- STOOD DOWN = INERT, for whichever hold took the latch (core/Lifecycle.lua). Bail before
+    -- arming rather than inside doRepaint: an armed timer would still allocate, still fire, and
+    -- still show up as work. StandDown cancels the pending pass and unsubscribes REPAINT; this
+    -- stops a direct call landing mid-stand-down from arming a new one.
+    if NS.IsStoodDown() then return end
     if pending then return end            -- a repaint is already queued; coalesce into it
     -- The CLAMPED read (core/Data.lua), not the raw setting. This number goes straight into
     -- AceTimer, which COMPARES it against 0.01 before it stores it, so a hand-edited
@@ -60,8 +61,8 @@ function NS.RequestRepaint()
     pending = NS.addon:ScheduleTimer(doRepaint, NS.GetThrottleWindow())
 end
 
---- Drop any queued repaint. Used by the perf probe's suspend path so a pass armed a moment before
---- suspending cannot land in the middle of the suspended measurement arm.
+--- Drop any queued repaint. Used by the latch's StandDown (core/Lifecycle.lua) so a pass armed a
+--- moment before standing down — for `disabled` or for `perf` — cannot land after it.
 function NS.CancelPendingRepaint()
     if not pending then return false end
     if NS.addon and NS.addon.CancelTimer then NS.addon:CancelTimer(pending) end
@@ -76,5 +77,6 @@ end
 NS.Timer = NS.Timer or {}
 if NS.NewBusTarget then
     NS.Timer.__ev = NS.NewBusTarget()
-    NS.Timer.__ev:RegisterMessage(NS.MSG.REPAINT, function() NS.RequestRepaint() end)
+    -- Recorded in the bus register (core/Bus.lua) so the stand-down can unregister it.
+    NS.BusSubscribe(NS.Timer.__ev, NS.MSG.REPAINT, function() NS.RequestRepaint() end)
 end

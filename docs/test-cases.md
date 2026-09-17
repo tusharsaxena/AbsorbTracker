@@ -569,7 +569,7 @@ badge and any count quoted in the docs must agree with it.
 - the pair is never one-way: the dispatcher still answers while the addon is disabled
 - enable and disable hold no state of their own
 - every verb is either on the live list or refuses while disabled, and none is unclassified
-- the refusal carries the addon's tag and comes out of NS.L
+- the refusal is the collection's one line, tagged, and not re-spelled here
 - a refused `toggle` does not touch a single bar's enabled flag
 - a refused `unlock` leaves the lock exactly where it was
 - a refused `update` publishes nothing on the bus
@@ -718,6 +718,20 @@ badge and any count quoted in the docs must agree with it.
 - lintconfig: every files[...] ignore is narrowed to a file or a name
 - lintconfig: no source file carries a bare inline luacheck ignore
 
+### test_disabled.lua (11)
+
+- disabled 1: the enabled addon registers something to stand down from
+- disabled 3: writing the enable path leaves NOTHING registered
+- disabled 4: no timer, ticker or OnUpdate is left armed
+- disabled 5: every frame that was on screen is hidden, and stays hidden
+- disabled 6: firing every baseline event writes nothing, says nothing, shows nothing
+- disabled 7: every reserved verb answers, and only a feature verb refuses
+- disabled 7: a refused feature verb reaches no write seam
+- disabled 8: the left click is refused and writes nothing; the right click still opens the panel
+- disabled 9: re-enabling restores the registration set, from the settings as they are NOW
+- disabled 10: releasing one hold does not stand up an addon the other still holds down
+- disabled 10: the perf hold is session-only and the disabled hold is the stored path
+
 ### test_eol.lua (1)
 
 - eol: every tracked file carries the terminator .gitattributes declares for it
@@ -752,5 +766,6 @@ badge and any count quoted in the docs must agree with it.
 | test_surface_parity.lua | 5 |
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
+| test_disabled.lua | 11 |
 | test_eol.lua | 1 |
-| **Total** | **635** |
+| **Total** | **646** |

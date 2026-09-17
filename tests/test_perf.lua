@@ -32,7 +32,10 @@ local function reset()
   P.on = false
   P.run = false
   P.armed, P.recording = nil, nil
-  P.suspended = false
+  -- `P.suspended` is the LATCH's answer since Perf 12 and raises on assignment, which is the point:
+  -- there is one place the addon's inert state lives and a test cannot fork it. Release the hold
+  -- instead, which is what the probe itself does.
+  NS.lifecycle:Release("perf")
   P.label = nil
   P.Reset()
   settle()

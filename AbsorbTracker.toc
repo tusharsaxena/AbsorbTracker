@@ -46,6 +46,10 @@ core\Namespace.lua
 core\State.lua
 core\Bus.lua
 core\CoreSetup.lua
+# The stand-down latch. BEFORE PerfSetup, and that is load-bearing rather than tidy: Perf 12
+# requires `descriptor.lifecycle` and refuses at New without it, so a PerfSetup that loaded first
+# would raise. It is also where `enabled` and the perf arm stop being two mechanisms.
+core\Lifecycle.lua
 core\PerfSetup.lua
 core\Data.lua
 core\Units.lua

@@ -104,6 +104,10 @@ Kit.run{
     "test_surface_parity",
     "test_vendor_sync",
     "test_lintconfig",
+    -- slash-commands-§7's conformance suite. Last of this addon's own, because it drives the
+    -- addon through OnEnable and a full disable/enable cycle on the SHARED environment: run
+    -- earlier, its stand-downs would be another suite's mysteriously empty registration set.
+    "test_disabled",
     -- Shipped in the kit, so every consumer inherits the gate instead of re-typing it; the
     -- inventory assertion goes red in any repo that vendors it and leaves it undeclared.
     { name = "test_eol", dir = "tests/_kit/" },

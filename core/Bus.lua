@@ -46,6 +46,44 @@ function NS.NewBusTarget()
     return t
 end
 
+-- ── the subscription register, and why the bus owns it ────────────────────────────────────────
+--
+-- A RegisterMessage is a REGISTRATION, and slash-commands-§7 names it beside RegisterEvent: a
+-- stood-down addon has unregistered it, not gated the handler behind a flag. But the subscribing
+-- modules hold their targets as file-locals (modules/Display.lua's `ev`), so nothing outside them
+-- could reach a subscription to take it down.
+--
+-- So subscribing goes through here, and the bus remembers the triple. core/Lifecycle.lua's
+-- StandDown calls NS.BusUnsubscribeAll and its StandUp calls NS.BusResubscribeAll, and neither
+-- module learns that the latch exists. The alternative — a suspend/resume pair exported from each
+-- subscribing module — is three copies of one rule and a fourth module that forgets it.
+--
+-- The register is APPEND-ONLY and keyed by nothing: a module subscribes once, at file load, and the
+-- same triple is re-registered on the way back up. CallbackHandler keys by (message, target), so a
+-- re-register over a live subscription would be a silent overwrite rather than a second callback —
+-- which is what makes the resubscribe safe to run when some subscriptions are already in place.
+local subscriptions = {}
+
+--- Subscribe `target` to `message`, and record it so the latch can take it down.
+function NS.BusSubscribe(target, message, fn)
+    subscriptions[#subscriptions + 1] = { target = target, message = message, fn = fn }
+    target:RegisterMessage(message, fn)
+    return target
+end
+
+--- Drop every recorded subscription. Answers how many it dropped, which is what lets a test tell
+--- "there was nothing to drop" from "the register was never populated".
+function NS.BusUnsubscribeAll()
+    for _, s in ipairs(subscriptions) do s.target:UnregisterMessage(s.message) end
+    return #subscriptions
+end
+
+--- Put every recorded subscription back, with the callback it was registered with.
+function NS.BusResubscribeAll()
+    for _, s in ipairs(subscriptions) do s.target:RegisterMessage(s.message, s.fn) end
+    return #subscriptions
+end
+
 -- Message-name catalog. Prefixed Ka0s_<Addon>_ to avoid cross-addon collision.
 NS.MSG = {
     REPAINT    = "Ka0s_AbsorbTracker_RepaintRequested",

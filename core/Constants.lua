@@ -64,4 +64,14 @@ C.LOGO_ICON_PATH = "Interface\\AddOns\\AbsorbTracker\\media\\logos\\absorbtracke
 -- read/write seam in core/Data.lua. A parallel `showMinimapIcon` would be a copy of one state that
 -- a library also writes, free to disagree the first time the player used LibDBIcon's own menu
 -- (anti-pattern #81).
+-- THE BRAND NAME, IN PLAIN TEXT, AND THERE IS EXACTLY ONE OF IT. launcher-§1 makes this the LDB
+-- object's `label`, and slash-commands-§7 makes the same string the subject of the one line a
+-- disabled addon prints — so LibKa0s-Slash-1.0 wants it as `brandName` and LibKa0s-Launcher-1.0
+-- wants it as `label`. Two literals would be two brand spellings, which is the drift a shared
+-- printer exists to end; one constant makes them the same string by construction.
+--
+-- NOT the TOC's `## Title` (a Title may carry color escapes, and one in the collection does) and
+-- not the folder name (which LibDBIcon keys a saved position by and nobody reads as prose).
+C.BRAND = "Ka0s Absorb Tracker"
+
 C.MINIMAP_PATH = "global.minimap.hide"

@@ -7,13 +7,20 @@ local test, assertEqual, assertTrue, assertFalse =
 -- backdrop insets / lock), and the absorb repaint with its two early-outs.
 --
 -- The mock frames answer every PascalCase method from a metatable no-op, so nothing is recorded by
--- default. `spy` rawsets a recorder over one method for the duration of a call and rawsets it back
--- to nil afterwards, which restores the metatable fallthrough.
-
+-- default. `spy` rawsets a recorder over one method for the duration of a call and PUTS BACK
+-- WHATEVER WAS THERE afterwards.
+--
+-- It used to restore `nil` unconditionally, on the reasoning that nil restores the metatable
+-- fallthrough — true for a method the stub does not define, and quietly destructive for one it
+-- does. `Show`, `Hide`, `SetShown` and `IsShown` are REAL raw fields on a kit frame (they maintain
+-- `__shown`, which is what `M.__shownFrames()` reads), so a spy on `Hide` that restored nil left
+-- that frame permanently unhideable for every suite that ran afterwards -- and a stand-down suite
+-- reading the shown set would then be measuring this helper rather than the addon.
 local function spy(frame, method)
   local calls = {}
+  local previous = rawget(frame, method)
   rawset(frame, method, function(_, ...) calls[#calls + 1] = { ... } return frame end)
-  return calls, function() rawset(frame, method, nil) end
+  return calls, function() rawset(frame, method, previous) end
 end
 
 -- Capture every call to `method` made while `body` runs.
@@ -36,6 +43,21 @@ local function withSetting(key, value, body)
   NS.SetSetting(key, value)
   local ok, err = pcall(body)
   NS.SetSetting(key, saved)
+  if not ok then error(err) end
+end
+
+--- The same, but through the WRITE SEAM so the row's onChange runs. `enabled` needs it: that
+--- onChange is what takes the `disabled` hold on the lifecycle latch (slash-commands-§7), and the
+--- raw store write above would move the stored value while leaving the addon standing.
+local function withSeamSetting(key, value, body)
+  local saved = NS.GetSetting(key)
+  NS.SetByPath(key, value)
+  local ok, err = pcall(body)
+  NS.SetByPath(key, saved)
+  -- The stand-up the restore just triggered ends by publishing REPAINT, which arms the coalescing
+  -- one-shot. Drain it, or the next case to count scheduled timers counts this one.
+  NS.CancelPendingRepaint()
+  for i = #T.mocks.__timers, 1, -1 do T.mocks.__timers[i] = nil end
   if not ok then error(err) end
 end
 
@@ -566,7 +588,7 @@ end)
 test("unlocking does not override the addon-wide or per-unit switch", function()
   local addonOff, unitOff
   withUnlocked(function()
-    withSetting("enabled", false, function() addonOff = NS.ShouldShowBar("player") end)
+    withSeamSetting("enabled", false, function() addonOff = NS.ShouldShowBar("player") end)
     withUnitSetting("focus", "enabled", false, function() unitOff = NS.ShouldShowBar("focus") end)
   end)
   assertEqual(addonOff, false, "Enable Absorb Tracker off means nothing draws")

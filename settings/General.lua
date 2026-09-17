@@ -131,12 +131,19 @@ local masterRows, masterTail = H.MasterControls({
 -- than by index, so a change to the canonical order upstream cannot silently move a handler onto
 -- the wrong row -- it would simply stop firing, which is visible.
 local masterOnChange = {
-    -- The addon-wide switch. Nothing unloads and no event registration changes (those key off the
-    -- per-unit flags); what changes is whether ShouldShowBar's second rung lets anything draw.
-    ["enabled"] = function()
-        NS.bus:SendMessage(NS.MSG.VISIBILITY)
-        NS.bus:SendMessage(NS.MSG.REPAINT)
-    end,
+    -- THE ADDON-WIDE SWITCH, AND IT IS NOT A DRAW GATE. It used to be exactly that: publish
+    -- VISIBILITY, let ShouldShowBar's second rung answer no, and leave every registration live on
+    -- an addon the player had switched off. slash-commands-§7 calls that shape what it is -- the
+    -- addon did not stop watching, it stopped reacting, and it still paid the dispatch on every
+    -- UNIT_ABSORB_AMOUNT_CHANGED the client sent it.
+    --
+    -- ONE LINE NOW, and it is the same line the two verbs, `/at set enabled`, a Defaults press and
+    -- a profile switch all reach, because they all land in this seam. NS.SyncEnabledHold re-reads
+    -- the STORE and moves the `disabled` hold on the one latch (core/Lifecycle.lua); the latch
+    -- calls StandDown or StandUp on the edge, and the stand-down publishes VISIBILITY itself before
+    -- it takes the bus down. Publishing here as well would be a second pass, and on the way UP it
+    -- would fire onto a bus that has not been resubscribed yet.
+    ["enabled"] = function() NS.SyncEnabledHold() end,
 
     ["visibility"] = function()
         NS.bus:SendMessage(NS.MSG.VISIBILITY)

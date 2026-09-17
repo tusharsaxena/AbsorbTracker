@@ -487,6 +487,24 @@ not. Every step here is therefore a look, not a log line.
     painted. Then confirm the repair verbs are still live: `/at list`, `/at get scale`,
     `/at set scale 1.2`, `/at profile list`, `/at resetposition` and `/at perf` all still answer.
     Turn it back on with `/at enable`.
+13. **The disabled state is TOTAL, not a draw gate** (slash-commands-§7). `/at debug on`, then
+    `/at disable`. **Enter combat.** Nothing is printed: no `Bars locked — combat started` line, no
+    `[Combat] entered`, no `[Bar]` transition. Take absorb damage on a training dummy — still
+    nothing, and the console stays still. Leave combat: no `[Combat] left` rollup. Then
+    `/at enable` **while still in combat** if you can, or straight after: the bars come back and the
+    next shield repaints them without a `/reload`. What this pins is the difference between standing
+    down and declining to react — with a draw gate every one of those lines still appears, because
+    the handlers still run.
+14. **A disabled addon's minimap click writes nothing** (launcher-§2). Still disabled, note whether
+    the bars are locked, then **left-click the minimap button**. It answers with the **same one line**
+    `/at unlock` gives — word for word, because both come out of the dispatcher — and the lock does
+    **not** move. **Right-click** still opens the settings panel, and the *Enable Absorb Tracker*
+    checkbox on Master controls is live there. Re-tick it and the bars come back, which is the second
+    route in and the reason the panel is exempt.
+15. **The two holds do not fight.** `/at perf start`, `/at perf measure b` (the addon suspends), then
+    `/at disable` mid-run, then `/at perf finish`. The finish line reads **`perf hold RELEASED — the
+    addon stays down`** rather than `RESUMED`, and the bars stay gone — the player switched the
+    addon off and a finishing capture must not switch it back on. `/at enable` brings it back.
 
 ### Triage references (if a step fails)
 - Bootstrap / events / profile repaint — `core/AbsorbTracker.lua` (`OnEnable`, `OnProfileChanged`)

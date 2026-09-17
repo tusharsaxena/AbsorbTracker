@@ -73,45 +73,19 @@ NS.Perf = lib:New({
         { key = "visibility",  within = "appearance" }, -- NS.ApplyVisibility, per bar
     },
 
-    --- Make the addon inert without a /reload.
-    ---
-    --- Visibility is NOT enforced by hiding frames here. NS.ShouldShowBar checks NS.Perf.suspended
-    --- as step 0 of its ladder, so publishing VISIBILITY is enough and nothing — a combat
-    --- transition, a target swap, a settings change — can re-show a bar behind suspend's back.
-    suspend = function()
-        local addon = NS.addon
-        if addon then
-            local frames = addon.__unitEventFrames
-            if frames then
-                for _, f in pairs(frames) do f:UnregisterAllEvents() end
-            end
-            if addon.UnregisterEvent then
-                for _, event in ipairs({
-                    "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
-                    "PLAYER_TARGET_CHANGED", "PLAYER_FOCUS_CHANGED",
-                }) do
-                    addon:UnregisterEvent(event)
-                end
-            end
-        end
-        if NS.CancelPendingRepaint then NS.CancelPendingRepaint() end
-        if NS.bus then NS.bus:SendMessage(NS.MSG.VISIBILITY) end
-    end,
-
-    --- Restore everything suspend took away. SyncUnitEventFrames rebuilds the per-unit registrations
-    --- from the CURRENT enabled set, so a unit toggled while suspended comes back correctly.
-    resume = function()
-        local addon = NS.addon
-        if addon then
-            if addon.RegisterLifecycleEvents then addon:RegisterLifecycleEvents() end
-            if addon.SyncUnitEventFrames then addon:SyncUnitEventFrames() end
-        end
-        if NS.bus then
-            NS.bus:SendMessage(NS.MSG.VISIBILITY)
-            NS.bus:SendMessage(NS.MSG.APPEARANCE)
-            NS.bus:SendMessage(NS.MSG.REPAINT)
-        end
-    end,
+    -- THE LATCH, AND THE ONLY ROUTE THIS PROBE HAS TO MAKING THE ADDON INERT (Perf 12).
+    --
+    -- `suspend` and `resume` are gone from this descriptor, and their bodies are not gone with
+    -- them: they are core/Lifecycle.lua's StandDown and StandUp, where the DISABLED arm reaches
+    -- exactly the same two functions. That is the whole point of the move. Two teardown paths that
+    -- both mean "be inert" have to agree about what inert means, and they diverge on the first
+    -- module added after the second one was written — anti-pattern #85. There is one path now, and
+    -- Experiment B and `/at disable` walk it together.
+    --
+    -- `P.suspended` is a VIEW of this latch rather than a boolean beside it, so a Resume at the end
+    -- of a run releases the `perf` hold and NOTHING ELSE: an addon the player disabled mid-capture
+    -- keeps its `disabled` hold and stays down.
+    lifecycle = NS.lifecycle,
 
     -- Perf output is deliberately NOT gated on NS.State.debug, unlike NS.Debug. That gate keeps the
     -- addon free when idle, and a perf run is explicit user action — none of it executes unless

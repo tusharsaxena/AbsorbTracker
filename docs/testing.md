@@ -24,6 +24,24 @@ different checkpoint (`automated-tests-§3`, *The release gate*):
 
 Both are documented in [performance.md](./performance.md).
 
+### The stand-down conformance suite (`tests/test_disabled.lua`)
+
+`slash-commands-§7` makes one suite mandatory rather than recommended, and it is inside the green
+gate like any other. It asserts that a disabled addon is **inert** — nothing registered, nothing
+armed, nothing drawn, nothing written from a game event — and it asserts it on the **registration
+set** that `tests/_kit/mock_record.lua` records, never on a handler's return value.
+
+That distinction is the whole reason the suite exists, and it is worth restating where a future
+contributor will read it before editing: **a case written as "call the handler and assert it
+returned early" certifies the draw gate it is supposed to catch**, because an early return is
+exactly what a draw gate does. If a case here becomes awkward, the fix is to make the addon stand
+down further — not to lower the assertion to a return value. The three negative steps (3, 6 and 10)
+carry testing-§12's falsification comment naming the mutation that reddens each, and those
+mutations have been run: dropping `StandDown`'s unregister loop reddens 3, 4, 6 and 10; removing the
+launcher's disabled gate reddens 8; restoring the old draw-gate `enabled` onChange reddens 3, 4, 6
+and 10. Step 5 stays green under all of them, which is precisely why step 5 alone is not a
+conformance test.
+
 ### What the lint gate is a statement about (lint.md)
 
 `luacheck .` reading `0 warnings / 0 errors` is only worth something if the configuration is not the

@@ -55,9 +55,25 @@ end
 function addon:OnEnable()
     NS.ClearLSMCache()
     NS.GetLSM()
-    NS.bus:SendMessage(NS.MSG.POSITION)
-    NS.bus:SendMessage(NS.MSG.APPEARANCE)
-    NS.bus:SendMessage(NS.MSG.REPAINT)
+
+    -- THE LATCH DECIDES WHETHER THIS ADDON COMES UP RUNNING, and it is read here rather than in
+    -- OnInitialize because there has to be something to stand down: the bus subscriptions and the
+    -- three bars exist by file-load time, and the per-unit frames do not exist until the line
+    -- below. `enabled` is persisted, so a player who switched the addon off before a /reload gets
+    -- an addon that is off after it -- inert, not merely invisible.
+    --
+    -- One read of the store, through the one seam (core/Lifecycle.lua). If it takes the `disabled`
+    -- hold, StandDown runs here and the block below is skipped: registering five events and three
+    -- unit frames only to tear them down in the same turn is work a disabled addon should never do,
+    -- and the day one of them is missed from the teardown it would be a survivor with a login-time
+    -- head start.
+    NS.SyncEnabledHold()
+
+    if not NS.lifecycle:IsDown() then
+        NS.bus:SendMessage(NS.MSG.POSITION)
+        NS.bus:SendMessage(NS.MSG.APPEARANCE)
+        NS.bus:SendMessage(NS.MSG.REPAINT)
+    end
 
     -- UNIT_ABSORB_AMOUNT_CHANGED and UNIT_MAXHEALTH fire for EVERY unit the client knows about (all
     -- raid members, their pets, nameplates, target/focus) — a flood of events per second in combat,
@@ -79,9 +95,15 @@ function addon:OnEnable()
     -- Also registers PLAYER_TARGET_CHANGED / PLAYER_FOCUS_CHANGED, but only for units whose bar
     -- is enabled — which is why those two are not registered unconditionally alongside the three
     -- below. Re-runs on every UNITS message (subscribed at the bottom of this file).
-    self:SyncUnitEventFrames()
-    self:RegisterLifecycleEvents()
+    if not NS.lifecycle:IsDown() then
+        self:SyncUnitEventFrames()
+        self:RegisterLifecycleEvents()
+    end
 
+    -- OUTSIDE THE GATE, DELIBERATELY. The settings-category registration and the panel body are
+    -- SETUP, not features (slash-commands-§7): the addon stays listed in Blizzard's Options ->
+    -- AddOns tree while disabled, and its `Enable Absorb Tracker` checkbox is live there. It is one
+    -- of the two routes a player has back, the other being `/at enable`.
     -- Create the options panel (defined in settings/OptionsSetup.lua).
     if NS.CreateOptionsPanel then NS.CreateOptionsPanel() end
     -- No [Init] boot summary here: the debug flag is session-only and off at login, so a
@@ -285,6 +307,15 @@ local function adoptProfile(tag, fmt, ...)
         NS.MigrateProfileToV3(NS.db.profile)
     end
     NS.Debug(tag, fmt, ...)
+    -- THE NEW PROFILE CARRIES ITS OWN `enabled`, and AceDB replaced the whole table without any
+    -- verb or checkbox being touched -- so the row's onChange never fired and the latch has not
+    -- heard about it. Re-read the store and re-evaluate: a player switching to a profile where the
+    -- addon is on expects it to come up, and one switching the other way expects it to go inert.
+    -- Reevaluate fires a callback only on an actual edge, so a profile that agrees with the old one
+    -- costs nothing. Before the publishes below, so a stand-up has resubscribed the bus by the time
+    -- they land -- and so a stand-down leaves them reaching nobody, which is correct.
+    NS.SyncEnabledHold()
+    NS.lifecycle:Reevaluate()
     -- The new profile carries its own enable flags, so the event registrations have to follow it.
     NS.bus:SendMessage(NS.MSG.UNITS)
     NS.bus:SendMessage(NS.MSG.POSITION)
@@ -325,7 +356,10 @@ end
 NS.Events = NS.Events or {}
 if NS.NewBusTarget then
     NS.Events.__ev = NS.NewBusTarget()
-    NS.Events.__ev:RegisterMessage(NS.MSG.UNITS, function()
+    -- Through NS.BusSubscribe rather than a bare RegisterMessage, so core/Lifecycle.lua's
+    -- StandDown can actually unregister it (slash-commands-§7 names RegisterMessage among the
+    -- registrations a disabled addon has given up, not gated).
+    NS.BusSubscribe(NS.Events.__ev, NS.MSG.UNITS, function()
         if NS.addon and NS.addon.SyncUnitEventFrames then
             NS.addon:SyncUnitEventFrames()
         end

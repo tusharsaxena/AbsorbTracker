@@ -43,19 +43,35 @@ plain data is what keeps them independent.
 Order in the table is the order of both `/at help` and the About page's command list. Adding a verb
 is one row, wherever it reads sensibly.
 
-### The disabled gate wraps this table, once
+### The disabled gate is the LIBRARY's, and this file declares the live set
 
 `slash-commands-§2` says a **disabled** addon SHOULD answer a feature verb rather than act on it:
 one tagged line naming `/at enable`, and nothing else. This addon takes it.
 
-It is implemented **once**, immediately after the table is declared, by wrapping `entry[3]` for
-every verb that is not on a live list — not as a guard pasted into each handler, which would be a
-dozen places to forget and a thirteenth verb that forgets it for free. The wrap is the closest
-thing this addon has to the dispatcher itself: the dispatcher is `LibKa0s-Slash-1.0`'s and this
-addon does not own it, but every verb it dispatches is read out of `entry[3]` in this table.
+**It is no longer implemented here.** `LibKa0s-Slash-1.0` grew the gate at minor 12, restored the
+v2.57.0 surface at minor 13 and answers every reserved verb exactly at minor 14 (LibKa0s v1.42.0), so `settings/Slash.lua` passes three descriptor fields and the dispatcher
+does the rest:
 
-The polarity is deliberate. `ALWAYS_LIVE` names what keeps answering, so **a verb added tomorrow is
-gated by default** and has to argue its way onto the list:
+| Field | What it is |
+|---|---|
+| `isEnabled` | `NS.GetSetting("enabled") ~= false`, asked at **dispatch** time and never cached, so the command straight after an `/at enable` works. It reads the STORE, not the stand-down latch — a read of the perf hold would refuse a player's feature verb mid-capture over an addon they never disabled. |
+| `brandName` | `NS.Constants.BRAND`, the plain-text `Ka0s Absorb Tracker`, and the **same string** the LDB object carries as `label`. |
+| `liveVerbs` | Built **from** `SlashLib.LIVE_VERBS` plus this addon's own two, rather than re-typed. |
+
+What went with it was a loop that wrapped `entry[3]` for every verb not on a local `ALWAYS_LIVE`
+table, and a refusal line of this addon's own routed through `NS.L`. Both were a second
+implementation of a rule the dispatcher now applies, and the second one is the one that drifts.
+
+**The refusal line is the collection's, not this addon's.** `lib.DISABLED_LINE_FORMAT` is one
+spelling for eleven addons — plain-text brand, an em dash with a single space either side,
+`enable it with` and the command in gold with its leading slash, no trailing period and no second
+line. It is **not** routed through `NS.L`: a translated override here would give a player running
+four Ka0s addons four different answers to the same question. `NS.Slash:DisabledLine()` publishes
+it, and the launcher's refused left click prints that same member rather than a second copy of the
+sentence.
+
+The polarity is still deliberate. `liveVerbs` names what keeps answering, so **a verb added tomorrow
+is gated by default** and has to argue its way onto the list:
 
 | Verb | Why it stays live |
 |---|---|
@@ -69,16 +85,27 @@ gated by default** and has to argue its way onto the list:
 Everything else refuses: `lock`, `unlock`, `toggle`, `update`, `test`. Each draws, shows, hides or
 tests the thing the addon exists to do, which is `§2`'s own definition of a feature verb.
 
-The refusal reads the live value at **call** time and fires only on an explicit `false`, so a build
-with no database at all (`NS.GetSetting` falls back to the declared default) keeps every verb. It is
-the one string in this addon routed through **`NS.L`** (`locales/enUS.lua`, localization-§1/§2) —
-the line a player is guaranteed to meet at the moment they are least sure what is happening is the
-worst one to leave unreachable to a translator.
+Three inputs are worth their own sentence, because they are where minor 12 and minors 13–14 differ and
+where a reader's instinct is usually wrong:
 
-`tests/test_slashcmds.lua` walks the whole `COMMANDS` table rather than a remembered list, so an
-unclassified verb goes red; and for each refusing verb it asserts **both** that the line was printed
-**and** that the state did not move — a case that only checks the message passes over a gate that
-prints and then acts anyway.
+- **A bare `/at` opens the settings panel**, exactly as it does when the addon is running. This is
+  the case that reversed the standard's v2.56.0 narrowing: the panel is the one surface a player
+  uses to switch the addon back on by hand, and a rule that hides the off switch has mistaken which
+  half of the pair it protects.
+- **`/at help` prints the whole index**, with the refusal line immediately under the header and
+  unindented. It is not a refusal *of* `help` — the player has to be able to SEE `enable` in the
+  list — it is a statement about the rows below it, some of which are the feature verbs that ARE
+  refused.
+- **A typo still gets `unknown command '<verb>'` and the index.** The gate sits AFTER the `COMMANDS`
+  lookup: a verb the addon ships and is standing down from is refused, and a word it does not ship
+  is a case where nothing was refused and the addon genuinely did not understand.
+
+`tests/test_slashcmds.lua` and `tests/test_disabled.lua` both walk the whole `COMMANDS` table rather
+than a remembered list, so an unclassified verb goes red; and for each refusing verb they assert
+**both** that the line was printed **and** that the state did not move — a case that only checks the
+message passes over a gate that prints and then acts anyway. What `test_disabled.lua` adds is that
+this section is only half the rule: its steps 1-6 assert the **stand-down** itself, on the
+registration set, and a green slash surface says nothing about whether the addon is inert.
 
 Forward declarations above the table let it name handlers defined below it:
 
@@ -109,7 +136,7 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 | `/at` (no args) | the `config` handler (library) | Runs `config` with an empty rest, so a bare `/at` opens the settings panel on its landing page (slash-commands-§4). Whitespace-only input counts as bare. The library prints help instead only for a host with no `config` verb, which is not this one. |
 | `/at help` | `cli:PrintHelp` (library) | Version header, then one row per `NS.COMMANDS` entry. |
 | `/at config` (alias `/at options`) | `NS.OpenOptionsPanel` (library) | Open the settings category. Combat-gated inside `OpenOptionsPanel`, so every caller is refused, not just this verb. The alias is declared on the descriptor's `aliases` map, not as a second row. |
-| `/at enable` / `/at disable` | `setEnabled` | The reserved pair (slash-commands-§2), and **aliases rather than a second switch**: each writes the `enabled` path the Master controls tab's Enable checkbox writes, through the same `NS.SetByPath` seam, so the row's `onChange` runs whichever surface was used and neither surface can hold a different answer. No second key, no session flag. The echo is slash-commands-§5's single-line `path = value` form, read back from the store. **The pair is not one-way:** `enabled` gates `NS.ShouldShowBar`'s second rung and nothing else — nothing unloads, no event registration changes, and `OnInitialize` registers the chat command unconditionally — so a bare `/at`, `/at help`, `/at version` and `/at enable` itself all still answer with the addon off. |
+| `/at enable` / `/at disable` | `setEnabled` | The reserved pair (slash-commands-§2), and **aliases rather than a second switch**: each writes the `enabled` path the Master controls tab's Enable checkbox writes, through the same `NS.SetByPath` seam, so the row's `onChange` runs whichever surface was used and neither surface can hold a different answer. No second key, no session flag. The echo is slash-commands-§5's single-line `path = value` form, read back from the store. **The pair is not one-way:** the write moves the `disabled` hold on the stand-down latch (`core/Lifecycle.lua`) so the addon goes genuinely inert, but the dispatcher, the `COMMANDS` table, the settings registration, the AceDB handle and the launcher registration are **setup, not features** and stay up — so a bare `/at`, `/at help`, `/at version`, the whole schema CLI and `/at enable` itself all still answer with the addon off. |
 | `/at list` | `cli:CliList` | Every schema row and its current value, grouped by `groupKey` — `[appearance / player]` for a per-unit page, a bare `[general]` otherwise. |
 | `/at get <path>` | `cli:CliGet` | One row's stored value, in the same `key = value` shape `/at list` prints. |
 | `/at set <path> <value>` | `cli:CliSet` | Type-aware parse, then `NS.SetByPath` plus `NS.RefreshOptionsPanel` — the same seam the panel widget writes through. The echo **re-reads** what was stored, so a clamp is visible. |

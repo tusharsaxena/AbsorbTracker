@@ -1122,9 +1122,15 @@ end)
 -- surface down with it, `enable` included, and the pair becomes one-way again.
 
 -- The verbs that keep answering with the addon off. Twelve of the fourteen are slash-commands-§2's
--- own list; `resetposition` and `profile` are this addon's reading, argued at the ALWAYS_LIVE table
--- in settings/Slash.lua. Spelled out HERE rather than read off the production table, because a test
--- that imports the answer it is checking asserts nothing.
+-- own list, which LibKa0s-Slash-1.0 applies for us from minor 12; `resetposition` and `profile` are
+-- this addon's reading, argued at the `liveVerbs` entry in settings/Slash.lua's descriptor. Spelled
+-- out HERE rather than read off the production table, because a test that imports the answer it is
+-- checking asserts nothing.
+--
+-- THE SET WIDENED AT STANDARD v2.57.0 AND IT IS THE RESTORED ONE. Minor 12 narrowed it to `enable`,
+-- `help` and `disable` and the reversal landed the same day: `/at` on a disabled addon answered
+-- with a refusal instead of opening the settings panel, which is the one surface a player uses to
+-- switch it back on by hand.
 local LIVE_WHILE_DISABLED = {
   help = true, config = true, version = true, enable = true, disable = true,
   debug = true, perf = true,
@@ -1132,7 +1138,11 @@ local LIVE_WHILE_DISABLED = {
   resetposition = true, profile = true,
 }
 
-local REFUSAL = "Absorb Tracker is disabled"
+-- The collection's one refusal line, not this addon's: LibKa0s-Slash-1.0 owns the wording
+-- (`lib.DISABLED_LINE_FORMAT`) so eleven addons cannot each spell it differently. Matched on the
+-- brand and the shape rather than character-for-character, which is what lets the library re-word
+-- the sentence around them without eleven suites going red over a comma.
+local REFUSAL = NS.Constants.BRAND .. " is disabled"
 
 --- Run one verb with the addon off, with the panel-open call stubbed (a live `config` would
 --- otherwise reach the real Settings API mid-suite). Re-disables first, because two of the live
@@ -1157,7 +1167,16 @@ test("every verb is either on the live list or refuses while disabled, and none 
   for _, entry in ipairs(NS.COMMANDS) do
     local verb = entry[1]
     local out = slashWhileDisabled(verb)
-    if LIVE_WHILE_DISABLED[verb] then
+    if verb == "help" then
+      -- THE ONE VERB THAT ANSWERS *AND* CARRIES THE LINE, and it is not a refusal of `help`: the
+      -- index prints in full, because the player has to be able to SEE `enable` in the list, and
+      -- the line sits under the header as a statement about the rows below it -- some of which are
+      -- the feature verbs that are refused. Below them it would read as a footnote to the last
+      -- command.
+      assertTrue(contains(out, "/at enable"), "`/at help` still lists the way back: " .. joined(out))
+      assertTrue(#out > 2, "`/at help` prints the whole index, not one line: " .. joined(out))
+      assertTrue(contains(out, REFUSAL), "and says the addon is off: " .. joined(out))
+    elseif LIVE_WHILE_DISABLED[verb] then
       assertFalse(contains(out, REFUSAL),
         "`/at " .. verb .. "` must keep answering while disabled: " .. joined(out))
     else
@@ -1170,24 +1189,36 @@ test("every verb is either on the live list or refuses while disabled, and none 
   NS.SetByPath("enabled", true)
 end)
 
-test("the refusal carries the addon's tag and comes out of NS.L", function()
-  -- Routed rather than hardcoded (localization-§1), asserted by OVERRIDING the key and watching the
-  -- printed line move — a check that the string is merely spelled somewhere in locales/enUS.lua
-  -- would pass over a call site that never reads it.
-  local key = "Absorb Tracker is disabled \226\128\148 /at enable turns it back on"
-  rawset(NS.L, key, "UEBERSETZT")
-  local out
-  local ok, err = pcall(function() out = slashWhileDisabled("toggle") end)
-  rawset(NS.L, key, nil)
-  assertTrue(ok, tostring(err))
-  assertEqual(#out, 1)
-  assertTrue(out[1]:find("UEBERSETZT", 1, true) ~= nil,
-    "the refusal must be read through NS.L at call time: " .. joined(out))
-
-  -- And the tag, on the raw line: it is the addon's own printer, not a bare print().
-  local raw = capture(function() NS.SetByPath("enabled", false) NS.Slash:OnSlash("toggle") end)
-  assertEqual(#raw, 1)
+test("the refusal is the collection's one line, tagged, and not re-spelled here", function()
+  -- slash-commands-§7 fixes the SHAPE of the one line a disabled addon prints: the plain-text brand
+  -- name, an em dash with a single space either side, `enable it with` and the command in gold with
+  -- its leading slash. No trailing period, no second line, no per-addon wording.
+  --
+  -- IT IS NO LONGER ROUTED THROUGH NS.L, and that is the standard's call rather than a regression:
+  -- the wording is the collection's, not the addon's, so a `deDE.lua` override here would give a
+  -- player running four Ka0s addons four different answers to the same question. What the addon
+  -- owns is the brand name, which is `NS.Constants.BRAND` and is the same string the LDB object
+  -- carries as `label`.
+  --
+  -- red under: a host-side refusal wrapper spelling its own line; a `brandName` that is the folder
+  -- name or the TOC Title; a second line stapled on explaining what the verb would have done.
+  local raw = capture(function()
+    NS.SetByPath("enabled", false)
+    NS.Slash:OnSlash("toggle")
+  end)
+  assertEqual(#raw, 1, "exactly one line: " .. joined(raw))
   assertTrue(raw[1]:find("[AT]", 1, true) ~= nil, "one TAGGED line: " .. raw[1])
+  assertTrue(raw[1]:find(NS.Constants.BRAND .. " is disabled \226\128\148 enable it with", 1, true) ~= nil,
+    "the collection's shape: " .. raw[1])
+  assertTrue(raw[1]:find("|cFFFFFF00/at enable|r", 1, true) ~= nil,
+    "the command is gold and carries its leading slash: " .. raw[1])
+  assertTrue(raw[1]:match("%.$") == nil, "no trailing period: " .. raw[1])
+
+  -- The library builds it, and the launcher's click reaches the very same member rather than a
+  -- second copy of the sentence.
+  assertEqual(NS.Slash.__cli:DisabledLine(), (raw[1]:gsub("^%S+%s", "")),
+    "the printed line is cli:DisabledLine() with the tag on the front")
+
   NS.SetByPath("enabled", true)
 end)
 

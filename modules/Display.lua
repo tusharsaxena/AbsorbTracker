@@ -274,41 +274,42 @@ local function visibilityAllows()
 end
 
 -- Effective bar visibility, composed in order — the first false wins:
---   0. the perf probe's suspend switch
---   1. the addon-wide `enabled` flag
---   2. the per-unit `enabled` flag
---      (UNLOCKED answers true here, skipping 3 and 4)
---   3. the `visibility` dropdown
---   4. for target/focus only, whether the unit exists
+--   0. the lifecycle latch: is the addon stood down, for ANY reason (`disabled` or `perf`)
+--   1. the per-unit `enabled` flag
+--      (UNLOCKED answers true here, skipping 2 and 3)
+--   2. the `visibility` dropdown
+--   3. for target/focus only, whether the unit exists
 --
 -- UNLOCKING skips exactly the two rungs that hide a bar the player has asked for: you unlock to see
 -- and place the bars, and out of combat with no target those are the two that hide them. The rungs
--- above it still win, because a disabled addon, a disabled bar or a perf suspend is not something to
--- preview.
+-- above it still win, because a stood-down addon or a disabled bar is not something to preview.
 --
 -- This rung used to read `NS.State.testMode`, and moving it onto the lock is what let the Test mode
 -- row go (options-ui-§15). Unlocking previously made the bars draggable and painted the placeholder
 -- on whatever was already visible, which left the player unable to place a target bar with no
 -- target — the gap test mode existed to fill. One switch now does both halves.
 --
--- Step 0 is what makes `/at debug perf suspend` airtight. Suspend could have hidden the bars
--- imperatively, but then any later VISIBILITY publish — a combat transition, a target swap, a
--- settings edit — would quietly re-show them mid-measurement and corrupt the capture. Gating at
--- the source means suspend only has to publish VISIBILITY once and nothing can undo it.
+-- STEP 0 IS WHAT `Perf.suspended` AND THE ADDON-WIDE `enabled` RUNG USED TO BE, and asking the
+-- latch rather than the setting is what keeps this from being a draw gate. Reading the stored
+-- `enabled` here was the shape slash-commands-§7 is named for: a boolean one rung of a show ladder
+-- consults, with every registration still live behind it. Both reasons are now holds on ONE latch
+-- (core/Lifecycle.lua), and by the time this rung answers false the registrations are already
+-- gone. What the rung still buys is §7's other half — hiding enforced AT THE SOURCE — because a
+-- combat transition, a target swap or a settings change would otherwise re-show a bar behind the
+-- stand-down's back.
 --
--- Steps 1 and 2 are DIFFERENT settings and options-ui-§15 forbids conflating them: `enabled` is
--- the addon-wide switch on the Master controls tab ("turn this off without unloading it"), and the
--- three per-unit flags are which bars exist. This is not the pre-v4 `hidden` global coming back —
--- that key was dropped because nothing in the UI could clear it, which is exactly what made it a
--- defect and exactly what a Master controls row is not.
+-- The addon-wide `enabled` and the three per-unit flags are still DIFFERENT settings, and
+-- options-ui-§15 forbids conflating them: the first reaches this ladder only through the latch, the
+-- second is which bars exist. This is not the pre-v4 `hidden` global coming back — that key was
+-- dropped because nothing in the UI could clear it, which is exactly what a Master controls row is
+-- not.
 --
--- Step 4 uses UnitExists and nothing else. "Hide when the unit has no absorb" is NOT
+-- Step 3 uses UnitExists and nothing else. "Hide when the unit has no absorb" is NOT
 -- implementable: UnitGetTotalAbsorbs returns a secret in restricted content and comparing it to
 -- zero raises — the same constraint recorded in docs/scope.md for the audio-alert feature.
 function NS.ShouldShowBar(unit)
     unit = unit or "player"
-    if Perf.suspended then return false end
-    if not NS.GetSetting("enabled") then return false end
+    if NS.IsStoodDown() then return false end
     if not NS.Units.IsEnabled(unit) then return false end
     if not NS.GetSetting("locked") then return true end
     if not visibilityAllows() then return false end
@@ -321,8 +322,9 @@ end
 -- put ApplyVisibility over `lizard`'s complexity threshold for what is only ever debug narration.
 -- Mirrors the ladder's order exactly — if a rung is added there, add it here.
 local function visibilityReason(unit)
-    if Perf.suspended then return "perf suspended" end
-    if not NS.GetSetting("enabled") then return "addon disabled" end
+    if NS.IsStoodDown() then
+        return "stood down (" .. table.concat(NS.lifecycle:Holds(), ", ") .. ")"
+    end
     if not NS.Units.IsEnabled(unit) then return "unit disabled" end
     if not NS.GetSetting("locked") then return "unlocked" end
     if not visibilityAllows() then
@@ -431,13 +433,16 @@ NS.Display = NS.Display or {}
 if NS.NewBusTarget then
     local ev = NS.NewBusTarget()
     NS.Display.__ev = ev
-    ev:RegisterMessage(NS.MSG.APPEARANCE, function()
+    -- All three through NS.BusSubscribe (core/Bus.lua): `ev` is a file-local, so the register is
+    -- the only thing that can reach these subscriptions to unregister them when the addon stands
+    -- down (slash-commands-§7).
+    NS.BusSubscribe(ev, NS.MSG.APPEARANCE, function()
         NS.ForEachUnit(function(unit) NS.UpdateBarAppearance(unit) end)
     end)
-    ev:RegisterMessage(NS.MSG.VISIBILITY, function()
+    NS.BusSubscribe(ev, NS.MSG.VISIBILITY, function()
         NS.ForEachUnit(function(unit) NS.ApplyVisibility(unit) end)
     end)
-    ev:RegisterMessage(NS.MSG.POSITION, function()
+    NS.BusSubscribe(ev, NS.MSG.POSITION, function()
         NS.ForEachUnit(function(unit) NS.RestoreBarPosition(unit) end)
     end)
 end
