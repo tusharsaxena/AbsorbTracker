@@ -54,7 +54,7 @@ local function build(mainCategory)
     -- Declared THROUGH SetRenderer rather than a hand-wired OnShow (options-ui-§11), and the
     -- combat refusal is why: the Blizzard AddOns sidebar opens a canvas directly, so this page
     -- had no gate at all on the path a player is most likely to take mid-pull. SetRenderer owns
-    -- the script and refuses under InCombatLockdown before anything is drawn.
+    -- the script and, in combat, covers the page before anything is drawn (options-ui-§2).
     --
     -- Re-Open()ing on every show was the old reason for owning the script here, and it survives
     -- the move. AceConfigDialog's widget tree is not ours -- it reuses it and re-reads the current

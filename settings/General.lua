@@ -355,9 +355,9 @@ local function build(mainCategory)
     -- whole reason (options-ui-§11). The Blizzard AddOns sidebar reaches a canvas directly, never
     -- through OpenOptionsPanel, so the gate docs/settings-panel.md describes covered `/at config`
     -- and a `/run` caller and missed the one path a player is most likely to take mid-pull.
-    -- SetRenderer's OnShow builds the Defaults button, refuses under InCombatLockdown and closes
-    -- the Settings window, and only then renders -- so the refusal arrives by adopting the library
-    -- rather than by this file growing a second copy of it.
+    -- SetRenderer's OnShow builds the Defaults button and, in combat, covers the page and draws
+    -- nothing until PLAYER_REGEN_ENABLED (the library's combat lock, options-ui-§2) -- so the lock
+    -- arrives by adopting the library rather than by this file growing a second copy of it.
     --
     -- The deferral the old comment here explained is still why the body is not drawn in the
     -- builder: ctx.body has zero width at PLAYER_LOGIN and AceGUI lays children out against the

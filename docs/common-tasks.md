@@ -139,9 +139,9 @@ When a logical group of settings outgrows an existing page (or doesn't fit any o
        end
 
        -- SetRenderer, never a hand-wired ctx.panel:SetScript("OnShow", ...). The library owns
-       -- that script: it builds the Defaults button, and it REFUSES to draw in combat and closes
-       -- the Settings window first (options-ui-§11). The Blizzard AddOns sidebar opens a canvas
-       -- without going through NS.OpenOptionsPanel, so a page holding its own OnShow has no
+       -- that script: it builds the Defaults button, and in combat it COVERS the page and draws
+       -- nothing until combat ends (the combat lock, options-ui-§2/§11). The Blizzard
+       -- AddOns sidebar opens a canvas without going through NS.OpenOptionsPanel, so a page holding its own OnShow has no
        -- combat guard on the one path a player takes mid-pull.
        --
        -- It also owns WHEN, so there is no `rendered` one-shot flag: first show draws, and a page
