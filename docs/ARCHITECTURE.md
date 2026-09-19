@@ -40,16 +40,18 @@ that keeps luacheck able to say so the next time.
 Load order is dependency order (see `AbsorbTracker.toc`): Libraries → Locales → Core → Defaults →
 Modules → Settings.
 
-Four of the rows below are *setup* files rather than implementation: `core/CoreSetup.lua`,
-`core/DebugLogSetup.lua`, `core/PerfSetup.lua` and `settings/OptionsSetup.lua` each hand a
-**descriptor** to one of the five descriptor-taking LibKa0s majors — `LibKa0s-Core-1.0`,
-`-DebugLog-1.0`, `-Slash-1.0`, `-Options-1.0`, `-Perf-1.0` — and publish what
+Six of the rows below are *setup* files rather than implementation: `core/CoreSetup.lua`,
+`core/DebugLogSetup.lua`, `core/Lifecycle.lua`, `core/PerfSetup.lua`, `core/LauncherSetup.lua` and
+`settings/OptionsSetup.lua` each hand a **descriptor** to one of the seven descriptor-taking LibKa0s
+majors — `LibKa0s-Core-1.0`, `-DebugLog-1.0`, `-Lifecycle-1.0`, `-Perf-1.0`, `-Launcher-1.0`,
+`-Options-1.0`, `-Slash-1.0` — and publish what
 comes back under the `NS.*` name the addon already used, plus a degradation stub for when the library
-is absent. `settings/Slash.lua` does the same thing without a separate setup file. `core/MediaSetup.lua`
-and `core/EnvSetup.lua` are the sixth and seventh seams, and the two odd ones: `LibKa0s-Media-1.0` and
+is absent. `settings/Slash.lua` does the same thing for `-Slash-1.0` without a separate setup file. `core/MediaSetup.lua`
+and `core/EnvSetup.lua` are the eighth and ninth seams, and the two odd ones: `LibKa0s-Media-1.0` and
 `LibKa0s-Env-1.0` take no descriptor, only this addon's FOLDER name — a texture path is absolute from
 `Interface\AddOns\` and a TOC manifest is keyed by folder, and a vendored copy cannot know which folder
-it was copied into. **Seven majors across eleven files** of the ten majors `libs/LibKa0s/` vendors. See
+it was copied into. **Nine majors bound by name** of the twelve `libs/LibKa0s/` vendors (seventeen files); Pool
+and Item are registered and unread, and Widgets is reached only through DebugLog's Copy window. See
 [Five extracted libraries, one descriptor each](./performance.md#five-extracted-libraries-one-descriptor-each).
 
 There is no `:NewModule()` hierarchy. Modules are plain files hanging functions on `NS`, and a

@@ -113,7 +113,7 @@ Every page (about + sub-pages) builds the same header via `Helpers.CreatePanel(n
    - Re-resolves AceGUI through LibStub and hands it out via `onAceGUI` (bails with a chat notice if it is unavailable). Re-resolved rather than trusting the handle taken at `:New` time, because an AceGUI absent at load may be present by PLAYER_LOGIN, and this is the one place that can report it.
    - Runs the descriptor's `validate` hook — `NS.ValidateSchema()`, which chat-prints any malformed rows or unresolvable paths and never blocks.
    - Builds the about-page canvas (`CreatePanel(..., { isMain = true })`) and registers it via `Settings.RegisterCanvasLayoutCategory` + `Settings.RegisterAddOnCategory`, deferring the body render — the descriptor's `buildMain`, which forwards to `Helpers.BuildMainContent` — to the panel's first `OnShow`.
-   - Walks the queued pages, calling `builder(mainCategory)` on each entry. Each builder constructs its own canvas via `Helpers.CreatePanel`, declares its body through `Helpers.SetRenderer` — which defers the AceGUI render to the panel's first `OnShow` (the body has 0 width at enable time; AceGUI lays out against current width) and carries the combat refusal with it — and returns the result of `Settings.RegisterCanvasLayoutSubcategory(mainCategory, panel, name)`.
+   - Walks the queued pages, calling `builder(mainCategory)` on each entry. Each builder constructs its own canvas via `Helpers.CreatePanel`, declares its body through `Helpers.SetRenderer` — which defers the AceGUI render to the panel's first `OnShow` (the body has 0 width at enable time; AceGUI lays out against current width) and carries the combat lock with it — and returns the result of `Settings.RegisterCanvasLayoutSubcategory(mainCategory, panel, name)`.
    - If the builder returns `nil` (e.g. `settings/Profiles.lua` when AceDBOptions is missing), the page is silently skipped.
 
 ## `RegisterOptionsPage(key, name, builder)`
@@ -133,7 +133,7 @@ NS.RegisterOptionsPage("appearance", "Appearance", function(mainCategory)
     end
 
     -- SetRenderer, never a hand-wired ctx.panel:SetScript("OnShow", ...): the library owns that
-    -- script, and with it the Defaults button and the combat refusal (see the sidebar note under
+    -- script, and with it the Defaults button and the combat lock (see the sidebar note under
     -- the combat-lockdown gate below). No `rendered` one-shot guard either -- SetRenderer owns
     -- WHEN, and RenderUnitPanel is a full rebuild (ClearScroll + re-render) on every call, so a
     -- later draw is intentional and safe.

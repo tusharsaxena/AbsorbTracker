@@ -32,7 +32,7 @@ The third arg to `AceDB:New` is `defaultProfile` — `true` means use the WoW-su
 Defaults come from `defaults/Profile.lua`:
 
 - `NS.defaults.profile` — the six flat globals (`enabled`, `visibility`, `scale`, `alpha`, `locked`, `throttleWindow`), a per-profile `schemaVersion` stamp, and `units.<player|target|focus>` carrying that unit's nineteen appearance keys plus `enabled`, `mirror` and `position`.
-- `NS.defaults.global.schemaVersion = 4` — the account-wide DB-version stamp.
+- `NS.defaults.global.schemaVersion = 1` — the account-wide DB-version stamp. Its default is `1` ("pre-ladder"), *not* the current `5`, for the same `copyDefaults` reason as the per-profile stamp below: a default of `5` would mark every freshly materialized global as already migrated and the ladder would never run (`defaults/Profile.lua`).
 - `NS.defaults.profile.schemaVersion = 1` — the **per-profile** stamp. Its default is `1` ("legacy — not yet lifted"), *not* the current `3`, and that is load-bearing; see [Migrations](#migrations-and-the-flatprofile-backfill) below.
 - `NS.flatDefaults` — a flat alias of `NS.defaults.profile` used by the fallback read path; `NS.unitDefaults` — an alias of `NS.defaults.profile.units.player`, the one canonical default every unit's schema rows share.
 
