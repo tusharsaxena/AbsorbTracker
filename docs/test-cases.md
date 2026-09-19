@@ -668,7 +668,7 @@ badge and any count quoted in the docs must agree with it.
 - EnsureScroll is lazy, created once, and patched for an always-visible scrollbar
 - every schema page registered a real Blizzard subcategory at build time
 - the Profiles page self-skips when AceDBOptions is unavailable
-- the sidebar path refuses to render in combat and closes the window (options-ui-§11)
+- the sidebar path is covered in combat, draws nothing and leaves the window open (options-ui-§2)
 - first OnShow builds the Defaults button and renders the page
 - the Defaults button restores just its own page
 - a second OnShow rebuilds the panel body without stacking duplicate widgets

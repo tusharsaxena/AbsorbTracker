@@ -405,7 +405,7 @@ if not lib then
         "PatchAlwaysShowScrollbar",
         -- SetRenderer is here because the three page builders now declare their bodies THROUGH it
         -- rather than parking a raw OnShow of their own, and that is what buys them the library's
-        -- Blizzard-sidebar combat refusal (options-ui-§11). It is a builder call exactly like the
+        -- Blizzard-sidebar combat lock (options-ui-§2/§11). It is a builder call exactly like the
         -- CreatePanel above it, so a no-op is the same honest answer.
         --
         -- It was absent while this addon had no caller for it -- the rule the RenderPanel note in

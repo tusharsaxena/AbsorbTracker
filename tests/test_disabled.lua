@@ -47,6 +47,16 @@ local function joined(list) return table.concat(list, "\n  ") end
 --- and the three per-unit frames are made, and tests/run.lua deliberately stops short of it — so
 --- a suite about what a stand-down removes has to put them there first.
 local function bringUp()
+  -- CLOSE every settings page an earlier suite left on screen, before the baseline is taken. From
+  -- LibKa0s v1.46.1 (options-ui-§2's combat lock) the library registers PLAYER_REGEN_DISABLED /
+  -- _ENABLED for as long as one of its pages is shown, so a page left open would put the library's
+  -- own registrations into the baseline, and a stand-down would (correctly) not remove them -- they
+  -- are the library's, not this addon's. Hidden the way the client hides one: the kit mock's Hide
+  -- fires no script, so OnHide is fired by hand, which is what lets go of lib.__shownPages.
+  for ctx in pairs(M.LibStub("LibKa0s-Options-1.0").__shownPages) do
+    ctx.panel:Hide()
+    ctx.panel:__fire("OnHide")
+  end
   NS.SetByPath("enabled", true)
   NS.addon:OnEnable()
   -- DRAIN the pending queue without firing it. `__fireTimers` would run every entry left behind by

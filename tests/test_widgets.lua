@@ -686,23 +686,25 @@ test("the Profiles page self-skips when AceDBOptions is unavailable", function()
   assertEqual(T.mocks.__subcategories["Profiles"], nil)
 end)
 
-test("the sidebar path refuses to render in combat and closes the window (options-ui-§11)", function()
+test("the sidebar path is covered in combat, draws nothing and leaves the window open (options-ui-§2)", function()
   -- CX03. The Blizzard AddOns sidebar hands a canvas frame its OnShow directly -- it never goes
-  -- through NS.OpenOptionsPanel, whose combat gate docs/settings-panel.md describes -- so a page
-  -- that parks its own OnShow has no guard at all on the path a player is most likely to take
-  -- mid-pull. Every page here declares its body through Helpers.SetRenderer instead, and the
-  -- refusal is the library's: close the Settings window, say why, draw nothing.
+  -- through NS.OpenOptionsPanel -- so a page that parks its own OnShow has no guard at all on the
+  -- path a player is most likely to take mid-pull. Every page here declares its body through
+  -- Helpers.SetRenderer instead, and the combat lock is the library's (LibKa0s v1.46.1, standard
+  -- v2.60.0, options-ui-§2/§13, anti-pattern #88): the page is NOT closed any more; it is covered,
+  -- draws nothing, and one gray notice is printed per combat. Writes, Defaults and tab switches are
+  -- refused until PLAYER_REGEN_ENABLED, which draws the page from current state.
   --
-  -- Closing and the notice are asserted rather than "nothing rendered", and deliberately: the
-  -- Appearance page has already been shown (tests/test_helpers.lua runs first and drives it), so a
-  -- renderer would return at its own already-rendered guard and a no-render assertion would pass
-  -- with no guard present at all. SettingsPanel:Close and this notice happen nowhere else in the
-  -- addon, so counting them is a claim only the guard can satisfy.
+  -- The cover is asserted rather than "nothing rendered" alone, and deliberately: the Appearance
+  -- page has already been shown (tests/test_helpers.lua runs first and drives it), so a no-render
+  -- assertion could pass with no lock present at all. A shown ctx.__combatCover is a claim only the
+  -- library's lock can satisfy.
   --
   -- red under: giving either page back a ctx.panel:SetScript("OnShow", ...) of its own.
   -- Profiles is the third page on SetRenderer and cannot be driven here -- AceDBOptions is absent
   -- in the harness, so it self-skips and registers no subcategory (the case above pins that).
   -- docs/smoke-tests.md § C step 13a walks all three in the client.
+  local lib = T.mocks.LibStub("LibKa0s-Options-1.0")
   local savedICL = T.mocks.InCombatLockdown
   T.mocks.InCombatLockdown = function() return true end
 
@@ -712,18 +714,56 @@ test("the sidebar path refuses to render in combat and closes the window (option
   cf.AddMessage = function(_, msg) out[#out + 1] = msg end
 
   local closedBefore = T.mocks.__settingsClosed
-  for _, name in ipairs({ "General", "Appearance" }) do
-    T.mocks.__subcategories[name]:__fire("OnShow")
-  end
+  local savedHide, hideCalls = rawget(_G, "HideUIPanel"), 0
+  rawset(_G, "HideUIPanel", function() hideCalls = hideCalls + 1 end)
+
+  local pages, childCounts = {}, {}
+  local ok, err = pcall(function()
+    -- Shown the way the client shows one: on screen first, then OnShow (the mock's Show fires none).
+    for _, name in ipairs({ "General", "Appearance" }) do
+      T.mocks.__subcategories[name]:Show()
+      T.mocks.__subcategories[name]:__fire("OnShow")
+    end
+    for ctx in pairs(lib.__shownPages) do
+      for _, name in ipairs({ "General", "Appearance" }) do
+        if ctx.panel == T.mocks.__subcategories[name] then pages[name] = ctx end
+      end
+    end
+    -- A second show inside the SAME combat: still covered, still nothing drawn, no second line.
+    for name, ctx in pairs(pages) do
+      childCounts[name] = ctx.scroll and #ctx.scroll.children or 0
+    end
+    for _, name in ipairs({ "General", "Appearance" }) do
+      T.mocks.__subcategories[name]:__fire("OnShow")
+    end
+  end)
 
   cf.AddMessage = old
   T.mocks.InCombatLockdown = savedICL
+  rawset(_G, "HideUIPanel", savedHide)
+  assertTrue(ok, tostring(err))
 
-  assertEqual(T.mocks.__settingsClosed, closedBefore + 2,
-    "each page must close the Settings window -- a silent no-render reads as a bug")
+  assertEqual(T.mocks.__settingsClosed, closedBefore, "the Settings window is NOT closed any more")
+  assertEqual(hideCalls, 0, "and no HideUIPanel either")
+  for _, name in ipairs({ "General", "Appearance" }) do
+    local ctx = pages[name]
+    assertTrue(ctx ~= nil, name .. " is an on-screen page the library watches combat for")
+    assertTrue(ctx.__combatCover ~= nil and ctx.__combatCover:IsShown(),
+      name .. " is covered for the rest of the combat")
+    assertEqual(ctx.scroll and #ctx.scroll.children or 0, childCounts[name],
+      name .. " drew nothing on a show in combat")
+  end
   local joined = table.concat(out, "\n")
-  local _, hits = joined:gsub("cannot open settings during combat", "")
-  assertEqual(hits, 2, "and each must say why, in the library's wording: " .. joined)
+  local _, hits = joined:gsub("settings are locked during combat", "")
+  assertEqual(hits, 1, "one gray notice per combat, in the library's wording: " .. joined)
+  assertTrue(joined:find(lib.STRINGS.COMBAT_LOCKED_NOTICE, 1, true) ~= nil,
+    "and it is exactly COMBAT_LOCKED_NOTICE, gray (|cffaaaaaa)")
+
+  -- Back off screen, so the suites after this one do not inherit the library's combat watch.
+  for _, ctx in pairs(pages) do
+    ctx.panel:Hide()
+    ctx.panel:__fire("OnHide")
+  end
 end)
 
 test("first OnShow builds the Defaults button and renders the page", function()
