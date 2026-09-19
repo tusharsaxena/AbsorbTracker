@@ -132,6 +132,18 @@ happened to **this** repo — `../LibKa0s/docs/releasing.md` records a fix landi
 AbsorbTracker not being re-vendored, and both suites staying green the entire time. An after-the-fact
 `diff -r` was the only thing that caught it.
 
+**The provenance line is an input, not a note.** Root `CLAUDE.md` carries
+`Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) vX.Y.Z (MIT).` and
+`tests/test_vendor_sync.lua` greps the tag out of that file, and only that file, then compares both
+vendored payloads against what LibKa0s published at it. So the line moves in the same commit as the
+bytes: bump one without the other and the gate goes red, which is the point. It lived in
+`README.md` until testkit revision 9; the README is player-facing, and a vendored-library inventory
+was never something a player needed.
+
+**The payload is whole-folder or nothing.** `Perf` minor 12 requires the `Lifecycle` instance
+(Lifecycle arrived at LibKa0s v1.40.0), so a half-copy leaves the perf probe unregistered rather
+than half-working. Copy `libs/LibKa0s/` and `tests/_kit/` whole.
+
 Run after any re-vendor, and before any release:
 
 ```sh
@@ -191,8 +203,10 @@ side. **Re-vendoring will not converge it, and the fix is never an edit to `libs
 vendored copy to settle a line-ending disagreement creates a fork to fix one that was not there, and
 the next re-vendor reverts it silently.
 
-`CLAUDE.md` states the rule this checks ("never edit `libs/` here — change it upstream and
-re-vendor"). The rule without the check is what both runs of the 2026-08-01 adoption report kept
+The rule this checks: **never edit `libs/LibKa0s/` or `tests/_kit/` here** — change it upstream in
+LibKa0s and re-vendor. `tests/_kit/` is vendored the same way (from LibKa0s's `testkit/`), so a
+local "fix" there forks a shared file. Both sit outside the lint gate via `.luacheckrc`'s
+`exclude_files`. The rule without the check is what both runs of the 2026-08-01 adoption report kept
 landing on: the vendored copy is correct today, and nothing in this repo would say so if it stopped
 being.
 
@@ -223,6 +237,11 @@ Note on line endings: this repo pins the whole tree CRLF with a single `* text=a
 `| sed 's/$/\r/'` in the command any more: a regeneration command with a pipeline in it is one
 someone eventually runs without the pipeline, and the whitespace-only diff that produces is exactly
 the kind of noise this file exists to prevent.
+
+The same pin applies to every file you edit here: the tree is **CRLF on disk**, and the kit's
+`eol` case fails a file carrying the wrong terminator. The repo is mirrored across two WSL paths
+(`/mnt/d/Profile/Users/Tushar/Documents/GIT/AbsorbTracker` and `/home/tushar/GIT/AbsorbTracker`).
+After a direct disk write that landed LF, convert it with `sed -i 's/\r$//; s/$/\r/' <file>`.
 
 ## Keeping the inventory & badge in sync
 

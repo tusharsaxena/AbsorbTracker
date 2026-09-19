@@ -310,6 +310,14 @@ if t0 then Perf.Note("myBucket", debugprofilestop() - t0) end
 
 Add the bucket name to `NS.Perf.BUCKET_ORDER` or it records but never prints.
 
+## Working conventions
+
+- Replies are terse; cite code as `file_path:line`; no summary the diff already gives.
+- Comment only the non-obvious *why* (an invariant, a Blizzard quirk, a constraint), never what
+  well-named code does.
+- Don't create docs or planning files unless asked.
+- Line endings, the WSL mirrors and the vendored-payload rule: see [testing.md](./testing.md).
+
 ## See also
 
 - [schema.md](./schema.md) — schema row grammar.

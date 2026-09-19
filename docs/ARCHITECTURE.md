@@ -104,6 +104,13 @@ Rules the code depends on that reading one file will not reveal. The visual/tain
   only metadata accessors; never call `GetAddOnMetadata` / `C_AddOns.GetAddOnMetadata` inline. The
   deprecated-global rung still exists — it is the seam's own fallback, for an install with no
   LibKa0s — and that file is the only place it may be spelled.
+- **Every LibKa0s seam publishes the same `NS` names whether the library loaded or not.** The nine
+  seams listed under [Module Map](#module-map) each answer with the library's instance or with a
+  degradation stub under one name, and the rest of the addon codes against that symmetry rather than
+  checking for the library. `settings/OptionsSetup.lua`'s stub is the one deliberate exception to
+  the honest-line-per-member pattern — it is **load-completing, not member-answering**, and
+  [settings-panel.md](./settings-panel.md) says why; `loadDegraded()` in `tests/test_perf.lua` loads
+  the whole TOC without the library and asserts `#NS.Schema` still matches. Do not weaken it.
 
 ## Settings Schema
 
@@ -532,6 +539,19 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
 
 Every `.md` under `docs/` appears in exactly one table below (`documentation-§3`) — except this
 file, the hub the map itself lives in. Frozen and generated directories are named once each and never enumerated per run: `docs/audits/`, `docs/reviews/`, `docs/automated-tests/`, `docs/superpowers/`, `docs/perf-analysis/`, `docs/investigations/`, `docs/revendor/`.
+
+The repo **root** ships exactly three docs plus `LICENSE`, and never a fourth: the player-facing
+`README.md`, the `CLAUDE.md` stub and `DEPENDENCIES.md` (the toolchain contract). Everything else
+lives under `docs/`.
+
+**`docs/agent-context.md` does not exist in this repo and MUST NOT be created.** The standard
+deleted it in v2.17.0 and shipping it is anti-pattern #49. It held the scaffolding pack
+(`NEW_ADDON_CONTEXT.md`), which is fetched at runtime and never stored: a copy in the repo describes
+the addon on the day it was born, and because it loads as working context a stale copy is not
+ignored, it is **followed** (documentation-§3). Root `CLAUDE.md` is the repo's only agent brief, and
+it points here. Older audit bundles, review bundles and plans under `docs/` predate v2.17.0 and
+still name the file, and some describe a four-file or a pre-v2.3.0 `agent-context.md`-based set.
+They are frozen history: never treat them as a live requirement, and never "restore" the file.
 
 ### Required (documentation-§3, Tier 1)
 

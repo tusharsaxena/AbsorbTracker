@@ -897,6 +897,6 @@ Folder-per-lib, loaded before any addon source via the `#@no-lib-strip@` block a
 ### Top-level docs
 
 - `README.md` — user-facing.
-- `CLAUDE.md` — the standards-compliance stub (working rules + doc pointers). Per documentation-§2 it stays a stub; the engineer brief is `docs/ARCHITECTURE.md`.
+- `CLAUDE.md` — the standards-compliance stub (doc pointers, the green gate, the LibKa0s provenance line). Per documentation-§2 it stays a stub; the engineer brief is `docs/ARCHITECTURE.md`.
 - `docs/ARCHITECTURE.md` — subsystems-at-a-glance + invariants + doc index.
 - `docs/*.md` — topic chunks (this file is one of them).

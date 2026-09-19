@@ -42,7 +42,7 @@ local test, assertEqual, assertTrue, assertFalse, assertNil =
   T.test, T.assertEqual, T.assertTrue, T.assertFalse, T.assertNil
 
 -- The five seams, in TOC load order. Kept as a literal list rather than a glob so a new seam has
--- to be added deliberately — see CLAUDE.md, "LibKa0s is vendored".
+-- to be added deliberately — see docs/ARCHITECTURE.md, "Module Map".
 local SEAMS = {
   "core/CoreSetup.lua",
   "core/DebugLogSetup.lua",
