@@ -472,8 +472,8 @@ end
 --
 -- HERE, AT FILE LOAD, is early enough and is not fragile, and the timing DID change: the private
 -- copy this replaced waited for OnEnable and this line does not. AbsorbTracker.toc pulls
--- libs\AceGUI-3.0-SharedMediaWidgets\widget.xml in with the other libraries (:29), well before
--- settings\OptionsSetup.lua (:65), so the slot already holds AGSMW's own constructor by the time
+-- libs\AceGUI-3.0-SharedMediaWidgets\widget.xml in with the other libraries, well before its
+-- settings\OptionsSetup.lua entry, so the slot already holds AGSMW's own constructor by the time
 -- this line runs; and a registration whose version is not strictly higher than the one already held
 -- is refused, so another addon's later-loading copy of AGSMW cannot take the slot back at its own
 -- fixed version. (Worded around the AceGUI entry point on purpose: C02's acceptance is a grep for
