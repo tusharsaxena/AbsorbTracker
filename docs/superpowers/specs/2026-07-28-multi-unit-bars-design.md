@@ -251,7 +251,7 @@ Linked to Player – uncheck to customize.
 - The copy button calls `Units.CopyFromPlayer(unit)` (which clears `mirror`) and re-renders, so
   the page flips from the mirrored state to a fully-populated editable one in a single click.
 - While mirrored, `PartitionUnitRows` renders only the `alwaysPerUnit` rows (the enable toggle);
-  the appearance rows are omitted entirely rather than greyed out.
+  the appearance rows are omitted entirely rather than grayed out.
 
 `settings/{Bar,Border,Font}.lua` builders call `RenderUnitPanel(ctx, pageKey)` in place of
 `RenderSchema(ctx, pageKey)`. `settings/General.lua` and `settings/About.lua` are unchanged — the

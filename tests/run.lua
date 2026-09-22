@@ -100,6 +100,7 @@ Kit.run{
     "test_perfcmds",
     "test_widgets",
     "test_docs",
+    { name = "test_prose", dir = "tests/_kit/" },
     "test_ltrap",
     "test_surface_parity",
     "test_vendor_sync",

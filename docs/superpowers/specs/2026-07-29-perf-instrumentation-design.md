@@ -149,7 +149,7 @@ already takes `on|off`, so sub-verbs are established.
 | `/at debug perf resume` | Restore it |
 
 Capture works whether or not debug *logging* is enabled. Output goes to the debug console via
-`D:Add` (which is ungated) plus a one-line chat acknowledgement, so running it never appears to do
+`D:Add` (which is ungated) plus a one-line chat acknowledgment, so running it never appears to do
 nothing.
 
 ### Persistence

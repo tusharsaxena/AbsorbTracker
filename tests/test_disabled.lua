@@ -129,7 +129,7 @@ test("disabled 4: no timer, ticker or OnUpdate is left armed", function()
   -- repeating ticker that has just fired is absent from the queue for a moment and very much alive.
   bringUp()
   NS.bus:SendMessage(NS.MSG.REPAINT)
-  assertTrue(#M.__timers() > 0, "precondition: a repaint is queued to be cancelled")
+  assertTrue(#M.__timers() > 0, "precondition: a repaint is queued to be canceled")
 
   disable()
   local live = M.__timers()

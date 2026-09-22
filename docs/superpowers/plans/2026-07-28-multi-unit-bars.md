@@ -1781,7 +1781,7 @@ local function addUnitRows(unit)
             order   = 30,
             type    = "bool",
             label   = "Use Class Color",
-            desc    = "Use your class color for the bar fill. Greys out the Bar Color picker.",
+            desc    = "Use your class color for the bar fill. Grays out the Bar Color picker.",
             default = unitDefaults.useClassColorBar,
         },
         {
@@ -1819,7 +1819,7 @@ local function addUnitRows(unit)
             order   = 30,
             type    = "bool",
             label   = "Use Class Color",
-            desc    = "Use a darkened class color for the background. Greys out the Background Color picker.",
+            desc    = "Use a darkened class color for the background. Grays out the Background Color picker.",
             default = unitDefaults.useClassColorBg,
         },
     }
