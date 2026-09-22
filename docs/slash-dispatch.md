@@ -13,7 +13,7 @@ parse one word. The trigger fires on either half.
 
 ## Registration
 
-`Sl:Register` (`settings/Slash.lua:539`) registers both names through AceConsole-3.0, called once
+`Sl:Register` (`settings/Slash.lua:645`) registers both names through AceConsole-3.0, called once
 from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:44`, guarded so a load where
 `settings/Slash.lua` never ran degrades rather than errors):
 
@@ -121,7 +121,7 @@ The library lowercases only the verb; the remainder is passed through untouched.
 here, because every schema path in this addon is camelCase and per-unit —
 `/at set units.target.barWidth 250` is the shipped form, and folding the whole line would address a
 row that does not exist. `/at profile` repeats the rule one level down: `runProfile`
-(`settings/Slash.lua:403`) lowercases the sub-verb and leaves its argument alone, because AceDB
+(`settings/Slash.lua:456`) lowercases the sub-verb and leaves its argument alone, because AceDB
 profile names are case-sensitive and a folded name deletes or switches to the wrong profile.
 
 **Schema paths are fully qualified.** The pre-1.9 unqualified `/at set barWidth 250` is rejected:
@@ -157,8 +157,8 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 Four verbs parse a remainder of their own. Three of them parse one word; only `profile` carries a
 dispatch table, and it is the one this page is really about.
 
-**`profile`** — `PROFILE_VERBS` (`settings/Slash.lua:355`), a table keyed by the lowercased sub-verb,
-built once at load and dispatched at `:388`:
+**`profile`** — `PROFILE_VERBS` (`settings/Slash.lua:408`), a table keyed by the lowercased sub-verb,
+built once at load and dispatched at `:469`:
 
 | Sub-verb | Takes a name | What it does |
 |---|---|---|
@@ -170,10 +170,10 @@ built once at load and dispatched at `:388`:
 | `delete <name>` | yes | Refuses the current profile; otherwise `db:DeleteProfile(name, true)` and prints its own line. |
 | `reset` | no | `db:ResetProfile()`. |
 
-A bare `/at profile` prints the sub-help built from `PROFILE_HELP` (`:298`), whose row order is the
+A bare `/at profile` prints the sub-help built from `PROFILE_HELP` (`:379`), whose row order is the
 contract — the table is what the help iterates, so the two cannot drift. An unknown sub-verb prints
 `Unknown profile subcommand '<name>'` and then that same help. The four name-taking verbs share one
-guard, `needsName(verb, fn)` (`:317`), which wraps at file load rather than at dispatch: a missing
+guard, `needsName(verb, fn)` (`:398`), which wraps at file load rather than at dispatch: a missing
 name prints `Usage: /at profile <verb> <name>` and the handler never runs, and a dispatch allocates
 nothing. Adding a sub-verb is one `PROFILE_VERBS` entry plus one `PROFILE_HELP` row.
 
@@ -202,7 +202,7 @@ anybody. So bare `toggle` turns everything off if anything is on, and everything
 ## The mirror note
 
 `MirrorNote` (`settings/Slash.lua:48`) is handed to the library through `cli:SetRowAnnotator`
-(`:483`). It appends `(mirrored — the bar shows Player's appearance)` in gray to a row whose unit is
+(`:621`). It appends `(mirrored — the bar shows Player's appearance)` in gray to a row whose unit is
 currently mirroring, and it exists because `/at get` and `/at set` resolve through `NS.GetSetting`,
 which walks the raw profile path and never consults `NS.Units.Get`. They therefore read and write the
 unit's **stored** value, not the mirror-resolved one. That is deliberate and self-consistent — it is
@@ -237,7 +237,7 @@ generic dispatcher knows nothing about.
 ## When the library is absent
 
 `/at` is registered unconditionally, so something has to answer it. With `LibKa0s-Slash-1.0` missing,
-`settings/Slash.lua:436` installs a stand-in: dispatch and a plain help index still render, a bare
+`settings/Slash.lua:489` installs a stand-in: dispatch and a plain help index still render, a bare
 `/at` still runs the `config` verb exactly as the library does, the host
 verbs — which never went to the library — keep working untouched, and each schema verb (`list`,
 `get`, `set`, `reset`, `resetall`) prints one honest line naming the missing library through
@@ -246,7 +246,7 @@ verbs — which never went to the library — keep working untouched, and each s
 What the degraded arm deliberately does **not** contain is a second copy of the row formatter, the
 `key = value` shape or the value parser. Hand-copying the strings whose drift the extraction exists to
 end is precisely the duplicate testing-§8 forbids, so a degraded help row renders plainly and says
-so. The stub and the real instance are both file-scope locals, which is why `Sl.__cli` (`:488`) is
+so. The stub and the real instance are both file-scope locals, which is why `Sl.__cli` (`:628`) is
 published under the same `__` convention the options helpers use —
 `tests/test_surface_parity.lua` is its only reader, and a stub surface that cannot be reached cannot
 be compared against the one it stands in for.
