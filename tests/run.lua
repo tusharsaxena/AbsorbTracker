@@ -103,6 +103,7 @@ Kit.run{
     "test_bus",
     "test_data",
     "test_display",
+    "test_draghandle",
     "test_helpers",
     "test_launcher",
     "test_optionssetup",

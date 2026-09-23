@@ -385,6 +385,12 @@ badge and any count quoted in the docs must agree with it.
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
+### test_draghandle.lua (3)
+
+- every bar body is registered for a left-button drag
+- dropping a bar body saves the position to that bar's own unit
+- dropping one bar leaves the other bars' positions alone
+
 ### test_helpers.lua (70)
 
 - CreatePanel returns a ctx wired to a panel, a body and an empty refresher list
@@ -807,6 +813,7 @@ badge and any count quoted in the docs must agree with it.
 | test_bus.lua | 12 |
 | test_data.lua | 32 |
 | test_display.lua | 64 |
+| test_draghandle.lua | 3 |
 | test_helpers.lua | 70 |
 | test_launcher.lua | 16 |
 | test_optionssetup.lua | 13 |
@@ -822,4 +829,4 @@ badge and any count quoted in the docs must agree with it.
 | test_disabled.lua | 15 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **692** |
+| **Total** | **695** |
