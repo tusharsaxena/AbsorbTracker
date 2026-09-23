@@ -161,7 +161,8 @@ test("with LibKa0s absent, a UNITS publish while disabled registers nothing", fu
   -- take the subscription down, so the receiver has to decline for itself (StandUp re-syncs from
   -- current state, so nothing is lost). Asserted on the registration set, not on the handler.
   --
-  -- red under: a UNITS receiver with no stand-down guard (four registrations come back here).
+  -- red under: a UNITS receiver with no stand-down guard (five registrations come back here:
+  -- PLAYER_TARGET_CHANGED, and UNIT_ABSORB_AMOUNT_CHANGED and UNIT_MAXHEALTH twice each).
   local NS2, M2 = dofile("tests/degraded_env.lua")()
   NS2.db = { profile = NS2.Units.DeepCopy(NS2.defaults.profile), global = { minimap = {} } }
   function NS2.db.GetCurrentProfile() return "Default" end

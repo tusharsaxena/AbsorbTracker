@@ -32,8 +32,10 @@ What each adoption changed for a player: nothing visible on a LibKa0s-present in
 LibKa0s-less install, a disable now leaves the five bus subscriptions registered (C1; the draw
 handlers answer to the latch, so nothing draws), recorded in `docs/ARCHITECTURE.md` Known Limitations.
 As adopted at `92c48d8` the `UNITS` handler did NOT answer to the latch: a publish while disabled
-re-registered the per-unit frames and `PLAYER_TARGET_CHANGED` on that install shape. A Phase 6
-follow-up gave that receiver a stand-down guard, pinned by a degraded-load case in `tests/test_bus.lua`.
+re-registered the per-unit frames and `PLAYER_TARGET_CHANGED` on that install shape. `9e6a4a6`
+gave that receiver a stand-down guard: it returns while `NS.IsStoodDown()` instead of calling
+`SyncUnitEventFrames`, and `StandUp` re-syncs from current state, so nothing is lost. A
+degraded-load case in `tests/test_bus.lua` pins it (red without the guard: five registrations back).
 C2's degraded build stops writing debug lines the degraded console already discarded.
 
 `docs/ARCHITECTURE.md` now names both majors (Module Map row, Message Bus, "What stands down",

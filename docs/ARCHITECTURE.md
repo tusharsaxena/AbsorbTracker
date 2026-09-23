@@ -246,7 +246,10 @@ registration. Every target `NS.NewBusTarget()` hands out is a **tracked** target
 library's record (`NS.busRecord = Bus:New{ name, isDown }`, `isDown` asking `NS.IsStoodDown()`
 through a closure because the latch loads after the bus), so the latch's `StandDown` /
 `StandUp` reach every receiver's registrations through `NS.BusStandDown()` / `NS.BusStandUp()`
-and no module learns that the latch exists. A registration made while stood down is recorded and
+and no receiver has to ask the latch for its subscription to come down. One asks anyway: the
+`UNITS` receiver in `core/AbsorbTracker.lua` returns while `NS.IsStoodDown()`, because with
+LibKa0s absent the stub records nothing and its work is a registration (see
+[Known Limitations](#known-limitations)). A registration made while stood down is recorded and
 goes live at the stand-up; an unregister while up is forgotten, so a stand-up never resurrects it.
 `NS.MSG` is declared once through `Bus.Catalog`, which validates each `Ka0s_AbsorbTracker_<Event>`
 name at load and answers a strict copy: reading an undeclared key raises at the call site, for a
@@ -437,8 +440,10 @@ one was written.
 - **Every bus subscription.** A `RegisterMessage` is a registration like any other. The subscribing
   modules hold their targets as file-locals, so the record lives with the factory that made them:
   every `NS.NewBusTarget()` target is tracked by `LibKa0s-Bus-1.0`, `StandDown` calls
-  `NS.BusStandDown()` last and `StandUp` calls `NS.BusStandUp()` first, and no module learns that
-  the latch exists.
+  `NS.BusStandDown()` last and `StandUp` calls `NS.BusStandUp()` first, so no receiver has to ask
+  the latch for its subscription to come down. The `UNITS` receiver asks `NS.IsStoodDown()` anyway,
+  as a registration guard for the LibKa0s-less stub that records nothing
+  ([Known Limitations](#known-limitations)).
 - **Every timer**: the coalescing repaint (`NS.CancelPendingRepaint`) and the `/at test` preview
   hold (`NS.ClearPreview`).
 - **The bars, at the source.** `StandDown` publishes `VISIBILITY` *before* it takes the bus down, and
