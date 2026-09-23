@@ -112,5 +112,9 @@ Kit.run{
     -- Shipped in the kit, so every consumer inherits the gate instead of re-typing it; the
     -- inventory assertion goes red in any repo that vendors it and leaves it undeclared.
     { name = "test_eol", dir = "tests/_kit/" },
+    -- layout-§1's 1500-line cap, gated against the census under docs/ARCHITECTURE.md's
+    -- Documented deviations. No Kit.layoutCap opts: the hub is the default and nothing here
+    -- is generated data, so there is no exempt set to hand it.
+    { name = "test_layout_cap", dir = "tests/_kit/" },
   },
 }
