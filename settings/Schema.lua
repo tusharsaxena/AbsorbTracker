@@ -63,7 +63,10 @@ NS.Schema = NS.Schema or {}
 -- so no call site moved: NS.SetByPath, NS.FindSchemaRow, NS.RegisterSchemaRows, NS.ApplyDefault,
 -- NS.Bulk, NS.ResolvePath / NS.SetPath, the reset count trio and NS.ValidateSchema.
 
---- The degradation stub (LibKa0s docs/api/Schema/version-1-docs.md, "The degradation stub").
+--- The degradation stub (LibKa0s docs/api/Schema/version-2-docs.md, "The degradation stub"). It
+--- keeps pace with the major's minor 2: SetMany (the all-or-nothing batch), row.normalize, the
+--- instance id reaching a row's own get and ApplyDefault, and the writeThrough store -- the
+--- descriptor's list of row-less paths it stores raw and announces with a synthetic row.
 ---
 --- WRITE-COMPLETING AND LOG-SILENT, and a deliberate, documented duplication. This major is not
 --- reached only by the panel and the CLI, which a library-less build has lost anyway: the repaint
@@ -74,10 +77,10 @@ NS.Schema = NS.Schema or {}
 --- #56 shape 2). options-ui-§1 names this shape, the RUNTIME-COMPLETING stub, and ties it to this
 --- major alone.
 ---
---- It completes what a player can observe -- reads, writes, the row's reaction, the announce and
---- the sweep veto -- and not what only feeds the debug console: the [Set] line, the bracket's tally
---- and the reset count. The degraded DebugLog stub (core/DebugLogSetup.lua) discards those lines, so
---- the degraded build has nowhere to show one. It is the reference stub the library's own suite pins
+--- It completes what a player can observe -- reads, writes (one at a time or as a batch), the
+--- row's reaction, the announce and the sweep veto -- and not what only feeds the debug console:
+--- the [Set] line, the bracket's tally and the reset count. The degraded DebugLog stub
+--- (core/DebugLogSetup.lua) discards those lines, so the degraded build has nowhere to show one. It is the reference stub the library's own suite pins
 --- against a live instance, whole: tests/test_surface_parity.lua holds it to the same surface.
 local function HostSchemaStub()
     local stubLib = {}
@@ -127,6 +130,15 @@ local function HostSchemaStub()
     function stubLib.New(_, d)
         local S, depth = {}, 0
         local rows = d.rows
+        -- writeThrough (since 2): one synthetic row per listed path, built here once and handed
+        -- out by identity. It has no validate, normalize, set or onChange, so the seam below stores
+        -- it raw and reacts to nothing; `row.writeThrough` is how the host's announce tells it apart.
+        local through = {}
+        if type(d.writeThrough) == "table" then
+            for _, p in ipairs(d.writeThrough) do
+                if type(p) == "string" then through[p] = { path = p, writeThrough = true } end
+            end
+        end
         local function resolve(parts, id)
             if type(d.resolveRoot) ~= "function" then return nil end
             return d.resolveRoot(parts, id)
@@ -138,6 +150,13 @@ local function HostSchemaStub()
                 if type(row) == "table" and row.path == path then return row end
             end
         end
+        -- The row a write goes through: the real row, else a listed path's synthetic one. A path
+        -- with a row always takes the row; FindRow never answers a synthetic row.
+        local function writeRow(path)
+            local row = S.FindRow(path)
+            if row then return row end
+            if type(path) == "string" then return through[path] end
+        end
         function S.AddRows(list, at)
             if type(list) ~= "table" then return 0 end
             at = type(at) == "number" and math.floor(at) or #rows + 1
@@ -148,50 +167,130 @@ local function HostSchemaStub()
         function S.Reindex() end
         function S.Get(path, id)
             local row = S.FindRow(path)
-            if row and type(row.get) == "function" then return row.get() end
+            if row and type(row.get) == "function" then return row.get(id) end
             if type(path) ~= "string" or (row and row.sessionOnly) then return nil end
             local parts = stubLib.SplitPath(path)
             local root, first = resolve(parts, id)
             if type(root) ~= "table" then return nil end
             return stubLib.Read(root, parts, first)
         end
-        -- The write seam's order without its log and tally: refuse, validate, store, react, announce.
-        function S.Set(path, value, id)
-            local row = S.FindRow(path)
-            if not row then return false, "AbsorbTracker: no setting " .. tostring(path) end
-            local stored = type(row.set) ~= "function" and not row.sessionOnly
-            local parts, root, first, rid = nil, nil, nil, id
-            if stored then
-                parts = stubLib.SplitPath(path)
-                local r, f, got = resolve(parts, id)
-                if type(r) == "table" then root, first = r, f end
-                if got ~= nil then rid = got end
-            end
+        -- validate, then normalize (since 2): the value to store, or `false, err, why`.
+        local function checkValue(row, path, value, rid)
             if type(row.validate) == "function" then
                 local ok, why = row.validate(value, rid)
                 if not ok then return false, "AbsorbTracker: invalid value for " .. path, why end
             end
-            if stored and not root then return false, "AbsorbTracker: nowhere to store " .. path end
-            if type(row.set) == "function" then
-                row.set(value)
-            elseif stored then
-                stubLib.Write(root, parts, copy(value), first)
+            if type(row.normalize) == "function" then
+                local out, why = row.normalize(value, rid)
+                if out == nil then return false, "AbsorbTracker: invalid value for " .. path, why end
+                value = out
             end
-            if type(row.onChange) == "function" then row.onChange(value, rid) end
-            if type(d.announce) == "function" then d.announce(row, path, value, rid) end
+            return true, value
+        end
+        -- Everything the seam checks before it stores, shared by Set and SetMany so a batch refuses
+        -- on exactly the rules a single write does: resolve, validate, normalize, the missing root.
+        -- Answers `true, prep`, or `false, err, why, withWhy` with nothing stored. `withWhy` keeps
+        -- the answer count: `false, err, why` for a bad value, `false, err` for a missing root.
+        local function prepareWrite(row, path, value, id)
+            local stored = type(row.set) ~= "function" and not row.sessionOnly
+            local prep = { row = row, path = path, rid = id }
+            if stored then
+                prep.parts = stubLib.SplitPath(path)
+                local r, f, got = resolve(prep.parts, id)
+                if type(r) == "table" then prep.root, prep.first = r, f end
+                if got ~= nil then prep.rid = got end
+            end
+            local ok, v, why = checkValue(row, path, value, prep.rid)
+            if not ok then return false, v, why, true end
+            if stored and not prep.root then
+                return false, "AbsorbTracker: nowhere to store " .. path, nil, false
+            end
+            prep.value = v
+            return true, prep
+        end
+        -- The store: the row's own set with the value as given, or a COPY written at the path; a
+        -- sessionOnly row without a set stores nothing.
+        local function store(prep)
+            if type(prep.row.set) == "function" then
+                prep.row.set(prep.value)
+            elseif prep.root then
+                stubLib.Write(prep.root, prep.parts, copy(prep.value), prep.first)
+            end
+        end
+        local function react(prep)
+            local onChange = prep.row.onChange
+            if type(onChange) == "function" then onChange(prep.value, prep.rid) end
+        end
+        local function commit(prep)
+            store(prep)
+            react(prep)
+        end
+        -- The write seam's order without its log and tally: refuse, validate, normalize, store,
+        -- react, announce. A listed writeThrough path with no row is not refused (see above).
+        function S.Set(path, value, id)
+            local row = writeRow(path)
+            if not row then return false, "AbsorbTracker: no setting " .. tostring(path) end
+            local ok, prep, why, withWhy = prepareWrite(row, path, value, id)
+            if not ok then
+                if withWhy then return false, prep, why end
+                return false, prep
+            end
+            commit(prep)
+            if type(d.announce) == "function" then d.announce(row, path, prep.value, prep.rid) end
+            return true
+        end
+        -- One batch entry, checked as Set checks it: a prep, or `nil, err, why`.
+        local function prepareEntry(entry, id)
+            local path = type(entry) == "table" and entry.path or nil
+            local row = writeRow(path)
+            if not row then return nil, "AbsorbTracker: no setting " .. tostring(path) end
+            local ok, prep, why = prepareWrite(row, path, entry.value, id)
+            if not ok then return nil, prep, why end
+            return prep
+        end
+        -- The batch's tail: announceBatch once with `{ row, path, value, rid }` per write and the
+        -- first write's id, else announce per write. Nothing for an empty batch.
+        local function announceAll(preps)
+            if #preps == 0 then return end
+            if type(d.announceBatch) == "function" then
+                local writes = {}
+                for i, p in ipairs(preps) do
+                    writes[i] = { row = p.row, path = p.path, value = p.value, rid = p.rid }
+                end
+                d.announceBatch(writes, preps[1].rid)
+                return
+            end
+            if type(d.announce) ~= "function" then return end
+            for _, p in ipairs(preps) do d.announce(p.row, p.path, p.value, p.rid) end
+        end
+        -- SetMany (since 2), all or nothing and log-silent: every entry prepared first, and the
+        -- first refusal answers `false, err, why, index` with nothing stored; then every store,
+        -- every onChange, and the announce. `opts.act` is not read -- there is no line to make.
+        function S.SetMany(entries, opts)
+            if type(entries) ~= "table" then entries = {} end
+            local id = type(opts) == "table" and opts.instanceId or nil
+            local preps = {}
+            for i = 1, #entries do
+                local prep, err, why = prepareEntry(entries[i], id)
+                if not prep then return false, err, why, i end
+                preps[i] = prep
+            end
+            for _, p in ipairs(preps) do store(p) end
+            for _, p in ipairs(preps) do react(p) end
+            announceAll(preps)
             return true
         end
         function S.Default(path)
             local row = S.FindRow(path)
             return row and copy(row.default)
         end
-        function S.ApplyDefault(row)
+        function S.ApplyDefault(row, id)
             if type(row) ~= "table" or type(row.path) ~= "string" or row.default == nil then
                 return false
             end
             local exempt = d.resetExempt
             if depth > 0 and type(exempt) == "table" and exempt[row.path] then return false end
-            return S.Set(row.path, copy(row.default))
+            return S.Set(row.path, copy(row.default), id)
         end
         -- The bracket keeps its depth, because the sweep veto above reads it; it counts nothing.
         function S.BulkBegin() depth = depth + 1 end

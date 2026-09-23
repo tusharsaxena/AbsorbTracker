@@ -23,7 +23,7 @@ badge and any count quoted in the docs must agree with it.
 - loadorder: LibStub returns nil for a missing major with the silent flag
 - loadorder: LibStub keeps the higher minor when a major registers twice
 
-### test_schema.lua (50)
+### test_schema.lua (59)
 
 - FormatSchemaValue formats by type
 - SchemaForPage keeps groups in registration order, which IS the Appearance tab strip
@@ -75,6 +75,15 @@ badge and any count quoted in the docs must agree with it.
 - General's rows are the flat globals plus one enable toggle per unit
 - FormatSchemaValue resolves the Slash major at load, never per call
 - a build without LibKa0s-Slash-1.0 falls back to a minimal FormatSchemaValue
+- degraded Schema stub: SetMany refuses the whole batch on one invalid entry
+- degraded Schema stub: SetMany refuses an unknown path with its index
+- degraded Schema stub: a valid SetMany stores both, reacts once each, announces per write
+- degraded Schema stub: SetMany announces once through announceBatch when given
+- degraded Schema stub: a writeThrough path with no row stores raw and announces a synthetic row
+- degraded Schema stub: a row-less path outside writeThrough is still refused
+- degraded Schema stub: row.normalize's answer is stored, and a nil answer refuses
+- degraded Schema stub: Get forwards the instance id to a row's own get
+- degraded Schema stub: ApplyDefault forwards the instance id to Set
 
 ### test_database.lua (31)
 
@@ -814,7 +823,7 @@ badge and any count quoted in the docs must agree with it.
 | Suite | Cases |
 |-------|------:|
 | test_loadorder.lua | 14 |
-| test_schema.lua | 50 |
+| test_schema.lua | 59 |
 | test_database.lua | 31 |
 | test_units.lua | 17 |
 | test_envsetup.lua | 6 |
@@ -844,4 +853,4 @@ badge and any count quoted in the docs must agree with it.
 | test_disabled.lua | 15 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **710** |
+| **Total** | **719** |
