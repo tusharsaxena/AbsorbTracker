@@ -318,7 +318,7 @@ badge and any count quoted in the docs must agree with it.
 - three bar frames exist and the player alias points at the player frame
 - each bar carries its own unit tag and its own backdrop table
 
-### test_display.lua (64)
+### test_display.lua (60)
 
 - RestoreBarPosition centers the bar when no position is saved
 - RestoreBarPosition restores the saved anchor verbatim
@@ -331,9 +331,6 @@ badge and any count quoted in the docs must agree with it.
 - UpdateBarAppearance pushes the resolved media into the backdrop
 - UpdateBarAppearance makes the bar immovable and mouse-inert when locked
 - UpdateBarAppearance restores drag + mouse when unlocked
-- every bar owns a unit label
-- unlocking shows a label naming the unit
-- locking hides the unit label
 - an untouched profile paints the same white text and full alpha it always did
 - the Text tab's color reaches the absorb amount, alpha included
 - barAlpha reaches all three paint sites, not just the appearance pass
@@ -359,7 +356,6 @@ badge and any count quoted in the docs must agree with it.
 - combat with the bars already locked says nothing and leaves the panel alone
 - unlocking will not happen in combat, and says why
 - re-locking in combat is always allowed
-- the unit label follows the unit's own font face
 - UpdateBarAppearance re-applies the font from the profile
 - UpdateBarAppearance tolerates a nil fontFlags by passing an empty flag string
 - UpdateBarAppearance ends by applying visibility
@@ -385,11 +381,30 @@ badge and any count quoted in the docs must agree with it.
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_draghandle.lua (3)
+### test_draghandle.lua (22)
 
 - every bar body is registered for a left-button drag
 - dropping a bar body saves the position to that bar's own unit
 - dropping one bar leaves the other bars' positions alone
+- the widget major is present, so the handle is not the degraded path
+- every bar owns a drag handle: a named Button parented to the bar
+- the handle is labeled with its own unit's name
+- the handle moves its own bar, with the help icon from the Media seam
+- unlocking shows every bar's handle; locking hides it
+- an unlocked handle is exactly as wide as its bar
+- a handle over a narrow bar takes its own natural width instead
+- a locked pass does not resize the hidden handle
+- the combat re-lock hides every handle
+- a locked handle refuses the drag and does not move the bar
+- an unlocked handle drags its bar
+- dropping a handle saves the position to its own bar's unit
+- the handle and the bar body save through the same writer
+- the strip's tooltip names the addon and says how to move this bar
+- the strip's tooltip reads the lock on every hover
+- the help mark has its own tooltip, with a footer saying how to put the strip away
+- degraded: with LibKa0s absent the bars load with no handle and keep their own drag
+- degraded: with no widget the default stack reserves no strip room
+- an appearance pass over a bar with no handle raises nothing
 
 ### test_helpers.lua (70)
 
@@ -812,8 +827,8 @@ badge and any count quoted in the docs must agree with it.
 | test_visibility.lua | 22 |
 | test_bus.lua | 12 |
 | test_data.lua | 32 |
-| test_display.lua | 64 |
-| test_draghandle.lua | 3 |
+| test_display.lua | 60 |
+| test_draghandle.lua | 22 |
 | test_helpers.lua | 70 |
 | test_launcher.lua | 16 |
 | test_optionssetup.lua | 13 |
@@ -829,4 +844,4 @@ badge and any count quoted in the docs must agree with it.
 | test_disabled.lua | 15 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **695** |
+| **Total** | **710** |

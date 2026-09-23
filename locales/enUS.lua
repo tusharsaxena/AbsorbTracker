@@ -12,13 +12,37 @@ NS.L = setmetatable(NS.L or {}, { __index = function(_, k) return k end })
 -- seam is here so a future pass can wrap them (`NS.L["Bar Width (in px)"]`) without touching call
 -- sites.
 --
--- NO KEY IS LISTED HERE, and that is the register holding rather than weakening. The one string
--- this addon used to route was settings/Slash.lua's disabled-verb refusal, and it left the addon
--- entirely at LibKa0s v1.42.0: slash-commands-§7 makes that line the COLLECTION's wording, built by
+-- The disabled-verb refusal that settings/Slash.lua used to route through here left the addon at
+-- LibKa0s v1.42.0: slash-commands-§7 makes that line the COLLECTION's wording, built by
 -- LibKa0s-Slash-1.0 out of one exported format string, precisely so a player running four Ka0s
 -- addons does not read four different answers to the same question. `lib.L` does not reach it
--- either. enUS.lua carries no key nothing reads (localization-§3), so the key went with the call
--- site.
+-- either, so its key went with the call site.
 --
--- The seam above is untouched and still the place a future pass wraps `NS.L["Bar Width (in px)"]`
--- without editing call sites; what is gone is a dead entry, not the mechanism.
+-- What IS routed is the unlocked drag handle over each bar (modules/Bar.lua): its unit label and
+-- both of its tooltips. Every key below is read there -- enUS.lua carries no key nothing reads
+-- (localization-§3) -- and the English-only register row is otherwise unchanged: the rest of the
+-- addon's strings are still hardcoded, and a future pass wraps them here without touching call
+-- sites.
+
+local L = NS.L
+
+-- The strip's label: the unit's display name (core/Units.lua's LABEL, which stays the identity).
+L["Player"] = "Player"
+L["Target"] = "Target"
+L["Focus"]  = "Focus"
+
+-- The strip's tooltip.
+L["Absorb Tracker"] = "Absorb Tracker"
+L["Drag to move the %s bar."] = "Drag to move the %s bar."
+L["Locked. Unlock the bars to move them \226\128\148 /at unlock."] =
+    "Locked. Unlock the bars to move them \226\128\148 /at unlock."
+
+-- The help mark's tooltip.
+L["%s bar"] = "%s bar"
+L["Drag this handle, or the bar itself, to move the bar."] =
+    "Drag this handle, or the bar itself, to move the bar."
+L["Each bar keeps its own position."] = "Each bar keeps its own position."
+L["Locked. Unlock the bars to drag this handle \226\128\148 /at unlock."] =
+    "Locked. Unlock the bars to drag this handle \226\128\148 /at unlock."
+L["Lock the bars to hide this handle \226\128\148 /at lock."] =
+    "Lock the bars to hide this handle \226\128\148 /at lock."

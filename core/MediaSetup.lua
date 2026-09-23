@@ -31,10 +31,10 @@
 -- Do not key anything on a registration being unique, and do not drop a
 -- defensive re-register on the grounds that there is only one.
 --
--- The icon catalog rides along with it. This addon draws no chrome of its own —
--- its three absorb bars have no title bars and no controls, and its settings
--- panel is LibKa0s-Options-1.0's — so nothing here calls `NS.Icon`; see the note
--- on it below.
+-- The icon catalog rides along with it. This addon draws almost no chrome of its
+-- own — its settings panel is LibKa0s-Options-1.0's, and its three absorb bars
+-- have no title bars — and the one mark it does ask for is the help `?` on the
+-- unlocked drag handle over each bar (modules/Bar.lua); see the note below.
 --
 -- ---------------------------------------------------------------------------
 -- WHY THE LIBRARY HAS TO BE TOLD OUR NAME
@@ -83,23 +83,15 @@ local Media = LibStub and LibStub("LibKa0s-Media-1.0", true)
 
 --- The texture path for one shipped icon, or nil.
 ---
---- NO CALL SITE TODAY, AND THAT IS RECORDED HERE RATHER THAN LEFT TO BE
---- REDISCOVERED. `grep -rn "NS.Icon" core modules settings defaults locales`
---- finds this definition and nothing else. The two windows that DO draw this
---- collection's marks — the debug console with its Copy window, and the perf
---- step panel — never come through here: they are drawn entirely inside
---- libs/LibKa0s, which builds its own paths through `Media.Icon(addonName, …)`
---- once it is handed our folder name in core/DebugLogSetup.lua's descriptor.
---- (core/CoreSetup.lua's NS.MakeCloseButton wrapper was the other route and was
---- deleted by the dead-export sweep on 2026-09-11, exactly as its own note said
---- it should be.) Delete this function and not one pixel moves.
----
---- It is published anyway, as the other half of a two-function seam whose font
---- half core/Constants.lua does call, and for the first control this addon draws
---- itself. If the collection's dead-export sweep reaches it and no such control
---- has arrived, deleting it is the right answer — tests/test_mediasetup.lua's
---- NS.Icon cases go with it, and the marks that reach the screen stay covered by
---- the addonName spy in tests/test_debuglog.lua.
+--- ONE CALL SITE: modules/Bar.lua's drag handle, which passes `NS.Icon("help")`
+--- to LibKa0s-Widgets-1.0's DragHandle as the help mark's art — the first control
+--- this addon draws itself, which is what this seam was kept published for. A
+--- nil answer is fine there: the widget falls back to its own Blizzard texture.
+--- The two windows that draw the rest of this collection's marks — the debug
+--- console with its Copy window, and the perf step panel — never come through
+--- here: they are drawn entirely inside libs/LibKa0s, which builds its own paths
+--- through `Media.Icon(addonName, …)` once it is handed our folder name in
+--- core/DebugLogSetup.lua's descriptor.
 ---
 --- EXTENSIONLESS by contract: this answers `...\media\icons\close`, never
 --- `close.tga`. The client appends the extension, and the collection has already
