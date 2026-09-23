@@ -664,6 +664,21 @@ departures.
   every upgrading profile as already-migrated and make the gate dead code. See
   [profiles.md](./profiles.md).
 
+### Files over the 1500-line cap
+
+`layout-§1` caps every **authored** `.lua` file this repository tracks at 1500 lines, `tests/`
+included. Vendored code (`libs/`, `tests/_kit/`) is the only carve-out that reaches anything here;
+nothing in this repo is generated non-shipping data, so the generated-data carve-out has no instance
+and the runner hands the gate no exempt set. A file over the cap has three terminal states: peeled,
+an open issue naming the seam a peel would follow, or a ratified row in the register above carrying
+a re-check trigger. The census records which one, one row per over-cap file; the 1000-1500 band is
+observed and dispositioned in the automated-tests watch list alone (`automated-tests-§4`).
+
+Nothing is over the cap today. The largest authored file is `tests/test_helpers.lua` at 1415 lines,
+measured on 2026-09-23 with `git ls-files '*.lua' | grep -v '^libs/' | grep -v '^tests/_kit/' |
+xargs wc -l | sort -rn`. `tests/test_slashcmds.lua` was peeled into `tests/test_perfcmds.lua` when it
+crossed the cap. The vendored `tests/_kit/test_layout_cap.lua` gates this census against the tree.
+
 ### Recorded, but not deviations
 
 The two entries below cite no rule. They are kept in this document because an audit or a media sweep
