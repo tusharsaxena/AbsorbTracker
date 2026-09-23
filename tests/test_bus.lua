@@ -153,3 +153,35 @@ test("with LibKa0s absent, receivers still get a private working target and noth
   assertEqual(NS2.MSG.UNITS, "Ka0s_AbsorbTracker_UnitsChanged", "the catalog is the host's own table")
   assertEqual(rawget(NS2.MSG, "NOPE"), nil, "a plain table: an undeclared key is simply absent")
 end)
+
+test("with LibKa0s absent, a UNITS publish while disabled registers nothing", function()
+  -- The one handler the untracked-target stub leaves reachable while down that REGISTERS rather
+  -- than draws: the UNITS receiver calls addon:SyncUnitEventFrames, which makes per-unit
+  -- RegisterUnitEvent registrations and the two swap events. On the degraded load the stub cannot
+  -- take the subscription down, so the receiver has to decline for itself (StandUp re-syncs from
+  -- current state, so nothing is lost). Asserted on the registration set, not on the handler.
+  --
+  -- red under: a UNITS receiver with no stand-down guard (four registrations come back here).
+  local NS2, M2 = dofile("tests/degraded_env.lua")()
+  NS2.db = { profile = NS2.Units.DeepCopy(NS2.defaults.profile), global = { minimap = {} } }
+  function NS2.db.GetCurrentProfile() return "Default" end
+  NS2.addon:OnEnable()
+  local function feature()
+    local out = {}
+    for _, r in ipairs(M2.__registrations()) do
+      if r.kind ~= "message" then out[#out + 1] = r.kind .. ":" .. tostring(r.event) end
+    end
+    table.sort(out)
+    return table.concat(out, ", ")
+  end
+  assertTrue(feature() ~= "", "the degraded addon registers something to stand down from")
+  NS2.lifecycle:Hold(NS2.HOLD_DISABLED)
+  assertTrue(NS2.IsStoodDown(), "the latch is down")
+  assertEqual(feature(), "", "the stand-down took every feature registration down")
+  NS2.SetByPath("units.target.enabled", true)
+  NS2.bus:SendMessage(NS2.MSG.UNITS)
+  assertEqual(feature(), "", "a UNITS publish while down registers nothing")
+  NS2.lifecycle:Release(NS2.HOLD_DISABLED)
+  assertTrue(feature():find("PLAYER_TARGET_CHANGED", 1, true) ~= nil,
+    "and the stand-up rebuilds from current state, target swap included: " .. feature())
+end)

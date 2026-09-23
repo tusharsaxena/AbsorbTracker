@@ -569,8 +569,13 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   untracked-target stub (`options-ui-§1`) still gives every receiver a private target, but it
   records nothing, so the latch's stand-down has no record to take down: the five bus
   subscriptions stay registered on a disabled addon. The show ladder and `NS.RequestRepaint` still
-  answer to the latch, so nothing is drawn; what is lost is the registration-level stand-down on
-  that one install shape, which is also already without Options, Slash and the rest of LibKa0s.
+  answer to the latch, so nothing is drawn. The one receiver whose work is a REGISTRATION, the
+  `UNITS` handler in `core/AbsorbTracker.lua` (it calls `SyncUnitEventFrames`), asks the latch
+  first and does nothing while down, so a publish on a disabled addon cannot put the per-unit
+  frames or the swap events back; StandUp re-syncs from current state (`tests/test_bus.lua` pins
+  it on the degraded load). What is lost is the registration-level stand-down of the five bus
+  subscriptions themselves on that one install shape, which is also already without Options, Slash
+  and the rest of LibKa0s.
 
 ## Documentation map
 

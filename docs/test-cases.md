@@ -268,7 +268,7 @@ badge and any count quoted in the docs must agree with it.
 - [Absorb] transition logs on a non-secret 0->nonzero change
 - ShouldShowBar: unlocking bypasses visibility entirely
 
-### test_bus.lua (11)
+### test_bus.lua (12)
 
 - bus, NewBusTarget, and the message catalog are published
 - the catalog is exactly the five declared messages, walkable with pairs
@@ -281,6 +281,7 @@ badge and any count quoted in the docs must agree with it.
 - the bus record is LibKa0s-Bus-1.0's, built under the folder name
 - the catalog is strict: an undeclared key raises at the call site
 - with LibKa0s absent, receivers still get a private working target and nothing is recorded
+- with LibKa0s absent, a UNITS publish while disabled registers nothing
 
 ### test_data.lua (32)
 
@@ -803,7 +804,7 @@ badge and any count quoted in the docs must agree with it.
 | test_timer.lua | 12 |
 | test_perf.lua | 33 |
 | test_visibility.lua | 22 |
-| test_bus.lua | 11 |
+| test_bus.lua | 12 |
 | test_data.lua | 32 |
 | test_display.lua | 64 |
 | test_helpers.lua | 70 |
@@ -821,4 +822,4 @@ badge and any count quoted in the docs must agree with it.
 | test_disabled.lua | 15 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **691** |
+| **Total** | **692** |

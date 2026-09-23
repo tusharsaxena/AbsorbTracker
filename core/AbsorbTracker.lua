@@ -360,6 +360,13 @@ if NS.NewBusTarget then
     -- actually unregister it (slash-commands-§7 names RegisterMessage among the registrations a
     -- disabled addon has given up, not gated).
     NS.Events.__ev:RegisterMessage(NS.MSG.UNITS, function()
+        -- A REGISTRATION guard, not a draw gate. On the live build this subscription is down while
+        -- the latch is, so the line is never reached there. With LibKa0s missing, core/Bus.lua's
+        -- untracked-target stub records nothing, so the subscription stays live on a disabled addon,
+        -- and a UNITS publish would put the per-unit frames and the swap events back on it
+        -- (slash-commands-§7 has them unregistered). StandUp re-syncs from current state, so
+        -- declining here loses nothing. tests/test_bus.lua pins it on the degraded load.
+        if NS.IsStoodDown() then return end
         if NS.addon and NS.addon.SyncUnitEventFrames then
             NS.addon:SyncUnitEventFrames()
         end

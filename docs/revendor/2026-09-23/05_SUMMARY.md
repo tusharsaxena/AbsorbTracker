@@ -29,8 +29,11 @@ None (`01_DELTA.md` section 3g).
 | C2 `LibKa0s-Schema-1.0` (full adopter) | `0e72839` | Characterization first (3): the write's order; the lock verbs and the combat re-lock writing the store on a degraded load. With the change (5 new): the live runtime is the library's and the host names are its members; the minimap row survives a sweep and a named reset still resets it; an unknown path is refused (replaces the case that pinned the opposite); a table value is stored as a copy; the stub's lib-level and instance parity (2). Re-pinned: `SetSetting`'s four cases to `SetByPath`; the two degraded Reset All log cases to "the write landed, the line is absent"; the probe rows to registered rows carrying their own `get`/`set`; one `test_slash` case off a legacy row-less path. |
 
 What each adoption changed for a player: nothing visible on a LibKa0s-present install. On a
-LibKa0s-less install, a disable now leaves the five bus subscriptions registered (C1; the handlers
-still answer to the latch, so nothing draws), recorded in `docs/ARCHITECTURE.md` Known Limitations.
+LibKa0s-less install, a disable now leaves the five bus subscriptions registered (C1; the draw
+handlers answer to the latch, so nothing draws), recorded in `docs/ARCHITECTURE.md` Known Limitations.
+As adopted at `92c48d8` the `UNITS` handler did NOT answer to the latch: a publish while disabled
+re-registered the per-unit frames and `PLAYER_TARGET_CHANGED` on that install shape. A Phase 6
+follow-up gave that receiver a stand-down guard, pinned by a degraded-load case in `tests/test_bus.lua`.
 C2's degraded build stops writing debug lines the degraded console already discarded.
 
 `docs/ARCHITECTURE.md` now names both majors (Module Map row, Message Bus, "What stands down",
