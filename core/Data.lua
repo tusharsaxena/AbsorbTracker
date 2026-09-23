@@ -1,6 +1,6 @@
 local _, NS = ...
 
--- Bar data + media access layer: the AceDB read/write seam (GetSetting/SetSetting), the cached
+-- Bar data + media access layer: the settings read seam (GetSetting), the cached
 -- LibSharedMedia fetchers (texture/border/font with fallbacks), and the class-color-aware color
 -- resolvers.
 --
@@ -29,102 +29,78 @@ function NS.ClearLSMCache()
     LSM = nil
 end
 
--- ── session settings ───────────────────────────────────────────────────────────────────────
+-- ── the two rows whose value is not in the profile ─────────────────────────────────────────
 --
--- A schema row whose value is NOT in the profile and must never reach it. There is one today, on
--- the Master controls tab (options-ui-§15): `state.debugConsole`, the console WINDOW's visibility.
--- It is transient UI, reset by a /reload, and a setting the next character must not inherit.
--- (`state.testMode` was the second until the Test mode row was removed under options-ui-§15.)
+-- Every other schema row is stored in the active profile at its own path, and LibKa0s-Schema-1.0
+-- (settings/Schema.lua) reads and writes it there. Two rows keep their value somewhere else, and
+-- each CARRIES ITS OWN get/set, which the library consults before it ever walks a path. They are
+-- stamped onto the two composed rows by settings/General.lua, so the panel widget, `/at set` and
+-- `/at get` reach them down the SAME seam every other row takes.
 --
--- There is deliberately NO `IsSessionSetting(path)` query beside the two accessors. It existed and
--- nothing called it: settings/Schema.lua's validator exempts the row by testing `row.sessionOnly`,
--- which is the SCHEMA's own declaration, and every other reader goes through GetSetting/SetSetting,
--- which consult the registry themselves. An exported predicate with no caller is a second answer to
--- "is this session state" waiting to disagree with the first.
---
--- Registered rather than special-cased inside the two functions below, because the value's real
--- home is the console's own show/hide state and only core/DebugLogSetup.lua knows where that is.
--- Routing it through GetSetting/SetSetting is what lets the panel widget, `/at set` and `/at get`
--- reach it down the SAME path every other row takes — the alternative was the bespoke
--- SessionCheckbox this row replaced, which no CLI verb could see.
-local sessionSettings = {}
-
---- Bind one path to a live get/set pair instead of the profile. `spec` is the
---- `{ get = , set = }` shape LibKa0s-DebugLog's ConsoleCheckbox already answers.
-function NS.RegisterSessionSetting(path, spec)
-    if type(path) ~= "string" or type(spec) ~= "table" then return end
-    sessionSettings[path] = spec
-end
+--   * `state.debugConsole`, the console WINDOW's visibility (options-ui-§15). Session state, not a
+--     setting: reset by a /reload, and not something the next character inherits. Its get/set is
+--     the `{ get, set }` pair LibKa0s-DebugLog's ConsoleCheckbox answers, which both arms of
+--     core/DebugLogSetup.lua publish. The row is `sessionOnly`, so neither a profile reset nor the
+--     reset count nor the validator's defaults check treats it as profile data.
+--   * C.MINIMAP_PATH, below: STORED, but in the global store and inverted.
 
 -- ── the minimap button's one boolean (launcher-§3) ───────────────────────────────────────
 --
 -- C.MINIMAP_PATH is the ONE path in this addon whose stored value is not in the profile and is not
 -- session state: it is LibDBIcon's own `hide` key, in the GLOBAL store, and LibDBIcon writes it too
--- (core/Constants.lua says why it lives there and why the sense is inverted). So the two accessors
--- below branch on it exactly as they branch on a session setting -- one path, resolved before the
--- profile is ever consulted, because `db.profile.global.minimap.hide` is nowhere and the fallback
--- to NS.flatDefaults would answer nil for a row the panel draws.
+-- (core/Constants.lua says why it lives there and why the sense is inverted). So the row's own
+-- get/set below resolve it before the profile is ever consulted, because
+-- `db.profile.global.minimap.hide` is nowhere.
 --
--- NOT registered through NS.RegisterSessionSetting, which is the shape it most resembles. That
--- registry means "this value's home is not the db and a /reload ends it", and both halves are wrong
--- here: the value IS stored, and settings/Schema.lua's validator, NS.ProfileRowsOffDefault and
--- settings/OptionsSetup.lua's reset veto all read `row.sessionOnly` to decide what a reset may
--- touch. A stored row wearing that flag would be reset by `/at resetall`, which is a profile reset
--- and must not reach an installation-scoped button.
+-- NOT `sessionOnly`, which is the shape it most resembles. That flag means "this value's home is
+-- not the db and a /reload ends it", and both halves are wrong here: the value IS stored, and the
+-- validator, the reset count and settings/OptionsSetup.lua's reset veto all read `row.sessionOnly`
+-- to decide what a reset may touch. A stored row wearing that flag would be reset by
+-- `/at resetall`, which is a profile reset and must not reach an installation-scoped button.
 local function minimapTable()
     local g = NS.db and NS.db.global
     return type(g) == "table" and g.minimap or nil
 end
 
--- Generic setting getter with fallback to the defaults when a key or the DB is absent. Accepts
--- both a flat global key ("locked") and a dotted per-unit path ("units.target.barWidth").
-function NS.GetSetting(path)
-    local session = sessionSettings[path]
-    if session then return session.get() end
-    -- The row's sense is SHOWN and the stored key says HIDDEN, so it inverts here. An absent table
-    -- reads as shown, which is the declared default (defaults/Profile.lua).
-    if path == C.MINIMAP_PATH then
-        local t = minimapTable()
-        return not (t and t.hide)
-    end
-    local db = NS.db
-    if db and db.profile then
-        local val = NS.ResolvePath(db.profile, path)
-        if val ~= nil then return val end
-    end
-    return NS.ResolvePath(NS.flatDefaults, path)
+--- The minimap row's `get`. The row's sense is SHOWN and the stored key says HIDDEN, so it inverts
+--- here. An absent table reads as shown, which is the declared default (defaults/Profile.lua).
+function NS.MinimapShown()
+    local t = minimapTable()
+    return not (t and t.hide)
 end
 
--- Generic setting setter. Same path grammar as GetSetting.
-function NS.SetSetting(path, value)
-    local session = sessionSettings[path]
-    if session then
-        session.set(value)
-        return
+--- The minimap row's `set`: the other half of the inversion, plus the button itself. launcher-§3
+--- wants the minimap button to follow the checkbox immediately rather than at the next reload, and
+--- every writer of that row reaches this -- the panel widget, `/at set`, `/at reset` -- through
+--- NS.SetByPath.
+---
+--- The store is written HERE and again inside Lb:SetShown, with the same value, which is the
+--- library's stated bargain (libs/LibKa0s/Launcher.lua): a writer that is not this seam gets the
+--- store updated without having to remember the inversion a second time. Writing it here anyway is
+--- what keeps a build with no launcher at all -- no LibKa0s, no LibDBIcon -- still storing what the
+--- player chose.
+function NS.SetMinimapShown(value)
+    local g = NS.db and NS.db.global
+    if type(g) == "table" then
+        g.minimap = g.minimap or {}
+        g.minimap.hide = not value
     end
-    -- The other half of the inversion, plus the button itself: launcher-§3 wants the minimap button
-    -- to follow the checkbox immediately rather than at the next reload, and this is the single seam
-    -- every writer of that row reaches -- the panel widget, `/at set`, `/at reset` and the Defaults
-    -- button all land here through NS.SetByPath.
-    --
-    -- The store is written HERE and again inside Lb:SetShown, with the same value, which is the
-    -- library's stated bargain (libs/LibKa0s/Launcher.lua): a writer that is not this seam gets the
-    -- store updated without having to remember the inversion a second time. Writing it here anyway
-    -- is what keeps a build with no launcher at all -- no LibKa0s, no LibDBIcon -- still storing what
-    -- the player chose.
-    if path == C.MINIMAP_PATH then
-        local g = NS.db and NS.db.global
-        if type(g) == "table" then
-            g.minimap = g.minimap or {}
-            g.minimap.hide = not value
-        end
-        if NS.Launcher then NS.Launcher:SetShown(value and true or false) end
-        return
+    if NS.Launcher then NS.Launcher:SetShown(value and true or false) end
+end
+
+--- Generic setting getter: the schema runtime's read, with the shipped defaults behind it. Accepts
+--- both a flat global key ("locked") and a dotted per-unit path ("units.target.barWidth").
+---
+--- The fallback is for the one moment the runtime has nowhere to read: before OnInitialize has
+--- built the db, where the answer the addon wants is the shipped default rather than nil. There is
+--- no setter beside this: every write goes through NS.SetByPath (architecture-§5).
+function NS.GetSetting(path)
+    local S = NS.SchemaRuntime
+    if S then
+        local v = S.Get(path)
+        if v ~= nil then return v end
     end
-    local db = NS.db
-    if db and db.profile then
-        NS.SetPath(db.profile, path, value)
-    end
+    return NS.ResolvePath(NS.flatDefaults, path)
 end
 
 -- Media getters. `unit` defaults to "player" so existing single-bar call sites keep working;

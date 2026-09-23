@@ -601,7 +601,7 @@ cli = SlashLib:New({
         NS.SetByPath(path, v)
         if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
     end,
-    findRow      = function(path) return NS.FindSchemaRow(path) end,
+    findRow      = NS.SchemaRuntime.FindRow,
     applyDefault = function(row)
         NS.ApplyDefault(row)
         if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end

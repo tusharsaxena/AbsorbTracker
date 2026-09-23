@@ -40,9 +40,9 @@ local withLocked   -- forward declaration; assigned under withSetting, which it 
 
 local function withSetting(key, value, body)
   local saved = NS.GetSetting(key)
-  NS.SetSetting(key, value)
+  T.rawSet(key, value)
   local ok, err = pcall(body)
-  NS.SetSetting(key, saved)
+  T.rawSet(key, saved)
   if not ok then error(err) end
 end
 
@@ -617,7 +617,7 @@ test("combat re-locks the bars, says so, and refreshes the panel", function()
   local savedRefresh = NS.RefreshOptionsPanel
   local refreshed = 0
   NS.RefreshOptionsPanel = function() refreshed = refreshed + 1 end
-  NS.SetSetting("locked", false)
+  T.rawSet("locked", false)
   local ok, out = pcall(capture, function() NS.addon:OnEnterCombat() end)
   NS.RefreshOptionsPanel = savedRefresh
   T.mocks.__fireTimers()
@@ -632,7 +632,7 @@ test("combat with the bars already locked says nothing and leaves the panel alon
   local savedRefresh = NS.RefreshOptionsPanel
   local refreshed = 0
   NS.RefreshOptionsPanel = function() refreshed = refreshed + 1 end
-  NS.SetSetting("locked", true)
+  T.rawSet("locked", true)
   local ok, out = pcall(capture, function() NS.addon:OnEnterCombat() end)
   NS.RefreshOptionsPanel = savedRefresh
   T.mocks.__fireTimers()
@@ -646,7 +646,7 @@ end)
 test("unlocking will not happen in combat, and says why", function()
   local savedUAC = T.mocks.UnitAffectingCombat
   T.mocks.UnitAffectingCombat = function() return true end
-  NS.SetSetting("locked", true)
+  T.rawSet("locked", true)
   local ok, out = pcall(capture, function() NS.SetByPath("locked", false) end)
   T.mocks.UnitAffectingCombat = savedUAC
   local locked = NS.GetSetting("locked")
@@ -659,7 +659,7 @@ end)
 test("re-locking in combat is always allowed", function()
   local savedUAC = T.mocks.UnitAffectingCombat
   T.mocks.UnitAffectingCombat = function() return true end
-  NS.SetSetting("locked", false)
+  T.rawSet("locked", false)
   local ok, err = pcall(function() NS.SetByPath("locked", true) end)
   T.mocks.UnitAffectingCombat = savedUAC
   T.mocks.__fireTimers()

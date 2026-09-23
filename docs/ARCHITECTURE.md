@@ -69,7 +69,7 @@ time, guarded with `if NS.X then … end` where the load-order coupling is soft.
 | `core/Bus.lua` | The closed cross-module message bus, and the `LibKa0s-Bus-1.0` seam: `NS.bus` (shared publish target, host code), `NS.busRecord` (the library's stand-down record), `NS.NewBusTarget()` (one tracked target per receiver), `NS.BusStandDown()` / `NS.BusStandUp()` (the latch's two calls), and the `NS.MSG` catalog (`REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION`/`UNITS`), declared through `Bus.Catalog`. With the library absent, the untracked-target stub. |
 | `core/CoreSetup.lua` | Wires the addon into `LibKa0s-Core-1.0` — the guard, the stringifier and the printer are vendored library code, not addon code. Publishes `NS.Print` (prefixed chat, built via `lib:New{...}` with the `[AT]` prefix passed as a function), `NS.Util.print` (the same function object), `NS.IsConcatSafe` and `NS.SafeToString`, with working fallbacks when the library is absent. The secret-safe debug sink is `NS.Debug` (published by `core/DebugLogSetup.lua`); every debug arg routes through `NS.SafeToString`. |
 | `core/PerfSetup.lua` | Wires the addon into `LibKa0s-Perf-1.0` (issue #17) — the probe itself is a vendored library, not addon code. Builds `NS.Perf` via `lib:New{...}`: the addon's name/version/SavedVariables global, the bucket declarations (order + nesting), and the `suspend`/`resume` pair that makes the addon inert without a `/reload`. Loads immediately after `core/CoreSetup.lua`, before any module takes `local Perf = NS.Perf` as an upvalue. See [Performance & Profiler Attribution](#performance--profiler-attribution) below. |
-| `core/Data.lua` | The AceDB read/write seam (`GetSetting`/`SetSetting` — dotted-path aware, so `units.target.barWidth` and flat `locked` both work), LSM fetchers with fallbacks (each takes a `unit`, resolved through `NS.Units.Get`), and the class-color-aware color resolvers (each takes a `unit`; the class color is that unit's own, per options-ui-§17, and the background keeps its own darkened per-class palette — the one surface §17 exempts from the shared `NS.ResolveColor`). |
+| `core/Data.lua` | The settings read seam (`GetSetting`: the `LibKa0s-Schema-1.0` runtime's read with the shipped defaults behind it, dotted-path aware, so `units.target.barWidth` and flat `locked` both work; every write is `NS.SetByPath`), the minimap row's own inverted `get`/`set` (`NS.MinimapShown` / `NS.SetMinimapShown`), LSM fetchers with fallbacks (each takes a `unit`, resolved through `NS.Units.Get`), and the class-color-aware color resolvers (each takes a `unit`; the class color is that unit's own, per options-ui-§17, and the background keeps its own darkened per-class palette — the one surface §17 exempts from the shared `NS.ResolveColor`). |
 | `core/Database.lua` | `NS:InitDB` (AceDB + profile callbacks) and `NS:RunMigrations` (schema-version seam). |
 | `core/Units.lua` | `NS.Units` — unit identity (`LIST`/`LABEL`), mirror resolution (`IsMirrored`/`SourceUnit`/`Get`), per-unit position read/write, and `CopyFromPlayer`. The only file that reads `db.profile.units` for appearance. |
 | `core/LauncherSetup.lua` | The `LibKa0s-Launcher-1.0` seam — see [Launcher](#launcher) below. Builds the one LDB object at file load and publishes `NS.Launcher`; `Register()` waits for `OnInitialize`, because the table it hands LibDBIcon is `db.global.minimap` and there is none until `NS:InitDB` has run. Degrades to a stub answering the same five members off the store, so the Master-controls checkbox is still honest with the library absent. |
@@ -140,14 +140,32 @@ composer changes what is *declared*, never what is *persisted*.
 group's rows must stay contiguous. General is `[ Master controls | Bars ]` (7 / 4 rows); Appearance
 is `[ Size | Bar | Background | Border | Text ]` (2 / 4 / 3 / 4 / 6 rows, per unit) under a chrome block
 (options-ui-§14) carrying the panel's only unit picker and the page-wide mirror controls. `tests/test_schema.lua` asserts that
-page → tab → count partition. Every write to a schema-row path funnels through the single seam
-**`NS.SetByPath`** (`SetSetting`, the `[Set]` debug line, then `fireOnChange`), whose `onChange`
-defaults to `UpdateBarAppearance`. The panel widgets and `/at set` call it directly; a reset to a
-row's default (`/at reset`, a page's Defaults button, and the `sessionOnly` rows `/at resetall`
-touches before its profile reset) reaches it through `NS.ApplyDefault`, which only builds the
-copied default. A **bulk copy or reset** is one `[Set] <act> <scope>: N rows` line
-(debug-logging-§10): the seam keeps a bracket depth (`NS.Bulk`, `settings/Schema.lua`), and inside
-a bracket it mutes its per-row line and tallies the writes that changed a stored value. The
+page → tab → count partition.
+
+**The runtime is `LibKa0s-Schema-1.0`** (adopted at the LibKa0s v1.55.0 re-vendor; contract in
+LibKa0s `docs/api/Schema/version-1-docs.md`). The rows are this addon's; the machinery around them
+is the library's instance, built in `settings/Schema.lua` over the live `NS.Schema` array and
+stashed as `NS.SchemaRuntime`: the path primitives, the path index, the write seam, the bulk
+bracket, the reset count and the shape check. The host's names are bound to its members, so no
+call site moved (`NS.SetByPath = S.Set`, `NS.FindSchemaRow = S.FindRow`, `NS.RegisterSchemaRows =
+S.AddRows`, `NS.ApplyDefault = S.ApplyDefault`, `NS.Bulk = { Begin, End, Run }`,
+`NS.ResolvePath` / `NS.SetPath` = the library's `Read` / `Write`). The descriptor says where a
+stored row lives (`resolveRoot`: the active profile, or `db.global` for a `global.` path), what a
+write announces (`APPEARANCE` for a row with no `onChange`), and that the minimap row is
+`resetExempt`. Two rows carry their own `get`/`set`, stamped by `settings/General.lua`: the
+session-only console toggle and the global-store minimap button. With LibKa0s absent the file
+falls back to the write-completing, log-silent stub `options-ui-§1` names (runtime-completing):
+reads, writes, reactions and the sweep veto still work, so the host verbs, Reset All and the
+combat re-lock keep writing; the `[Set]` line, the bracket's tally and the reset count do not.
+
+Every write to a schema-row path funnels through the single seam **`NS.SetByPath`** (store, the
+`[Set]` debug line, the row's `onChange`, then the announce). A path with **no** schema row is
+refused (`false, reason`) and stores nothing, and a table value is stored as a copy. The panel
+widgets and `/at set` call it directly; a reset to a row's default (`/at reset`, a page's Defaults
+button, and the `sessionOnly` rows `/at resetall` touches before its profile reset) reaches it
+through `NS.ApplyDefault`, which writes a deep copy of the default. A **bulk copy or reset** is one
+`[Set] <act> <scope>: N rows` line (debug-logging-§10): inside a bracket (`NS.Bulk`) the seam mutes
+its per-row line and tallies the writes whose read-back value moved. The
 library brackets a page's Defaults and Reset All through the Options descriptor's
 `bulkBegin`/`bulkEnd` (LibKa0s-Options-1.0 minor 16). `NS.Bulk.Run` brackets the two host acts,
 `Units.CopyFromPlayer` and the degraded Reset All. N counts rows actually written, so a Defaults
@@ -356,18 +374,17 @@ says nothing about whether the addon is running. `tests/test_disabled.lua` step 
 
 **Visibility is one row and one boolean.** `Minimap button` on Master controls stores LibDBIcon's
 own `hide` key at `db.global.minimap.hide` — **global**, so a profile switch does not move the
-player's buttons. The row says *shown* and the key says *hidden*, so `NS.GetSetting` /
-`NS.SetSetting` invert it (`core/Data.lua`, beside the session-settings branch it most resembles);
+player's buttons. The row says *shown* and the key says *hidden*, so the row's own `get` / `set`
+(`NS.MinimapShown` / `NS.SetMinimapShown`, `core/Data.lua`) invert it;
 the set also calls `NS.Launcher:SetShown`, so the button follows the checkbox immediately. The
 **The row survives every reset, as a property of the setting** (launcher-§3): a minimap button's
 visibility is a per-installation display preference, like the angle LibDBIcon keeps beside it in the
 same table. *Reset all settings* never reached it — it is a profile reset and the value is global —
 but the **General page's Defaults button did**, because `LibKa0s-Options-1.0`'s `RestoreDefaults`
-walks every row on the page and consults no veto. The exemption is one predicate,
-`survivesEveryReset` (`settings/OptionsSetup.lua`), applied at the descriptor's `applyDefault`,
-which is the one seam both library resets write through. `/at reset global.minimap.hide` is
-deliberately outside it: that verb goes through the Slash descriptor, and naming the row is asking
-for it. Detail in [settings-panel.md](./settings-panel.md).
+walks every row on the page and consults no veto. The exemption is the schema runtime's
+`resetExempt` (`settings/Schema.lua`), which `ApplyDefault` honors while a bracket is open, and
+both library resets open one around their walk. `/at reset global.minimap.hide` is deliberately
+outside it: a single named reset opens no bracket, and naming the row is asking for it. Detail in [settings-panel.md](./settings-panel.md).
 
 The **icon** is `media/logos/absorbtracker.logo.128.tga`, the same file `## IconTexture` names
 (launcher-§4) — 128×128, uncompressed 32-bit, regenerated from the `.png` beside it by layout-§4's

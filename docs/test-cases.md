@@ -23,7 +23,7 @@ badge and any count quoted in the docs must agree with it.
 - loadorder: LibStub returns nil for a missing major with the silent flag
 - loadorder: LibStub keeps the higher minor when a major registers twice
 
-### test_schema.lua (46)
+### test_schema.lua (50)
 
 - FormatSchemaValue formats by type
 - SchemaForPage keeps groups in registration order, which IS the Appearance tab strip
@@ -47,15 +47,19 @@ badge and any count quoted in the docs must agree with it.
 - every schema row lands on a page the panel actually builds
 - FindSchemaRow returns the row for a known path and nil for an unknown one
 - SetByPath writes the value and fires the row's own onChange with it
+- a write stores, then logs its [Set] line, then runs the row's onChange, once each
 - SetByPath falls back to broadcasting APPEARANCE for a row with no onChange
-- SetByPath still writes a value that has no schema row at all
+- the schema runtime is LibKa0s-Schema-1.0's, over the live schema array
+- the minimap row survives a sweep, and a named reset still resets it
+- SetByPath refuses a path with no schema row, and stores nothing
+- SetByPath stores a table value as a copy, so the caller's table never aliases the store
 - ApplyDefault deep-copies a color table so profiles never share one
 - ApplyDefault is a no-op for a row with no default
 - ResolvePath walks a dotted path
 - ResolvePath returns nil for a missing branch instead of raising
 - ResolvePath still handles a flat key
 - SetPath writes through a dotted path and creates intermediate tables
-- GetSetting and SetSetting round-trip a dotted path
+- GetSetting and SetByPath round-trip a dotted path
 - ValidateSchema resolves nested paths against defaults.profile
 - SchemaForPage with no unit returns every unit's rows
 - SchemaForPage filtered to a unit excludes the other units' rows
@@ -285,8 +289,8 @@ badge and any count quoted in the docs must agree with it.
 - GetSetting falls back to flatDefaults when the DB is absent entirely
 - GetSetting returns nil for a key that is neither in the profile nor the defaults
 - GetSetting returns a stored `false` rather than falling through to the default
-- SetSetting writes through to the active profile
-- SetSetting is a harmless no-op when the DB is absent
+- SetByPath writes through to the active profile
+- SetByPath refuses without raising when the DB is absent, and writes nowhere
 - media fetchers return the hardcoded fallbacks when LSM is absent
 - media fetchers return the LSM path when LSM resolves the configured key
 - media fetchers fall back when LSM is present but the key does not resolve
@@ -472,12 +476,14 @@ badge and any count quoted in the docs must agree with it.
 - launcher: with LibDataBroker but no LibDBIcon, the plugin exists and the button does not
 - launcher: with LibKa0s absent the seam still answers, and still remembers the choice
 
-### test_optionssetup.lua (11)
+### test_optionssetup.lua (13)
 
 - the live and degraded builds veto exactly the same rows from Reset All
 - Reset All resets a sessionOnly row and fires its onChange once, on both builds
-- the degraded Reset All logs one line in total, the profile handler's
-- the degraded Reset All with no AceDB logs its own one line with the rows it wrote
+- the degraded Reset All logs one line in total, the profile handler's, with no count
+- the degraded Reset All with no AceDB writes the session row and logs nothing
+- with LibKa0s absent, the lock and unlock verbs still write the store
+- with LibKa0s absent, entering combat still re-locks unlocked bars in the store
 - the degraded stub publishes LSMValues, the one member reached at file load
 - the degraded stub publishes the five composers, the other load-time members
 - the degraded stub keeps no private copy of the library's layout constants
@@ -718,7 +724,7 @@ badge and any count quoted in the docs must agree with it.
 - vendored Slash resolves a fallback-only override to its own strings
 - vendored Perf resolves a fallback-only override to its own strings
 
-### test_surface_parity.lua (6)
+### test_surface_parity.lua (8)
 
 - parity: the Core stub publishes everything core/CoreSetup.lua publishes live
 - parity: the DebugLog stub carries the whole live surface
@@ -726,6 +732,8 @@ badge and any count quoted in the docs must agree with it.
 - parity: the Slash stub carries every dispatcher member the addon calls
 - parity: the Launcher stub carries the whole live surface
 - parity: the Bus stub carries the library's whole surface
+- parity: the Schema stub carries the library's lib-level surface
+- parity: the Schema stub's instance carries every member of a live instance
 
 ### test_vendor_sync.lua (3)
 
@@ -784,7 +792,7 @@ badge and any count quoted in the docs must agree with it.
 | Suite | Cases |
 |-------|------:|
 | test_loadorder.lua | 14 |
-| test_schema.lua | 46 |
+| test_schema.lua | 50 |
 | test_database.lua | 31 |
 | test_units.lua | 17 |
 | test_envsetup.lua | 6 |
@@ -800,17 +808,17 @@ badge and any count quoted in the docs must agree with it.
 | test_display.lua | 64 |
 | test_helpers.lua | 70 |
 | test_launcher.lua | 16 |
-| test_optionssetup.lua | 11 |
+| test_optionssetup.lua | 13 |
 | test_slashcmds.lua | 90 |
 | test_perfcmds.lua | 42 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 4 |
 | test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
-| test_surface_parity.lua | 6 |
+| test_surface_parity.lua | 8 |
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_disabled.lua | 15 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **683** |
+| **Total** | **691** |

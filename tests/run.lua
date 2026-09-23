@@ -56,6 +56,10 @@ Kit.setSurfaceSource{
   -- The one row whose stub mirrors the LIBRARY TABLE rather than an instance: core/Bus.lua's
   -- untracked-target stub stands in for LibStub("LibKa0s-Bus-1.0") itself (`New`, `Catalog`).
   ["LibKa0s-Bus-1.0"]      = mocks.LibStub("LibKa0s-Bus-1.0", true),
+  -- Same shape as Bus: settings/Schema.lua's stub stands in for the library table (SplitPath, Read,
+  -- Write, SameValue, New). Its INSTANCE is pinned with the two-table form instead, because the
+  -- library's member manifest lists lib-level members only.
+  ["LibKa0s-Schema-1.0"]   = mocks.LibStub("LibKa0s-Schema-1.0", true),
 }
 
 -- Kit.expose merges `test` and the assertions in, so the key set every existing suite file reads is
@@ -69,6 +73,11 @@ _G.AT_TEST = Kit.expose{
   -- the right files must stay green, and one that loads the wrong files must not.
   loadedAddonFiles = ADDON_FILES,
   loadedLibFiles   = LIB_FILES,
+  -- A RAW write into the active profile: no row lookup, no onChange, no announce, no [Set] line.
+  -- For a case that has to change a stored value behind the seam's back ("as if /at set had run
+  -- earlier") or seed a fixture. The addon itself has no such writer: since LibKa0s-Schema-1.0 every
+  -- write goes through NS.SetByPath (architecture-§5), which is why this lives in the harness.
+  rawSet = function(path, value) NS.SetPath(NS.db.profile, path, value) end,
 }
 
 -- --- load test suites (order is load-order-sensitive; keep it) ---

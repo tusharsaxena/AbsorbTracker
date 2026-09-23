@@ -159,8 +159,8 @@ test("perf: a standalone UpdateAbsorbBar claims no parent rather than inventing 
 end)
 
 test("perf: the throttle and console rows publish no restyle, because they have no stake in one", function()
-  -- ABSORBTRACKER-R-12. settings/Schema.lua's `fireOnChange` falls back to `defaultOnChange` for
-  -- any row that declares none, and `defaultOnChange` publishes APPEARANCE -- so a row that only
+  -- ABSORBTRACKER-R-12. settings/Schema.lua's `announce` publishes APPEARANCE for any row that
+  -- declares no onChange of its own -- so a row that only
   -- wants a number stored, or a window shown, used to restyle all three bars. That is 48 WoW API
   -- calls and 384.5 bytes per pass (tests/perf.lua's `appearancePass`) for a timer value, once per
   -- slider STEP while the user drags. Both rows now declare an explicit no-op in

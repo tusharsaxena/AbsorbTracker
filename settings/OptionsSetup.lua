@@ -51,11 +51,13 @@ local PARENT_TITLE = "Ka0s Absorb Tracker"
 -- row it finds. The minimap row is on that page, carrying `default = true`, and the library's
 -- RestoreDefaults consults no veto at all -- so one press put a deliberately hidden button back.
 --
--- ENFORCED AT `applyDefault`, WHICH IS THE SEAM BOTH RESETS SHARE. RestoreDefaults and
--- RestoreAllDefaults each write only through the descriptor field below, so one guard there covers
--- both and cannot be forgotten by a third reset added later. `/at reset global.minimap.hide` is
--- deliberately NOT covered: it goes through settings/Slash.lua's own descriptor, and a player who
--- names this row is asking for exactly this row.
+-- ENFORCED BY THE SCHEMA RUNTIME'S `resetExempt` (settings/Schema.lua, LibKa0s-Schema-1.0), which
+-- ApplyDefault honors while a bracket is open. RestoreDefaults and RestoreAllDefaults each open one
+-- around their walk, so both are covered, and so is any reset the library grows later that
+-- brackets its sweep. It is not a wrapper on this descriptor's `applyDefault` any more: the
+-- runtime's own ApplyDefault calls its own Set, so a wrapper here would be bypassed by a reset
+-- driven through the instance. `/at reset global.minimap.hide` is deliberately NOT covered: a
+-- single named reset opens no bracket, and a player who names this row is asking for exactly it.
 local function survivesEveryReset(row)
     return row.path == NS.Constants.MINIMAP_PATH
 end
@@ -79,17 +81,18 @@ local descriptor = {
     print = function(line) print(line) end,
     debug = function(tag, fmt, ...) NS.Debug(tag, fmt, ...) end,
 
-    -- The schema seams. SetByPath rather than a bare write, so a panel change takes exactly the
-    -- path a `/at set` takes: the [Set] debug line, the row's onChange, and the panel refresh.
+    -- The schema seams, all LibKa0s-Schema-1.0's (settings/Schema.lua). SetByPath rather than a
+    -- bare write, so a panel change takes exactly the path a `/at set` takes: the [Set] debug line,
+    -- the row's onChange, and the panel refresh. `get` is the host's read, which adds the shipped
+    -- defaults behind the runtime's. `set` and `applyDefault` look the host's names up at call time
+    -- rather than capturing the members, which keeps them the one seam a suite can spy on; neither
+    -- carries a gate (a refusal would belong in the row's `validate`, which a reset also reaches).
     get          = function(path) return NS.GetSetting(path) end,
-    set          = function(path, value) NS.SetByPath(path, value) end,
-    -- The exemption above, at the one seam every library-driven reset writes through: the page
-    -- Defaults button, Reset all settings, and whatever reset the library grows next.
-    applyDefault = function(row)
-        if survivesEveryReset(row) then return end
-        NS.ApplyDefault(row)
-    end,
-    allRows      = function() return NS.Schema end,
+    set          = function(path, value) return NS.SetByPath(path, value) end,
+    -- The minimap exemption above is the runtime's `resetExempt`, honored inside every sweep this
+    -- library drives (RestoreDefaults and RestoreAllDefaults both open a bracket around their walk).
+    applyDefault = function(row) return NS.ApplyDefault(row) end,
+    allRows      = NS.SchemaRuntime.AllRows,
 
     -- `filter` is ctx.unit, which the library passes through without interpreting. That is what
     -- makes a per-unit page render only the selected unit's rows while a page with ctx.unit nil
@@ -135,8 +138,8 @@ local descriptor = {
     -- `[Set] reset <page>: N rows` line rather than one `[Set]` per row. A Reset All carries
     -- info.profileReset and logs nothing here: OnProfileReset logs it once. Both fields, always as
     -- a pair, because a mute with no end would silence every later write.
-    bulkBegin = function(act, scope) NS.Bulk.Begin(act, scope) end,
-    bulkEnd   = function(act, scope, count, err, info) NS.Bulk.End(act, scope, count, err, info) end,
+    bulkBegin = NS.SchemaRuntime.BulkBegin,
+    bulkEnd   = NS.SchemaRuntime.BulkEnd,
 
     -- AceTimer through the addon object (Ka0s standard library-stack-§1) rather than a raw C_Timer. Backs the
     -- color picker's 50 ms drag throttle; the library takes it as a descriptor field because

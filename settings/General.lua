@@ -79,14 +79,13 @@ local unlockGuard = false
 
 local DEBUG_CONSOLE_PATH = "state.debugConsole"
 
--- Bind that path to the console WINDOW's own show/hide state rather than to the profile
+-- The console row is bound to the console WINDOW's own show/hide state rather than to the profile
 -- (options-ui-§15: the row is session-only, and a console left open is not a setting the next
 -- character inherits). `ConsoleCheckbox` is the `{ label, tooltip, get, set }` pair
 -- LibKa0s-DebugLog already answers for exactly this, and BOTH arms of core/DebugLogSetup.lua
 -- publish it -- so a library-less build gets an honest toggle rather than a row wired to nothing.
-if NS.DebugLog and NS.DebugLog.ConsoleCheckbox then
-    NS.RegisterSessionSetting(DEBUG_CONSOLE_PATH, NS.DebugLog:ConsoleCheckbox())
-end
+-- Stamped onto the composed row below, as the row's own get/set.
+local consoleCheckbox = NS.DebugLog and NS.DebugLog.ConsoleCheckbox and NS.DebugLog:ConsoleCheckbox()
 
 -- The canonical block. `defaults` names this addon's own starting values without changing any
 -- stored path: every leaf here already IS the path the composer derives, so `keys` is unnecessary
@@ -206,13 +205,13 @@ local masterOnChange = {
     end,
 
     -- EXPLICITLY NOTHING, and that is the whole content of this entry. Without it the row falls
-    -- through to settings/Schema.lua's `defaultOnChange`, which publishes APPEARANCE -- a full
+    -- through to settings/Schema.lua's `announce`, which publishes APPEARANCE -- a full
     -- three-bar restyle costing 48 WoW API calls and 384.5 bytes per pass (tests/perf.lua's
     -- `appearancePass`, measured 2026-09-08) for a checkbox that only shows and hides a window.
-    -- The console's own visibility is the ConsoleCheckbox's `set`, registered above as a session
-    -- setting; nothing about a bar depends on it.
+    -- The console's own visibility is the ConsoleCheckbox's `set`, stamped below as the row's own
+    -- `set`; nothing about a bar depends on it.
     --
-    -- Written as a declared no-op rather than by changing `defaultOnChange`: APPEARANCE is the
+    -- Written as a declared no-op rather than by changing `announce`: APPEARANCE is the
     -- right default for the appearance rows, which are the overwhelming majority. A row that
     -- deliberately publishes nothing has to SAY so, or the next reader reads the absence as an
     -- oversight and "fixes" it back.
@@ -220,15 +219,24 @@ local masterOnChange = {
 
     -- EXPLICITLY NOTHING, for the same reason and with the same cost avoided: a checkbox that shows
     -- and hides a minimap button has no business restyling three bars. The button itself is moved
-    -- by the `set` side of core/Data.lua's seam, which calls NS.Launcher:SetShown -- so this is not
+    -- by the row's own `set` (NS.SetMinimapShown, core/Data.lua), which calls NS.Launcher:SetShown -- so this is not
     -- a handler that was forgotten, it is one that would have nothing left to do.
     [NS.Constants.MINIMAP_PATH] = function() end,
 
 }
 
+-- The two rows whose storage is not the profile carry their own get/set, which LibKa0s-Schema-1.0
+-- consults before it walks a path (core/Data.lua says where each value lives, and why).
+local rowStorage = {
+    [NS.Constants.MINIMAP_PATH] = { get = NS.MinimapShown, set = NS.SetMinimapShown },
+    [DEBUG_CONSOLE_PATH]        = consoleCheckbox,
+}
+
 for _, row in ipairs(masterRows) do
     local fn = masterOnChange[row.path]
     if fn then row.onChange = fn end
+    local storage = rowStorage[row.path]
+    if storage then row.get, row.set = storage.get, storage.set end
 end
 
 NS.RegisterSchemaRows(masterRows)

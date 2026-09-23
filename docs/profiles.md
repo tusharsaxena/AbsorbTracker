@@ -96,7 +96,7 @@ NS.db = { profile = AbsorbTrackerDB, global = {} }
 
 `NS:RunMigrations` then runs the v3 lift and the flat→profile backfill (see below), so `db.profile` ends up carrying every default key, including a fully-populated `units` table. There is no `db.sv` on this path, so the multi-profile sweep simply finds nothing to walk — the single profile *is* the whole store. In this mode:
 
-- `GetSetting` / `SetSetting` (`core/Data.lua`) work normally — they read / write `db.profile`, falling back to `NS.flatDefaults` for any still-missing key.
+- `GetSetting` (`core/Data.lua`) and `NS.SetByPath` (`settings/Schema.lua`) work normally — they read / write `db.profile`, the read falling back to `NS.flatDefaults` for any still-missing key.
 - **Profile management is disabled.** `/at profile` short-circuits on the missing `db.SetProfile` and prints `Profile system requires AceDB-3.0`. `settings/Profiles.lua`'s builder returns `nil` (its `LibStub("AceDBOptions-3.0", true)` / AceConfigDialog / AceGUI guards fail) so the Profiles sub-page is skipped at registration.
 - `OnProfileChanged` is never fired — no callbacks are registered (the `RegisterCallback` block is inside the AceDB branch).
 - The single profile lives directly in `AbsorbTrackerDB`; the AceDB-shaped `sv` / `profiles` / `profileKeys` / `char` keys don't exist. `db.global` is an ephemeral empty table, so the **account-wide** `schemaVersion` isn't persisted across sessions — the **per-profile** stamp, which lives in `AbsorbTrackerDB` itself, is.
