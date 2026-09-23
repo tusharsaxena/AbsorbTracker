@@ -80,19 +80,22 @@ end)
 -- Run one build's Reset All against a probe sessionOnly row -- the one kind of row both walks
 -- still reset -- and report what the reset did to it: the stored value and each onChange value.
 -- The probe binds its own session storage, so the write never reaches a profile.
+--
+-- Registered (indexed) through the build's own seam, and carrying its own get/set, which is the shape
+-- a sessionOnly row's storage takes since LibKa0s-Schema-1.0; removed and re-indexed afterwards.
 local function resetAllProbe(ns, restoreAll)
   local path = "__probe.resetAllSession"
   local store = { value = false }
-  ns.RegisterSessionSetting(path, {
-    get = function() return store.value end,
-    set = function(v) store.value = v end,
-  })
   local changes = {}
   local n = #ns.Schema
-  table.insert(ns.Schema, { page = "general", path = path, type = "bool", default = true,
-                            sessionOnly = true, onChange = function(v) changes[#changes + 1] = v end })
+  ns.RegisterSchemaRows({ { page = "general", group = "Probe", path = path, type = "bool",
+                            default = true, sessionOnly = true,
+                            get = function() return store.value end,
+                            set = function(v) store.value = v end,
+                            onChange = function(v) changes[#changes + 1] = v end } })
   local ok, err = pcall(restoreAll)
   for i = #ns.Schema, n + 1, -1 do ns.Schema[i] = nil end
+  ns.SchemaRuntime.Reindex()
   if not ok then error(err) end
   return store.value, changes
 end
@@ -125,13 +128,17 @@ local function degradedResetAllLines(NS2, db)
   return lines
 end
 
-test("the degraded Reset All logs one line in total, the profile handler's", function()
+test("the degraded Reset All logs one line in total, the profile handler's, with no count", function()
   -- debug-logging-§10, on the path with no library to bracket for it: the stub brackets its own
-  -- walk, so the probe session row it writes first is muted, and the profile reset is logged once
-  -- by OnProfileReset. The fake db is AceDB-shaped: ResetProfile fires the handler, as AceDB does.
-  -- red under: the stub's walk outside NS.Bulk.Run, which logs the session row as well.
-  -- N is the rows the reset changed, counted before the stub's own db:ResetProfile(): one row is
-  -- moved off its default first. red under: a count of every row the profile stores.
+  -- walk, so the probe session row it writes first is not logged, and the profile reset is logged
+  -- once by OnProfileReset. The fake db is AceDB-shaped: ResetProfile fires the handler, as AceDB
+  -- does. red under: a per-row [Set] line from the stub's walk.
+  --
+  -- RE-PINNED with LibKa0s-Schema-1.0: the line carries NO `(N rows)`. The library-absent runtime is
+  -- the log-silent stub (settings/Schema.lua), which completes every write and counts nothing, so
+  -- the handler finds no pending count and words the line as for a reset it did not drive. The
+  -- count only ever fed this debug line, and the degraded DebugLog stub discards it in the client.
+  -- The WRITE is still pinned: the row moved off its default comes back.
   local NS2 = loadDegraded()
   local profile = NS2.Units.DeepCopy(NS2.defaults.profile)
   profile.schemaVersion = 3
@@ -147,17 +154,58 @@ test("the degraded Reset All logs one line in total, the profile handler's", fun
     if line:find("^%[Set%]") or line:find("^%[Profile%]") then lines[#lines + 1] = line end
   end
   assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
-  assertEqual(lines[1], "[Set] reset profile 'Default' to defaults (1 rows)")
+  assertEqual(lines[1], "[Set] reset profile 'Default' to defaults")
   T.mocks.__fireTimers()
 end)
 
-test("the degraded Reset All with no AceDB logs its own one line with the rows it wrote", function()
-  -- The no-AceDB fallback db has no ResetProfile, so no handler runs and the bracket's own line is
-  -- the only record: `[Set] reset all: N rows`, N being the probe session row the walk wrote.
+test("the degraded Reset All with no AceDB writes the session row and logs nothing", function()
+  -- The no-AceDB fallback db has no ResetProfile, so no handler runs. RE-PINNED with
+  -- LibKa0s-Schema-1.0: the library-absent runtime's bracket is a depth counter and nothing else
+  -- (the log-silent stub), so the `[Set] reset all: N rows` line this build used to write is gone.
+  -- What a player can observe is pinned instead: the probe session row the walk reset is written.
   local NS2 = loadDegraded()
-  local lines = degradedResetAllLines(NS2, { profile = {}, global = {} })
-  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
-  assertEqual(lines[1], "[Set] reset all: 1 rows")
+  local path, store = "__probe.noAceDB", { value = false }
+  NS2.RegisterSchemaRows({ { page = "general", group = "Probe", path = path, type = "bool",
+                             default = true, sessionOnly = true, onChange = function() end,
+                             get = function() return store.value end,
+                             set = function(v) store.value = v end } })
+  local lines = {}
+  NS2.Debug = function(tag, fmt, ...) lines[#lines + 1] = ("[%s] " .. fmt):format(tag, ...) end
+  NS2.State.debug, NS2.db = true, { profile = {}, global = {} }
+  local ok, err = pcall(NS2.Helpers.RestoreAllDefaults)
+  NS2.State.debug, NS2.db = false, nil
+  if not ok then error(err, 0) end
+  assertEqual(store.value, true, "the session row is back at its default")
+  assertEqual(#lines, 0, "and nothing was logged: " .. table.concat(lines, " | "))
+end)
+
+-- The three host-owned writers the schema's library-absent path has to keep working: a host verb,
+-- the combat re-lock, and (above) Reset All. Driven on a degraded load with an AceDB-shaped fake
+-- db, and asserted on the STORE, which is what a player would see come back after a /reload.
+local function degradedWithDb()
+  local NS2, mocks2 = loadDegraded()
+  local profile = NS2.Units.DeepCopy(NS2.defaults.profile)
+  profile.schemaVersion = 3
+  NS2.db = { profile = profile, global = {} }
+  function NS2.db.GetCurrentProfile() return "Default" end
+  return NS2, mocks2, profile
+end
+
+test("with LibKa0s absent, the lock and unlock verbs still write the store", function()
+  local NS2, _, profile = degradedWithDb()
+  NS2.Slash:OnSlash("unlock")
+  assertEqual(profile.locked, false, "/at unlock wrote locked = false")
+  NS2.Slash:OnSlash("lock")
+  assertEqual(profile.locked, true, "/at lock wrote locked = true")
+  T.mocks.__fireTimers()
+end)
+
+test("with LibKa0s absent, entering combat still re-locks unlocked bars in the store", function()
+  local NS2, _, profile = degradedWithDb()
+  profile.locked = false
+  NS2.addon:OnEnterCombat()
+  assertEqual(profile.locked, true, "the combat re-lock wrote through the seam")
+  T.mocks.__fireTimers()
 end)
 
 -- ── the stub's member set ──────────────────────────────────────────────────────────

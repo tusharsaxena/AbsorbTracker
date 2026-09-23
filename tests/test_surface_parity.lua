@@ -1,7 +1,7 @@
 -- tests/test_surface_parity.lua — every degradation stub carries the whole live surface.
 --
--- The addon adopts five LibKa0s seams — Core, DebugLog, Options, Slash and Launcher — and each of
--- the five setup files carries a degradation stub for the install where libs/LibKa0s is missing. A stub is a
+-- The addon adopts seven LibKa0s seams — Core, DebugLog, Options, Slash, Launcher, Bus and Schema —
+-- and each of the seven setup files carries a degradation stub for the install where libs/LibKa0s is missing. A stub is a
 -- second implementation of somebody else's surface, so it drifts the moment the library grows a
 -- member the host starts calling: the live path stays green, and the degraded path raises in
 -- exactly the install the stub exists for.
@@ -191,8 +191,41 @@ test("parity: the Launcher stub carries the whole live surface", function()
   -- seams have live-only members because the library owns formatting and drawing this addon never
   -- calls; the launcher's whole surface is five questions about one button, and core/Data.lua and
   -- core/AbsorbTracker.lua call three of them on the degraded path. A stub short one member would
-  -- raise inside NS.SetSetting — on the very install the stub exists for.
+  -- raise inside the minimap row's own set (NS.SetMinimapShown) — on the very install the stub exists for.
   local NS2 = loadDegraded()
   assertTrue(type(NS2.Launcher) == "table", "core/LauncherSetup.lua publishes NS.Launcher either way")
   T.assertSurfaceParity(NS2.Launcher, "LibKa0s-Launcher-1.0", {})
+end)
+
+-- ── Bus ────────────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the Bus stub carries the library's whole surface", function()
+  -- The one stub in this file that mirrors the LIBRARY TABLE, not an instance: core/Bus.lua
+  -- stands the untracked-target stub in for LibStub("LibKa0s-Bus-1.0") and builds its record
+  -- from it either way. tests/run.lua registers the library table under the name. The members it
+  -- owes are `New` and `Catalog` (the major's members-1.json). No ignore list: the surface is two
+  -- members and core/Bus.lua calls both on the degraded path.
+  local NS2 = loadDegraded()
+  assertTrue(type(NS2.__busLib) == "table", "core/Bus.lua publishes its stub for this case")
+  T.assertSurfaceParity(NS2.__busLib, "LibKa0s-Bus-1.0")
+end)
+
+-- ── Schema ─────────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the Schema stub carries the library's lib-level surface", function()
+  -- settings/Schema.lua's write-completing stub stands in for LibStub("LibKa0s-Schema-1.0") itself,
+  -- primitives included, so NS.ResolvePath / NS.SetPath keep answering on a degraded load.
+  -- STRINGS is live-only on purpose: the stub's refusals are the host's own words, not a copy of
+  -- the library's constants (the Schema API document, "The degradation stub").
+  local NS2 = loadDegraded()
+  assertTrue(type(NS2.__schemaLib) == "table", "settings/Schema.lua publishes its stub for this case")
+  T.assertSurfaceParity(NS2.__schemaLib, "LibKa0s-Schema-1.0", { "STRINGS" })
+end)
+
+test("parity: the Schema stub's instance carries every member of a live instance", function()
+  -- The instance surface is not in the major's members-1.json, so the two-table form pins it: the
+  -- live NS.SchemaRuntime against the degraded one, member for member. No ignore list: every member
+  -- the library's instance answers, the stub answers too (the host trims nothing it could reach).
+  local NS2 = loadDegraded()
+  T.assertSurfaceParity(NS.SchemaRuntime, NS2.SchemaRuntime, "schema instance vs host stub")
 end)

@@ -36,9 +36,9 @@ end
 
 local function withSetting(key, value, body)
   local saved = NS.GetSetting(key)
-  NS.SetSetting(key, value)
+  T.rawSet(key, value)
   local ok, err = pcall(body)
-  NS.SetSetting(key, saved)
+  T.rawSet(key, saved)
   if not ok then error(err) end
 end
 
@@ -78,7 +78,7 @@ test("a checkbox registers a refresher that re-reads after an external change", 
   withSetting("locked", false, function()
     local cb, _, ctx = render("locked")
     assertFalse(cb.value)
-    NS.SetSetting("locked", true)    -- changed behind the widget's back, e.g. by /at set
+    T.rawSet("locked", true)    -- changed behind the widget's back, e.g. by /at set
     for _, fn in ipairs(ctx.refreshers) do fn() end
     assertTrue(cb.value, "the refresher pulled the new value in")
   end)
@@ -291,7 +291,7 @@ test("the refresher re-evaluates disabledIf, so the pair tracks on the same fram
   withSetting("units.player.useClassColorBar", false, function()
     local cp, ctx = renderSynthetic(SYNTHETIC_SWATCH)
     assertFalse(cp.disabled)
-    NS.SetSetting("units.player.useClassColorBar", true)
+    T.rawSet("units.player.useClassColorBar", true)
     for _, fn in ipairs(ctx.refreshers) do fn() end
     assertTrue(cp.disabled)
   end)
@@ -780,9 +780,9 @@ test("the Defaults button restores just its own page", function()
   -- other half of this assertion rather than a sibling appearance page.
   local panel = T.mocks.__subcategories["Appearance"]
   panel:__fire("OnShow")
-  NS.SetSetting("units.player.fontSize", 30)
-  NS.SetSetting("units.player.barWidth", 250)
-  NS.SetSetting("throttleWindow", 0.85)
+  T.rawSet("units.player.fontSize", 30)
+  T.rawSet("units.player.barWidth", 250)
+  T.rawSet("throttleWindow", 0.85)
   panel.defaultsBtn.callbacks.OnClick(panel.defaultsBtn, "OnClick")
   assertEqual(NS.GetSetting("units.player.fontSize"), NS.unitDefaults.fontSize,
     "the Text tab was reset")

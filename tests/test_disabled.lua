@@ -110,7 +110,7 @@ test("disabled 3: writing the enable path leaves NOTHING registered", function()
   -- adoption: the draw gate left all ten registrations in place and simply declined to draw.
   --
   -- red under: dropping the UnregisterAllEvents loop in core/Lifecycle.lua's StandDown; dropping its
-  -- NS.BusUnsubscribeAll; an `enabled` onChange that publishes VISIBILITY instead of moving the
+  -- NS.BusStandDown; an `enabled` onChange that publishes VISIBILITY instead of moving the
   -- latch's `disabled` hold; a handler gated with `if not NS.GetSetting("enabled") then return end`
   -- in place of any of it, which is the draw gate wearing the new rule's clothes.
   bringUp()
@@ -385,6 +385,64 @@ test("disabled 9: re-enabling restores the registration set, from the settings a
   assertEqual(table.concat(regSet(), "\n"), table.concat(R_on, "\n"), "and back again")
 end)
 
+test("disabled 9: the bus subscriptions come back as the same five pairs, and each still reaches its consumer once", function()
+  -- The bus half of step 9, pinned by NAME rather than by count. The five production receivers
+  -- are three private targets (core/AbsorbTracker.lua's, modules/Display.lua's and
+  -- modules/Timer.lua's), and a stand-up that put a message back on the wrong target, or dropped
+  -- one and doubled another, would keep the count and lose a consumer.
+  bringUp()
+  local who = {
+    [NS.Events.__ev] = "Events", [NS.Display.__ev] = "Display", [NS.Timer.__ev] = "Timer",
+  }
+  local function busSet()
+    local out = {}
+    for _, r in ipairs(M.__registrations()) do
+      if r.kind == "message" and who[r.target] then
+        out[#out + 1] = who[r.target] .. ":" .. tostring(r.event)
+      end
+    end
+    table.sort(out)
+    return table.concat(out, ", ")
+  end
+  local EXPECTED = table.concat({
+    "Display:Ka0s_AbsorbTracker_AppearanceChanged",
+    "Display:Ka0s_AbsorbTracker_PositionChanged",
+    "Display:Ka0s_AbsorbTracker_VisibilityChanged",
+    "Events:Ka0s_AbsorbTracker_UnitsChanged",
+    "Timer:Ka0s_AbsorbTracker_RepaintRequested",
+  }, ", ")
+  assertEqual(busSet(), EXPECTED, "the five production subscriptions, before")
+  disable()
+  assertEqual(busSet(), "", "every production subscription is down")
+  enable()
+  assertEqual(busSet(), EXPECTED, "the same five pairs, after")
+
+  -- And each one still ACTS, once. Counted through stubs of the consumer each handler looks up at
+  -- dispatch time, so a replay that registered a handler twice, or registered a stale one, shows.
+  local calls = {}
+  local function count(name) return function() calls[name] = (calls[name] or 0) + 1 end end
+  local saved = {
+    NS.UpdateBarAppearance, NS.ApplyVisibility, NS.RestoreBarPosition, NS.RequestRepaint,
+    NS.addon.SyncUnitEventFrames,
+  }
+  NS.UpdateBarAppearance, NS.ApplyVisibility = count("appearance"), count("visibility")
+  NS.RestoreBarPosition, NS.RequestRepaint = count("position"), count("repaint")
+  NS.addon.SyncUnitEventFrames = count("units")
+  NS.bus:SendMessage(NS.MSG.APPEARANCE)
+  NS.bus:SendMessage(NS.MSG.VISIBILITY)
+  NS.bus:SendMessage(NS.MSG.POSITION)
+  NS.bus:SendMessage(NS.MSG.REPAINT)
+  NS.bus:SendMessage(NS.MSG.UNITS)
+  NS.UpdateBarAppearance, NS.ApplyVisibility, NS.RestoreBarPosition, NS.RequestRepaint,
+    NS.addon.SyncUnitEventFrames = saved[1], saved[2], saved[3], saved[4], saved[5]
+  local n = #NS.Units.LIST
+  assertEqual(calls.appearance, n, "APPEARANCE fans out once per unit")
+  assertEqual(calls.visibility, n, "VISIBILITY fans out once per unit")
+  assertEqual(calls.position, n, "POSITION fans out once per unit")
+  assertEqual(calls.repaint, 1, "REPAINT reaches the scheduler once")
+  assertEqual(calls.units, 1, "UNITS re-syncs the unit frames once")
+end)
+
 -- ── 10. the latch ──────────────────────────────────────────────────────────────────────────────
 
 test("disabled 10: releasing one hold does not stand up an addon the other still holds down", function()
@@ -442,4 +500,51 @@ test("disabled 10: the perf hold is session-only and the disabled hold is the st
   enable()
   assertFalse(NS.lifecycle:IsHeld("disabled"), "both ways")
   assertFalse(NS.lifecycle:IsDown(), "with no hold left, the addon is up")
+end)
+
+-- ── the bus record (LibKa0s-Bus-1.0) ───────────────────────────────────────────────────────────
+--
+-- Two properties the hand-written register this replaced did not have, pinned where the latch is
+-- driven for real. Both use a throwaway receiver and empty it at the end, because a target made by
+-- the tracked factory is part of the record (the Bus API document, Known limitations 3).
+
+test("bus: a registration made while stood down is recorded, and not live until the stand-up", function()
+  bringUp()
+  disable()
+  local heard = 0
+  local probe = NS.NewBusTarget()
+  probe:RegisterMessage("AT_TEST_WhileDown", function() heard = heard + 1 end)
+  NS.bus:SendMessage("AT_TEST_WhileDown")
+  assertEqual(heard, 0, "a stood-down addon registered nothing, even for a new receiver")
+  enable()
+  NS.bus:SendMessage("AT_TEST_WhileDown")
+  assertEqual(heard, 1, "and the stand-up made it live")
+  probe:UnregisterAllMessages()
+end)
+
+test("bus: a subscription its owner dropped is not brought back by a stand-up", function()
+  -- The defect the sweep's spec names in the old register: append-only triples with no forget,
+  -- so an unregister while up was undone by the next disable/enable cycle.
+  bringUp()
+  local heard = 0
+  local probe = NS.NewBusTarget()
+  probe:RegisterMessage("AT_TEST_Dropped", function() heard = heard + 1 end)
+  probe:UnregisterMessage("AT_TEST_Dropped")
+  disable()
+  enable()
+  NS.bus:SendMessage("AT_TEST_Dropped")
+  assertEqual(heard, 0, "the dropped subscription came back on the stand-up")
+end)
+
+test("bus: the stand-down and stand-up counts are the record's, and the latch drives both", function()
+  bringUp()
+  local down = NS.BusStandDown()
+  assertTrue(down >= 5, "the five production entries are in the record: " .. down)
+  assertEqual(NS.BusStandDown(), 0, "a second stand-down is idempotent and answers 0")
+  -- The latch is still UP, so isDown() answers false and this bare replay is allowed; it restores
+  -- what the direct stand-down above took away.
+  assertEqual(NS.BusStandUp(), down, "the replay puts back every entry it took down")
+  disable()
+  assertEqual(NS.BusStandUp(), 0, "while a hold is taken a bare stand-up of the bus is refused")
+  enable()
 end)

@@ -40,9 +40,9 @@ local withLocked   -- forward declaration; assigned under withSetting, which it 
 
 local function withSetting(key, value, body)
   local saved = NS.GetSetting(key)
-  NS.SetSetting(key, value)
+  T.rawSet(key, value)
   local ok, err = pcall(body)
-  NS.SetSetting(key, saved)
+  T.rawSet(key, saved)
   if not ok then error(err) end
 end
 
@@ -190,14 +190,10 @@ test("UpdateBarAppearance restores drag + mouse when unlocked", function()
   assertEqual(mouse[1][1], true)
 end)
 
--- ── unit labels (unlocked drag affordance) ─────────────────────────────────────────
--- The three bars stack and look identical, so while they can be dragged each one names the unit
--- it tracks. Purely an affordance: it follows the global `locked` flag and has no schema row.
---
--- Harness note: the stub frame answers every PascalCase call from its metatable by returning
--- ITSELF, so `bar:CreateFontString(...)` hands back the bar. `bar.unitLabel` and `bar` are one
--- object here, which means a raw Show/Hide count also catches the bar's own visibility call at the
--- end of UpdateBarAppearance. Suppress ApplyVisibility so these assert the label alone.
+-- ── ApplyVisibility, suppressed ────────────────────────────────────────────────────
+-- A raw Show/Hide count on a bar also catches the bar's own visibility call at the end of
+-- UpdateBarAppearance; suppress ApplyVisibility so a case can assert the one call it is about. (The
+-- unlocked drag handle that replaced the unit label has its own suite, tests/test_draghandle.lua.)
 local function withoutVisibility(body)
   local saved = NS.ApplyVisibility
   NS.ApplyVisibility = function() end
@@ -205,39 +201,6 @@ local function withoutVisibility(body)
   NS.ApplyVisibility = saved
   if not ok then error(err) end
 end
-
-test("every bar owns a unit label", function()
-  for _, unit in ipairs(NS.Units.LIST) do
-    assertTrue(NS.bars[unit].unitLabel ~= nil, unit .. " has no unitLabel")
-  end
-end)
-
-test("unlocking shows a label naming the unit", function()
-  local shows, texts
-  withSetting("locked", false, function()
-    withoutVisibility(function()
-      texts = record(NS.bars.focus.unitLabel, "SetText", function()
-        shows = record(NS.bars.focus.unitLabel, "Show", function()
-          NS.UpdateBarAppearance("focus")
-        end)
-      end)
-    end)
-  end)
-  assertEqual(#shows, 1, "the label is shown while the bars are draggable")
-  assertEqual(texts[1][1], NS.Units.LABEL.focus, "the label names its own unit, not the player")
-end)
-
-test("locking hides the unit label", function()
-  local hides
-  withSetting("locked", true, function()
-    withoutVisibility(function()
-      hides = record(NS.bars.target.unitLabel, "Hide", function()
-        NS.UpdateBarAppearance("target")
-      end)
-    end)
-  end)
-  assertEqual(#hides, 1, "a locked bar shows no label")
-end)
 
 -- ── the two promoted chrome literals ───────────────────────────────────────────────
 --
@@ -617,7 +580,7 @@ test("combat re-locks the bars, says so, and refreshes the panel", function()
   local savedRefresh = NS.RefreshOptionsPanel
   local refreshed = 0
   NS.RefreshOptionsPanel = function() refreshed = refreshed + 1 end
-  NS.SetSetting("locked", false)
+  T.rawSet("locked", false)
   local ok, out = pcall(capture, function() NS.addon:OnEnterCombat() end)
   NS.RefreshOptionsPanel = savedRefresh
   T.mocks.__fireTimers()
@@ -632,7 +595,7 @@ test("combat with the bars already locked says nothing and leaves the panel alon
   local savedRefresh = NS.RefreshOptionsPanel
   local refreshed = 0
   NS.RefreshOptionsPanel = function() refreshed = refreshed + 1 end
-  NS.SetSetting("locked", true)
+  T.rawSet("locked", true)
   local ok, out = pcall(capture, function() NS.addon:OnEnterCombat() end)
   NS.RefreshOptionsPanel = savedRefresh
   T.mocks.__fireTimers()
@@ -646,7 +609,7 @@ end)
 test("unlocking will not happen in combat, and says why", function()
   local savedUAC = T.mocks.UnitAffectingCombat
   T.mocks.UnitAffectingCombat = function() return true end
-  NS.SetSetting("locked", true)
+  T.rawSet("locked", true)
   local ok, out = pcall(capture, function() NS.SetByPath("locked", false) end)
   T.mocks.UnitAffectingCombat = savedUAC
   local locked = NS.GetSetting("locked")
@@ -659,23 +622,13 @@ end)
 test("re-locking in combat is always allowed", function()
   local savedUAC = T.mocks.UnitAffectingCombat
   T.mocks.UnitAffectingCombat = function() return true end
-  NS.SetSetting("locked", false)
+  T.rawSet("locked", false)
   local ok, err = pcall(function() NS.SetByPath("locked", true) end)
   T.mocks.UnitAffectingCombat = savedUAC
   T.mocks.__fireTimers()
   if not ok then error(err) end
   assertEqual(NS.GetSetting("locked"), true,
     "the combat refusal is one-directional; locking mid-fight must never be blocked")
-end)
-
-test("the unit label follows the unit's own font face", function()
-  local calls
-  withSetting("locked", false, function()
-    calls = record(NS.bars.player.unitLabel, "SetFont", NS.UpdateBarAppearance)
-  end)
-  assertEqual(calls[1][1], NS.GetFont("player"), "label uses the resolved font face")
-  assertTrue(calls[1][2] < NS.Units.Get("player", "fontSize"),
-    "the label is smaller than the bar's own value text")
 end)
 
 test("UpdateBarAppearance re-applies the font from the profile", function()
@@ -988,8 +941,12 @@ test("target and focus default stacked above the player bar", function()
   local _, _, _, ty = NS.DefaultPosition("target")
   local _, _, _, fy = NS.DefaultPosition("focus")
   NS.db.profile.units.player.barHeight = savedH
-  assertEqual(ty, 28, "one bar height + an 8px gap")
-  assertEqual(fy, 56, "two bar heights + two gaps")
+  -- 20 of bar, 20 of drag-handle room (the widget's HEIGHT 18 + GAP 2) and the 8px gap: the
+  -- player bar's strip must clear the target bar, not sit over its bottom edge.
+  local D = T.mocks.LibStub("LibKa0s-Widgets-1.0", true).DRAG_HANDLE
+  assertEqual(D.HEIGHT + D.GAP, 20, "the widget's published strip room this case was written against")
+  assertEqual(ty, 48, "one bar height + the handle's room + an 8px gap")
+  assertEqual(fy, 96, "two of each")
 end)
 
 test("ForEachUnit walks all three units in order", function()

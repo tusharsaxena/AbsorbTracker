@@ -159,12 +159,15 @@ end)
 test("SetByPath logs one [Set] path = value line (debug-logging-§10)", function()
   NS.State.debug = true
   local before = #NS.DebugLog.buffer
-  NS.SetByPath("barWidth", 200)
+  -- A schema row's path: since LibKa0s-Schema-1.0 the seam refuses a path with no row (the legacy
+  -- flat `barWidth` this case used to write is one), and a refused write is not a mutation, so it
+  -- logs nothing.
+  NS.SetByPath("units.player.barWidth", 200)
   NS.State.debug = false
   local last = NS.DebugLog.buffer[#NS.DebugLog.buffer]
   assertTrue(#NS.DebugLog.buffer > before, "a [Set] line should be appended")
   assertTrue(last:find("[Set]", 1, true) ~= nil, "tag is Set")
-  assertTrue(last:find("barWidth = 200", 1, true) ~= nil, "logs path = value")
+  assertTrue(last:find("units.player.barWidth = 200", 1, true) ~= nil, "logs path = value")
 end)
 
 -- -- the `L` trap -----------------------------------------------------------------------------

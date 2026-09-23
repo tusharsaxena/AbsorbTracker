@@ -71,13 +71,13 @@ end
 -- Run `body` with a setting forced to `value`, then restore whatever was there.
 local function withSetting(key, value, body)
   local saved = NS.GetSetting(key)
-  NS.SetSetting(key, value)
+  T.rawSet(key, value)
   local ok, err = pcall(body)
-  NS.SetSetting(key, saved)
+  T.rawSet(key, saved)
   if not ok then error(err) end
 end
 
--- ── GetSetting / SetSetting ────────────────────────────────────────────────────────
+-- ── GetSetting, and the seam that replaced SetSetting ────────────────────────────────────────────────────────
 
 test("GetSetting reads the value out of the active profile", function()
   NS.db.profile.barWidth = 321
@@ -116,19 +116,27 @@ test("GetSetting returns a stored `false` rather than falling through to the def
   NS.db.profile.hidden = saved
 end)
 
-test("SetSetting writes through to the active profile", function()
-  NS.SetSetting("barWidth", 275)
-  assertEqual(NS.db.profile.barWidth, 275)
-  NS.SetSetting("barWidth", 200)
+test("SetByPath writes through to the active profile", function()
+  -- NS.SetSetting is gone (LibKa0s-Schema-1.0): the seam is the one writer, and it resolves a
+  -- stored row into the active profile itself.
+  NS.SetByPath("units.player.barWidth", 275)
+  assertEqual(NS.db.profile.units.player.barWidth, 275)
+  NS.SetByPath("units.player.barWidth", NS.unitDefaults.barWidth)
 end)
 
-test("SetSetting is a harmless no-op when the DB is absent", function()
+test("SetByPath refuses without raising when the DB is absent, and writes nowhere", function()
+  -- Before OnInitialize there is no profile to write into. The seam answers `false, reason` rather
+  -- than raising or storing the value somewhere nobody reads.
   local savedDB = NS.db
   NS.db = nil
-  local ok = pcall(NS.SetSetting, "barWidth", 999)
+  local ok, stored, why = pcall(NS.SetByPath, "units.player.barWidth", 999)
   NS.db = savedDB
-  assertTrue(ok, "SetSetting must not raise without a DB")
-  assertEqual(NS.GetSetting("barWidth"), 200, "and must not have written anywhere")
+  assertTrue(ok, "SetByPath must not raise without a DB")
+  assertEqual(stored, false, "the write is refused")
+  assertTrue(type(why) == "string" and why:find("units.player.barWidth", 1, true) ~= nil,
+    "and the reason names the path: " .. tostring(why))
+  assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth,
+    "and must not have written anywhere")
 end)
 
 -- ── LibSharedMedia fetchers ────────────────────────────────────────────────────────

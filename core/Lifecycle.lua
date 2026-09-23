@@ -38,7 +38,7 @@ local addonName, NS = ...
 --   * the three per-unit RegisterUnitEvent frames (core/AbsorbTracker.lua)
 --   * the five AceEvent registrations on the addon object — the three lifecycle events and the
 --     two swap events
---   * every RegisterMessage on the internal bus (core/Bus.lua's registry)
+--   * every RegisterMessage on the internal bus (the LibKa0s-Bus-1.0 record core/Bus.lua keeps)
 --
 -- and every timer is canceled: the coalescing repaint (modules/Timer.lua) and the `/at test`
 -- preview hold (modules/Display.lua). The bars go down through the SHOW LADDER rather than by an
@@ -100,8 +100,9 @@ local function StandDown()
     end
 
     -- The internal bus is a registration set like any other (§7 names RegisterMessage by name), so
-    -- it goes too. core/Bus.lua keeps the record; the subscribing modules never learn about this.
-    if NS.BusUnsubscribeAll then NS.BusUnsubscribeAll() end
+    -- it goes too. core/Bus.lua keeps the record (LibKa0s-Bus-1.0); the subscribing modules never
+    -- learn about this.
+    if NS.BusStandDown then NS.BusStandDown() end
 end
 
 --- Rebuild everything StandDown took away, FROM CURRENT STATE and never from a snapshot taken on
@@ -109,7 +110,7 @@ end
 --- to come back as it is NOW (performance-§6).
 local function StandUp()
     -- The bus first, so the three publishes at the bottom reach the receivers they exist for.
-    if NS.BusResubscribeAll then NS.BusResubscribeAll() end
+    if NS.BusStandUp then NS.BusStandUp() end
 
     local addon = NS.addon
     if addon then

@@ -18,10 +18,14 @@ local openBucket
 -- Gap between stacked default bar positions, in pixels.
 local STACK_GAP = 8
 
--- Point size of the unlocked-only unit label. Deliberately fixed rather than derived from the
--- unit's `fontSize`: the label identifies a drag target and should stay small and uniform across
--- the three bars even when one of them is styled with 24pt value text.
-local LABEL_FONT_SIZE = 10
+-- The room the unlocked drag handle takes above each bar (modules/Bar.lua): the strip's height plus
+-- the gap it keeps off the bar, both read off LibKa0s-Widgets-1.0's published values rather than
+-- copied here. The default stack leaves it clear, or the player bar's strip would sit over the
+-- bottom of the target bar -- and take its drags -- on the first unlock of a fresh profile. Zero on
+-- a build with no widget, which draws no strip and so needs no room.
+local Widgets = LibStub and LibStub("LibKa0s-Widgets-1.0", true)
+local DRAG = Widgets and Widgets.DRAG_HANDLE
+local HANDLE_ROOM = DRAG and (DRAG.HEIGHT + DRAG.GAP) or 0
 
 -- ── preview mode (preview-mode) ─────────────────────────────────────────────────────────────
 --
@@ -125,14 +129,15 @@ function NS.ForEachUnit(fn)
 end
 
 --- Where a bar sits before the user has ever dragged it. Player is dead center; target and focus
---- stack upward from it, one player-bar-height plus a gap apart, so a newly-enabled bar lands
---- somewhere visible and non-overlapping instead of on top of the player's.
+--- stack upward from it, one player-bar-height plus the drag handle's room plus a gap apart, so a
+--- newly-enabled bar lands somewhere visible and non-overlapping instead of on top of the player's
+--- -- and, unlocked, clear of the strip over the bar below it.
 function NS.DefaultPosition(unit)
     local index = 0
     for i, u in ipairs(NS.Units.LIST) do
         if u == unit then index = i - 1 break end
     end
-    local step = NS.Units.Get("player", "barHeight") + STACK_GAP
+    local step = NS.Units.Get("player", "barHeight") + HANDLE_ROOM + STACK_GAP
     return "CENTER", "CENTER", 0, index * step
 end
 
@@ -217,7 +222,7 @@ function NS.UpdateBarAppearance(unit)
 
     -- The addon-wide Master scale (options-ui-§15). Applied here rather than once at CreateBar
     -- because it IS a setting: a restyle has to re-apply it, or a change would not land until the
-    -- next /reload. It scales the whole frame, so the unit label and the value text ride with it.
+    -- next /reload. It scales the whole frame, so the drag handle and the value text ride with it.
     bar:SetScale(NS.GetMasterScale())
 
     -- `locked` is global: all three bars lock together.
@@ -225,13 +230,23 @@ function NS.UpdateBarAppearance(unit)
     bar:SetMovable(not locked)
     bar:EnableMouse(not locked)
 
-    -- The unit label rides the same flag: it exists to tell the stacked bars apart while they can
-    -- be dragged, so a locked (i.e. finished) layout shows nothing. Font face follows the unit's
-    -- own setting — mirror-resolved like every other read here — at a fixed small size.
-    local unitLabel = bar.unitLabel
-    unitLabel:SetFont(NS.GetFont(unit), LABEL_FONT_SIZE, "OUTLINE")
-    unitLabel:SetText(NS.Units.LABEL[unit] or unit)
-    if locked then unitLabel:Hide() else unitLabel:Show() end
+    -- The drag handle rides the same flag: it exists to tell the stacked bars apart and give them
+    -- a grab point while they can be dragged, so a locked (i.e. finished) layout shows nothing.
+    -- Parented to the bar, so it is only ever on screen while the bar is. Nil on a build without
+    -- LibKa0s-Widgets-1.0 (modules/Bar.lua), and then there is simply no strip.
+    --
+    -- Sized HERE, not by the widget, on every pass: the bar's width is a setting. Floored at the
+    -- bar's width, so over a bar at least as wide as its label the strip is exactly as wide as the
+    -- bar it moves; only a bar narrower than the strip's own label and help mark gets a wider one.
+    local handle = bar.handle
+    if handle then
+        if locked then
+            handle:Hide()
+        else
+            handle:ApplyWidth(NS.Units.Get(unit, "barWidth"))
+            handle:Show()
+        end
+    end
 
     -- Unlocked means "being positioned", and out of combat the bar the user is trying to grab is
     -- usually empty — a transparent strip with no text. Paint the placeholder fill so there is
@@ -433,16 +448,16 @@ NS.Display = NS.Display or {}
 if NS.NewBusTarget then
     local ev = NS.NewBusTarget()
     NS.Display.__ev = ev
-    -- All three through NS.BusSubscribe (core/Bus.lua): `ev` is a file-local, so the register is
-    -- the only thing that can reach these subscriptions to unregister them when the addon stands
-    -- down (slash-commands-§7).
-    NS.BusSubscribe(ev, NS.MSG.APPEARANCE, function()
+    -- `ev` is a TRACKED target (core/Bus.lua, LibKa0s-Bus-1.0): it is a file-local, so the bus
+    -- record is the only thing that can reach these subscriptions to unregister them when the
+    -- addon stands down (slash-commands-§7).
+    ev:RegisterMessage(NS.MSG.APPEARANCE, function()
         NS.ForEachUnit(function(unit) NS.UpdateBarAppearance(unit) end)
     end)
-    NS.BusSubscribe(ev, NS.MSG.VISIBILITY, function()
+    ev:RegisterMessage(NS.MSG.VISIBILITY, function()
         NS.ForEachUnit(function(unit) NS.ApplyVisibility(unit) end)
     end)
-    NS.BusSubscribe(ev, NS.MSG.POSITION, function()
+    ev:RegisterMessage(NS.MSG.POSITION, function()
         NS.ForEachUnit(function(unit) NS.RestoreBarPosition(unit) end)
     end)
 end

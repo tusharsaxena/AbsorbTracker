@@ -54,8 +54,8 @@ The array itself and its helpers live in `settings/Schema.lua` (`NS.Schema`). Th
     solo          = true,                   -- panel only: render alone in the LEFT HALF of a row
     startsLine    = true,                   -- panel only: flush the pending line BEFORE this row,
                                              -- so a declared pair can never be split
-    sessionOnly   = true,                   -- the value is NOT in the profile; core/Data.lua's
-                                             -- session-settings registry answers it
+    sessionOnly   = true,                   -- the value is NOT in the profile; the row's own
+                                             -- get / set answers it
     alwaysPerUnit = true,                   -- per-unit rows only: stays editable even while this
                                              -- unit mirrors the player (e.g. the "enabled" row)
     skipRender    = true,                   -- per-unit rows only: stays in the schema (so /at
@@ -124,7 +124,7 @@ Each call generates three rows per appearance key — one per `NS.Units.LIST` en
                                    widgets against the new value)
 ```
 
-`NS.SetByPath` (in `settings/Schema.lua`) is the single write seam: it calls `NS.SetSetting`, logs the `[Set]` debug line, then fires the row's `onChange`. A reset to a row's default comes through it too: `NS.ApplyDefault` builds the copied default and calls `SetByPath`. Inside an `NS.Bulk` bracket — a page's Defaults, Reset All, Copy styling from Player — the seam logs nothing per row and instead tallies the writes that changed a stored value; the bracket then emits one `[Set] <act> <scope>: N rows` line when it closes (debug-logging-§10). The library opens and closes that bracket through the options descriptor's `bulkBegin`/`bulkEnd`, and the host's own acts use `NS.Bulk.Run`. It does **not** itself refresh the panel — the slash path calls `NS.RefreshOptionsPanel` afterward (inside the `set` / `applyDefault` closures `settings/Slash.lua` hands the library), and the panel widgets' own `set()` closures end with `Helpers.RefreshAllPanels`.
+`NS.SetByPath` (in `settings/Schema.lua`, the `LibKa0s-Schema-1.0` instance's `Set`) is the single write seam: it refuses a path with no schema row, stores the value (a table as a copy), logs the `[Set]` debug line, fires the row's `onChange`, then the announce (`APPEARANCE` for a row with no `onChange`). A reset to a row's default comes through it too: `NS.ApplyDefault` builds the copied default and calls `SetByPath`. Inside an `NS.Bulk` bracket — a page's Defaults, Reset All, Copy styling from Player — the seam logs nothing per row and instead tallies the writes that changed a stored value; the bracket then emits one `[Set] <act> <scope>: N rows` line when it closes (debug-logging-§10). The library opens and closes that bracket through the options descriptor's `bulkBegin`/`bulkEnd`, and the host's own acts use `NS.Bulk.Run`. It does **not** itself refresh the panel — the slash path calls `NS.RefreshOptionsPanel` afterward (inside the `set` / `applyDefault` closures `settings/Slash.lua` hands the library), and the panel widgets' own `set()` closures end with `Helpers.RefreshAllPanels`.
 
 ## Behavior knobs
 
@@ -170,8 +170,8 @@ for you; a hand-written pair must set it itself.
 ### `sessionOnly = true` (any type)
 
 The row's value is **not** in the profile and must never reach it. `core/Data.lua` keeps a small
-**session-settings registry** — `NS.RegisterSessionSetting(path, { get, set })` — and `NS.GetSetting`
-/ `NS.SetSetting` check it before touching `db.profile`, so the panel widget, `/at get` and `/at set`
+**row's own `get` / `set`** — stamped onto the composed row by `settings/General.lua`, and consulted
+by `LibKa0s-Schema-1.0` before it touches `db.profile` — so the panel widget, `/at get` and `/at set`
 all reach the live value down the same path every other row takes. There is one such row,
 on Master controls: `state.debugConsole`, the console toggle, bound to the `{ get, set }` pair
 `NS.DebugLog:ConsoleCheckbox()` answers. (`state.testMode` was the second until options-ui-§15
@@ -207,7 +207,7 @@ NS.ResolvePath(tbl, path)               -> value | nil
 NS.SetPath(tbl, path, value)
 
 -- Write / reset (fires row.onChange; reads go through NS.GetSetting)
-NS.SetByPath(path, value)               -- SetSetting + [Set] line + onChange (the documented
+NS.SetByPath(path, value)               -- store + [Set] line + onChange + announce (the documented
                                                 -- single seam: /at set, the panel widget set(),
                                                 -- and every reset through ApplyDefault)
 NS.ApplyDefault(row)                    -- reset to row.default through SetByPath (deep-copies
@@ -325,7 +325,7 @@ Appearance counts are **per unit** (the page renders one unit at a time behind t
 | `scale` | number | `1.0` | 0.5 – 2 (step 0.05) | **New.** Addon-wide scale, applied as `bar:SetScale` in `NS.UpdateBarAppearance` — in the appearance pass rather than once at `CreateBar`, because it is a setting and a restyle has to re-apply it. Label "Master scale". **Master controls** tab, order 20. |
 | `alpha` | number | `1.0` | 0 – 1 (step 0.05) | **New.** Addon-wide opacity. **Not** the per-unit `barAlpha`: this one dims all three bars, and `NS.GetBarAlpha` **multiplies** the two so all three paint sites take the product. Label "Master alpha". **Master controls** tab, order 30. |
 | `locked` | bool | `false` | — | **The addon's one preview switch** (options-ui-§15, which exempts an addon whose unlocked view already is its preview from a Test mode row). If true, no bar is movable, the per-bar unit labels are hidden, and the bars show live data under the ordinary `visibility` / `UnitExists` rungs. If false, every bar is movable, every enabled bar paints the placeholder fill, live repaints stand down, and **rungs 3 and 4 of `NS.ShouldShowBar` are skipped**, so a target or focus bar shows with nothing targeted and under any `visibility` — the capability the removed Test mode row used to carry. `/at lock` / `/at unlock` flip this, entering combat forces it true (`OnEnterCombat`), and unlocking is refused in combat. Governs every unit. Label "Lock frame". **Master controls** tab, order 40. |
-| `state.debugConsole` | bool | *(none)* | — | **New as a row**, and `sessionOnly` — the value is the console *window's* visibility, answered by `NS.DebugLog:ConsoleCheckbox()` through `core/Data.lua`'s session-settings registry, never by `db.profile`. It was a bespoke `SessionCheckbox` injected via `pairWith`; being a row is what lets `/at get state.debugConsole` and `/at set state.debugConsole true` reach it. Carries no `default`: there is nothing for a reset to restore a window's visibility *to*. Label "Debug console". **Master controls** tab, order 50. |
+| `state.debugConsole` | bool | *(none)* | — | **New as a row**, and `sessionOnly` — the value is the console *window's* visibility, answered by `NS.DebugLog:ConsoleCheckbox()` as the row's own `get` / `set` (stamped by `settings/General.lua`), never by `db.profile`. It was a bespoke `SessionCheckbox` injected via `pairWith`; being a row is what lets `/at get state.debugConsole` and `/at set state.debugConsole true` reach it. Carries no `default`: there is nothing for a reset to restore a window's visibility *to*. Label "Debug console". **Master controls** tab, order 50. |
 | `units.<unit>.enabled` | bool | `true` (player) / `false` (target, focus) | — | Track and display absorbs for that unit — *which bars exist*, as distinct from the addon-wide `enabled` above it. One row per `NS.Units.LIST` entry, labeled "Enable Player/Target/Focus Bar", orders 10 / 20 / 30, on the **Bars** tab under `subgroup = "Tracked units"`, where they pair with each other rather than with a global. The **only** unit-scoped rows on this page: `alwaysPerUnit = true`, so they stay honored — and free of the `/at get` "(mirrored)" note — even while that unit mirrors the player. Target and focus additionally need `UnitExists` before the bar appears. |
 | `throttleWindow` | number | `0.1` | 0.05 – 1 s (step 0.05) | Fastest any bar repaints during a burst of changes, via `NS.RequestRepaint`'s trailing-edge one-shot AceTimer. Label "Update throttle (in sec)". Display hint `"%.2f sec"`. **Bars** tab, `subgroup = "Updates"`, order 40. It was the old Behavior tab's last survivor once lock moved to Master controls and the combat gate became `visibility`; a tab holding one control is a click that reveals one widget, so it merged into the tab whose subject contains it, under its own subsection heading. |
 

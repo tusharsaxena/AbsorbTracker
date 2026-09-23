@@ -242,7 +242,7 @@ end)
 test("/at reset <path> logs exactly one [Set] line and fires onChange exactly once", function()
   -- #30: a reset is a schema-row write, so it goes through the one helper and its [Set] line
   -- (architecture-§5, debug-logging-§10) like every other write.
-  -- red under: NS.ApplyDefault writing through NS.SetSetting instead of NS.SetByPath.
+  -- red under: NS.ApplyDefault storing the default without running the row's onChange.
   local row = NS.FindSchemaRow("units.player.barWidth")
   local saved, calls = row.onChange, 0
   NS.SetByPath("units.player.barWidth", 250)
@@ -289,8 +289,8 @@ test("/at resetall goes through the one shared RestoreAllDefaults helper", funct
 end)
 
 test("/at resetall really does restore the defaults end to end", function()
-  NS.SetSetting("units.player.barWidth", 250)
-  NS.SetSetting("units.player.fontSize", 30)
+  T.rawSet("units.player.barWidth", 250)
+  T.rawSet("units.player.fontSize", 30)
   slash("resetall")
   assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth)
   assertEqual(NS.GetSetting("units.player.fontSize"), NS.unitDefaults.fontSize)
@@ -460,7 +460,7 @@ end)
 
 test("/at test keeps the bar scale usable for a value below the 100k floor", function()
   -- A small test value must not shrink the scale below 100000, or the fake fill reads as full.
-  NS.SetSetting("hidden", false)
+  T.rawSet("hidden", false)
   local mn, mx
   local sb = NS.statusBar
   rawset(sb, "SetMinMaxValues", function(_, a, b) mn, mx = a, b end)
@@ -542,7 +542,7 @@ test("/at profile use with no name prints usage and switches nothing", function(
 end)
 
 test("/at profile new creates a profile carrying the defaults, not the old values", function()
-  NS.SetSetting("barWidth", 456)
+  T.rawSet("barWidth", 456)
   local out = slash("profile new Fresh")
   assertEqual(NS.db:GetCurrentProfile(), "Fresh")
   assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth,
@@ -560,7 +560,7 @@ end)
 test("/at profile copy pulls another profile's values into the current one", function()
   NS.db:SetProfile("Source")
   T.mocks.__fireTimers()
-  NS.SetSetting("units.player.barWidth", 411)
+  T.rawSet("units.player.barWidth", 411)
   NS.db:SetProfile("Default")
   T.mocks.__fireTimers()
   assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth,
@@ -601,7 +601,7 @@ test("/at profile delete with no name prints usage", function()
 end)
 
 test("/at profile reset restores the current profile's defaults in place", function()
-  NS.SetSetting("barWidth", 478)
+  T.rawSet("barWidth", 478)
   local out = slash("profile reset")
   assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth)
   assertEqual(NS.db:GetCurrentProfile(), "Default", "reset does not switch profiles")
@@ -643,7 +643,7 @@ test("/at profile reset logs one [Set] line from the reset handler, counting the
   -- red under: OnProfileReset still wired to the switch handler, which logs `[Profile] changed`,
   -- or a count of every row the profile stores.
   cleanProfile()
-  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth + 1)
+  T.rawSet("units.player.barWidth", NS.unitDefaults.barWidth + 1)
   local lines = debugLines(function() slash("profile reset") end)
   T.mocks.__fireTimers()
   assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))

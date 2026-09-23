@@ -437,6 +437,29 @@ test("SetByPath writes the value and fires the row's own onChange with it", func
   NS.SetByPath("units.player.barWidth", NS.unitDefaults.barWidth)
 end)
 
+test("a write stores, then logs its [Set] line, then runs the row's onChange, once each", function()
+  -- The seam's order, pinned by what each step can SEE rather than by a count: the onChange must
+  -- find the value already stored and the debug line already written. A seam that reacted before
+  -- storing would hand every onChange the previous value to re-read.
+  local row = NS.FindSchemaRow("units.player.barWidth")
+  local savedOnChange, savedDebug, savedFlag = row.onChange, NS.Debug, NS.State.debug
+  local events = {}
+  NS.State.debug = true
+  NS.Debug = function(tag, fmt, ...)
+    events[#events + 1] = ("debug %s " .. fmt):format(tag, ...)
+  end
+  row.onChange = function(v)
+    events[#events + 1] = ("onChange %s stored=%s lines=%d")
+      :format(tostring(v), tostring(NS.GetSetting("units.player.barWidth")), #events)
+  end
+  local ok, err = pcall(NS.SetByPath, "units.player.barWidth", 243)
+  row.onChange, NS.Debug, NS.State.debug = savedOnChange, savedDebug, savedFlag
+  if not ok then error(err) end
+  assertEqual(table.concat(events, " | "),
+    "debug Set units.player.barWidth = 243 px | onChange 243 stored=243 lines=1")
+  NS.SetByPath("units.player.barWidth", NS.unitDefaults.barWidth)
+end)
+
 test("SetByPath falls back to broadcasting APPEARANCE for a row with no onChange", function()
   local row = NS.FindSchemaRow("units.player.barWidth")
   local saved = row.onChange
@@ -452,11 +475,55 @@ test("SetByPath falls back to broadcasting APPEARANCE for a row with no onChange
   NS.SetByPath("units.player.barWidth", NS.unitDefaults.barWidth)
 end)
 
-test("SetByPath still writes a value that has no schema row at all", function()
-  -- The write happens before the row lookup, so an internal (non-schema) key round-trips.
-  NS.SetByPath("someInternalKey", 7)
-  assertEqual(NS.GetSetting("someInternalKey"), 7)
-  NS.db.profile.someInternalKey = nil
+test("the schema runtime is LibKa0s-Schema-1.0's, over the live schema array", function()
+  -- The live build must be on the library: a stub answering here would keep every case in this file
+  -- green while the [Set] line, the bracket's count and the validator went silent.
+  local lib = T.mocks.LibStub("LibKa0s-Schema-1.0", true)
+  assertTrue(lib ~= nil, "the vendored Schema major registered in this build")
+  assertTrue(NS.__schemaLib == lib, "settings/Schema.lua resolved the library, not its stub")
+  assertTrue(NS.SchemaRuntime.AllRows() == NS.Schema, "the runtime holds the schema array itself")
+  assertTrue(NS.SetByPath == NS.SchemaRuntime.Set, "the host's seam name is the instance's Set")
+  assertTrue(NS.FindSchemaRow == NS.SchemaRuntime.FindRow, "and its lookup the instance's FindRow")
+end)
+
+test("the minimap row survives a sweep, and a named reset still resets it", function()
+  -- launcher-§3 through the runtime's resetExempt, which binds only while a bracket is open. It
+  -- replaced a wrapper on the Options descriptor's applyDefault, which a reset through the
+  -- instance's own ApplyDefault would have bypassed.
+  local path = NS.Constants.MINIMAP_PATH
+  local row = NS.FindSchemaRow(path)
+  NS.SetByPath(path, false)
+  NS.Bulk.Run("reset", "probe", function() NS.ApplyDefault(row) end)
+  assertEqual(NS.GetSetting(path), false, "a sweep left the hidden button hidden")
+  NS.ApplyDefault(row)
+  assertEqual(NS.GetSetting(path), true, "a reset that names the row brings the button back")
+end)
+
+test("SetByPath refuses a path with no schema row, and stores nothing", function()
+  -- A behavior change taken on purpose with LibKa0s-Schema-1.0 (its adoption notes, JC-2):
+  -- architecture-§5 scopes the seam to schema-row paths, so an unknown path is refused rather than
+  -- stored. It used to round-trip, because the write happened before the row lookup; nothing in the
+  -- addon relied on that, and a typo'd path now says so instead of writing a key nobody reads.
+  local ok, why = NS.SetByPath("someInternalKey", 7)
+  assertEqual(ok, false, "the write is refused")
+  assertTrue(type(why) == "string" and why:find("someInternalKey", 1, true) ~= nil,
+    "and the reason names the path: " .. tostring(why))
+  assertEqual(NS.db.profile.someInternalKey, nil, "nothing was stored")
+end)
+
+test("SetByPath stores a table value as a copy, so the caller's table never aliases the store", function()
+  -- The other behavior change taken on purpose (JC-6). Every shipped caller already hands the seam
+  -- a fresh table (the color picker's encode, a deep-copied default, CopyFromPlayer's deepcopy), so
+  -- nothing visible moves; what the copy closes is a caller mutating its own table afterwards and
+  -- repainting a bar behind the seam's back.
+  local mine = { r = 0.1, g = 0.2, b = 0.3, a = 1 }
+  NS.SetByPath("units.player.barColor", mine)
+  local stored = NS.GetSetting("units.player.barColor")
+  assertTrue(stored ~= mine, "the store holds its own table")
+  assertEqual(stored.r, 0.1, "with the same values")
+  mine.r = 0.9
+  assertEqual(NS.GetSetting("units.player.barColor").r, 0.1, "a later edit of the caller's table does not reach it")
+  NS.ApplyDefault(NS.FindSchemaRow("units.player.barColor"))
 end)
 
 test("ApplyDefault deep-copies a color table so profiles never share one", function()
@@ -473,10 +540,10 @@ test("ApplyDefault deep-copies a color table so profiles never share one", funct
 end)
 
 test("ApplyDefault is a no-op for a row with no default", function()
-  NS.SetSetting("barWidth", 250)
+  T.rawSet("barWidth", 250)
   NS.ApplyDefault({ path = "barWidth", type = "number" })   -- no `default` key
   assertEqual(NS.GetSetting("barWidth"), 250, "nothing should have been written")
-  NS.SetSetting("barWidth", NS.flatDefaults.barWidth)
+  T.rawSet("barWidth", NS.flatDefaults.barWidth)
 end)
 
 test("ResolvePath walks a dotted path", function()
@@ -500,11 +567,11 @@ test("SetPath writes through a dotted path and creates intermediate tables", fun
   assertEqual(t.units.focus.barWidth, 321)
 end)
 
-test("GetSetting and SetSetting round-trip a dotted path", function()
+test("GetSetting and SetByPath round-trip a dotted path", function()
   local saved = NS.GetSetting("units.target.barWidth")
-  NS.SetSetting("units.target.barWidth", 313)
+  NS.SetByPath("units.target.barWidth", 313)
   assertEqual(NS.GetSetting("units.target.barWidth"), 313)
-  NS.SetSetting("units.target.barWidth", saved)
+  NS.SetByPath("units.target.barWidth", saved)
 end)
 
 test("ValidateSchema resolves nested paths against defaults.profile", function()
@@ -613,17 +680,17 @@ test("the Master controls tab is the canonical set, in order, and leads the Gene
     assertEqual(got[i], path, "Master controls row " .. i)
   end
   -- The console toggle is session state and must never reach the profile (options-ui-§15). Pinned
-  -- through the ACCESSORS, because routing is the whole job of the session registry: GetSetting and
-  -- SetSetting take this one path to the console WINDOW's own show/hide state, and db.profile never
+  -- through the SEAM, because routing is the whole job of the row's own get/set: the read and the
+  -- write take this one path to the console WINDOW's own show/hide state, and db.profile never
   -- grows a `state` key on the way.
-  -- red under: dropping the sessionSettings lookup from either accessor in core/Data.lua.
+  -- red under: dropping the get/set settings/General.lua stamps onto the console row.
   assertEqual(NS.FindSchemaRow("state.debugConsole").sessionOnly, true)
   local wasShown = NS.GetSetting("state.debugConsole")
-  NS.SetSetting("state.debugConsole", not wasShown)
+  NS.SetByPath("state.debugConsole", not wasShown)
   assertEqual(NS.GetSetting("state.debugConsole"), not wasShown,
     "the console path must round-trip through its live get/set pair")
   assertEqual(NS.db.profile.state, nil, "and must never reach db.profile")
-  NS.SetSetting("state.debugConsole", wasShown)
+  NS.SetByPath("state.debugConsole", wasShown)
 end)
 
 -- The Test mode row's ABSENCE (options-ui-§15, preview-mode, anti-pattern #80). This addon is
@@ -645,7 +712,7 @@ end)
 -- enabled bar on screen with its placeholder, ready to be positioned. That is the same thing a new
 -- install gets, which is what "restore defaults" is supposed to mean.
 test("Reset all settings returns the lock to its shipped default", function()
-  NS.SetSetting("locked", true)
+  T.rawSet("locked", true)
   NS.Helpers.RestoreAllDefaults()
   local locked = NS.GetSetting("locked")
   T.mocks.__fireTimers()
@@ -758,7 +825,9 @@ test("a build without LibKa0s-Slash-1.0 falls back to a minimal FormatSchemaValu
       end,
     }),
   }, { __index = T.mocks })
-  local NS2 = {}
+  -- Constants is the one namespace member the file reads at load (the minimap row's sweep
+  -- exemption); core/Constants.lua loads long before it in the TOC.
+  local NS2 = { Constants = NS.Constants }
   Loader.load("settings/Schema.lua", NS2, mocks)
   assertEqual(NS2.FormatSchemaValue({ type = "bool" }, nil), "nil")
   assertEqual(NS2.FormatSchemaValue({ type = "bool" }, true), "true")

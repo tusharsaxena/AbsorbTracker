@@ -77,6 +77,6 @@ end
 NS.Timer = NS.Timer or {}
 if NS.NewBusTarget then
     NS.Timer.__ev = NS.NewBusTarget()
-    -- Recorded in the bus register (core/Bus.lua) so the stand-down can unregister it.
-    NS.BusSubscribe(NS.Timer.__ev, NS.MSG.REPAINT, function() NS.RequestRepaint() end)
+    -- A tracked target (core/Bus.lua), so the stand-down can unregister it.
+    NS.Timer.__ev:RegisterMessage(NS.MSG.REPAINT, function() NS.RequestRepaint() end)
 end

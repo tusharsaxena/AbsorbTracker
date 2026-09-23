@@ -34,14 +34,14 @@ local function withState(enabled, visibility, inCombat, body)
   local savedICL        = T.mocks.InCombatLockdown
   local savedUAC        = T.mocks.UnitAffectingCombat
   NS.db.profile.units.player.enabled = enabled
-  NS.SetSetting("visibility", visibility)
-  NS.SetSetting("locked", true)
+  T.rawSet("visibility", visibility)
+  T.rawSet("locked", true)
   T.mocks.InCombatLockdown    = function() return inCombat end
   T.mocks.UnitAffectingCombat = function() return inCombat end
   local ok, err = pcall(body)
   NS.db.profile.units.player.enabled = savedEnabled
-  NS.SetSetting("visibility", savedVisibility)
-  NS.SetSetting("locked", savedLocked)
+  T.rawSet("visibility", savedVisibility)
+  T.rawSet("locked", savedLocked)
   T.mocks.InCombatLockdown    = savedICL
   T.mocks.UnitAffectingCombat = savedUAC
   if not ok then error(err) end
@@ -106,7 +106,7 @@ end)
 -- per-unit flags above it and gates all three at once. red under: a ladder that drops this rung, or
 -- one that conflates it with `units.player.enabled`.
 --
--- WRITTEN THROUGH NS.SetByPath, not NS.SetSetting, and the difference is the whole of
+-- WRITTEN THROUGH NS.SetByPath, not a raw store write, and the difference is the whole of
 -- slash-commands-§7. The raw store write skips the row's onChange, so it moves the stored value
 -- without taking the `disabled` hold -- and the ladder's rung 0 is that hold, not a second read of
 -- the setting. A case that still used the raw write would be asserting that a draw gate exists.
@@ -135,13 +135,13 @@ test("ShouldShowBar: combat-only shows when lockdown lags actual combat", functi
   local savedCombatOnly = NS.GetSetting("visibility")
   local savedICL        = T.mocks.InCombatLockdown
   local savedUAC        = T.mocks.UnitAffectingCombat
-  NS.SetSetting("visibility", "inCombat")
+  T.rawSet("visibility", "inCombat")
   T.mocks.InCombatLockdown    = function() return false end          -- lockdown not yet flipped
   T.mocks.UnitAffectingCombat = function(unit) return unit == "player" end  -- but in combat
   local ok, err = pcall(function()
     assertTrue(NS.ShouldShowBar(), "in combat with lockdown still false -> shown")
   end)
-  NS.SetSetting("visibility", savedCombatOnly)
+  T.rawSet("visibility", savedCombatOnly)
   T.mocks.InCombatLockdown    = savedICL
   T.mocks.UnitAffectingCombat = savedUAC
   if not ok then error(err) end
@@ -368,8 +368,8 @@ test("ShouldShowBar: unlocking bypasses visibility entirely", function()
   withState(true, "never", false, function()
     assertFalse(NS.ShouldShowBar(), "locked, visibility=never hides it")
     local savedLocked = NS.GetSetting("locked")
-    NS.SetSetting("locked", false)
+    T.rawSet("locked", false)
     assertTrue(NS.ShouldShowBar(), "unlocked, the same setting is bypassed so the bar can be placed")
-    NS.SetSetting("locked", savedLocked)
+    T.rawSet("locked", savedLocked)
   end)
 end)

@@ -1,6 +1,7 @@
-local _, NS = ...
+local addonName, NS = ...
 
--- core/Bus.lua — the closed cross-module message bus (architecture-§4).
+-- core/Bus.lua — the closed cross-module message bus (architecture-§4), and this addon's seam onto
+-- LibKa0s-Bus-1.0 (libs/LibKa0s/Bus.lua; contract in LibKa0s docs/api/Bus/version-1-docs.md).
 --
 -- Modules never reach into each other's tables to trigger work. The event layer
 -- (core/AbsorbTracker.lua), the slash surface (settings/Slash.lua), the settings
@@ -30,65 +31,90 @@ local _, NS = ...
 --       VISIBILITY on purpose: VISIBILITY also fires on combat and target-swap transitions, which
 --       must not churn event registrations.
 
-local AceEvent = LibStub("AceEvent-3.0")
+-- Resolved once, at file load (library-stack-§4): libs\LibKa0s\LibKa0s.xml loads in the TOC's lib
+-- block, long before this file, so the major is either registered by now or absent for good.
+local Bus = LibStub and LibStub("LibKa0s-Bus-1.0", true)
+if not Bus then
+    -- The untracked-target stub (options-ui-§1 names the shape; the Bus API document's "Worked
+    -- example" is its text). Receivers still get a private target, so the receiver rule holds, but
+    -- nothing is recorded: on an install with LibKa0s missing, a disable leaves the five bus
+    -- subscriptions live. docs/ARCHITECTURE.md → Known Limitations states it. It copies nothing of
+    -- the library, and it is not this file's old subscription register kept alive as a fallback:
+    -- options-ui-§1 does not admit a completing stub for this major.
+    Bus = {
+        New = function(_, d)
+            return {
+                name = d and d.name,
+                NewTarget = function()
+                    local AceEvent = LibStub and LibStub("AceEvent-3.0", true)
+                    if not AceEvent then return nil end
+                    local t = {}
+                    AceEvent:Embed(t)
+                    return t
+                end,
+                StandDown = function() return 0 end,
+                StandUp   = function() return 0, {} end,
+            }
+        end,
+        Catalog = function(_, messages) return messages end,
+    }
+end
+-- Suite seam only: tests/test_bus.lua holds this table to the live library's surface by name
+-- (Kit.assertSurfaceParity), which it can only do on a degraded load if the stub is reachable.
+NS.__busLib = Bus
 
--- The shared publish target. AceEvent embeds its :SendMessage/:RegisterMessage
--- mixins here; every embedded object funnels through AceEvent's one message
--- registry, so a SendMessage on NS.bus reaches receivers registered on any target.
+-- The shared publish target. Host code, not the library's: sending is not a registration, so it
+-- carries nothing a stand-down needs to know about. AceEvent embeds its :SendMessage mixin here;
+-- every embedded object funnels through AceEvent's one message registry, so a SendMessage on NS.bus
+-- reaches receivers registered on any target.
+local AceEvent = LibStub("AceEvent-3.0")
 NS.bus = NS.bus or {}
 AceEvent:Embed(NS.bus)
 
--- A fresh AceEvent-embedded table per receiver, so each subscription is isolated
--- and no two receivers ever share one target (architecture-§4 receiver rule).
-function NS.NewBusTarget()
-    local t = {}
-    AceEvent:Embed(t)
-    return t
-end
-
--- ── the subscription register, and why the bus owns it ────────────────────────────────────────
+-- ── the stand-down record ─────────────────────────────────────────────────────────────────────
 --
 -- A RegisterMessage is a REGISTRATION, and slash-commands-§7 names it beside RegisterEvent: a
--- stood-down addon has unregistered it, not gated the handler behind a flag. But the subscribing
--- modules hold their targets as file-locals (modules/Display.lua's `ev`), so nothing outside them
--- could reach a subscription to take it down.
+-- stood-down addon has unregistered it, not gated the handler behind a flag. The subscribing
+-- modules hold their targets as file-locals (modules/Display.lua's `ev`), so the record has to live
+-- with the factory that made them. Every target NS.NewBusTarget() hands out is TRACKED: its
+-- register and unregister calls are recorded, core/Lifecycle.lua's StandDown takes them all down
+-- through NS.BusStandDown, and its StandUp replays the record AS IT IS NOW through NS.BusStandUp.
+-- A receiver that unregisters while up is forgotten, and one that registers while down is recorded
+-- and not made live until the stand-up (both are the library's; this file's old append-only
+-- register did neither).
 --
--- So subscribing goes through here, and the bus remembers the triple. core/Lifecycle.lua's
--- StandDown calls NS.BusUnsubscribeAll and its StandUp calls NS.BusResubscribeAll, and neither
--- module learns that the latch exists. The alternative — a suspend/resume pair exported from each
--- subscribing module — is three copies of one rule and a fourth module that forgets it.
---
--- The register is APPEND-ONLY and keyed by nothing: a module subscribes once, at file load, and the
--- same triple is re-registered on the way back up. CallbackHandler keys by (message, target), so a
--- re-register over a live subscription would be a silent overwrite rather than a second callback —
--- which is what makes the resubscribe safe to run when some subscriptions are already in place.
-local subscriptions = {}
+-- `isDown` is a closure because the latch does not exist yet: core/Lifecycle.lua loads after this
+-- file. Inside the latch's own standUp callback it already answers false, so the replay proceeds;
+-- anywhere else while a hold is taken it answers true and a bare stand-up of the bus is refused.
+NS.busRecord = Bus:New{ name = addonName, isDown = function() return NS.IsStoodDown() end }
 
---- Subscribe `target` to `message`, and record it so the latch can take it down.
-function NS.BusSubscribe(target, message, fn)
-    subscriptions[#subscriptions + 1] = { target = target, message = message, fn = fn }
-    target:RegisterMessage(message, fn)
-    return target
+--- A fresh tracked AceEvent target, one per receiver (architecture-§4's receiver rule).
+function NS.NewBusTarget() return NS.busRecord:NewTarget() end
+
+--- Take every tracked registration down. Answers how many entries the record holds, which is what
+--- lets a test tell "there was nothing to drop" from "the record was never populated".
+function NS.BusStandDown() return NS.busRecord:StandDown() end
+
+--- Replay the record as it is now. Answers how many entries went live. An entry that raised on the
+--- replay is dropped from the record by the library and named here, through the debug seam: the
+--- stand-up is inside the latch's callback, so the library never raises out of it.
+function NS.BusStandUp()
+    local replayed, rejected = NS.busRecord:StandUp()
+    if #rejected > 0 and NS.Debug then
+        NS.Debug("Bus", "rejected on stand-up: %s", table.concat(rejected, ", "))
+    end
+    return replayed
 end
 
---- Drop every recorded subscription. Answers how many it dropped, which is what lets a test tell
---- "there was nothing to drop" from "the register was never populated".
-function NS.BusUnsubscribeAll()
-    for _, s in ipairs(subscriptions) do s.target:UnregisterMessage(s.message) end
-    return #subscriptions
-end
-
---- Put every recorded subscription back, with the callback it was registered with.
-function NS.BusResubscribeAll()
-    for _, s in ipairs(subscriptions) do s.target:RegisterMessage(s.message, s.fn) end
-    return #subscriptions
-end
-
--- Message-name catalog. Prefixed Ka0s_<Addon>_ to avoid cross-addon collision.
-NS.MSG = {
+-- Message-name catalog. Prefixed Ka0s_<Addon>_ to avoid cross-addon collision, and declared through
+-- Catalog, which validates the names at load and answers a STRICT copy: reading a key that is not
+-- declared raises at the call site, for a publisher as well as a subscriber (a bare SendMessage(nil)
+-- is silent in CallbackHandler, so without this a mistyped constant failed only on the receiving
+-- side).
+NS.MSG = Bus.Catalog(addonName, {
     REPAINT    = "Ka0s_AbsorbTracker_RepaintRequested",
     APPEARANCE = "Ka0s_AbsorbTracker_AppearanceChanged",
     VISIBILITY = "Ka0s_AbsorbTracker_VisibilityChanged",
     POSITION   = "Ka0s_AbsorbTracker_PositionChanged",
     UNITS      = "Ka0s_AbsorbTracker_UnitsChanged",
-}
+})

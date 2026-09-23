@@ -50,8 +50,11 @@ is absent. `settings/Slash.lua` does the same thing for `-Slash-1.0` without a s
 and `core/EnvSetup.lua` are the eighth and ninth seams, and the two odd ones: `LibKa0s-Media-1.0` and
 `LibKa0s-Env-1.0` take no descriptor, only this addon's FOLDER name — a texture path is absolute from
 `Interface\AddOns\` and a TOC manifest is keyed by folder, and a vendored copy cannot know which folder
-it was copied into. **Nine majors bound by name** of the twelve `libs/LibKa0s/` vendors (eighteen files); Pool
-and Item are registered and unread, and Widgets is reached only through DebugLog's Copy window. See
+it was copied into. **Twelve majors bound by name** of the fifteen `libs/LibKa0s/` vendors (twenty-one
+files); Compat, Pool and Item are registered and unread. `LibKa0s-Widgets-1.0` is bound with no setup
+seam: `modules/Bar.lua` reads it to build each bar's unlocked drag handle (`DragHandle`) and
+`modules/Display.lua` reads its published `DRAG_HANDLE` sizes for the default stack, and DebugLog also
+reaches it for its Copy window. See
 [Five extracted libraries, one descriptor each](./performance.md#five-extracted-libraries-one-descriptor-each).
 
 There is no `:NewModule()` hierarchy. Modules are plain files hanging functions on `NS`, and a
@@ -66,10 +69,10 @@ time, guarded with `if NS.X then … end` where the load-order coupling is soft.
 | `core/Constants.lua` | `NS.Constants`: fallback texture/border/font paths, `FONT_MONO` / `FONT_MONO_NAME` (debug console, resolved from the Media seam), `LOGO_PATH` (the About page's 300×300 logo) and `LOGO_ICON_PATH` (the 128×128 icon the TOC's `## IconTexture`, the minimap button and a broker display all read — a different file, layout-§4), plus `MINIMAP_PATH`, the one stored path that lives in the global store. |
 | `core/Namespace.lua` | `NS.name` / `NS.version` / `NS.PREFIX` (cyan `[AT]`) and the hot-path `floor`/`max` caches. |
 | `core/State.lua` | `NS.State` — session-only runtime state (the debug flag; never persisted). |
-| `core/Bus.lua` | The closed cross-module message bus: `NS.bus` (shared publish target), `NS.NewBusTarget()` (one per receiver), and the `NS.MSG` catalog (`REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION`/`UNITS`). |
+| `core/Bus.lua` | The closed cross-module message bus, and the `LibKa0s-Bus-1.0` seam: `NS.bus` (shared publish target, host code), `NS.busRecord` (the library's stand-down record), `NS.NewBusTarget()` (one tracked target per receiver), `NS.BusStandDown()` / `NS.BusStandUp()` (the latch's two calls), and the `NS.MSG` catalog (`REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION`/`UNITS`), declared through `Bus.Catalog`. With the library absent, the untracked-target stub. |
 | `core/CoreSetup.lua` | Wires the addon into `LibKa0s-Core-1.0` — the guard, the stringifier and the printer are vendored library code, not addon code. Publishes `NS.Print` (prefixed chat, built via `lib:New{...}` with the `[AT]` prefix passed as a function), `NS.Util.print` (the same function object), `NS.IsConcatSafe` and `NS.SafeToString`, with working fallbacks when the library is absent. The secret-safe debug sink is `NS.Debug` (published by `core/DebugLogSetup.lua`); every debug arg routes through `NS.SafeToString`. |
 | `core/PerfSetup.lua` | Wires the addon into `LibKa0s-Perf-1.0` (issue #17) — the probe itself is a vendored library, not addon code. Builds `NS.Perf` via `lib:New{...}`: the addon's name/version/SavedVariables global, the bucket declarations (order + nesting), and the `suspend`/`resume` pair that makes the addon inert without a `/reload`. Loads immediately after `core/CoreSetup.lua`, before any module takes `local Perf = NS.Perf` as an upvalue. See [Performance & Profiler Attribution](#performance--profiler-attribution) below. |
-| `core/Data.lua` | The AceDB read/write seam (`GetSetting`/`SetSetting` — dotted-path aware, so `units.target.barWidth` and flat `locked` both work), LSM fetchers with fallbacks (each takes a `unit`, resolved through `NS.Units.Get`), and the class-color-aware color resolvers (each takes a `unit`; the class color is that unit's own, per options-ui-§17, and the background keeps its own darkened per-class palette — the one surface §17 exempts from the shared `NS.ResolveColor`). |
+| `core/Data.lua` | The settings read seam (`GetSetting`: the `LibKa0s-Schema-1.0` runtime's read with the shipped defaults behind it, dotted-path aware, so `units.target.barWidth` and flat `locked` both work; every write is `NS.SetByPath`), the minimap row's own inverted `get`/`set` (`NS.MinimapShown` / `NS.SetMinimapShown`), LSM fetchers with fallbacks (each takes a `unit`, resolved through `NS.Units.Get`), and the class-color-aware color resolvers (each takes a `unit`; the class color is that unit's own, per options-ui-§17, and the background keeps its own darkened per-class palette — the one surface §17 exempts from the shared `NS.ResolveColor`). |
 | `core/Database.lua` | `NS:InitDB` (AceDB + profile callbacks) and `NS:RunMigrations` (schema-version seam). |
 | `core/Units.lua` | `NS.Units` — unit identity (`LIST`/`LABEL`), mirror resolution (`IsMirrored`/`SourceUnit`/`Get`), per-unit position read/write, and `CopyFromPlayer`. The only file that reads `db.profile.units` for appearance. |
 | `core/LauncherSetup.lua` | The `LibKa0s-Launcher-1.0` seam — see [Launcher](#launcher) below. Builds the one LDB object at file load and publishes `NS.Launcher`; `Register()` waits for `OnInitialize`, because the table it hands LibDBIcon is `db.global.minimap` and there is none until `NS:InitDB` has run. Degrades to a stub answering the same five members off the store, so the Master-controls checkbox is still honest with the library absent. |
@@ -77,8 +80,8 @@ time, guarded with `if NS.X then … end` where the load-order coupling is soft.
 | `core/AbsorbTracker.lua` | AceAddon promotion; `OnInitialize` (InitDB, slash register, launcher register — in that order, because the launcher needs the DB), `OnEnable` (the login sequence), event handlers, `OnProfileChanged`. |
 | `defaults/Profile.lua` | Six flat globals (`enabled`/`visibility`/`scale`/`alpha`/`locked`/`throttleWindow` — the first four are options-ui-§15's Master controls set; there is no `hidden` master toggle) + `NS.defaults.profile.units.{player,target,focus}` (each unit's own appearance table, built by a factory so no table is shared across units) + `NS.defaults.global.schemaVersion = 1` (the current schema is **5** — v3 introduced `profile.units`, v4 dropped the dead `hidden` toggle, v5 mapped `showOnlyInCombat` onto `visibility` — but the DEFAULT is the pre-ladder `1`, exactly like the per-profile stamp, because AceDB's `copyDefaults` fills it before `RunMigrations` reads it and a default of `5` would stamp every freshly-materialized global as already-migrated); `NS.flatDefaults` alias, `NS.unitDefaults` (= `defaults.profile.units.player`, the canonical per-row default source for `settings/Appearance.lua`). |
 | `locales/enUS.lua` | `NS.L` metatable-fallback locale (English source keys; nothing wrapped yet). |
-| `modules/Bar.lua` | `NS.CreateBar(unit, globalName)` builds one bar frame; `NS.bars` (keyed `player`/`target`/`focus`, frames `AbsorbTrackerFrame`/`AbsorbTrackerTargetFrame`/`AbsorbTrackerFocusFrame`) at file load, plus `NS.bar`/`statusBar`/`valueText`/`backdropInfo` as player aliases for pre-multi-unit call sites. Each bar owns its own `backdropInfo` table (border size differs per unit; `SetBackdrop` keys off table identity) and a `unitLabel` FontString above the frame naming its unit, shown only while unlocked. |
-| `modules/Display.lua` | Every function takes a `unit` (defaulting to `"player"`): `RestoreBarPosition`, `UpdateBarAppearance`, `ShouldShowBar`/`ApplyVisibility` (the four-step visibility ladder), `UpdateAbsorbBar` (the paint path). `NS.ForEachUnit(fn)` and `NS.DefaultPosition(unit)` (stacks target/focus above the player bar) also live here. Subscribes to `APPEARANCE`/`VISIBILITY`/`POSITION` on its own `NS.Display.__ev` bus target, fanning each handler out over `NS.ForEachUnit` so the bus messages stay payload-free. |
+| `modules/Bar.lua` | `NS.CreateBar(unit, globalName)` builds one bar frame; `NS.bars` (keyed `player`/`target`/`focus`, frames `AbsorbTrackerFrame`/`AbsorbTrackerTargetFrame`/`AbsorbTrackerFocusFrame`) at file load, plus `NS.bar`/`statusBar`/`valueText`/`backdropInfo` as player aliases for pre-multi-unit call sites. Each bar owns its own `backdropInfo` table (border size differs per unit; `SetBackdrop` keys off table identity) and `bar.handle`, the unlocked **drag handle**: `LibKa0s-Widgets-1.0`'s `DragHandle` (a dark strip with a gold 1px edge, the unit's name centered in gold, a `?` help mark at its right end), named `<frame>Handle`, anchored `BOTTOM` to the bar's `TOP` at the widget's `DRAG_HANDLE.GAP`. The addon supplies only its strings (routed through `NS.L`), the `help` icon from `NS.Icon`, `canDrag` (asks the lock) and `onDragStop`, which saves through the same local `savePosition` the bar body's own `OnDragStop` uses. The bar body stays draggable. With the widget absent `bar.handle` is nil and no strip is drawn — the library's documented degradation. |
+| `modules/Display.lua` | Every function takes a `unit` (defaulting to `"player"`): `RestoreBarPosition`, `UpdateBarAppearance`, `ShouldShowBar`/`ApplyVisibility` (the four-step visibility ladder), `UpdateAbsorbBar` (the paint path). `UpdateBarAppearance` shows each bar's drag handle while unlocked, sized with `ApplyWidth(barWidth)` (as wide as the bar, or its own natural width over a narrower bar), and hides it while locked. `NS.ForEachUnit(fn)` and `NS.DefaultPosition(unit)` (stacks target/focus above the player bar, one bar height plus the handle's `HEIGHT + GAP` plus 8px apart, so an unlocked strip never sits over the bar above it) also live here. Subscribes to `APPEARANCE`/`VISIBILITY`/`POSITION` on its own `NS.Display.__ev` bus target, fanning each handler out over `NS.ForEachUnit` so the bus messages stay payload-free. |
 | `modules/Timer.lua` | Coalescing repaint scheduler (`NS.RequestRepaint`) — a trailing-edge one-shot AceTimer throttle. |
 | `settings/Schema.lua` | The schema registry + read/write seam (`SetByPath`), value formatting, and `ValidateSchema`. `NS.FormatSchemaValue` is a thin delegate to `LibKa0s-Slash-1.0`'s `lib.FormatValue`, so the `/at get` echo and the `[Set]` debug line cannot disagree about how a color or an empty string reads; the type-aware parser is the library's `lib.ParseValue` (`NS.ParseSchemaValue` and the private `parseBool`/`parseNumber`/`parseString`/`parseColor` helpers are gone). Rows carry `unit`, `alwaysPerUnit`, and `skipRender` fields; `SchemaForPage(page, unit)` filters to one unit's rows (or all, when `unit` is omitted); `ResolvePath`/`SetPath` walk dotted paths (`units.<unit>.<key>`) so flat globals and per-unit keys share one seam. |
 | `settings/Slash.lua` | AceConsole registration, the ordered `NS.COMMANDS` verb table (19 verbs), and the host verbs that reach into this addon's own state (`enable`/`disable`/`lock`/`unlock`/`toggle`/`update`/`test`/`profile`/`debug`/`perf`/`resetall`/`resetposition`) plus the mirror note. The dispatcher itself, the help renderer, the row and key/value formatters, the value renderer, the `/at list` builder and the type-aware value parser are `LibKa0s-Slash-1.0` (vendored, `libs/LibKa0s/Slash.lua`); this file builds the CLI with `SlashLib:New{...}` and passes `NS.COMMANDS` in. Degrades to a stub that keeps the host verbs working — and names the missing library on each schema verb — when the library is absent. |
@@ -140,14 +143,32 @@ composer changes what is *declared*, never what is *persisted*.
 group's rows must stay contiguous. General is `[ Master controls | Bars ]` (7 / 4 rows); Appearance
 is `[ Size | Bar | Background | Border | Text ]` (2 / 4 / 3 / 4 / 6 rows, per unit) under a chrome block
 (options-ui-§14) carrying the panel's only unit picker and the page-wide mirror controls. `tests/test_schema.lua` asserts that
-page → tab → count partition. Every write to a schema-row path funnels through the single seam
-**`NS.SetByPath`** (`SetSetting`, the `[Set]` debug line, then `fireOnChange`), whose `onChange`
-defaults to `UpdateBarAppearance`. The panel widgets and `/at set` call it directly; a reset to a
-row's default (`/at reset`, a page's Defaults button, and the `sessionOnly` rows `/at resetall`
-touches before its profile reset) reaches it through `NS.ApplyDefault`, which only builds the
-copied default. A **bulk copy or reset** is one `[Set] <act> <scope>: N rows` line
-(debug-logging-§10): the seam keeps a bracket depth (`NS.Bulk`, `settings/Schema.lua`), and inside
-a bracket it mutes its per-row line and tallies the writes that changed a stored value. The
+page → tab → count partition.
+
+**The runtime is `LibKa0s-Schema-1.0`** (adopted at the LibKa0s v1.55.0 re-vendor; contract in
+LibKa0s `docs/api/Schema/version-1-docs.md`). The rows are this addon's; the machinery around them
+is the library's instance, built in `settings/Schema.lua` over the live `NS.Schema` array and
+stashed as `NS.SchemaRuntime`: the path primitives, the path index, the write seam, the bulk
+bracket, the reset count and the shape check. The host's names are bound to its members, so no
+call site moved (`NS.SetByPath = S.Set`, `NS.FindSchemaRow = S.FindRow`, `NS.RegisterSchemaRows =
+S.AddRows`, `NS.ApplyDefault = S.ApplyDefault`, `NS.Bulk = { Begin, End, Run }`,
+`NS.ResolvePath` / `NS.SetPath` = the library's `Read` / `Write`). The descriptor says where a
+stored row lives (`resolveRoot`: the active profile, or `db.global` for a `global.` path), what a
+write announces (`APPEARANCE` for a row with no `onChange`), and that the minimap row is
+`resetExempt`. Two rows carry their own `get`/`set`, stamped by `settings/General.lua`: the
+session-only console toggle and the global-store minimap button. With LibKa0s absent the file
+falls back to the write-completing, log-silent stub `options-ui-§1` names (runtime-completing):
+reads, writes, reactions and the sweep veto still work, so the host verbs, Reset All and the
+combat re-lock keep writing; the `[Set]` line, the bracket's tally and the reset count do not.
+
+Every write to a schema-row path funnels through the single seam **`NS.SetByPath`** (store, the
+`[Set]` debug line, the row's `onChange`, then the announce). A path with **no** schema row is
+refused (`false, reason`) and stores nothing, and a table value is stored as a copy. The panel
+widgets and `/at set` call it directly; a reset to a row's default (`/at reset`, a page's Defaults
+button, and the `sessionOnly` rows `/at resetall` touches before its profile reset) reaches it
+through `NS.ApplyDefault`, which writes a deep copy of the default. A **bulk copy or reset** is one
+`[Set] <act> <scope>: N rows` line (debug-logging-§10): inside a bracket (`NS.Bulk`) the seam mutes
+its per-row line and tallies the writes whose read-back value moved. The
 library brackets a page's Defaults and Reset All through the Options descriptor's
 `bulkBegin`/`bulkEnd` (LibKa0s-Options-1.0 minor 16). `NS.Bulk.Run` brackets the two host acts,
 `Units.CopyFromPlayer` and the degraded Reset All. N counts rows actually written, so a Defaults
@@ -221,6 +242,22 @@ subscribes on its **own** target from `NS.NewBusTarget()` (never two receivers o
 CallbackHandler keys callbacks by `(message, target)`, so a shared target would silently overwrite —
 anti-pattern #32). All messages are payload-free: the consumer re-reads live state (settings,
 absorbs) when it fires.
+
+**The seam names `LibKa0s-Bus-1.0`** (adopted at the LibKa0s v1.55.0 re-vendor; contract in
+LibKa0s `docs/api/Bus/version-1-docs.md`). The publisher stays host code: sending is not a
+registration. Every target `NS.NewBusTarget()` hands out is a **tracked** target from the
+library's record (`NS.busRecord = Bus:New{ name, isDown }`, `isDown` asking `NS.IsStoodDown()`
+through a closure because the latch loads after the bus), so the latch's `StandDown` /
+`StandUp` reach every receiver's registrations through `NS.BusStandDown()` / `NS.BusStandUp()`
+and no receiver has to ask the latch for its subscription to come down. One asks anyway: the
+`UNITS` receiver in `core/AbsorbTracker.lua` returns while `NS.IsStoodDown()`, because with
+LibKa0s absent the stub records nothing and its work is a registration (see
+[Known Limitations](#known-limitations)). A registration made while stood down is recorded and
+goes live at the stand-up; an unregister while up is forgotten, so a stand-up never resurrects it.
+`NS.MSG` is declared once through `Bus.Catalog`, which validates each `Ka0s_AbsorbTracker_<Event>`
+name at load and answers a strict copy: reading an undeclared key raises at the call site, for a
+publisher as well as a subscriber. With LibKa0s absent, `core/Bus.lua` falls back to the
+untracked-target stub `options-ui-§1` names (see [Known Limitations](#known-limitations)).
 
 | Message (`NS.MSG`) | Sender | Consumer | Effect |
 |---|---|---|---|
@@ -343,18 +380,17 @@ says nothing about whether the addon is running. `tests/test_disabled.lua` step 
 
 **Visibility is one row and one boolean.** `Minimap button` on Master controls stores LibDBIcon's
 own `hide` key at `db.global.minimap.hide` — **global**, so a profile switch does not move the
-player's buttons. The row says *shown* and the key says *hidden*, so `NS.GetSetting` /
-`NS.SetSetting` invert it (`core/Data.lua`, beside the session-settings branch it most resembles);
+player's buttons. The row says *shown* and the key says *hidden*, so the row's own `get` / `set`
+(`NS.MinimapShown` / `NS.SetMinimapShown`, `core/Data.lua`) invert it;
 the set also calls `NS.Launcher:SetShown`, so the button follows the checkbox immediately. The
 **The row survives every reset, as a property of the setting** (launcher-§3): a minimap button's
 visibility is a per-installation display preference, like the angle LibDBIcon keeps beside it in the
 same table. *Reset all settings* never reached it — it is a profile reset and the value is global —
 but the **General page's Defaults button did**, because `LibKa0s-Options-1.0`'s `RestoreDefaults`
-walks every row on the page and consults no veto. The exemption is one predicate,
-`survivesEveryReset` (`settings/OptionsSetup.lua`), applied at the descriptor's `applyDefault`,
-which is the one seam both library resets write through. `/at reset global.minimap.hide` is
-deliberately outside it: that verb goes through the Slash descriptor, and naming the row is asking
-for it. Detail in [settings-panel.md](./settings-panel.md).
+walks every row on the page and consults no veto. The exemption is the schema runtime's
+`resetExempt` (`settings/Schema.lua`), which `ApplyDefault` honors while a bracket is open, and
+both library resets open one around their walk. `/at reset global.minimap.hide` is deliberately
+outside it: a single named reset opens no bracket, and naming the row is asking for it. Detail in [settings-panel.md](./settings-panel.md).
 
 The **icon** is `media/logos/absorbtracker.logo.128.tga`, the same file `## IconTexture` names
 (launcher-§4) — 128×128, uncompressed 32-bit, regenerated from the `.png` beside it by layout-§4's
@@ -405,9 +441,12 @@ one was written.
   and the two swap events — actually `UnregisterEvent`ed.
 - **All three per-unit `RegisterUnitEvent` frames**, `UnregisterAllEvents`'d.
 - **Every bus subscription.** A `RegisterMessage` is a registration like any other. The subscribing
-  modules hold their targets as file-locals, so `core/Bus.lua` keeps a register — `NS.BusSubscribe`
-  records the triple and `NS.BusUnsubscribeAll` / `NS.BusResubscribeAll` drive it — and no module
-  learns that the latch exists.
+  modules hold their targets as file-locals, so the record lives with the factory that made them:
+  every `NS.NewBusTarget()` target is tracked by `LibKa0s-Bus-1.0`, `StandDown` calls
+  `NS.BusStandDown()` last and `StandUp` calls `NS.BusStandUp()` first, so no receiver has to ask
+  the latch for its subscription to come down. The `UNITS` receiver asks `NS.IsStoodDown()` anyway,
+  as a registration guard for the LibKa0s-less stub that records nothing
+  ([Known Limitations](#known-limitations)).
 - **Every timer**: the coalescing repaint (`NS.CancelPendingRepaint`) and the `/at test` preview
   hold (`NS.ClearPreview`).
 - **The bars, at the source.** `StandDown` publishes `VISIBILITY` *before* it takes the bus down, and
@@ -526,14 +565,26 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
 - **Retail Midnight only** (Interface 120100); no game-flavor branching.
 - **English only** — a ratified decision, not an unfinished job: the row lives in
   [Documented deviations](#documented-deviations) below (`localization-§1`), which is its single home.
-  The `NS.L` seam is exported and `locales/enUS.lua` ships, carrying **no keys at all**. The one
-  string this addon used to route was the disabled-verb refusal, and it left the addon at LibKa0s
-  v1.42.0: `slash-commands-§7` makes that line the **collection's** wording, built by
-  `LibKa0s-Slash-1.0` from one exported format string so four Ka0s addons cannot give a player four
-  answers to the same question. `enUS.lua` carries no key nothing reads (`localization-§3`), so the
-  key went with the call site. Everything else is hardcoded English.
+  The `NS.L` seam is exported and `locales/enUS.lua` ships. Its only keys are the drag handle's
+  (`modules/Bar.lua`): the three unit labels and the strings of its two tooltips, every one read
+  there. The disabled-verb refusal this addon used to route left it at LibKa0s v1.42.0:
+  `slash-commands-§7` makes that line the **collection's** wording, built by `LibKa0s-Slash-1.0` from
+  one exported format string so four Ka0s addons cannot give a player four answers to the same
+  question. `enUS.lua` carries no key nothing reads (`localization-§3`), so that key went with the
+  call site. Everything else is hardcoded English.
 - **Three bars — player, target, focus.** Group / raid / arena / boss units are out of scope
   ([scope.md](./scope.md)).
+- **With LibKa0s missing, a disable leaves the bus subscriptions live.** `core/Bus.lua`'s
+  untracked-target stub (`options-ui-§1`) still gives every receiver a private target, but it
+  records nothing, so the latch's stand-down has no record to take down: the five bus
+  subscriptions stay registered on a disabled addon. The show ladder and `NS.RequestRepaint` still
+  answer to the latch, so nothing is drawn. The one receiver whose work is a REGISTRATION, the
+  `UNITS` handler in `core/AbsorbTracker.lua` (it calls `SyncUnitEventFrames`), asks the latch
+  first and does nothing while down, so a publish on a disabled addon cannot put the per-unit
+  frames or the swap events back; StandUp re-syncs from current state (`tests/test_bus.lua` pins
+  it on the degraded load). What is lost is the registration-level stand-down of the five bus
+  subscriptions themselves on that one install shape, which is also already without Options, Slash
+  and the rest of LibKa0s.
 
 ## Documentation map
 
@@ -601,7 +652,7 @@ reads the register first and records a match as accepted rather than re-filing i
 | `events-frames-taint-§1` | `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` are registered on a private `CreateFrame` **per tracked unit** via `RegisterUnitEvent`, not through AceEvent-3.0 | Both events fire for every unit the client knows about; AceEvent shares one frame and structurally cannot `RegisterUnitEvent`, so it would pay a full C→Lua dispatch per unit only to discard all but ours. One frame each rather than packing tokens, because `RegisterUnitEvent` filters **at most two** tokens per registration. Argument in full below; filed as `AT-31` in `docs/audits/2026-08-05/` | 2026-07-14 | A client build where `RegisterUnitEvent` accepts more than two unit tokens |
 | `savedvariables-§1` | A **per-profile** `schemaVersion` stamp at `db.profile.schemaVersion`, alongside the account-wide stamp in `db.global` | The v3 lift — flat appearance keys onto `profile.units.<unit>` — is a per-profile mutation, and an account-wide flag structurally cannot gate one: a second pre-v3 profile would have its stored appearance stranded forever. Argument in full below | 2026-07-28 | AceDB gaining a per-profile version stamp of its own, or the last per-profile migration being retired |
 | `events-frames-taint-§8` (SHOULD half) | 18 chat lines in `settings/Slash.lua` and `settings/Schema.lua` pre-format their arguments — `print(("%s bar %s"):format(...))`, `print("Switched to profile '" .. name .. "'")` — instead of handing the parts to the shared printer as `print("fmt", a, b)` | **Re-graded, not deferred.** §8's pre-formatting MUST is now **scoped** to call sites whose arguments can reach a value read from one of the named combat-protected APIs (`UnitGetTotalAbsorbs`, `UnitHealth`/`UnitHealthMax`, threat, aura amounts); outside that trigger set it is a **SHOULD NOT**, because the risk is drift, not secrets. Every one of the 18 sites formats only values this addon owns — a version string, a unit label, a profile name, a user-typed test number, a schema path — so none is in the trigger set and none can be handed a secret. The two sites that DO read `UnitGetTotalAbsorbs` (`core/AbsorbTracker.lua:199`, `:279`) already pass their arguments to the sink unformatted and guard with `NS.IsConcatSafe`; the seam's own guarantee (library stringifier, `table.concat`-based probe) is untouched and unconditional. Filed as `AT-35` in `docs/audits/2026-08-05/` against the pre-scoping text | 2026-08-05 | Any of these lines gaining an argument that is, or derives from, a return value of one of §8's named APIs — that site converts as a MUST — or §8's trigger set growing to cover one of them |
-| `localization-§1` | This addon ships **English only**: the `NS.L` seam is exported and `locales/enUS.lua` ships, but user-facing strings are hardcoded English rather than routed through `NS.L`. The one string that WAS routed — the disabled-verb refusal — left the addon at LibKa0s v1.41.0, because `slash-commands-§7` makes that line the collection's wording rather than the addon's and `lib.L` does not reach it; `enUS.lua` now carries no keys, which `localization-§3` requires rather than merely permits | A deliberate decision, not a backlog item. `localization-§3` names this one of the routing SHOULD's **two terminal compliant states** — English-only, recorded — so this row IS the compliant end state and an audit records it as accepted rather than re-filing the SHOULD. Both localization MUSTs are met unconditionally: the seam is exported and `enUS.lua` ships, carrying no dead keys. Filed as `AT-30` in `docs/audits/2026-08-05/`; deferred twice before as [PLAN-02](https://github.com/tusharsaxena/AbsorbTracker/issues/24), closed here | 2026-08-05 | The first non-English locale file added to `locales/` |
+| `localization-§1` | This addon ships **English only**: the `NS.L` seam is exported and `locales/enUS.lua` ships, but user-facing strings are hardcoded English rather than routed through `NS.L`, except the unlocked drag handle's (`modules/Bar.lua`: the three unit labels and its two tooltips), which are routed and whose keys are the only ones `enUS.lua` lists. The disabled-verb refusal that used to be routed left the addon at LibKa0s v1.41.0, because `slash-commands-§7` makes that line the collection's wording rather than the addon's and `lib.L` does not reach it, and its key went with it — `enUS.lua` carries no key nothing reads, which `localization-§3` requires rather than merely permits | A deliberate decision, not a backlog item. `localization-§3` names this one of the routing SHOULD's **two terminal compliant states** — English-only, recorded — so this row IS the compliant end state and an audit records it as accepted rather than re-filing the SHOULD. Both localization MUSTs are met unconditionally: the seam is exported and `enUS.lua` ships, carrying no dead keys. Filed as `AT-30` in `docs/audits/2026-08-05/`; deferred twice before as [PLAN-02](https://github.com/tusharsaxena/AbsorbTracker/issues/24), closed here | 2026-08-05 | The first non-English locale file added to `locales/` |
 
 **Retired on 2026-08-05** — four entries this register carried whose cited rule the standard has since
 changed, so the behavior is now permitted outright and a row for it reads as a deviation that is not
@@ -663,6 +714,21 @@ departures.
   fills every absent key before `RunMigrations` reads the profile, so a default of `3` would mark
   every upgrading profile as already-migrated and make the gate dead code. See
   [profiles.md](./profiles.md).
+
+### Files over the 1500-line cap
+
+`layout-§1` caps every **authored** `.lua` file this repository tracks at 1500 lines, `tests/`
+included. Vendored code (`libs/`, `tests/_kit/`) is the only carve-out that reaches anything here;
+nothing in this repo is generated non-shipping data, so the generated-data carve-out has no instance
+and the runner hands the gate no exempt set. A file over the cap has three terminal states: peeled,
+an open issue naming the seam a peel would follow, or a ratified row in the register above carrying
+a re-check trigger. The census records which one, one row per over-cap file; the 1000-1500 band is
+observed and dispositioned in the automated-tests watch list alone (`automated-tests-§4`).
+
+Nothing is over the cap today. The largest authored file is `tests/test_helpers.lua` at 1415 lines,
+measured on 2026-09-23 with `git ls-files '*.lua' | grep -v '^libs/' | grep -v '^tests/_kit/' |
+xargs wc -l | sort -rn`. `tests/test_slashcmds.lua` was peeled into `tests/test_perfcmds.lua` when it
+crossed the cap. The vendored `tests/_kit/test_layout_cap.lua` gates this census against the tree.
 
 ### Recorded, but not deviations
 

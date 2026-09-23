@@ -35,11 +35,10 @@ end
 --
 -- WHAT THE NS.Icon CASES BELOW DO AND DO NOT PROVE. They prove the seam resolves: a path that is
 -- extensionless, nil for a name the catalog does not carry, and the folder name going through to
--- the library. They prove NOTHING about the marks that actually reach the screen, because nothing
--- in this addon calls NS.Icon — every mark on the console, its Copy window and the perf panel is
--- built inside libs/LibKa0s from the folder name handed to the DebugLog descriptor. That is
--- covered by the descriptor spy in tests/test_debuglog.lua, and if NS.Icon were deleted tomorrow
--- not one pixel would move. See core/MediaSetup.lua's header for why it is published anyway.
+-- the library. They prove little about the marks that actually reach the screen: the one call
+-- site, the drag handle's help mark, is pinned in tests/test_draghandle.lua, and every mark on the
+-- console, its Copy window and the perf panel is built inside libs/LibKa0s from the folder name
+-- handed to the DebugLog descriptor -- covered by the descriptor spy in tests/test_debuglog.lua.
 
 test("MediaSetup: NS.Icon answers the vendored path, extensionless", function()
   -- Extensionless is not a preference. The collection's surviving note from a live client says a
@@ -91,17 +90,18 @@ end)
 -- ── the catalog, against what this addon actually draws ────────────────────────────────────────
 
 test("MediaSetup: every mark this addon's windows draw is one the library ships", function()
-  -- This addon draws no chrome of its own — the three bars have no title bars, and the settings
-  -- panel is LibKa0s-Options-1.0's — so the marks that reach the screen are the ones the DebugLog
-  -- library builds on our behalf once core/DebugLogSetup.lua hands it `addonName`: the console's
-  -- close, copy and clear, the Copy window's close, and the perf panel's close, which the library
-  -- builds from its own else arm. Their names are strings inside another repo; a rename there
-  -- answers nil here.
+  -- This addon draws almost no chrome of its own — the three bars have no title bars, and the
+  -- settings panel is LibKa0s-Options-1.0's — so the marks that reach the screen are the drag
+  -- handle's help mark (modules/Bar.lua asks NS.Icon for "help") and the ones the DebugLog library
+  -- builds on our behalf once core/DebugLogSetup.lua hands it `addonName`: the console's close,
+  -- copy and clear, the Copy window's close, and the perf panel's close, which the library builds
+  -- from its own else arm. Their names are strings inside another repo; a rename there answers nil
+  -- here -- which for "help" is not an error, only the widget's Blizzard fallback art.
   local lib = media()
   local known = {}
   for _, name in ipairs(lib.ICONS) do known[name] = true end
 
-  for _, name in ipairs({ "close", "copy", "clear" }) do
+  for _, name in ipairs({ "close", "copy", "clear", "help" }) do
     assertTrue(known[name] == true,
       "this addon's windows draw '" .. name .. "', which LibKa0s-Media does not ship")
     assertTrue(NS.Icon(name) ~= nil, "NS.Icon answered nil for " .. name)

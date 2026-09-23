@@ -148,7 +148,7 @@ test("RestoreDefaults resets every row on the named page", function()
   local rows = NS.SchemaForPage("appearance")
   assertTrue(#rows > 0, "the Appearance page has schema rows to reset")
   for _, row in ipairs(rows) do
-    if row.type == "number" then NS.SetSetting(row.path, (row.default or 0) + 1) end
+    if row.type == "number" then T.rawSet(row.path, (row.default or 0) + 1) end
   end
   Helpers.RestoreDefaults("appearance")
   for _, row in ipairs(rows) do
@@ -163,12 +163,12 @@ test("RestoreDefaults leaves other pages untouched", function()
   -- wipe settings the user never asked about. Border and Font are tabs on the Appearance page now,
   -- not pages, so the pair that proves the scoping is General against Appearance: a General reset
   -- must not touch a unit's styling, and an Appearance reset must not touch the throttle.
-  NS.SetSetting("units.player.borderSize", 20)
+  T.rawSet("units.player.borderSize", 20)
   Helpers.RestoreDefaults("general")
   assertEqual(NS.GetSetting("units.player.borderSize"), 20,
     "an Appearance value survives a General-page reset")
 
-  NS.SetSetting("throttleWindow", 0.85)
+  T.rawSet("throttleWindow", 0.85)
   Helpers.RestoreDefaults("appearance")
   assertEqual(NS.GetSetting("throttleWindow"), 0.85,
     "a General value survives an Appearance-page reset")
@@ -208,7 +208,7 @@ test("the Defaults button fires each reset row's onChange exactly once", functio
   local row = NS.FindSchemaRow("units.player.barWidth")
   local saved, calls, got = row.onChange, 0, nil
   row.onChange = function(v) calls = calls + 1; got = v end
-  NS.SetSetting("units.player.barWidth", 250)
+  T.rawSet("units.player.barWidth", 250)
   local ok, err = pcall(Helpers.RestoreDefaults, "appearance")
   row.onChange = saved
   if not ok then error(err) end
@@ -244,7 +244,7 @@ local function dirtyPage(pageKey, k)
   local moved = 0
   for _, row in ipairs(NS.SchemaForPage(pageKey)) do
     if moved < k and row.type == "number" and row.default ~= nil then
-      NS.SetSetting(row.path, row.default + 1)
+      T.rawSet(row.path, row.default + 1)
       moved = moved + 1
     end
   end
@@ -324,7 +324,7 @@ test("a bulk act that raises logs its one line marked as stopped by an error", f
   -- the act DID change, and that it did not finish. Still exactly one line, the mute still
   -- released, and the error still reaches the caller unchanged.
   -- red under: a bulkEnd that ignores its `err`, so a half-done act reads as a finished one.
-  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth)
+  T.rawSet("units.player.barWidth", NS.unitDefaults.barWidth)
   local ok, err
   local lines = linesOf(function()
     ok, err = pcall(NS.Bulk.Run, "reset", "probe", function()
@@ -332,7 +332,7 @@ test("a bulk act that raises logs its one line marked as stopped by an error", f
       error("boom", 0)
     end)
   end)
-  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth)
+  T.rawSet("units.player.barWidth", NS.unitDefaults.barWidth)
   assertFalse(ok, "the walk's error reaches the caller")
   assertEqual(err, "boom", "re-raised unchanged")
   assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
@@ -340,7 +340,7 @@ test("a bulk act that raises logs its one line marked as stopped by an error", f
   assertTrue(lines[1]:find(want, 1, true) ~= nil, "want '" .. want .. "', got " .. lines[1])
   local after = linesOf(function() NS.SetByPath("units.player.barWidth", 222) end)
   assertEqual(#after, 1, "the next single write logs again")
-  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth)
+  T.rawSet("units.player.barWidth", NS.unitDefaults.barWidth)
   T.mocks.__fireTimers()
 end)
 
@@ -349,7 +349,7 @@ test("a library page reset that raises logs its one line marked as stopped by an
   local row = NS.FindSchemaRow("units.player.barWidth")
   local saved = row.onChange
   row.onChange = function() error("boom") end
-  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth + 3)
+  T.rawSet("units.player.barWidth", NS.unitDefaults.barWidth + 3)
   local ok
   local lines = linesOf(function() ok = pcall(Helpers.RestoreDefaults, "appearance") end)
   row.onChange = saved
@@ -391,7 +391,7 @@ test("a reset the addon did not drive logs the reset line with no count", functi
   -- An AceDBOptions Reset Profile press or a /run calls db:ResetProfile() straight: nothing counted
   -- before the profile was replaced, so the line carries no `(N rows)` rather than a made-up one.
   cleanProfile()
-  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth + 1)
+  T.rawSet("units.player.barWidth", NS.unitDefaults.barWidth + 1)
   local lines = linesOf(function() NS.db:ResetProfile() end)
   assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
   assertEqual(lines[1]:match("%[Set%].*$"), resetLine(nil))
@@ -404,7 +404,7 @@ test("a counted reset that never reached the handler leaks no count into a later
   -- next, unrelated reset would carry a stale number.
   -- red under: a pending count cleared only by the handler.
   cleanProfile()
-  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth + 1)
+  T.rawSet("units.player.barWidth", NS.unitDefaults.barWidth + 1)
   local silent = { ResetProfile = function() end }
   local raising = { ResetProfile = function() error("aborted", 0) end }
   NS.ResetProfileCounted(silent)
@@ -427,18 +427,19 @@ test("Reset All logs exactly one line in total, the profile handler's", function
   -- OnProfileReset still sharing the switch handler's `[Profile] changed` line, or an N that is the
   -- schema size.
   cleanProfile()
-  NS.SetSetting("units.player.barWidth", NS.unitDefaults.barWidth + 1)
-  NS.SetSetting("units.target.fontSize", NS.unitDefaults.fontSize + 1)
+  T.rawSet("units.player.barWidth", NS.unitDefaults.barWidth + 1)
+  T.rawSet("units.target.fontSize", NS.unitDefaults.fontSize + 1)
+  -- The probe carries its own get/set, the shape a sessionOnly row's storage takes since
+  -- LibKa0s-Schema-1.0, and is REGISTERED (indexed) rather than written into the array, because the
+  -- seam only writes a path it can find. Removed and re-indexed afterwards.
   local path, store = "__probe.bulkSession", { value = false }
-  NS.RegisterSessionSetting(path, {
-    get = function() return store.value end,
-    set = function(v) store.value = v end,
-  })
-  local n = #NS.Schema
-  NS.Schema[n + 1] = { page = "general", path = path, type = "bool", default = true,
-                       sessionOnly = true, onChange = function() end }
+  NS.RegisterSchemaRows({ { page = "general", group = "Probe", path = path, type = "bool",
+                            default = true, sessionOnly = true, onChange = function() end,
+                            get = function() return store.value end,
+                            set = function(v) store.value = v end } })
   local ok, lines = pcall(linesOf, function() Helpers.RestoreAllDefaults() end)
-  NS.Schema[n + 1] = nil
+  NS.Schema[#NS.Schema] = nil
+  NS.SchemaRuntime.Reindex()
   if not ok then error(lines, 0) end
   assertEqual(store.value, true, "the session row was still written")
   assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
@@ -450,9 +451,9 @@ end)
 
 test("RestoreAllDefaults resets every schema row that is not on the profiles page", function()
   -- Retargeted (spec §9): schema rows now live at dotted per-unit paths, not flat keys.
-  NS.SetSetting("units.player.barWidth", 333)
-  NS.SetSetting("units.player.borderSize", 30)
-  NS.SetSetting("units.player.fontSize", 30)
+  T.rawSet("units.player.barWidth", 333)
+  T.rawSet("units.player.borderSize", 30)
+  T.rawSet("units.player.fontSize", 30)
   Helpers.RestoreAllDefaults()
   assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth)
   assertEqual(NS.GetSetting("units.player.borderSize"), NS.unitDefaults.borderSize)

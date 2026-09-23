@@ -23,7 +23,7 @@ badge and any count quoted in the docs must agree with it.
 - loadorder: LibStub returns nil for a missing major with the silent flag
 - loadorder: LibStub keeps the higher minor when a major registers twice
 
-### test_schema.lua (46)
+### test_schema.lua (50)
 
 - FormatSchemaValue formats by type
 - SchemaForPage keeps groups in registration order, which IS the Appearance tab strip
@@ -47,15 +47,19 @@ badge and any count quoted in the docs must agree with it.
 - every schema row lands on a page the panel actually builds
 - FindSchemaRow returns the row for a known path and nil for an unknown one
 - SetByPath writes the value and fires the row's own onChange with it
+- a write stores, then logs its [Set] line, then runs the row's onChange, once each
 - SetByPath falls back to broadcasting APPEARANCE for a row with no onChange
-- SetByPath still writes a value that has no schema row at all
+- the schema runtime is LibKa0s-Schema-1.0's, over the live schema array
+- the minimap row survives a sweep, and a named reset still resets it
+- SetByPath refuses a path with no schema row, and stores nothing
+- SetByPath stores a table value as a copy, so the caller's table never aliases the store
 - ApplyDefault deep-copies a color table so profiles never share one
 - ApplyDefault is a no-op for a row with no default
 - ResolvePath walks a dotted path
 - ResolvePath returns nil for a missing branch instead of raising
 - ResolvePath still handles a flat key
 - SetPath writes through a dotted path and creates intermediate tables
-- GetSetting and SetSetting round-trip a dotted path
+- GetSetting and SetByPath round-trip a dotted path
 - ValidateSchema resolves nested paths against defaults.profile
 - SchemaForPage with no unit returns every unit's rows
 - SchemaForPage filtered to a unit excludes the other units' rows
@@ -264,15 +268,20 @@ badge and any count quoted in the docs must agree with it.
 - [Absorb] transition logs on a non-secret 0->nonzero change
 - ShouldShowBar: unlocking bypasses visibility entirely
 
-### test_bus.lua (7)
+### test_bus.lua (12)
 
 - bus, NewBusTarget, and the message catalog are published
+- the catalog is exactly the five declared messages, walkable with pairs
 - a receiver on its own target hears a message, then is silent after unregister
 - two receivers of one message both fire (no (message,target) clobber)
 - a message payload reaches the receiver after the message name
 - REPAINT routes through Timer to one coalesced repaint
 - APPEARANCE / VISIBILITY / POSITION route to their Display consumers
 - sending a message with no subscribers is a harmless no-op
+- the bus record is LibKa0s-Bus-1.0's, built under the folder name
+- the catalog is strict: an undeclared key raises at the call site
+- with LibKa0s absent, receivers still get a private working target and nothing is recorded
+- with LibKa0s absent, a UNITS publish while disabled registers nothing
 
 ### test_data.lua (32)
 
@@ -281,8 +290,8 @@ badge and any count quoted in the docs must agree with it.
 - GetSetting falls back to flatDefaults when the DB is absent entirely
 - GetSetting returns nil for a key that is neither in the profile nor the defaults
 - GetSetting returns a stored `false` rather than falling through to the default
-- SetSetting writes through to the active profile
-- SetSetting is a harmless no-op when the DB is absent
+- SetByPath writes through to the active profile
+- SetByPath refuses without raising when the DB is absent, and writes nowhere
 - media fetchers return the hardcoded fallbacks when LSM is absent
 - media fetchers return the LSM path when LSM resolves the configured key
 - media fetchers fall back when LSM is present but the key does not resolve
@@ -309,7 +318,7 @@ badge and any count quoted in the docs must agree with it.
 - three bar frames exist and the player alias points at the player frame
 - each bar carries its own unit tag and its own backdrop table
 
-### test_display.lua (64)
+### test_display.lua (60)
 
 - RestoreBarPosition centers the bar when no position is saved
 - RestoreBarPosition restores the saved anchor verbatim
@@ -322,9 +331,6 @@ badge and any count quoted in the docs must agree with it.
 - UpdateBarAppearance pushes the resolved media into the backdrop
 - UpdateBarAppearance makes the bar immovable and mouse-inert when locked
 - UpdateBarAppearance restores drag + mouse when unlocked
-- every bar owns a unit label
-- unlocking shows a label naming the unit
-- locking hides the unit label
 - an untouched profile paints the same white text and full alpha it always did
 - the Text tab's color reaches the absorb amount, alpha included
 - barAlpha reaches all three paint sites, not just the appearance pass
@@ -350,7 +356,6 @@ badge and any count quoted in the docs must agree with it.
 - combat with the bars already locked says nothing and leaves the panel alone
 - unlocking will not happen in combat, and says why
 - re-locking in combat is always allowed
-- the unit label follows the unit's own font face
 - UpdateBarAppearance re-applies the font from the profile
 - UpdateBarAppearance tolerates a nil fontFlags by passing an empty flag string
 - UpdateBarAppearance ends by applying visibility
@@ -375,6 +380,31 @@ badge and any count quoted in the docs must agree with it.
 - the player bar defaults to dead center
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
+
+### test_draghandle.lua (22)
+
+- every bar body is registered for a left-button drag
+- dropping a bar body saves the position to that bar's own unit
+- dropping one bar leaves the other bars' positions alone
+- the widget major is present, so the handle is not the degraded path
+- every bar owns a drag handle: a named Button parented to the bar
+- the handle is labeled with its own unit's name
+- the handle moves its own bar, with the help icon from the Media seam
+- unlocking shows every bar's handle; locking hides it
+- an unlocked handle is exactly as wide as its bar
+- a handle over a narrow bar takes its own natural width instead
+- a locked pass does not resize the hidden handle
+- the combat re-lock hides every handle
+- a locked handle refuses the drag and does not move the bar
+- an unlocked handle drags its bar
+- dropping a handle saves the position to its own bar's unit
+- the handle and the bar body save through the same writer
+- the strip's tooltip names the addon and says how to move this bar
+- the strip's tooltip reads the lock on every hover
+- the help mark has its own tooltip, with a footer saying how to put the strip away
+- degraded: with LibKa0s absent the bars load with no handle and keep their own drag
+- degraded: with no widget the default stack reserves no strip room
+- an appearance pass over a bar with no handle raises nothing
 
 ### test_helpers.lua (70)
 
@@ -468,12 +498,14 @@ badge and any count quoted in the docs must agree with it.
 - launcher: with LibDataBroker but no LibDBIcon, the plugin exists and the button does not
 - launcher: with LibKa0s absent the seam still answers, and still remembers the choice
 
-### test_optionssetup.lua (11)
+### test_optionssetup.lua (13)
 
 - the live and degraded builds veto exactly the same rows from Reset All
 - Reset All resets a sessionOnly row and fires its onChange once, on both builds
-- the degraded Reset All logs one line in total, the profile handler's
-- the degraded Reset All with no AceDB logs its own one line with the rows it wrote
+- the degraded Reset All logs one line in total, the profile handler's, with no count
+- the degraded Reset All with no AceDB writes the session row and logs nothing
+- with LibKa0s absent, the lock and unlock verbs still write the store
+- with LibKa0s absent, entering combat still re-locks unlocked bars in the store
 - the degraded stub publishes LSMValues, the one member reached at file load
 - the degraded stub publishes the five composers, the other load-time members
 - the degraded stub keeps no private copy of the library's layout constants
@@ -678,13 +710,30 @@ badge and any count quoted in the docs must agree with it.
 - the main page's About content renders on its first OnShow
 - re-rendering the About page replaces its body rather than stacking a second copy
 
-### test_docs.lua (5)
+### test_docs.lua (4)
 
 - README.md carries no angle-bracket argument placeholders
 - every Tier 2 documentation-map row agrees with docs/
 - every deviation id the register cites is assigned by a bundle in docs/audits/
-- the addon's own files use US spellings
 - docs/smoke-tests.md carries a non-English-client section
+
+### test_prose.lua (15)
+
+- prose: no authored file carries a British spelling from localization-5's published list
+- prose: the gate carries localization-5's two lists whole, and nothing of its own
+- prose self-test: the carve-out suppresses the named generated folder, and only it
+- prose self-test: a path the carve-out does not name is not covered by one that looks like it
+- prose self-test: a carve-out that is not a set of path strings is a failure, not a silence
+- prose self-test: a TOC's file lines are read as paths, and its directives and comments are not
+- prose self-test: a .pkgmeta's ignore block is read, and the keys around it are not
+- prose self-test: an ignore entry covers a path exactly, by folder, and by wildcard
+- prose self-test: the carve-out admits a generated dump and refuses a file the TOC loads
+- prose self-test: a waiver-file exclusion meets the same two refusals as the carve-out
+- prose self-test: each list is refused on the matching rule its own scan uses
+- prose self-test: the scan and the refusals read the added exclusions through one reader
+- prose self-test: a narrowing is refused by what it suppresses, not by how it is written
+- prose self-test: the disclosure names what each entry suppressed, and says when it is bounded
+- prose self-test: a malformed waived is a failure, not a silence
 
 ### test_ltrap.lua (8)
 
@@ -697,13 +746,16 @@ badge and any count quoted in the docs must agree with it.
 - vendored Slash resolves a fallback-only override to its own strings
 - vendored Perf resolves a fallback-only override to its own strings
 
-### test_surface_parity.lua (5)
+### test_surface_parity.lua (8)
 
 - parity: the Core stub publishes everything core/CoreSetup.lua publishes live
 - parity: the DebugLog stub carries the whole live surface
 - parity: the Options stub carries every helper the degraded build can reach
 - parity: the Slash stub carries every dispatcher member the addon calls
 - parity: the Launcher stub carries the whole live surface
+- parity: the Bus stub carries the library's whole surface
+- parity: the Schema stub carries the library's lib-level surface
+- parity: the Schema stub's instance carries every member of a live instance
 
 ### test_vendor_sync.lua (3)
 
@@ -718,7 +770,7 @@ badge and any count quoted in the docs must agree with it.
 - lintconfig: every files[...] ignore is narrowed to a file or a name
 - lintconfig: no source file carries a bare inline luacheck ignore
 
-### test_disabled.lua (11)
+### test_disabled.lua (15)
 
 - disabled 1: the enabled addon registers something to stand down from
 - disabled 3: writing the enable path leaves NOTHING registered
@@ -729,19 +781,40 @@ badge and any count quoted in the docs must agree with it.
 - disabled 7: a refused feature verb reaches no write seam
 - disabled 8: the left click is refused and writes nothing; the right click still opens the panel
 - disabled 9: re-enabling restores the registration set, from the settings as they are NOW
+- disabled 9: the bus subscriptions come back as the same five pairs, and each still reaches its consumer once
 - disabled 10: releasing one hold does not stand up an addon the other still holds down
 - disabled 10: the perf hold is session-only and the disabled hold is the stored path
+- bus: a registration made while stood down is recorded, and not live until the stand-up
+- bus: a subscription its owner dropped is not brought back by a stand-up
+- bus: the stand-down and stand-up counts are the record's, and the latch drives both
 
-### test_eol.lua (1)
+### test_eol.lua (2)
 
 - eol: every tracked file carries the terminator .gitattributes declares for it
+- eol: .gitattributes is line-endings-5's canonical body for this repo kind
+
+### test_layout_cap.lua (13)
+
+- layoutcap: every authored file over the 1500-line cap is named in the census
+- layoutcap: no census row outlives the breach it records
+- layoutcap: every over-cap census row carries one of layout-1's three terminal states
+- layoutcap: the census and the exempt set agree about which paths were exempted
+- layoutcap: an empty census is written as a result rather than left standing empty
+- layoutcap self-test: the parser reads the census nested under the register, and stops there
+- layoutcap self-test: a census outside its register, or at the wrong level, is not read
+- layoutcap self-test: an over-cap file missing from the census is reported, and an exempt one is not
+- layoutcap self-test: a census row that outlives its breach is reported
+- layoutcap self-test: an over-cap row that names no terminal state is reported
+- layoutcap self-test: the census and the exempt set are held to naming the same paths
+- layoutcap self-test: a census that states nothing is told apart from one that states none
+- layoutcap self-test: the exempt set takes folders as well as paths
 
 ## Totals
 
 | Suite | Cases |
 |-------|------:|
 | test_loadorder.lua | 14 |
-| test_schema.lua | 46 |
+| test_schema.lua | 50 |
 | test_database.lua | 31 |
 | test_units.lua | 17 |
 | test_envsetup.lua | 6 |
@@ -752,20 +825,23 @@ badge and any count quoted in the docs must agree with it.
 | test_timer.lua | 12 |
 | test_perf.lua | 33 |
 | test_visibility.lua | 22 |
-| test_bus.lua | 7 |
+| test_bus.lua | 12 |
 | test_data.lua | 32 |
-| test_display.lua | 64 |
+| test_display.lua | 60 |
+| test_draghandle.lua | 22 |
 | test_helpers.lua | 70 |
 | test_launcher.lua | 16 |
-| test_optionssetup.lua | 11 |
+| test_optionssetup.lua | 13 |
 | test_slashcmds.lua | 90 |
 | test_perfcmds.lua | 42 |
 | test_widgets.lua | 55 |
-| test_docs.lua | 5 |
+| test_docs.lua | 4 |
+| test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
-| test_surface_parity.lua | 5 |
+| test_surface_parity.lua | 8 |
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
-| test_disabled.lua | 11 |
-| test_eol.lua | 1 |
-| **Total** | **646** |
+| test_disabled.lua | 15 |
+| test_eol.lua | 2 |
+| test_layout_cap.lua | 13 |
+| **Total** | **710** |
