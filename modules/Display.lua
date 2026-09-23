@@ -433,16 +433,16 @@ NS.Display = NS.Display or {}
 if NS.NewBusTarget then
     local ev = NS.NewBusTarget()
     NS.Display.__ev = ev
-    -- All three through NS.BusSubscribe (core/Bus.lua): `ev` is a file-local, so the register is
-    -- the only thing that can reach these subscriptions to unregister them when the addon stands
-    -- down (slash-commands-§7).
-    NS.BusSubscribe(ev, NS.MSG.APPEARANCE, function()
+    -- `ev` is a TRACKED target (core/Bus.lua, LibKa0s-Bus-1.0): it is a file-local, so the bus
+    -- record is the only thing that can reach these subscriptions to unregister them when the
+    -- addon stands down (slash-commands-§7).
+    ev:RegisterMessage(NS.MSG.APPEARANCE, function()
         NS.ForEachUnit(function(unit) NS.UpdateBarAppearance(unit) end)
     end)
-    NS.BusSubscribe(ev, NS.MSG.VISIBILITY, function()
+    ev:RegisterMessage(NS.MSG.VISIBILITY, function()
         NS.ForEachUnit(function(unit) NS.ApplyVisibility(unit) end)
     end)
-    NS.BusSubscribe(ev, NS.MSG.POSITION, function()
+    ev:RegisterMessage(NS.MSG.POSITION, function()
         NS.ForEachUnit(function(unit) NS.RestoreBarPosition(unit) end)
     end)
 end

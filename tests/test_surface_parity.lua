@@ -1,7 +1,7 @@
 -- tests/test_surface_parity.lua — every degradation stub carries the whole live surface.
 --
--- The addon adopts five LibKa0s seams — Core, DebugLog, Options, Slash and Launcher — and each of
--- the five setup files carries a degradation stub for the install where libs/LibKa0s is missing. A stub is a
+-- The addon adopts six LibKa0s seams — Core, DebugLog, Options, Slash, Launcher and Bus — and each of
+-- the six setup files carries a degradation stub for the install where libs/LibKa0s is missing. A stub is a
 -- second implementation of somebody else's surface, so it drifts the moment the library grows a
 -- member the host starts calling: the live path stays green, and the degraded path raises in
 -- exactly the install the stub exists for.
@@ -195,4 +195,17 @@ test("parity: the Launcher stub carries the whole live surface", function()
   local NS2 = loadDegraded()
   assertTrue(type(NS2.Launcher) == "table", "core/LauncherSetup.lua publishes NS.Launcher either way")
   T.assertSurfaceParity(NS2.Launcher, "LibKa0s-Launcher-1.0", {})
+end)
+
+-- ── Bus ────────────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the Bus stub carries the library's whole surface", function()
+  -- The one stub in this file that mirrors the LIBRARY TABLE, not an instance: core/Bus.lua
+  -- stands the untracked-target stub in for LibStub("LibKa0s-Bus-1.0") and builds its record
+  -- from it either way. tests/run.lua registers the library table under the name. The members it
+  -- owes are `New` and `Catalog` (the major's members-1.json). No ignore list: the surface is two
+  -- members and core/Bus.lua calls both on the degraded path.
+  local NS2 = loadDegraded()
+  assertTrue(type(NS2.__busLib) == "table", "core/Bus.lua publishes its stub for this case")
+  T.assertSurfaceParity(NS2.__busLib, "LibKa0s-Bus-1.0")
 end)

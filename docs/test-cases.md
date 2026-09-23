@@ -264,15 +264,19 @@ badge and any count quoted in the docs must agree with it.
 - [Absorb] transition logs on a non-secret 0->nonzero change
 - ShouldShowBar: unlocking bypasses visibility entirely
 
-### test_bus.lua (7)
+### test_bus.lua (11)
 
 - bus, NewBusTarget, and the message catalog are published
+- the catalog is exactly the five declared messages, walkable with pairs
 - a receiver on its own target hears a message, then is silent after unregister
 - two receivers of one message both fire (no (message,target) clobber)
 - a message payload reaches the receiver after the message name
 - REPAINT routes through Timer to one coalesced repaint
 - APPEARANCE / VISIBILITY / POSITION route to their Display consumers
 - sending a message with no subscribers is a harmless no-op
+- the bus record is LibKa0s-Bus-1.0's, built under the folder name
+- the catalog is strict: an undeclared key raises at the call site
+- with LibKa0s absent, receivers still get a private working target and nothing is recorded
 
 ### test_data.lua (32)
 
@@ -714,13 +718,14 @@ badge and any count quoted in the docs must agree with it.
 - vendored Slash resolves a fallback-only override to its own strings
 - vendored Perf resolves a fallback-only override to its own strings
 
-### test_surface_parity.lua (5)
+### test_surface_parity.lua (6)
 
 - parity: the Core stub publishes everything core/CoreSetup.lua publishes live
 - parity: the DebugLog stub carries the whole live surface
 - parity: the Options stub carries every helper the degraded build can reach
 - parity: the Slash stub carries every dispatcher member the addon calls
 - parity: the Launcher stub carries the whole live surface
+- parity: the Bus stub carries the library's whole surface
 
 ### test_vendor_sync.lua (3)
 
@@ -735,7 +740,7 @@ badge and any count quoted in the docs must agree with it.
 - lintconfig: every files[...] ignore is narrowed to a file or a name
 - lintconfig: no source file carries a bare inline luacheck ignore
 
-### test_disabled.lua (11)
+### test_disabled.lua (15)
 
 - disabled 1: the enabled addon registers something to stand down from
 - disabled 3: writing the enable path leaves NOTHING registered
@@ -746,8 +751,12 @@ badge and any count quoted in the docs must agree with it.
 - disabled 7: a refused feature verb reaches no write seam
 - disabled 8: the left click is refused and writes nothing; the right click still opens the panel
 - disabled 9: re-enabling restores the registration set, from the settings as they are NOW
+- disabled 9: the bus subscriptions come back as the same five pairs, and each still reaches its consumer once
 - disabled 10: releasing one hold does not stand up an addon the other still holds down
 - disabled 10: the perf hold is session-only and the disabled hold is the stored path
+- bus: a registration made while stood down is recorded, and not live until the stand-up
+- bus: a subscription its owner dropped is not brought back by a stand-up
+- bus: the stand-down and stand-up counts are the record's, and the latch drives both
 
 ### test_eol.lua (2)
 
@@ -786,7 +795,7 @@ badge and any count quoted in the docs must agree with it.
 | test_timer.lua | 12 |
 | test_perf.lua | 33 |
 | test_visibility.lua | 22 |
-| test_bus.lua | 7 |
+| test_bus.lua | 11 |
 | test_data.lua | 32 |
 | test_display.lua | 64 |
 | test_helpers.lua | 70 |
@@ -798,10 +807,10 @@ badge and any count quoted in the docs must agree with it.
 | test_docs.lua | 4 |
 | test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
-| test_surface_parity.lua | 5 |
+| test_surface_parity.lua | 6 |
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
-| test_disabled.lua | 11 |
+| test_disabled.lua | 15 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **674** |
+| **Total** | **683** |

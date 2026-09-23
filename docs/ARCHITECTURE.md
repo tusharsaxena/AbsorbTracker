@@ -66,7 +66,7 @@ time, guarded with `if NS.X then … end` where the load-order coupling is soft.
 | `core/Constants.lua` | `NS.Constants`: fallback texture/border/font paths, `FONT_MONO` / `FONT_MONO_NAME` (debug console, resolved from the Media seam), `LOGO_PATH` (the About page's 300×300 logo) and `LOGO_ICON_PATH` (the 128×128 icon the TOC's `## IconTexture`, the minimap button and a broker display all read — a different file, layout-§4), plus `MINIMAP_PATH`, the one stored path that lives in the global store. |
 | `core/Namespace.lua` | `NS.name` / `NS.version` / `NS.PREFIX` (cyan `[AT]`) and the hot-path `floor`/`max` caches. |
 | `core/State.lua` | `NS.State` — session-only runtime state (the debug flag; never persisted). |
-| `core/Bus.lua` | The closed cross-module message bus: `NS.bus` (shared publish target), `NS.NewBusTarget()` (one per receiver), and the `NS.MSG` catalog (`REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION`/`UNITS`). |
+| `core/Bus.lua` | The closed cross-module message bus, and the `LibKa0s-Bus-1.0` seam: `NS.bus` (shared publish target, host code), `NS.busRecord` (the library's stand-down record), `NS.NewBusTarget()` (one tracked target per receiver), `NS.BusStandDown()` / `NS.BusStandUp()` (the latch's two calls), and the `NS.MSG` catalog (`REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION`/`UNITS`), declared through `Bus.Catalog`. With the library absent, the untracked-target stub. |
 | `core/CoreSetup.lua` | Wires the addon into `LibKa0s-Core-1.0` — the guard, the stringifier and the printer are vendored library code, not addon code. Publishes `NS.Print` (prefixed chat, built via `lib:New{...}` with the `[AT]` prefix passed as a function), `NS.Util.print` (the same function object), `NS.IsConcatSafe` and `NS.SafeToString`, with working fallbacks when the library is absent. The secret-safe debug sink is `NS.Debug` (published by `core/DebugLogSetup.lua`); every debug arg routes through `NS.SafeToString`. |
 | `core/PerfSetup.lua` | Wires the addon into `LibKa0s-Perf-1.0` (issue #17) — the probe itself is a vendored library, not addon code. Builds `NS.Perf` via `lib:New{...}`: the addon's name/version/SavedVariables global, the bucket declarations (order + nesting), and the `suspend`/`resume` pair that makes the addon inert without a `/reload`. Loads immediately after `core/CoreSetup.lua`, before any module takes `local Perf = NS.Perf` as an upvalue. See [Performance & Profiler Attribution](#performance--profiler-attribution) below. |
 | `core/Data.lua` | The AceDB read/write seam (`GetSetting`/`SetSetting` — dotted-path aware, so `units.target.barWidth` and flat `locked` both work), LSM fetchers with fallbacks (each takes a `unit`, resolved through `NS.Units.Get`), and the class-color-aware color resolvers (each takes a `unit`; the class color is that unit's own, per options-ui-§17, and the background keeps its own darkened per-class palette — the one surface §17 exempts from the shared `NS.ResolveColor`). |
@@ -221,6 +221,19 @@ subscribes on its **own** target from `NS.NewBusTarget()` (never two receivers o
 CallbackHandler keys callbacks by `(message, target)`, so a shared target would silently overwrite —
 anti-pattern #32). All messages are payload-free: the consumer re-reads live state (settings,
 absorbs) when it fires.
+
+**The seam names `LibKa0s-Bus-1.0`** (adopted at the LibKa0s v1.55.0 re-vendor; contract in
+LibKa0s `docs/api/Bus/version-1-docs.md`). The publisher stays host code: sending is not a
+registration. Every target `NS.NewBusTarget()` hands out is a **tracked** target from the
+library's record (`NS.busRecord = Bus:New{ name, isDown }`, `isDown` asking `NS.IsStoodDown()`
+through a closure because the latch loads after the bus), so the latch's `StandDown` /
+`StandUp` reach every receiver's registrations through `NS.BusStandDown()` / `NS.BusStandUp()`
+and no module learns that the latch exists. A registration made while stood down is recorded and
+goes live at the stand-up; an unregister while up is forgotten, so a stand-up never resurrects it.
+`NS.MSG` is declared once through `Bus.Catalog`, which validates each `Ka0s_AbsorbTracker_<Event>`
+name at load and answers a strict copy: reading an undeclared key raises at the call site, for a
+publisher as well as a subscriber. With LibKa0s absent, `core/Bus.lua` falls back to the
+untracked-target stub `options-ui-§1` names (see [Known Limitations](#known-limitations)).
 
 | Message (`NS.MSG`) | Sender | Consumer | Effect |
 |---|---|---|---|
@@ -405,9 +418,10 @@ one was written.
   and the two swap events — actually `UnregisterEvent`ed.
 - **All three per-unit `RegisterUnitEvent` frames**, `UnregisterAllEvents`'d.
 - **Every bus subscription.** A `RegisterMessage` is a registration like any other. The subscribing
-  modules hold their targets as file-locals, so `core/Bus.lua` keeps a register — `NS.BusSubscribe`
-  records the triple and `NS.BusUnsubscribeAll` / `NS.BusResubscribeAll` drive it — and no module
-  learns that the latch exists.
+  modules hold their targets as file-locals, so the record lives with the factory that made them:
+  every `NS.NewBusTarget()` target is tracked by `LibKa0s-Bus-1.0`, `StandDown` calls
+  `NS.BusStandDown()` last and `StandUp` calls `NS.BusStandUp()` first, and no module learns that
+  the latch exists.
 - **Every timer**: the coalescing repaint (`NS.CancelPendingRepaint`) and the `/at test` preview
   hold (`NS.ClearPreview`).
 - **The bars, at the source.** `StandDown` publishes `VISIBILITY` *before* it takes the bus down, and
@@ -534,6 +548,12 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   key went with the call site. Everything else is hardcoded English.
 - **Three bars — player, target, focus.** Group / raid / arena / boss units are out of scope
   ([scope.md](./scope.md)).
+- **With LibKa0s missing, a disable leaves the bus subscriptions live.** `core/Bus.lua`'s
+  untracked-target stub (`options-ui-§1`) still gives every receiver a private target, but it
+  records nothing, so the latch's stand-down has no record to take down: the five bus
+  subscriptions stay registered on a disabled addon. The show ladder and `NS.RequestRepaint` still
+  answer to the latch, so nothing is drawn; what is lost is the registration-level stand-down on
+  that one install shape, which is also already without Options, Slash and the rest of LibKa0s.
 
 ## Documentation map
 

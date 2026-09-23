@@ -19,6 +19,22 @@ test("bus, NewBusTarget, and the message catalog are published", function()
   assertEqual(NS.MSG.POSITION,   "Ka0s_AbsorbTracker_PositionChanged")
 end)
 
+test("the catalog is exactly the five declared messages, walkable with pairs", function()
+  -- The whole declaration, not four spot checks: a sixth key, or a fifth that moved its wire name,
+  -- is a message some receiver or doc no longer agrees with. Walked with `pairs` so the case also
+  -- pins that the catalog stays enumerable, which docs/ARCHITECTURE.md's table relies on.
+  local seen = {}
+  for k, v in pairs(NS.MSG) do seen[#seen + 1] = k .. "=" .. v end
+  table.sort(seen)
+  assertEqual(table.concat(seen, ", "), table.concat({
+    "APPEARANCE=Ka0s_AbsorbTracker_AppearanceChanged",
+    "POSITION=Ka0s_AbsorbTracker_PositionChanged",
+    "REPAINT=Ka0s_AbsorbTracker_RepaintRequested",
+    "UNITS=Ka0s_AbsorbTracker_UnitsChanged",
+    "VISIBILITY=Ka0s_AbsorbTracker_VisibilityChanged",
+  }, ", "))
+end)
+
 test("a receiver on its own target hears a message, then is silent after unregister", function()
   local got = 0
   local target = NS.NewBusTarget()
@@ -95,4 +111,45 @@ test("sending a message with no subscribers is a harmless no-op", function()
   local ok = pcall(function() NS.bus:SendMessage("AT_TEST_Nobody_Listening") end)
   assertTrue(ok, "SendMessage with no registrant does not error")
   assertFalse(false, "sanity")
+end)
+
+-- ── LibKa0s-Bus-1.0 (adopted at the LibKa0s v1.55.0 re-vendor) ────────────────────────────────
+
+test("the bus record is LibKa0s-Bus-1.0's, built under the folder name", function()
+  -- The live build must be on the library, not on the stub: a stub that answered here would keep
+  -- every case above green while a disable left the subscriptions live.
+  local lib = T.mocks.LibStub("LibKa0s-Bus-1.0", true)
+  assertTrue(lib ~= nil, "the vendored Bus major registered in this build")
+  assertTrue(NS.__busLib == lib, "core/Bus.lua resolved the library, not its stub")
+  assertEqual(NS.busRecord.name, "AbsorbTracker", "the record carries the folder name")
+end)
+
+test("the catalog is strict: an undeclared key raises at the call site", function()
+  -- Catalog's point for a PUBLISHER: `NS.bus:SendMessage(NS.MSG.REPIANT)` used to hand
+  -- CallbackHandler a nil, which it drops without a word. Now the read itself raises.
+  local err = T.assertError(function() return NS.MSG.REPIANT end,
+    "reading an undeclared message key must raise")
+  assertTrue(err:find("REPIANT", 1, true) ~= nil, "and the error names the key: " .. err)
+  T.assertError(function() NS.MSG.NEW_ONE = "Ka0s_AbsorbTracker_NewOne" end,
+    "adding a key after load must raise too")
+end)
+
+test("with LibKa0s absent, receivers still get a private working target and nothing is recorded", function()
+  -- The untracked-target stub (options-ui-§1). What the degraded install keeps is the receiver rule:
+  -- a private AceEvent target that hears a publish. What it gives up is the record, and it says so
+  -- in numbers rather than by raising: the two latch halves answer 0.
+  local NS2 = dofile("tests/degraded_env.lua")()
+  assertTrue(NS2.__busLib ~= T.mocks.LibStub("LibKa0s-Bus-1.0", true), "the stub, not the library")
+  local target = NS2.NewBusTarget()
+  assertTrue(type(target) == "table" and type(target.RegisterMessage) == "function",
+    "NewBusTarget still answers an AceEvent target")
+  local heard = 0
+  target:RegisterMessage(NS2.MSG.REPAINT, function() heard = heard + 1 end)
+  NS2.bus:SendMessage(NS2.MSG.REPAINT)
+  assertEqual(heard, 1, "and it hears a publish on the degraded bus")
+  target:UnregisterMessage(NS2.MSG.REPAINT)
+  assertEqual(NS2.BusStandDown(), 0, "the stub records nothing to take down")
+  assertEqual(NS2.BusStandUp(), 0, "and replays nothing")
+  assertEqual(NS2.MSG.UNITS, "Ka0s_AbsorbTracker_UnitsChanged", "the catalog is the host's own table")
+  assertEqual(rawget(NS2.MSG, "NOPE"), nil, "a plain table: an undeclared key is simply absent")
 end)

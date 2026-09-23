@@ -356,10 +356,10 @@ end
 NS.Events = NS.Events or {}
 if NS.NewBusTarget then
     NS.Events.__ev = NS.NewBusTarget()
-    -- Through NS.BusSubscribe rather than a bare RegisterMessage, so core/Lifecycle.lua's
-    -- StandDown can actually unregister it (slash-commands-§7 names RegisterMessage among the
-    -- registrations a disabled addon has given up, not gated).
-    NS.BusSubscribe(NS.Events.__ev, NS.MSG.UNITS, function()
+    -- A TRACKED target (core/Bus.lua, LibKa0s-Bus-1.0), so core/Lifecycle.lua's StandDown can
+    -- actually unregister it (slash-commands-§7 names RegisterMessage among the registrations a
+    -- disabled addon has given up, not gated).
+    NS.Events.__ev:RegisterMessage(NS.MSG.UNITS, function()
         if NS.addon and NS.addon.SyncUnitEventFrames then
             NS.addon:SyncUnitEventFrames()
         end
