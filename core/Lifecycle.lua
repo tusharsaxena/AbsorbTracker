@@ -171,8 +171,8 @@ if not lib then
         end,
         Reevaluate = function() return reevaluate() end,
         PrintHolds = function(self)
-            NS.Print(("%s: %s"):format(addonName,
-                #self:Holds() > 0 and table.concat(self:Holds(), ", ") or "no holds"))
+            NS.Print(addonName .. ":",
+                #self:Holds() > 0 and table.concat(self:Holds(), ", ") or "no holds")
             return true
         end,
     }

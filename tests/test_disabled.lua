@@ -567,3 +567,27 @@ test("bus: the stand-down and stand-up counts are the record's, and the latch dr
   assertEqual(NS.BusStandUp(), 0, "while a hold is taken a bare stand-up of the bus is refused")
   enable()
 end)
+
+test("lifecycle stub: PrintHolds names the addon and its holds as one space-joined line", function()
+  -- core/Lifecycle.lua's library-absent hold set hands the printer two PARTS -- "<addon>:" and the
+  -- hold list -- rather than a pre-formatted line (events-frames-taint-§8's SHOULD half). NS.Print
+  -- joins its parts with one space, so the line is byte-identical to the old "%s: %s" format.
+  -- red under: a changed separator (e.g. passing "AbsorbTracker: " with its own trailing space).
+  local NS2, M2 = dofile("tests/degraded_env.lua")()
+  NS2.db = { profile = NS2.Units.DeepCopy(NS2.defaults.profile), global = { minimap = {} } }
+  function NS2.db.GetCurrentProfile() return "Default" end
+  M2.__resetPrinted()
+  NS2.lifecycle:PrintHolds()
+  NS2.lifecycle:Hold("zeta")
+  NS2.lifecycle:Hold("alpha")
+  NS2.lifecycle:PrintHolds()
+  NS2.lifecycle:Release("zeta")
+  NS2.lifecycle:Release("alpha")
+  local out = {}
+  for _, line in ipairs(M2.__printed()) do
+    if line:find("AbsorbTracker:", 1, true) then out[#out + 1] = line end
+  end
+  assertEqual(#out, 2, "two PrintHolds lines: " .. table.concat(M2.__printed(), " / "))
+  assertEqual(out[1], NS2.PREFIX .. " AbsorbTracker: no holds")
+  assertEqual(out[2], NS2.PREFIX .. " AbsorbTracker: alpha, zeta")
+end)

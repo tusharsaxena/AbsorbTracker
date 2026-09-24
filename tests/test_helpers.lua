@@ -1010,6 +1010,37 @@ test("a raise inside the chrome block costs the block, not the page", function()
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
+test("a raise in the unit panel body is reported as one space-joined chat line", function()
+  -- settings/UnitPanel.lua hands the printer the label and the raw error as two PARTS rather than a
+  -- pre-formatted line (events-frames-taint-§8's SHOULD half); NS.Print SafeToStrings each part and
+  -- joins them with one space, so the line is byte-identical to the old ("...: %s"):format.
+  -- red under: a changed separator (the label passed with its own trailing space prints two).
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+
+  local out = {}
+  local cf  = T.mocks.DEFAULT_CHAT_FRAME
+  local oldMsg = rawget(cf, "AddMessage")
+  cf.AddMessage = function(_, msg) out[#out + 1] = msg end
+  local saved = NS.SchemaForPage
+  NS.SchemaForPage = function() error("simulated body failure", 0) end
+  local ok = pcall(NS.Helpers.RenderUnitPanel, ctx, "appearance")
+  NS.SchemaForPage = saved
+  cf.AddMessage = oldMsg
+
+  assertTrue(ok, "RenderUnitPanel must not raise")
+  local hit
+  for _, line in ipairs(out) do
+    if line:find("Unit panel render failed", 1, true) then hit = line end
+  end
+  assertTrue(hit ~= nil, "the failure must be reported: " .. table.concat(out, " / "))
+  assertEqual(hit:match("Unit panel render failed.*$"), "Unit panel render failed: simulated body failure")
+  assertTrue(hit:sub(-#"simulated body failure") == "simulated body failure", "nothing trails the error")
+
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+end)
+
 test("the chrome block's widgets go back to AceGUI's pool, after the render and not before",
   function()
   -- ClearScroll gets this for free (ReleaseChildren releases everything in the scroll); the chrome

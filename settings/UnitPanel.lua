@@ -406,6 +406,6 @@ function Helpers.RenderUnitPanel(ctx, pageKey)
     releaseStaleChromeWidgets(ctx)
 
     if not ok then
-        NS.Print(("Unit panel render failed: %s"):format(NS.SafeToString(err)))
+        NS.Print("Unit panel render failed:", err)
     end
 end

@@ -179,12 +179,13 @@ badge and any count quoted in the docs must agree with it.
 - MediaSetup: the LSM registration happens at file load, not at OnInitialize
 - MediaSetup: with no library there is no art, and that is not an error
 
-### test_debuglog.lua (12)
+### test_debuglog.lua (13)
 
 - the console's font resolves through the Media seam to the LibKa0s payload
 - the descriptor tells the library the FOLDER name, not just the frame name
 - and it takes that folder name from the vararg, not from a hand-typed literal
 - the debug flag the library reads and writes is NS.State.debug
+- the library-absent stub's SetEnabled acks the new state as one space-joined line
 - NS.Debug is published and reaches the console buffer
 - our title and our font reach the descriptor
 - the console checkbox the General page renders is wired to this addon
@@ -425,7 +426,7 @@ badge and any count quoted in the docs must agree with it.
 - degraded: with no widget the default stack reserves no strip room
 - an appearance pass over a bar with no handle raises nothing
 
-### test_helpers.lua (70)
+### test_helpers.lua (71)
 
 - CreatePanel returns a ctx wired to a panel, a body and an empty refresher list
 - the canvas frame carries OnCommit, OnDefault and OnRefresh from the library
@@ -483,6 +484,7 @@ badge and any count quoted in the docs must agree with it.
 - the page-wide mirror controls sit in the chrome block, never in the scroll
 - the chrome block reserves the band its second row needs
 - a raise inside the chrome block costs the block, not the page
+- a raise in the unit panel body is reported as one space-joined chat line
 - the chrome block's widgets go back to AceGUI's pool, after the render and not before
 - the mirrored hint is a laid-out row followed by a ROW_VSPACER
 - ClearScroll resets ctx.refreshers, so repeated renders do not leak stale closures
@@ -828,7 +830,7 @@ badge and any count quoted in the docs must agree with it.
 - events: a name IsEventValid refuses never reaches the target
 - events: /at debug events lists the rejected names, and 'none' once they are gone
 
-### test_disabled.lua (16)
+### test_disabled.lua (17)
 
 - disabled 1: the enabled addon registers something to stand down from
 - disabled 3: writing the enable path leaves NOTHING registered
@@ -846,6 +848,7 @@ badge and any count quoted in the docs must agree with it.
 - bus: a registration made while stood down is recorded, and not live until the stand-up
 - bus: a subscription its owner dropped is not brought back by a stand-up
 - bus: the stand-down and stand-up counts are the record's, and the latch drives both
+- lifecycle stub: PrintHolds names the addon and its holds as one space-joined line
 
 ### test_eol.lua (2)
 
@@ -879,7 +882,7 @@ badge and any count quoted in the docs must agree with it.
 | test_envsetup.lua | 7 |
 | test_coresetup.lua | 6 |
 | test_mediasetup.lua | 10 |
-| test_debuglog.lua | 12 |
+| test_debuglog.lua | 13 |
 | test_slash.lua | 14 |
 | test_timer.lua | 12 |
 | test_perf.lua | 33 |
@@ -888,7 +891,7 @@ badge and any count quoted in the docs must agree with it.
 | test_data.lua | 32 |
 | test_display.lua | 60 |
 | test_draghandle.lua | 22 |
-| test_helpers.lua | 70 |
+| test_helpers.lua | 71 |
 | test_launcher.lua | 22 |
 | test_optionssetup.lua | 15 |
 | test_slashcmds.lua | 91 |
@@ -902,7 +905,7 @@ badge and any count quoted in the docs must agree with it.
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_events.lua | 5 |
-| test_disabled.lua | 16 |
+| test_disabled.lua | 17 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **763** |
+| **Total** | **766** |
