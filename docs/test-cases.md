@@ -696,7 +696,7 @@ badge and any count quoted in the docs must agree with it.
 - re-locking the bars clears a live /at debug hold preview
 - /at debug hold refuses while the addon is disabled: one line, no paint, no hold
 
-### test_widgets.lua (55)
+### test_widgets.lua (57)
 
 - NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
 - a bool row renders a CheckBox labeled from the schema
@@ -750,6 +750,8 @@ badge and any count quoted in the docs must agree with it.
 - a second OnShow rebuilds the panel body without stacking duplicate widgets
 - the General page draws its two groups as a tab strip, Master controls first
 - clicking Bars swaps the rows and leaves the button pair on Master controls
+- every unit's Appearance strip is its schema's groups, and each tab draws that group's rows
+- a mirrored unit's every tab draws the hint and none of the appearance rows
 - showing every page builds it without error
 - the main page's About content renders on its first OnShow
 - re-rendering the About page replaces its body rather than stacking a second copy
@@ -890,7 +892,7 @@ badge and any count quoted in the docs must agree with it.
 | test_slashcmds.lua | 91 |
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 15 |
-| test_widgets.lua | 55 |
+| test_widgets.lua | 57 |
 | test_docs.lua | 4 |
 | test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
@@ -901,4 +903,4 @@ badge and any count quoted in the docs must agree with it.
 | test_disabled.lua | 16 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **759** |
+| **Total** | **761** |

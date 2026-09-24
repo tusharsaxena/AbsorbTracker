@@ -847,6 +847,10 @@ test("the General page draws its two groups as a tab strip, Master controls firs
     "options-ui-§15: the General page opens on Master controls, and it is the FIRST tab")
   assertFalse(tabs[1].__enabled, "the first tab is the selected one")
   assertTrue(tabs[2].__enabled, "and the second is clickable")
+  -- Only that the band is reserved. The strip is library-drawn (O.TabStrip, reached here through
+  -- O.RenderTabbedSchema), so the wrap-invariance pin -- the reserved band and every row's y offset
+  -- identical for every tab selection of a wrapped strip -- is LibKa0s's own suite's and is not
+  -- duplicated here (options-ui-§13 Testing, testing-§8).
   assertTrue(ctx.chromeHeight > 0, "the strip reserves a band, so the first row clears it")
 
   local labels = {}
@@ -902,6 +906,131 @@ test("clicking Bars swaps the rows and leaves the button pair on Master controls
 
   tabButtons(ctx)[1]:__fire("OnClick")   -- leave the page as the rest of the suite found it
   assertEqual(ctx.activeTab, "Master controls")
+end)
+
+-- ── The Appearance page's strip: the host's own composition, pinned ─────────────────────────
+--
+-- settings/UnitPanel.lua draws this strip with H.TabStrip itself rather than handing the body to
+-- H.RenderTabbedSchema. The v1.56.0 opts (tabs, disabledFor, disabledNotice) were weighed against
+-- it and declined: the library's partition makes a tab of the mirror row's `skipRender` "Link"
+-- group, and its disabledFor draws the rows disabled under the notice instead of replacing them
+-- with it (GitHub issue #32, re-checked at the next Options minor).
+-- These cases pin what the host composition draws, per unit and per tab, so an adoption at the
+-- next Options minor has a characterization to stay green against.
+
+-- The group order the schema declares for a unit, read straight off the rows: the strip's
+-- expected keys. `skipRender` rows name a subject and draw no tab.
+local function appearanceGroups(unit)
+  local order, labels = {}, {}
+  for _, row in ipairs(NS.SchemaForPage("appearance", unit)) do
+    if row.group and not row.skipRender then
+      if not labels[row.group] then
+        labels[row.group] = {}
+        order[#order + 1] = row.group
+      end
+      if row.label then labels[row.group][row.label] = true end
+    end
+  end
+  return order, labels
+end
+
+local function scrollLabels(ctx)
+  local labels, texts = {}, {}
+  local function walk(w)
+    for _, child in ipairs(w.children or {}) do
+      if child.labelText then labels[child.labelText] = true end
+      if child.text then texts[child.text] = true end
+      walk(child)
+    end
+  end
+  walk(ctx.scroll)
+  return labels, texts
+end
+
+local MIRROR_HINT = "Linked to Player \226\128\148 uncheck to customize."
+
+-- Render the Appearance page for `unit` with its mirror flag forced to `mirrored`, recording the
+-- spec every H.TabStrip call is handed. Restores the flag, the unit and the page afterwards.
+local function withAppearance(unit, mirrored, body)
+  local panel = T.mocks.__subcategories["Appearance"]
+  panel:__fire("OnShow")
+  local ctx = Helpers.__lastUnitCtx
+  local unitCfg = NS.db.profile.units[unit]
+  local savedMirror = unitCfg.mirror
+  if unit ~= "player" then unitCfg.mirror = mirrored end
+  local realStrip, specs = Helpers.TabStrip, {}
+  Helpers.TabStrip = function(c, spec, ...)
+    specs[#specs + 1] = spec
+    return realStrip(c, spec, ...)
+  end
+  ctx.unit, ctx.activeTab = unit, nil
+  local ok, err = pcall(function()
+    Helpers.RenderUnitPanel(ctx, "appearance")
+    body(ctx, specs)
+  end)
+  Helpers.TabStrip = realStrip
+  unitCfg.mirror = savedMirror
+  ctx.unit, ctx.activeTab = "player", nil
+  Helpers.RenderUnitPanel(ctx, "appearance")
+  if not ok then error(err, 0) end
+end
+
+test("every unit's Appearance strip is its schema's groups, and each tab draws that group's rows", function()
+  -- red under: partitionTabs keeping `skipRender` rows (a sixth "Link" tab on target and focus),
+  -- or the tab click re-rendering the rows without retargeting them.
+  for _, unit in ipairs(NS.Units.LIST) do
+    withAppearance(unit, false, function(ctx, specs)
+      local groups, rowLabels = appearanceGroups(unit)
+      assertEqual(#groups, 5, unit .. ": Size, Bar, Background, Border and Text")
+      local keys = {}
+      for i, tab in ipairs(specs[#specs].tabs) do keys[i] = tab.key end
+      assertEqual(table.concat(keys, ","), table.concat(groups, ","),
+        unit .. ": the strip's keys are the schema's groups, in declaration order")
+
+      for i, group in ipairs(groups) do
+        tabButtons(ctx)[i]:__fire("OnClick")
+        assertEqual(ctx.activeTab, group, unit .. ": the click retargets the page")
+        local shown = scrollLabels(ctx)
+        -- This tab's rows are all on screen, and no other tab's is. Keyed by label, and a label
+        -- can recur across groups ("Use class color" is on four tabs), so a row counts as another
+        -- tab's only when this tab has no row of that label.
+        for g, set in pairs(rowLabels) do
+          for label in pairs(set) do
+            local own = rowLabels[group][label] == true
+            assertEqual(shown[label] == true, own,
+              ("%s / %s: %s row %q is drawn only on its own tab"):format(unit, group, g, label))
+          end
+        end
+        assertTrue(ctx.__bannerHeight and ctx.__bannerHeight > 0,
+          unit .. " / " .. group .. ": the chrome block records its share of the band")
+        assertTrue(ctx.chromeHeight >= ctx.__bannerHeight,
+          unit .. " / " .. group .. ": the strip's reservation includes the block above it")
+      end
+    end)
+  end
+end)
+
+test("a mirrored unit's every tab draws the hint and none of the appearance rows", function()
+  -- red under: renderUnitPanelBody ignoring NS.Units.IsMirrored (the rows come back under the
+  -- strip), or drawing the rows disabled under the hint as RenderTabbedSchema's disabledFor does.
+  for _, unit in ipairs({ "target", "focus" }) do
+    withAppearance(unit, true, function(ctx)
+      local groups, rowLabels = appearanceGroups(unit)
+      assertEqual(#tabButtons(ctx), #groups, unit .. ": the mirrored page keeps its whole strip")
+      for i, group in ipairs(groups) do
+        tabButtons(ctx)[i]:__fire("OnClick")
+        local shown, texts = scrollLabels(ctx)
+        assertTrue(texts[MIRROR_HINT], unit .. " / " .. group .. ": the hint is drawn")
+        for g, set in pairs(rowLabels) do
+          for label in pairs(set) do
+            assertFalse(shown[label], ("%s / %s: %s row %q is not drawn"):format(unit, group, g, label))
+          end
+        end
+        assertTrue(ctx.chromeHeight >= ctx.__bannerHeight and ctx.__bannerHeight > 0,
+          unit .. " / " .. group .. ": the band still reserves the chrome block")
+      end
+    end)
+  end
 end)
 
 test("showing every page builds it without error", function()
