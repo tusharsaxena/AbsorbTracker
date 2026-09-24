@@ -146,13 +146,14 @@ badge and any count quoted in the docs must agree with it.
 - target and focus ship mirrored so a first enable looks like the player bar
 - every per-unit appearance row is in APPEARANCE_KEYS, and vice versa
 
-### test_envsetup.lua (6)
+### test_envsetup.lua (7)
 
 - EnvSetup: NS.Meta asks about THIS addon's folder, not its title or its frame prefix
 - EnvSetup: NS.Meta degrades to nil when the client exposes no manifest reader
 - EnvSetup: NS.Version prefers the TOC over this addon's own constant
 - EnvSetup: NS.Version falls back to this addon's own constant
 - EnvSetup degraded: an install with no LibKa0s still reads its own TOC
+- EnvSetup degraded: a legacy-only surface yields nil, and the dead global is never called
 - EnvSetup: the deleted shim is gone, and so is the file that was only ever the shim
 
 ### test_coresetup.lua (6)
@@ -874,7 +875,7 @@ badge and any count quoted in the docs must agree with it.
 | test_schema.lua | 59 |
 | test_database.lua | 38 |
 | test_units.lua | 17 |
-| test_envsetup.lua | 6 |
+| test_envsetup.lua | 7 |
 | test_coresetup.lua | 6 |
 | test_mediasetup.lua | 10 |
 | test_debuglog.lua | 12 |
@@ -903,4 +904,4 @@ badge and any count quoted in the docs must agree with it.
 | test_disabled.lua | 16 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **761** |
+| **Total** | **762** |

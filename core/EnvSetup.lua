@@ -6,7 +6,7 @@
 -- ---------------------------------------------------------------------------
 --
 -- The whole of core/Compat.lua, which is why that file is gone rather than emptied. It held one
--- function, `Compat.GetAddOnMetadata`, and its own header called itself "the single seam for the
+-- function, the TOC-metadata reader, and its own header called itself "the single seam for the
 -- deprecated addon-metadata API". The seam is still single; it just lives in the library now, and a
 -- shim file kept alive with nothing in it is a place for the next shim to land without anyone
 -- asking whether it should.
@@ -32,19 +32,27 @@
 -- WHAT A DEGRADED INSTALL GETS
 -- ---------------------------------------------------------------------------
 --
--- Exactly what this addon got before the library existed. Both helpers fall back to the same ladder
--- the deleted shim ran — C_AddOns first, the deprecated global second, nil last — so an install
--- missing LibKa0s still reads its own TOC for `/at version` and for the About page's Notes line.
--- That is why the fallbacks are written out rather than left to answer nil: this is a seam, not a
--- feature. tests/test_envsetup.lua drives that arm through tests/degraded_env.lua, as a real load
--- with libs/LibKa0s/*.lua absent rather than as a hand-stub.
+-- Everything this addon got before the library existed, bar one dead rung. Both helpers fall back
+-- to Env, then C_AddOns, then nil, so an install missing LibKa0s still reads its own TOC for
+-- `/at version` and for the About page's Notes line. That is why the fallbacks are written out
+-- rather than left to answer nil: this is a seam, not a feature. tests/test_envsetup.lua drives that
+-- arm through tests/degraded_env.lua, as a real load with libs/LibKa0s/*.lua absent rather than as
+-- a hand-stub.
+--
+-- The deleted shim also carried a third rung, the pre-11.0 bare global, and so did this file until
+-- the compat audit of 2026-09-23. No client the TOC's `## Interface` line admits provides it — the
+-- reader survives only as C_AddOns' member — so the rung could never reach a working call. compat
+-- (WowAddonStandards v2.65.0) rules a dead rung deleted rather than kept or shimmed, and deleting it
+-- brings no core/Compat.lua back: this addon makes no deprecated or version-variant client call
+-- outside LibKa0s's majors, which is that section's applicability condition.
 --
 -- ---------------------------------------------------------------------------
 -- WHAT THE SEAM MUST NOT CHANGE
 -- ---------------------------------------------------------------------------
 --
--- Any answer. The deleted shim already agreed with the library rung for rung, so a difference in
--- what comes back here is a defect in the adoption rather than an improvement.
+-- Any answer on a client the TOC admits. The deleted shim agreed with the library on every live
+-- rung, so a difference in what comes back here is a defect in the adoption rather than an
+-- improvement.
 --
 -- Nothing here is resolved at load beyond the LibStub lookup, so this file's TOC position is
 -- conventional rather than load-bearing — unlike core/MediaSetup.lua's, which is, and says so.
@@ -66,9 +74,6 @@ function NS.Meta(field)
     if Env then return Env.GetAddOnMetadata(addonName, field) end
     if C_AddOns and C_AddOns.GetAddOnMetadata then
         return C_AddOns.GetAddOnMetadata(addonName, field)
-    end
-    if GetAddOnMetadata then
-        return GetAddOnMetadata(addonName, field)
     end
     return nil
 end

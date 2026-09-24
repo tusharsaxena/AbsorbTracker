@@ -81,15 +81,15 @@ NS.Constants.LOGO_PATH         -- media/logos/ about-page logo TGA
 
 ### EnvSetup (`core/EnvSetup.lua`)
 
-The `LibKa0s-Env-1.0` seam, and the **only** file that names a deprecated/varying WoW API. Every other module reads the TOC through it. It replaced the whole of `core/Compat.lua`, whose single export was the same metadata reader nine addons in the collection had each written for themselves — so that file is gone rather than emptied.
+The `LibKa0s-Env-1.0` seam, and the **only** file that reads TOC metadata. Every other module reads the TOC through it. It replaced the whole of `core/Compat.lua`, whose single export was the same metadata reader nine addons in the collection had each written for themselves — so that file is gone rather than emptied.
 
 ```lua
-NS.Meta(field)    -- one TOC field, or nil. Env.GetAddOnMetadata, then C_AddOns,
-                  -- then the pre-11.0 _G global, then nil
+NS.Meta(field)    -- one TOC field, or nil. Env.GetAddOnMetadata, then
+                  -- C_AddOns.GetAddOnMetadata, then nil
 NS.Version()      -- the TOC Version, falling back to NS.version, then "?". Never nil
 ```
 
-Both are told this addon's **folder name** — the file's first vararg — because LibKa0s is vendored and a copy cannot know which folder it sits in. Both write their fallback ladder out in full, so an install missing the library reads its own TOC exactly as before: this is a seam, not a feature.
+Both are told this addon's **folder name** — the file's first vararg — because LibKa0s is vendored and a copy cannot know which folder it sits in. Both write their fallback ladder out in full, so an install missing the library still reads its own TOC through `C_AddOns`: this is a seam, not a feature. The pre-11.0 bare-global rung the deleted shim also ran is gone: no client the TOC admits provides it, and compat rules a dead rung deleted, not shimmed.
 
 ### State (`core/State.lua`)
 

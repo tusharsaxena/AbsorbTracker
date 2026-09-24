@@ -104,9 +104,9 @@ Rules the code depends on that reading one file will not reveal. The visual/tain
   `NS.Units.Get(unit, key)`, so mirror resolution ("does this unit read its own config or the
   player's?") lives in exactly one place. Do not add a second read site.
 - **TOC metadata goes through `core/EnvSetup.lua`.** `NS.Meta(field)` and `NS.Version()` are the
-  only metadata accessors; never call `GetAddOnMetadata` / `C_AddOns.GetAddOnMetadata` inline. The
-  deprecated-global rung still exists — it is the seam's own fallback, for an install with no
-  LibKa0s — and that file is the only place it may be spelled.
+  only metadata accessors; never call `C_AddOns.GetAddOnMetadata` inline. The seam's own fallback,
+  for an install with no LibKa0s, is `C_AddOns` then nil; the pre-11.0 bare-global rung was deleted
+  as dead code (compat: no client the TOC admits provides it), so no file spells it.
 - **Every LibKa0s seam publishes the same `NS` names whether the library loaded or not.** The nine
   seams listed under [Module Map](#module-map) each answer with the library's instance or with a
   degradation stub under one name, and the rest of the addon codes against that symmetry rather than
@@ -657,7 +657,7 @@ They are frozen history: never treat them as a live requirement, and never "rest
 | `midnight-quirks.md` | Present | Client-version workarounds of the addon’s own |
 | `profiles.md` | Present | AceDB profiles are user-visible — the Profiles settings page |
 | `message-bus.md` | Not applicable | Five messages; threshold is more than ten. The table lives in `ARCHITECTURE.md` → `## Message Bus` |
-| `compat-layer.md` | Not applicable | There is no compat layer left: `core/Compat.lua` held one straight API normalization and it moved to `LibKa0s-Env-1.0`, reached through `core/EnvSetup.lua` |
+| `compat-layer.md` | Not applicable | Not applicable — this addon calls no deprecated or version-variant client API outside LibKa0s's majors (compat, v2.65.0 applicability condition); the TOC metadata read is LibKa0s-Env-1.0's, reached through `core/EnvSetup.lua`, whose library-absent fallback is `C_AddOns` then nil |
 | `debug.md` | Not applicable | The console is `LibKa0s-DebugLog-1.0`’s, with no debug surface of the addon’s own |
 | `perf-analysis/README.md` | Present | The performance harness is wired (`core/PerfSetup.lua`) |
 

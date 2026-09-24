@@ -45,7 +45,6 @@ read_globals = {
   -- is what every other unit frame on the player's screen is already reading (options-ui-§17).
   "RAID_CLASS_COLORS",
   "InCombatLockdown", "UnitAffectingCombat", "Settings", "C_Timer", "C_AddOns",
-  "GetAddOnMetadata",
   -- ms CPU clock backing the perf brackets in core/AbsorbTracker.lua, modules/Display.lua and
   -- modules/Timer.lua. The probe they feed lives in libs/LibKa0s/Perf.lua, which this lint excludes.
   "debugprofilestop",
