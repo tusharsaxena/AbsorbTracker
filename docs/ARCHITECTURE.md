@@ -68,9 +68,9 @@ time, guarded with `if NS.X then … end` where the load-order coupling is soft.
 | `core/MediaSetup.lua` | The `LibKa0s-Media-1.0` seam: `NS.Icon` / `NS.MediaFont` over the vendored payload, and the one `Media.RegisterLSM` call. Loads before `Constants.lua`, which reads it. |
 | `core/Constants.lua` | `NS.Constants`: fallback texture/border/font paths, `FONT_MONO` / `FONT_MONO_NAME` (debug console, resolved from the Media seam), `LOGO_PATH` (the About page's 300×300 logo) and `LOGO_ICON_PATH` (the 128×128 icon the TOC's `## IconTexture`, the minimap button and a broker display all read — a different file, layout-§4), plus `MINIMAP_PATH`, the one stored path that lives in the global store. |
 | `core/Namespace.lua` | `NS.name` / `NS.version` / `NS.PREFIX` (cyan `[AT]`) and the hot-path `floor`/`max` caches. |
-| `core/State.lua` | `NS.State` — session-only runtime state (the debug flag; never persisted). |
+| `core/State.lua` | `NS.State` — session-only runtime state (the debug flag and `rejectedEvents`, the event names the client refused this session; never persisted). |
 | `core/Bus.lua` | The closed cross-module message bus, and the `LibKa0s-Bus-1.0` seam: `NS.bus` (shared publish target, host code), `NS.busRecord` (the library's stand-down record), `NS.NewBusTarget()` (one tracked target per receiver), `NS.BusStandDown()` / `NS.BusStandUp()` (the latch's two calls), and the `NS.MSG` catalog (`REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION`/`UNITS`), declared through `Bus.Catalog`. With the library absent, the untracked-target stub. |
-| `core/CoreSetup.lua` | Wires the addon into `LibKa0s-Core-1.0` — the guard, the stringifier and the printer are vendored library code, not addon code. Publishes `NS.Print` (prefixed chat, built via `lib:New{...}` with the `[AT]` prefix passed as a function), `NS.Util.print` (the same function object), `NS.IsConcatSafe` and `NS.SafeToString`, with working fallbacks when the library is absent. The secret-safe debug sink is `NS.Debug` (published by `core/DebugLogSetup.lua`); every debug arg routes through `NS.SafeToString`. |
+| `core/CoreSetup.lua` | Wires the addon into `LibKa0s-Core-1.0` — the guard, the stringifier and the printer are vendored library code, not addon code. Publishes `NS.Print` (prefixed chat, built via `lib:New{...}` with the `[AT]` prefix passed as a function), `NS.Util.print` (the same function object), `NS.IsConcatSafe`, `NS.SafeToString`, `NS.ResolveColor` and the pcalled event registration helper `NS.SafeRegisterEvent` / `NS.SafeRegisterUnitEvent` / `NS.SafeRegisterEvents`, with working fallbacks when the library is absent. The secret-safe debug sink is `NS.Debug` (published by `core/DebugLogSetup.lua`); every debug arg routes through `NS.SafeToString`. |
 | `core/PerfSetup.lua` | Wires the addon into `LibKa0s-Perf-1.0` (issue #17) — the probe itself is a vendored library, not addon code. Builds `NS.Perf` via `lib:New{...}`: the addon's name/version/SavedVariables global, the bucket declarations (order + nesting), and the `suspend`/`resume` pair that makes the addon inert without a `/reload`. Loads immediately after `core/CoreSetup.lua`, before any module takes `local Perf = NS.Perf` as an upvalue. See [Performance & Profiler Attribution](#performance--profiler-attribution) below. |
 | `core/Data.lua` | The settings read seam (`GetSetting`: the `LibKa0s-Schema-1.0` runtime's read with the shipped defaults behind it, dotted-path aware, so `units.target.barWidth` and flat `locked` both work; every write is `NS.SetByPath`), the minimap row's own inverted `get`/`set` (`NS.MinimapShown` / `NS.SetMinimapShown`), LSM fetchers with fallbacks (each takes a `unit`, resolved through `NS.Units.Get`), and the class-color-aware color resolvers (each takes a `unit`; the class color is that unit's own, per options-ui-§17, and the background keeps its own darkened per-class palette — the one surface §17 exempts from the shared `NS.ResolveColor`). |
 | `core/Database.lua` | `NS:InitDB` (AceDB + profile callbacks) and `NS:RunMigrations` (schema-version seam). |
@@ -540,6 +540,17 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   consumer coalesces `RepaintRequested` into a one-shot AceTimer throttle (`throttleWindow`,
   default 0.1s) — idle = zero repaints, no polling ticker. The `[Combat] left: N events` debug
   rollup counts **player** events only, deliberately, so the printed count matches what it reports.
+- **Every registration is pcalled** (events-frames-taint-§1). All seven call sites — the three in
+  `RegisterLifecycleEvents`, the two `RegisterUnitEvent`s per enabled unit and the two swap events in
+  `SyncUnitEventFrames` — go through `NS.SafeRegisterEvent` / `NS.SafeRegisterUnitEvent`, which
+  `core/CoreSetup.lua` binds to `LibKa0s-Core-1.0`'s helpers (minor 8). The client raises on an
+  unknown event name; through the helper a refused name costs only itself instead of every
+  registration after it. The helper front-gates on `C_EventUtils.IsEventValid` where present, and
+  appends a refused name once to the session list `NS.State.rejectedEvents`; the addon logs it under
+  the `Events` debug tag, appends `, rejected events: <n>` to the `[Init]` summary when the list is
+  non-empty, and prints it on `/at debug events`. `StandUp` inherits all seven through the two
+  methods. With the library absent, `core/CoreSetup.lua`'s stub keeps the `pcall` and the list and
+  drops the front gate. `tests/test_events.lua` drives both halves through the kit's `__badEvents`.
 
 ## Taint Notes
 

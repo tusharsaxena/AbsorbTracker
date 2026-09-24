@@ -103,9 +103,15 @@ NS.DebugLog = lib:New({
     initSummary = function()
         local schemaVer = NS.db and NS.db.global and NS.db.global.schemaVersion
         local profile = NS.db and NS.db.GetCurrentProfile and NS.db:GetCurrentProfile()
-        return ("%s v%s, schema v%s, profile '%s'"):format(
+        local line = ("%s v%s, schema v%s, profile '%s'"):format(
             NS.SafeToString(NS.name), NS.SafeToString(NS.version),
             NS.SafeToString(schemaVer or "?"), NS.SafeToString(profile or "?"))
+        -- Only when something was refused: a clean session's [Init] line stays as it was.
+        local rejected = NS.State and NS.State.rejectedEvents
+        if type(rejected) == "table" and #rejected > 0 then
+            line = line .. (", rejected events: %d"):format(#rejected)
+        end
+        return line
     end,
 
     -- The General page's console checkbox mirrors the window's visibility, so a console opened from

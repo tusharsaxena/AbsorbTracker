@@ -62,9 +62,10 @@ local lib = LibStub and LibStub("LibKa0s-Lifecycle-1.0", true)
 
 -- The five AceEvent registrations core/AbsorbTracker.lua makes on the addon object. Named once,
 -- here, so the teardown cannot fall short of the build-up: RegisterLifecycleEvents owns the first
--- three and SyncUnitEventFrames owns the last two, and a sixth added there without a line here
--- would be the survivor the whole section exists to catch. tests/test_disabled.lua compares the
--- sets rather than trusting this list.
+-- three and SyncUnitEventFrames owns the last two, all five through NS.SafeRegisterEvent (the
+-- LibKa0s-Core helper, so a refused name is simply never registered and needs no teardown), and a
+-- sixth added there without a line here would be the survivor the whole section exists to catch.
+-- tests/test_disabled.lua compares the sets rather than trusting this list.
 local ADDON_EVENTS = {
     "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
     "PLAYER_TARGET_CHANGED", "PLAYER_FOCUS_CHANGED",

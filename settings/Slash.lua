@@ -100,7 +100,7 @@ NS.COMMANDS = {
         end},
     {"toggle",        "Toggle bars on or off \226\128\148 `/at toggle [player|target|focus]`",
         function(rest) runToggle(rest) end},
-    {"debug",         "Toggle the debug console \226\128\148 `on`/`off` enable/disable logging",
+    {"debug",         "Toggle the debug console \226\128\148 `on`/`off` logging, `events`",
         function(rest) runDebug(rest) end},
     {"perf",          "Measure performance \226\128\148 try `/at perf` for the workflow",
         function(rest) runPerf(rest) end},
@@ -236,15 +236,37 @@ function runPerf(rest)
     for _, line in ipairs(NS.Perf.OnCommand(rest or "")) do print(line) end
 end
 
+local function setDebugLogging(on)
+    if NS.DebugLog and NS.DebugLog.SetEnabled then
+        NS.DebugLog:SetEnabled(on)
+    elseif NS.State then
+        NS.State.debug = on
+    end
+end
+
+-- `/at debug events`: every event name the client refused this session (events-frames-taint-§1),
+-- as the SafeRegister helpers recorded it in NS.State.rejectedEvents (core/AbsorbTracker.lua).
+local function printRejectedEvents()
+    local list = NS.State and NS.State.rejectedEvents
+    if type(list) ~= "table" or #list == 0 then
+        print("Rejected events: none")
+    else
+        print("Rejected events: " .. table.concat(list, ", "))
+    end
+end
+
+-- The sub-verbs `/at debug` takes; anything else (including nothing) toggles the console window.
+local DEBUG_VERBS = {
+    on     = function() setDebugLogging(true) end,
+    off    = function() setDebugLogging(false) end,
+    events = printRejectedEvents,
+}
+
 function runDebug(rest)
-    local sub = (rest or ""):match("^(%S*)") or ""
-    sub = sub:lower()
-    if sub == "on" or sub == "off" then
-        if NS.DebugLog and NS.DebugLog.SetEnabled then
-            NS.DebugLog:SetEnabled(sub == "on")
-        elseif NS.State then
-            NS.State.debug = (sub == "on")
-        end
+    local sub = ((rest or ""):match("^(%S*)") or ""):lower()
+    local handler = DEBUG_VERBS[sub]
+    if handler then
+        handler()
         return
     end
     if NS.DebugLog and NS.DebugLog.Toggle then

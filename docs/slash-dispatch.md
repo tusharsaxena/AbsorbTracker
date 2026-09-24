@@ -146,6 +146,7 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 | `/at lock` / `/at unlock` | inline | `NS.SetByPath("locked", …)`, then `echoStored("locked")` — the same helper `setEnabled` uses: it refreshes an open options panel so **Lock frame** moves with the verb, and prints slash-commands-§5's `locked = true` shape read back from the store, so an unlock the row's `onChange` refuses in combat is echoed as the `locked = true` it left behind rather than as a success line. The launcher's LEFT-click is the third writer of the same path, through the same seam (launcher-§2 rung (b), `core/LauncherSetup.lua`). |
 | `/at toggle [player\|target\|focus]` | `runToggle` | Bare: flip **every** bar — all off if any is on, otherwise all on. With a unit token: that one bar. See the note below. |
 | `/at debug [on\|off]` | `runDebug` | Bare toggles the console **window**; `on`/`off` set session logging through `NS.DebugLog:SetEnabled`. |
+| `/at debug events` | `runDebug` → `printRejectedEvents` | Every event name the client refused this session (`NS.State.rejectedEvents`, events-frames-taint-§1), comma-joined, or `Rejected events: none`. |
 | `/at perf [sub]` | `runPerf` → `NS.Perf.OnCommand` | The guided perf run. Sub-verbs are the library's; see [performance.md](./performance.md). |
 | `/at update` | `runUpdate` | Publish `MSG.REPAINT`. |
 | `/at version` | inline | `v<version>` from `NS.Version()`. |
@@ -186,7 +187,8 @@ returns lines for this addon to print. The sub-verbs, and the panel that shares 
 `LibKa0s-Perf-1.0` and are documented once in [performance.md](./performance.md) rather than copied
 here.
 
-**`debug`** — one token, `on` or `off`, sets session logging; anything else (including nothing)
+**`debug`** — `DEBUG_VERBS`, a table keyed by the lowercased token: `on` or `off` sets session
+logging, `events` prints the session's rejected event names; anything else (including nothing)
 toggles the console window. The window and the flag are two different things, which is why the
 Master controls checkbox is not a second switch for the same state.
 

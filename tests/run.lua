@@ -118,6 +118,9 @@ Kit.run{
     "test_surface_parity",
     "test_vendor_sync",
     "test_lintconfig",
+    -- events-frames-taint-§1: the SafeRegister helpers. Straight before test_disabled, and it
+    -- puts the full registration set back, because test_disabled compares registration sets.
+    "test_events",
     -- slash-commands-§7's conformance suite. Last of this addon's own, because it drives the
     -- addon through OnEnable and a full disable/enable cycle on the SHARED environment: run
     -- earlier, its stand-downs would be another suite's mysteriously empty registration set.

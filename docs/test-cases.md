@@ -155,13 +155,14 @@ badge and any count quoted in the docs must agree with it.
 - EnvSetup degraded: an install with no LibKa0s still reads its own TOC
 - EnvSetup: the deleted shim is gone, and so is the file that was only ever the shim
 
-### test_coresetup.lua (5)
+### test_coresetup.lua (6)
 
 - core: the secret seam is the library's, not a private copy
 - core: the perf descriptor names the folder and leaves the close control to the library
 - core: NS.Print carries the [AT] tag and survives a secret arg
 - core: NS.Print and NS.Util.print are the same object after the AceConsole reclaim
 - core: the addon still prints, tagged, with LibKa0s absent
+- core: the degraded SafeRegisterEvent isolates a raise and lists the name once
 
 ### test_mediasetup.lua (10)
 
@@ -792,6 +793,14 @@ badge and any count quoted in the docs must agree with it.
 - lintconfig: every files[...] ignore is narrowed to a file or a name
 - lintconfig: no source file carries a bare inline luacheck ignore
 
+### test_events.lua (5)
+
+- events: the session rejected list exists and starts empty
+- events: one unknown lifecycle name costs only itself, and is listed once
+- events: one unknown unit event on the per-unit frame costs only itself
+- events: a name IsEventValid refuses never reaches the target
+- events: /at debug events lists the rejected names, and 'none' once they are gone
+
 ### test_disabled.lua (15)
 
 - disabled 1: the enabled addon registers something to stand down from
@@ -840,7 +849,7 @@ badge and any count quoted in the docs must agree with it.
 | test_database.lua | 38 |
 | test_units.lua | 17 |
 | test_envsetup.lua | 6 |
-| test_coresetup.lua | 5 |
+| test_coresetup.lua | 6 |
 | test_mediasetup.lua | 10 |
 | test_debuglog.lua | 12 |
 | test_slash.lua | 14 |
@@ -863,7 +872,8 @@ badge and any count quoted in the docs must agree with it.
 | test_surface_parity.lua | 8 |
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
+| test_events.lua | 5 |
 | test_disabled.lua | 15 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **732** |
+| **Total** | **738** |

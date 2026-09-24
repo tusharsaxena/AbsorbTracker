@@ -63,6 +63,37 @@ if not lib then
         return c.r, c.g, c.b, a
     end
 
+    -- The event registration helper (LibKa0s-Core minor 8, events-frames-taint-§1), with the
+    -- ONE-RUNG bodies docs/api/Core/version-8-docs.md 'Degradation' prescribes: the pcall and the
+    -- rejected-list append, no front gate and no probe frame. A stub is the path for a missing
+    -- library, not a second implementation; the pcall alone is what keeps one retired name from
+    -- taking the rest of a registration block down with it.
+    local function appendOnce(rejected, event)
+        if type(rejected) ~= "table" then return end
+        for i = 1, #rejected do if rejected[i] == event then return end end
+        rejected[#rejected + 1] = event
+    end
+
+    function NS.SafeRegisterEvent(target, event, handler, rejected)
+        local ok = pcall(target.RegisterEvent, target, event, handler)
+        if not ok then appendOnce(rejected, event) end
+        return ok
+    end
+
+    function NS.SafeRegisterUnitEvent(frame, event, rejected, u1, u2)
+        local ok = pcall(frame.RegisterUnitEvent, frame, event, u1, u2)
+        if not ok then appendOnce(rejected, event) end
+        return ok
+    end
+
+    function NS.SafeRegisterEvents(target, events, handler, rejected)
+        local n = 0
+        for _, event in ipairs(events) do
+            if NS.SafeRegisterEvent(target, event, handler, rejected) then n = n + 1 end
+        end
+        return n
+    end
+
     local announced = false
     function NS.Print(...)
         local parts = { NS.PREFIX }
@@ -90,6 +121,15 @@ NS.SafeToString = lib.SafeToString
 -- core/Data.lua's four color getters come through here. Handed over by reference: it closes over
 -- nothing of ours, and the memoized player color is the library's to keep.
 NS.ResolveColor = lib.ResolveColor
+
+-- The collection's one pcalled event registration helper (Core minor 8, events-frames-taint-§1).
+-- Every registration in core/AbsorbTracker.lua goes through these, so a name a patch retires costs
+-- only itself, and the refused name lands once in NS.State.rejectedEvents for `/at debug events`.
+-- Handed over by reference: the front gate (C_EventUtils.IsEventValid) and the probe frame are the
+-- library's, and the rejected list is ours, passed in on every call.
+NS.SafeRegisterEvent = lib.SafeRegisterEvent
+NS.SafeRegisterUnitEvent = lib.SafeRegisterUnitEvent
+NS.SafeRegisterEvents = lib.SafeRegisterEvents
 
 -- The prefix is passed as a FUNCTION, not as the value of NS.PREFIX. It reads the same here, where
 -- core/Namespace.lua has already run — but the printer is built once at load and the function form
