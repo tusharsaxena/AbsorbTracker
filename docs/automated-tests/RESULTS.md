@@ -21,51 +21,71 @@ not selected, which is a different fact again.
 
 The **Tests** cell reads `passed/skipped/total`.
 
-| Run | Version | Lint w/e | Files | Tests | Perf | NLOC | Funcs | Avg NLOC | Avg CCN | Max CCN | CCN warn | Verdict |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| [`20260916-184524`](20260916-184524/) | 1.10.0 | 0/0 | 56 | 635/0/635 | pass | 10555 | 1479 | 6.5 | 1.7 | 14 | 0 | **green** |
-| [`20260916-094435`](20260916-094435/) | 1.10.0 | 0/0 | 54 | 610/0/610 | pass | 10092 | 1425 | 6.4 | 1.7 | 15 | 0 | **green** |
-| [`20260910-234511`](20260910-234511/) | 1.9.0 → 1.10.0 | 0/0 | 54 | 561/0/561 | pass | 9240 | 1266 | 6.6 | 1.7 | 15 | 0 | **green** |
-| [`20260908-180922`](20260908-180922/) | 1.9.0 | 0/0 | 53 | 557/0/557 | pass | 9043 | 1261 | 6.5 | 1.7 | 15 | 0 | **green** |
-| [`20260825-103352`](20260825-103352/) | 1.9.0 | 0/0 | 29 | 508/508 | pass | 7997 | 1126 | 6.5 | 1.7 | 14 | 0 | **green** |
-| [`20260807-114413`](20260807-114413/) | 1.9.0 | 0/0 | 28 | 489/489 | pass | 7766 | 1088 | 6.5 | 1.7 | 15 | 0 | **green** |
-| [`20260807-110443`](20260807-110443/) | 1.9.0 | 0/0 | 28 | 489/489 | pass | 7766 | 1088 | 6.5 | 1.7 | 15 | 0 | **green** |
-| [`20260807-022551`](20260807-022551/) | 1.9.0 | 0/0 | 28 | 489/489 | pass | 7766 | 1088 | 6.5 | 1.7 | 15 | 0 | **green** |
-| [`20260804-233138`](20260804-233138/) | 1.9.0 | 0/0 | 28 | 470/470 | pass | 7574 | 1063 | 6.4 | 1.7 | 15 | 0 | **green** |
-| [`20260804-214639`](20260804-214639/) | 1.9.0 | 0/0 | 28 | 470/470 | pass | 7574 | 1063 | 6.4 | 1.7 | 0 | 0 | **green** |
-| [`20260804-182031`](20260804-182031/) | 1.9.0 | 0/0 | 28 | 469/469 | pass | 7532 | 1047 | 6.5 | 1.7 | 21 | 2 | **green** |
+**Commit** is the short sha the run measured and **Tree** is whether that tree was clean at the
+time. Both are read from git by the runner; neither is ever typed. A **dirty** row measured bytes
+that no sha can bring back, so it is kept as an experiment honestly labeled rather than dropped —
+and a release record is refused outright on a dirty tree, so no release row can be one.
+
+A row reading `unknown` in both cells was recorded before the runner emitted them. That is what
+the record holds about those runs — it is not `clean`, and it is not reconstructed from git
+archaeology, for the same reason a skip is never a pass (`automated-tests-§4`).
+
+| Run | Commit | Tree | Version | Lint w/e | Files | Tests | Perf | NLOC | Funcs | Avg NLOC | Avg CCN | Max CCN | CCN warn | Verdict |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| [`20260924-112145`](20260924-112145/) | `e84b6d8` | clean | 1.10.0 | 0/0 | 63 | 766/0/766 | pass | 12353 | 1783 | 6.4 | 1.7 | 14 | 0 | **green** |
+| [`20260916-184524`](20260916-184524/) | unknown | unknown | 1.10.0 | 0/0 | 56 | 635/0/635 | pass | 10555 | 1479 | 6.5 | 1.7 | 14 | 0 | **green** |
+| [`20260916-094435`](20260916-094435/) | unknown | unknown | 1.10.0 | 0/0 | 54 | 610/0/610 | pass | 10092 | 1425 | 6.4 | 1.7 | 15 | 0 | **green** |
+| [`20260910-234511`](20260910-234511/) | unknown | unknown | 1.9.0 → 1.10.0 | 0/0 | 54 | 561/0/561 | pass | 9240 | 1266 | 6.6 | 1.7 | 15 | 0 | **green** |
+| [`20260908-180922`](20260908-180922/) | unknown | unknown | 1.9.0 | 0/0 | 53 | 557/0/557 | pass | 9043 | 1261 | 6.5 | 1.7 | 15 | 0 | **green** |
+| [`20260825-103352`](20260825-103352/) | unknown | unknown | 1.9.0 | 0/0 | 29 | 508/508 | pass | 7997 | 1126 | 6.5 | 1.7 | 14 | 0 | **green** |
+| [`20260807-114413`](20260807-114413/) | unknown | unknown | 1.9.0 | 0/0 | 28 | 489/489 | pass | 7766 | 1088 | 6.5 | 1.7 | 15 | 0 | **green** |
+| [`20260807-110443`](20260807-110443/) | unknown | unknown | 1.9.0 | 0/0 | 28 | 489/489 | pass | 7766 | 1088 | 6.5 | 1.7 | 15 | 0 | **green** |
+| [`20260807-022551`](20260807-022551/) | unknown | unknown | 1.9.0 | 0/0 | 28 | 489/489 | pass | 7766 | 1088 | 6.5 | 1.7 | 15 | 0 | **green** |
+| [`20260804-233138`](20260804-233138/) | unknown | unknown | 1.9.0 | 0/0 | 28 | 470/470 | pass | 7574 | 1063 | 6.4 | 1.7 | 15 | 0 | **green** |
+| [`20260804-214639`](20260804-214639/) | unknown | unknown | 1.9.0 | 0/0 | 28 | 470/470 | pass | 7574 | 1063 | 6.4 | 1.7 | 0 | 0 | **green** |
+| [`20260804-182031`](20260804-182031/) | unknown | unknown | 1.9.0 | 0/0 | 28 | 469/469 | pass | 7532 | 1047 | 6.5 | 1.7 | 21 | 2 | **green** |
 
 ## Test suite
 
-**635 cases** — 635 passed, 0 failed, 0 skipped. The generated inventory
-[`20260916-184524/test-cases.md`](20260916-184524/test-cases.md) is the authority on which cases existed at this run;
+**766 cases** — 766 passed, 0 failed, 0 skipped. The generated inventory
+[`20260924-112145/test-cases.md`](20260924-112145/test-cases.md) is the authority on which cases existed at this run;
 `docs/test-cases.md` is that same list at HEAD.
 
-Moved **610 → 635** since the previous run.
+Moved **635 → 766** since the previous run.
 
 No case reported a `skip`, so passed and total agree and nothing in this row claims coverage
 that was not exercised.
 
 ## Lint
 
-**0 warnings / 0 errors over 56 files** (`luacheck .`).
+**0 warnings / 0 errors over 63 files** (`luacheck .`).
 
-Read that figure with its scope attached: `.luacheckrc` sets `exclude_files = { "libs/", "docs/audits/", "docs/reviews/", "_dev/", "tests/_kit/" }`, so those paths
-are not in it. A `0/0` that never moves is partly a statement about what was never looked at, which
-is why the exclusion is restated on every run.
+Read that figure with its scope attached: `.luacheckrc` excludes 5 path(s) from it — `libs/`, `docs/audits/`, `docs/reviews/`, `_dev/`, `tests/_kit/` —
+so nothing under them is in the count above. A `0/0` that never moves is partly a statement about
+what was never looked at, which is why the exclusions are NAMED here on every run rather than left
+to whoever thinks to open `.luacheckrc`.
 
 ## Perf
 
 **6 scenarios** from `tests/perf.lua`; the measurements are in
-[`20260916-184524/perf.json`](20260916-184524/perf.json).
+[`20260924-112145/perf.json`](20260924-112145/perf.json).
+
+| `scenario` | `iters` | `ms/iter` | `api/iter` | `bytes/iter` |
+|---|---|---|---|---|
+| `absorbEvent` | 1000 | 0.00040 | 0.0 | 0.0 |
+| `paintPass` | 1000 | 0.01487 | 12.0 | 48.0 |
+| `appearancePass` | 200 | 0.04724 | 48.0 | 97.8 |
+| `settingsRead` | 10000 | 0.00029 | 0.0 | 0.0 |
+| `probeOverheadOff` | 1000 | 0.01499 | 12.0 | 48.0 |
+| `probeOverheadOn` | 1000 | 0.01517 | 12.0 | 48.3 |
 
 `perf` never fails a run and never blocks a commit — it is recorded, read and compared, not
 thresholded (`performance-§9`). It does gate the **tag** (`automated-tests-§3`).
 
 ## Complexity watch list
 
-Current as of [`20260916-184524`](20260916-184524/) — **this run's measurement, not its diff.** Max CCN **14** across 1479
-functions, **0** of them warned on; 1 file(s) in the 1000–1500 band and 1 over the 1500 cap
+Current as of [`20260924-112145`](20260924-112145/) — **this run's measurement, not its diff.** Max CCN **14** across 1783
+functions, **0** of them warned on; 3 file(s) in the 1000–1500 band and 0 over the 1500 cap
 (`layout-§1`).
 
 Every row below is generated from this run's own `lizard` output. **The `Disposition` column is
@@ -75,14 +95,16 @@ cell is this file saying something crossed and nobody has ruled on it yet.
 
 ### Functions `lizard` warned on
 
-None.
+| Function | CCN | Location | Disposition |
+|---|---|---|---|
 
 ### Files by `layout-§1` band
 
 | Band | File | LOC | Disposition |
 |---|---|---|---|
-| 1000–1500 (on notice) | `tests/test_helpers.lua` | 1415 | **Peel next — carried forward, unchanged.** It crossed the 1400 line the previous disposition set as its trigger: 893 lines two runs ago, 1171 at [`20260910-234511`](20260910-234511/), 1415 at [`20260916-094435`](20260916-094435/) and 1415 again today — the file has not moved. Still a flat list of independent helper cases at avg CCN 1.5 over 137 functions, so the length is case count and dense defaulting, not tangled control flow. The trigger has fired and the agreed fix is unchanged: peel by helper group before it reaches the 1500 cap. |
-| > 1500 (over cap) | `tests/test_slashcmds.lua` | 1745 | **Peel next — now overdue.** It sat in the on-notice band from 1256 on [`20260804-233138`](20260804-233138/) through 1304 at [`20260910-234511`](20260910-234511/), crossed the `layout-§1` cap at 1539 on [`20260916-094435`](20260916-094435/), and the launcher and enable/disable work has since taken it to 1745 — a further 206 lines added while already over cap, with the peel its own disposition called for not yet done. Avg CCN 1.3 over 182 functions: a flat list of independent cases, dense defaulting rather than tangle, nothing to unpick — peel by verb group. `layout-§1` gives an over-cap file three terminal states (peeled, issue-tracked, register-recorded); it is still in none of them and `docs/ARCHITECTURE.md`'s `## Documented deviations` has no row for it, so this run records it as an owed peel that grew, not a ratified deviation. |
+| 1000–1500 (on notice) | `tests/test_helpers.lua` | 1447 | **Peel next by helper group — carried forward.** 893 lines three runs back, 1171 at [`20260910-234511`](20260910-234511/), 1415 at [`20260916-094435`](20260916-094435/) and [`20260916-184524`](20260916-184524/), 1416 at the 2026-09-23 audit, and 1447 today: AT-19 (`de4dac3`) added 31 lines of printer-parts cases. Still a flat list of independent helper cases, avg CCN 1.5 over 139 functions, so the length is case count and not tangled control flow. The 1400 trigger fired two runs ago and the fix has not changed: peel by helper group before it reaches the 1500 cap. It is 53 lines short, so the next change that adds cases here peels first (review finding AbsorbTracker-R-14). |
+| 1000–1500 (on notice) | `tests/test_slashcmds.lua` | 1318 | **Back under the cap — watch.** It was 1745 and over the cap at [`20260916-184524`](20260916-184524/). `/at perf` peeled out to `tests/test_perfcmds.lua` (528) and brought it to 1304, and AT-11 (`0e089ae`) moved the value hold to `tests/test_debughold.lua` (249) with its verb. The remediation's slash items (AT-02, AT-03, AT-04, AT-09) then added cases, which left it at 1318 today, not the roughly 1200 the plan expected. Avg CCN 1.3 over 140 functions, a flat case list. The seam for the next peel is already visible: the `/at profile` sub-dispatcher cases, split out by verb group the way `perf` and `hold` were. Re-check at 1400. |
+| 1000–1500 (on notice) | `tests/test_widgets.lua` | 1073 | **Accepted, newly in the band — watch.** It was 904 at [`20260916-184524`](20260916-184524/) and 944 at the 2026-09-23 audit. AT-15 (`19761b8`) took it over 1000 with the Appearance strip pins (strip keys per unit and per tab, the mirrored-unit hint, chrome-band coverage). Avg CCN 2.0 over 100 functions and max 8, so the length is case count. The seam is the four real-page `OnShow` cases and the strip block, which read as a page-level suite apart from the widget-maker cases. Re-check at 1300. |
 
 `lizard` counts every `and`/`or` short-circuit as a decision, so in Lua a run of
 `t.k = rec.k or D.k` defaulting lines scores high with no visible branching at all: a large CCN
