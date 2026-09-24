@@ -201,6 +201,34 @@ test("launcher: LEFT-click toggles the lock, through the seam the checkbox write
   assertTrue(NS.GetSetting("locked"))
 end)
 
+test("launcher: the disabled gate is the descriptor's, asked on every click and never cached", function()
+  -- The rung-(b) gate lives in LibKa0s-Launcher minor 2 (`isEnabled` / `disabledLine`), not in the
+  -- host's onClick. The library asks `isEnabled` on EVERY click, so one registered object must
+  -- refuse while the addon is off and toggle again the moment it is back on, with no re-Register.
+  -- The refused-click half (no write, one line, the dispatcher's wording) is tests/test_disabled.lua
+  -- step 8; this case pins the ENABLED half.
+  --
+  -- red under: isEnabled answering false; isEnabled captured once at Register time.
+  fakes()
+  NS.Launcher:Register()
+  local object = NS.Launcher:Object()
+
+  NS.SetByPath("enabled", true)
+  NS.SetByPath("locked", true)
+  local seen = seamCalls(function() object.OnClick(object, "LeftButton") end)
+  assertEqual(#seen, 1, "an enabled addon's left click writes the lock")
+  assertFalse(NS.GetSetting("locked"), "and the lock moved")
+
+  NS.SetByPath("enabled", false)
+  seen = seamCalls(function() object.OnClick(object, "LeftButton") end)
+  assertEqual(#seen, 0, "a disabled addon's left click writes nothing")
+
+  NS.SetByPath("enabled", true)
+  seen = seamCalls(function() object.OnClick(object, "LeftButton") end)
+  assertEqual(#seen, 1, "re-enabled, the same object toggles again")
+  assertTrue(NS.GetSetting("locked"), "and the lock moved back")
+end)
+
 test("launcher: RIGHT-click always opens the settings panel, and touches nothing else", function()
   -- True on every addon whatever its rung, which is what lets rungs (a) and (b) spend the left
   -- button on something better: the panel is never more than one click away.

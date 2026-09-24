@@ -496,7 +496,7 @@ badge and any count quoted in the docs must agree with it.
 - /at resetposition does not claim success when the settings helpers are absent
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_launcher.lua (16)
+### test_launcher.lua (17)
 
 - launcher: Register builds ONE broker object and hands that same object to LibDBIcon
 - launcher: LibDBIcon is handed db.global.minimap ITSELF, not a copy
@@ -504,6 +504,7 @@ badge and any count quoted in the docs must agree with it.
 - launcher: the broker label is the BRAND NAME in plain text
 - launcher: the label is not WIRED to the TOC Title, even though both read the same today
 - launcher: LEFT-click toggles the lock, through the seam the checkbox writes through
+- launcher: the disabled gate is the descriptor's, asked on every click and never cached
 - launcher: RIGHT-click always opens the settings panel, and touches nothing else
 - launcher: the icon file is the one the TOC names, and is a format the client can load
 - launcher: the Minimap button row is stored, global, and says SHOWN
@@ -533,7 +534,7 @@ badge and any count quoted in the docs must agree with it.
 - the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
 - General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
 
-### test_slashcmds.lua (100)
+### test_slashcmds.lua (101)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -622,6 +623,7 @@ badge and any count quoted in the docs must agree with it.
 - parity: a bare /at reaches the config handler with an empty rest in both
 - degraded: the stub's disabled-line format is the library's, byte for byte
 - degraded: a schema verb prints the library-absent line
+- degraded: the library-absent line is keyed by its English text (localization-§2)
 - degraded: /at help rows are plain, with no color escape
 - degraded: DisabledLine is the live build's line, color escapes intact
 - /at set stores a multi-word string value whole
@@ -867,9 +869,9 @@ badge and any count quoted in the docs must agree with it.
 | test_display.lua | 60 |
 | test_draghandle.lua | 22 |
 | test_helpers.lua | 70 |
-| test_launcher.lua | 16 |
+| test_launcher.lua | 17 |
 | test_optionssetup.lua | 15 |
-| test_slashcmds.lua | 100 |
+| test_slashcmds.lua | 101 |
 | test_perfcmds.lua | 42 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 4 |
@@ -882,4 +884,4 @@ badge and any count quoted in the docs must agree with it.
 | test_disabled.lua | 15 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **744** |
+| **Total** | **746** |

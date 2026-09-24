@@ -378,11 +378,15 @@ drives a preview switch, which is a feature, so the click prints `NS.Slash:Disab
 dispatcher's own line, not a second spelling — and does **nothing else**; in particular it reaches
 no write seam, which is the audit finding it fixes: an ungated minimap button writes the stored tree
 of an addon the player switched off, and a mouse click is a game event in every sense that matters.
-The gate sits **before** the write, because `NS.SetByPath` would fire the `locked` `onChange` and
-land in SavedVariables whatever the click printed. **Right-click is unchanged in either state** —
+**The gate is the library's, not this addon's:** the descriptor hands `LibKa0s-Launcher-1.0` minor 2
+`isEnabled` (`NS.GetSetting("enabled") ~= false`) and `disabledLine` (`NS.Slash:DisabledLine()`),
+both asked on every click, and the library refuses a left click before it ever calls `onClick` — so
+the `locked` seam, whose `onChange` would land in SavedVariables whatever the click printed, is
+never reached. `onClick` itself carries no gate. **Right-click is unchanged in either state** —
 the panel is setup rather than a feature, so the right button opens it for the same reason `config` and the bare `/at` still do — and the button
 itself stays on the minimap, because `minimap.hide` is a per-installation display preference that
-says nothing about whether the addon is running. `tests/test_disabled.lua` step 8 pins all three.
+says nothing about whether the addon is running. `tests/test_disabled.lua` step 8 pins all three;
+`tests/test_launcher.lua` pins that the same registered object toggles again once re-enabled.
 
 **Visibility is one row and one boolean.** `Minimap button` on Master controls stores LibDBIcon's
 own `hide` key at `db.global.minimap.hide` — **global**, so a profile switch does not move the

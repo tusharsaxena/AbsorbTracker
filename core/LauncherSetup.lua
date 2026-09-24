@@ -139,30 +139,16 @@ NS.Launcher = lib:New({
     -- a chat line on every minimap click would be noise the slash verbs only earn because a typed
     -- command with no echo reads as ignored.
     onClick = function()
-        -- THE DISABLED GATE (slash-commands-§7, launcher-§2). This is a rung-(b) left click: it
-        -- drives the addon's PREVIEW SWITCH, which is a feature, so a disabled addon refuses it on
-        -- the one collection-wide line and does nothing else. The audit's finding was blunter than
-        -- that -- the button stayed clickable with NO gate at all, so a click wrote the stored tree
-        -- of an addon the player had switched off. A mouse click is a game event in every sense
-        -- that matters here, and `What MUST stand down` reaches it.
-        --
-        -- BEFORE the write, not after: the seam below is NS.SetByPath, and reaching it would fire
-        -- the `locked` onChange and land in SavedVariables whatever this function printed.
-        --
-        -- THE LINE IS THE DISPATCHER'S, through NS.Slash:DisabledLine. `lib.DISABLED_LINE_FORMAT`
-        -- is the collection's one wording and the launcher MUST NOT re-spell it host-side.
-        --
-        -- RIGHT-click is untouched and still opens the settings panel, in either state. That is not
-        -- inconsistent with refusing this button: the panel is SETUP, not a feature (§7), so the
-        -- right button opens it for the same reason `config` and the bare `/at` still do. The button also stays ON the minimap --
-        -- `minimap.hide` is a per-installation display preference (launcher-§3) and says nothing
-        -- about whether the addon is running.
-        if NS.GetSetting("enabled") == false then
-            return print(NS.Slash:DisabledLine())
-        end
+        -- The disabled gate is the library's: `isEnabled` / `disabledLine` below (Launcher minor 2;
+        -- launcher-§2, slash-commands-§7). Right-click and openSettings are never gated.
         NS.SetByPath("locked", not NS.GetSetting("locked"))
         if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
     end,
+
+    -- THE DISABLED GATE, both resolved at CLICK time. A disabled addon's left click prints the
+    -- dispatcher's own line (never re-spelled host-side) and never reaches the `locked` seam above.
+    isEnabled    = function() return NS.GetSetting("enabled") ~= false end,
+    disabledLine = function() return NS.Slash:DisabledLine() end,
 
     print = function(line) print(line) end,
     debug = function(tag, message) NS.Debug(tag, "%s", message) end,

@@ -68,7 +68,8 @@ spelling for eleven addons — plain-text brand, an em dash with a single space 
 line. It is **not** routed through `NS.L`: a translated override here would give a player running
 four Ka0s addons four different answers to the same question. `NS.Slash:DisabledLine()` publishes
 it, and the launcher's refused left click prints that same member rather than a second copy of the
-sentence.
+sentence: the launcher descriptor's `disabledLine` returns it, and the gate itself is
+`LibKa0s-Launcher-1.0`'s (`isEnabled`, minor 2), not a check inside this addon's `onClick`.
 
 The polarity is still deliberate. `liveVerbs` names what keeps answering, so **a verb added tomorrow
 is gated by default** and has to argue its way onto the list:
