@@ -42,7 +42,7 @@ launcher's disabled gate reddens 8; restoring the old draw-gate `enabled` onChan
 and 10. Step 5 stays green under all of them, which is precisely why step 5 alone is not a
 conformance test.
 
-### What the lint gate is a statement about (lint.md)
+### What the lint gate is a statement about (lint)
 
 `luacheck .` reading `0 warnings / 0 errors` is only worth something if the configuration is not the
 reason it reads that way. `.luacheckrc` therefore sets **no top-level `ignore`**, and

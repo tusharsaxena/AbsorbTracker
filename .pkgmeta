@@ -14,11 +14,11 @@ ignore:
   # Agent tooling. Both are untracked here — .gitignore:11,15 names them and
   # `git ls-files` returns nothing for either — so no packager clone has ever
   # carried them, and neither line changes a single downloaded byte. They are
-  # listed because packaging.md:28 MUSTs that every root dot-entry present in
+  # listed because packaging MUSTs that every root dot-entry present in
   # the repo be named or justified, tracked or not: the check is about an
   # enumeration going stale, not about a package growing.
-  - .claude          # untracked; listed under packaging.md:28
-  - .superpowers     # untracked; listed under packaging.md:28
+  - .claude          # untracked; listed under packaging
+  - .superpowers     # untracked; listed under packaging
   # Tracked, and the only entries here that change a download. Four screenshots,
   # 2.0M, project-page art the CurseForge CDN already serves. CLAUDE.md and
   # DEPENDENCIES.md are developer documentation; README.md and LICENSE stay,
