@@ -1093,6 +1093,51 @@ test("parity: a bare /at reaches the config handler with an empty rest in both",
   assertParity("help", 'verb=help rest="" lines=0')
 end)
 
+-- ── the degraded stub's shape (slash-commands-§1, WS-02 / LK-18) ──────────────────────────
+
+-- Every chat line one degraded slash input printed, with the build's tag stripped off the front.
+local function degradedLines(line)
+  local NS2, mocks2 = degradedBuild()
+  local out = {}
+  local cf  = mocks2.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function(_, msg) out[#out + 1] = (tostring(msg):gsub("^%S+%s", "")) end
+  local ok, err = pcall(function() NS2.Slash:OnSlash(line) end)
+  cf.AddMessage = old
+  if not ok then error(err) end
+  return out
+end
+
+test("degraded: the stub's disabled-line format is the library's, byte for byte", function()
+  -- The ONE library string a Slash stub may carry verbatim, and only with this pin beside it.
+  -- red under: any byte drift from LibKa0s-Slash-1.0's DISABLED_LINE_FORMAT, or the seam missing.
+  T.assertLibraryConstant(NS.Slash.__STUB_DISABLED_LINE_FORMAT, "LibKa0s-Slash-1.0",
+    "DISABLED_LINE_FORMAT")
+end)
+
+test("degraded: a schema verb prints the library-absent line", function()
+  -- red under: the old "<verb> is unavailable. <LIBKA0S_MISSING>." wording, or a second line.
+  local out = degradedLines("list")
+  assertEqual(#out, 1, "exactly one line: " .. joined(out))
+  assertEqual(out[1], "/at list is unavailable: the LibKa0s library did not load.")
+end)
+
+test("degraded: /at help rows are plain, with no color escape", function()
+  -- red under: a copy of the library's colored row formatter living on in the stub.
+  local out = degradedLines("help")
+  assertTrue(#out > #NS.COMMANDS, "a header and one row per verb: " .. joined(out))
+  for _, line in ipairs(out) do
+    assertTrue(line:find("|c", 1, true) == nil, "no color escape: " .. line)
+  end
+  assertTrue(contains(out, "/at list  "), "the plain two-space row shape: " .. joined(out))
+end)
+
+test("degraded: DisabledLine is the live build's line, color escapes intact", function()
+  -- red under: a plain re-spelling of the sentence in the stub instead of the verbatim format.
+  local NS2 = degradedBuild()
+  assertEqual(NS2.Slash:DisabledLine(), NS.Slash:DisabledLine())
+end)
+
 -- ── a string value keeps every word ────────────────────────────────────────────────
 
 test("/at set stores a multi-word string value whole", function()

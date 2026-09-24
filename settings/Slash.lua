@@ -26,11 +26,21 @@ local SlashLib = LibStub and LibStub("LibKa0s-Slash-1.0", true)
 -- reaches it at CALL time, which is why a forward-declared local is enough.
 local cli
 
+-- The disabled line's format, the ONE library string the library-absent stub below carries, and it
+-- carries it verbatim: these are the bytes of LibKa0s-Slash-1.0's `lib.DISABLED_LINE_FORMAT`
+-- (v1.56.0), em dash spelled as the library spells it. slash-commands-§1 sanctions exactly this
+-- copy and requires the pin beside it: tests/test_slashcmds.lua compares it against the live
+-- library with Kit.assertLibraryConstant, so a re-worded library line turns the suite red instead
+-- of leaving a stale sentence behind. Published as a suite seam; nothing in the addon reads it.
+local STUB_DISABLED_LINE_FORMAT = "%s is disabled \226\128\148 enable it with |cFFFFFF00%s|r"
+Sl.__STUB_DISABLED_LINE_FORMAT = STUB_DISABLED_LINE_FORMAT
+
 -- Help row formatter — gold command + em-dash + white description. The coloring and the spacing
 -- are the library's one formatter; the two-space indent belongs to this renderer, because a chat
--- line sits under a header and a settings-panel label does not.
+-- line sits under a header and a settings-panel label does not. With the library absent there is
+-- no formatter to borrow and none is copied (slash-commands-§1), so the row renders plainly.
 local function PrintCmd(cmd, desc)
-    print("  " .. SlashLib.FormatRow(cmd, desc))
+    print("  " .. (SlashLib.FormatRow and SlashLib.FormatRow(cmd, desc) or (cmd .. "  " .. desc)))
 end
 
 -- Trailing note for a row whose unit is CURRENTLY mirroring the player.
@@ -537,16 +547,17 @@ end
 -- ---------------------------------------------------------------------
 
 -- A missing vendored lib must degrade, not error at load. `/at` is registered unconditionally, so
--- something has to answer it. Note what is NOT here: no copy of the row formatter, no copy of the
--- parser, no copy of the key/value shape. Hand-copying the strings whose drift the extraction
--- exists to end is the one duplicate testing-§8 most specifically forbids, so a degraded help row
--- renders plainly and says so instead.
+-- something has to answer it. The stub takes the shape slash-commands-§1 prescribes: no copy of
+-- the row formatter, no copy of the parser, no copy of the key/value shape. Hand-copying the
+-- strings whose drift the extraction exists to end is the duplicate testing-§8 forbids, so a
+-- degraded help row renders plainly (`/at list  List every setting ...`). The single library string
+-- it does carry is the disabled line's format, verbatim and pinned (STUB_DISABLED_LINE_FORMAT).
 --
 -- The host verbs never went to the library, so they keep working untouched. What is lost is the
--- schema CLI, and each of those verbs names the missing library rather than going quiet.
+-- schema CLI, and each of those verbs prints the collection's library-absent line through the
+-- locale (`NS.L.LIBRARY_ABSENT`) rather than going quiet.
 if not SlashLib then
-    local missing = " is unavailable. " .. NS.LIBKA0S_MISSING .. "."
-    SlashLib = { FormatRow = function(cmd, desc) return cmd .. " \226\128\148 " .. desc end }
+    SlashLib = {}
 
     function SlashLib:New(d)
         local stub = { SetRowAnnotator = function() end }
@@ -554,15 +565,14 @@ if not SlashLib then
         -- launcher's left click calls this member directly (core/LauncherSetup.lua), and a nil
         -- there would raise on a click rather than refuse it.
         --
-        -- PLAINLY, exactly as the degraded help rows render -- same words, no color escapes. The
-        -- library's `DISABLED_LINE_FORMAT` is not copied here: hand-copying the strings whose drift
-        -- the extraction exists to end is the one duplicate testing-§8 most specifically forbids,
-        -- and the copy would be the thing that survives the day the collection re-words the line.
+        -- The SAME line the library builds, color escapes and all: the stub formats the library's
+        -- verbatim format string (STUB_DISABLED_LINE_FORMAT, pinned by the suite) with the same two
+        -- arguments the library's DisabledLine passes. slash-commands-§1 sanctions this one copy.
         stub.DisabledLine = function()
-            return NS.Constants.BRAND .. " is disabled \226\128\148 enable it with /at enable"
+            return STUB_DISABLED_LINE_FORMAT:format(NS.Constants.BRAND, "/at enable")
         end
         local function absent(verb)
-            return function() print("/at " .. verb .. missing) end
+            return function() print(NS.L.LIBRARY_ABSENT:format("/at " .. verb)) end
         end
         for _, verb in ipairs({ "List", "Get", "Set", "Reset", "ResetAll" }) do
             stub["Cli" .. verb] = absent(verb:lower())
@@ -570,7 +580,7 @@ if not SlashLib then
         stub.LandingRows = function()
             local out = {}
             for _, e in ipairs(d.commands) do
-                out[#out + 1] = SlashLib.FormatRow("/at " .. e[1], e[2])
+                out[#out + 1] = "/at " .. e[1] .. "  " .. e[2]
             end
             return out
         end

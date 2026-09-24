@@ -533,7 +533,7 @@ badge and any count quoted in the docs must agree with it.
 - the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
 - General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
 
-### test_slashcmds.lua (96)
+### test_slashcmds.lua (100)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -620,6 +620,10 @@ badge and any count quoted in the docs must agree with it.
 - parity: both dispatchers resolve the `options` alias to `config`
 - parity: an unknown verb reaches no handler and prints the same shape in both
 - parity: a bare /at reaches the config handler with an empty rest in both
+- degraded: the stub's disabled-line format is the library's, byte for byte
+- degraded: a schema verb prints the library-absent line
+- degraded: /at help rows are plain, with no color escape
+- degraded: DisabledLine is the live build's line, color escapes intact
 - /at set stores a multi-word string value whole
 - /at enable and /at disable write the Enable row's OWN path, through the one seam
 - /at disable echoes the stored value in the set shape, and /at enable undoes it
@@ -865,7 +869,7 @@ badge and any count quoted in the docs must agree with it.
 | test_helpers.lua | 70 |
 | test_launcher.lua | 16 |
 | test_optionssetup.lua | 15 |
-| test_slashcmds.lua | 96 |
+| test_slashcmds.lua | 100 |
 | test_perfcmds.lua | 42 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 4 |
@@ -878,4 +882,4 @@ badge and any count quoted in the docs must agree with it.
 | test_disabled.lua | 15 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **740** |
+| **Total** | **744** |

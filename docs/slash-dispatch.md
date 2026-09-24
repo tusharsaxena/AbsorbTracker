@@ -239,16 +239,31 @@ generic dispatcher knows nothing about.
 ## When the library is absent
 
 `/at` is registered unconditionally, so something has to answer it. With `LibKa0s-Slash-1.0` missing,
-`settings/Slash.lua:489` installs a stand-in: dispatch and a plain help index still render, a bare
-`/at` still runs the `config` verb exactly as the library does, the host
-verbs — which never went to the library — keep working untouched, and each schema verb (`list`,
-`get`, `set`, `reset`, `resetall`) prints one honest line naming the missing library through
-`NS.LIBKA0S_MISSING`.
+`settings/Slash.lua:559` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
+a plain help index still render, a bare `/at` still runs the `config` verb exactly as the library
+does, the host verbs — which never went to the library — keep working untouched, and each schema verb
+(`list`, `get`, `set`, `reset`, `resetall`) prints the collection's library-absent line through the
+locale, `NS.L.LIBRARY_ABSENT`:
+
+```
+[AT] /at list is unavailable: the LibKa0s library did not load.
+```
 
 What the degraded arm deliberately does **not** contain is a second copy of the row formatter, the
 `key = value` shape or the value parser. Hand-copying the strings whose drift the extraction exists to
-end is precisely the duplicate testing-§8 forbids, so a degraded help row renders plainly and says
-so. The stub and the real instance are both file-scope locals, which is why `Sl.__cli` (`:628`) is
+end is precisely the duplicate testing-§8 forbids, so a degraded help row renders plainly —
+`/at list  List every setting and its current value`, command and description separated by two
+spaces, no color escapes — and `PrintCmd` falls back to the same plain shape for `/at profile`'s rows.
+
+The one library string the stub **does** carry is the disabled line's format. `STUB_DISABLED_LINE_FORMAT`
+is `LibKa0s-Slash-1.0`'s `DISABLED_LINE_FORMAT`, byte for byte (em dash as the library spells it), so
+the degraded `DisabledLine()` — which the launcher's refused left click prints — says exactly what the
+live one says, gold command included. slash-commands-§1 sanctions exactly this copy and requires a pin
+beside it: the value is published as `Sl.__STUB_DISABLED_LINE_FORMAT` and `tests/test_slashcmds.lua`
+compares it with the live library's constant through `Kit.assertLibraryConstant`, so a re-worded
+library line turns the suite red rather than leaving a stale sentence in the stub.
+
+The stub and the real instance are both file-scope locals, which is why `Sl.__cli` (`:696`) is
 published under the same `__` convention the options helpers use —
 `tests/test_surface_parity.lua` is its only reader, and a stub surface that cannot be reached cannot
 be compared against the one it stands in for.
