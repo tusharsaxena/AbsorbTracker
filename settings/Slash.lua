@@ -580,9 +580,9 @@ if not SlashLib then
 
     function SlashLib:New(d)
         local stub = { SetRowAnnotator = function() end }
-        -- The one line a disabled addon says, and the degraded arm has to be able to say it: the
-        -- launcher's left click calls this member directly (core/LauncherSetup.lua), and a nil
-        -- there would raise on a click rather than refuse it.
+        -- The one line a disabled addon says, and the degraded arm has to be able to say it:
+        -- runHold (`/at debug hold`, above) calls this member directly on a disabled addon, and a
+        -- nil there would raise on the verb rather than refuse it.
         --
         -- The SAME line the library builds, color escapes and all: the stub formats the library's
         -- verbatim format string (STUB_DISABLED_LINE_FORMAT, pinned by the suite) with the same two
@@ -715,9 +715,9 @@ cli:SetRowAnnotator(MirrorNote)
 Sl.__cli = cli
 
 --- The one line a disabled addon says, built by the library and re-spelled nowhere
---- (slash-commands-§7). Published because the LAUNCHER's refused left click prints the very same
---- line (core/LauncherSetup.lua), and a second copy of one sentence across two files is how eleven
---- addons ended up with eleven wordings.
+--- (slash-commands-§7). Published because runHold's refusal (`/at debug hold`, a live verb the
+--- library's gate never sees) prints the very same line, and the suites compare against it; a second
+--- copy of one sentence is how eleven addons ended up with eleven wordings.
 function Sl:DisabledLine() return cli:DisabledLine() end
 
 --- The command list the About page renders. Same coloring and spacing as `/at help`, without the

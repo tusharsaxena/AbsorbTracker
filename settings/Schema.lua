@@ -342,7 +342,8 @@ local function chatPrint(line) NS.Print(line) end
 
 -- The composed paths a HOST writer reaches (options-ui-§1 route (a); LibKa0s-Schema-1.0 minor 2).
 -- `enabled` is written by /at enable and /at disable; `locked` by /at lock and /at unlock, the
--- combat re-lock (core/AbsorbTracker.lua) and the launcher's left click (core/LauncherSetup.lua).
+-- combat re-lock (core/AbsorbTracker.lua) and the launcher menu's Locked entry (core/LauncherSetup.lua,
+-- which runs the /at lock and /at unlock handlers).
 -- Both rows are emitted by H.MasterControls, and on a load where that composer is absent -- the
 -- Options stub's composers answer {} -- no row declares them. Listed here, a write to either still
 -- stores, and the announce below hands it to the host's own reaction. A path with a row always

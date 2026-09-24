@@ -1276,8 +1276,8 @@ end)
 
 test("a refused `unlock` leaves the lock exactly where it was", function()
   -- `lock` / `unlock` drive the addon's PREVIEW — the unlocked view is this addon's test mode
-  -- (options-ui-§15's exemption) — so they are feature verbs, and the launcher's left click sits on
-  -- the same state. Asserted at the SEAM as well as the value: the refusal must not reach
+  -- (options-ui-§15's exemption) — so they are feature verbs, and the launcher menu's Locked entry
+  -- runs these same handlers. Asserted at the SEAM as well as the value: the refusal must not reach
   -- NS.SetByPath at all, or the row's onChange would fire its APPEARANCE and REPAINT for a write
   -- that was refused.
   NS.SetByPath("locked", true)
