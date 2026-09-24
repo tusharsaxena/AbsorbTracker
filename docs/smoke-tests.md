@@ -19,7 +19,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 ### B. Slash surface
 6. `/at` alone → the settings panel opens on the **Ka0s Absorb Tracker** landing page (the About page, not a sub-page), tree expanded; no help block prints. `/at` followed by only spaces → the same. In combat → the single gray refusal line and no panel.
 7. `/absorbtracker` → identical: the panel opens on the landing page.
-8. `/at help` → gold command + em-dash + white desc for all 19 verbs: help, config, enable, disable, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, perf, update, version, test, profile. `toggle` reads *"Toggle bars on or off — `/at toggle [player|target|focus]`"*, and `debug` reads *"Toggle the debug console — `on`/`off` enable/disable logging"* and `perf` reads *"Measure performance — try `/at perf` for the workflow"*.
+8. `/at help` → gold command + em-dash + white desc for all 18 verbs: help, config, enable, disable, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, perf, update, version, profile. There is no `test` row: `/at test` prints `unknown command 'test'` then help. `toggle` reads *"Toggle bars on or off — `/at toggle [player|target|focus]`"*, and `debug` reads *"Toggle the debug console — `on`/`off` logging, `events`, `hold <value> [secs]`"* and `perf` reads *"Measure performance — try `/at perf` for the workflow"*.
 9. `/at wibble` → `unknown command 'wibble'` then help.
 10. `/at options` → opens the panel (back-compat alias for `config`).
 
