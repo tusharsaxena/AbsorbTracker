@@ -236,8 +236,11 @@ session-settings branch it most resembles. The `set` also calls `NS.Launcher:Set
 button appears or vanishes immediately rather than at the next reload. The row is **stored**, not
 `sessionOnly`: a reload must not bring back a button the player dismissed. The button's hover
 tooltip reports the **Enabled** and **Lock frame** rows of this same block (`Enabled:`, `Locked:`)
-and has no `Test mode:` line, because the block has no Test mode row. See
-[launcher.md](./launcher.md) for the object and its tooltip.
+and has no `Test mode:` line, because the block has no Test mode row. The button's left click opens
+this panel; its right-click options menu offers the same two rows as checkboxes, **Enabled** and
+**Locked**, each running its slash verb's handler (`/at enable|disable`, `/at lock|unlock`), with
+*Locked* grayed while the addon is disabled (launcher-§2). See [launcher.md](./launcher.md) for the
+object, the menu and the tooltip.
 
 **This one row survives every reset, and that is a property of the setting — not of where it is
 stored.** Whether the button is shown is a per-installation *display preference*, in the same class

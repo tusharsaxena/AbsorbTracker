@@ -500,22 +500,26 @@ badge and any count quoted in the docs must agree with it.
 - /at resetposition does not claim success when the settings helpers are absent
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_launcher.lua (28)
+### test_launcher.lua (32)
 
 - launcher: Register builds ONE broker object and hands that same object to LibDBIcon
 - launcher: LibDBIcon is handed db.global.minimap ITSELF, not a copy
 - launcher: Register is idempotent
 - launcher: the broker label is the BRAND NAME in plain text
 - launcher: the label is not WIRED to the TOC Title, even though both read the same today
-- launcher: LEFT-click toggles the lock, through the seam the checkbox writes through
-- launcher: the disabled gate is the descriptor's, asked on every click and never cached
-- launcher: RIGHT-click always opens the settings panel, and touches nothing else
+- launcher: LEFT-click opens the settings panel, and writes nothing
+- launcher: RIGHT-click opens the options menu: the brand title, Enabled, Locked, nothing else
+- launcher menu: each entry reads its state on every open
+- launcher menu: Enabled runs the /at enable and /at disable handlers themselves
+- launcher menu: Locked runs the /at lock and /at unlock handlers themselves
+- launcher menu: while disabled, Locked is grayed with the note and Enabled stays live
+- launcher: with no client menu API, right-click falls back to the settings panel
+- launcher: the descriptor carries none of the fields Launcher minor 4 retired
 - launcher tooltip: enabled and locked, the whole tooltip is exactly five lines
 - launcher tooltip: the version is the TOC's, and absent it the title is the label alone
 - launcher tooltip: Locked follows the lock on every show, green Yes and red No
 - launcher tooltip: no Test mode line, because this addon has no Test mode
-- launcher tooltip: disabled, it still draws, says No, and the left hint names /at enable
-- launcher tooltip: the left-click label goes through the locale, asked on every show
+- launcher tooltip: disabled, it still draws, says No, and the hints do not change
 - launcher: the icon file is the one the TOC names, and is a format the client can load
 - launcher: the Minimap button row is stored, global, and says SHOWN
 - launcher: the row's get/set invert onto `hide`, and the button follows immediately
@@ -846,7 +850,7 @@ badge and any count quoted in the docs must agree with it.
 - disabled 7: every reserved verb answers, and only a feature verb refuses
 - disabled 7: a refused feature verb reaches no write seam
 - disabled 7: `debug` stays live, and its `hold` sub-verb refuses on its own gate
-- disabled 8: the left click is refused and writes nothing; the right click still opens the panel
+- disabled 8: the left click opens the panel; the menu grays Locked and still re-enables
 - disabled 9: re-enabling restores the registration set, from the settings as they are NOW
 - disabled 9: the bus subscriptions come back as the same five pairs, and each still reaches its consumer once
 - disabled 10: releasing one hold does not stand up an addon the other still holds down
@@ -898,7 +902,7 @@ badge and any count quoted in the docs must agree with it.
 | test_display.lua | 60 |
 | test_draghandle.lua | 22 |
 | test_helpers.lua | 71 |
-| test_launcher.lua | 28 |
+| test_launcher.lua | 32 |
 | test_optionssetup.lua | 15 |
 | test_slashcmds.lua | 91 |
 | test_perfcmds.lua | 42 |
@@ -914,4 +918,4 @@ badge and any count quoted in the docs must agree with it.
 | test_disabled.lua | 17 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **772** |
+| **Total** | **776** |

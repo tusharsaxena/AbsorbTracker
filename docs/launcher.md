@@ -1,7 +1,7 @@
 # Launcher
 
-The minimap button and broker row: the one LDB object, the click rung, the disabled-state refusal,
-the status tooltip, the visibility row that survives every reset, and the icon. This page was the `## Launcher` section
+The minimap button and broker row: the one LDB object, the two buttons, the options menu and its
+disabled state, the status tooltip, the visibility row that survives every reset, and the icon. This page was the `## Launcher` section
 of [ARCHITECTURE.md](./ARCHITECTURE.md) until the hub was brought back under documentation-§3's spill
 rule; `core/LauncherSetup.lua`'s place among the setup seams is in [module-map.md](./module-map.md).
 
@@ -22,31 +22,49 @@ the folder name (which is `name`). Both libraries are
 vendored under `libs/` and resolved with `LibStub(..., true)` at `Register()` time; a host missing
 either gets an honest report rather than a raise.
 
-## The click rung
+## The two buttons
 
-**The rung is (b)** (launcher-§2, and the standard's `ADDONS.md` records it): left-click toggles the
-addon's preview switch, which here is the **lock** — options-ui-§15 exempts an addon whose unlocked
-view already is its preview, and this one took that exemption. The click writes through
-`NS.SetByPath`, the same seam the Lock frame checkbox and `/at lock` / `/at unlock` write through,
-so the in-combat unlock refusal, the preview clear and the repaint all come from the row's own
-`onChange` rather than being reimplemented. **Right-click always opens the settings panel.**
+**Left-click opens the settings panel; right-click opens the options menu** (launcher-§2, standard
+v2.67.0, `LibKa0s-Launcher-1.0` minor 4). That is the same on every Ka0s addon and it is the
+library's, not this addon's: the descriptor passes `openSettings` and its accessor-and-toggle pairs,
+and the library routes both buttons. The left click is not gated — the panel is setup rather than a
+feature, and it is where a disabled addon is switched back on — and neither is the right. On a client
+with no context-menu API (`MenuUtil`, 11.0+) the right click opens the settings panel too.
 
-## The disabled-state refusal
+Until M6 (2026-09-24) the left click toggled the lock (the retired rung (b)) and was refused while
+disabled; that toggle is the menu's *Locked* entry now.
 
-**While the addon is disabled the left click is refused** (launcher-§2, slash-commands-§7). Rung (b)
-drives a preview switch, which is a feature, so the click prints `NS.Slash:DisabledLine()` — the
-dispatcher's own line, not a second spelling — and does **nothing else**; in particular it reaches
-no write seam, which is the audit finding it fixes: an ungated minimap button writes the stored tree
-of an addon the player switched off, and a mouse click is a game event in every sense that matters.
-**The gate is the library's, not this addon's:** the descriptor hands `LibKa0s-Launcher-1.0` minor 2
-`isEnabled` (`NS.GetSetting("enabled") ~= false`) and `disabledLine` (`NS.Slash:DisabledLine()`),
-both asked on every click, and the library refuses a left click before it ever calls `onClick` — so
-the `locked` seam, whose `onChange` would land in SavedVariables whatever the click printed, is
-never reached. `onClick` itself carries no gate. **Right-click is unchanged in either state** —
-the panel is setup rather than a feature, so the right button opens it for the same reason `config` and the bare `/at` still do — and the button
-itself stays on the minimap, because `minimap.hide` is a per-installation display preference that
-says nothing about whether the addon is running. `tests/test_disabled.lua` step 8 pins all three;
-`tests/test_launcher.lua` pins that the same registered object toggles again once re-enabled.
+## The options menu
+
+The client's own context menu, titled `Ka0s Absorb Tracker`, with one checkbox per state this addon
+has — the row the standard's `ADDONS.md` records:
+
+```
+Ka0s Absorb Tracker
+[x] Enabled         isEnabled + setEnabled   -> the /at enable | /at disable handler
+[x] Locked          isLocked  + toggleLock   -> the /at lock | /at unlock handler
+```
+
+**Each entry runs the slash verb's own handler**, looked up in `NS.COMMANDS` at click time
+(`core/LauncherSetup.lua`'s `runVerb`), not a second implementation. So the write goes through
+`NS.SetByPath` — the seam the Master-controls checkboxes use, whose `onChange` owns the stand-down
+latch, the in-combat unlock refusal, the preview clear and the repaint — and the chat echo is the
+verb's (`enabled = false`, `locked = true`, read back from the store). *Locked* picks `lock` or
+`unlock` from the **stored** lock, so a click after a combat refusal toggles from what is actually
+stored.
+
+There is **no Test mode entry**: options-ui-§15 exempts an addon whose unlocked view already is its
+preview, and this one took that exemption, so the lock is the preview switch. There is **no Show
+window entry**: nothing here is a primary window.
+
+**While the addon is disabled** (slash-commands-§7) the library grays *Locked* and labels it
+`Locked (enable the addon first)`; a grayed entry runs no handler and writes nothing, which keeps
+the audit finding fixed — an ungated launcher once wrote the stored tree of an addon the player had
+switched off. *Enabled* stays live, so the way back is one click. The button itself stays on the
+minimap either way, because `minimap.hide` is a per-installation display preference that says
+nothing about whether the addon is running. `tests/test_launcher.lua` pins the entries, the routing
+to each verb's handler and the per-open state reads; `tests/test_disabled.lua` step 8 pins the
+disabled half.
 
 ## The status tooltip
 
@@ -57,19 +75,17 @@ every hover:
 
 ```
 Ka0s Absorb Tracker  v<version>       version: the TOC's `## Version` (NS.Meta); label alone if unreadable
-Enabled: Yes|No                       isEnabled — the same accessor the click gate asks
-Locked: Yes|No                        isLocked — the `locked` setting the left click toggles
-Left-click: Lock / unlock             leftClickLabel, rung (b), through NS.L
-Right-click: Open settings
+Enabled: Yes|No                       isEnabled — the same accessor the menu's Enabled entry reads
+Locked: Yes|No                        isLocked — the `locked` setting the menu's Locked entry toggles
+Left-click: Open settings             the library's fixed hint (minor 4)
+Right-click: Options menu             the library's fixed hint (minor 4)
 ```
 
-While disabled the left line reads `Left-click: disabled — /at enable`; the library reads the
-command out of `NS.Slash:DisabledLine()`, so the tooltip and the refusal the click prints name the
-same verb. There is **no `Test mode:` line**: this addon has no Test mode (options-ui-§15's
+The hints read the same while disabled, because neither button is gated. There is **no `Test mode:` line**: this addon has no Test mode (options-ui-§15's
 exemption — the lock is the preview), so `isTestMode` is not passed. There is **no
 `onTooltipShow`**: the addon has no lines of its own to append, and the title and click hints are
 the library's. `tests/test_launcher.lua` pins the whole five-line tooltip, the lock read on every
-show, the disabled state and the locale route.
+show and the disabled state.
 
 ## Visibility: one row, one boolean
 

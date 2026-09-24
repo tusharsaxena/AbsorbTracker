@@ -336,11 +336,13 @@ local function launcherObject()
   return NS.Launcher:Object()
 end
 
-test("disabled 8: the left click is refused and writes nothing; the right click still opens the panel", function()
-  -- launcher-§2's rung (b): this addon's left click drives the LOCK, which is its preview switch
-  -- (options-ui-§15's exemption), and a preview switch is a feature. The audit's finding was that
-  -- the button stayed clickable with NO gate at all, so a click wrote the stored tree of an addon
-  -- the player had switched off — a game event in every sense that matters.
+test("disabled 8: the left click opens the panel; the menu grays Locked and still re-enables", function()
+  -- launcher-§2 (v2.67.0, LibKa0s-Launcher minor 4). The left button no longer drives the lock: it
+  -- opens the settings panel, which is setup rather than a feature (§7), so it is not gated and
+  -- prints nothing. The lock -- this addon's preview switch, and a feature -- lives in the right
+  -- click's options menu now, where the library grays it while the addon is off. The audit's
+  -- original finding (a disabled addon's click wrote its stored tree) is therefore pinned on the
+  -- menu: a grayed Locked writes nothing, and Enabled is the one live entry.
   --
   -- The BUTTON stays on the minimap either way: `minimap.hide` is a per-installation display
   -- preference and says nothing about whether the addon is running.
@@ -353,25 +355,36 @@ test("disabled 8: the left click is refused and writes nothing; the right click 
   M.__resetSvWrites()
   M.__resetPrinted()
 
-  object.OnClick(object, "LeftButton")
-  local writes = M.__svWrites()
-  assertEqual(#writes, 0, "a disabled addon's launcher click wrote SavedVariables: "
-    .. (writes[1] and writes[1].path or ""))
-  assertEqual(#shownBars(), 0, "the click showed a frame: " .. joined(shownBars()))
-  assertEqual(#M.__printed(), 1, "one refusal line: " .. joined(M.__printed()))
-  assertTrue(M.__printed()[1]:find(NS.Slash:DisabledLine(), 1, true) ~= nil,
-    "and it is the dispatcher's own line, not a second spelling: " .. M.__printed()[1])
-  assertTrue(NS.GetSetting("locked"), "the lock did not move")
-
-  -- RIGHT-click is unchanged, in either state: the panel is setup, not a feature (§7), so the right
-  -- button opens it for the same reason `config` and the bare `/at` still do.
   local realOpen, opened = NS.OpenOptionsPanel, 0
   NS.OpenOptionsPanel = function() opened = opened + 1 end
-  object.OnClick(object, "RightButton")
+  object.OnClick(object, "LeftButton")
   NS.OpenOptionsPanel = realOpen
-  assertEqual(opened, 1, "right-click must still open the settings panel while disabled")
+  assertEqual(opened, 1, "left-click must open the settings panel while disabled")
+  local writes = M.__svWrites()
+  assertEqual(#writes, 0, "a disabled addon's left click wrote SavedVariables: "
+    .. (writes[1] and writes[1].path or ""))
+  assertEqual(#shownBars(), 0, "the click showed a frame: " .. joined(shownBars()))
+  assertEqual(#M.__printed(), 0, "the left click prints nothing: " .. joined(M.__printed()))
 
+  local Menu = dofile("tests/mock_menu.lua")(M)
+  Menu.install()
+  local ok, err = pcall(function()
+    object.OnClick(object, "RightButton")
+    local menu = assert(Menu.last, "the right click opened no menu")
+    assertFalse(menu:Find("Locked").enabled, "Locked is grayed while disabled")
+    menu:Click("Locked")
+    assertEqual(#M.__svWrites(), 0, "a grayed Locked wrote SavedVariables")
+    assertTrue(NS.GetSetting("locked"), "the lock did not move")
+    assertEqual(#shownBars(), 0, "the menu showed a frame: " .. joined(shownBars()))
+
+    -- Enabled is live, and it is `/at enable` itself: the way back is one click away.
+    object.OnClick(object, "RightButton")
+    Menu.last:Click("Enabled")
+    assertTrue(NS.GetSetting("enabled") ~= false, "the menu's Enabled re-enabled the addon")
+  end)
+  Menu.remove()
   enable()
+  assertTrue(ok, tostring(err))
 end)
 
 -- ── 9. re-enable, and the rebuild is from CURRENT state ────────────────────────────────────────

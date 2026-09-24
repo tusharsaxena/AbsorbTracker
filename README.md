@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-772%2F772_passing-green)
+![Tests](https://img.shields.io/badge/Tests-776%2F776_passing-green)
 
 Ka0s Absorb Tracker puts your absorb shields on screen as a movable bar. Every shield on the unit,
 added into one number, so a glance tells you how much damage you can eat before your health starts
@@ -71,8 +71,10 @@ put the lot back and recenter them. `/at toggle` flips all the bars at once or o
 update` forces a repaint, `/at version` prints the installed version, and `/at profile` and `/at perf` each print their own verbs when run
 bare. Addon output arrives in chat behind a cyan `[AT]` tag.
 
-There is a **minimap button** too, wearing the addon's logo — left-click unlocks and re-locks the
-bars, right-click opens the settings panel, and you can drag it anywhere around the ring. Hover it
+There is a **minimap button** too, wearing the addon's logo — left-click opens the settings panel,
+right-click opens a small menu where you can turn the addon on or off and lock or unlock the bars
+(the same as `/at enable`, `/at disable`, `/at lock` and `/at unlock`), and you can drag it anywhere
+around the ring. While the addon is off, the lock entry is grayed out until you enable it again. Hover it
 for the version and whether the addon is enabled and the bars are locked; it answers even while the
 addon is off. If you run
 Titan Panel, Bazooka or ElvUI's data texts, the same plugin turns up there and behaves the same way.

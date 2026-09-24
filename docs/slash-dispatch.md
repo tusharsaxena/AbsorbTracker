@@ -67,9 +67,9 @@ spelling for eleven addons — plain-text brand, an em dash with a single space 
 `enable it with` and the command in gold with its leading slash, no trailing period and no second
 line. It is **not** routed through `NS.L`: a translated override here would give a player running
 four Ka0s addons four different answers to the same question. `NS.Slash:DisabledLine()` publishes
-it, and the launcher's refused left click prints that same member rather than a second copy of the
-sentence: the launcher descriptor's `disabledLine` returns it, and the gate itself is
-`LibKa0s-Launcher-1.0`'s (`isEnabled`, minor 2), not a check inside this addon's `onClick`.
+it. The launcher no longer prints it: since `LibKa0s-Launcher-1.0` minor 4 the left click opens
+the settings panel in either state and the options menu grays its feature entries while disabled,
+so there is no launcher refusal line (launcher-§2).
 
 The polarity is still deliberate. `liveVerbs` names what keeps answering, so **a verb added tomorrow
 is gated by default** and has to argue its way onto the list:
@@ -142,14 +142,14 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 | `/at` (no args) | the `config` handler (library) | Runs `config` with an empty rest, so a bare `/at` opens the settings panel on its landing page (slash-commands-§4). Whitespace-only input counts as bare. The library prints help instead only for a host with no `config` verb, which is not this one. |
 | `/at help` | `cli:PrintHelp` (library) | Version header, then one row per `NS.COMMANDS` entry. |
 | `/at config` (alias `/at options`) | `NS.OpenOptionsPanel` (library) | Open the settings category. Combat-gated inside `OpenOptionsPanel`, so every caller is refused, not just this verb. The alias is declared on the descriptor's `aliases` map, not as a second row. |
-| `/at enable` / `/at disable` | `setEnabled` | The reserved pair (slash-commands-§2), and **aliases rather than a second switch**: each writes the `enabled` path the Master controls tab's Enable checkbox writes, through the same `NS.SetByPath` seam, so the row's `onChange` runs whichever surface was used and neither surface can hold a different answer. No second key, no session flag. The echo is slash-commands-§5's single-line `path = value` form, read back from the store. **The pair is not one-way:** the write moves the `disabled` hold on the stand-down latch (`core/Lifecycle.lua`) so the addon goes genuinely inert, but the dispatcher, the `COMMANDS` table, the settings registration, the AceDB handle and the launcher registration are **setup, not features** and stay up — so a bare `/at`, `/at help`, `/at version`, the whole schema CLI and `/at enable` itself all still answer with the addon off. |
+| `/at enable` / `/at disable` | `setEnabled` | The reserved pair (slash-commands-§2), and **aliases rather than a second switch**: each writes the `enabled` path the Master controls tab's Enable checkbox writes, through the same `NS.SetByPath` seam, so the row's `onChange` runs whichever surface was used and neither surface can hold a different answer. No second key, no session flag. The echo is slash-commands-§5's single-line `path = value` form, read back from the store. **The pair is not one-way:** the write moves the `disabled` hold on the stand-down latch (`core/Lifecycle.lua`) so the addon goes genuinely inert, but the dispatcher, the `COMMANDS` table, the settings registration, the AceDB handle and the launcher registration are **setup, not features** and stay up — so a bare `/at`, `/at help`, `/at version`, the whole schema CLI and `/at enable` itself all still answer with the addon off. The launcher menu's **Enabled** entry runs these same two handlers, out of `NS.COMMANDS` (`core/LauncherSetup.lua`). |
 | `/at list` | `cli:CliList` | Every schema row and its current value, grouped by `groupKey` — `[appearance / player]` for a per-unit page, a bare `[general]` otherwise. |
 | `/at get <path>` | `cli:CliGet` | One row's stored value, in the same `key = value` shape `/at list` prints. |
 | `/at set <path> <value>` | `cli:CliSet` | Type-aware parse, then `NS.SetByPath` plus `NS.RefreshOptionsPanel` — the same seam the panel widget writes through. The echo **re-reads** what was stored, so a clamp is visible. |
 | `/at reset <path>` | `cli:CliReset` | Reset one row to its default via `NS.ApplyDefault`. A whole page is the panel's Defaults button, not a verb. |
 | `/at resetall` | `runResetAll` → `NS.Helpers.RestoreAllDefaults` | Reset the active profile to the shipped defaults. Shared with the panel's Reset All button and the popup; the acknowledgment sits **inside** the guard, so a load without `settings/OptionsSetup.lua` says it cannot rather than claiming success. |
 | `/at resetposition` | `runResetPosition` → `NS.Helpers.ResetAllPositions` | Clear every unit's saved position and re-anchor. Same guard, same reason. |
-| `/at lock` / `/at unlock` | inline | `NS.SetByPath("locked", …)`, then `echoStored("locked")` — the same helper `setEnabled` uses: it refreshes an open options panel so **Lock frame** moves with the verb, and prints slash-commands-§5's `locked = true` shape read back from the store, so an unlock the row's `onChange` refuses in combat is echoed as the `locked = true` it left behind rather than as a success line. The launcher's LEFT-click is the third writer of the same path, through the same seam (launcher-§2 rung (b), `core/LauncherSetup.lua`). |
+| `/at lock` / `/at unlock` | inline | `NS.SetByPath("locked", …)`, then `echoStored("locked")` — the same helper `setEnabled` uses: it refreshes an open options panel so **Lock frame** moves with the verb, and prints slash-commands-§5's `locked = true` shape read back from the store, so an unlock the row's `onChange` refuses in combat is echoed as the `locked = true` it left behind rather than as a success line. The launcher's LEFT-click is the third writer of the same path, through the same seam (launcher-§2 rung (b), `core/LauncherSetup.lua`). The launcher menu's **Locked** entry runs these same two handlers, out of `NS.COMMANDS` (`core/LauncherSetup.lua`). |
 | `/at toggle [player\|target\|focus]` | `runToggle` | Bare: flip **every** bar — all off if any is on, otherwise all on. With a unit token: that one bar. See the note below. |
 | `/at debug [on\|off]` | `runDebug` | Bare toggles the console **window**; `on`/`off` set session logging through `NS.DebugLog:SetEnabled`. |
 | `/at debug events` | `runDebug` → `printRejectedEvents` | Every event name the client refused this session (`NS.State.rejectedEvents`, events-frames-taint-§1), comma-joined, or `Rejected events: none`. |
@@ -264,7 +264,7 @@ spaces, no color escapes — and `PrintCmd` falls back to the same plain shape f
 
 The one library string the stub **does** carry is the disabled line's format. `STUB_DISABLED_LINE_FORMAT`
 is `LibKa0s-Slash-1.0`'s `DISABLED_LINE_FORMAT`, byte for byte (em dash as the library spells it), so
-the degraded `DisabledLine()` — which the launcher's refused left click prints — says exactly what the
+the degraded `DisabledLine()` says exactly what the
 live one says, gold command included. slash-commands-§1 sanctions exactly this copy and requires a pin
 beside it: the value is published as `Sl.__STUB_DISABLED_LINE_FORMAT` and `tests/test_slashcmds.lua`
 compares it with the live library's constant through `Kit.assertLibraryConstant`, so a re-worded

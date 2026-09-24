@@ -201,14 +201,15 @@ The verb table, the sub-verb trees, the mirror note, the help convention and the
 ## Launcher
 
 `core/LauncherSetup.lua` builds **one** LibDataBroker `launcher` object, named for the addon's folder
-and labeled `NS.Constants.BRAND`, which LibDBIcon draws as the minimap button (launcher-§1). The rung
-is **(b)**: left-click toggles the lock, the addon's preview switch, through `NS.SetByPath`, and is
-refused with `NS.Slash:DisabledLine()` while the addon is disabled. Right-click always opens the
-settings panel. The button's tooltip is the library's (Launcher minor 3), fed `version`,
-`isEnabled`, `isLocked` and a `Lock / unlock` left-click label, and it shows while disabled too. The
-button's visibility is the global-store `global.minimap.shown` row, which survives every reset
-(launcher-§3). The object, the click gate, the tooltip, the inverted visibility row and the icon's
-format are in [launcher.md](./launcher.md).
+and labeled `NS.Constants.BRAND`, which LibDBIcon draws as the minimap button (launcher-§1).
+Left-click opens the settings panel and right-click opens the library's options menu (launcher-§2,
+Launcher minor 4) with two entries, **Enabled** and **Locked**, each running its slash verb's own
+`NS.COMMANDS` handler (`/at enable|disable`, `/at lock|unlock`); while disabled the library grays
+*Locked*. The button's tooltip is the library's (Launcher minor 3), fed `version`, `isEnabled` and
+`isLocked`, and it shows while disabled too. The button's visibility is the global-store
+`global.minimap.shown` row, which survives every reset (launcher-§3). The object, the two buttons,
+the menu, the tooltip, the inverted visibility row and the icon's format are in
+[launcher.md](./launcher.md).
 
 ## The disabled state is total
 
@@ -355,7 +356,7 @@ Older bundles and plans under `docs/` that still name the file are frozen histor
 | Doc | Covers |
 |---|---|
 | `lifecycle.md` | The disabled state: the lifecycle latch, its two holds, what stands down and what survives |
-| `launcher.md` | The minimap button and broker row: the one object, the click rung and its gate, the status tooltip, the visibility row, the icon |
+| `launcher.md` | The minimap button and broker row: the one object, the two buttons, the options menu and its disabled state, the status tooltip, the visibility row, the icon |
 | `recorded-decisions.md` | Retired register rows, and recorded choices that are not deviations |
 
 ## Documented deviations

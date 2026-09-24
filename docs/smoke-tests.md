@@ -439,7 +439,7 @@ stand-in to sign this off with, and **English steps are not sufficient** here �
 `ConsumableMaster` § 3c, where the numeric-subclass cases genuinely do stand in. Until the pass runs,
 the honest state of this section is unrun, and it is recorded that way rather than as coverage.
 
-### U. The launcher — the minimap button and the broker plugin (LibKa0s v1.39.0, launcher-§1–§4)
+### U. The launcher — the minimap button and the broker plugin (LibKa0s v1.39.0, options menu v1.58.0, launcher-§1–§4)
 
 The one section whose failures are all SILENT: a wrong icon path or a wrong TGA format draws nothing
 and raises nothing, and a second click implementation agrees with the first until the day it does
@@ -453,14 +453,21 @@ not. Every step here is therefore a look, not a log line.
    the ring — it follows, and stays where you left it after a `/reload`. (That is LibDBIcon writing
    `minimapPos` into `db.global.minimap`; if it snaps back, the launcher was handed a copy of that
    table rather than the table itself.)
-3. **LEFT-click toggles the lock** — the bars become draggable and paint their placeholder fill, and
-   a second left-click pins them again. Exactly what **General ▸ Master controls ▸ Lock frame** does,
-   because it is the same write: open the panel, leave it open, and left-click the button — the
-   checkbox moves with it.
-4. **Left-click in combat is refused.** Pull something, and while locked, left-click the button: chat
-   says `Cannot unlock the bars during combat` and nothing unlocks. Re-locking mid-combat is always
-   allowed, so you can never be stranded unlocked.
-5. **RIGHT-click opens the settings panel**, on its landing page, wherever the left click sits.
+3. **LEFT-click opens the settings panel**, on its landing page (launcher-§2, LibKa0s-Launcher
+   minor 4). Hover first: the tooltip ends `Left-click: Open settings` / `Right-click: Options menu`.
+4. **RIGHT-click opens the options menu**: the client's own context menu, titled
+   `Ka0s Absorb Tracker`, with exactly two checkboxes, **Enabled** (ticked) and **Locked** (ticked
+   while the bars are locked). No Test mode and no Show window entry. Click **Locked**: the bars
+   become draggable and paint their placeholder fill, and chat echoes `locked = false` — the same
+   line `/at unlock` prints, because it is `/at unlock`'s handler. Open the panel, leave it open,
+   right-click again and tick **Locked**: the bars pin, chat says `locked = true`, and **Lock frame**
+   moves with it.
+5. **Locked in combat is refused.** Pull something and, while locked, right-click and click
+   **Locked**: chat says `Cannot unlock the bars during combat` and nothing unlocks — the verb's own
+   refusal. Re-locking mid-combat is always allowed, so you can never be stranded unlocked. Then
+   click **Enabled** out of combat: chat echoes `enabled = false` and the bars stop drawing; open the
+   menu again and **Locked** reads `Locked (enable the addon first)`, grayed. Click **Enabled** to
+   turn it back on.
 6. **The visibility row.** Untick **General ▸ Master controls ▸ Minimap button**: the button vanishes
    **immediately**, not on the next reload. Tick it back: it returns, at the angle you dragged it to.
    The CLI reads the row in the same sense: with the button shown, `/at get global.minimap.shown`
@@ -480,8 +487,8 @@ not. Every step here is therefore a look, not a log line.
 10. **A broker display, if you have one.** Install Titan Panel / Bazooka / use ElvUI's data texts and
     add the plugin. Its row reads **`Ka0s Absorb Tracker`** in plain text — the brand name, filed
     beside the other Ka0s addons rather than alphabetically away from them — wearing the same logo,
-    and it answers the left and right clicks exactly as the minimap button does, because it is the
-    same object. There is deliberately **no setting** that hides the addon from a broker display;
+    and it answers the left click (settings) and right click (the same options menu) exactly as the
+    minimap button does, because it is the same object. There is deliberately **no setting** that hides the addon from a broker display;
     the display has its own per-plugin toggle.
 11. **`/at enable` / `/at disable`.** `/at disable` echoes `enabled = false` and the bars stop
     drawing. **Then check the way back is still open:** `/at` still opens the panel, `/at help` still
@@ -501,12 +508,12 @@ not. Every step here is therefore a look, not a log line.
     next shield repaints them without a `/reload`. What this pins is the difference between standing
     down and declining to react — with a draw gate every one of those lines still appears, because
     the handlers still run.
-14. **A disabled addon's minimap click writes nothing** (launcher-§2). Still disabled, note whether
-    the bars are locked, then **left-click the minimap button**. It answers with the **same one line**
-    `/at unlock` gives — word for word, because both come out of the dispatcher — and the lock does
-    **not** move. **Right-click** still opens the settings panel, and the *Enable Absorb Tracker*
-    checkbox on Master controls is live there. Re-tick it and the bars come back, which is the second
-    route in and the reason the panel is exempt.
+14. **A disabled addon's minimap button writes nothing** (launcher-§2). Still disabled, note whether
+    the bars are locked, then **right-click the minimap button**. The menu's **Locked** entry is
+    grayed and reads `Locked (enable the addon first)`; clicking it does nothing and the lock does
+    **not** move. **Enabled** is live and unticked. **Left-click** opens the settings panel, and the
+    *Enable Absorb Tracker* checkbox on Master controls is live there. Re-enable from either — the
+    menu's **Enabled** or the checkbox — and the bars come back.
 15. **The two holds do not fight.** `/at perf start`, `/at perf measure b` (the addon suspends), then
     `/at disable` mid-run, then `/at perf finish`. The finish line reads **`perf hold RELEASED — the
     addon stays down`** rather than `RESUMED`, and the bars stay gone — the player switched the
