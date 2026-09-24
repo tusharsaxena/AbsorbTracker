@@ -160,10 +160,23 @@ end
 -- The account-wide schema ladder, in order. `apply` runs BEFORE the version line is logged, so a
 -- step's own [Migrate] output still precedes its "vX -> vY" stamp. Built once at file load — the
 -- ladder has grown three times now, and a new version should be one row here, not another arm.
+--
+-- A step never writes `schemaVersion`: the runner owns the stamp (savedvariables-§1) and advances
+-- it only past a step that returned. A PROFILE-scoped step walks every stored profile through
+-- forEachProfile, because the account-wide stamp alone would run it for the active profile only.
 local SCHEMA_STEPS = {
-    { to = 2, apply = function(profile)
-        -- v2: the poll ticker became event-driven; the old poll-interval key is dead.
-        if profile then profile.updateInterval = nil end
+    { to = 2, apply = function()
+        -- v2: the poll ticker became event-driven; the old poll-interval key is dead. Swept from
+        -- every profile: this step used to clear the ACTIVE profile only, under the account-wide
+        -- stamp, so every other stored profile kept the dead key.
+        local cleared = forEachProfile(function(p)
+            if type(p) ~= "table" or p.updateInterval == nil then return false end
+            p.updateInterval = nil
+            return true
+        end)
+        if cleared > 0 then
+            NS.Debug("Migrate", "cleared `updateInterval` from %s profile(s)", cleared)
+        end
     end },
     -- v3 is stamp-only: the per-unit lift is gated on the PER-PROFILE stamp and already ran
     -- unconditionally above, so there is nothing account-wide left to do here.
@@ -202,10 +215,38 @@ local SCHEMA_STEPS = {
     end },
 }
 
+-- The runner's target, derived from the ladder and never a second literal (savedvariables-§1).
+-- `__migrationSteps` is the suite seam: tests/test_database.lua appends a raising step to prove
+-- the stamp does not move past it.
+NS.SCHEMA_VERSION = SCHEMA_STEPS[#SCHEMA_STEPS].to
+NS.__migrationSteps = SCHEMA_STEPS
+
+-- Walk the ladder from the stored stamp. Each step runs under pcall; the runner stamps `step.to`
+-- only when the step returned. A step that raises leaves the stamp at the last completed step (so
+-- the next load retries it), stops the ladder there, and says so once in chat.
+local function runLadder(g, profile)
+    for _, step in ipairs(SCHEMA_STEPS) do
+        if g.schemaVersion < step.to then
+            local from = g.schemaVersion
+            local ok, err = pcall(step.apply, profile)
+            if not ok then
+                NS.Debug("Migrate", "v%s \226\134\146 v%s failed: %s", from, step.to, tostring(err))
+                NS.Print("Settings upgrade stopped at v" .. from .. " -> v" .. step.to
+                    .. "; saved settings were left as they were")
+                break
+            end
+            NS.Debug("Migrate", "v%s \226\134\146 v%s", from, step.to)
+            g.schemaVersion = step.to
+        end
+    end
+end
+
 function NS:RunMigrations()
     local g = NS.db and NS.db.global
     if not g then return end
-    g.schemaVersion = g.schemaVersion or 1
+    -- 0 is the pre-migration floor (the shipped default, defaults/Profile.lua); an absent stamp
+    -- reads the same way, so every step runs.
+    g.schemaVersion = g.schemaVersion or 0
 
     local profile = NS.db.profile
     local defaults = NS.defaults.profile
@@ -224,11 +265,5 @@ function NS:RunMigrations()
         backfillUnitKeys(profile, defaults)
     end
 
-    for _, step in ipairs(SCHEMA_STEPS) do
-        if g.schemaVersion < step.to then
-            step.apply(profile)
-            NS.Debug("Migrate", "v%s \226\134\146 v%s", g.schemaVersion, step.to)
-            g.schemaVersion = step.to
-        end
-    end
+    runLadder(g, profile)
 end

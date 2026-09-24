@@ -85,13 +85,17 @@ badge and any count quoted in the docs must agree with it.
 - degraded Schema stub: Get forwards the instance id to a row's own get
 - degraded Schema stub: ApplyDefault forwards the instance id to Set
 
-### test_database.lua (34)
+### test_database.lua (38)
 
 - RunMigrations migrates a fresh DB to the current version (5)
 - a freshly-materialized global runs the ladder, because its default is pre-ladder
 - RunMigrations leaves an already-current (v5) DB unchanged
 - RunMigrations is idempotent across repeated runs
 - RunMigrations v2 retires the legacy updateInterval profile key
+- the account-wide schemaVersion default is 0 (savedvariables-§1)
+- NS.SCHEMA_VERSION is the highest ladder step's `to`
+- v2 clears updateInterval from every stored profile, not only the active one
+- a step that raises leaves the stamp unmoved and says so once in chat
 - RunMigrations backfills throttleWindow from flatDefaults
 - RunMigrations backfills a missing scalar per-unit key from the defaults
 - RunMigrations deep-copies per-unit table defaults (no shared reference to defaults)
@@ -833,7 +837,7 @@ badge and any count quoted in the docs must agree with it.
 |-------|------:|
 | test_loadorder.lua | 14 |
 | test_schema.lua | 59 |
-| test_database.lua | 34 |
+| test_database.lua | 38 |
 | test_units.lua | 17 |
 | test_envsetup.lua | 6 |
 | test_coresetup.lua | 5 |
@@ -862,4 +866,4 @@ badge and any count quoted in the docs must agree with it.
 | test_disabled.lua | 15 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **728** |
+| **Total** | **732** |

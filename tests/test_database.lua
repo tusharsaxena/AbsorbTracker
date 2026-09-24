@@ -19,8 +19,8 @@ end)
 -- it — copyDefaults out of the SHIPPED defaults, never a hand-set stamp — and what is asserted is
 -- that the ladder reached the profile. The nil'd-stamp case above passes either way, which is why
 -- it never caught this. The default's literal VALUE is deliberately not asserted: omitting the key
--- entirely is equally correct (copyDefaults copies nothing, and core/Database.lua:189 reads the
--- absent stamp as 1), so pinning `== 1` would only forbid a correct file.
+-- entirely would also reach every step (RunMigrations reads an absent stamp as 0); the value itself
+-- is pinned by the savedvariables-§1 test below, which requires the declared 0.
 test("a freshly-materialized global runs the ladder, because its default is pre-ladder", function()
   local savedDB = NS.db
   local profile = { updateInterval = 1.0, hidden = true, showOnlyInCombat = true,
@@ -61,6 +61,61 @@ test("RunMigrations v2 retires the legacy updateInterval profile key", function(
   NS:RunMigrations()
   assertEqual(NS.db.profile.updateInterval, nil)
   assertEqual(NS.db.global.schemaVersion, 5)
+end)
+
+-- savedvariables-§1 (v2.65.0): the account-wide default is 0, never a later floor. AceDB's
+-- removeDefaults strips a stored value equal to its default, and AceDB backfills a declared
+-- default onto a legacy account that stored no stamp; 0 has neither problem.
+test("the account-wide schemaVersion default is 0 (savedvariables-\194\1671)", function()
+  assertEqual(NS.defaults.global.schemaVersion, 0)
+end)
+
+test("NS.SCHEMA_VERSION is the highest ladder step's `to`", function()
+  local steps = NS.__migrationSteps
+  assertTrue(type(steps) == "table", "NS.__migrationSteps is the suite seam onto the ladder")
+  assertEqual(NS.SCHEMA_VERSION, steps[#steps].to)
+  assertEqual(NS.SCHEMA_VERSION, 5)
+end)
+
+-- The v2 step is PROFILE-scoped (it clears a profile key), so the account-wide stamp alone cannot
+-- gate it: before this, only the profile active at the first post-upgrade login lost the dead key,
+-- and every other stored profile carried it forever.
+test("v2 clears updateInterval from every stored profile, not only the active one", function()
+  local savedDB = NS.db
+  local default = { updateInterval = 0.1, schemaVersion = 3 }
+  local raid    = { updateInterval = 0.2, schemaVersion = 3 }
+  NS.db = {
+    profile = default,
+    global  = { schemaVersion = 1 },
+    sv      = { profiles = { Default = default, Raid = raid } },
+  }
+  local ok, err = pcall(NS.RunMigrations, NS)
+  NS.db = savedDB
+  if not ok then error(err) end
+  assertEqual(default.updateInterval, nil, "the active profile")
+  assertEqual(raid.updateInterval, nil, "an inactive stored profile")
+end)
+
+-- The runner owns the stamp and advances it only past a step that RETURNED. A step that raises
+-- leaves the stamp where it was, stops the ladder, and tells the player once.
+-- red under: stamping before apply, or no pcall around apply.
+test("a step that raises leaves the stamp unmoved and says so once in chat", function()
+  local savedDB = NS.db
+  local steps = assert(NS.__migrationSteps, "NS.__migrationSteps is missing")
+  local target = assert(NS.SCHEMA_VERSION, "NS.SCHEMA_VERSION is missing")
+  steps[#steps + 1] = { to = target + 1, apply = function() error("boom") end }
+  NS.db = { profile = { schemaVersion = 3 }, global = { schemaVersion = target } }
+  T.mocks.__resetPrinted()
+  local ok, err = pcall(NS.RunMigrations, NS)
+  local stamp = NS.db.global.schemaVersion
+  local printed = T.mocks.__printed()
+  steps[#steps] = nil
+  NS.db = savedDB
+  assertTrue(ok, "RunMigrations must not raise: " .. tostring(err))
+  assertEqual(stamp, target, "the stamp stays at the last completed step")
+  assertEqual(#printed, 1, "one chat line: " .. table.concat(printed, " / "))
+  assertTrue(printed[1]:find("Settings upgrade stopped at v5 -> v6", 1, true) ~= nil,
+    "the line names the stop: " .. tostring(printed[1]))
 end)
 
 test("RunMigrations backfills throttleWindow from flatDefaults", function()
@@ -119,7 +174,8 @@ end)
 -- Characterization: the ORDER of the [Migrate] lines across a full v1 -> v5 upgrade, not just
 -- their presence. A step's own message must precede its own "vX -> vY" stamp, and the ladder must
 -- climb one version at a time -- so the v4 `hidden` sweep is reported before "v3 -> v4", never
--- after it and never folded into a single v1 -> v5 jump.
+-- after it and never folded into a single v1 -> v5 jump. v2 reports its own profile count, like
+-- v4 and v5, since it became a sweep over every stored profile.
 test("RunMigrations emits the [Migrate] lines for a v1->v5 upgrade in order", function()
   local savedSV, savedDB, savedDebug = _G.AbsorbTrackerDB, NS.db, NS.State.debug
   -- `showOnlyInCombat` is seeded TRUE so the v5 step has real work to report, the same way
@@ -139,6 +195,7 @@ test("RunMigrations emits the [Migrate] lines for a v1->v5 upgrade in order", fu
   NS.db, _G.AbsorbTrackerDB, NS.State.debug = savedDB, savedSV, savedDebug
 
   local expected = {
+    "cleared `updateInterval` from 1 profile(s)",
     "v1 \226\134\146 v2",
     "v2 \226\134\146 v3",
     "dropped `hidden` from 1 profile(s)",
@@ -147,7 +204,7 @@ test("RunMigrations emits the [Migrate] lines for a v1->v5 upgrade in order", fu
     "v4 \226\134\146 v5",
   }
   local logged = table.concat(lines, "\n")
-  assertEqual(#lines, #expected, "exactly six [Migrate] lines: " .. logged)
+  assertEqual(#lines, #expected, "exactly seven [Migrate] lines: " .. logged)
   for i, want in ipairs(expected) do
     assertTrue(lines[i]:find(want, 1, true) ~= nil,
       ("line %d must be %q, got %q"):format(i, want, lines[i]))

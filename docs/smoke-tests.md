@@ -98,7 +98,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### I. SavedVariables migration — no-op on existing profile
 50. Customize a profile (e.g. `barWidth=260`, custom texture), `/reload` → all customized values **survive** (backfill only fills missing keys).
-51. Logout to flush, inspect `AbsorbTracker.lua` → `global.schemaVersion = 4` (the shipped v3 migration, which also lifted your old flat `barWidth`/etc. onto `profile.units.player`); `/reload` again → stays `4`, values unchanged. **No `hidden` key survives anywhere in the file** — the v4 step sweeps it from every profile, not just the active one, so check an inactive profile block too.
+51. Logout to flush, inspect `AbsorbTracker.lua` → `global.schemaVersion = 5` (the stamp persists because the shipped default is `0`, savedvariables-§1; the ladder also lifted your old flat `barWidth`/etc. onto `profile.units.player`); `/reload` again → stays `5`, values unchanged, and `/at debug on` shows the `[Init]` line with `schema v5`. **No `hidden` or `updateInterval` key survives anywhere in the file** — the v2 and v4 steps sweep them from every profile, not just the active one, so check an inactive profile block too.
 52. *(Optional)* Hand-delete one profile key from the SV file, log in → that key restored to default, others untouched, no error.
 
 ### J. Class-color overrides
