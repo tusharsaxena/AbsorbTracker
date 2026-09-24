@@ -71,8 +71,10 @@ that covers the pure logic; this suite covers everything that only runs against 
 35. `/at profile list` / `current` → lists / prints current.
 36. `/at profile new SmokeTest` → switches to a defaults profile; bar repaints to default immediately.
 37. On SmokeTest `/at set units.player.barWidth 400`, then `/at profile use Default` → bar repaints to the original width (validates `OnProfileChanged`).
+36a. `/at profile new Default` → `Profile 'Default' already exists — /at profile use Default switches to it, /at profile reset resets it`; you stay on SmokeTest and no bar resets.
 38. `/at profile copy SmokeTest` → copies + repaints.
-39. `/at profile delete <current>` → refused; switch away, delete SmokeTest → deleted.
+38a. `/at profile copy NoSuchProfile` → `Profile 'NoSuchProfile' not found — /at profile list shows them`; `/at profile copy <current>` → `Cannot copy a profile onto itself`. Neither raises a Lua error (BugSack/BugGrabber clean) and neither changes a bar.
+39. `/at profile delete <current>` → refused; `/at profile delete NoSuchProfile` → `Profile 'NoSuchProfile' not found — /at profile list shows them`, no `Deleted` line; switch away, delete SmokeTest → deleted.
 40. **Panel-driven switch** — Profiles page dropdown switch → bar repaints live.
 40a. **The page draws.** Open another addon's options page first, then Absorb Tracker → Profiles → the AceDBOptions controls render (current profile, New, Copy From, Delete, Reset Profile): never a blank page under the header.
 

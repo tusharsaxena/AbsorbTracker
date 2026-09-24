@@ -523,7 +523,7 @@ badge and any count quoted in the docs must agree with it.
 - the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
 - General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
 
-### test_slashcmds.lua (90)
+### test_slashcmds.lua (94)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -568,11 +568,15 @@ badge and any count quoted in the docs must agree with it.
 - /at profile use switches the active profile
 - /at profile use with no name prints usage and switches nothing
 - /at profile new creates a profile carrying the defaults, not the old values
+- /at profile new refuses a name that already exists and leaves it untouched
 - /at profile new with no name prints usage
 - /at profile copy pulls another profile's values into the current one
 - /at profile copy with no name prints usage
+- /at profile copy of a missing profile refuses before AceDB sees the name
+- /at profile copy of the current profile refuses
 - /at profile delete refuses to delete the profile in use
 - /at profile delete removes a profile that is not in use
+- /at profile delete of a missing profile says so and deletes nothing
 - /at profile delete with no name prints usage
 - /at profile reset restores the current profile's defaults in place
 - /at profile reset logs one [Set] line from the reset handler, counting the rows it changed
@@ -728,8 +732,8 @@ badge and any count quoted in the docs must agree with it.
 
 ### test_prose.lua (15)
 
-- prose: no authored file carries a British spelling from localization-5's published list
-- prose: the gate carries localization-5's two lists whole, and nothing of its own
+- prose: no authored file carries a British spelling from localization-§5's published list
+- prose: the gate carries localization-§5's two lists whole, and nothing of its own
 - prose self-test: the carve-out suppresses the named generated folder, and only it
 - prose self-test: a path the carve-out does not name is not covered by one that looks like it
 - prose self-test: a carve-out that is not a set of path strings is a failure, not a silence
@@ -800,13 +804,13 @@ badge and any count quoted in the docs must agree with it.
 ### test_eol.lua (2)
 
 - eol: every tracked file carries the terminator .gitattributes declares for it
-- eol: .gitattributes is line-endings-5's canonical body for this repo kind
+- eol: .gitattributes is line-endings-§5's canonical body for this repo kind
 
 ### test_layout_cap.lua (13)
 
 - layoutcap: every authored file over the 1500-line cap is named in the census
 - layoutcap: no census row outlives the breach it records
-- layoutcap: every over-cap census row carries one of layout-1's three terminal states
+- layoutcap: every over-cap census row carries one of layout-§1's three terminal states
 - layoutcap: the census and the exempt set agree about which paths were exempted
 - layoutcap: an empty census is written as a result rather than left standing empty
 - layoutcap self-test: the parser reads the census nested under the register, and stops there
@@ -841,7 +845,7 @@ badge and any count quoted in the docs must agree with it.
 | test_helpers.lua | 70 |
 | test_launcher.lua | 16 |
 | test_optionssetup.lua | 13 |
-| test_slashcmds.lua | 90 |
+| test_slashcmds.lua | 94 |
 | test_perfcmds.lua | 42 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 4 |
@@ -853,4 +857,4 @@ badge and any count quoted in the docs must agree with it.
 | test_disabled.lua | 15 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **719** |
+| **Total** | **723** |

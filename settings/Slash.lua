@@ -404,6 +404,20 @@ local function needsName(verb, fn)
     end
 end
 
+-- True when `name` is one of the stored profiles. Exact and case-sensitive, as AceDB names are.
+-- new, copy and delete check the name here first, so AceDB never sees a name it would raise on
+-- (CopyProfile) or silently ignore (DeleteProfile).
+local function profileExists(db, name)
+    for _, existing in ipairs(db:GetProfiles()) do
+        if existing == name then return true end
+    end
+    return false
+end
+
+local function printNotFound(name)
+    print("Profile '" .. name .. "' not found \226\128\148 /at profile list shows them")
+end
+
 -- The sub-verb table, keyed by the lowercased verb. Built once at load.
 local PROFILE_VERBS = {
     list = function(db)
@@ -424,17 +438,27 @@ local PROFILE_VERBS = {
         print("Switched to profile '" .. name .. "'")
     end),
 
-    -- SetProfile first, THEN ResetProfile: the reset has to land on the new profile, not the one
-    -- being left behind. It is not redundant: `new` on a name that already exists resets that
-    -- profile. Both resets here are counted (NS.ResetProfileCounted), so OnProfileReset's line
-    -- carries the rows changed — `(0 rows)` for a profile that did not exist (debug-logging-§10).
+    -- `new` only ever makes a profile: an existing name is refused, never switched to and reset,
+    -- because that would wipe it on one typed command. SetProfile first, THEN ResetProfile, so the
+    -- reset lands on the new profile, not the one being left behind. The reset is counted
+    -- (NS.ResetProfileCounted), so OnProfileReset's line reads `(0 rows)` for the fresh profile
+    -- (debug-logging-§10).
     new = needsName("new", function(db, name)
+        if profileExists(db, name) then
+            return print("Profile '" .. name .. "' already exists \226\128\148 /at profile use "
+                .. name .. " switches to it, /at profile reset resets it")
+        end
         db:SetProfile(name)
         NS.ResetProfileCounted(db)
         print("Created and switched to new profile '" .. name .. "'")
     end),
 
+    -- AceDB's CopyProfile raises on the current or a missing name, so both are refused first.
     copy = needsName("copy", function(db, name)
+        if name == db:GetCurrentProfile() then
+            return print("Cannot copy a profile onto itself")
+        end
+        if not profileExists(db, name) then return printNotFound(name) end
         db:CopyProfile(name)
         print("Copied settings from profile '" .. name .. "'")
     end),
@@ -443,6 +467,7 @@ local PROFILE_VERBS = {
         if name == db:GetCurrentProfile() then
             return print("Cannot delete the current profile")
         end
+        if not profileExists(db, name) then return printNotFound(name) end
         db:DeleteProfile(name, true)   -- silent: we print our own line
         print("Deleted profile '" .. name .. "'")
     end),
