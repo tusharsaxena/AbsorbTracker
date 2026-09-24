@@ -27,7 +27,7 @@ The guard lives at the concat boundary, not the call sites: `NS.SafeToString` su
 
 ## `SetBackdrop` is a no-op when the table identity is unchanged
 
-WoW's `Frame:SetBackdrop(info)` ignores the call when `info` is the same table identity as the previously-set backdrop, *even if its fields changed*. AbsorbTracker reuses one `NS.backdropInfo` table (built at file load in `modules/Bar.lua`) to avoid GC, mutates its fields in `NS.UpdateBarAppearance` (`modules/Display.lua`), and then calls:
+WoW's `Frame:SetBackdrop(info)` ignores the call when `info` is the same table identity as the previously-set backdrop, *even if its fields changed*. AbsorbTracker reuses one `backdropInfo` table per bar (`NS.bars[unit].backdropInfo`, built at file load in `modules/Bar.lua`) to avoid GC, mutates its fields in `NS.UpdateBarAppearance` (`modules/Display.lua`), and then calls:
 
 ```lua
 bar:SetBackdrop(nil)            -- force-clear

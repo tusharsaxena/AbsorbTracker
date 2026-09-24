@@ -165,7 +165,7 @@ end)
 test("/at debug hold paints the given value and arms the hold window", function()
   NS.db.profile.units.player.enabled = true
   local painted
-  local sb = NS.statusBar
+  local sb = NS.bars.player.statusBar
   rawset(sb, "SetValue", function(_, v) painted = v end)
   local out = slash("debug hold 12345 7")
   rawset(sb, "SetValue", nil)
@@ -178,7 +178,7 @@ end)
 test("/at debug hold with a value and no duration holds it for 5 seconds", function()
   NS.db.profile.units.player.enabled = true
   local painted
-  local sb = NS.statusBar
+  local sb = NS.bars.player.statusBar
   rawset(sb, "SetValue", function(_, v) painted = v end)
   local out = slash("debug hold 50000")
   rawset(sb, "SetValue", nil)
@@ -193,7 +193,7 @@ test("/at debug hold keeps the bar scale usable for a value below the 100k floor
   -- A small value must not shrink the scale below 100000, or the fake fill reads as full.
   NS.db.profile.units.player.enabled = true
   local mn, mx
-  local sb = NS.statusBar
+  local sb = NS.bars.player.statusBar
   rawset(sb, "SetMinMaxValues", function(_, a, b) mn, mx = a, b end)
   slash("debug hold 500")
   rawset(sb, "SetMinMaxValues", nil)

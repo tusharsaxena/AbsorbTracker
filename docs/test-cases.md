@@ -332,7 +332,7 @@ badge and any count quoted in the docs must agree with it.
 - class color on a target bar is the TARGET's class, not the player's
 - a MIRRORED focus bar reads the player's swatch but takes the focus's class
 - the background palette is per-unit too, and stays the DARKENED set
-- three bar frames exist and the player alias points at the player frame
+- three bar frames exist and the retired player aliases stay off the namespace
 - each bar carries its own unit tag and its own backdrop table
 
 ### test_display.lua (60)

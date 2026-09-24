@@ -79,7 +79,7 @@ end
 test("RestoreBarPosition centers the bar when no position is saved", function()
   local saved = NS.db.profile.units.player.position
   NS.db.profile.units.player.position = nil
-  local calls = record(NS.bar, "SetPoint", NS.RestoreBarPosition)
+  local calls = record(NS.bars.player, "SetPoint", NS.RestoreBarPosition)
   NS.db.profile.units.player.position = saved
   assertEqual(#calls, 1)
   assertEqual(calls[1][1], "CENTER")
@@ -92,7 +92,7 @@ end)
 test("RestoreBarPosition restores the saved anchor verbatim", function()
   local saved = NS.db.profile.units.player.position
   NS.db.profile.units.player.position = { point = "TOPLEFT", relPoint = "BOTTOMRIGHT", x = 12, y = -34 }
-  local calls = record(NS.bar, "SetPoint", NS.RestoreBarPosition)
+  local calls = record(NS.bars.player, "SetPoint", NS.RestoreBarPosition)
   NS.db.profile.units.player.position = saved
   assertEqual(#calls, 1)
   assertEqual(calls[1][1], "TOPLEFT")
@@ -105,7 +105,7 @@ end)
 test("RestoreBarPosition clears the old anchors before re-anchoring", function()
   -- Without the ClearAllPoints the new SetPoint stacks on top of the old one and the bar ends up
   -- stretched between two anchors instead of moved.
-  local calls = record(NS.bar, "ClearAllPoints", NS.RestoreBarPosition)
+  local calls = record(NS.bars.player, "ClearAllPoints", NS.RestoreBarPosition)
   assertEqual(#calls, 1)
 end)
 
@@ -115,7 +115,7 @@ test("UpdateBarAppearance sizes the bar from the profile", function()
   local calls
   withUnitSetting("player", "barWidth", 260, function()
     withUnitSetting("player", "barHeight", 24, function()
-      calls = record(NS.bar, "SetSize", NS.UpdateBarAppearance)
+      calls = record(NS.bars.player, "SetSize", NS.UpdateBarAppearance)
     end)
   end)
   assertEqual(#calls, 1)
@@ -126,11 +126,11 @@ end)
 test("UpdateBarAppearance derives the backdrop inset from borderSize (floor of a quarter)", function()
   withUnitSetting("player", "borderSize", 12, function()
     NS.UpdateBarAppearance()
-    assertEqual(NS.backdropInfo.edgeSize, 12)
-    assertEqual(NS.backdropInfo.insets.left, 3)
-    assertEqual(NS.backdropInfo.insets.right, 3)
-    assertEqual(NS.backdropInfo.insets.top, 3)
-    assertEqual(NS.backdropInfo.insets.bottom, 3)
+    assertEqual(NS.bars.player.backdropInfo.edgeSize, 12)
+    assertEqual(NS.bars.player.backdropInfo.insets.left, 3)
+    assertEqual(NS.bars.player.backdropInfo.insets.right, 3)
+    assertEqual(NS.bars.player.backdropInfo.insets.top, 3)
+    assertEqual(NS.bars.player.backdropInfo.insets.bottom, 3)
   end)
 end)
 
@@ -139,40 +139,40 @@ test("UpdateBarAppearance floors the inset to 1 for a hairline border", function
   -- the backdrop edge; the max(1, ...) guard is what keeps a visible gutter.
   withUnitSetting("player", "borderSize", 2, function()
     NS.UpdateBarAppearance()
-    assertEqual(NS.backdropInfo.insets.left, 1)
-    assertEqual(NS.backdropInfo.insets.bottom, 1)
+    assertEqual(NS.bars.player.backdropInfo.insets.left, 1)
+    assertEqual(NS.bars.player.backdropInfo.insets.bottom, 1)
   end)
 end)
 
 test("UpdateBarAppearance scales the inset up with a thick border", function()
   withUnitSetting("player", "borderSize", 32, function()
     NS.UpdateBarAppearance()
-    assertEqual(NS.backdropInfo.edgeSize, 32)
-    assertEqual(NS.backdropInfo.insets.left, 8)
+    assertEqual(NS.bars.player.backdropInfo.edgeSize, 32)
+    assertEqual(NS.bars.player.backdropInfo.insets.left, 8)
   end)
 end)
 
 test("UpdateBarAppearance clears the backdrop before re-applying it", function()
   -- WoW's SetBackdrop no-ops when handed the same table identity, even after its fields changed —
-  -- and NS.backdropInfo is deliberately reused to avoid garbage. The nil-then-set is the only
+  -- and each bar's backdropInfo table is deliberately reused to avoid garbage. The nil-then-set is the only
   -- thing that makes a border/inset change visible; this pins that ordering.
-  local calls = record(NS.bar, "SetBackdrop", NS.UpdateBarAppearance)
+  local calls = record(NS.bars.player, "SetBackdrop", NS.UpdateBarAppearance)
   assertEqual(#calls, 2, "SetBackdrop is called exactly twice")
   assertEqual(calls[1][1], nil, "first call clears")
-  assertEqual(calls[2][1], NS.backdropInfo, "second re-applies the shared table")
+  assertEqual(calls[2][1], NS.bars.player.backdropInfo, "second re-applies the shared table")
 end)
 
 test("UpdateBarAppearance pushes the resolved media into the backdrop", function()
   NS.UpdateBarAppearance()
-  assertEqual(NS.backdropInfo.bgFile, NS.GetBgTexture())
-  assertEqual(NS.backdropInfo.edgeFile, NS.GetBorder())
+  assertEqual(NS.bars.player.backdropInfo.bgFile, NS.GetBgTexture())
+  assertEqual(NS.bars.player.backdropInfo.edgeFile, NS.GetBorder())
 end)
 
 test("UpdateBarAppearance makes the bar immovable and mouse-inert when locked", function()
   local movable, mouse
   withSetting("locked", true, function()
-    movable = record(NS.bar, "SetMovable", function()
-      mouse = record(NS.bar, "EnableMouse", NS.UpdateBarAppearance)
+    movable = record(NS.bars.player, "SetMovable", function()
+      mouse = record(NS.bars.player, "EnableMouse", NS.UpdateBarAppearance)
     end)
   end)
   assertEqual(movable[1][1], false)
@@ -182,8 +182,8 @@ end)
 test("UpdateBarAppearance restores drag + mouse when unlocked", function()
   local movable, mouse
   withSetting("locked", false, function()
-    movable = record(NS.bar, "SetMovable", function()
-      mouse = record(NS.bar, "EnableMouse", NS.UpdateBarAppearance)
+    movable = record(NS.bars.player, "SetMovable", function()
+      mouse = record(NS.bars.player, "EnableMouse", NS.UpdateBarAppearance)
     end)
   end)
   assertEqual(movable[1][1], true)
@@ -272,18 +272,18 @@ test("fontShadow reaches the absorb amount, and turning it off CLEARS the shadow
   -- turning the shadow back off would do nothing until a /reload.
   -- red under: dropping either arm, or writing only SetShadowColor and not the offset.
   withUnitSetting("player", "fontShadow", true, function()
-    local color = record(NS.valueText, "SetShadowColor", NS.UpdateBarAppearance)
+    local color = record(NS.bars.player.valueText, "SetShadowColor", NS.UpdateBarAppearance)
     assertEqual(#color, 1, "the shadow color is set on every appearance pass")
     assertTrue(color[1][4] > 0, "shadow on means a visible shadow alpha")
-    local offset = record(NS.valueText, "SetShadowOffset", NS.UpdateBarAppearance)
+    local offset = record(NS.bars.player.valueText, "SetShadowOffset", NS.UpdateBarAppearance)
     assertEqual(#offset, 1)
     assertTrue(offset[1][1] ~= 0 or offset[1][2] ~= 0, "shadow on means a non-zero offset")
   end)
   withUnitSetting("player", "fontShadow", false, function()
-    local color = record(NS.valueText, "SetShadowColor", NS.UpdateBarAppearance)
+    local color = record(NS.bars.player.valueText, "SetShadowColor", NS.UpdateBarAppearance)
     assertEqual(#color, 1, "the OFF arm still writes, rather than leaving the last pass's shadow")
     assertEqual(color[1][4], 0, "shadow off means a transparent shadow")
-    local offset = record(NS.valueText, "SetShadowOffset", NS.UpdateBarAppearance)
+    local offset = record(NS.bars.player.valueText, "SetShadowOffset", NS.UpdateBarAppearance)
     assertEqual(offset[1][1], 0)
     assertEqual(offset[1][2], 0)
   end)
@@ -331,8 +331,8 @@ test("an unlocked bar paints a placeholder fill against a 0..1 scale", function(
   local minmax, value
   withSetting("locked", false, function()
     withoutVisibility(function()
-      minmax = record(NS.statusBar, "SetMinMaxValues", function()
-        value = record(NS.statusBar, "SetValue", function()
+      minmax = record(NS.bars.player.statusBar, "SetMinMaxValues", function()
+        value = record(NS.bars.player.statusBar, "SetValue", function()
           NS.UpdateBarAppearance("player")
         end)
       end)
@@ -349,7 +349,7 @@ test("a locked bar paints no placeholder", function()
   local value
   withSetting("locked", true, function()
     withoutVisibility(function()
-      value = record(NS.statusBar, "SetValue", function()
+      value = record(NS.bars.player.statusBar, "SetValue", function()
         NS.UpdateBarAppearance("player")
       end)
     end)
@@ -369,7 +369,7 @@ test("a live repaint leaves the unlocked placeholder alone", function()
   local calls
   withSetting("locked", false, function()
     withUnitSetting("player", "enabled", true, function()
-      calls = record(NS.statusBar, "SetValue", function() NS.UpdateAbsorbBar("player") end)
+      calls = record(NS.bars.player.statusBar, "SetValue", function() NS.UpdateAbsorbBar("player") end)
     end)
   end)
   NS.testHoldUntil = savedHold
@@ -427,7 +427,7 @@ test("a hold that expires while unlocked falls back to the placeholder", functio
   withSetting("locked", false, function()
     NS.HoldPreview(5)
     local armed = T.mocks.__timers[#T.mocks.__timers]
-    value = record(NS.statusBar, "SetValue", armed.fn)
+    value = record(NS.bars.player.statusBar, "SetValue", armed.fn)
   end)
   NS.testHoldUntil = savedHold
   assertTrue(#value >= 1, "the announced window must end in something the user can see")
@@ -480,7 +480,7 @@ test("a LOCKED bar does not preview", function()
   local value
   withLocked(function()
     withoutVisibility(function()
-      value = record(NS.statusBar, "SetValue", function() NS.UpdateBarAppearance("player") end)
+      value = record(NS.bars.player.statusBar, "SetValue", function() NS.UpdateBarAppearance("player") end)
     end)
   end)
   assertEqual(#value, 0,
@@ -493,7 +493,7 @@ test("a live repaint stands down while unlocked", function()
   local calls, painted
   withUnlocked(function()
     withUnitSetting("player", "enabled", true, function()
-      calls = record(NS.statusBar, "SetValue", function() painted = NS.UpdateAbsorbBar("player") end)
+      calls = record(NS.bars.player.statusBar, "SetValue", function() painted = NS.UpdateAbsorbBar("player") end)
     end)
   end)
   NS.testHoldUntil = savedHold
@@ -564,7 +564,7 @@ test("a hold that expires while unlocked falls back to the placeholder", functio
   withUnlocked(function()
     NS.HoldPreview(5)
     local armed = T.mocks.__timers[#T.mocks.__timers]
-    value = record(NS.statusBar, "SetValue", armed.fn)
+    value = record(NS.bars.player.statusBar, "SetValue", armed.fn)
   end)
   NS.testHoldUntil = savedHold
   T.mocks.__fireTimers()
@@ -635,7 +635,7 @@ test("UpdateBarAppearance re-applies the font from the profile", function()
   local calls
   withUnitSetting("player", "fontSize", 17, function()
     withUnitSetting("player", "fontFlags", "THICKOUTLINE", function()
-      calls = record(NS.valueText, "SetFont", NS.UpdateBarAppearance)
+      calls = record(NS.bars.player.valueText, "SetFont", NS.UpdateBarAppearance)
     end)
   end)
   assertEqual(#calls, 1)
@@ -649,7 +649,7 @@ test("UpdateBarAppearance tolerates a nil fontFlags by passing an empty flag str
   local savedDefault = NS.unitDefaults.fontFlags
   NS.db.profile.units.player.fontFlags = nil
   NS.unitDefaults.fontFlags = nil
-  local calls = record(NS.valueText, "SetFont", NS.UpdateBarAppearance)
+  local calls = record(NS.bars.player.valueText, "SetFont", NS.UpdateBarAppearance)
   NS.db.profile.units.player.fontFlags = savedDB
   NS.unitDefaults.fontFlags = savedDefault
   assertEqual(calls[1][3], "", "SetFont rejects a nil flags argument")
@@ -670,11 +670,11 @@ end)
 test("ApplyVisibility shows the bar when the gate passes and hides it when it does not", function()
   withUnitSetting("player", "enabled", true, function()
     NS.ApplyVisibility()
-    assertTrue(NS.bar:IsShown(), "not hidden -> shown")
+    assertTrue(NS.bars.player:IsShown(), "not hidden -> shown")
   end)
   withUnitSetting("player", "enabled", false, function()
     NS.ApplyVisibility()
-    assertTrue(NS.bar:IsShown() == false, "hidden -> hidden")
+    assertTrue(NS.bars.player:IsShown() == false, "hidden -> hidden")
   end)
   withUnitSetting("player", "enabled", true, function() NS.ApplyVisibility() end)
 end)
@@ -684,7 +684,7 @@ end)
 test("UpdateAbsorbBar is a no-op while the bar is hidden", function()
   local calls
   withUnitSetting("player", "enabled", false, function()
-    calls = record(NS.statusBar, "SetValue", NS.UpdateAbsorbBar)
+    calls = record(NS.bars.player.statusBar, "SetValue", NS.UpdateAbsorbBar)
   end)
   assertEqual(#calls, 0, "no paint work is done for an invisible bar")
 end)
@@ -696,7 +696,7 @@ test("UpdateAbsorbBar is a no-op inside a /at debug hold window", function()
   local calls
   withUnitSetting("player", "enabled", true, function()
     NS.testHoldUntil = T.mocks.GetTime() + 5
-    calls = record(NS.statusBar, "SetValue", NS.UpdateAbsorbBar)
+    calls = record(NS.bars.player.statusBar, "SetValue", NS.UpdateAbsorbBar)
   end)
   NS.testHoldUntil = savedHold
   assertEqual(#calls, 0, "the held fake value must not be overwritten")
@@ -707,7 +707,7 @@ test("UpdateAbsorbBar paints again once the hold window has expired", function()
   local calls
   withUnitSetting("player", "enabled", true, function()
     NS.testHoldUntil = T.mocks.GetTime() - 1
-    calls = record(NS.statusBar, "SetValue", function()
+    calls = record(NS.bars.player.statusBar, "SetValue", function()
       withLocked(NS.UpdateAbsorbBar)
     end)
   end)
@@ -723,8 +723,8 @@ test("UpdateAbsorbBar scales the bar to max health and sets the absorb value", f
   NS.testHoldUntil = nil
   local minmax, value
   withUnitSetting("player", "enabled", true, function()
-    minmax = record(NS.statusBar, "SetMinMaxValues", function()
-      value = record(NS.statusBar, "SetValue", function() withLocked(NS.UpdateAbsorbBar) end)
+    minmax = record(NS.bars.player.statusBar, "SetMinMaxValues", function()
+      value = record(NS.bars.player.statusBar, "SetValue", function() withLocked(NS.UpdateAbsorbBar) end)
     end)
   end)
   T.mocks.UnitGetTotalAbsorbs, T.mocks.UnitHealthMax = savedAbs, savedHP
@@ -742,8 +742,8 @@ test("UpdateAbsorbBar substitutes 0 / 1 when the absorb and health reads come ba
   NS.testHoldUntil = nil
   local minmax, value
   withUnitSetting("player", "enabled", true, function()
-    minmax = record(NS.statusBar, "SetMinMaxValues", function()
-      value = record(NS.statusBar, "SetValue", function() withLocked(NS.UpdateAbsorbBar) end)
+    minmax = record(NS.bars.player.statusBar, "SetMinMaxValues", function()
+      value = record(NS.bars.player.statusBar, "SetValue", function() withLocked(NS.UpdateAbsorbBar) end)
     end)
   end)
   T.mocks.UnitGetTotalAbsorbs, T.mocks.UnitHealthMax = savedAbs, savedHP
@@ -759,7 +759,7 @@ test("UpdateAbsorbBar writes the abbreviated value into the bar text", function(
   NS.testHoldUntil = nil
   local calls
   withUnitSetting("player", "enabled", true, function()
-    calls = record(NS.valueText, "SetText", function() withLocked(NS.UpdateAbsorbBar) end)
+    calls = record(NS.bars.player.valueText, "SetText", function() withLocked(NS.UpdateAbsorbBar) end)
   end)
   T.mocks.UnitGetTotalAbsorbs = savedAbs
   NS.testHoldUntil = savedHold
