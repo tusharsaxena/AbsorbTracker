@@ -85,7 +85,7 @@ badge and any count quoted in the docs must agree with it.
 - degraded Schema stub: Get forwards the instance id to a row's own get
 - degraded Schema stub: ApplyDefault forwards the instance id to Set
 
-### test_database.lua (31)
+### test_database.lua (34)
 
 - RunMigrations migrates a fresh DB to the current version (5)
 - a freshly-materialized global runs the ladder, because its default is pre-ladder
@@ -118,6 +118,9 @@ badge and any count quoted in the docs must agree with it.
 - the per-profile stamp defaults to 1 so copyDefaults cannot mark a pre-v3 profile migrated
 - a fresh install logs no [Migrate] lift line -- nothing was actually lifted
 - a real upgrade still logs the lift, with an accurate count
+- profile adopt: a same-state switch publishes APPEARANCE once
+- profile adopt: an off-to-on switch publishes APPEARANCE once, not twice
+- profile adopt: an on-to-off switch stands down and delivers nothing
 
 ### test_units.lua (17)
 
@@ -830,7 +833,7 @@ badge and any count quoted in the docs must agree with it.
 |-------|------:|
 | test_loadorder.lua | 14 |
 | test_schema.lua | 59 |
-| test_database.lua | 31 |
+| test_database.lua | 34 |
 | test_units.lua | 17 |
 | test_envsetup.lua | 6 |
 | test_coresetup.lua | 5 |
@@ -859,4 +862,4 @@ badge and any count quoted in the docs must agree with it.
 | test_disabled.lua | 15 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **725** |
+| **Total** | **728** |

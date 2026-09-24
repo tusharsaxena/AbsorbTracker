@@ -427,8 +427,9 @@ the same would end a run that was still recording. Both go through release-and-r
 `NS.SyncEnabledHold()` is the one line every surface reaches — the Master controls checkbox and
 `/at enable` / `/at disable` / `/at set enabled` through the `enabled` row's `onChange`, a Defaults
 press through the same row, and AceDB's `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset`
-through `adoptProfile`, which re-reads the store and calls `:Reevaluate()` because a profile switch
-can flip the path with nothing else being touched.
+through `adoptProfile`, which re-reads the store because a profile switch can flip the path with
+nothing else being touched. The latch's `Set` re-evaluates on its own, and when that stands the addon
+up, `adoptProfile` leaves the bar passes to `StandUp` rather than publishing them a second time.
 
 **There is no second teardown path.** `core/PerfSetup.lua` no longer carries `suspend` / `resume`:
 those bodies **are** `NS.StandDown` / `NS.StandUp`, and the perf descriptor passes the latch

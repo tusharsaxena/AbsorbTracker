@@ -451,3 +451,65 @@ test("a real upgrade still logs the lift, with an accurate count", function()
   assertTrue(logged:find("lifted 2 profile(s) to v3", 1, true) ~= nil,
     "two profiles carried flat keys; the third was empty and must not be counted: " .. logged)
 end)
+
+-- ── A profile adopt publishes each bar pass once (review F-010) ──────────────────────────────
+--
+-- core/AbsorbTracker.lua's adoptProfile re-reads the new profile's `enabled` into the latch and
+-- then publishes the bar passes. On an off-to-on switch the latch's StandUp (core/Lifecycle.lua)
+-- has already published POSITION, APPEARANCE and REPAINT, so adoptProfile publishing them again
+-- ran every three-bar appearance pass twice. Counted at the send, through a wrapper on the shared
+-- publish target, so a StandUp publish and an adoptProfile publish both show.
+
+--- Run `fn` and answer how many times it SENT `msg` on NS.bus, and how many times the Display
+--- module's APPEARANCE consumer actually ran (the deliveries that reached a subscriber).
+local function countAppearance(fn)
+  local sends, delivered = 0, 0
+  local realSend, realUpdate = NS.bus.SendMessage, NS.UpdateBarAppearance
+  NS.bus.SendMessage = function(self, msg, ...)
+    if msg == NS.MSG.APPEARANCE then sends = sends + 1 end
+    return realSend(self, msg, ...)
+  end
+  NS.UpdateBarAppearance = function() delivered = delivered + 1 end
+  local ok, err = pcall(fn)
+  NS.bus.SendMessage, NS.UpdateBarAppearance = realSend, realUpdate
+  if not ok then error(err, 0) end
+  return sends, delivered
+end
+
+--- Put the suite's DB back on Default with the addon enabled and the two scratch profiles gone.
+local function dropScratchProfiles()
+  NS.db:SetProfile("Default")
+  NS.SetByPath("enabled", true)
+  NS.db.sv.profiles.ATAdoptOff, NS.db.sv.profiles.ATAdoptOn = nil, nil
+  T.mocks.__fireTimers()
+end
+
+test("profile adopt: a same-state switch publishes APPEARANCE once", function()
+  assertFalse(NS.lifecycle:IsDown(), "precondition: the addon is up on Default")
+  local sends = countAppearance(function() NS.db:SetProfile("ATAdoptOn") end)
+  assertFalse(NS.lifecycle:IsDown(), "a profile with the default `enabled` keeps the addon up")
+  dropScratchProfiles()
+  assertEqual(sends, 1, "both profiles enabled: no stand-up, one appearance pass")
+end)
+
+test("profile adopt: an off-to-on switch publishes APPEARANCE once, not twice", function()
+  -- red under: restoring the unconditional POSITION/APPEARANCE/REPAINT publishes in adoptProfile.
+  NS.db.sv.profiles.ATAdoptOff = { enabled = false }
+  NS.db:SetProfile("ATAdoptOff")
+  assertTrue(NS.lifecycle:IsDown(), "precondition: the stored `enabled = false` stood it down")
+  local sends = countAppearance(function() NS.db:SetProfile("ATAdoptOn") end)
+  local up = not NS.lifecycle:IsDown()
+  dropScratchProfiles()
+  assertTrue(up, "the default-enabled profile stood the addon up")
+  assertEqual(sends, 1, "StandUp's appearance pass is the only one")
+end)
+
+test("profile adopt: an on-to-off switch stands down and delivers nothing", function()
+  NS.db.sv.profiles.ATAdoptOff = { enabled = false }
+  local _, delivered = countAppearance(function() NS.db:SetProfile("ATAdoptOff") end)
+  local down = NS.lifecycle:IsDown()
+  dropScratchProfiles()
+  assertTrue(down, "the stored `enabled = false` left the latch down")
+  assertEqual(delivered, 0, "no appearance pass reaches a stood-down addon")
+  assertFalse(NS.lifecycle:IsDown(), "cleanup put the addon back up")
+end)

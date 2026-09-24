@@ -309,18 +309,24 @@ local function adoptProfile(tag, fmt, ...)
     NS.Debug(tag, fmt, ...)
     -- THE NEW PROFILE CARRIES ITS OWN `enabled`, and AceDB replaced the whole table without any
     -- verb or checkbox being touched -- so the row's onChange never fired and the latch has not
-    -- heard about it. Re-read the store and re-evaluate: a player switching to a profile where the
-    -- addon is on expects it to come up, and one switching the other way expects it to go inert.
-    -- Reevaluate fires a callback only on an actual edge, so a profile that agrees with the old one
-    -- costs nothing. Before the publishes below, so a stand-up has resubscribed the bus by the time
-    -- they land -- and so a stand-down leaves them reaching nobody, which is correct.
+    -- heard about it. Re-read the store into the `disabled` hold: a player switching to a profile
+    -- where the addon is on expects it to come up, and one switching the other way expects it to go
+    -- inert. The latch's Set already re-evaluates and fires a callback only on an actual edge, so a
+    -- profile that agrees with the old one costs nothing and no second Reevaluate is needed. Before
+    -- the publishes below, so a stand-up has resubscribed the bus by the time they land -- and so a
+    -- stand-down leaves them reaching nobody, which is correct.
+    local wasDown = NS.lifecycle:IsDown()
     NS.SyncEnabledHold()
-    NS.lifecycle:Reevaluate()
     -- The new profile carries its own enable flags, so the event registrations have to follow it.
     NS.bus:SendMessage(NS.MSG.UNITS)
-    NS.bus:SendMessage(NS.MSG.POSITION)
-    NS.bus:SendMessage(NS.MSG.APPEARANCE)
-    NS.bus:SendMessage(NS.MSG.REPAINT)
+    -- The bar passes, unless the latch just stood up: StandUp (core/Lifecycle.lua) has already
+    -- published POSITION, APPEARANCE and REPAINT from the new profile, and a second round would run
+    -- every three-bar appearance pass twice.
+    if not (wasDown and not NS.lifecycle:IsDown()) then
+        NS.bus:SendMessage(NS.MSG.POSITION)
+        NS.bus:SendMessage(NS.MSG.APPEARANCE)
+        NS.bus:SendMessage(NS.MSG.REPAINT)
+    end
     if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
 end
 
