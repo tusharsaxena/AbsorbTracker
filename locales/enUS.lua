@@ -19,12 +19,12 @@ NS.L = setmetatable(NS.L or {}, { __index = function(_, k) return k end })
 -- either, so its key went with the call site.
 --
 -- What IS routed is the unlocked drag handle over each bar (modules/Bar.lua): its unit label and
--- both of its tooltips; and the library-absent line (slash-commands-§1), one sentence with one
--- placeholder, the full verb, which settings/Slash.lua's library-absent stub prints for each schema
--- verb it cannot run. Every key below is read by one of those two -- enUS.lua carries no key
--- nothing reads (localization-§3) -- and the English-only register row is otherwise unchanged: the
--- rest of the addon's strings are still hardcoded, and a future pass wraps them here without
--- touching call sites.
+-- both of its tooltips; the minimap tooltip's left-click hint (core/LauncherSetup.lua); and the
+-- library-absent line (slash-commands-§1), one sentence with one placeholder, the full verb, which
+-- settings/Slash.lua's library-absent stub prints for each schema verb it cannot run. Every key
+-- below is read by one of those three -- enUS.lua carries no key nothing reads (localization-§3)
+-- -- and the English-only register row is otherwise unchanged: the rest of the addon's strings are
+-- still hardcoded, and a future pass wraps them here without touching call sites.
 
 local L = NS.L
 
@@ -48,6 +48,10 @@ L["Locked. Unlock the bars to drag this handle \226\128\148 /at unlock."] =
     "Locked. Unlock the bars to drag this handle \226\128\148 /at unlock."
 L["Lock the bars to hide this handle \226\128\148 /at lock."] =
     "Lock the bars to hide this handle \226\128\148 /at lock."
+
+-- The minimap tooltip's left-click hint: core/LauncherSetup.lua's `leftClickLabel`, rung (b).
+-- LibKa0s-Launcher draws the rest of that tooltip out of its own strings.
+L["Lock / unlock"] = "Lock / unlock"
 
 -- The library-absent line: `%s` is the full verb, e.g. `/at list` (settings/Slash.lua's stub).
 L["%s is unavailable: the LibKa0s library did not load."] =

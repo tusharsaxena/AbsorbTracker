@@ -500,7 +500,7 @@ badge and any count quoted in the docs must agree with it.
 - /at resetposition does not claim success when the settings helpers are absent
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_launcher.lua (22)
+### test_launcher.lua (28)
 
 - launcher: Register builds ONE broker object and hands that same object to LibDBIcon
 - launcher: LibDBIcon is handed db.global.minimap ITSELF, not a copy
@@ -510,6 +510,12 @@ badge and any count quoted in the docs must agree with it.
 - launcher: LEFT-click toggles the lock, through the seam the checkbox writes through
 - launcher: the disabled gate is the descriptor's, asked on every click and never cached
 - launcher: RIGHT-click always opens the settings panel, and touches nothing else
+- launcher tooltip: enabled and locked, the whole tooltip is exactly five lines
+- launcher tooltip: the version is the TOC's, and absent it the title is the label alone
+- launcher tooltip: Locked follows the lock on every show, green Yes and red No
+- launcher tooltip: no Test mode line, because this addon has no Test mode
+- launcher tooltip: disabled, it still draws, says No, and the left hint names /at enable
+- launcher tooltip: the left-click label goes through the locale, asked on every show
 - launcher: the icon file is the one the TOC names, and is a format the client can load
 - launcher: the Minimap button row is stored, global, and says SHOWN
 - launcher: the row's get/set invert onto `hide`, and the button follows immediately
@@ -892,7 +898,7 @@ badge and any count quoted in the docs must agree with it.
 | test_display.lua | 60 |
 | test_draghandle.lua | 22 |
 | test_helpers.lua | 71 |
-| test_launcher.lua | 22 |
+| test_launcher.lua | 28 |
 | test_optionssetup.lua | 15 |
 | test_slashcmds.lua | 91 |
 | test_perfcmds.lua | 42 |
@@ -908,4 +914,4 @@ badge and any count quoted in the docs must agree with it.
 | test_disabled.lua | 17 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **766** |
+| **Total** | **772** |

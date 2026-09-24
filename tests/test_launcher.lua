@@ -247,6 +247,158 @@ test("launcher: RIGHT-click always opens the settings panel, and touches nothing
   assertTrue(NS.GetSetting("locked"), "the lock is untouched by the right button")
 end)
 
+-- ── the status tooltip (Launcher minor 3, launcher-§1) ─────────────────────────────────────────
+--
+-- The LIBRARY draws the tooltip, in one shape across the collection. What is this addon's, and
+-- what these cases pin, is the descriptor that feeds it: `version` out of the TOC, `isLocked` off
+-- the `locked` row, `leftClickLabel` for rung (b) through the locale, and NO `isTestMode` —
+-- options-ui-§15's exemption means this addon has no Test mode row, so a `Test mode:` line would
+-- report a state the player can find nowhere else. No `onTooltipShow` either: there is nothing of
+-- this addon's own to append, and a host hook that drew a title or a hint would draw it twice.
+
+--- A GameTooltip stand-in that records each line, raw. The kit's GameTooltip is a bare frame with
+--- no AddLine, so the library's draw is driven against this instead of against it.
+local function hover()
+  local tt = { lines = {} }
+  function tt:AddLine(line) self.lines[#self.lines + 1] = line end
+  NS.Launcher:Object().OnTooltipShow(tt)
+  local plain = {}
+  for i, line in ipairs(tt.lines) do
+    plain[i] = (tostring(line):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+  end
+  return plain, tt.lines
+end
+
+--- The TOC's own `## Version`, read off disk, so the expectation is not a second literal.
+local function tocVersion()
+  local f = assert(io.open("AbsorbTracker.toc", "r"))
+  local v
+  for line in f:lines() do
+    v = v or line:gsub("\r", ""):match("^##%s*Version:%s*(.-)%s*$")
+  end
+  f:close()
+  return v
+end
+
+--- Run `fn` with the client's manifest reader answering this addon's TOC. The harness has no
+--- C_AddOns by default, which is the headless shape NS.Meta already answers nil for.
+local function withManifest(fn)
+  local real = T.mocks.C_AddOns
+  T.mocks.C_AddOns = { GetAddOnMetadata = function(name, field)
+    if name == FOLDER and field == "Version" then return tocVersion() end
+    return nil
+  end }
+  local ok, err = pcall(fn)
+  T.mocks.C_AddOns = real
+  if not ok then error(err, 0) end
+end
+
+test("launcher tooltip: enabled and locked, the whole tooltip is exactly five lines", function()
+  -- The full shape, pinned as one list so an extra line (a Test mode line, a host title, a second
+  -- hint) and a missing one are both red.
+  --
+  -- red under: `isTestMode` passed; `isLocked` or `version` not passed; a `leftClickLabel` other
+  -- than rung (b)'s; an `onTooltipShow` that draws anything.
+  fakes()
+  NS.Launcher:Register()
+  NS.SetByPath("enabled", true)
+  NS.SetByPath("locked", true)
+  withManifest(function()
+    local lines = hover()
+    assertEqual(#lines, 5, "title, Enabled, Locked, Left-click, Right-click: " .. table.concat(lines, " / "))
+    assertEqual(lines[1], "Ka0s Absorb Tracker  v" .. tocVersion(), "the brand label and the TOC version")
+    assertEqual(lines[2], "Enabled: Yes")
+    assertEqual(lines[3], "Locked: Yes")
+    assertEqual(lines[4], "Left-click: Lock / unlock", "rung (b), as ADDONS.md records it")
+    assertEqual(lines[5], "Right-click: Open settings")
+  end)
+end)
+
+test("launcher tooltip: the version is the TOC's, and absent it the title is the label alone", function()
+  -- `version` reads `## Version` through NS.Meta on every show. With no manifest reader (the
+  -- headless shape) it answers nil and the library draws the label alone -- never `v?` or the
+  -- fallback constant, which would be a version this build does not claim.
+  --
+  -- red under: `version = NS.version`; `version = NS.Version` (answers "?" headless).
+  fakes()
+  NS.Launcher:Register()
+  local lines = hover()
+  assertEqual(lines[1], "Ka0s Absorb Tracker", "no manifest, no version")
+  withManifest(function()
+    assertEqual(hover()[1], "Ka0s Absorb Tracker  v" .. tocVersion())
+  end)
+end)
+
+test("launcher tooltip: Locked follows the lock on every show, green Yes and red No", function()
+  -- `isLocked` reads the same `locked` value the Lock frame checkbox and the left click write,
+  -- asked on each show, so a click and the next hover cannot disagree.
+  --
+  -- red under: isLocked captured once; isLocked reading anything but the `locked` setting.
+  fakes()
+  NS.Launcher:Register()
+  NS.SetByPath("enabled", true)
+  NS.SetByPath("locked", true)
+  local lines, raw = hover()
+  assertEqual(lines[3], "Locked: Yes")
+  assertTrue(raw[3]:find("|cFF00FF00Yes|r", 1, true) ~= nil, "Yes is green: " .. tostring(raw[3]))
+
+  local object = NS.Launcher:Object()
+  object.OnClick(object, "LeftButton")
+  lines, raw = hover()
+  assertEqual(lines[3], "Locked: No", "the left click unlocked, and the next hover says so")
+  assertTrue(raw[3]:find("|cFFFF0000No|r", 1, true) ~= nil, "No is red: " .. tostring(raw[3]))
+  NS.SetByPath("locked", true)
+end)
+
+test("launcher tooltip: no Test mode line, because this addon has no Test mode", function()
+  -- options-ui-§15's exemption (settings/General.lua): the lock IS the preview. A Test mode line
+  -- would name a state the settings panel has no row for.
+  --
+  -- red under: `isTestMode` passed, whatever it reads.
+  fakes()
+  NS.Launcher:Register()
+  for _, line in ipairs(hover()) do
+    assertTrue(line:find("Test mode", 1, true) == nil, "unexpected line: " .. line)
+  end
+end)
+
+test("launcher tooltip: disabled, it still draws, says No, and the left hint names /at enable", function()
+  -- The owner's ruling (M5): the tooltip shows WHILE DISABLED, when a player most needs to ask.
+  -- The hint's command is read out of the dispatcher's own DisabledLine, so the tooltip and the
+  -- refusal the click would print name the same verb.
+  --
+  -- red under: isEnabled not passed; a disabledLine that no longer names `/at enable`.
+  fakes()
+  NS.Launcher:Register()
+  NS.SetByPath("locked", true)
+  NS.SetByPath("enabled", false)
+  local ok, lines, raw = pcall(hover)
+  NS.SetByPath("enabled", true)
+  assertTrue(ok, "the tooltip raised while disabled: " .. tostring(lines))
+  assertEqual(#lines, 5, table.concat(lines, " / "))
+  assertEqual(lines[2], "Enabled: No")
+  assertTrue(raw[2]:find("|cFFFF0000No|r", 1, true) ~= nil, "No is red: " .. raw[2])
+  assertEqual(lines[3], "Locked: Yes", "the lock is still reported while disabled")
+  assertEqual(lines[4], "Left-click: disabled \226\128\148 /at enable")
+  assertEqual(lines[5], "Right-click: Open settings", "right-click is never gated")
+end)
+
+test("launcher tooltip: the left-click label goes through the locale, asked on every show", function()
+  -- localization-§1: every user-visible string routes through NS.L. A translation (here, a
+  -- rawset override) must reach the tooltip without a re-Register.
+  --
+  -- red under: a literal label; NS.L read once at file load into a captured string.
+  fakes()
+  NS.Launcher:Register()
+  NS.SetByPath("enabled", true)
+  local before = rawget(NS.L, "Lock / unlock")
+  rawset(NS.L, "Lock / unlock", "Verrouiller")
+  local ok, lines = pcall(hover)
+  rawset(NS.L, "Lock / unlock", before)
+  assertTrue(ok, tostring(lines))
+  assertEqual(lines[4], "Left-click: Verrouiller")
+end)
+
 -- ── the icon ───────────────────────────────────────────────────────────────────────────────────
 
 test("launcher: the icon file is the one the TOC names, and is a format the client can load", function()

@@ -234,8 +234,10 @@ library's own writes from ever disagreeing (anti-pattern #81); the price is that
 `set` **invert**, and it is paid once, in `core/Data.lua`'s read/write seam, next to the
 session-settings branch it most resembles. The `set` also calls `NS.Launcher:SetShown`, so the
 button appears or vanishes immediately rather than at the next reload. The row is **stored**, not
-`sessionOnly`: a reload must not bring back a button the player dismissed. See
-[ARCHITECTURE.md](./ARCHITECTURE.md) → Launcher for the object itself.
+`sessionOnly`: a reload must not bring back a button the player dismissed. The button's hover
+tooltip reports the **Enabled** and **Lock frame** rows of this same block (`Enabled:`, `Locked:`)
+and has no `Test mode:` line, because the block has no Test mode row. See
+[launcher.md](./launcher.md) for the object and its tooltip.
 
 **This one row survives every reset, and that is a property of the setting — not of where it is
 stored.** Whether the button is shown is a per-installation *display preference*, in the same class

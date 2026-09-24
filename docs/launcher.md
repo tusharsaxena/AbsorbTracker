@@ -1,7 +1,7 @@
 # Launcher
 
 The minimap button and broker row: the one LDB object, the click rung, the disabled-state refusal,
-the visibility row that survives every reset, and the icon. This page was the `## Launcher` section
+the status tooltip, the visibility row that survives every reset, and the icon. This page was the `## Launcher` section
 of [ARCHITECTURE.md](./ARCHITECTURE.md) until the hub was brought back under documentation-§3's spill
 rule; `core/LauncherSetup.lua`'s place among the setup seams is in [module-map.md](./module-map.md).
 
@@ -47,6 +47,29 @@ the panel is setup rather than a feature, so the right button opens it for the s
 itself stays on the minimap, because `minimap.hide` is a per-installation display preference that
 says nothing about whether the addon is running. `tests/test_disabled.lua` step 8 pins all three;
 `tests/test_launcher.lua` pins that the same registered object toggles again once re-enabled.
+
+## The status tooltip
+
+**The button always shows a tooltip, including while the addon is disabled** (launcher-§1,
+standard v2.66.0). `LibKa0s-Launcher-1.0` minor 3 draws all of it, in the one shape every Ka0s
+addon shares; the descriptor in `core/LauncherSetup.lua` only feeds it, and every field is asked on
+every hover:
+
+```
+Ka0s Absorb Tracker  v<version>       version: the TOC's `## Version` (NS.Meta); label alone if unreadable
+Enabled: Yes|No                       isEnabled — the same accessor the click gate asks
+Locked: Yes|No                        isLocked — the `locked` setting the left click toggles
+Left-click: Lock / unlock             leftClickLabel, rung (b), through NS.L
+Right-click: Open settings
+```
+
+While disabled the left line reads `Left-click: disabled — /at enable`; the library reads the
+command out of `NS.Slash:DisabledLine()`, so the tooltip and the refusal the click prints name the
+same verb. There is **no `Test mode:` line**: this addon has no Test mode (options-ui-§15's
+exemption — the lock is the preview), so `isTestMode` is not passed. There is **no
+`onTooltipShow`**: the addon has no lines of its own to append, and the title and click hints are
+the library's. `tests/test_launcher.lua` pins the whole five-line tooltip, the lock read on every
+show, the disabled state and the locale route.
 
 ## Visibility: one row, one boolean
 

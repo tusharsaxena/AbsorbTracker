@@ -150,6 +150,21 @@ NS.Launcher = lib:New({
     isEnabled    = function() return NS.GetSetting("enabled") ~= false end,
     disabledLine = function() return NS.Slash:DisabledLine() end,
 
+    -- THE STATUS TOOLTIP (Launcher minor 3, launcher-§1). The library draws it, title to click
+    -- hints, and draws it while disabled too; these feed it, each asked on every hover. The
+    -- disabled line above doubles as the source of the hint's `/at enable`, so no `slash` here.
+    --
+    -- `isLocked` reads the same `locked` value the left click toggles. There is NO `isTestMode`:
+    -- options-ui-§15's exemption means this addon has no Test mode (the lock is the preview), and a
+    -- line for a state with no row would be a state the player can find nowhere else. There is no
+    -- `onTooltipShow` either -- nothing of ours to append, and the title and hints are the library's.
+    --
+    -- `version` is the TOC's `## Version` and nothing else: nil (headless, or an unreadable
+    -- manifest) draws the label alone rather than NS.Version()'s "?" or the fallback constant.
+    version        = function() return NS.Meta("Version") end,
+    isLocked       = function() return NS.GetSetting("locked") and true or false end,
+    leftClickLabel = function() return NS.L["Lock / unlock"] end,
+
     print = function(line) print(line) end,
     debug = function(tag, message) NS.Debug(tag, "%s", message) end,
 })
