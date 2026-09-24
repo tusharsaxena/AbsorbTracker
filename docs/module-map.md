@@ -118,7 +118,7 @@ NS.MSG                 -- strict catalog via Bus.Catalog (all Ka0s_AbsorbTracker
                        --                 registers events only for enabled units)
 ```
 
-Senders: `core/AbsorbTracker.lua` (event/lifecycle), `settings/Slash.lua`, `settings/General.lua`, `settings/Schema.lua`, `settings/UnitPanel.lua` (`Helpers.ResetAllPositions` publishes `POSITION`). Consumers register at file load in `modules/Timer.lua` (`NS.Timer.__ev`), `modules/Display.lua` (`NS.Display.__ev`) and `core/AbsorbTracker.lua` (`NS.Events.__ev`, which owns the sole `UNITS` subscription). Full catalog (sender/consumer/effect) in [ARCHITECTURE.md → Message Bus](./ARCHITECTURE.md#message-bus).
+Senders: `core/AbsorbTracker.lua` (event/lifecycle), `settings/Slash.lua`, `settings/General.lua`, `settings/Schema.lua`, `settings/UnitPanel.lua` (`Helpers.ResetAllPositions` publishes `POSITION`). Consumers register at file load in `modules/Timer.lua` (`NS.Timer.__ev`), `modules/Display.lua` (`NS.Display.__ev`) and `core/AbsorbTracker.lua` (`NS.Events.__ev`, which owns the sole `UNITS` subscription). Full catalog (sender/consumer/effect) in [ARCHITECTURE.md → Message Bus](./ARCHITECTURE.md#message-bus); the seam and its stand-down in [message-bus.md](./message-bus.md).
 
 ### CoreSetup (`core/CoreSetup.lua`)
 
