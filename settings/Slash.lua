@@ -555,7 +555,7 @@ end
 --
 -- The host verbs never went to the library, so they keep working untouched. What is lost is the
 -- schema CLI, and each of those verbs prints the collection's library-absent line through the
--- locale (`NS.L.LIBRARY_ABSENT`) rather than going quiet.
+-- locale (keyed by its English text, localization-§2) rather than going quiet.
 if not SlashLib then
     SlashLib = {}
 
@@ -572,7 +572,7 @@ if not SlashLib then
             return STUB_DISABLED_LINE_FORMAT:format(NS.Constants.BRAND, "/at enable")
         end
         local function absent(verb)
-            return function() print(NS.L.LIBRARY_ABSENT:format("/at " .. verb)) end
+            return function() print(NS.L["%s is unavailable: the LibKa0s library did not load."]:format("/at " .. verb)) end
         end
         for _, verb in ipairs({ "List", "Get", "Set", "Reset", "ResetAll" }) do
             stub["Cli" .. verb] = absent(verb:lower())

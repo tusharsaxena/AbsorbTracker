@@ -50,4 +50,5 @@ L["Lock the bars to hide this handle \226\128\148 /at lock."] =
     "Lock the bars to hide this handle \226\128\148 /at lock."
 
 -- The library-absent line: `%s` is the full verb, e.g. `/at list` (settings/Slash.lua's stub).
-L["LIBRARY_ABSENT"] = "%s is unavailable: the LibKa0s library did not load."
+L["%s is unavailable: the LibKa0s library did not load."] =
+    "%s is unavailable: the LibKa0s library did not load."

@@ -1122,6 +1122,14 @@ test("degraded: a schema verb prints the library-absent line", function()
   assertEqual(out[1], "/at list is unavailable: the LibKa0s library did not load.")
 end)
 
+test("degraded: the library-absent line is keyed by its English text (localization-§2)", function()
+  -- red under: a symbolic key such as L["LIBRARY_ABSENT"], whose metatable fallback is the bare
+  -- token rather than English.
+  local english = "%s is unavailable: the LibKa0s library did not load."
+  assertEqual(rawget(NS.L, english), english, "enUS.lua keys the line by its English text")
+  assertTrue(rawget(NS.L, "LIBRARY_ABSENT") == nil, "no symbolic key")
+end)
+
 test("degraded: /at help rows are plain, with no color escape", function()
   -- red under: a copy of the library's colored row formatter living on in the stub.
   local out = degradedLines("help")

@@ -13,7 +13,7 @@ parse one word. The trigger fires on either half.
 
 ## Registration
 
-`Sl:Register` (`settings/Slash.lua:645`) registers both names through AceConsole-3.0, called once
+`Sl:Register` (`settings/Slash.lua:713`) registers both names through AceConsole-3.0, called once
 from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:44`, guarded so a load where
 `settings/Slash.lua` never ran degrades rather than errors):
 
@@ -29,7 +29,7 @@ to `DEFAULT_CHAT_FRAME`.
 
 ## The `COMMANDS` table
 
-`NS.COMMANDS` (`settings/Slash.lua:61`) is an ordered list of positional triples
+`NS.COMMANDS` (`settings/Slash.lua:71`) is an ordered list of positional triples
 `{name, description, fn(rest)}` — the shape the library reads as `entry[1]` / `[2]` / `[3]`. A table
 of named fields is silently invisible to it. The handler takes `rest` **alone**, never `self` plus
 `rest`.
@@ -121,7 +121,7 @@ The library lowercases only the verb; the remainder is passed through untouched.
 here, because every schema path in this addon is camelCase and per-unit —
 `/at set units.target.barWidth 250` is the shipped form, and folding the whole line would address a
 row that does not exist. `/at profile` repeats the rule one level down: `runProfile`
-(`settings/Slash.lua:456`) lowercases the sub-verb and leaves its argument alone, because AceDB
+(`settings/Slash.lua:524`) lowercases the sub-verb and leaves its argument alone, because AceDB
 profile names are case-sensitive and a folded name deletes or switches to the wrong profile.
 
 **Schema paths are fully qualified.** The pre-1.9 unqualified `/at set barWidth 250` is rejected:
@@ -158,7 +158,7 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 Four verbs parse a remainder of their own. Three of them parse one word; only `profile` carries a
 dispatch table, and it is the one this page is really about.
 
-**`profile`** — `PROFILE_VERBS` (`settings/Slash.lua:408`), a table keyed by the lowercased sub-verb,
+**`profile`** — `PROFILE_VERBS` (`settings/Slash.lua:465`), a table keyed by the lowercased sub-verb,
 built once at load and dispatched at `:469`:
 
 | Sub-verb | Takes a name | What it does |
@@ -203,7 +203,7 @@ anybody. So bare `toggle` turns everything off if anything is on, and everything
 
 ## The mirror note
 
-`MirrorNote` (`settings/Slash.lua:48`) is handed to the library through `cli:SetRowAnnotator`
+`MirrorNote` (`settings/Slash.lua:58`) is handed to the library through `cli:SetRowAnnotator`
 (`:621`). It appends `(mirrored — the bar shows Player's appearance)` in gray to a row whose unit is
 currently mirroring, and it exists because `/at get` and `/at set` resolve through `NS.GetSetting`,
 which walks the raw profile path and never consults `NS.Units.Get`. They therefore read and write the
@@ -243,7 +243,7 @@ generic dispatcher knows nothing about.
 a plain help index still render, a bare `/at` still runs the `config` verb exactly as the library
 does, the host verbs — which never went to the library — keep working untouched, and each schema verb
 (`list`, `get`, `set`, `reset`, `resetall`) prints the collection's library-absent line through the
-locale, `NS.L.LIBRARY_ABSENT`:
+locale, keyed by its English text (localization-§2):
 
 ```
 [AT] /at list is unavailable: the LibKa0s library did not load.
