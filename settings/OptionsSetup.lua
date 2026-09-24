@@ -23,7 +23,7 @@ local print = NS.Print
 -- file-scope local, not an NS export: it reaches the library as descriptor.parentTitle, and the two
 -- files that used to read it off the namespace (settings/Panel.lua, settings/Helpers.lua) are inside
 -- the library now.
-local PARENT_TITLE = "Ka0s Absorb Tracker"
+local PARENT_TITLE = NS.Constants.BRAND
 
 -- The one rule about what a global reset must not touch. Profiles rows are AceDBOptions-supplied and
 -- resetting them deletes user data, which is not what "restore defaults" means to anyone. Named once

@@ -335,13 +335,10 @@ NS.__schemaLib = SchemaLib
 -- who names the row (`/at reset global.minimap.shown`) still gets exactly that row reset.
 local MINIMAP_PATH = NS.Constants.MINIMAP_PATH
 
-local function chatPrint(line)
-    if NS.Print then
-        NS.Print(line)
-    elseif DEFAULT_CHAT_FRAME then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[AT]|r " .. line)
-    end
-end
+-- Resolved at call time so the suites can spy on NS.Print. core/CoreSetup.lua defines NS.Print on
+-- both arms and loads before this file, so there is no fallback to write: the chat tag is NS.PREFIX,
+-- stamped once by the printer (slash-commands-§4).
+local function chatPrint(line) NS.Print(line) end
 
 -- The composed paths a HOST writer reaches (options-ui-§1 route (a); LibKa0s-Schema-1.0 minor 2).
 -- `enabled` is written by /at enable and /at disable; `locked` by /at lock and /at unlock, the

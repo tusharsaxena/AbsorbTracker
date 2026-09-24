@@ -319,6 +319,15 @@ test("PARENT_TITLE reaches the library through the descriptor, not the namespace
   assertEqual(NS.PARENT_TITLE, nil, "NS.PARENT_TITLE is a file-scope local now")
   assertEqual(T.mocks.__mainPanel.name, "Ka0s Absorb Tracker",
     "and the brand still reaches the canvas the library registers")
+  -- One literal (R-10): the local is the brand constant, not a second spelling of it. red under:
+  -- re-typing a literal into PARENT_TITLE, which drifts from C.BRAND on the next rename.
+  assertEqual(T.mocks.__mainPanel.name, NS.Constants.BRAND, "the canvas name IS the brand constant")
+  local src = io.open("settings/OptionsSetup.lua", "r")
+  assertTrue(src ~= nil, "cannot open settings/OptionsSetup.lua (tests run from the repo root)")
+  local body = src:read("*a")
+  src:close()
+  assertEqual(body:match("\n%s*local%s+PARENT_TITLE%s*=%s*([^\r\n]-)%s*\r?\n"), "NS.Constants.BRAND",
+    "PARENT_TITLE reads the one brand constant")
 end)
 
 -- ── the LSM30_Border patch, promoted to the library ────────────────────────────────

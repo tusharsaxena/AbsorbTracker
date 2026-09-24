@@ -12,7 +12,7 @@ How the addon registers its multi-page Blizzard Settings UI. The schema-driven c
 | `libs/LibKa0s/OptionsWidgets.lua` | `RenderField` (dispatches by `row.type`) + `RenderRows` (two-column layout over an explicit row list, skipping `skipRender` rows) + the thin `RenderSchema(ctx, pageKey, ...)` wrapper + `RenderTabbedSchema` and its parts, `TabStrip` / `PageBanner` / `PageHeader` / `SetChromeHeight` (the chrome band, options-ui-§13/§14) + the five widget makers (CheckBox / Slider / Dropdown / EditBox / ColorPicker) + `Section` / `AddSpacer` / `AttachTooltip` / `InlineButtonPair` / `SessionCheckbox`. |
 | `libs/LibKa0s/OptionsCompose.lua` | The schema composers (options-ui-§15/§16/§17): `MasterControls` / `BarGroup` / `BorderGroup` / `FontGroup` / `ColorPair`, plus `FONT_FLAGS` / `FONT_FLAGS_SORT`, `VISIBILITY_SORT`, `MASTER_GROUP` and `CLASS_COLOR_NOTE`. Pure functions returning arrays of ordinary schema rows — they create no widget and read no state. |
 | `libs/LibKa0s/OptionsScroll.lua` | `PatchAlwaysShowScrollbar` — the always-visible scrollbar override. |
-| `settings/OptionsSetup.lua` | The descriptor, and the degradation stub. Holds the brand string as a file-scope `PARENT_TITLE` local passed in as `descriptor.parentTitle` (there is no `NS.PARENT_TITLE`), builds `NS.Helpers = lib:New(descriptor)`, and publishes the four thin wrappers `NS.RegisterOptionsPage` / `NS.CreateOptionsPanel` / `NS.OpenOptionsPanel` / `NS.RefreshOptionsPanel`. |
+| `settings/OptionsSetup.lua` | The descriptor, and the degradation stub. Holds the brand string as a file-scope `PARENT_TITLE` local (read from `NS.Constants.BRAND`, not a second literal) passed in as `descriptor.parentTitle` (there is no `NS.PARENT_TITLE`), builds `NS.Helpers = lib:New(descriptor)`, and publishes the four thin wrappers `NS.RegisterOptionsPage` / `NS.CreateOptionsPanel` / `NS.OpenOptionsPanel` / `NS.RefreshOptionsPanel`. |
 | `settings/UnitPanel.lua` | The two pieces that did not generalize: `Helpers.RenderUnitPanel(ctx, pageKey)` (the Appearance page's one chrome block — Unit picker + the two mirror controls — and its tab strip, full rebuild per call) and `Helpers.ResetAllPositions()`. |
 | `settings/About.lua` | `Helpers.BuildMainContent` — the top-level "Ka0s Absorb Tracker" page as a spec, drawn by the library's `BuildLandingPage` (logo + Notes + slash command list). |
 
@@ -26,7 +26,7 @@ TOC order under `# Settings` is `settings/Schema.lua` → `Slash.lua` → `Optio
 
 | Field | What this addon supplies |
 |------|------|
-| `parentTitle` / `mainPanelName` | `"Ka0s Absorb Tracker"` and `"AbsorbTrackerMainPanel"`. |
+| `parentTitle` / `mainPanelName` | `NS.Constants.BRAND` (`"Ka0s Absorb Tracker"`) and `"AbsorbTrackerMainPanel"`. |
 | `print` / `debug` | `NS.Print` (cyan `[AT]` prefix) and `NS.Debug`. |
 | `get` / `set` / `applyDefault` | `NS.GetSetting` / `NS.SetByPath` / `NS.ApplyDefault` — so a panel write takes exactly the path a `/at set` takes. |
 | `rowsForPage(pageKey, filter)` / `allRows` | `NS.SchemaForPage` and `NS.Schema`. `filter` is `ctx.unit`, passed through uninterpreted — that is what makes a per-unit page render only the selected unit's rows while General (`ctx.unit` nil) gets every unit's. |

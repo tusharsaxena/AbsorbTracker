@@ -152,6 +152,27 @@ test("ValidateSchema flags an invalid page/type as a shape error", function()
   NS.Schema[#NS.Schema] = nil
 end)
 
+test("ValidateSchema prints through NS.Print, resolved at call time, with no hand-typed tag", function()
+  -- R-08: the chat tag comes from the single NS.PREFIX that NS.Print stamps (slash-commands-§4).
+  -- red under: a DEFAULT_CHAT_FRAME write with its own "[AT]" literal, or a load-time capture of
+  -- NS.Print that this spy cannot reach.
+  local bad = { path = "barWidth", page = "nope", type = "weird", label = "x" }
+  local lines, orig = {}, NS.Print
+  NS.Print = function(...) lines[#lines + 1] = table.concat({ ... }, " ") end
+  NS.Schema[#NS.Schema + 1] = bad
+  local ok, err = pcall(NS.ValidateSchema)
+  NS.Schema[#NS.Schema] = nil
+  NS.Print = orig
+  assertTrue(ok, tostring(err))
+  assertTrue(#lines > 0, "the shape errors reached chat through NS.Print")
+  local src = io.open("settings/Schema.lua", "r")
+  assertTrue(src ~= nil, "cannot open settings/Schema.lua (tests run from the repo root)")
+  local body = src:read("*a")
+  src:close()
+  assertEqual(body:find("[AT]", 1, true), nil, "no second copy of the chat tag in settings/Schema.lua")
+  assertEqual(body:find("DEFAULT_CHAT_FRAME", 1, true), nil, "no direct chat-frame write")
+end)
+
 -- ── Schema integrity ───────────────────────────────────────────────────────────────
 --
 -- ValidateSchema above is the runtime guard the addon ships with (it only PRINTS, and only checks

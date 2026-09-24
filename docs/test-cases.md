@@ -23,7 +23,7 @@ badge and any count quoted in the docs must agree with it.
 - loadorder: LibStub returns nil for a missing major with the silent flag
 - loadorder: LibStub keeps the higher minor when a major registers twice
 
-### test_schema.lua (59)
+### test_schema.lua (60)
 
 - FormatSchemaValue formats by type
 - SchemaForPage keeps groups in registration order, which IS the Appearance tab strip
@@ -32,6 +32,7 @@ badge and any count quoted in the docs must agree with it.
 - ValidateSchema resolves every real path against defaults (0 errors, 0 missing)
 - ValidateSchema reports a planted path that does not resolve against defaults
 - ValidateSchema flags an invalid page/type as a shape error
+- ValidateSchema prints through NS.Print, resolved at call time, with no hand-typed tag
 - every schema row carries a label and a tooltip description
 - every schema path is unique
 - every schema row declares a default
@@ -872,7 +873,7 @@ badge and any count quoted in the docs must agree with it.
 | Suite | Cases |
 |-------|------:|
 | test_loadorder.lua | 14 |
-| test_schema.lua | 59 |
+| test_schema.lua | 60 |
 | test_database.lua | 38 |
 | test_units.lua | 17 |
 | test_envsetup.lua | 7 |
@@ -904,4 +905,4 @@ badge and any count quoted in the docs must agree with it.
 | test_disabled.lua | 16 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **762** |
+| **Total** | **763** |
