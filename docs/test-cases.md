@@ -365,7 +365,7 @@ badge and any count quoted in the docs must agree with it.
 - there is no test-mode flag left behind the lock
 - a LOCKED bar does not preview
 - a live repaint stands down while unlocked
-- re-locking ends any /at test hold and restores live data
+- re-locking ends any /at debug hold and restores live data
 - unlocking shows a bar the visibility dropdown or a missing unit would hide
 - unlocking does not override the addon-wide or per-unit switch
 - a hold that expires while unlocked falls back to the placeholder
@@ -378,14 +378,14 @@ badge and any count quoted in the docs must agree with it.
 - UpdateBarAppearance ends by applying visibility
 - ApplyVisibility shows the bar when the gate passes and hides it when it does not
 - UpdateAbsorbBar is a no-op while the bar is hidden
-- UpdateAbsorbBar is a no-op inside a /at test hold window
+- UpdateAbsorbBar is a no-op inside a /at debug hold window
 - UpdateAbsorbBar paints again once the hold window has expired
 - UpdateAbsorbBar scales the bar to max health and sets the absorb value
 - UpdateAbsorbBar substitutes 0 / 1 when the absorb and health reads come back nil
 - UpdateAbsorbBar writes the abbreviated value into the bar text
 - UpdateAbsorbBar reports true when it paints
 - UpdateAbsorbBar reports false for a bar it skipped
-- UpdateAbsorbBar reports false while a /at test hold is active
+- UpdateAbsorbBar reports false while a /at debug hold is active
 - each unit's enable flag governs only its own bar
 - a disabled unit stays hidden even when the others are on
 - an enabled target bar hides when there is no target
@@ -534,7 +534,7 @@ badge and any count quoted in the docs must agree with it.
 - the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
 - General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
 
-### test_slashcmds.lua (101)
+### test_slashcmds.lua (91)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -566,15 +566,6 @@ badge and any count quoted in the docs must agree with it.
 - /at set rejects a non-numeric value for a number setting
 - /at set writes a color from `r g b a` and echoes the STORED value
 - /at set accepts a bool written as a human word
-- /at test with a word it does not know prints the usage and changes nothing
-- bare /at test prints the usage and toggles nothing
-- the test verb's help line describes the value hold, not a mode
-- /at test with a value refuses while every bar is disabled and says how to fix it
-- /at test paints the given value and arms the hold window
-- /at test with a value and no hold holds it for 5 seconds
-- /at test keeps the bar scale usable for a value below the 100k floor
-- /at test schedules the expiry it just announced
-- re-locking the bars clears a live /at test preview
 - /at profile with no subcommand prints the sub-help
 - /at profile current names the active profile
 - /at profile list marks the current profile
@@ -636,7 +627,6 @@ badge and any count quoted in the docs must agree with it.
 - a refused `toggle` does not touch a single bar's enabled flag
 - a refused `unlock` leaves the lock exactly where it was
 - a refused `update` publishes nothing on the bus
-- a refused `test <value>` paints nothing and arms no hold
 
 ### test_perfcmds.lua (42)
 
@@ -682,6 +672,24 @@ badge and any count quoted in the docs must agree with it.
 - /at perf finish resumes before it saves, so a later error cannot strand the addon
 - /at perf report opens the debug console when it is hidden
 - /at perf report marks itself reviewed exactly once
+
+### test_debughold.lua (15)
+
+- the `test` verb is gone: it prints unknown command
+- COMMANDS carries no `test` row, and the debug row names `hold <value> [secs]`
+- /at debug hold with a word it does not know prints the usage and changes nothing
+- bare /at debug hold prints the usage and holds nothing
+- /at debug hold with a negative duration prints the usage and holds nothing
+- /at debug hold refuses a duration above 60 s and below 0.5 s
+- /at debug hold accepts both ends of the range
+- /at debug hold announces a fractional duration as given, and holds for it
+- /at debug hold refuses while every bar is disabled and says how to fix it
+- /at debug hold paints the given value and arms the hold window
+- /at debug hold with a value and no duration holds it for 5 seconds
+- /at debug hold keeps the bar scale usable for a value below the 100k floor
+- /at debug hold schedules the expiry it just announced
+- re-locking the bars clears a live /at debug hold preview
+- /at debug hold refuses while the addon is disabled: one line, no paint, no hold
 
 ### test_widgets.lua (55)
 
@@ -809,7 +817,7 @@ badge and any count quoted in the docs must agree with it.
 - events: a name IsEventValid refuses never reaches the target
 - events: /at debug events lists the rejected names, and 'none' once they are gone
 
-### test_disabled.lua (15)
+### test_disabled.lua (16)
 
 - disabled 1: the enabled addon registers something to stand down from
 - disabled 3: writing the enable path leaves NOTHING registered
@@ -818,6 +826,7 @@ badge and any count quoted in the docs must agree with it.
 - disabled 6: firing every baseline event writes nothing, says nothing, shows nothing
 - disabled 7: every reserved verb answers, and only a feature verb refuses
 - disabled 7: a refused feature verb reaches no write seam
+- disabled 7: `debug` stays live, and its `hold` sub-verb refuses on its own gate
 - disabled 8: the left click is refused and writes nothing; the right click still opens the panel
 - disabled 9: re-enabling restores the registration set, from the settings as they are NOW
 - disabled 9: the bus subscriptions come back as the same five pairs, and each still reaches its consumer once
@@ -871,8 +880,9 @@ badge and any count quoted in the docs must agree with it.
 | test_helpers.lua | 70 |
 | test_launcher.lua | 17 |
 | test_optionssetup.lua | 15 |
-| test_slashcmds.lua | 101 |
+| test_slashcmds.lua | 91 |
 | test_perfcmds.lua | 42 |
+| test_debughold.lua | 15 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 4 |
 | test_prose.lua | 15 |
@@ -881,7 +891,7 @@ badge and any count quoted in the docs must agree with it.
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_events.lua | 5 |
-| test_disabled.lua | 15 |
+| test_disabled.lua | 16 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **746** |
+| **Total** | **752** |

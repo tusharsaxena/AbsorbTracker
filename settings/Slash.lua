@@ -65,8 +65,8 @@ end
 -- Forward declarations so the commands table can reference handlers defined below.
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
-local runDebug, runUpdate, runTest, runProfile, runToggle, runPerf
-local setEnabled, echoStored
+local runDebug, runUpdate, runProfile, runToggle, runPerf
+local setEnabled, echoStored, runHold
 
 NS.COMMANDS = {
     {"help",          "List available commands",
@@ -110,7 +110,7 @@ NS.COMMANDS = {
         end},
     {"toggle",        "Toggle bars on or off \226\128\148 `/at toggle [player|target|focus]`",
         function(rest) runToggle(rest) end},
-    {"debug",         "Toggle the debug console \226\128\148 `on`/`off` logging, `events`",
+    {"debug",         "Toggle the debug console \226\128\148 `on`/`off` logging, `events`, `hold <value> [secs]`",
         function(rest) runDebug(rest) end},
     {"perf",          "Measure performance \226\128\148 try `/at perf` for the workflow",
         function(rest) runPerf(rest) end},
@@ -118,8 +118,6 @@ NS.COMMANDS = {
         function() runUpdate() end},
     {"version",       "Print the addon version",
         function() print(("v%s"):format(NS.Version())) end},
-    {"test",          "Hold a fake absorb value on the bars \226\128\148 `/at test <value> [secs]`",
-        function(rest) runTest(rest) end},
     {"profile",       "Profile management \226\128\148 try `/at profile` for the list",
         function(rest) runProfile(rest) end},
 }
@@ -139,8 +137,10 @@ NS.COMMANDS = {
 --     so does the bare `/at`, which runs `config` and opens the settings panel. That is the case
 --     that settled it: a player reaches for the panel precisely when the addon is off, and the
 --     narrowing that refused it (standard v2.56.0, Slash minor 12) was reversed the same day.
---   * this addon's own FEATURE verbs -- `lock`, `unlock`, `toggle`, `update`, `test` -- get ONE
---     tagged line naming `/at enable` and reach no seam. §2's SHOULD, and this addon takes it.
+--   * this addon's own FEATURE verbs -- `lock`, `unlock`, `toggle`, `update` -- get ONE tagged line
+--     naming `/at enable` and reach no seam. §2's SHOULD, and this addon takes it. `debug` is live,
+--     but its `hold` sub-verb paints the bars, so runHold asks the same question and prints the
+--     same line itself.
 --   * a TYPO still gets `unknown command` and the index, because the addon did not understand it;
 --     the gate sits after the COMMANDS lookup, which is what tells the two cases apart.
 --
@@ -233,11 +233,13 @@ function runResetPosition()
 end
 
 -- ---------------------------------------------------------------------
--- /at debug / /at update / /at test
+-- /at debug / /at update
 -- ---------------------------------------------------------------------
 --
 -- /at debug        toggles the on-screen debug console window (state unchanged).
 -- /at debug on|off enables / disables session logging (debug-logging-§5).
+-- /at debug events lists the event names the client refused this session.
+-- /at debug hold <value> [secs] holds a fake absorb value on the bars (below).
 
 -- The whole guided run lives in LibKa0s-Perf; this is only the dispatch. The lib deliberately
 -- registers no slash command of its own (slash-commands-§3: every verb goes through this table with
@@ -265,18 +267,85 @@ local function printRejectedEvents()
     end
 end
 
+-- `/at debug hold <value> [secs]` paints that value on every visible bar and holds it for a few
+-- seconds. It is a DIAGNOSTIC, not a visibility switch: it fakes an absorb amount so the bar's text,
+-- fill and abbreviation can be eyeballed without waiting for a real shield.
+--
+-- It used to be the top-level `test <value> [secs]` verb. This addon's unlocked view is its
+-- preview, and options-ui-§15 and preview-mode say an addon in that shape ships no `test` verb
+-- (anti-pattern #80): `/at unlock` and `/at lock` are the switch. The value hold answers a
+-- different question, so it stays, under `debug`, which is where the standard puts a kept
+-- one-shot hold.
+--
+-- The duration is validated rather than passed through: -3 used to be announced as "-3 s" and
+-- handed to AceTimer, which clamps it to almost nothing, and `%d` announced 2.5 as "2 s".
+local HOLD_USAGE = "Usage: /at debug hold <value> [secs] \226\128\148 secs from 0.5 to 60, default 5"
+local HOLD_MIN, HOLD_MAX, HOLD_DEFAULT = 0.5, 60, 5
+
+--- The value and the seconds from `/at debug hold`'s arguments, or nil when either is unusable.
+--- A word after the seconds is ignored. The range test is written as `not (min <= secs <= max)`
+--- so that a NaN, which compares false with everything, is refused rather than slipping past two
+--- `<`/`>` checks.
+local function parseHold(rest)
+    local first, second = (rest or ""):match("^(%S*)%s*(%S*)")
+    local n = tonumber(first)
+    local secs = HOLD_DEFAULT
+    if second ~= "" then secs = tonumber(second) end
+    if not n or n ~= n or not secs then return nil end
+    if not (secs >= HOLD_MIN and secs <= HOLD_MAX) then return nil end
+    return n, secs
+end
+
+local function paintHold(n)
+    for _, unit in ipairs(NS.Units.LIST) do
+        local bar = NS.bars[unit]
+        if bar and NS.ShouldShowBar(unit) then
+            bar.valueText:SetText(AbbreviateNumbers(n))
+            bar.statusBar:SetMinMaxValues(0, math.max(n, 100000))
+            bar.statusBar:SetValue(n)
+        end
+    end
+end
+
+function runHold(rest)
+    -- `debug` is a live verb (slash-commands-§2), so the library's gate never sees this one. A hold
+    -- paints the bars, which is a feature, so it refuses on the collection's one line itself.
+    if NS.GetSetting("enabled") == false then return print(Sl:DisabledLine()) end
+
+    local n, secs = parseHold(rest)
+    if not n then return print(HOLD_USAGE) end
+
+    -- Nothing to paint if every bar is off. Checks `enabled` per unit rather than a master
+    -- toggle — there is no `hidden` global any more (schema v4).
+    local anyEnabled = false
+    for _, unit in ipairs(NS.Units.LIST) do
+        if NS.Units.IsEnabled(unit) then anyEnabled = true break end
+    end
+    if not anyEnabled then
+        return print("Every bar is disabled; run /at toggle to turn them on before testing")
+    end
+
+    print(("Holding %s on the bars for %s s"):format(AbbreviateNumbers(n), ("%g"):format(secs)))
+    paintHold(n)
+    -- Honors the duration just announced: NS.HoldPreview arms a one-shot that clears the hold and
+    -- republishes REPAINT at expiry (modules/Display.lua).
+    NS.HoldPreview(secs)
+end
+
 -- The sub-verbs `/at debug` takes; anything else (including nothing) toggles the console window.
+-- Each handler gets the rest of the line after its sub-verb.
 local DEBUG_VERBS = {
     on     = function() setDebugLogging(true) end,
     off    = function() setDebugLogging(false) end,
     events = printRejectedEvents,
+    hold   = function(rest) runHold(rest) end,
 }
 
 function runDebug(rest)
-    local sub = ((rest or ""):match("^(%S*)") or ""):lower()
-    local handler = DEBUG_VERBS[sub]
+    local sub, subrest = (rest or ""):match("^(%S*)%s*(.*)$")
+    local handler = DEBUG_VERBS[(sub or ""):lower()]
     if handler then
-        handler()
+        handler(subrest)
         return
     end
     if NS.DebugLog and NS.DebugLog.Toggle then
@@ -362,56 +431,6 @@ end
 function runUpdate()
     NS.bus:SendMessage(NS.MSG.REPAINT)
     print("Forced refresh")
-end
-
--- `/at test <value> [secs]` paints that value on every visible bar and holds it for a few
--- seconds. It is a DIAGNOSTIC, not a visibility switch: it fakes an absorb amount so the bar's text,
--- fill and abbreviation can be eyeballed without waiting for a real shield.
---
--- The `[on|off]` form is gone with test mode itself (options-ui-§15): this addon's unlocked view is
--- its preview, so `/at unlock` and `/at lock` are the switch, and a second verb for the same state
--- was the finding (anti-pattern #80). The value hold survives because it answers a different
--- question and nothing else in the addon answers it.
-local TEST_USAGE = "Usage: /at test <value> [secs] holds a fake value on the bars"
-
-local function runTestHold(args)
-    local n    = tonumber(args[1])
-    local hold = tonumber(args[2]) or 5
-
-    -- Nothing to paint if every bar is off. Checks `enabled` per unit rather than a master
-    -- toggle — there is no `hidden` global any more (schema v4).
-    local anyEnabled = false
-    for _, unit in ipairs(NS.Units.LIST) do
-        if NS.Units.IsEnabled(unit) then anyEnabled = true break end
-    end
-    if not anyEnabled then
-        print("Every bar is disabled; run /at toggle to turn them on before testing")
-        return
-    end
-
-    print(("Testing display with value: %s for %d s"):format(AbbreviateNumbers(n), hold))
-    for _, unit in ipairs(NS.Units.LIST) do
-        local bar = NS.bars[unit]
-        if bar and NS.ShouldShowBar(unit) then
-            bar.valueText:SetText(AbbreviateNumbers(n))
-            bar.statusBar:SetMinMaxValues(0, math.max(n, 100000))
-            bar.statusBar:SetValue(n)
-        end
-    end
-    -- Honors the duration just announced: NS.HoldPreview arms a one-shot that clears the hold and
-    -- republishes REPAINT at expiry (modules/Display.lua). Setting a bare NS.testHoldUntil, which
-    -- is what this used to do, left the fake value on the bar past the announced window until the
-    -- next absorb event happened to arrive.
-    NS.HoldPreview(hold)
-end
-
-function runTest(rest)
-    local args = {}
-    for w in (rest or ""):gmatch("%S+") do args[#args + 1] = w end
-    -- A bare `/at test` used to toggle test mode and now has nothing to toggle, so it prints the
-    -- usage rather than silently doing nothing — a player with the old habit gets told what changed.
-    if not tonumber(args[1]) then return print(TEST_USAGE) end
-    runTestHold(args)
 end
 
 -- ---------------------------------------------------------------------

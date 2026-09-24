@@ -324,7 +324,7 @@ test("Master alpha MULTIPLIES the per-unit barAlpha rather than replacing it", f
 end)
 
 -- ── preview mode ───────────────────────────────────────────────────────────────────
--- Two previews: the unlocked placeholder fill, and the timed `/at test` hold. Both must END —
+-- Two previews: the unlocked placeholder fill, and the timed `/at debug hold`. Both must END —
 -- the placeholder when the bars are re-locked, the hold when its announced duration expires.
 
 test("an unlocked bar paints a placeholder fill against a 0..1 scale", function()
@@ -389,7 +389,7 @@ test("UpdateAbsorbBar reports false while the bars are unlocked", function()
   end)
   NS.testHoldUntil = savedHold
   if not ok then error(err) end
-  assertEqual(painted, false, "a skipped bar is not a repaint, same as the /at test hold")
+  assertEqual(painted, false, "a skipped bar is not a repaint, same as the /at debug hold")
 end)
 
 test("HoldPreview arms an expiry timer for exactly the announced duration", function()
@@ -418,9 +418,9 @@ test("the expiry timer clears the hold and republishes REPAINT", function()
   NS.testHoldUntil = savedHold
 end)
 
--- The two previews overlap: `/at test` can be run while the bars are unlocked. The expiry timer
+-- The two previews overlap: `/at debug hold` can be run while the bars are unlocked. The expiry timer
 -- publishes REPAINT, and a repaint stands down in preview mode -- so without this the fake value
--- would sit on an unlocked bar forever, past the window `/at test` announced.
+-- would sit on an unlocked bar forever, past the window `/at debug hold` announced.
 test("a hold that expires while unlocked falls back to the placeholder", function()
   local savedHold = NS.testHoldUntil
   local value
@@ -501,7 +501,7 @@ test("a live repaint stands down while unlocked", function()
   assertEqual(painted, false, "and a skipped bar is not a repaint")
 end)
 
-test("re-locking ends any /at test hold and restores live data", function()
+test("re-locking ends any /at debug hold and restores live data", function()
   local appearance, repaint = 0, 0
   local ev = NS.NewBusTarget()
   ev:RegisterMessage(NS.MSG.APPEARANCE, function() appearance = appearance + 1 end)
@@ -689,8 +689,8 @@ test("UpdateAbsorbBar is a no-op while the bar is hidden", function()
   assertEqual(#calls, 0, "no paint work is done for an invisible bar")
 end)
 
-test("UpdateAbsorbBar is a no-op inside a /at test hold window", function()
-  -- /at test paints a fake value and parks testHoldUntil in the future; the ticker must leave that
+test("UpdateAbsorbBar is a no-op inside a /at debug hold window", function()
+  -- /at debug hold paints a fake value and parks testHoldUntil in the future; the ticker must leave that
   -- value alone until the hold expires, or the test display flickers back to the live value.
   local savedHold = NS.testHoldUntil
   local calls
@@ -793,7 +793,7 @@ test("UpdateAbsorbBar reports false for a bar it skipped", function()
   assertEqual(painted, false, "the [Combat] rollup would over-report otherwise")
 end)
 
-test("UpdateAbsorbBar reports false while a /at test hold is active", function()
+test("UpdateAbsorbBar reports false while a /at debug hold is active", function()
   local savedHold = NS.testHoldUntil
   local painted
   local ok, err = pcall(function()

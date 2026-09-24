@@ -296,6 +296,25 @@ test("disabled 7: a refused feature verb reaches no write seam", function()
   enable()
 end)
 
+test("disabled 7: `debug` stays live, and its `hold` sub-verb refuses on its own gate", function()
+  -- `debug` is one of the reserved verbs, so the library's gate lets it through. `debug hold` paints
+  -- the bars, which is a feature, so it carries the same one line itself. The walk above sends each
+  -- verb bare and never reaches the sub-verb, which is why this step names it.
+  bringUp()
+  disable()
+  local real, armed = NS.HoldPreview, 0
+  NS.HoldPreview = function(...) armed = armed + 1 return real(...) end
+  M.__resetPrinted()
+  NS.Slash:OnSlash("debug hold 1000")
+  local out = M.__printed()
+  NS.HoldPreview = real
+
+  assertEqual(#out, 1, "`/at debug hold` refuses on ONE line: " .. joined(out))
+  assertTrue(out[1]:find(NS.Slash:DisabledLine(), 1, true) ~= nil, "`/at debug hold`: " .. out[1])
+  assertEqual(armed, 0, "a refused hold armed the preview")
+  enable()
+end)
+
 -- ── 8. the launcher ────────────────────────────────────────────────────────────────────────────
 
 local function launcherObject()

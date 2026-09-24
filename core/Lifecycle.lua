@@ -40,7 +40,7 @@ local addonName, NS = ...
 --     two swap events
 --   * every RegisterMessage on the internal bus (the LibKa0s-Bus-1.0 record core/Bus.lua keeps)
 --
--- and every timer is canceled: the coalescing repaint (modules/Timer.lua) and the `/at test`
+-- and every timer is canceled: the coalescing repaint (modules/Timer.lua) and the `/at debug hold`
 -- preview hold (modules/Display.lua). The bars go down through the SHOW LADDER rather than by an
 -- imperative Hide — NS.ShouldShowBar already answers no on both rungs — because a hidden frame
 -- comes back on a combat transition, a target swap or a settings change, and then the addon is

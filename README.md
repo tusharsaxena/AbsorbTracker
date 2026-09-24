@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-746%2F746_passing-green)
+![Tests](https://img.shields.io/badge/Tests-752%2F752_passing-green)
 
 Ka0s Absorb Tracker puts your absorb shields on screen as a movable bar. Every shield on the unit,
 added into one number, so a glance tells you how much damage you can eat before your health starts
@@ -31,9 +31,10 @@ comes up even when you have nothing targeted or focused, so you can see where it
 the whole of it: there is no separate test mode to turn on. Entering combat locks the bars again by
 itself, so a fight always starts on real numbers, and you cannot unlock in the middle of one.
 
-To see a bar carrying a number instead, give `/at test` a value: `/at test 50000` puts that absorb on
-every visible bar for five seconds, and a second number changes how long it stays (`/at test
-250000 10`). At least one bar has to be enabled for the value to land anywhere.
+To check how a real number looks on the bars, use `/at debug hold`. `/at debug hold 50000` puts a
+50K absorb on every visible bar for five seconds. Add a second number to hold it longer or shorter,
+anywhere from half a second to a minute (`/at debug hold 250000 10`). At least one bar has to be
+enabled for the number to show up anywhere.
 
 Tick **Enable Target Bar** or **Enable Focus Bar** on General → Bars to bring the other two up. All
 three switches sit together there, next to **Update throttle**, so turning a bar on never means a
@@ -117,7 +118,7 @@ So the bar is a live picture of how much a unit can take before its health start
 | The Player bar never shows up | Check that **Enable Player Bar** is ticked on the General page (or run `/at toggle player`) and that the addon is enabled on the character-select screen. If **General visibility** is *Only in combat*, you also have to be in combat. The background and border show even with no shield, so seeing *nothing* means the bar is hidden rather than empty. |
 | The Target/Focus bar never shows up | Confirm **Enable Target Bar** / **Enable Focus Bar** is ticked on the General page. Even enabled, it only appears while you actually have that target or focus set — no target/focus means no bar, by design. |
 | The bar(s) disappear when I leave combat | **General visibility** is set to *Only in combat*. Set it back to *Always* on **General ▸ Master controls**. |
-| `/at test 50000` does nothing | A bar has to be enabled to preview a test value on it. If every bar is off, run `/at toggle` (or tick an **Enable ... Bar** box) first, then try again. `/at test` needs a number — to see the bars without one, just `/at unlock`. |
+| `/at debug hold 50000` does nothing | It needs at least one enabled bar to paint on. If every bar is off, run `/at toggle` (or tick an **Enable ... Bar** box) and try again. It also needs a number. To see the bars without one, just `/at unlock`. The old `test` command is gone; `/at debug hold` does the same job. |
 | A bar won't stay where I put it | Lock it after positioning: `/at lock`, or tick **Lock frame** on **General ▸ Master controls**. Unlock again whenever you want to drag it. |
 | My class color isn't showing | The bar has to be visible and have an active shield for the color to appear. Check that the matching **Use class color** toggle is on. Remember it follows the *bar's own unit* — a Target bar takes your target's class, and falls back to your picked color when there is no target to read one from. |
 | Custom textures or fonts aren't in the dropdowns | Install a media pack addon (one that includes SharedMedia). Without one you still get WoW's built-in options plus the shared Ka0s textures and fonts the bundled library registers (JetBrains Mono, the face the debug console prints in, is one of them) — but nothing beyond those. |

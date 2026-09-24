@@ -13,7 +13,7 @@ parse one word. The trigger fires on either half.
 
 ## Registration
 
-`Sl:Register` (`settings/Slash.lua:713`) registers both names through AceConsole-3.0, called once
+`Sl:Register` (`settings/Slash.lua:732`) registers both names through AceConsole-3.0, called once
 from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:44`, guarded so a load where
 `settings/Slash.lua` never ran degrades rather than errors):
 
@@ -83,8 +83,13 @@ is gated by default** and has to argue its way onto the list:
 | `resetposition` | **This addon's own reading, not the standard's list.** It is `reset` for the one piece of stored state no schema row addresses (`units.<unit>.position`); refusing it would withhold from a bar's anchor the repair the CLI guarantees for every value beside it, purely because of where that anchor is stored. |
 | `profile` | **Also ours.** Settings management — list, switch, copy, create, delete, reset. A player who turned the addon off to get out from under a broken profile is the one who needs to switch away from it. |
 
-Everything else refuses: `lock`, `unlock`, `toggle`, `update`, `test`. Each draws, shows, hides or
-tests the thing the addon exists to do, which is `§2`'s own definition of a feature verb.
+Everything else refuses: `lock`, `unlock`, `toggle`, `update`. Each draws, shows or hides the thing
+the addon exists to do, which is `§2`'s own definition of a feature verb.
+
+One sub-verb carries a gate of its own. `debug` is live, so the library never refuses
+`/at debug hold`, but the hold paints fake values on the bars, and that is a feature. `runHold`
+checks the stored `enabled` itself and prints the same line (`Sl:DisabledLine()`) without painting.
+`on`, `off`, `events` and a bare `/at debug` still answer with the addon off.
 
 Three inputs are worth their own sentence, because they are where minor 12 and minors 13–14 differ and
 where a reader's instinct is usually wrong:
@@ -113,7 +118,7 @@ Forward declarations above the table let it name handlers defined below it:
 ```lua
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
-local runDebug, runUpdate, runTest, runProfile, runToggle, runPerf
+local runDebug, runUpdate, runProfile, runToggle, runPerf
 ```
 
 ## Case-preserving parse
@@ -122,7 +127,7 @@ The library lowercases only the verb; the remainder is passed through untouched.
 here, because every schema path in this addon is camelCase and per-unit —
 `/at set units.target.barWidth 250` is the shipped form, and folding the whole line would address a
 row that does not exist. `/at profile` repeats the rule one level down: `runProfile`
-(`settings/Slash.lua:524`) lowercases the sub-verb and leaves its argument alone, because AceDB
+(`settings/Slash.lua:543`) lowercases the sub-verb and leaves its argument alone, because AceDB
 profile names are case-sensitive and a folded name deletes or switches to the wrong profile.
 
 **Schema paths are fully qualified.** The pre-1.9 unqualified `/at set barWidth 250` is rejected:
@@ -148,10 +153,10 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 | `/at toggle [player\|target\|focus]` | `runToggle` | Bare: flip **every** bar — all off if any is on, otherwise all on. With a unit token: that one bar. See the note below. |
 | `/at debug [on\|off]` | `runDebug` | Bare toggles the console **window**; `on`/`off` set session logging through `NS.DebugLog:SetEnabled`. |
 | `/at debug events` | `runDebug` → `printRejectedEvents` | Every event name the client refused this session (`NS.State.rejectedEvents`, events-frames-taint-§1), comma-joined, or `Rejected events: none`. |
+| `/at debug hold <value> [secs]` | `runDebug` → `runHold` | The one-shot value hold: `<value>` painted on every visible bar and held by `NS.HoldPreview` for the seconds given, 0.5 to 60 with a default of 5. It announces `Holding <value> on the bars for <secs> s`, with the seconds as typed (`2.5`, not `2`). A missing or non-numeric value, or seconds outside the range, prints `Usage: /at debug hold <value> [secs] — secs from 0.5 to 60, default 5` and holds nothing. It refuses while every bar is disabled, and while the addon is disabled (the gate note above). It used to be the top-level `test` verb. This addon's unlocked view is its preview, and options-ui-§15 and preview-mode say an addon in that shape ships no `test` verb, so `/at unlock` and `/at lock` are the switch and the hold moved under `debug`. |
 | `/at perf [sub]` | `runPerf` → `NS.Perf.OnCommand` | The guided perf run. Sub-verbs are the library's; see [performance.md](./performance.md). |
 | `/at update` | `runUpdate` | Publish `MSG.REPAINT`. |
 | `/at version` | inline | `v<version>` from `NS.Version()`. |
-| `/at test <value> [secs]` | `runTest` | The one-shot timed hold, and the verb's only form: `<value>` painted on every visible bar and held by `NS.HoldPreview` for the seconds given (default 5), refused while every bar is disabled. A diagnostic, not a switch. The `[on\|off]` form went with the Test mode row under options-ui-§15 — `/at unlock` / `/at lock` are the preview switch — so a bare `/at test`, or any non-numeric word, prints the usage. |
 | `/at profile <sub> [name]` | `runProfile` | The sub-verb tree below. |
 
 ## The sub-verb trees
@@ -159,8 +164,8 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 Four verbs parse a remainder of their own. Three of them parse one word; only `profile` carries a
 dispatch table, and it is the one this page is really about.
 
-**`profile`** — `PROFILE_VERBS` (`settings/Slash.lua:465`), a table keyed by the lowercased sub-verb,
-built once at load and dispatched at `:469`:
+**`profile`** — `PROFILE_VERBS` (`settings/Slash.lua:484`), a table keyed by the lowercased sub-verb,
+built once at load and dispatched at `:556`:
 
 | Sub-verb | Takes a name | What it does |
 |---|---|---|
@@ -172,10 +177,10 @@ built once at load and dispatched at `:469`:
 | `delete <name>` | yes | Refuses the current profile; otherwise `db:DeleteProfile(name, true)` and prints its own line. |
 | `reset` | no | `db:ResetProfile()`. |
 
-A bare `/at profile` prints the sub-help built from `PROFILE_HELP` (`:379`), whose row order is the
+A bare `/at profile` prints the sub-help built from `PROFILE_HELP` (`:441`), whose row order is the
 contract — the table is what the help iterates, so the two cannot drift. An unknown sub-verb prints
 `Unknown profile subcommand '<name>'` and then that same help. The four name-taking verbs share one
-guard, `needsName(verb, fn)` (`:398`), which wraps at file load rather than at dispatch: a missing
+guard, `needsName(verb, fn)` (`:460`), which wraps at file load rather than at dispatch: a missing
 name prints `Usage: /at profile <verb> <name>` and the handler never runs, and a dispatch allocates
 nothing. Adding a sub-verb is one `PROFILE_VERBS` entry plus one `PROFILE_HELP` row.
 
@@ -189,8 +194,8 @@ returns lines for this addon to print. The sub-verbs, and the panel that shares 
 here.
 
 **`debug`** — `DEBUG_VERBS`, a table keyed by the lowercased token: `on` or `off` sets session
-logging, `events` prints the session's rejected event names; anything else (including nothing)
-toggles the console window. The window and the flag are two different things, which is why the
+logging, `events` prints the session's rejected event names, and `hold` passes the rest of the line
+to `runHold`; anything else (including nothing) toggles the console window. The window and the flag are two different things, which is why the
 Master controls checkbox is not a second switch for the same state.
 
 **`toggle`** — one optional unit token, validated against `NS.Units.LABEL`; an unknown token prints
@@ -240,7 +245,7 @@ generic dispatcher knows nothing about.
 ## When the library is absent
 
 `/at` is registered unconditionally, so something has to answer it. With `LibKa0s-Slash-1.0` missing,
-`settings/Slash.lua:559` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
+`settings/Slash.lua:578` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
 a plain help index still render, a bare `/at` still runs the `config` verb exactly as the library
 does, the host verbs — which never went to the library — keep working untouched, and each schema verb
 (`list`, `get`, `set`, `reset`, `resetall`) prints the collection's library-absent line through the

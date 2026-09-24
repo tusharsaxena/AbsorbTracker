@@ -64,8 +64,8 @@ that covers the pure logic; this suite covers everything that only runs against 
 30. `/at lock` / `/at unlock` → locks/unlocks dragging and echoes `locked = true` / `locked = false`; dragged position persists across `/reload`. **Preview fill (preview-mode):** out of combat with no shield up, `/at unlock` → each bar shows a partial placeholder fill (not full, not empty) plus its drag handle strip above it (item 68), so there is something to grab; `/at lock` → the placeholder is gone and the bar is back on live data. The placeholder **survives a repaint**: while still unlocked, tick **Enable Player Bar** off and back on, flip the Master **Enable** switch, and change the **Visibility** dropdown — each publishes a repaint, and every visible bar must still read `Absorb` over a partial fill rather than dropping back to an empty strip reading `0`.
 31. `/at toggle` → turns **every** bar off (if any was on), then a second call turns all three on. `/at toggle target` flips only the target bar and leaves the others alone; `/at toggle wibble` → `unknown unit 'wibble'` and nothing changes.
 32. `/at update` → `Forced refresh`; repaints from live absorb.
-33. `/at test 50000` → shows `50K` for 5s then reverts **on its own, with no `/at update` and no absorb event needed** — the announced duration is a scheduled expiry; `/at test 250000 3` → `250K` for 3s, same self-clearing. Then `/at test 250000 60` followed by `/at lock` → the fake value clears immediately, because re-locking ends the preview. `/at unlock` then `/at test 250000 3` → after 3s the bars fall back to the **placeholder**, not to live data, because unlocked is itself a preview. The same with the bars locked and **Test mode** ticked: after 3s, the placeholder.
-34. `/at test 50000` with every bar disabled → `Every bar is disabled; run /at toggle to turn them on…`; no hold window is armed. `/at test wibble` — and a bare `/at test` — → a usage line naming the one form the verb still has, and no hold starts.
+33. `/at debug hold 50000` → `Holding 50K on the bars for 5 s`, shows `50K` for 5s then reverts **on its own, with no `/at update` and no absorb event needed**, because the announced duration is a scheduled expiry. `/at debug hold 50000 2.5` → announces `2.5 s` (not `2 s`) and shows `50K` for about 2.5s, same self-clearing. Then `/at debug hold 250000 60` followed by `/at lock` → the fake value clears immediately, because re-locking ends the preview. `/at unlock` then `/at debug hold 250000 3` → after 3s the bars fall back to the **placeholder**, not to live data, because unlocked is itself a preview.
+34. `/at debug hold 50000` with every bar disabled → `Every bar is disabled; run /at toggle to turn them on…`; no hold window is armed. `/at debug hold 50000 -3`, `/at debug hold 50000 61`, `/at debug hold wibble` and a bare `/at debug hold` → `Usage: /at debug hold <value> [secs] — secs from 0.5 to 60, default 5`, and no hold starts. `/absorbtracker test 1` → `unknown command 'test'` and the help index: the verb is gone.
 
 ### G. Profiles — switch repaints the bar
 35. `/at profile list` / `current` → lists / prints current.
@@ -379,8 +379,8 @@ spec or content is needed.
 **What this addon actually reads from the client in the player's language.** Two seams, and they are
 the whole list:
 
-- **`AbbreviateNumbers`** — the bar's value text (`modules/Display.lua:412`), the `/at test` line
-  (`settings/Slash.lua:392`, `:396`) and three debug lines (`core/AbsorbTracker.lua:204`, `:206`,
+- **`AbbreviateNumbers`** — the bar's value text (`modules/Display.lua:412`), the `/at debug hold` line
+  (`settings/Slash.lua:303`, `:328`) and three debug lines (`core/AbsorbTracker.lua:204`, `:206`,
   `:282`). Blizzard localizes both the suffix and the grouping: `1.2M` on enUS is not what a deDE
   client returns for the same number.
 - **`UnitClass`** — `core/Data.lua:227` and `core/CoreSetup.lua:59` both `pcall` it and take the
@@ -400,7 +400,7 @@ regression, and it is not what this section is looking for.
 
 110. **The value text renders and fits.** Log in on the non-English client with the player bar
      visible. Take an absorb worth a few hundred (Power Word: Shield), then one worth over a
-     million (a fully stacked shield on a geared character, or `/at test 1500000`, which drives the
+     million (a fully stacked shield on a geared character, or `/at debug hold 1500000`, which drives the
      same `AbbreviateNumbers` call for a held number of seconds).
 
      **Pass** — the number renders in the client's own convention, whatever that is, and stays
@@ -484,9 +484,9 @@ not. Every step here is therefore a look, not a log line.
     lists every verb, and `/at enable` turns it back on. That is the MUST slash-commands-§2 makes,
     and the one that keeps the pair from being a one-way switch.
 12. **A disabled addon refuses a feature verb, and does not act.** Still disabled, run `/at toggle`,
-    `/at unlock`, `/at update` and `/at test 100000`. Each answers with **one** `[AT]` line naming
-    `/at enable`, and nothing happens — no bar appears, nothing becomes draggable, no fake value is
-    painted. Then confirm the repair verbs are still live: `/at list`, `/at get scale`,
+    `/at unlock`, `/at update` and `/at debug hold 100000`. Each answers with **one** `[AT]` line
+    naming `/at enable`, and nothing happens — no bar appears, nothing becomes draggable, no fake
+    value is painted. `/at debug` itself stays live: `/at debug events` still answers. Then confirm the repair verbs are still live: `/at list`, `/at get scale`,
     `/at set scale 1.2`, `/at profile list`, `/at resetposition` and `/at perf` all still answer.
     Turn it back on with `/at enable`.
 13. **The disabled state is TOTAL, not a draw gate** (slash-commands-§7). `/at debug on`, then

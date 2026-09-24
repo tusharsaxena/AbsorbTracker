@@ -160,9 +160,9 @@ NS.bars = {
     focus  = NS.CreateBar("focus",  "AbsorbTrackerFocusFrame"),
 }
 
--- Player aliases, kept for the TEST HARNESS alone — tests/test_display.lua, test_data.lua and
--- test_slashcmds.lua take a stable handle on the player frame through them. No production call
--- site remains: modules/Display.lua and settings/Slash.lua (`/at test`) both index NS.bars[unit],
+-- Player aliases, kept for the TEST HARNESS alone — tests/test_display.lua, test_data.lua,
+-- test_slashcmds.lua and test_debughold.lua take a stable handle on the player frame through them. No production call
+-- site remains: modules/Display.lua and settings/Slash.lua (`/at debug hold`) both index NS.bars[unit],
 -- and core/DebugLog.lua, which this comment used to name, has not existed since debug logging
 -- moved to LibKa0s (core/DebugLogSetup.lua is what is left). Delete these the day the tests stop
 -- using them; do not add a production caller.

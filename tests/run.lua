@@ -111,6 +111,9 @@ Kit.run{
     -- Peeled out of test_slashcmds when that file crossed the layout-§1 cap; it runs
     -- straight after its sibling so the two halves stay adjacent in a red.
     "test_perfcmds",
+    -- The value hold, `/at debug hold`, moved out of test_slashcmds with the verb it drives (it
+    -- was the `test` verb). Straight after the other two halves of the slash surface.
+    "test_debughold",
     "test_widgets",
     "test_docs",
     { name = "test_prose", dir = "tests/_kit/" },

@@ -188,7 +188,7 @@ local masterOnChange = {
         end
 
         -- Both directions of the lock end preview mode (preview-mode): re-locking drops any live
-        -- `/at test <value>` hold so the bar returns to live data instead of keeping the fake
+        -- `/at debug hold <value>` hold so the bar returns to live data instead of keeping the fake
         -- value, and unlocking drops it too so what the user drags is the placeholder fill. The
         -- APPEARANCE pass is what paints, or stops painting, that placeholder — and it re-runs the
         -- visibility ladder itself (NS.UpdateBarAppearance calls NS.ApplyVisibility), which is why

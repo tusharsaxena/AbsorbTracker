@@ -4,11 +4,13 @@ local test, assertEqual, assertTrue, assertFalse =
   T.test, T.assertEqual, T.assertTrue, T.assertFalse
 
 -- settings/Slash.lua, second half: the verbs tests/test_slash.lua does not reach — lock/unlock,
--- toggle, the three reset verbs, update, test, enable/disable and the disabled gate, the whole
+-- toggle, the three reset verbs, update, enable/disable and the disabled gate, the whole
 -- /at profile sub-dispatcher, and the get/set failure paths. `/at perf` used to live here too and
 -- now has its own file, tests/test_perfcmds.lua, peeled off when this one crossed layout-§1's
--- 1500-line cap: it is the one verb here whose behavior belongs to another module. Together with
--- test_slash.lua and test_perfcmds.lua this covers every entry in NS.COMMANDS.
+-- 1500-line cap: it is the one verb here whose behavior belongs to another module. The value hold
+-- (`/at debug hold`, formerly the `test` verb) moved to tests/test_debughold.lua with its verb. Together
+-- with test_slash.lua, test_perfcmds.lua and test_debughold.lua this covers every entry in
+-- NS.COMMANDS.
 
 -- Same capture seam as test_slash.lua: Slash.lua bound `local print = NS.Print` at load, so the
 -- only interceptable point is the chat frame's AddMessage sink.
@@ -416,124 +418,6 @@ test("/at set accepts a bool written as a human word", function()
   assertTrue(NS.GetSetting("locked"))
   slash("set locked off")
   assertFalse(NS.GetSetting("locked"))
-end)
-
--- ── /at test ───────────────────────────────────────────────────────────────────────
---
--- ONE form. `/at test <value> [secs]` paints a fake absorb amount on every visible bar and holds it
--- for a few seconds -- a diagnostic, not a switch. The `[on|off]` form went with the Test mode row
--- itself (options-ui-§15): this addon's unlocked view is its preview, so `/at unlock` / `/at lock`
--- are the switch and a second verb for the same state was the finding (anti-pattern #80).
-
-test("/at test with a word it does not know prints the usage and changes nothing", function()
-  local savedHold = NS.testHoldUntil
-  local out = slash("test wibble")
-  assertEqual(NS.testHoldUntil, savedHold, "no hold")
-  assertTrue(contains(out, "/at test"), joined(out))
-end)
-
--- A bare `/at test` used to toggle the mode. It now has nothing to toggle, and prints the usage
--- rather than silently doing nothing, so a player with the old habit is told what changed.
-test("bare /at test prints the usage and toggles nothing", function()
-  local savedLocked = NS.GetSetting("locked")
-  local savedHold = NS.testHoldUntil
-  local out = slash("test")
-  assertEqual(NS.GetSetting("locked"), savedLocked, "the lock is the switch, and this is not it")
-  assertEqual(NS.testHoldUntil, savedHold, "no hold either")
-  assertTrue(contains(out, "/at test"), joined(out))
-end)
-
-test("the test verb's help line describes the value hold, not a mode", function()
-  local desc
-  for _, entry in ipairs(NS.COMMANDS) do
-    if entry[1] == "test" then desc = entry[2] end
-  end
-  assertTrue(desc and desc:find("secs", 1, true) ~= nil, "the timed hold is documented: " .. tostring(desc))
-  assertFalse(desc:find("on|off", 1, true) ~= nil,
-    "the toggle form is gone with the Test mode row (options-ui-§15): " .. desc)
-  assertFalse(desc:find("Test mode", 1, true) ~= nil,
-    "and the help line must not advertise a mode the addon no longer has: " .. desc)
-end)
-
-test("/at test with a value refuses while every bar is disabled and says how to fix it", function()
-  local savedHold = NS.testHoldUntil
-  local saved = {}
-  for _, unit in ipairs(NS.Units.LIST) do
-    saved[unit] = NS.db.profile.units[unit].enabled
-    NS.db.profile.units[unit].enabled = false
-  end
-  local out = slash("test 50000")
-  for _, unit in ipairs(NS.Units.LIST) do
-    NS.db.profile.units[unit].enabled = saved[unit]
-  end
-  assertTrue(contains(out, "Every bar is disabled"), joined(out))
-  assertTrue(contains(out, "/at toggle"), joined(out))
-  assertEqual(NS.testHoldUntil, savedHold, "no hold window is armed on the refusal path")
-end)
-
-test("/at test paints the given value and arms the hold window", function()
-  NS.db.profile.units.player.enabled = true
-  local painted
-  local sb = NS.statusBar
-  rawset(sb, "SetValue", function(_, v) painted = v end)
-  local out = slash("test 12345 7")
-  rawset(sb, "SetValue", nil)
-  assertEqual(painted, 12345)
-  assertEqual(NS.testHoldUntil, T.mocks.GetTime() + 7)
-  assertTrue(contains(out, "Testing display with value"), joined(out))
-  NS.testHoldUntil = nil
-end)
-
-test("/at test with a value and no hold holds it for 5 seconds", function()
-  NS.db.profile.units.player.enabled = true
-  local painted
-  local sb = NS.statusBar
-  rawset(sb, "SetValue", function(_, v) painted = v end)
-  slash("test 50000")
-  rawset(sb, "SetValue", nil)
-  assertEqual(painted, 50000)
-  assertEqual(NS.testHoldUntil, T.mocks.GetTime() + 5)
-  assertEqual(NS.State.testMode, nil, "the numeric form is a hold, and there is no mode to enter")
-  NS.ClearPreview()
-end)
-
-test("/at test keeps the bar scale usable for a value below the 100k floor", function()
-  -- A small test value must not shrink the scale below 100000, or the fake fill reads as full.
-  T.rawSet("hidden", false)
-  local mn, mx
-  local sb = NS.statusBar
-  rawset(sb, "SetMinMaxValues", function(_, a, b) mn, mx = a, b end)
-  slash("test 500")
-  rawset(sb, "SetMinMaxValues", nil)
-  assertEqual(mn, 0)
-  assertEqual(mx, 100000)
-  NS.testHoldUntil = nil
-end)
-
--- The announced duration is a promise: "for 7 s" has to be a scheduled expiry, not a timestamp
--- nobody revisits. Before this, the fake value sat on the bar past the window until the next
--- absorb event or an explicit /at update (preview-mode).
-test("/at test schedules the expiry it just announced", function()
-  NS.db.profile.units.player.enabled = true
-  local before = #T.mocks.__timers
-  local out = slash("test 12345 7")
-  local armed = T.mocks.__timers[#T.mocks.__timers]
-  assertTrue(contains(out, "for 7 s"), joined(out))
-  assertEqual(#T.mocks.__timers, before + 1, "the announced window must be armed")
-  assertEqual(armed.delay, 7, "the timer fires at the end of the window the user was told about")
-  NS.ClearPreview()
-end)
-
-test("re-locking the bars clears a live /at test preview", function()
-  NS.db.profile.units.player.enabled = true
-  local wasLocked = NS.GetSetting("locked")
-  slash("unlock")
-  slash("test 12345 30")
-  assertTrue((NS.testHoldUntil or 0) > T.mocks.GetTime(), "the hold is live before the re-lock")
-  slash("lock")
-  assertEqual(NS.testHoldUntil, nil, "re-locking returns the bars to live data (preview-mode)")
-  NS.SetByPath("locked", wasLocked)
-  NS.ClearPreview()
 end)
 
 -- ── /at profile ────────────────────────────────────────────────────────────────────
@@ -1429,23 +1313,6 @@ test("a refused `update` publishes nothing on the bus", function()
 
   assertTrue(contains(out, REFUSAL), joined(out))
   assertEqual(#sent, 0, "a refused verb published: " .. table.concat(sent, ", "))
-
-  NS.SetByPath("enabled", true)
-end)
-
-test("a refused `test <value>` paints nothing and arms no hold", function()
-  -- The value hold is the one verb whose side effect is a TIMER: a gate that let the handler run
-  -- would leave a fake value on a bar for five seconds with no line saying why.
-  local real, armed = NS.HoldPreview, 0
-  NS.HoldPreview = function(...) armed = armed + 1 return real(...) end
-  local painted = NS.bars.player and NS.bars.player.valueText:GetText()
-  local out = slashWhileDisabled("test 123456")
-  NS.HoldPreview = real
-
-  assertTrue(contains(out, REFUSAL), joined(out))
-  assertEqual(armed, 0, "a refused verb armed the preview hold")
-  assertEqual(NS.bars.player and NS.bars.player.valueText:GetText(), painted,
-    "and it must not have painted the fake value either")
 
   NS.SetByPath("enabled", true)
 end)
