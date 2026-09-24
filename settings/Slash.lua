@@ -56,7 +56,7 @@ end
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
 local runDebug, runUpdate, runTest, runProfile, runToggle, runPerf
-local setEnabled
+local setEnabled, echoStored
 
 NS.COMMANDS = {
     {"help",          "List available commands",
@@ -86,15 +86,17 @@ NS.COMMANDS = {
         function() runResetAll() end},
     {"resetposition", "Move every bar back to its default position",
         function() runResetPosition() end},
-    {"lock",          "Lock the bar in place",
+    -- The echo is the STORED value, not the argument: the locked row's onChange refuses an unlock in
+    -- combat and writes true back, and a fixed "unlocked" line would contradict it (slash-commands-§8).
+    {"lock",          "Lock the bars in place",
         function()
             NS.SetByPath("locked", true)
-            print("Bar locked")
+            echoStored("locked")
         end},
-    {"unlock",        "Unlock the bar so it can be dragged",
+    {"unlock",        "Unlock the bars so they can be dragged",
         function()
             NS.SetByPath("locked", false)
-            print("Bar unlocked")
+            echoStored("locked")
         end},
     {"toggle",        "Toggle bars on or off \226\128\148 `/at toggle [player|target|focus]`",
         function(rest) runToggle(rest) end},
@@ -294,26 +296,35 @@ end
 -- NO STATE OF THEIR OWN (slash-commands-§2): no second key, no session flag, no `NS.enabled` local.
 -- The one write goes through NS.SetByPath, which is the seam the Master-controls checkbox,
 -- `/at set enabled true` and the Defaults button all go through, so the row's `onChange` --
--- VISIBILITY then REPAINT (settings/General.lua) -- runs whichever surface was used.
+-- NS.SyncEnabledHold (settings/General.lua) -- runs whichever surface was used.
 --
--- THE VERBS ARE NOT A SECOND DEFINITION OF *DISABLED* EITHER. `enabled` gates NS.ShouldShowBar's
--- second rung and nothing else: no file unloads, no event registration changes, and the dispatcher
--- is registered unconditionally in OnInitialize. That is what keeps the pair from being one-way --
+-- WHAT *DISABLED* MEANS HERE (slash-commands-§7). NS.SyncEnabledHold moves the `disabled` hold on
+-- the one stand-down latch (core/Lifecycle.lua). On the edge the latch runs StandDown, which
+-- unregisters the three per-unit event frames, the five AceEvent registrations and the internal
+-- bus, so the addon stops watching rather than merely stops drawing. What StandDown leaves alone
+-- is SETUP, not a feature: the dispatcher (registered unconditionally in OnInitialize), the
+-- COMMANDS table and the settings registration. That is what keeps the pair from being one-way --
 -- `/at`, `/at enable`, `/at help` and `/at config` all still answer with the addon off, which
 -- slash-commands-§2 makes a MUST because the alternative strands a player in a settings panel they
 -- were trying not to open. tests/test_slashcmds.lua pins it.
---
--- The echo is slash-commands-§5's `set` shape, read back from the STORE rather than from the
--- argument, through the same formatter `/at get` and the [Set] debug line use. The colored pair is
--- the library's; with the library absent it renders plainly, exactly as the degraded help rows do,
--- rather than this file carrying a second copy of the color codes (testing-§8).
 function setEnabled(on)
     NS.SetByPath("enabled", on)
+    echoStored("enabled")
+end
+
+-- The one confirmation line for a verb that writes a schema path (slash-commands-§8): refresh an
+-- open panel so its widget moves with the verb, then print slash-commands-§5's `set` shape, read
+-- back from the STORE rather than from the argument -- an onChange that refused or coerced the
+-- write is what the player is told about. Same formatter `/at get` and the [Set] debug line use.
+-- The colored pair is the library's; with the library absent it renders plainly, exactly as the
+-- degraded help rows do, rather than this file carrying a second copy of the color codes
+-- (testing-§8).
+function echoStored(path)
     if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
-    local row    = NS.FindSchemaRow("enabled")
-    local stored = NS.GetSetting("enabled")
+    local row    = NS.FindSchemaRow(path)
+    local stored = NS.GetSetting(path)
     local value  = row and NS.FormatSchemaValue(row, stored) or tostring(stored)
-    print(SlashLib.FormatKV and SlashLib.FormatKV("enabled", value) or ("enabled = " .. value))
+    print(SlashLib.FormatKV and SlashLib.FormatKV(path, value) or (path .. " = " .. value))
 end
 
 function runUpdate()

@@ -95,14 +95,54 @@ end)
 
 -- ── lock / unlock / toggle ─────────────────────────────────────────────────────────
 
-test("/at lock and /at unlock write the `locked` setting and acknowledge", function()
+test("/at lock and /at unlock write the `locked` setting and echo it in the set shape", function()
+  -- slash-commands-§8 confirms a verb in §5's `path = value` shape, read back from the STORE.
   local out = slash("lock")
   assertTrue(NS.GetSetting("locked"), "lock sets locked = true")
-  assertTrue(contains(out, "Bar locked"), joined(out))
+  assertTrue(contains(out, "locked = true"), joined(out))
+  assertFalse(contains(out, "Bar locked"), "the fixed line is gone: " .. joined(out))
 
   out = slash("unlock")
   assertFalse(NS.GetSetting("locked"), "unlock sets locked = false")
-  assertTrue(contains(out, "Bar unlocked"), joined(out))
+  assertTrue(contains(out, "locked = false"), joined(out))
+  assertFalse(contains(out, "Bar unlocked"), "the fixed line is gone: " .. joined(out))
+  slash("lock")
+end)
+
+test("/at unlock in combat echoes the refused write: the stored value, not the argument", function()
+  -- The locked row's onChange refuses an in-combat unlock and writes true back, so a verb that
+  -- printed a fixed success line would contradict the store it just failed to change.
+  --
+  -- red under: restoring the fixed 'Bar unlocked' line.
+  slash("lock")
+  local saved = T.mocks.InCombatLockdown
+  T.mocks.InCombatLockdown = function() return true end
+  local ok, out = pcall(slash, "unlock")
+  T.mocks.InCombatLockdown = saved
+  assertTrue(ok, tostring(out))
+
+  assertTrue(contains(out, "Cannot unlock the bars during combat"), joined(out))
+  assertTrue(out[#out]:sub(-#"locked = true") == "locked = true",
+             "the last line is the stored value: " .. joined(out))
+  assertTrue(NS.GetSetting("locked"), "the bars stay locked")
+end)
+
+test("/at lock and /at unlock each refresh an open options panel once", function()
+  -- The Lock frame checkbox has to move with the verb, as it does for setEnabled, the descriptor
+  -- set and the launcher click.
+  --
+  -- red under: echoStored without the NS.RefreshOptionsPanel call.
+  slash("lock")
+  local real, calls = NS.RefreshOptionsPanel, 0
+  NS.RefreshOptionsPanel = function() calls = calls + 1 end
+  local ok, err = pcall(function()
+    slash("unlock")
+    assertEqual(calls, 1, "unlock refreshes the panel once")
+    slash("lock")
+    assertEqual(calls, 2, "lock refreshes the panel once")
+  end)
+  NS.RefreshOptionsPanel = real
+  if not ok then error(err, 0) end
 end)
 
 -- Bare `/at toggle` flips EVERY bar together: off if any is on, otherwise all on. A plain
@@ -1078,8 +1118,8 @@ test("/at enable and /at disable write the Enable row's OWN path, through the on
   -- surface is wrong about itself.
   --
   -- Asserted at the SEAM, not at the value: a handler that wrote `db.profile.enabled` directly
-  -- would leave `enabled` reading the same and silently skip the row's onChange — VISIBILITY then
-  -- REPAINT (settings/General.lua) — so the bars would keep drawing after `/at disable`.
+  -- would leave `enabled` reading the same and silently skip the row's onChange — NS.SyncEnabledHold
+  -- (settings/General.lua) — so the addon would never stand down after `/at disable`.
   --
   -- red under: a second stored key; a session flag; a handler that writes the profile itself; a
   -- verb renamed or re-used for enabling a module or a unit (that is `/at toggle`'s job).
@@ -1121,8 +1161,9 @@ test("the pair is never one-way: the dispatcher still answers while the addon is
   -- way — the player turns it off, and the verb that turns it back on no longer exists.
   --
   -- The dispatcher and the settings registration are SETUP, not features: they come up on load in
-  -- either state. In this addon `enabled` gates NS.ShouldShowBar's second rung and nothing else —
-  -- no file unloads and no event registration changes — which is what makes that true here.
+  -- either state. In this addon `enabled` moves the stand-down latch's `disabled` hold, and
+  -- StandDown takes down only the features — the unit-event frames, the AceEvent registrations and
+  -- the bus — never the dispatcher, which is what makes that true here.
   --
   -- red under: a `return` guard on `enabled` anywhere in Sl:OnSlash or the COMMANDS handlers; an
   -- OnInitialize that registers the chat command conditionally; an `enable` verb that needs the
@@ -1322,7 +1363,8 @@ test("a refused `update` publishes nothing on the bus", function()
   -- `update` exists to force a repaint, so "did not act" is exactly "did not publish".
   --
   -- The spy goes on AFTER the addon is disabled: writing `enabled` is itself a publish (the row's
-  -- onChange fires VISIBILITY then REPAINT), and catching the setup would read as the verb acting.
+  -- onChange moves the latch, whose StandDown publishes VISIBILITY), and catching the setup would
+  -- read as the verb acting.
   NS.SetByPath("enabled", false)
   local real, sent = NS.bus.SendMessage, {}
   NS.bus.SendMessage = function(self, msg, ...)

@@ -523,13 +523,15 @@ badge and any count quoted in the docs must agree with it.
 - the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
 - General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
 
-### test_slashcmds.lua (94)
+### test_slashcmds.lua (96)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
 - the About page renders one row per verb, through the same formatter as /at help
 - the About rows carry the help colors, without the chat indent
-- /at lock and /at unlock write the `locked` setting and acknowledge
+- /at lock and /at unlock write the `locked` setting and echo it in the set shape
+- /at unlock in combat echoes the refused write: the stored value, not the argument
+- /at lock and /at unlock each refresh an open options panel once
 - /at toggle turns every bar off, then every bar back on
 - /at toggle <unit> flips only that unit
 - /at toggle rejects an unknown unit and changes nothing
@@ -845,7 +847,7 @@ badge and any count quoted in the docs must agree with it.
 | test_helpers.lua | 70 |
 | test_launcher.lua | 16 |
 | test_optionssetup.lua | 13 |
-| test_slashcmds.lua | 94 |
+| test_slashcmds.lua | 96 |
 | test_perfcmds.lua | 42 |
 | test_widgets.lua | 55 |
 | test_docs.lua | 4 |
@@ -857,4 +859,4 @@ badge and any count quoted in the docs must agree with it.
 | test_disabled.lua | 15 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **723** |
+| **Total** | **725** |
