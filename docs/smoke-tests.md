@@ -379,11 +379,11 @@ spec or content is needed.
 **What this addon actually reads from the client in the player's language.** Two seams, and they are
 the whole list:
 
-- **`AbbreviateNumbers`** — the bar's value text (`modules/Display.lua:412`), the `/at debug hold` line
-  (`settings/Slash.lua:303`, `:328`) and three debug lines (`core/AbsorbTracker.lua:204`, `:206`,
-  `:282`). Blizzard localizes both the suffix and the grouping: `1.2M` on enUS is not what a deDE
+- **`AbbreviateNumbers`** — the bar's value text (`modules/Display.lua:427`), the `/at debug hold` line
+  (`settings/Slash.lua:303`, `:328`) and three debug lines (`core/AbsorbTracker.lua:230`, `:232`,
+  `:308`). Blizzard localizes both the suffix and the grouping: `1.2M` on enUS is not what a deDE
   client returns for the same number.
-- **`UnitClass`** — `core/Data.lua:227` and `core/CoreSetup.lua:59` both `pcall` it and take the
+- **`UnitClass`** — `core/Data.lua:205` and `core/CoreSetup.lua:60` both `pcall` it and take the
   **third** return, the English class token (`PRIEST`), never the first, which is the class name in
   the player's language. `bgClassColors` is keyed on the token, so the class colors are supposed to
   be locale-independent by construction. That is the claim this step checks rather than assumes.
@@ -431,7 +431,7 @@ regression, and it is not what this section is looking for.
 
 **Sign-off without a non-English client.** Steps 110 to 112 all read the same two seams, and the
 headless suite reaches neither: `tests/wow_mock.lua:26` defines `AbbreviateNumbers` as
-`function(n) return tostring(n) end`, so `tests/test_display.lua:813` proves the value is *routed* to
+`function(n) return tostring(n) end`, so `tests/test_display.lua:766` proves the value is *routed* to
 it and nothing about what it *renders*; and the class-color cases (`GetBarColor`, `GetBgColor`,
 `GetBorderColor`, `GetFontColor`, and `class color on a target bar is the TARGET's class`) feed the
 mock's own English token in, which is the answer they are checking for. So there is no headless

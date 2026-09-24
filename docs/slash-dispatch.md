@@ -6,10 +6,10 @@ row and key/value formatters, the `/at list` builder and the type-aware value pa
 the table it builds has to see every page's handlers — supplies the descriptor, owns the
 `NS.COMMANDS` table, and implements the verbs that are genuinely this addon's.
 
-This page exists because the verb set is no longer flat. Nineteen verbs is over
+This page exists because the verb set is no longer flat. Eighteen verbs is over
 `documentation-§3`'s eight, and four of them take a sub-verb or a token: `profile` dispatches through
-a table of its own, `perf` hands its remainder to the perf library, and `debug` and `toggle` each
-parse one word. The trigger fires on either half.
+a table of its own, `perf` hands its remainder to the perf library, `toggle` parses one word, and
+`debug` parses one word and, under `hold`, a value and a duration. The trigger fires on either half.
 
 ## Registration
 
@@ -161,8 +161,9 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 
 ## The sub-verb trees
 
-Four verbs parse a remainder of their own. Three of them parse one word; only `profile` carries a
-dispatch table, and it is the one this page is really about.
+Four verbs parse a remainder of their own. `profile` and `debug` dispatch through a table of their
+own (`PROFILE_VERBS`, `DEBUG_VERBS`), `perf` hands its remainder on, and `toggle` parses one word;
+`profile` is the one this page is really about.
 
 **`profile`** — `PROFILE_VERBS` (`settings/Slash.lua:484`), a table keyed by the lowercased sub-verb,
 built once at load and dispatched at `:556`:

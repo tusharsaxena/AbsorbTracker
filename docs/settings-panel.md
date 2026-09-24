@@ -410,7 +410,7 @@ loudly: a host supplying its own `O.LSMValues` must return **a function**
 (`libs/LibKa0s/OptionsCompose.lua:248-255`). Hand back a table instead and nothing errors — the row
 simply freezes its media list at whatever was registered when the file loaded, so media registered
 later never appears. This addon's `Helpers.LSMValues` returns a deferred closure and
-`tests/test_data.lua:192` pins that. `tests/test_schema.lua` still asserts that every row carrying a
+`tests/test_data.lua:200` pins that. `tests/test_schema.lua` still asserts that every row carrying a
 `dialogControl` answers a **populated** list; it is now the acceptance test for the upstream fix
 rather than the guard on a local patch.
 
