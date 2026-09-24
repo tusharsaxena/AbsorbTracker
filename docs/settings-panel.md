@@ -65,7 +65,7 @@ At page granularity, before the detail below:
 
 | Page | Tabs | Covers |
 |------|------|--------|
-| General | **Master controls**, **Bars** | *Master controls*: turn the whole addon off, choose when it shows at all (always / only in combat / only out of combat / never), scale and fade every bar together, lock them (the lock is also the preview switch — unlocked shows placeholders on every enabled bar), show the debug console, and the two reset buttons. *Bars*: turn each bar on or off (Player / Target / Focus), and the repaint throttle — how fast the bars may redraw during a burst of changes. |
+| General | **Master controls**, **Bars** | *Master controls*: turn the whole addon off, choose when it shows at all (always / only in combat / only out of combat / never), scale and fade every bar together, lock them (the lock is also the preview switch — unlocked shows placeholders on every enabled bar), show the debug console, show or hide the minimap button, and the two reset buttons. *Bars*: turn each bar on or off (Player / Target / Focus), and the repaint throttle — how fast the bars may redraw during a burst of changes. |
 | Appearance | **Size**, **Bar**, **Background**, **Border**, **Text** | A **Unit** picker at the top of the page chooses which bar you are styling — Player, Target or Focus — and every tab below applies to that one. *Size*: width and height. *Bar*: fill texture, opacity, color. *Background*: texture and color behind the fill. *Border*: style, thickness, color. *Text*: font, size, color, flags and shadow for the absorb amount. |
 | Profiles | — | Save different setups and switch between them. |
 

@@ -138,9 +138,9 @@ local LIFECYCLE_EVENTS = {
     { "PLAYER_REGEN_ENABLED",  "OnLeaveCombat" },
 }
 
--- Extracted from OnEnable so the perf probe's Resume() restores exactly the set Suspend() tore
--- down, rather than a hand-maintained copy of it that could drift the moment a fourth event is
--- added here (core/PerfSetup.lua). The per-unit and swap registrations are NOT part of this set —
+-- Extracted from OnEnable so the latch's StandUp restores exactly what StandDown tore down
+-- (core/Lifecycle.lua), rather than a hand-maintained copy of the set that could drift the moment
+-- a fourth event is added here. The per-unit and swap registrations are NOT part of this set —
 -- SyncUnitEventFrames owns those, because they depend on which units are currently enabled.
 function addon:RegisterLifecycleEvents()
     for _, pair in ipairs(LIFECYCLE_EVENTS) do

@@ -22,9 +22,10 @@ exclude_files = { "libs/", "docs/audits/", "docs/reviews/", "_dev/", "tests/_kit
 -- Removing the four lines reported THIRTY-TWO findings -- nineteen `211/addonName`, thirteen
 -- `212/self` -- and nineteen of the thirty-two were not conventions at all: nineteen files opened
 -- `local addonName, NS = ...` over a folder name they never read. Those are fixed at source and
--- now open `local _, NS = ...`. Seven files do read it -- Namespace, EnvSetup, CoreSetup,
--- MediaSetup, DebugLogSetup, PerfSetup and AbsorbTracker, each handing it to a vendored library
--- that cannot infer which folder it was copied into -- and those keep the name.
+-- now open `local _, NS = ...`. Nine files do read it -- Namespace, EnvSetup, MediaSetup, Bus,
+-- Lifecycle, PerfSetup, DebugLogSetup, LauncherSetup and AbsorbTracker, each handing it to a
+-- vendored library (or to `NS.name`) that cannot infer which folder it was copied into -- and those
+-- keep the name. CoreSetup is not among them: it opens `local _, NS = ...`.
 --
 -- Two of the four entries were silencing NOTHING, which is the same fault at its purest: with all
 -- four removed, this tree reported zero `212/event` and zero `431`. There is no unused `event`

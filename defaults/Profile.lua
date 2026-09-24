@@ -146,6 +146,6 @@ NS.defaults.global = {
 -- per-profile schema stamp and the `units` table.
 NS.flatDefaults = NS.defaults.profile
 
--- Per-unit default alias. settings/{Bar,Border,Font}.lua read each row's `default =` from here,
+-- Per-unit default alias. settings/Appearance.lua reads each row's `default =` from here,
 -- so every unit's rows share one canonical default regardless of which unit generated them.
 NS.unitDefaults = NS.defaults.profile.units.player

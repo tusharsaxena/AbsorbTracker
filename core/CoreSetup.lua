@@ -10,8 +10,9 @@ local Util = NS.Util
 -- ours: which tag the lines carry, and what happens when the library is not there.
 --
 -- Sits in core/Util.lua's old TOC slot for two reasons that both matter: core/Namespace.lua defines
--- NS.PREFIX just above it, and everything below it — core/PerfSetup.lua first — either calls
--- NS.Print or takes it as a load-time upvalue.
+-- NS.PREFIX just above it, and everything below it — core/Lifecycle.lua, then core/PerfSetup.lua
+-- (the TOC order is CoreSetup -> Lifecycle -> PerfSetup) — either calls NS.Print or takes it as a
+-- load-time upvalue.
 
 -- The one cause clause, shared by every seam that has to explain the same absence: this file,
 -- core/DebugLogSetup.lua, core/PerfSetup.lua, settings/OptionsSetup.lua and settings/Slash.lua.

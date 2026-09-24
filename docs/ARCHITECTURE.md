@@ -27,11 +27,11 @@ only (Interface 120100), English only.
 The addon is an **AceAddon** (`core/AbsorbTracker.lua`) mixing in AceEvent / AceTimer / AceConsole.
 `NS`, the second of the two varargs the client hands every TOC-loaded file, is the shared private
 namespace bus in every file; there is no `_G[addonName]` table. The FIRST vararg is the addon folder
-name, and only six files read it, so only those six bind it: `core/Namespace.lua`,
-`core/EnvSetup.lua`, `core/MediaSetup.lua`, `core/DebugLogSetup.lua`, `core/PerfSetup.lua` and
-`core/AbsorbTracker.lua` open `local addonName, NS = ...` because each hands the folder name to a
+name, and only nine files read it, so only those nine bind it: `core/Namespace.lua`,
+`core/EnvSetup.lua`, `core/MediaSetup.lua`, `core/Bus.lua`, `core/Lifecycle.lua`,
+`core/PerfSetup.lua`, `core/DebugLogSetup.lua`, `core/LauncherSetup.lua` and `core/AbsorbTracker.lua` open `local addonName, NS = ...` because each hands the folder name to a
 vendored library (or to `NS.name`) that cannot infer which folder it was copied into. The other
-twenty, `core/CoreSetup.lua` among them, open `local _, NS = ...`. That is not a style split: binding a name nothing reads is
+nineteen, `core/CoreSetup.lua` among them, open `local _, NS = ...`. That is not a style split: binding a name nothing reads is
 what `M4c-06` found nineteen of behind the blanket `211/addonName` ignore, and `_` is the spelling
 that keeps luacheck able to say so the next time.
 
@@ -71,7 +71,7 @@ time, guarded with `if NS.X then … end` where the load-order coupling is soft.
 | `core/State.lua` | `NS.State` — session-only runtime state (the debug flag and `rejectedEvents`, the event names the client refused this session; never persisted). |
 | `core/Bus.lua` | The closed cross-module message bus, and the `LibKa0s-Bus-1.0` seam: `NS.bus` (shared publish target, host code), `NS.busRecord` (the library's stand-down record), `NS.NewBusTarget()` (one tracked target per receiver), `NS.BusStandDown()` / `NS.BusStandUp()` (the latch's two calls), and the `NS.MSG` catalog (`REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION`/`UNITS`), declared through `Bus.Catalog`. With the library absent, the untracked-target stub. |
 | `core/CoreSetup.lua` | Wires the addon into `LibKa0s-Core-1.0` — the guard, the stringifier and the printer are vendored library code, not addon code. Publishes `NS.Print` (prefixed chat, built via `lib:New{...}` with the `[AT]` prefix passed as a function), `NS.Util.print` (the same function object), `NS.IsConcatSafe`, `NS.SafeToString`, `NS.ResolveColor` and the pcalled event registration helper `NS.SafeRegisterEvent` / `NS.SafeRegisterUnitEvent` / `NS.SafeRegisterEvents`, with working fallbacks when the library is absent. The secret-safe debug sink is `NS.Debug` (published by `core/DebugLogSetup.lua`); every debug arg routes through `NS.SafeToString`. |
-| `core/PerfSetup.lua` | Wires the addon into `LibKa0s-Perf-1.0` (issue #17) — the probe itself is a vendored library, not addon code. Builds `NS.Perf` via `lib:New{...}`: the addon's name/version/SavedVariables global, the bucket declarations (order + nesting), and the `suspend`/`resume` pair that makes the addon inert without a `/reload`. Loads immediately after `core/CoreSetup.lua`, before any module takes `local Perf = NS.Perf` as an upvalue. See [Performance & Profiler Attribution](#performance--profiler-attribution) below. |
+| `core/PerfSetup.lua` | Wires the addon into `LibKa0s-Perf-1.0` (issue #17) — the probe itself is a vendored library, not addon code. Builds `NS.Perf` via `lib:New{...}`: the addon's name/version/SavedVariables global, the bucket declarations (order + nesting), and the `suspend`/`resume` pair that makes the addon inert without a `/reload`. The TOC order is `core/CoreSetup.lua` → `core/Lifecycle.lua` → `core/PerfSetup.lua`: it loads after `core/Lifecycle.lua`, whose latch the descriptor carries, and before any module takes `local Perf = NS.Perf` as an upvalue. See [Performance & Profiler Attribution](#performance--profiler-attribution) below. |
 | `core/Data.lua` | The settings read seam (`GetSetting`: the `LibKa0s-Schema-1.0` runtime's read with the shipped defaults behind it, dotted-path aware, so `units.target.barWidth` and flat `locked` both work; every write is `NS.SetByPath`), the minimap row's own inverted `get`/`set` (`NS.MinimapShown` / `NS.SetMinimapShown`), LSM fetchers with fallbacks (each takes a `unit`, resolved through `NS.Units.Get`), and the class-color-aware color resolvers (each takes a `unit`; the class color is that unit's own, per options-ui-§17, and the background keeps its own darkened per-class palette — the one surface §17 exempts from the shared `NS.ResolveColor`). |
 | `core/Database.lua` | `NS:InitDB` (AceDB + profile callbacks) and `NS:RunMigrations` (schema-version seam). |
 | `core/Units.lua` | `NS.Units` — unit identity (`LIST`/`LABEL`), mirror resolution (`IsMirrored`/`SourceUnit`/`Get`), per-unit position read/write, and `CopyFromPlayer`. The only file that reads `db.profile.units` for appearance. |
@@ -623,7 +623,7 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
 ## Documentation map
 
 Every `.md` under `docs/` appears in exactly one table below (`documentation-§3`) — except this
-file, the hub the map itself lives in. Frozen and generated directories are named once each and never enumerated per run: `docs/audits/`, `docs/reviews/`, `docs/automated-tests/`, `docs/superpowers/`, `docs/perf-analysis/`, `docs/investigations/`, `docs/revendor/`.
+file, the hub the map itself lives in. Frozen and generated bundles are named once each and never enumerated per run: `docs/audits/`, `docs/reviews/`, `docs/automated-tests/<run>/`, `docs/superpowers/`, `docs/perf-analysis/<run>/`, `docs/investigations/`, `docs/revendor/`. The `README.md` beside the `<run>` folders (and `automated-tests/RESULTS.md`) are registered in the tables below.
 
 The repo **root** ships exactly three docs plus `LICENSE`, and never a fourth: the player-facing
 `README.md`, the `CLAUDE.md` stub and `DEPENDENCIES.md` (the toolchain contract). Everything else
@@ -670,7 +670,7 @@ They are frozen history: never treat them as a live requirement, and never "rest
 | `test-cases.md` | The generated case inventory (authoritative pass count) |
 | `performance.md` | The addon performance page |
 | `automated-tests/README.md` | What the automated-test record is and how to produce it |
-| `automated-tests/RESULTS.md` | One row per run; generated, never hand-edited |
+| `automated-tests/RESULTS.md` | One row per run; generated, except the watch list's Disposition column |
 
 
 ## Documented deviations
@@ -686,7 +686,7 @@ reads the register first and records a match as accepted rather than re-filing i
 | `events-frames-taint-§1` | `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` are registered on a private `CreateFrame` **per tracked unit** via `RegisterUnitEvent`, not through AceEvent-3.0 | Both events fire for every unit the client knows about; AceEvent shares one frame and structurally cannot `RegisterUnitEvent`, so it would pay a full C→Lua dispatch per unit only to discard all but ours. One frame each rather than packing tokens, because `RegisterUnitEvent` filters **at most two** tokens per registration. Argument in full below; filed as `AT-31` in `docs/audits/2026-08-05/` | 2026-07-14 | A client build where `RegisterUnitEvent` accepts more than two unit tokens |
 | `savedvariables-§1` | A **per-profile** `schemaVersion` stamp at `db.profile.schemaVersion` (default `1`), alongside the account-wide stamp in `db.global` (default `0`, owned by the runner as §1 requires) | The v3 lift — flat appearance keys onto `profile.units.<unit>` — is a per-profile mutation, and an account-wide flag structurally cannot gate one: a second pre-v3 profile would have its stored appearance stranded forever. §1 also allows the raw `profiles` walk for a profile-scoped step, and the other profile-scoped steps (v2, v4, v5) take that route under the account-wide stamp; the v3 lift keeps its own stamp because `NS.OnProfileChanged` re-runs it for a profile that appears after the upgrade. Argument in full below | 2026-07-28 | AceDB gaining a per-profile version stamp of its own, or the last per-profile migration being retired |
 | `events-frames-taint-§8` (SHOULD half) | 19 chat lines in `settings/Slash.lua` pre-format their arguments (`settings/Schema.lua`, the row's other file, has none left; re-measured 2026-09-24 with the grep `docs/audits/2026-09-23/03_EVIDENCE.md` records under `AT-78`, which counted 17 at that audit) — `print(("%s bar %s"):format(...))`, `print("Switched to profile '" .. name .. "'")` — instead of handing the parts to the shared printer as `print("fmt", a, b)` | **Re-graded, not deferred.** §8's pre-formatting MUST is now **scoped** to call sites whose arguments can reach a value read from one of the named combat-protected APIs (`UnitGetTotalAbsorbs`, `UnitHealth`/`UnitHealthMax`, threat, aura amounts); outside that trigger set it is a **SHOULD NOT**, because the risk is drift, not secrets. Every one of the 19 sites formats only values this addon owns — a version string, a unit label, a profile name, a user-typed hold value, a schema path — so none is in the trigger set and none can be handed a secret. The two sites that DO read `UnitGetTotalAbsorbs` (`core/AbsorbTracker.lua:199`, `:279`) already pass their arguments to the sink unformatted and guard with `NS.IsConcatSafe`; the seam's own guarantee (library stringifier, `table.concat`-based probe) is untouched and unconditional. Filed as `AT-35` in `docs/audits/2026-08-05/` against the pre-scoping text | 2026-08-05 | Any of these lines gaining an argument that is, or derives from, a return value of one of §8's named APIs — that site converts as a MUST — or §8's trigger set growing to cover one of them |
-| `localization-§1` | This addon ships **English only**: the `NS.L` seam is exported and `locales/enUS.lua` ships, but user-facing strings are hardcoded English rather than routed through `NS.L`, except the unlocked drag handle's (`modules/Bar.lua`: the three unit labels and its two tooltips) and the library-absent line (`L["%s is unavailable: the LibKa0s library did not load."]`, keyed by its English text per localization-§2, printed by `settings/Slash.lua`'s library-absent stub for each schema verb, slash-commands-§1), which are routed and whose keys are the only ones `enUS.lua` lists. The disabled-verb refusal that used to be routed left the addon at LibKa0s v1.41.0, because `slash-commands-§7` makes that line the collection's wording rather than the addon's and `lib.L` does not reach it, and its key went with it — `enUS.lua` carries no key nothing reads, which `localization-§3` requires rather than merely permits | A deliberate decision, not a backlog item. `localization-§3` names this one of the routing SHOULD's **two terminal compliant states** — English-only, recorded — so this row IS the compliant end state and an audit records it as accepted rather than re-filing the SHOULD. Both localization MUSTs are met unconditionally: the seam is exported and `enUS.lua` ships, carrying no dead keys. Filed as `AT-30` in `docs/audits/2026-08-05/`; deferred twice before as [PLAN-02](https://github.com/tusharsaxena/AbsorbTracker/issues/24), closed here | 2026-08-05 | The first non-English locale file added to `locales/` |
+| `localization-§1` | This addon ships **English only**: the `NS.L` seam is exported and `locales/enUS.lua` ships, but user-facing strings are hardcoded English rather than routed through `NS.L`, except the unlocked drag handle's (`modules/Bar.lua`: the three unit labels and its two tooltips) and the library-absent line (`L["%s is unavailable: the LibKa0s library did not load."]`, keyed by its English text per localization-§2, printed by `settings/Slash.lua`'s library-absent stub for each schema verb, slash-commands-§1), which are routed and whose keys are the only ones `enUS.lua` lists. The disabled-verb refusal that used to be routed left the addon at LibKa0s v1.42.0, because `slash-commands-§7` makes that line the collection's wording rather than the addon's and `lib.L` does not reach it, and its key went with it — `enUS.lua` carries no key nothing reads, which `localization-§3` requires rather than merely permits | A deliberate decision, not a backlog item. `localization-§3` names this one of the routing SHOULD's **two terminal compliant states** — English-only, recorded — so this row IS the compliant end state and an audit records it as accepted rather than re-filing the SHOULD. Both localization MUSTs are met unconditionally: the seam is exported and `enUS.lua` ships, carrying no dead keys. Filed as `AT-30` in `docs/audits/2026-08-05/`; deferred twice before as [PLAN-02](https://github.com/tusharsaxena/AbsorbTracker/issues/24), closed here | 2026-08-05 | The first non-English locale file added to `locales/` |
 
 **Retired on 2026-08-05** — four entries this register carried whose cited rule the standard has since
 changed, so the behavior is now permitted outright and a row for it reads as a deviation that is not
@@ -770,8 +770,9 @@ crossed the cap, and its value-hold cases later moved to `tests/test_debughold.l
 
 ### Recorded, but not deviations
 
-The two entries below cite no rule. They are kept in this document because an audit or a media sweep
-would otherwise surface them cold, and the reason they exist is not obvious from the code.
+The first two entries below cite no rule; the last two cite one and meet it. All four are kept in
+this document because an audit or a media sweep would otherwise surface them cold, and the reason
+they exist is not obvious from the code.
 
 - **A production test seam: `Helpers.__lastUnitCtx` (`settings/UnitPanel.lua`).**
   `Helpers.RenderUnitPanel` stashes the ctx it just rendered on `NS.Helpers.__lastUnitCtx`.
@@ -815,6 +816,22 @@ would otherwise surface them cold, and the reason they exist is not obvious from
   - **About-page logo — `media/logos/absorbtracker.logo.tga`.** `settings/About.lua` draws the
     addon's branding logo via `C.LOGO_PATH`. **Why:** addon branding, not bar appearance; a
     user-swappable logo would be meaningless. Stored under a typed media subfolder per layout-§3.
+
+- **No host window, and so no close-button wrapper (`standalone-windows`).** The section's "wrap
+  `MakeCloseButton` exactly once" rule binds the close controls an addon builds on its own windows,
+  and this addon builds none: it has no host window, and every window it shows is a library's. The
+  debug console and its copy window are `LibKa0s-DebugLog-1.0`'s and `LibKa0s-Widgets-1.0`'s, and
+  the perf panel's close control is `LibKa0s-Perf-1.0`'s own arm — `core/PerfSetup.lua:113-126`
+  records why the descriptor carries no `decorate` hook. The old `NS.MakeCloseButton` seam came out
+  at `f445da8`; the only surviving name is the degraded stub's field in `core/DebugLogSetup.lua`.
+  Re-check if the addon ever grows a window of its own.
+
+- **Bootstrap spelling and file headers (`documentation-§9`).** Nineteen authored files open
+  `local _, NS = ...` (the nine that read the folder name bind `addonName`, see the top of this
+  document), and luacheck keeps that spelling honest. Seven of the nineteen carry a self-naming
+  header comment (`-- AbsorbTracker: settings/General.lua` or `-- core/CoreSetup.lua — …`); the
+  section grandfathers the headers already in place, so they stay where they are, and a file
+  authored from here follows the section's placement rule.
 
 ## Performance & Profiler Attribution
 
