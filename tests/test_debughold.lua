@@ -4,8 +4,8 @@ local test, assertEqual, assertTrue, assertFalse =
   T.test, T.assertEqual, T.assertTrue, T.assertFalse
 
 -- `/at debug hold <value> [secs]`: the one-shot value hold, moved out of tests/test_slashcmds.lua
--- together with the verb it drives. It used to be `/at test <value> [secs]`. That verb is gone
--- because this addon's unlocked view is its preview, and options-ui-§15 and preview-mode bar a
+-- together with the verb it drives. It used to be the top-level `test <value> [secs]` verb.
+-- That verb is gone because this addon's unlocked view is its preview, and options-ui-§15 and preview-mode bar a
 -- `test` verb in that shape (anti-pattern #80). The hold answers a question unlocking does not
 -- (what a real NUMBER looks like on the bar), so it survives under `debug`, which is where
 -- WS-06 (2) puts a kept value hold. Moving the cases here also keeps test_slashcmds.lua clear of
