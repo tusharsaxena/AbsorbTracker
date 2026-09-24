@@ -44,13 +44,13 @@ read_globals = {
   -- RAID_CLASS_COLORS rather than C_ClassColor because that is what LibKa0s-Core-1.0 reads, and it
   -- is what every other unit frame on the player's screen is already reading (options-ui-§17).
   "RAID_CLASS_COLORS",
-  "InCombatLockdown", "UnitAffectingCombat", "Settings", "C_Timer", "C_AddOns",
+  "InCombatLockdown", "UnitAffectingCombat", "Settings", "C_AddOns",
   -- ms CPU clock backing the perf brackets in core/AbsorbTracker.lua, modules/Display.lua and
   -- modules/Timer.lua. The probe they feed lives in libs/LibKa0s/Perf.lua, which this lint excludes.
   "debugprofilestop",
-  "hooksecurefunc", "DEFAULT_CHAT_FRAME",
-  "StaticPopup_Show", "CreateColor", "PlaySound",
-  "strsplit", "strtrim", "tinsert", "tremove", "select",
+  -- No C_Timer and no hooksecurefunc: timers go through AceTimer (library-stack-§1), so a raw call
+  -- to either lints red here rather than slipping through.
+  "DEFAULT_CHAT_FRAME", "StaticPopup_Show", "select",
 }
 globals = {
   "AbsorbTrackerDB",     -- the SavedVariables write target
