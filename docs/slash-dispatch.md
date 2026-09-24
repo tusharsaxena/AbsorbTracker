@@ -133,7 +133,7 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 **Schema paths are fully qualified.** The pre-1.9 unqualified `/at set barWidth 250` is rejected:
 `FindSchemaRow` has no bare-key row for a per-unit setting. Only the eight unit-agnostic rows —
 `enabled`, `visibility`, `scale`, `alpha`, `locked`, `throttleWindow`, the session-only
-`state.debugConsole` and the global-store `global.minimap.hide` — take a bare path.
+`state.debugConsole` and the global-store `global.minimap.shown` — take a bare path.
 
 ## The verbs
 

@@ -89,7 +89,7 @@ them — a row's `page` is where it is *edited*, never where it is *stored*.
 
 The parent and every sub-page register as **canvas-layout categories**: a custom Blizzard `Frame` is registered with `Settings.RegisterCanvasLayoutCategory` (parent) / `Settings.RegisterCanvasLayoutSubcategory` (each sub-page) and Blizzard renders it in its own settings panel slot. The schema-driven sub-pages (General / Appearance) lay out their schema rows as **AceGUI widgets** (`CheckBox` / `Slider` / `Dropdown` / `ColorPicker`) inside an AceGUI `ScrollFrame` parented to the page's `body` frame, under a pinned **chrome band** holding the page's tab strip and, on Appearance, the chrome block above it.
 
-**Appearance is per-unit; General and About are not.** Appearance renders through `Helpers.RenderUnitPanel(ctx, pageKey)` (`settings/UnitPanel.lua`), which draws the **Unit** picker (Player/Target/Focus) in its chrome block and filters the rows to the selected unit. General has no Unit picker — its eight unit-agnostic rows (`enabled`, `visibility`, `scale`, `alpha`, `locked`, `state.debugConsole`, `global.minimap.hide`, `throttleWindow`) apply to the addon as a whole, and its three `units.<unit>.enabled` toggles are all rendered at once rather than filtered — and About has no settings at all.
+**Appearance is per-unit; General and About are not.** Appearance renders through `Helpers.RenderUnitPanel(ctx, pageKey)` (`settings/UnitPanel.lua`), which draws the **Unit** picker (Player/Target/Focus) in its chrome block and filters the rows to the selected unit. General has no Unit picker — its eight unit-agnostic rows (`enabled`, `visibility`, `scale`, `alpha`, `locked`, `state.debugConsole`, `global.minimap.shown`, `throttleWindow`) apply to the addon as a whole, and its three `units.<unit>.enabled` toggles are all rendered at once rather than filtered — and About has no settings at all.
 
 Profiles is the only page that still uses AceConfig — it routes `AceConfigDialog:Open("AbsorbTracker-Profiles", container)` into an AceGUI `SimpleGroup` parented to the canvas body, so the AceDBOptions UI lands inside our shell with the same header.
 
@@ -225,8 +225,9 @@ the optional one pairs beside it. This addon names no `testModePath`, so the row
 
 **The row says SHOWN and what it stores says HIDDEN.** It is emitted by naming `minimapPath` on the
 `H.MasterControls` call, and the path is taken **verbatim and unprefixed** because the table it
-names is outside the block's profile prefix: `global.minimap.hide`, which is LibDBIcon's **own**
-`minimap` table in the **global** store. Global is the decision rather than an accident — a minimap
+names is outside the block's profile prefix: `global.minimap.shown`, which reads in the row's own
+sense (launcher-§3) while the value lives in LibDBIcon's **own** `minimap` table in the **global**
+store, under its `hide` key — no `shown` key is ever stored. Global is the decision rather than an accident — a minimap
 button belongs to the installation, so a profile switch must not move it. Storing
 LibDBIcon's own key rather than a second boolean beside it is what keeps the checkbox and the
 library's own writes from ever disagreeing (anti-pattern #81); the price is that the row's `get` and
@@ -254,7 +255,7 @@ is the schema runtime's **`resetExempt`** (`settings/Schema.lua`, `LibKa0s-Schem
 `ApplyDefault` honors while a bracket is open — and both library resets open one around their
 walk, so a third reset added upstream that brackets its sweep inherits it. (It was a wrapper on the
 Options descriptor's `applyDefault` until the runtime moved to the library; a reset driven through
-the instance's own `ApplyDefault` would bypass a wrapper.) `/at reset global.minimap.hide` is
+the instance's own `ApplyDefault` would bypass a wrapper.) `/at reset global.minimap.shown` is
 deliberately **not** covered: a single named reset opens no bracket, and a player who names this
 row is asking for exactly this row. `tests/test_launcher.lua` presses the page's real
 `defaultsOnClick` and asserts the stored `hide` survived, and that every other General row still

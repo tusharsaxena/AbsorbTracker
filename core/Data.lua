@@ -42,15 +42,17 @@ end
 --     the `{ get, set }` pair LibKa0s-DebugLog's ConsoleCheckbox answers, which both arms of
 --     core/DebugLogSetup.lua publish. The row is `sessionOnly`, so neither a profile reset nor the
 --     reset count nor the validator's defaults check treats it as profile data.
---   * C.MINIMAP_PATH, below: STORED, but in the global store and inverted.
+--   * C.MINIMAP_PATH (`global.minimap.shown`), below: STORED, but in the global store, under
+--     LibDBIcon's own key, and inverted.
 
 -- ── the minimap button's one boolean (launcher-§3) ───────────────────────────────────────
 --
--- C.MINIMAP_PATH is the ONE path in this addon whose stored value is not in the profile and is not
--- session state: it is LibDBIcon's own `hide` key, in the GLOBAL store, and LibDBIcon writes it too
--- (core/Constants.lua says why it lives there and why the sense is inverted). So the row's own
--- get/set below resolve it before the profile is ever consulted, because
--- `db.profile.global.minimap.hide` is nowhere.
+-- C.MINIMAP_PATH, `global.minimap.shown`, is the ONE path in this addon whose stored value is not in
+-- the profile and is not session state. The path reads in the row's sense (SHOWN); the value is
+-- LibDBIcon's own `hide` key, in the GLOBAL store, and LibDBIcon writes it too (core/Constants.lua
+-- says why it lives there and why the sense is inverted). So the row's own get/set below resolve
+-- it before any path is ever walked: nothing is stored at `global.minimap.shown`, and a `shown` key
+-- must never be (anti-pattern #81).
 --
 -- NOT `sessionOnly`, which is the shape it most resembles. That flag means "this value's home is
 -- not the db and a /reload ends it", and both halves are wrong here: the value IS stored, and the

@@ -332,7 +332,7 @@ NS.__schemaLib = SchemaLib
 
 -- The minimap button's row survives every SWEEP (launcher-§3): a page's Defaults button and Reset
 -- all settings leave it alone. The library honors this only while a bracket is open, so a player
--- who names the row (`/at reset global.minimap.hide`) still gets exactly that row reset.
+-- who names the row (`/at reset global.minimap.shown`) still gets exactly that row reset.
 local MINIMAP_PATH = NS.Constants.MINIMAP_PATH
 
 local function chatPrint(line)
@@ -524,12 +524,16 @@ end
 local VALID_PAGES = { general = true, appearance = true, profiles = true }
 
 --- Which defaults tree a row's path resolves against. Almost every row means `defaults.profile`; a
---- `global.` path means `defaults.global`, which is where launcher-§3 puts the minimap button's
---- table. A profiles-page row is AceDBOptions-supplied and in no defaults tree, so it is skipped
---- (answering no root). A sessionOnly row is skipped by the library itself: its value is
+--- `global.` path means `defaults.global`. Two kinds of row answer no root and so are skipped:
+--- a profiles-page row, which is AceDBOptions-supplied and in no defaults tree, and a row that
+--- OWNS ITS STORAGE (its own `get`), whose path is not where its value lives. That second kind is
+--- architecture-§5's one sanctioned exemption, and the minimap row is its case here: its path
+--- `global.minimap.shown` names the row's sense, its value is LibDBIcon's `minimap.hide` behind
+--- the row's inverting get/set (core/Data.lua), and a `shown` default must never exist to resolve
+--- against (anti-pattern #81). A sessionOnly row is skipped by the library itself: its value is
 --- deliberately not in the profile.
 local function defaultsRoot(parts, row)
-    if row.page == "profiles" then return nil end
+    if row.page == "profiles" or type(row.get) == "function" then return nil end
     local d = NS.defaults
     if parts[1] == "global" then return d and d.global, 2 end
     return d and d.profile, 1

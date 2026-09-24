@@ -126,7 +126,7 @@ Rules the code depends on that reading one file will not reveal. The visual/tain
 
 Exactly **eight** of the 70 carry an absolute, unit-agnostic path — the six flat globals (`enabled`,
 `visibility`, `scale`, `alpha`, `locked`, `throttleWindow`) plus the session-only
-`state.debugConsole` and the global-store `global.minimap.hide`, all on the General page. The other **62 are unit-relative**
+`state.debugConsole` and the global-store `global.minimap.shown`, all on the General page. The other **62 are unit-relative**
 (`units.<unit>.<key>`): the three `units.<unit>.enabled` toggles, also on General, plus the
 Appearance page's 59, generated as **nineteen appearance keys × three units** with a `mirror` row
 for target and focus. So General holds eleven rows (eight absolute, three unit-relative) and
@@ -190,9 +190,11 @@ directly. So there is no registry writer and no registry load pass to name here.
 `units[unit]` in `core/Database.lua` (`MigrateProfileToV3`, `backfillUnitKeys`) is savedvariables-§1
 default-shape repair over that fixed list, not registry membership. Boot-time
 `NS.ValidateSchema` checks each row's shape (`page`/`type` enums, non-empty `path`) **and** that
-every `path` resolves against `NS.defaults.profile` (a `global.` path resolves against `NS.defaults.global` instead — the minimap button's row is the only one, launcher-§3); it returns `(errors, resolved, missing)` for
+every `path` resolves against `NS.defaults.profile` (a `global.` path resolves against `NS.defaults.global` instead); it returns `(errors, resolved, missing)` for
 the test harness to assert (`sessionOnly` rows are exempt from the path check — their value is
-deliberately not in the profile). Row grammar detail: [schema.md](./schema.md).
+deliberately not in the profile — and so is a row that owns its storage through its own `get`,
+architecture-§5's closure-backed exemption: the minimap row, whose path `global.minimap.shown` names
+its sense while its value is LibDBIcon's `hide`). Row grammar detail: [schema.md](./schema.md).
 
 **Named non-setting state: `units.<unit>.position`** (architecture-§5). Each bar's saved anchor,
 `db.profile.units.<unit>.position = { point, relPoint, x, y }`, is geometry only a drag
@@ -325,7 +327,7 @@ and `debug` carry sub-verb tables of their own (`PROFILE_VERBS`, `DEBUG_VERBS`) 
 unqualified `/at set barWidth 250` is rejected, because `FindSchemaRow` has no bare-key row for a
 per-unit setting. Only the eight unit-agnostic rows — `enabled`, `visibility`, `scale`, `alpha`,
 `locked`, `throttleWindow`, the session-only `state.debugConsole` and the global-store
-`global.minimap.hide` — take a bare path.
+`global.minimap.shown` — take a bare path.
 
 **`/at enable` and `/at disable` are ALIASES, not a second switch** (slash-commands-§2). Both write
 the `enabled` path the Master controls tab's Enable checkbox writes, through the same `NS.SetByPath`
@@ -395,9 +397,13 @@ says nothing about whether the addon is running. `tests/test_disabled.lua` step 
 `tests/test_launcher.lua` pins that the same registered object toggles again once re-enabled.
 
 **Visibility is one row and one boolean.** `Minimap button` on Master controls stores LibDBIcon's
-own `hide` key at `db.global.minimap.hide` — **global**, so a profile switch does not move the
-player's buttons. The row says *shown* and the key says *hidden*, so the row's own `get` / `set`
-(`NS.MinimapShown` / `NS.SetMinimapShown`, `core/Data.lua`) invert it;
+own `hide` key in the `db.global.minimap` table — **global**, so a profile switch does not move the
+player's buttons. The row, and the path a player types (`global.minimap.shown`, launcher-§3), say
+*shown*; the stored key says *hidden*, so the row's own `get` / `set`
+(`NS.MinimapShown` / `NS.SetMinimapShown`, `core/Data.lua`) invert it, and no `shown` key is ever
+stored (anti-pattern #81). The stored key never moved when the path was renamed from its old `hide`
+spelling, so no SavedVariables migration exists and a button hidden before the rename stays hidden;
+the old path now answers `Setting not found`;
 the set also calls `NS.Launcher:SetShown`, so the button follows the checkbox immediately. The
 **The row survives every reset, as a property of the setting** (launcher-§3): a minimap button's
 visibility is a per-installation display preference, like the angle LibDBIcon keeps beside it in the
@@ -405,7 +411,7 @@ same table. *Reset all settings* never reached it — it is a profile reset and 
 but the **General page's Defaults button did**, because `LibKa0s-Options-1.0`'s `RestoreDefaults`
 walks every row on the page and consults no veto. The exemption is the schema runtime's
 `resetExempt` (`settings/Schema.lua`), which `ApplyDefault` honors while a bracket is open, and
-both library resets open one around their walk. `/at reset global.minimap.hide` is deliberately
+both library resets open one around their walk. `/at reset global.minimap.shown` is deliberately
 outside it: a single named reset opens no bracket, and naming the row is asking for it. Detail in [settings-panel.md](./settings-panel.md).
 
 The **icon** is `media/logos/absorbtracker.logo.128.tga`, the same file `## IconTexture` names

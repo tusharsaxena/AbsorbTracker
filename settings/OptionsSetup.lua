@@ -56,7 +56,7 @@ local PARENT_TITLE = "Ka0s Absorb Tracker"
 -- around their walk, so both are covered, and so is any reset the library grows later that
 -- brackets its sweep. It is not a wrapper on this descriptor's `applyDefault` any more: the
 -- runtime's own ApplyDefault calls its own Set, so a wrapper here would be bypassed by a reset
--- driven through the instance. `/at reset global.minimap.hide` is deliberately NOT covered: a
+-- driven through the instance. `/at reset global.minimap.shown` is deliberately NOT covered: a
 -- single named reset opens no bracket, and a player who names this row is asking for exactly it.
 local function survivesEveryReset(row)
     return row.path == NS.Constants.MINIMAP_PATH

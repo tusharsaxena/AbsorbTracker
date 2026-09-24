@@ -428,6 +428,85 @@ test("launcher: the page Defaults button still resets every OTHER General row", 
   NS.SetByPath(NS.Constants.MINIMAP_PATH, true)
 end)
 
+-- ── the row's CLI path reads in the row's own sense (launcher-§3) ──────────────────────────────
+--
+-- The path a player types is `global.minimap.shown`, the sense of the checkbox. The STORED key is
+-- still LibDBIcon's own `hide`, so there is no SavedVariables migration and no `shown` key is ever
+-- written (anti-pattern #81). The old spelling is gone from the CLI and answers unknown setting.
+
+local function slash(line)
+  local out = {}
+  local cf = T.mocks.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function(_, msg) out[#out + 1] = msg end
+  local ok, err = pcall(NS.Slash.OnSlash, NS.Slash, line)
+  cf.AddMessage = old  -- nil restores the metatable no-op
+  if not ok then error(err) end
+  return (table.concat(out, "\n"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+
+local function assertNoShownKey(where)
+  for key in pairs(NS.db.global.minimap) do
+    assertTrue(key ~= "shown", "no `shown` key is ever stored (" .. where .. ")")
+  end
+end
+
+test("launcher: /at get global.minimap.shown reads the row's sense off the stored hide", function()
+  -- red under: a constant still spelled `global.minimap.hide` (Setting not found).
+  assertEqual(NS.Constants.MINIMAP_PATH, "global.minimap.shown")
+  NS.SetByPath(NS.Constants.MINIMAP_PATH, true)
+  assertEqual(NS.db.global.minimap.hide, false, "precondition: the button is shown")
+  local out = slash("get global.minimap.shown")
+  assertTrue(out:find("global.minimap.shown = true", 1, true) ~= nil, out)
+  assertNoShownKey("after a get")
+end)
+
+test("launcher: /at set global.minimap.shown false stores hide = true and hides the button", function()
+  fakes()
+  NS.Launcher:Register()
+  slash("set global.minimap.shown false")
+  assertEqual(NS.db.global.minimap.hide, true, "the stored key is LibDBIcon's `hide`, inverted")
+  assertFalse(NS.MinimapShown(), "and the row reads unchecked")
+  assertNoShownKey("after a set")
+  NS.SetByPath(NS.Constants.MINIMAP_PATH, true)
+end)
+
+test("launcher: the old CLI spelling global.minimap.hide answers unknown setting", function()
+  -- red under: keeping the hide spelling as the path.
+  local out = slash("get global.minimap.hide")
+  assertTrue(out:find("Setting not found", 1, true) ~= nil, out)
+end)
+
+test("launcher: the renamed path is not reported missing from the defaults", function()
+  -- The row owns its storage (its own get/set), so the validator does not look for a
+  -- `global.minimap.shown` default that must never exist (architecture-§5's closure-backed row).
+  local errors, _, missing = NS.ValidateSchema()
+  assertEqual(errors, 0)
+  assertEqual(missing, 0)
+end)
+
+test("launcher: a legacy store keeps its hidden button, and its angle, across the rename", function()
+  -- No SavedVariables migration: the key the old build wrote is the key this build reads.
+  fakes()
+  NS.Launcher:Register()
+  local saved = NS.db.global.minimap
+  NS.db.global.minimap = { hide = true, minimapPos = 200 }
+
+  local out = slash("get global.minimap.shown")
+  assertTrue(out:find("global.minimap.shown = false", 1, true) ~= nil, out)
+  assertFalse(NS.GetSetting(NS.Constants.MINIMAP_PATH), "the legacy hidden button reads hidden")
+  assertEqual(NS.db.global.minimap.hide, true, "and stays hidden")
+  assertEqual(NS.db.global.minimap.minimapPos, 200, "the dragged angle is untouched")
+
+  slash("set global.minimap.shown true")
+  assertEqual(NS.db.global.minimap.hide, false)
+  assertEqual(NS.db.global.minimap.minimapPos, 200, "a set does not move the angle either")
+  assertNoShownKey("after a set on a legacy store")
+
+  NS.db.global.minimap = saved
+  NS.SetByPath(NS.Constants.MINIMAP_PATH, true)
+end)
+
 -- ── degradation ────────────────────────────────────────────────────────────────────────────────
 
 local function freshEnv()

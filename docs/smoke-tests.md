@@ -463,6 +463,10 @@ not. Every step here is therefore a look, not a log line.
 5. **RIGHT-click opens the settings panel**, on its landing page, wherever the left click sits.
 6. **The visibility row.** Untick **General ▸ Master controls ▸ Minimap button**: the button vanishes
    **immediately**, not on the next reload. Tick it back: it returns, at the angle you dragged it to.
+   The CLI reads the row in the same sense: with the button shown, `/at get global.minimap.shown`
+   answers `global.minimap.shown = true`, and `/at get global.minimap.hide` answers `Setting not
+   found` (the path was renamed; the stored key under it was not). Untick the row, `/reload`: the
+   button is still hidden and the `get` answers `false`.
 7. **It survives a profile switch.** With the button hidden, switch profiles on the Profiles page.
    The button stays hidden — it is installation furniture, not a profile setting.
 8. **Reset all settings does not bring it back.** With the button hidden, press **Reset all settings**

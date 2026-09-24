@@ -53,17 +53,6 @@ C.LOGO_PATH = "Interface\\AddOns\\AbsorbTracker\\media\\logos\\absorbtracker.log
 -- tests/test_docs.lua pins the two spellings together.
 C.LOGO_ICON_PATH = "Interface\\AddOns\\AbsorbTracker\\media\\logos\\absorbtracker.logo.128.tga"
 
--- The minimap button's visibility, as a stored path (launcher-§3). VERBATIM and unprefixed: the
--- table it names lives in the GLOBAL store, outside the Master-controls block's profile prefix,
--- because a minimap button belongs to the INSTALLATION rather than to a profile -- switching
--- profiles must not move the player's buttons, and options-ui-§12's *Reset all settings*, a profile
--- reset by definition, must not un-hide a button they deliberately hid.
---
--- THE PATH SAYS `hide` AND THE ROW SAYS SHOWN. That inversion is the whole cost of storing
--- LibDBIcon's OWN key rather than a second boolean beside it, and it is paid once, at the
--- read/write seam in core/Data.lua. A parallel `showMinimapIcon` would be a copy of one state that
--- a library also writes, free to disagree the first time the player used LibDBIcon's own menu
--- (anti-pattern #81).
 -- THE BRAND NAME, IN PLAIN TEXT, AND THERE IS EXACTLY ONE OF IT. launcher-§1 makes this the LDB
 -- object's `label`, and slash-commands-§7 makes the same string the subject of the one line a
 -- disabled addon prints — so LibKa0s-Slash-1.0 wants it as `brandName` and LibKa0s-Launcher-1.0
@@ -74,4 +63,18 @@ C.LOGO_ICON_PATH = "Interface\\AddOns\\AbsorbTracker\\media\\logos\\absorbtracke
 -- not the folder name (which LibDBIcon keys a saved position by and nobody reads as prose).
 C.BRAND = "Ka0s Absorb Tracker"
 
-C.MINIMAP_PATH = "global.minimap.hide"
+-- The minimap button's visibility, as the path a player types and the row answers (launcher-§3).
+-- VERBATIM and unprefixed: the table it names lives in the GLOBAL store, outside the
+-- Master-controls block's profile prefix, because a minimap button belongs to the INSTALLATION
+-- rather than to a profile -- switching profiles must not move the player's buttons, and
+-- options-ui-§12's *Reset all settings*, a profile reset by definition, must not un-hide a button
+-- they deliberately hid.
+--
+-- THE CLI NAME READS SHOWN, THE SAME SENSE AS THE CHECKBOX (launcher-§3, standard v2.65.0), and
+-- the storage stays LibDBIcon's OWN `minimap.hide`. The row's get/set invert between the two, once,
+-- at the read/write seam in core/Data.lua, so no `shown` key is ever stored: a second boolean
+-- beside LibDBIcon's would be a copy of one state that the library also writes, free to disagree
+-- the first time the player used LibDBIcon's own menu (anti-pattern #81). Because the stored key
+-- never moved, a player who hid the button under the old `hide` spelling of this path keeps it
+-- hidden with no SavedVariables migration.
+C.MINIMAP_PATH = "global.minimap.shown"
