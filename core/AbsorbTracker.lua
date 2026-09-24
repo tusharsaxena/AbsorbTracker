@@ -81,8 +81,8 @@ function addon:OnEnable()
     -- shared frame with plain RegisterEvent and has no unit filtering, so routing these two through
     -- AceEvent would pay a full C→Lua dispatch for every unit only to discard all but ours.
     --
-    -- events-frames-taint-§1 deviation (see docs/ARCHITECTURE.md): register them on private frames via
-    -- RegisterUnitEvent instead, so the client filters at the C level and OnEvent never fires for
+    -- The events-frames-taint-§1 unit-filter carve-out (see docs/ARCHITECTURE.md): register them on
+    -- private frames via RegisterUnitEvent instead, so the client filters at the C level and OnEvent never fires for
     -- other units. (The rest are global, payload-free events and stay on AceEvent.)
     --
     -- Extracted to its own method (rather than inlined here, as the original brief had it) purely

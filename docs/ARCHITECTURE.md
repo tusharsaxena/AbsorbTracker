@@ -527,7 +527,7 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   one shared frame with plain `RegisterEvent` and cannot `RegisterUnitEvent` — so an AceEvent
   registration would pay a full C→Lua dispatch for every unit only to discard all but ours. A
   private `CreateFrame("Frame")` with `RegisterUnitEvent` moves that filter to the C layer instead
-  — a documented events-frames-taint-§1 deviation (see below). One frame per unit rather than packing tokens two at a
+  — the events-frames-taint-§1 unit-filter carve-out (design note below). One frame per unit rather than packing tokens two at a
   time (`RegisterUnitEvent`'s cap): each unit's registration can then be added or dropped on its own
   as its bar is enabled or disabled, with no repacking. **A disabled bar is registered for nothing
   at all**, and its `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` watch is dropped too — that
@@ -573,6 +573,28 @@ AceAddon lifecycle in `core/AbsorbTracker.lua`:
   non-empty, and prints it on `/at debug events`. `StandUp` inherits all seven through the two
   methods. With the library absent, `core/CoreSetup.lua`'s stub keeps the `pcall` and the list and
   drops the front gate. `tests/test_events.lua` drives both halves through the kit's `__badEvents`.
+
+### The per-unit frames are the unit-filter carve-out
+
+The private frames above are not a deviation. events-frames-taint-§1 **permits** a private
+`CreateFrame("Frame")` whose only job is to filter `UNIT_*` events to the units `RegisterUnitEvent`
+names — the events-frames-taint-§1 unit-filter carve-out — and each of these meets its conditions:
+
+- **Only that job.** Each frame gets exactly one `SetScript("OnEvent", onEvent)` and its
+  `RegisterUnitEvent` calls for `UNIT_ABSORB_AMOUNT_CHANGED` / `UNIT_MAXHEALTH`, made through
+  `NS.SafeRegisterUnitEvent` (the file-local `safeRegisterUnit` in `addon:SyncUnitEventFrames`),
+  one unit token per frame. No other event, script or ticker is ever put on it.
+- **Held.** The frames live at `addon.__unitEventFrames`, keyed by unit.
+- **Torn down.** `StandDown` in `core/Lifecycle.lua` walks `addon.__unitEventFrames` and calls
+  `UnregisterAllEvents` on each, so a disabled addon has no per-unit registration left
+  (slash-commands-§7).
+- **Created once, reused.** `SyncUnitEventFrames` builds the table only while
+  `self.__unitEventFrames` is nil; every later call (the `UNITS` message, `StandUp`) changes only
+  the registrations on the frames it already has.
+
+They are the addon's only raw event frames; everything else rides AceEvent. The register row this
+used to carry, filed as `AT-31` in `docs/audits/2026-08-05/`, was retired on 2026-09-24 once the
+standard wrote the carve-out.
 
 ## Taint Notes
 
@@ -683,7 +705,6 @@ reads the register first and records a match as accepted rather than re-filing i
 
 | Rule | What differs | Why | Decided | Re-check trigger |
 |---|---|---|---|---|
-| `events-frames-taint-§1` | `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` are registered on a private `CreateFrame` **per tracked unit** via `RegisterUnitEvent`, not through AceEvent-3.0 | Both events fire for every unit the client knows about; AceEvent shares one frame and structurally cannot `RegisterUnitEvent`, so it would pay a full C→Lua dispatch per unit only to discard all but ours. One frame each rather than packing tokens, because `RegisterUnitEvent` filters **at most two** tokens per registration. Argument in full below; filed as `AT-31` in `docs/audits/2026-08-05/` | 2026-07-14 | A client build where `RegisterUnitEvent` accepts more than two unit tokens |
 | `savedvariables-§1` | A **per-profile** `schemaVersion` stamp at `db.profile.schemaVersion` (default `1`), alongside the account-wide stamp in `db.global` (default `0`, owned by the runner as §1 requires) | The v3 lift — flat appearance keys onto `profile.units.<unit>` — is a per-profile mutation, and an account-wide flag structurally cannot gate one: a second pre-v3 profile would have its stored appearance stranded forever. §1 also allows the raw `profiles` walk for a profile-scoped step, and the other profile-scoped steps (v2, v4, v5) take that route under the account-wide stamp; the v3 lift keeps its own stamp because `NS.OnProfileChanged` re-runs it for a profile that appears after the upgrade. Argument in full below | 2026-07-28 | AceDB gaining a per-profile version stamp of its own, or the last per-profile migration being retired |
 | `events-frames-taint-§8` (SHOULD half) | 19 chat lines in `settings/Slash.lua` pre-format their arguments (`settings/Schema.lua`, the row's other file, has none left; re-measured 2026-09-24 with the grep `docs/audits/2026-09-23/03_EVIDENCE.md` records under `AT-78`, which counted 17 at that audit) — `print(("%s bar %s"):format(...))`, `print("Switched to profile '" .. name .. "'")` — instead of handing the parts to the shared printer as `print("fmt", a, b)` | **Re-graded, not deferred.** §8's pre-formatting MUST is now **scoped** to call sites whose arguments can reach a value read from one of the named combat-protected APIs (`UnitGetTotalAbsorbs`, `UnitHealth`/`UnitHealthMax`, threat, aura amounts); outside that trigger set it is a **SHOULD NOT**, because the risk is drift, not secrets. Every one of the 19 sites formats only values this addon owns — a version string, a unit label, a profile name, a user-typed hold value, a schema path — so none is in the trigger set and none can be handed a secret. The two sites that DO read `UnitGetTotalAbsorbs` (`core/AbsorbTracker.lua:199`, `:279`) already pass their arguments to the sink unformatted and guard with `NS.IsConcatSafe`; the seam's own guarantee (library stringifier, `table.concat`-based probe) is untouched and unconditional. Filed as `AT-35` in `docs/audits/2026-08-05/` against the pre-scoping text | 2026-08-05 | Any of these lines gaining an argument that is, or derives from, a return value of one of §8's named APIs — that site converts as a MUST — or §8's trigger set growing to cover one of them |
 | `localization-§1` | This addon ships **English only**: the `NS.L` seam is exported and `locales/enUS.lua` ships, but user-facing strings are hardcoded English rather than routed through `NS.L`, except the unlocked drag handle's (`modules/Bar.lua`: the three unit labels and its two tooltips) and the library-absent line (`L["%s is unavailable: the LibKa0s library did not load."]`, keyed by its English text per localization-§2, printed by `settings/Slash.lua`'s library-absent stub for each schema verb, slash-commands-§1), which are routed and whose keys are the only ones `enUS.lua` lists. The disabled-verb refusal that used to be routed left the addon at LibKa0s v1.42.0, because `slash-commands-§7` makes that line the collection's wording rather than the addon's and `lib.L` does not reach it, and its key went with it — `enUS.lua` carries no key nothing reads, which `localization-§3` requires rather than merely permits | A deliberate decision, not a backlog item. `localization-§3` names this one of the routing SHOULD's **two terminal compliant states** — English-only, recorded — so this row IS the compliant end state and an audit records it as accepted rather than re-filing the SHOULD. Both localization MUSTs are met unconditionally: the seam is exported and `enUS.lua` ships, carrying no dead keys. Filed as `AT-30` in `docs/audits/2026-08-05/`; deferred twice before as [PLAN-02](https://github.com/tusharsaxena/AbsorbTracker/issues/24), closed here | 2026-08-05 | The first non-English locale file added to `locales/` |
@@ -706,29 +727,6 @@ one (`documentation-§3`: the register must not become a graveyard):
 The perf capture ring, the complexity tooling and the bracket idiom are all still described in this
 document — under **Performance & Profiler Attribution** below, where they belong as design, not as
 departures.
-
-### The per-unit event frames, in full
-
-- **events-frames-taint-§1 — private `CreateFrame` event frames for the `UNIT_*` events, one per unit.**
-  `addon:SyncUnitEventFrames()` (called from `OnEnable` and from the `UNITS` bus message,
-  `core/AbsorbTracker.lua`) registers `UNIT_ABSORB_AMOUNT_CHANGED` and `UNIT_MAXHEALTH` on a private
-  frame per tracked unit via `RegisterUnitEvent` rather than through AceEvent-3.0 — and only for
-  units whose bar is currently enabled.
-  **Why two events fire for every unit at all:** both events fire for every unit the client knows
-  about (raid, pets, nameplates, target/focus); AceEvent-3.0 uses a single shared frame with plain
-  `RegisterEvent` and structurally cannot `RegisterUnitEvent`, so an AceEvent registration pays a
-  full C→Lua dispatch per unit only to discard all but ours — a measurable combat CPU hotspot.
-  **Why one frame per unit:** `RegisterUnitEvent` unit-filters **at most two** tokens per
-  registration, so three tracked units cannot share a single frame anyway. Given that, a frame each
-  beats packing two-and-one: enabling or disabling a bar becomes a registration change on that
-  unit's own frame, with no token repacking, and a disabled unit ends up registered for nothing at
-  all. A private unit-event frame is the established WoW pattern for this (BigWigs et al.).
-  **`PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` are gated on the same flag** (still on
-  AceEvent, registered and unregistered by the same function): they fire on every target and focus
-  swap regardless of absorbs, so gating them is where the CPU saving actually lands — the `UNIT_*`
-  events were already C-filtered to the tokens we asked for. `PLAYER_ENTERING_WORLD` and
-  `PLAYER_REGEN_DISABLED/ENABLED` stay unconditionally on AceEvent. The per-unit frames are the
-  *only* raw event frames; events-frames-taint-§1 otherwise holds.
 
 ### The per-profile schema stamp, in full
 
