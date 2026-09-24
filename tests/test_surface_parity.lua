@@ -132,8 +132,8 @@ test("parity: the Options stub carries every helper the degraded build can reach
     "RefreshPanel",
     -- New at LibKa0s v1.24.0 (OptionsWidgets 13 / OptionsCompose 1), and exempt under the rule the
     -- RefreshPanel entry above states. The five COMPOSERS this addon does call are in the stub,
-    -- because they must be for the page files to finish loading; these are the members it does not
-    -- call.
+    -- hollow, because they must be for the page files to finish loading; these are the members it
+    -- does not call, or calls only from a panel build.
     --
     --   * The published CONSTANTS. `grep -rn "FONT_FLAGS\|VISIBILITY_\|CLASS_COLOR_NOTE" core
     --     modules settings` returns nothing: the composers stamp those values onto the rows they
@@ -146,6 +146,11 @@ test("parity: the Options stub carries every helper the degraded build can reach
     --     inside it and PageBanner is never called. No tab of the five holds a list of like
     --     subjects that would earn a sub-strip.
     "PageBanner", "SubTabStrip",
+    --   * MASTER_GROUP, the Master controls tab's literal. Its one reader is settings/General.lua's
+    --     build(), which a library-less load never reaches (there is no panel to build), and the
+    --     stub's composers are hollow (options-ui-§1, anti-pattern #73), so no degraded
+    --     row is filed under that group for the literal to name either.
+    "MASTER_GROUP",
     -- NOT on this list: the six members new at LibKa0s v1.35.0 (Options 18.16.5.3) -- ChoiceGrid,
     -- IdInput, IdList, ResolveId, UnnamedCandidates and ID_NAME_HINT. This addon has no caller for
     -- any of them, so the RefreshPanel rule above would exempt them, but the owner asked for them

@@ -253,7 +253,7 @@ badge and any count quoted in the docs must agree with it.
 - debug: the flag still flips and acks with LibKa0s absent
 - debug: /at debug names the missing library instead of erroring
 - debug: every member the addon reaches for answers with LibKa0s absent
-- perf: the schema is COMPLETE with LibKa0s absent (the pages still finish loading)
+- perf: the schema with LibKa0s absent is the full one minus the composed rows, by tab
 - perf: the addon loads with LibKa0s absent
 - perf: /at perf explains itself instead of erroring with LibKa0s absent
 - perf: the brackets and the show ladder survive LibKa0s being absent
@@ -515,16 +515,18 @@ badge and any count quoted in the docs must agree with it.
 - launcher: with LibDataBroker but no LibDBIcon, the plugin exists and the button does not
 - launcher: with LibKa0s absent the seam still answers, and still remembers the choice
 
-### test_optionssetup.lua (13)
+### test_optionssetup.lua (15)
 
 - the live and degraded builds veto exactly the same rows from Reset All
 - Reset All resets a sessionOnly row and fires its onChange once, on both builds
 - the degraded Reset All logs one line in total, the profile handler's, with no count
 - the degraded Reset All with no AceDB writes the session row and logs nothing
 - with LibKa0s absent, the lock and unlock verbs still write the store
+- with LibKa0s absent, /at disable stands the addon down and /at enable brings it back
+- with LibKa0s absent, /at unlock in combat is refused and the lock stays on
 - with LibKa0s absent, entering combat still re-locks unlocked bars in the store
 - the degraded stub publishes LSMValues, the one member reached at file load
-- the degraded stub publishes the five composers, the other load-time members
+- the degraded stub publishes the five composers, hollow
 - the degraded stub keeps no private copy of the library's layout constants
 - PARENT_TITLE reaches the library through the descriptor, not the namespace
 - the live arm patches LSM30_Border through the library, not through a private copy
@@ -862,7 +864,7 @@ badge and any count quoted in the docs must agree with it.
 | test_draghandle.lua | 22 |
 | test_helpers.lua | 70 |
 | test_launcher.lua | 16 |
-| test_optionssetup.lua | 13 |
+| test_optionssetup.lua | 15 |
 | test_slashcmds.lua | 96 |
 | test_perfcmds.lua | 42 |
 | test_widgets.lua | 55 |
@@ -876,4 +878,4 @@ badge and any count quoted in the docs must agree with it.
 | test_disabled.lua | 15 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **738** |
+| **Total** | **740** |

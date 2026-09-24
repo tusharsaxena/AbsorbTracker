@@ -225,6 +225,14 @@ local masterOnChange = {
 
 }
 
+-- Published for the write-through path (settings/Schema.lua's WRITE_THROUGH and its announce). On
+-- a load where H.MasterControls is the Options stub's hollow composer, `enabled` and `locked` have
+-- no row to carry these handlers, yet /at enable, /at disable, /at lock, /at unlock and the combat
+-- re-lock still write them. The announce looks the reaction up here by path, so the latch still
+-- moves and the in-combat unlock is still refused on exactly the install that lost the library.
+-- The same functions the rows carry on a full load: one reaction per path, never a second copy.
+NS.MasterReactions = masterOnChange
+
 -- The two rows whose storage is not the profile carry their own get/set, which LibKa0s-Schema-1.0
 -- consults before it walks a path (core/Data.lua says where each value lives, and why).
 local rowStorage = {

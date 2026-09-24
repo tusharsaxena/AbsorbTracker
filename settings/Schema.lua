@@ -77,6 +77,12 @@ NS.Schema = NS.Schema or {}
 --- #56 shape 2). options-ui-§1 names this shape, the RUNTIME-COMPLETING stub, and ties it to this
 --- major alone.
 ---
+--- The host writers that reach COMPOSED rows -- `enabled` and `locked`, which H.MasterControls
+--- emits and the Options stub's hollow composers do not -- write through the declared
+--- WRITE_THROUGH list below (options-ui-§1 route (a)): stored raw at the path, then announced with
+--- the synthetic row, whose announce dispatches the host's own reaction. Every other row-less path
+--- is still refused.
+---
 --- It completes what a player can observe -- reads, writes (one at a time or as a batch), the
 --- row's reaction, the announce and the sweep veto -- and not what only feeds the debug console:
 --- the [Set] line, the bracket's tally and the reset count. The degraded DebugLog stub
@@ -337,9 +343,21 @@ local function chatPrint(line)
     end
 end
 
+-- The composed paths a HOST writer reaches (options-ui-§1 route (a); LibKa0s-Schema-1.0 minor 2).
+-- `enabled` is written by /at enable and /at disable; `locked` by /at lock and /at unlock, the
+-- combat re-lock (core/AbsorbTracker.lua) and the launcher's left click (core/LauncherSetup.lua).
+-- Both rows are emitted by H.MasterControls, and on a load where that composer is absent -- the
+-- Options stub's composers answer {} -- no row declares them. Listed here, a write to either still
+-- stores, and the announce below hands it to the host's own reaction. A path with a row always
+-- takes the row, so on a full load this list changes nothing. Declared once and handed to the live
+-- instance and the stub alike: the set is what this addon's degraded writers reach, not a
+-- per-arm choice.
+local WRITE_THROUGH = { "enabled", "locked" }
+
 local S = SchemaLib:New({
     -- The live array, never copied: the page files register into it through NS.RegisterSchemaRows.
     rows = NS.Schema,
+    writeThrough = WRITE_THROUGH,
 
     -- Where a STORED row lives. Almost every path is the active profile's; a `global.` path is the
     -- account-wide store. Two rows keep their value somewhere else entirely and carry their own
@@ -356,7 +374,17 @@ local S = SchemaLib:New({
     -- A row with no onChange of its own falls through to a restyle of every bar. Sent from here,
     -- after the write and the row's reaction, so a write path signals the display module rather
     -- than calling it across the module boundary.
+    --
+    -- A WRITTEN-THROUGH path first (WRITE_THROUGH above): its synthetic row carries no onChange,
+    -- because the row that would have carried one was never composed. The reaction is still the
+    -- host's -- settings/General.lua publishes its Master-controls handlers as NS.MasterReactions
+    -- -- so the enable edge still moves the stand-down latch and an in-combat unlock is still
+    -- refused. This dispatches host code by path; it is not a copy of any library row.
     announce = function(row)
+        if row.writeThrough then
+            local react = NS.MasterReactions and NS.MasterReactions[row.path]
+            if react then return react() end
+        end
         if not row.onChange and NS.bus then NS.bus:SendMessage(NS.MSG.APPEARANCE) end
     end,
 
