@@ -58,24 +58,28 @@ OnEnable (PLAYER_LOGIN timing)
     ├─▶ self:SyncUnitEventFrames()          -- re-run on every UNITS message, not just here
     │     for each unit in NS.Units.LIST:
     │       ├─ enabled  ─▶ [that unit's private frame]
-    │       │               RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", <unit>)
-    │       │               RegisterUnitEvent("UNIT_MAXHEALTH", <unit>)
+    │       │               NS.SafeRegisterUnitEvent(frame, "UNIT_ABSORB_AMOUNT_CHANGED", rejected, <unit>)
+    │       │               NS.SafeRegisterUnitEvent(frame, "UNIT_MAXHEALTH", rejected, <unit>)
     │       └─ disabled ─▶ [that unit's private frame]:UnregisterAllEvents()
     │           every frame shares one OnEvent stub ─▶ OnAbsorbChanged / OnMaxHealthChanged
-    │     ├─ target enabled ? RegisterEvent("PLAYER_TARGET_CHANGED", "OnUnitSwap")
+    │     ├─ target enabled ? NS.SafeRegisterEvent(self, "PLAYER_TARGET_CHANGED", "OnUnitSwap", rejected)
     │     │                 : UnregisterEvent("PLAYER_TARGET_CHANGED")
-    │     └─ focus  enabled ? RegisterEvent("PLAYER_FOCUS_CHANGED", "OnUnitSwap")
+    │     └─ focus  enabled ? NS.SafeRegisterEvent(self, "PLAYER_FOCUS_CHANGED", "OnUnitSwap", rejected)
     │                       : UnregisterEvent("PLAYER_FOCUS_CHANGED")
-    ├─▶ self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
-    ├─▶ self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnEnterCombat")
-    ├─▶ self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnLeaveCombat")
+    ├─▶ self:RegisterLifecycleEvents()      -- LIFECYCLE_EVENTS, one { event, method } pair each:
+    │     NS.SafeRegisterEvent(self, "PLAYER_ENTERING_WORLD", "OnEnterWorld", rejected)
+    │     NS.SafeRegisterEvent(self, "PLAYER_REGEN_DISABLED", "OnEnterCombat", rejected)
+    │     NS.SafeRegisterEvent(self, "PLAYER_REGEN_ENABLED", "OnLeaveCombat", rejected)
+    │
+    │     (rejected = NS.State.rejectedEvents; a refused name returns false, is appended
+    │      to it once and logged under the Events debug tag — the calls after it still run)
     │
     └─▶ if NS.CreateOptionsPanel then
             NS.CreateOptionsPanel()    -- registers parent + sub-pages
         end
 ```
 
-The two `UNIT_*` events go through **one private `CreateFrame` frame per unit** with `RegisterUnitEvent`, not AceEvent — a documented events-frames-taint-§1 deviation ([ARCHITECTURE.md → Documented deviations](./ARCHITECTURE.md#documented-deviations)). These events fire for *every* unit the client knows about; AceEvent-3.0 shares one frame and cannot `RegisterUnitEvent`, so a plain `RegisterEvent` would pay a C→Lua dispatch per unit only to discard all but ours. The private frames filter at the C layer instead. **A frame each, rather than packing tokens:** `RegisterUnitEvent` filters at most two unit tokens per registration, so three units could never share one frame anyway — and with a frame each, enabling or disabling a bar is a registration change on that unit's own frame, leaving a **disabled unit registered for nothing at all**. `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` stay on AceEvent but are gated on the same flag by the same function, which is where the saving actually lands (they fire on every swap in ordinary play). `PLAYER_ENTERING_WORLD` and the combat pair are unconditional AceEvent subscriptions. The `if NS.CreateOptionsPanel then ... end` guard is the [forward-reference pattern](./module-map.md#forward-references) — in practice the call always succeeds because all files load synchronously before `OnEnable` fires, but the nil-check keeps the load-order coupling soft.
+The two `UNIT_*` events go through **one private `CreateFrame` frame per unit** with `RegisterUnitEvent`, not AceEvent — a documented events-frames-taint-§1 deviation ([ARCHITECTURE.md → Documented deviations](./ARCHITECTURE.md#documented-deviations)). These events fire for *every* unit the client knows about; AceEvent-3.0 shares one frame and cannot `RegisterUnitEvent`, so a plain `RegisterEvent` would pay a C→Lua dispatch per unit only to discard all but ours. The private frames filter at the C layer instead. **A frame each, rather than packing tokens:** `RegisterUnitEvent` filters at most two unit tokens per registration, so three units could never share one frame anyway — and with a frame each, enabling or disabling a bar is a registration change on that unit's own frame, leaving a **disabled unit registered for nothing at all**. `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` stay on AceEvent but are gated on the same flag by the same function, which is where the saving actually lands (they fire on every swap in ordinary play). `PLAYER_ENTERING_WORLD` and the combat pair are unconditional AceEvent subscriptions. **Every one of those seven registrations is pcalled** (events-frames-taint-§1): the file-local `safeRegister` / `safeRegisterUnit` in `core/AbsorbTracker.lua` call `NS.SafeRegisterEvent` / `NS.SafeRegisterUnitEvent` (`LibKa0s-Core-1.0` minor 8, bound by `core/CoreSetup.lua`), which front-gate on `C_EventUtils.IsEventValid` where present and `pcall` the registration. The client raises on an unknown event name, so without the helper one name a patch retires would take every registration after it down; through it, the refused name costs only itself and lands once in `NS.State.rejectedEvents`, which `/at debug events` prints and the `[Init]` summary counts. The `if NS.CreateOptionsPanel then ... end` guard is the [forward-reference pattern](./module-map.md#forward-references) — in practice the call always succeeds because all files load synchronously before `OnEnable` fires, but the nil-check keeps the load-order coupling soft.
 
 ## Absorb-update path
 
