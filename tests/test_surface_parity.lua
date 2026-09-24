@@ -16,7 +16,7 @@
 --   * Where a member is live-only on purpose, it is named in the `ignore` set with the reason,
 --     because otherwise a deliberate omission and a bug read identically.
 --
--- THE FOUR LIBRARY-BACKED SEAMS CALL THE KIT'S BY-NAME FORM — assertSurfaceParity(stub, major,
+-- EVERY LIBRARY-BACKED SEAM BUT PERF CALLS THE KIT'S BY-NAME FORM — assertSurfaceParity(stub, major,
 -- ignore), new at kit 15 and vendored by M4-01. What it changes is which keys of the live half get
 -- walked: the by-name form compares only Kit.publicMembers, which drops LibStub's own MAJOR, MINOR
 -- and MODULES and every `__`-prefixed key. Those are the library talking to itself across its own
@@ -26,7 +26,7 @@
 -- at O.__print states the rule the kit now enforces for us.
 --
 -- WHERE THE LIVE HALF COMES FROM, and why it is not the obvious place. tests/run.lua registers it
--- with Kit.setSurfaceSource. It has to: all three stubs mirror an INSTANCE — what
+-- with Kit.setSurfaceSource. It has to: five of the stubs mirror an INSTANCE — what
 -- `lib:New(descriptor)` returned — and not the library table LibStub answers for the same name.
 -- Left to Kit.expose's auto-wiring, which reaches for the mock's LibStub, "LibKa0s-Options-1.0"
 -- would resolve a four-member table (LAYOUT, New, PatchAlwaysShowScrollbar, STRINGS) and this case
