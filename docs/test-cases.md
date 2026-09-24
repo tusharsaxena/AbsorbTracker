@@ -790,7 +790,7 @@ badge and any count quoted in the docs must agree with it.
 - vendored Slash resolves a fallback-only override to its own strings
 - vendored Perf resolves a fallback-only override to its own strings
 
-### test_surface_parity.lua (8)
+### test_surface_parity.lua (10)
 
 - parity: the Core stub publishes everything core/CoreSetup.lua publishes live
 - parity: the DebugLog stub carries the whole live surface
@@ -800,6 +800,8 @@ badge and any count quoted in the docs must agree with it.
 - parity: the Bus stub carries the library's whole surface
 - parity: the Schema stub carries the library's lib-level surface
 - parity: the Schema stub's instance carries every member of a live instance
+- parity: the Perf stub carries every Perf member the addon reaches
+- parity: the Lifecycle stub carries the whole live surface
 
 ### test_vendor_sync.lua (3)
 
@@ -892,11 +894,11 @@ badge and any count quoted in the docs must agree with it.
 | test_docs.lua | 4 |
 | test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
-| test_surface_parity.lua | 8 |
+| test_surface_parity.lua | 10 |
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_events.lua | 5 |
 | test_disabled.lua | 16 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **757** |
+| **Total** | **759** |

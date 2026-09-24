@@ -60,6 +60,9 @@ Kit.setSurfaceSource{
   -- Write, SameValue, New). Its INSTANCE is pinned with the two-table form instead, because the
   -- library's member manifest lists lib-level members only.
   ["LibKa0s-Schema-1.0"]   = mocks.LibStub("LibKa0s-Schema-1.0", true),
+  -- An INSTANCE again, like the first four: core/Lifecycle.lua's hold-set stub stands in for what
+  -- `lib:New(descriptor)` returned, not for the library table.
+  ["LibKa0s-Lifecycle-1.0"] = NS.lifecycle,
 }
 
 -- Kit.expose merges `test` and the assertions in, so the key set every existing suite file reads is

@@ -1,7 +1,8 @@
 -- tests/test_surface_parity.lua — every degradation stub carries the whole live surface.
 --
--- The addon adopts seven LibKa0s seams — Core, DebugLog, Options, Slash, Launcher, Bus and Schema —
--- and each of the seven setup files carries a degradation stub for the install where libs/LibKa0s is missing. A stub is a
+-- The addon adopts nine LibKa0s seams — Core, DebugLog, Options, Slash, Launcher, Bus, Schema, Perf
+-- and Lifecycle — and each of the nine setup files carries a degradation stub for the install where
+-- libs/LibKa0s is missing. A stub is a
 -- second implementation of somebody else's surface, so it drifts the moment the library grows a
 -- member the host starts calling: the live path stays green, and the degraded path raises in
 -- exactly the install the stub exists for.
@@ -233,4 +234,53 @@ test("parity: the Schema stub's instance carries every member of a live instance
   -- the library's instance answers, the stub answers too (the host trims nothing it could reach).
   local NS2 = loadDegraded()
   T.assertSurfaceParity(NS.SchemaRuntime, NS2.SchemaRuntime, "schema instance vs host stub")
+end)
+
+-- ── Perf ───────────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the Perf stub carries every Perf member the addon reaches", function()
+  -- NOT the whole-surface form, deliberately. The live half is the LibKa0s-Perf-1.0 instance
+  -- core/PerfSetup.lua builds, which publishes far more than the host ever touches (the report,
+  -- the panel, the dump, the bucket internals); its four-member stub is honest about carrying only
+  -- what the addon calls. An ignore set covering the rest would be most of the instance, and would
+  -- need an edit on every re-vendor that grew it. So the case asserts the member set the host
+  -- REACHES, derived from the source rather than typed from memory:
+  --   grep -rohE '\bPerf[.:][A-Za-z_]+' core modules settings | sort -u
+  -- which answers on, suspended, Note and OnCommand (and `Perf.lua`, a file name in a comment).
+  -- Each must be present on BOTH arms, and a function degraded wherever it is a function live —
+  -- the kit's two rules, applied to the reached subset. The live arm is the instance NS.Perf; the
+  -- degraded arm is the stub a real partial load builds (tests/degraded_env.lua).
+  local reached = { "on", "suspended", "Note", "OnCommand" }
+  local NS2 = loadDegraded()
+  assertTrue(type(NS.Perf) == "table", "core/PerfSetup.lua publishes the live instance as NS.Perf")
+  assertTrue(type(NS2.Perf) == "table", "and publishes its degradation stub under the same name")
+  local problems = {}
+  for _, k in ipairs(reached) do
+    local lv, dv = NS.Perf[k], NS2.Perf[k]
+    if lv == nil then problems[#problems + 1] = k .. " is missing live" end
+    if dv == nil then
+      problems[#problems + 1] = ("%s is missing degraded (live: %s)"):format(k, type(lv))
+    elseif type(lv) == "function" and type(dv) ~= "function" then
+      problems[#problems + 1] = ("%s is a function live but %s degraded"):format(k, type(dv))
+    end
+  end
+  assertTrue(#problems == 0, "LibKa0s-Perf-1.0: the stub diverges from what the addon reaches in "
+    .. #problems .. " place(s) — " .. table.concat(problems, "; "))
+end)
+
+-- ── Lifecycle ──────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the Lifecycle stub carries the whole live surface", function()
+  -- The live half is the LibKa0s-Lifecycle-1.0 instance core/Lifecycle.lua builds, which
+  -- tests/run.lua registers under that name. The addon reaches
+  --   grep -rohE 'lifecycle[.:][A-Za-z_]+' core modules settings
+  -- Set, IsDown and Holds of it, but the stub mirrors the instance closely enough — it IS a hold
+  -- set, so it answers rather than reporting itself missing — that the whole-surface form applies.
+  --
+  -- NO `ignore` LIST, measured at this commit: the instance publishes name, Hold, Release, Set,
+  -- IsHeld, IsDown, Holds, Reevaluate and PrintHolds, and the stub carries all nine. A member the
+  -- library adds later lands here as a divergence to either copy or name with its reason.
+  local NS2 = loadDegraded()
+  assertTrue(type(NS2.lifecycle) == "table", "core/Lifecycle.lua publishes NS.lifecycle either way")
+  T.assertSurfaceParity(NS2.lifecycle, "LibKa0s-Lifecycle-1.0", {})
 end)
