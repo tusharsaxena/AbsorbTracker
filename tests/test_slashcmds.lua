@@ -221,8 +221,7 @@ test("/at reset restores one setting and leaves its neighbors alone", function()
   assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth, "the named one")
   assertEqual(NS.GetSetting("units.target.barWidth"), 300, "not the same key on another unit")
   assertEqual(NS.GetSetting("units.player.borderSize"), 20, "nor another key on the same unit")
-  NS.Helpers.RestoreDefaults("bar")
-  NS.Helpers.RestoreDefaults("border")
+  NS.Helpers.RestoreDefaults("appearance")
 end)
 
 test("/at reset <path> writes the default and fires the row's onChange exactly once", function()
@@ -368,7 +367,7 @@ test("/at set writes a color from `r g b a` and echoes the STORED value", functi
   assertTrue(math.abs(c.r - 0.1) < 1e-6 and math.abs(c.a - 0.4) < 1e-6,
     "the parsed color was stored")
   assertTrue(contains(out, "{0.10, 0.20, 0.30, 0.40}"), joined(out))
-  NS.Helpers.RestoreDefaults("bar")
+  NS.Helpers.RestoreDefaults("appearance")
   T.mocks.__fireTimers()
 end)
 
@@ -542,14 +541,19 @@ test("/at profile use with no name prints usage and switches nothing", function(
 end)
 
 test("/at profile new creates a profile carrying the defaults, not the old values", function()
-  T.rawSet("barWidth", 456)
+  -- Seed the value on an existing "Fresh": a brand-new profile starts from defaults whether or not
+  -- `new` resets it, so only a profile that already holds a value can tell the two apart.
+  NS.db:SetProfile("Fresh")
+  T.rawSet("units.player.barWidth", 456)
+  backToDefault()
   local out = slash("profile new Fresh")
   assertEqual(NS.db:GetCurrentProfile(), "Fresh")
-  assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth,
+  -- red under: new that skips ResetProfileCounted
+  assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth,
     "a new profile starts from defaults")
   assertTrue(contains(out, "Created and switched to new profile 'Fresh'"), joined(out))
   backToDefault()
-  NS.Helpers.RestoreDefaults("bar")
+  NS.Helpers.RestoreDefaults("appearance")
   T.mocks.__fireTimers()
 end)
 
@@ -571,7 +575,7 @@ test("/at profile copy pulls another profile's values into the current one", fun
     "the source's value landed in the current profile")
   assertEqual(NS.db:GetCurrentProfile(), "Default", "copy does not switch profiles")
   assertTrue(contains(out, "Copied settings from profile 'Source'"), joined(out))
-  NS.Helpers.RestoreDefaults("bar")
+  NS.Helpers.RestoreDefaults("appearance")
   T.mocks.__fireTimers()
 end)
 
@@ -601,9 +605,10 @@ test("/at profile delete with no name prints usage", function()
 end)
 
 test("/at profile reset restores the current profile's defaults in place", function()
-  T.rawSet("barWidth", 478)
+  T.rawSet("units.player.barWidth", 478)
   local out = slash("profile reset")
-  assertEqual(NS.GetSetting("barWidth"), NS.flatDefaults.barWidth)
+  -- red under: reset that switches instead of resetting
+  assertEqual(NS.GetSetting("units.player.barWidth"), NS.unitDefaults.barWidth)
   assertEqual(NS.db:GetCurrentProfile(), "Default", "reset does not switch profiles")
   assertTrue(contains(out, "Profile reset to defaults"), joined(out))
   T.mocks.__fireTimers()

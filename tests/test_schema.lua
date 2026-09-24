@@ -540,10 +540,10 @@ test("ApplyDefault deep-copies a color table so profiles never share one", funct
 end)
 
 test("ApplyDefault is a no-op for a row with no default", function()
-  T.rawSet("barWidth", 250)
-  NS.ApplyDefault({ path = "barWidth", type = "number" })   -- no `default` key
-  assertEqual(NS.GetSetting("barWidth"), 250, "nothing should have been written")
-  T.rawSet("barWidth", NS.flatDefaults.barWidth)
+  T.rawSet("units.player.barWidth", 250)
+  NS.ApplyDefault({ path = "units.player.barWidth", type = "number" })   -- no `default` key
+  assertEqual(NS.GetSetting("units.player.barWidth"), 250, "nothing should have been written")
+  T.rawSet("units.player.barWidth", NS.unitDefaults.barWidth)
 end)
 
 test("ResolvePath walks a dotted path", function()
