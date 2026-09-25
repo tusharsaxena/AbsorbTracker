@@ -213,7 +213,7 @@ badge and any count quoted in the docs must agree with it.
 - SetByPath logs one [Set] path = value line (debug-logging-§10)
 - the schema CLI's list header the library renders is prose, not its own STRINGS key
 
-### test_timer.lua (12)
+### test_timer.lua (13)
 
 - RequestRepaint coalesces multiple requests into one scheduled repaint
 - the coalesced repaint paints every tracked unit, not just the player
@@ -227,6 +227,7 @@ badge and any count quoted in the docs must agree with it.
 - OnMaxHealthChanged requests a repaint for the player
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
+- seam: IsRepaintPending tracks the one-shot without arming or canceling it
 
 ### test_perf.lua (33)
 
@@ -264,7 +265,7 @@ badge and any count quoted in the docs must agree with it.
 - every perf step label the library renders is prose, not its own STRINGS key
 - Perf: the descriptor hands the library the FOLDER name, not just the frame name
 
-### test_visibility.lua (22)
+### test_visibility.lua (26)
 
 - ShouldShowBar: a disabled unit wins even in combat
 - ShouldShowBar: default (enabled, visibility=always) is shown
@@ -288,6 +289,10 @@ badge and any count quoted in the docs must agree with it.
 - OnAbsorbChanged is silent on an unchanged value (no per-event spam)
 - [Absorb] transition logs on a non-secret 0->nonzero change
 - ShouldShowBar: unlocking bypasses visibility entirely
+- seam: VisibilityReason names the rung ShouldShowBar decided on
+- seam: LastAppliedVisibility reports what ApplyVisibility applied, debug on or off
+- seam: SessionCounters returns a copy of the since-combat-start counters
+- seam: the diagnostics accessors answer on a library-less load too
 
 ### test_bus.lua (12)
 
@@ -899,9 +904,9 @@ badge and any count quoted in the docs must agree with it.
 | test_mediasetup.lua | 10 |
 | test_debuglog.lua | 14 |
 | test_slash.lua | 14 |
-| test_timer.lua | 12 |
+| test_timer.lua | 13 |
 | test_perf.lua | 33 |
-| test_visibility.lua | 22 |
+| test_visibility.lua | 26 |
 | test_bus.lua | 12 |
 | test_data.lua | 32 |
 | test_display.lua | 60 |
@@ -924,4 +929,4 @@ badge and any count quoted in the docs must agree with it.
 | test_diagnostics_contract.lua | 1 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **778** |
+| **Total** | **783** |

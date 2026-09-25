@@ -34,6 +34,14 @@ function NS.NoteRepaint()
     if NS.State and NS.State.debug then dbgRepaints = dbgRepaints + 1 end
 end
 
+--- Read-only diagnostics seam (debug-logging-§14): the coalescing counters, as a fresh copy. They
+--- count since the last combat start and only while debug was on, which is how the report labels
+--- them. `lastAbsorb` is the last NON-secret player absorb read (nil until one), so printing it
+--- can never touch a secret.
+function NS.SessionCounters()
+    return { absorbEvents = dbgAbsorbEvents, repaints = dbgRepaints, lastAbsorb = dbgLastAbsorb }
+end
+
 function addon:OnInitialize()
     -- No LSM font registration here any more. It used to register "JetBrains Mono" against this
     -- addon's own media/fonts/ copy; the face now ships in the LibKa0s payload and core/MediaSetup.lua

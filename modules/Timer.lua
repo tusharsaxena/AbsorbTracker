@@ -61,6 +61,12 @@ function NS.RequestRepaint()
     pending = NS.addon:ScheduleTimer(doRepaint, NS.GetThrottleWindow())
 end
 
+--- Read-only diagnostics seam (debug-logging-§14): whether a coalesced pass is queued. Asks only;
+--- it neither arms nor cancels, so the report cannot perturb the throttle it describes.
+function NS.IsRepaintPending()
+    return pending ~= nil
+end
+
 --- Drop any queued repaint. Used by the latch's StandDown (core/Lifecycle.lua) so a pass armed a
 --- moment before standing down — for `disabled` or for `perf` — cannot land after it.
 function NS.CancelPendingRepaint()
