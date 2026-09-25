@@ -1,0 +1,1 @@
+clean: four read-only seams match DX-AT; 5 new cases fail on revert; gate re-run green (782/0/1, luacheck 0/0, lizard clean, CRLF kept); lastAbsorb only non-secret, no writes
