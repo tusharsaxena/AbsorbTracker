@@ -131,6 +131,10 @@ Kit.run{
     -- addon through OnEnable and a full disable/enable cycle on the SHARED environment: run
     -- earlier, its stand-downs would be another suite's mysteriously empty registration set.
     "test_disabled",
+    -- debug-logging-§14's dispatcher contract, shipped in the kit (revision 27). One declared skip
+    -- until the addon ships its report and sets Kit.diagnostics (DR-AT-03); straight after
+    -- test_disabled, because its own cases drive the dispatcher through the disabled state too.
+    { name = "test_diagnostics_contract", dir = "tests/_kit/" },
     -- Shipped in the kit, so every consumer inherits the gate instead of re-typing it; the
     -- inventory assertion goes red in any repo that vendors it and leaves it undeclared.
     { name = "test_eol", dir = "tests/_kit/" },

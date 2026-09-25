@@ -1151,8 +1151,8 @@ end)
 -- asserted as hard as the refusal: read literally, "refuse while disabled" takes the whole command
 -- surface down with it, `enable` included, and the pair becomes one-way again.
 
--- The verbs that keep answering with the addon off. Twelve of the fourteen are slash-commands-§2's
--- own list, which LibKa0s-Slash-1.0 applies for us from minor 12; `resetposition` and `profile` are
+-- The verbs that keep answering with the addon off. Thirteen of the fifteen are slash-commands-§2's
+-- own list, which LibKa0s-Slash-1.0 applies for us from minor 12 (`diagnostics` from minor 16); `resetposition` and `profile` are
 -- this addon's reading, argued at the `liveVerbs` entry in settings/Slash.lua's descriptor. Spelled
 -- out HERE rather than read off the production table, because a test that imports the answer it is
 -- checking asserts nothing.
@@ -1165,6 +1165,9 @@ local LIVE_WHILE_DISABLED = {
   help = true, config = true, version = true, enable = true, disable = true,
   debug = true, perf = true,
   get = true, set = true, list = true, reset = true, resetall = true,
+  -- debug-logging-§14's report, live from Slash minor 16. Inert until the verb ships (DR-AT-03):
+  -- the case below walks NS.COMMANDS, and a row nothing dispatches asserts nothing.
+  diagnostics = true,
   resetposition = true, profile = true,
 }
 
@@ -1193,7 +1196,7 @@ test("every verb is either on the live list or refuses while disabled, and none 
   -- goes red is a real decision — and then it goes red until someone makes it deliberately.
   --
   -- red under: a per-verb guard, which would drift the moment the next verb is added; a gated verb
-  -- promoted to the live list without argument; any of §2's twelve losing its answer.
+  -- promoted to the live list without argument; any of §2's thirteen losing its answer.
   for _, entry in ipairs(NS.COMMANDS) do
     local verb = entry[1]
     local out = slashWhileDisabled(verb)

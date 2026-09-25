@@ -179,13 +179,14 @@ badge and any count quoted in the docs must agree with it.
 - MediaSetup: the LSM registration happens at file load, not at OnInitialize
 - MediaSetup: with no library there is no art, and that is not an error
 
-### test_debuglog.lua (13)
+### test_debuglog.lua (14)
 
 - the console's font resolves through the Media seam to the LibKa0s payload
 - the descriptor tells the library the FOLDER name, not just the frame name
 - and it takes that folder name from the vararg, not from a hand-typed literal
 - the debug flag the library reads and writes is NS.State.debug
 - the library-absent stub's SetEnabled acks the new state as one space-joined line
+- the library-absent stub's RunDiagnostics prints the one absent line and writes nothing
 - NS.Debug is published and reaches the console buffer
 - our title and our font reach the descriptor
 - the console checkbox the General page renders is wired to this addon
@@ -860,6 +861,10 @@ badge and any count quoted in the docs must agree with it.
 - bus: the stand-down and stand-up counts are the record's, and the latch drives both
 - lifecycle stub: PrintHolds names the addon and its holds as one space-joined line
 
+### test_diagnostics_contract.lua (1)
+
+- diagnostics contract: debug-logging-§14 (skipped: Kit.diagnostics is not set in the runner, so this repo's dispatcher is not wired to the shared contract yet. Every Ka0s addon owes debug-logging-§14's report; wire Kit.diagnostics once the report exists)
+
 ### test_eol.lua (2)
 
 - eol: every tracked file carries the terminator .gitattributes declares for it
@@ -892,7 +897,7 @@ badge and any count quoted in the docs must agree with it.
 | test_envsetup.lua | 7 |
 | test_coresetup.lua | 6 |
 | test_mediasetup.lua | 10 |
-| test_debuglog.lua | 13 |
+| test_debuglog.lua | 14 |
 | test_slash.lua | 14 |
 | test_timer.lua | 12 |
 | test_perf.lua | 33 |
@@ -916,6 +921,7 @@ badge and any count quoted in the docs must agree with it.
 | test_lintconfig.lua | 4 |
 | test_events.lua | 5 |
 | test_disabled.lua | 17 |
+| test_diagnostics_contract.lua | 1 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **776** |
+| **Total** | **778** |

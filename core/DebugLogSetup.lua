@@ -27,6 +27,18 @@ if not lib then
         if NS.Print then NS.Print(missing) end
     end
 
+    -- The diagnostics report (debug-logging-§14, DebugLog 14.1). With no library there is no console
+    -- to write it into, so it says so on the collection's one library-absent line, writes nothing
+    -- and counts nothing. NS.L is read at CALL time: the locale loads before this file today, but a
+    -- stub is exactly the code path nobody re-checks when the TOC moves.
+    local function diagnosticsAbsent()
+        local L = NS.L or {}
+        local fmt = L["%s is unavailable: the LibKa0s library did not load."]
+            or "%s is unavailable: the LibKa0s library did not load."
+        if NS.Print then NS.Print(fmt:format("/at diagnostics")) end
+        return 0
+    end
+
     -- No formatters here. Nothing in the addon calls them — they exist only inside the library's
     -- own Add — and hand-copying the exact strings whose seven-way drift this extraction exists to
     -- end would be the one duplicate testing-§8 most specifically forbids.
@@ -56,6 +68,18 @@ if not lib then
         LastLine        = function() return nil end,
         FindLine        = function() return nil end,
         MakeCloseButton = function() return nil end,
+        RunDiagnostics   = function() return diagnosticsAbsent() end,
+        -- The live shape with nothing in it, so a test reading the report as data reads an empty one.
+        BuildDiagnostics = function()
+            return { lines = {}, dropped = 0, capped = false, capsHit = false }
+        end,
+        -- The live routing: `diagnostics`, `on` and `off` answer true; anything else is the host's.
+        DebugVerb = function(self, rest)
+            local word = type(rest) == "string" and rest:lower():match("^%s*(%S+)") or nil
+            if word == "diagnostics" then diagnosticsAbsent() return true end
+            if word == "on" or word == "off" then self:SetEnabled(word == "on") return true end
+            return false
+        end,
         ConsoleCheckbox = function()
             return {
                 label   = "Debug console",
