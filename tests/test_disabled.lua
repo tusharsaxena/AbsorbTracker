@@ -236,6 +236,8 @@ test("disabled 7: every reserved verb answers, and only a feature verb refuses",
     help = true, config = true, version = true, enable = true, disable = true,
     debug = true, perf = true,
     get = true, set = true, list = true, reset = true, resetall = true,
+    -- The thirteenth reserved verb, debug-logging-§14's report (Slash minor 16, LibKa0s v1.60.0).
+    diagnostics = true,
     -- This addon's own two, argued at the `liveVerbs` entry in settings/Slash.lua.
     resetposition = true, profile = true,
   }

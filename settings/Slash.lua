@@ -133,7 +133,7 @@ NS.COMMANDS = {
 -- WHAT MOVED, EXACTLY. The descriptor at the foot of this file gains `isEnabled`, `brandName` and
 -- `liveVerbs`, and the library does the rest at DISPATCH time:
 --
---   * every one of slash-commands-§2's twelve reserved verbs answers normally while disabled, and
+--   * every one of slash-commands-§2's thirteen reserved verbs answers normally while disabled, and
 --     so does the bare `/at`, which runs `config` and opens the settings panel. That is the case
 --     that settled it: a player reaches for the panel precisely when the addon is off, and the
 --     narrowing that refused it (standard v2.56.0, Slash minor 12) was reversed the same day.
@@ -658,10 +658,11 @@ cli = SlashLib:New({
     -- which is exactly what makes it safe to drop into a colored line.
     brandName = NS.Constants.BRAND,
 
-    -- §2's twelve, PLUS two this addon argues for -- and built FROM the library's own array
-    -- rather than re-typed, so a thirteenth reserved verb arrives here by re-vendoring instead of
-    -- by someone remembering. Re-typing the twelve is how a host ends up quietly narrowing the
-    -- surface it meant to keep.
+    -- §2's thirteen, PLUS two this addon argues for -- and built FROM the library's own array
+    -- rather than re-typed, so a new reserved verb arrives here by re-vendoring instead of by
+    -- someone remembering. That is how `diagnostics` (debug-logging-§14, Slash minor 16, LibKa0s
+    -- v1.60.0) joined the list: no edit here. Re-typing the thirteen is how a host ends up quietly
+    -- narrowing the surface it meant to keep.
     --
     --   `resetposition`  is `reset` for the one piece of stored state no schema row addresses
     --                    (`units.<unit>.position`, architecture-§5's named non-setting state).

@@ -143,6 +143,35 @@ test("the library-absent stub's SetEnabled acks the new state as one space-joine
   end
 end)
 
+test("the library-absent stub's RunDiagnostics prints the one absent line and writes nothing", function()
+  -- debug-logging-§14 (DebugLog 14.1): with no library there is no console, so the report says so
+  -- on the collection's library-absent line naming `/at diagnostics`, returns 0 and buffers nothing.
+  -- DebugVerb routes `diagnostics` to the same line and leaves any other word to the host.
+  -- red under: a stub that stays silent (the old no-op Add), a second line, a non-zero count, or a
+  -- DebugVerb that claims a word it does not handle.
+  local NS2, M2 = dofile("tests/degraded_env.lua")()
+  local want = NS2.PREFIX .. " /at diagnostics is unavailable: the LibKa0s library did not load."
+  M2.__resetPrinted()
+  assertEqual(NS2.DebugLog:RunDiagnostics(), 0, "the stub writes no report lines")
+  -- Only the report's lines are counted: the degraded Core announces the missing library once, on
+  -- its first print in this environment, and that notice is CoreSetup's, not this stub's.
+  local out = {}
+  for _, line in ipairs(M2.__printed()) do
+    if line:find("diagnostics", 1, true) then out[#out + 1] = line end
+  end
+  assertEqual(#out, 1, "exactly one line: " .. table.concat(M2.__printed(), " / "))
+  assertEqual(out[1], want)
+  assertEqual(#NS2.DebugLog.buffer, 0, "nothing reaches the stub's buffer")
+  assertEqual(#NS2.DebugLog:BuildDiagnostics().lines, 0, "the report as data is empty")
+
+  M2.__resetPrinted()
+  assertTrue(NS2.DebugLog:DebugVerb("diagnostics"), "`diagnostics` is the stub's to answer")
+  local routed = M2.__printed()
+  assertEqual(#routed, 1, "one line: " .. table.concat(routed, " / "))
+  assertEqual(routed[1], want)
+  assertFalse(NS2.DebugLog:DebugVerb("hold"), "any other word stays the host's")
+end)
+
 test("NS.Debug is published and reaches the console buffer", function()
   NS.State.debug = true
   NS.DebugLog:Clear()
