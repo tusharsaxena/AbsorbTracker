@@ -9,8 +9,9 @@ local addonName, NS = ...
 -- file is vendored here).
 --
 -- The instance is created at LOAD TIME, before any module takes `local Perf = NS.Perf` as an
--- upvalue — this file sits immediately after core/CoreSetup.lua in the TOC for exactly that reason,
--- and because the descriptor's `log` and `print` sinks below both go through NS.Print.
+-- upvalue. The TOC order is CoreSetup -> Lifecycle -> PerfSetup: this file loads after
+-- core/Lifecycle.lua, whose latch the descriptor carries, and after core/CoreSetup.lua, because the
+-- descriptor's `log` and `print` sinks below both go through NS.Print.
 
 local lib = LibStub and LibStub("LibKa0s-Perf-1.0", true)
 if not lib then

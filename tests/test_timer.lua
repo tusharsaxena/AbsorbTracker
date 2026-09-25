@@ -69,7 +69,7 @@ test("a pass in which no bar painted counts no repaint", function()
   local noted = 0
   local origNote, origPaint = NS.NoteRepaint, NS.UpdateAbsorbBar
   NS.NoteRepaint = function() noted = noted + 1 end
-  NS.UpdateAbsorbBar = function() return false end  -- all hidden, or a /at test hold
+  NS.UpdateAbsorbBar = function() return false end  -- all hidden, or a /at debug hold
 
   NS.RequestRepaint()
   mocks.__fireTimers()

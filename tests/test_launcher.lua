@@ -1,9 +1,9 @@
--- tests/test_launcher.lua — the launcher: one object registered twice, the rung its left click
--- sits on, and the one boolean that decides whether the minimap button is there.
+-- tests/test_launcher.lua — the launcher: one object registered twice, the two buttons and the
+-- options menu's entries, and the one boolean that decides whether the minimap button is there.
 --
 -- What is NOT tested here is the library's own wiring, which lives in the LibKa0s repo. What IS
 -- tested is every seam that is this addon's: the descriptor core/LauncherSetup.lua hands over, the
--- rung it chose, the inversion core/Data.lua pays at the read/write seam, and the degradation arm
+-- menu entries it passes and the handlers they route to, the inversion core/Data.lua pays at the read/write seam, and the degradation arm
 -- for an install missing LibKa0s, the two broker libraries, or both.
 --
 -- NEITHER BROKER LIBRARY IS LOADED BY THE HARNESS. `Loader.tocFiles` skips the whole `libs/` block
@@ -168,42 +168,61 @@ test("launcher: the label is not WIRED to the TOC Title, even though both read t
   assertEqual(NS.Launcher:Object().label, "Ka0s Absorb Tracker", "which is what the object carries")
 end)
 
--- ── the rung ───────────────────────────────────────────────────────────────────────────────────
+-- ── the two buttons (Launcher minor 4, launcher-§2) ────────────────────────────────────────────
+--
+-- LEFT-click opens the settings panel, on every addon, in either state. RIGHT-click opens the
+-- client's own context menu, built by the LIBRARY out of the accessor-and-toggle pairs the
+-- descriptor passes. What is this addon's, and what these cases pin, is WHICH pairs it passes --
+-- Enabled and Locked, the row WowAddonStandards' ADDONS.md records; no Test mode (options-ui-§15's
+-- exemption: the lock IS the preview) and no Show window (there is no primary window) -- and that
+-- each toggle is the SAME handler its slash verb runs, so the refusals and the echo are the verb's.
 
-test("launcher: LEFT-click toggles the lock, through the seam the checkbox writes through", function()
-  -- THE RUNG, and it is (b): launcher-§2 spends the left button on the addon's preview switch where
-  -- it has one, and this addon's preview switch IS the lock (options-ui-§15's exemption — unlocking
-  -- paints the placeholder and shows a target bar with nothing targeted). Rung (a) needs a primary
-  -- window, which this addon does not have.
-  --
-  -- The assertion that matters is not "locked changed" but "it changed THROUGH NS.SetByPath". That
-  -- is the seam the Lock frame checkbox, `/at lock`, `/at unlock` and the Defaults button all reach,
-  -- and it is where the `locked` onChange lives — the in-combat unlock refusal, the preview clear
-  -- and the repaint. A click that wrote `db.profile.locked` directly would flip the same boolean and
-  -- silently skip all three.
-  --
-  -- red under: an onClick that writes the profile itself; an onClick that keeps its own `locked`
-  -- upvalue; an onClick that opens the settings panel, which would be rung (c) and is the skipped
-  -- rule launcher-§2 calls anti-pattern #81.
-  fakes()
-  NS.Launcher:Register()
+local Menu = dofile("tests/mock_menu.lua")(T.mocks)
+
+--- Run `fn` with the fake MenuUtil installed, and take it away again whatever happens: left
+--- installed, every later suite's right click would open a menu instead of the panel.
+local function withMenu(fn)
+  Menu.install()
+  local ok, err = pcall(fn)
+  Menu.remove()
+  if not ok then error(err, 0) end
+end
+
+--- Right-click the one object and hand back the menu the library opened.
+local function openMenu()
   local object = NS.Launcher:Object()
+  local before = Menu.opens
+  object.OnClick(object, "RightButton")
+  assertEqual(Menu.opens, before + 1, "the right click opened no menu")
+  return Menu.last
+end
 
-  NS.SetByPath("locked", true)
-  local seen = seamCalls(function() object.OnClick(object, "LeftButton") end)
-  assertEqual(#seen, 1, "one write, not two")
-  assertEqual(seen[1].path, "locked", "the left click writes the LOCK")
-  assertEqual(seen[1].value, false)
-  assertFalse(NS.GetSetting("locked"), "and the lock actually moved")
+--- Run `fn` with the named NS.COMMANDS handlers spied on (the real ones still run), and hand back
+--- the verbs that were run, in order. This is what proves a menu entry and `/at <verb>` are one
+--- handler rather than two that agree today.
+local function verbCalls(names, fn)
+  local calls, saved = {}, {}
+  for _, c in ipairs(NS.COMMANDS) do
+    if names[c[1]] then
+      local real = c[3]
+      saved[c] = real
+      c[3] = function(...)
+        calls[#calls + 1] = c[1]
+        return real(...)
+      end
+    end
+  end
+  local ok, err = pcall(fn)
+  for c, real in pairs(saved) do c[3] = real end
+  assertTrue(ok, "the act raised: " .. tostring(err))
+  return calls
+end
 
-  seen = seamCalls(function() object.OnClick(object, "LeftButton") end)
-  assertEqual(seen[1].value, true, "it toggles rather than setting one way")
-  assertTrue(NS.GetSetting("locked"))
-end)
-
-test("launcher: RIGHT-click always opens the settings panel, and touches nothing else", function()
-  -- True on every addon whatever its rung, which is what lets rungs (a) and (b) spend the left
-  -- button on something better: the panel is never more than one click away.
+test("launcher: LEFT-click opens the settings panel, and writes nothing", function()
+  -- launcher-§2 (v2.67.0): the left button has one meaning on every addon. It used to toggle the
+  -- lock here (rung (b)); that toggle is the menu's Locked entry now.
+  --
+  -- red under: an `onClick` still honored; a left click that writes the lock.
   fakes()
   NS.Launcher:Register()
   local object = NS.Launcher:Object()
@@ -211,12 +230,269 @@ test("launcher: RIGHT-click always opens the settings panel, and touches nothing
   NS.SetByPath("locked", true)
   local real, opened = NS.OpenOptionsPanel, 0
   NS.OpenOptionsPanel = function() opened = opened + 1 end
-  local seen = seamCalls(function() object.OnClick(object, "RightButton") end)
+  local seen = seamCalls(function() object.OnClick(object, "LeftButton") end)
   NS.OpenOptionsPanel = real
 
+  assertEqual(opened, 1, "left-click opens the panel")
+  assertEqual(#seen, 0, "and writes nothing")
+  assertTrue(NS.GetSetting("locked"), "the lock is untouched by the left button")
+end)
+
+test("launcher: RIGHT-click opens the options menu: the brand title, Enabled, Locked, nothing else", function()
+  -- The menu entries are exactly ADDONS.md's row for this addon. A Test mode entry would name a
+  -- state with no settings row; a Show window entry, a window this addon does not have.
+  --
+  -- red under: a missing `setEnabled` or `toggleLock` (half a pair draws nothing); a
+  -- `toggleTestMode` or `toggleWindow` passed; right-click opening the panel instead.
+  fakes()
+  NS.Launcher:Register()
+  NS.SetByPath("enabled", true)
+  withMenu(function()
+    local real, opened = NS.OpenOptionsPanel, 0
+    NS.OpenOptionsPanel = function() opened = opened + 1 end
+    local menu = openMenu()
+    NS.OpenOptionsPanel = real
+
+    assertEqual(opened, 0, "right-click opens the menu, not the panel")
+    assertEqual(menu.titles[1], "Ka0s Absorb Tracker", "the menu is titled with the brand label")
+    assertEqual(table.concat(menu:Texts(), " / "), "Enabled / Locked")
+  end)
+end)
+
+test("launcher menu: each entry reads its state on every open", function()
+  -- The checkboxes read `isEnabled` / `isLocked` when the menu opens, never a copy.
+  fakes()
+  NS.Launcher:Register()
+  NS.SetByPath("enabled", true)
+  withMenu(function()
+    NS.SetByPath("locked", true)
+    local menu = openMenu()
+    assertTrue(menu:Checked("Enabled"), "Enabled reads checked")
+    assertTrue(menu:Checked("Locked"), "Locked reads checked")
+
+    NS.SetByPath("locked", false)
+    assertFalse(openMenu():Checked("Locked"), "the next open reads the lock afresh")
+    NS.SetByPath("locked", true)
+  end)
+end)
+
+test("launcher menu: Enabled runs the /at enable and /at disable handlers themselves", function()
+  -- setEnabled(bool) routes to the SAME NS.COMMANDS entries the dispatcher runs, so the write goes
+  -- through NS.SetByPath (the `enabled` onChange, the stand-down latch) and the echo is the verb's.
+  --
+  -- red under: a setEnabled that writes the setting itself; one that ignores its argument.
+  fakes()
+  NS.Launcher:Register()
+  NS.SetByPath("enabled", true)
+  withMenu(function()
+    local calls = verbCalls({ enable = true, disable = true }, function() openMenu():Click("Enabled") end)
+    assertEqual(table.concat(calls, ","), "disable", "unchecking Enabled runs /at disable's handler")
+    assertFalse(NS.GetSetting("enabled") ~= false, "and the addon is off")
+
+    calls = verbCalls({ enable = true, disable = true }, function() openMenu():Click("Enabled") end)
+    assertEqual(table.concat(calls, ","), "enable", "checking it again runs /at enable's handler")
+    assertTrue(NS.GetSetting("enabled") ~= false, "and the addon is back on")
+  end)
+end)
+
+test("launcher menu: Locked runs the /at lock and /at unlock handlers themselves", function()
+  -- toggleLock routes to the verb matching the STORED lock, so the `locked` onChange (the combat
+  -- unlock refusal, the preview clear, the repaint) and the echo are the verb's.
+  --
+  -- red under: a toggleLock that writes `locked` itself, or keeps its own upvalue.
+  fakes()
+  NS.Launcher:Register()
+  NS.SetByPath("enabled", true)
+  NS.SetByPath("locked", true)
+  withMenu(function()
+    local calls = verbCalls({ lock = true, unlock = true }, function() openMenu():Click("Locked") end)
+    assertEqual(table.concat(calls, ","), "unlock", "unchecking Locked runs /at unlock's handler")
+    assertFalse(NS.GetSetting("locked"), "and the bars are unlocked")
+
+    calls = verbCalls({ lock = true, unlock = true }, function() openMenu():Click("Locked") end)
+    assertEqual(table.concat(calls, ","), "lock", "checking it again runs /at lock's handler")
+    assertTrue(NS.GetSetting("locked"), "and the bars are locked")
+  end)
+end)
+
+test("launcher menu: while disabled, Locked is grayed with the note and Enabled stays live", function()
+  -- slash-commands-§7: features refuse while disabled; the library grays every entry but Enabled.
+  fakes()
+  NS.Launcher:Register()
+  NS.SetByPath("locked", true)
+  NS.SetByPath("enabled", false)
+  local ok, err = pcall(withMenu, function()
+    local menu = openMenu()
+    assertEqual(table.concat(menu:Texts(), " / "), "Enabled / Locked (enable the addon first)")
+    assertFalse(menu:Find("Locked").enabled, "Locked is grayed")
+    assertTrue(menu:Find("Enabled").enabled, "Enabled is live")
+    local calls = verbCalls({ lock = true, unlock = true }, function() menu:Click("Locked") end)
+    assertEqual(#calls, 0, "a grayed entry runs no handler")
+    assertTrue(NS.GetSetting("locked"), "and the lock did not move")
+  end)
+  NS.SetByPath("enabled", true)
+  assertTrue(ok, tostring(err))
+end)
+
+test("launcher: with no client menu API, right-click falls back to the settings panel", function()
+  -- The harness's default: no MenuUtil, as on a pre-11.0 client. The panel holds every toggle the
+  -- menu would have.
+  fakes()
+  NS.Launcher:Register()
+  local object = NS.Launcher:Object()
+  local real, opened = NS.OpenOptionsPanel, 0
+  NS.OpenOptionsPanel = function() opened = opened + 1 end
+  local seen = seamCalls(function() object.OnClick(object, "RightButton") end)
+  NS.OpenOptionsPanel = real
   assertEqual(opened, 1, "right-click opens the panel")
   assertEqual(#seen, 0, "and writes nothing")
-  assertTrue(NS.GetSetting("locked"), "the lock is untouched by the right button")
+end)
+
+test("launcher: the descriptor carries none of the fields Launcher minor 4 retired", function()
+  -- launcher-§5: a retired field is ignored, which is exactly why it has to be caught here -- it
+  -- would sit in the setup file as dead configuration nothing reports.
+  local src = assert(io.open("core/LauncherSetup.lua", "r"))
+  local body = src:read("*a")
+  src:close()
+  for _, field in ipairs({ "onClick", "leftClickLabel", "disabledLine", "slash",
+      "toggleTestMode", "isTestMode", "toggleWindow", "isWindowShown" }) do
+    assertTrue(body:find("\n%s*" .. field .. "%s*=") == nil,
+      "core/LauncherSetup.lua must not pass `" .. field .. "`")
+  end
+end)
+
+-- ── the status tooltip (Launcher minor 3, launcher-§1) ─────────────────────────────────────────
+--
+-- The LIBRARY draws the tooltip, in one shape across the collection. What is this addon's, and
+-- what these cases pin, is the descriptor that feeds it: `version` out of the TOC, `isLocked` off
+-- the `locked` row, and NO `isTestMode` —
+-- options-ui-§15's exemption means this addon has no Test mode row, so a `Test mode:` line would
+-- report a state the player can find nowhere else. No `onTooltipShow` either: there is nothing of
+-- this addon's own to append, and a host hook that drew a title or a hint would draw it twice.
+
+--- A GameTooltip stand-in that records each line, raw. The kit's GameTooltip is a bare frame with
+--- no AddLine, so the library's draw is driven against this instead of against it.
+local function hover()
+  local tt = { lines = {} }
+  function tt:AddLine(line) self.lines[#self.lines + 1] = line end
+  NS.Launcher:Object().OnTooltipShow(tt)
+  local plain = {}
+  for i, line in ipairs(tt.lines) do
+    plain[i] = (tostring(line):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+  end
+  return plain, tt.lines
+end
+
+--- The TOC's own `## Version`, read off disk, so the expectation is not a second literal.
+local function tocVersion()
+  local f = assert(io.open("AbsorbTracker.toc", "r"))
+  local v
+  for line in f:lines() do
+    v = v or line:gsub("\r", ""):match("^##%s*Version:%s*(.-)%s*$")
+  end
+  f:close()
+  return v
+end
+
+--- Run `fn` with the client's manifest reader answering this addon's TOC. The harness has no
+--- C_AddOns by default, which is the headless shape NS.Meta already answers nil for.
+local function withManifest(fn)
+  local real = T.mocks.C_AddOns
+  T.mocks.C_AddOns = { GetAddOnMetadata = function(name, field)
+    if name == FOLDER and field == "Version" then return tocVersion() end
+    return nil
+  end }
+  local ok, err = pcall(fn)
+  T.mocks.C_AddOns = real
+  if not ok then error(err, 0) end
+end
+
+test("launcher tooltip: enabled and locked, the whole tooltip is exactly five lines", function()
+  -- The full shape, pinned as one list so an extra line (a Test mode line, a host title, a second
+  -- hint) and a missing one are both red.
+  --
+  -- red under: `isTestMode` passed; `isLocked` or `version` not passed; an `onTooltipShow` that
+  -- draws anything. The two hints are the library's fixed pair since Launcher minor 4.
+  fakes()
+  NS.Launcher:Register()
+  NS.SetByPath("enabled", true)
+  NS.SetByPath("locked", true)
+  withManifest(function()
+    local lines = hover()
+    assertEqual(#lines, 5, "title, Enabled, Locked, Left-click, Right-click: " .. table.concat(lines, " / "))
+    assertEqual(lines[1], "Ka0s Absorb Tracker  v" .. tocVersion(), "the brand label and the TOC version")
+    assertEqual(lines[2], "Enabled: Yes")
+    assertEqual(lines[3], "Locked: Yes")
+    assertEqual(lines[4], "Left-click: Open settings")
+    assertEqual(lines[5], "Right-click: Options menu")
+  end)
+end)
+
+test("launcher tooltip: the version is the TOC's, and absent it the title is the label alone", function()
+  -- `version` reads `## Version` through NS.Meta on every show. With no manifest reader (the
+  -- headless shape) it answers nil and the library draws the label alone -- never `v?` or the
+  -- fallback constant, which would be a version this build does not claim.
+  --
+  -- red under: `version = NS.version`; `version = NS.Version` (answers "?" headless).
+  fakes()
+  NS.Launcher:Register()
+  local lines = hover()
+  assertEqual(lines[1], "Ka0s Absorb Tracker", "no manifest, no version")
+  withManifest(function()
+    assertEqual(hover()[1], "Ka0s Absorb Tracker  v" .. tocVersion())
+  end)
+end)
+
+test("launcher tooltip: Locked follows the lock on every show, green Yes and red No", function()
+  -- `isLocked` reads the same `locked` value the Lock frame checkbox and the menu's Locked entry
+  -- write, asked on each show, so a click and the next hover cannot disagree.
+  --
+  -- red under: isLocked captured once; isLocked reading anything but the `locked` setting.
+  fakes()
+  NS.Launcher:Register()
+  NS.SetByPath("enabled", true)
+  NS.SetByPath("locked", true)
+  local lines, raw = hover()
+  assertEqual(lines[3], "Locked: Yes")
+  assertTrue(raw[3]:find("|cFF00FF00Yes|r", 1, true) ~= nil, "Yes is green: " .. tostring(raw[3]))
+
+  withMenu(function() openMenu():Click("Locked") end)
+  lines, raw = hover()
+  assertEqual(lines[3], "Locked: No", "the menu unlocked, and the next hover says so")
+  assertTrue(raw[3]:find("|cFFFF0000No|r", 1, true) ~= nil, "No is red: " .. tostring(raw[3]))
+  NS.SetByPath("locked", true)
+end)
+
+test("launcher tooltip: no Test mode line, because this addon has no Test mode", function()
+  -- options-ui-§15's exemption (settings/General.lua): the lock IS the preview. A Test mode line
+  -- would name a state the settings panel has no row for.
+  --
+  -- red under: `isTestMode` passed, whatever it reads.
+  fakes()
+  NS.Launcher:Register()
+  for _, line in ipairs(hover()) do
+    assertTrue(line:find("Test mode", 1, true) == nil, "unexpected line: " .. line)
+  end
+end)
+
+test("launcher tooltip: disabled, it still draws, says No, and the hints do not change", function()
+  -- The owner's ruling (M5): the tooltip shows WHILE DISABLED, when a player most needs to ask.
+  -- Since Launcher minor 4 neither button is gated, so the hints read the same in either state.
+  --
+  -- red under: isEnabled not passed.
+  fakes()
+  NS.Launcher:Register()
+  NS.SetByPath("locked", true)
+  NS.SetByPath("enabled", false)
+  local ok, lines, raw = pcall(hover)
+  NS.SetByPath("enabled", true)
+  assertTrue(ok, "the tooltip raised while disabled: " .. tostring(lines))
+  assertEqual(#lines, 5, table.concat(lines, " / "))
+  assertEqual(lines[2], "Enabled: No")
+  assertTrue(raw[2]:find("|cFFFF0000No|r", 1, true) ~= nil, "No is red: " .. raw[2])
+  assertEqual(lines[3], "Locked: Yes", "the lock is still reported while disabled")
+  assertEqual(lines[4], "Left-click: Open settings", "the left button is never gated")
+  assertEqual(lines[5], "Right-click: Options menu", "nor is the right")
 end)
 
 -- ── the icon ───────────────────────────────────────────────────────────────────────────────────
@@ -397,6 +673,85 @@ test("launcher: the page Defaults button still resets every OTHER General row", 
   assertEqual(NS.GetSetting("locked"), NS.flatDefaults.locked, "and so did the lock")
   assertEqual(NS.db.global.minimap.hide, true, "while the one exempt row did not move")
 
+  NS.SetByPath(NS.Constants.MINIMAP_PATH, true)
+end)
+
+-- ── the row's CLI path reads in the row's own sense (launcher-§3) ──────────────────────────────
+--
+-- The path a player types is `global.minimap.shown`, the sense of the checkbox. The STORED key is
+-- still LibDBIcon's own `hide`, so there is no SavedVariables migration and no `shown` key is ever
+-- written (anti-pattern #81). The old spelling is gone from the CLI and answers unknown setting.
+
+local function slash(line)
+  local out = {}
+  local cf = T.mocks.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function(_, msg) out[#out + 1] = msg end
+  local ok, err = pcall(NS.Slash.OnSlash, NS.Slash, line)
+  cf.AddMessage = old  -- nil restores the metatable no-op
+  if not ok then error(err) end
+  return (table.concat(out, "\n"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+
+local function assertNoShownKey(where)
+  for key in pairs(NS.db.global.minimap) do
+    assertTrue(key ~= "shown", "no `shown` key is ever stored (" .. where .. ")")
+  end
+end
+
+test("launcher: /at get global.minimap.shown reads the row's sense off the stored hide", function()
+  -- red under: a constant still spelled `global.minimap.hide` (Setting not found).
+  assertEqual(NS.Constants.MINIMAP_PATH, "global.minimap.shown")
+  NS.SetByPath(NS.Constants.MINIMAP_PATH, true)
+  assertEqual(NS.db.global.minimap.hide, false, "precondition: the button is shown")
+  local out = slash("get global.minimap.shown")
+  assertTrue(out:find("global.minimap.shown = true", 1, true) ~= nil, out)
+  assertNoShownKey("after a get")
+end)
+
+test("launcher: /at set global.minimap.shown false stores hide = true and hides the button", function()
+  fakes()
+  NS.Launcher:Register()
+  slash("set global.minimap.shown false")
+  assertEqual(NS.db.global.minimap.hide, true, "the stored key is LibDBIcon's `hide`, inverted")
+  assertFalse(NS.MinimapShown(), "and the row reads unchecked")
+  assertNoShownKey("after a set")
+  NS.SetByPath(NS.Constants.MINIMAP_PATH, true)
+end)
+
+test("launcher: the old CLI spelling global.minimap.hide answers unknown setting", function()
+  -- red under: keeping the hide spelling as the path.
+  local out = slash("get global.minimap.hide")
+  assertTrue(out:find("Setting not found", 1, true) ~= nil, out)
+end)
+
+test("launcher: the renamed path is not reported missing from the defaults", function()
+  -- The row owns its storage (its own get/set), so the validator does not look for a
+  -- `global.minimap.shown` default that must never exist (architecture-§5's closure-backed row).
+  local errors, _, missing = NS.ValidateSchema()
+  assertEqual(errors, 0)
+  assertEqual(missing, 0)
+end)
+
+test("launcher: a legacy store keeps its hidden button, and its angle, across the rename", function()
+  -- No SavedVariables migration: the key the old build wrote is the key this build reads.
+  fakes()
+  NS.Launcher:Register()
+  local saved = NS.db.global.minimap
+  NS.db.global.minimap = { hide = true, minimapPos = 200 }
+
+  local out = slash("get global.minimap.shown")
+  assertTrue(out:find("global.minimap.shown = false", 1, true) ~= nil, out)
+  assertFalse(NS.GetSetting(NS.Constants.MINIMAP_PATH), "the legacy hidden button reads hidden")
+  assertEqual(NS.db.global.minimap.hide, true, "and stays hidden")
+  assertEqual(NS.db.global.minimap.minimapPos, 200, "the dragged angle is untouched")
+
+  slash("set global.minimap.shown true")
+  assertEqual(NS.db.global.minimap.hide, false)
+  assertEqual(NS.db.global.minimap.minimapPos, 200, "a set does not move the angle either")
+  assertNoShownKey("after a set on a legacy store")
+
+  NS.db.global.minimap = saved
   NS.SetByPath(NS.Constants.MINIMAP_PATH, true)
 end)
 

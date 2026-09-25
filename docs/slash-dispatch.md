@@ -6,14 +6,14 @@ row and key/value formatters, the `/at list` builder and the type-aware value pa
 the table it builds has to see every page's handlers — supplies the descriptor, owns the
 `NS.COMMANDS` table, and implements the verbs that are genuinely this addon's.
 
-This page exists because the verb set is no longer flat. Nineteen verbs is over
+This page exists because the verb set is no longer flat. Eighteen verbs is over
 `documentation-§3`'s eight, and four of them take a sub-verb or a token: `profile` dispatches through
-a table of its own, `perf` hands its remainder to the perf library, and `debug` and `toggle` each
-parse one word. The trigger fires on either half.
+a table of its own, `perf` hands its remainder to the perf library, `toggle` parses one word, and
+`debug` parses one word and, under `hold`, a value and a duration. The trigger fires on either half.
 
 ## Registration
 
-`Sl:Register` (`settings/Slash.lua:645`) registers both names through AceConsole-3.0, called once
+`Sl:Register` (`settings/Slash.lua:732`) registers both names through AceConsole-3.0, called once
 from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:44`, guarded so a load where
 `settings/Slash.lua` never ran degrades rather than errors):
 
@@ -29,7 +29,7 @@ to `DEFAULT_CHAT_FRAME`.
 
 ## The `COMMANDS` table
 
-`NS.COMMANDS` (`settings/Slash.lua:61`) is an ordered list of positional triples
+`NS.COMMANDS` (`settings/Slash.lua:71`) is an ordered list of positional triples
 `{name, description, fn(rest)}` — the shape the library reads as `entry[1]` / `[2]` / `[3]`. A table
 of named fields is silently invisible to it. The handler takes `rest` **alone**, never `self` plus
 `rest`.
@@ -67,8 +67,9 @@ spelling for eleven addons — plain-text brand, an em dash with a single space 
 `enable it with` and the command in gold with its leading slash, no trailing period and no second
 line. It is **not** routed through `NS.L`: a translated override here would give a player running
 four Ka0s addons four different answers to the same question. `NS.Slash:DisabledLine()` publishes
-it, and the launcher's refused left click prints that same member rather than a second copy of the
-sentence.
+it. The launcher no longer prints it: since `LibKa0s-Launcher-1.0` minor 4 the left click opens
+the settings panel in either state and the options menu grays its feature entries while disabled,
+so there is no launcher refusal line (launcher-§2).
 
 The polarity is still deliberate. `liveVerbs` names what keeps answering, so **a verb added tomorrow
 is gated by default** and has to argue its way onto the list:
@@ -82,8 +83,13 @@ is gated by default** and has to argue its way onto the list:
 | `resetposition` | **This addon's own reading, not the standard's list.** It is `reset` for the one piece of stored state no schema row addresses (`units.<unit>.position`); refusing it would withhold from a bar's anchor the repair the CLI guarantees for every value beside it, purely because of where that anchor is stored. |
 | `profile` | **Also ours.** Settings management — list, switch, copy, create, delete, reset. A player who turned the addon off to get out from under a broken profile is the one who needs to switch away from it. |
 
-Everything else refuses: `lock`, `unlock`, `toggle`, `update`, `test`. Each draws, shows, hides or
-tests the thing the addon exists to do, which is `§2`'s own definition of a feature verb.
+Everything else refuses: `lock`, `unlock`, `toggle`, `update`. Each draws, shows or hides the thing
+the addon exists to do, which is `§2`'s own definition of a feature verb.
+
+One sub-verb carries a gate of its own. `debug` is live, so the library never refuses
+`/at debug hold`, but the hold paints fake values on the bars, and that is a feature. `runHold`
+checks the stored `enabled` itself and prints the same line (`Sl:DisabledLine()`) without painting.
+`on`, `off`, `events` and a bare `/at debug` still answer with the addon off.
 
 Three inputs are worth their own sentence, because they are where minor 12 and minors 13–14 differ and
 where a reader's instinct is usually wrong:
@@ -112,7 +118,7 @@ Forward declarations above the table let it name handlers defined below it:
 ```lua
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
-local runDebug, runUpdate, runTest, runProfile, runToggle, runPerf
+local runDebug, runUpdate, runProfile, runToggle, runPerf
 ```
 
 ## Case-preserving parse
@@ -121,13 +127,13 @@ The library lowercases only the verb; the remainder is passed through untouched.
 here, because every schema path in this addon is camelCase and per-unit —
 `/at set units.target.barWidth 250` is the shipped form, and folding the whole line would address a
 row that does not exist. `/at profile` repeats the rule one level down: `runProfile`
-(`settings/Slash.lua:456`) lowercases the sub-verb and leaves its argument alone, because AceDB
+(`settings/Slash.lua:543`) lowercases the sub-verb and leaves its argument alone, because AceDB
 profile names are case-sensitive and a folded name deletes or switches to the wrong profile.
 
 **Schema paths are fully qualified.** The pre-1.9 unqualified `/at set barWidth 250` is rejected:
 `FindSchemaRow` has no bare-key row for a per-unit setting. Only the eight unit-agnostic rows —
 `enabled`, `visibility`, `scale`, `alpha`, `locked`, `throttleWindow`, the session-only
-`state.debugConsole` and the global-store `global.minimap.hide` — take a bare path.
+`state.debugConsole` and the global-store `global.minimap.shown` — take a bare path.
 
 ## The verbs
 
@@ -136,29 +142,31 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 | `/at` (no args) | the `config` handler (library) | Runs `config` with an empty rest, so a bare `/at` opens the settings panel on its landing page (slash-commands-§4). Whitespace-only input counts as bare. The library prints help instead only for a host with no `config` verb, which is not this one. |
 | `/at help` | `cli:PrintHelp` (library) | Version header, then one row per `NS.COMMANDS` entry. |
 | `/at config` (alias `/at options`) | `NS.OpenOptionsPanel` (library) | Open the settings category. Combat-gated inside `OpenOptionsPanel`, so every caller is refused, not just this verb. The alias is declared on the descriptor's `aliases` map, not as a second row. |
-| `/at enable` / `/at disable` | `setEnabled` | The reserved pair (slash-commands-§2), and **aliases rather than a second switch**: each writes the `enabled` path the Master controls tab's Enable checkbox writes, through the same `NS.SetByPath` seam, so the row's `onChange` runs whichever surface was used and neither surface can hold a different answer. No second key, no session flag. The echo is slash-commands-§5's single-line `path = value` form, read back from the store. **The pair is not one-way:** the write moves the `disabled` hold on the stand-down latch (`core/Lifecycle.lua`) so the addon goes genuinely inert, but the dispatcher, the `COMMANDS` table, the settings registration, the AceDB handle and the launcher registration are **setup, not features** and stay up — so a bare `/at`, `/at help`, `/at version`, the whole schema CLI and `/at enable` itself all still answer with the addon off. |
+| `/at enable` / `/at disable` | `setEnabled` | The reserved pair (slash-commands-§2), and **aliases rather than a second switch**: each writes the `enabled` path the Master controls tab's Enable checkbox writes, through the same `NS.SetByPath` seam, so the row's `onChange` runs whichever surface was used and neither surface can hold a different answer. No second key, no session flag. The echo is slash-commands-§5's single-line `path = value` form, read back from the store. **The pair is not one-way:** the write moves the `disabled` hold on the stand-down latch (`core/Lifecycle.lua`) so the addon goes genuinely inert, but the dispatcher, the `COMMANDS` table, the settings registration, the AceDB handle and the launcher registration are **setup, not features** and stay up — so a bare `/at`, `/at help`, `/at version`, the whole schema CLI and `/at enable` itself all still answer with the addon off. The launcher menu's **Enabled** entry runs these same two handlers, out of `NS.COMMANDS` (`core/LauncherSetup.lua`). |
 | `/at list` | `cli:CliList` | Every schema row and its current value, grouped by `groupKey` — `[appearance / player]` for a per-unit page, a bare `[general]` otherwise. |
 | `/at get <path>` | `cli:CliGet` | One row's stored value, in the same `key = value` shape `/at list` prints. |
 | `/at set <path> <value>` | `cli:CliSet` | Type-aware parse, then `NS.SetByPath` plus `NS.RefreshOptionsPanel` — the same seam the panel widget writes through. The echo **re-reads** what was stored, so a clamp is visible. |
 | `/at reset <path>` | `cli:CliReset` | Reset one row to its default via `NS.ApplyDefault`. A whole page is the panel's Defaults button, not a verb. |
 | `/at resetall` | `runResetAll` → `NS.Helpers.RestoreAllDefaults` | Reset the active profile to the shipped defaults. Shared with the panel's Reset All button and the popup; the acknowledgment sits **inside** the guard, so a load without `settings/OptionsSetup.lua` says it cannot rather than claiming success. |
 | `/at resetposition` | `runResetPosition` → `NS.Helpers.ResetAllPositions` | Clear every unit's saved position and re-anchor. Same guard, same reason. |
-| `/at lock` / `/at unlock` | inline | `NS.SetByPath("locked", …)`. The launcher's LEFT-click is the third writer of the same path, through the same seam (launcher-§2 rung (b), `core/LauncherSetup.lua`). |
+| `/at lock` / `/at unlock` | inline | `NS.SetByPath("locked", …)`, then `echoStored("locked")` — the same helper `setEnabled` uses: it refreshes an open options panel so **Lock frame** moves with the verb, and prints slash-commands-§5's `locked = true` shape read back from the store, so an unlock the row's `onChange` refuses in combat is echoed as the `locked = true` it left behind rather than as a success line. The launcher menu's **Locked** entry runs these same two handlers, out of `NS.COMMANDS` (`core/LauncherSetup.lua`), so it writes the path through the same seam; the launcher's left click opens the settings panel and writes nothing (launcher-§2, LibKa0s-Launcher minor 4). |
 | `/at toggle [player\|target\|focus]` | `runToggle` | Bare: flip **every** bar — all off if any is on, otherwise all on. With a unit token: that one bar. See the note below. |
 | `/at debug [on\|off]` | `runDebug` | Bare toggles the console **window**; `on`/`off` set session logging through `NS.DebugLog:SetEnabled`. |
+| `/at debug events` | `runDebug` → `printRejectedEvents` | Every event name the client refused this session (`NS.State.rejectedEvents`, events-frames-taint-§1), comma-joined, or `Rejected events: none`. |
+| `/at debug hold <value> [secs]` | `runDebug` → `runHold` | The one-shot value hold: `<value>` painted on every visible bar and held by `NS.HoldPreview` for the seconds given, 0.5 to 60 with a default of 5. It announces `Holding <value> on the bars for <secs> s`, with the seconds as typed (`2.5`, not `2`). A missing or non-numeric value, or seconds outside the range, prints `Usage: /at debug hold <value> [secs] — secs from 0.5 to 60, default 5` and holds nothing. It refuses while every bar is disabled, and while the addon is disabled (the gate note above). It used to be the top-level `test` verb. This addon's unlocked view is its preview, and options-ui-§15 and preview-mode say an addon in that shape ships no `test` verb, so `/at unlock` and `/at lock` are the switch and the hold moved under `debug`. |
 | `/at perf [sub]` | `runPerf` → `NS.Perf.OnCommand` | The guided perf run. Sub-verbs are the library's; see [performance.md](./performance.md). |
 | `/at update` | `runUpdate` | Publish `MSG.REPAINT`. |
 | `/at version` | inline | `v<version>` from `NS.Version()`. |
-| `/at test <value> [secs]` | `runTest` | The one-shot timed hold, and the verb's only form: `<value>` painted on every visible bar and held by `NS.HoldPreview` for the seconds given (default 5), refused while every bar is disabled. A diagnostic, not a switch. The `[on\|off]` form went with the Test mode row under options-ui-§15 — `/at unlock` / `/at lock` are the preview switch — so a bare `/at test`, or any non-numeric word, prints the usage. |
 | `/at profile <sub> [name]` | `runProfile` | The sub-verb tree below. |
 
 ## The sub-verb trees
 
-Four verbs parse a remainder of their own. Three of them parse one word; only `profile` carries a
-dispatch table, and it is the one this page is really about.
+Four verbs parse a remainder of their own. `profile` and `debug` dispatch through a table of their
+own (`PROFILE_VERBS`, `DEBUG_VERBS`), `perf` hands its remainder on, and `toggle` parses one word;
+`profile` is the one this page is really about.
 
-**`profile`** — `PROFILE_VERBS` (`settings/Slash.lua:408`), a table keyed by the lowercased sub-verb,
-built once at load and dispatched at `:469`:
+**`profile`** — `PROFILE_VERBS` (`settings/Slash.lua:484`), a table keyed by the lowercased sub-verb,
+built once at load and dispatched at `:556`:
 
 | Sub-verb | Takes a name | What it does |
 |---|---|---|
@@ -170,10 +178,10 @@ built once at load and dispatched at `:469`:
 | `delete <name>` | yes | Refuses the current profile; otherwise `db:DeleteProfile(name, true)` and prints its own line. |
 | `reset` | no | `db:ResetProfile()`. |
 
-A bare `/at profile` prints the sub-help built from `PROFILE_HELP` (`:379`), whose row order is the
+A bare `/at profile` prints the sub-help built from `PROFILE_HELP` (`:441`), whose row order is the
 contract — the table is what the help iterates, so the two cannot drift. An unknown sub-verb prints
 `Unknown profile subcommand '<name>'` and then that same help. The four name-taking verbs share one
-guard, `needsName(verb, fn)` (`:398`), which wraps at file load rather than at dispatch: a missing
+guard, `needsName(verb, fn)` (`:460`), which wraps at file load rather than at dispatch: a missing
 name prints `Usage: /at profile <verb> <name>` and the handler never runs, and a dispatch allocates
 nothing. Adding a sub-verb is one `PROFILE_VERBS` entry plus one `PROFILE_HELP` row.
 
@@ -186,8 +194,9 @@ returns lines for this addon to print. The sub-verbs, and the panel that shares 
 `LibKa0s-Perf-1.0` and are documented once in [performance.md](./performance.md) rather than copied
 here.
 
-**`debug`** — one token, `on` or `off`, sets session logging; anything else (including nothing)
-toggles the console window. The window and the flag are two different things, which is why the
+**`debug`** — `DEBUG_VERBS`, a table keyed by the lowercased token: `on` or `off` sets session
+logging, `events` prints the session's rejected event names, and `hold` passes the rest of the line
+to `runHold`; anything else (including nothing) toggles the console window. The window and the flag are two different things, which is why the
 Master controls checkbox is not a second switch for the same state.
 
 **`toggle`** — one optional unit token, validated against `NS.Units.LABEL`; an unknown token prints
@@ -201,7 +210,7 @@ anybody. So bare `toggle` turns everything off if anything is on, and everything
 
 ## The mirror note
 
-`MirrorNote` (`settings/Slash.lua:48`) is handed to the library through `cli:SetRowAnnotator`
+`MirrorNote` (`settings/Slash.lua:58`) is handed to the library through `cli:SetRowAnnotator`
 (`:621`). It appends `(mirrored — the bar shows Player's appearance)` in gray to a row whose unit is
 currently mirroring, and it exists because `/at get` and `/at set` resolve through `NS.GetSetting`,
 which walks the raw profile path and never consults `NS.Units.Get`. They therefore read and write the
@@ -237,16 +246,31 @@ generic dispatcher knows nothing about.
 ## When the library is absent
 
 `/at` is registered unconditionally, so something has to answer it. With `LibKa0s-Slash-1.0` missing,
-`settings/Slash.lua:489` installs a stand-in: dispatch and a plain help index still render, a bare
-`/at` still runs the `config` verb exactly as the library does, the host
-verbs — which never went to the library — keep working untouched, and each schema verb (`list`,
-`get`, `set`, `reset`, `resetall`) prints one honest line naming the missing library through
-`NS.LIBKA0S_MISSING`.
+`settings/Slash.lua:578` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
+a plain help index still render, a bare `/at` still runs the `config` verb exactly as the library
+does, the host verbs — which never went to the library — keep working untouched, and each schema verb
+(`list`, `get`, `set`, `reset`, `resetall`) prints the collection's library-absent line through the
+locale, keyed by its English text (localization-§2):
+
+```
+[AT] /at list is unavailable: the LibKa0s library did not load.
+```
 
 What the degraded arm deliberately does **not** contain is a second copy of the row formatter, the
 `key = value` shape or the value parser. Hand-copying the strings whose drift the extraction exists to
-end is precisely the duplicate testing-§8 forbids, so a degraded help row renders plainly and says
-so. The stub and the real instance are both file-scope locals, which is why `Sl.__cli` (`:628`) is
+end is precisely the duplicate testing-§8 forbids, so a degraded help row renders plainly —
+`/at list  List every setting and its current value`, command and description separated by two
+spaces, no color escapes — and `PrintCmd` falls back to the same plain shape for `/at profile`'s rows.
+
+The one library string the stub **does** carry is the disabled line's format. `STUB_DISABLED_LINE_FORMAT`
+is `LibKa0s-Slash-1.0`'s `DISABLED_LINE_FORMAT`, byte for byte (em dash as the library spells it), so
+the degraded `DisabledLine()` says exactly what the
+live one says, gold command included. slash-commands-§1 sanctions exactly this copy and requires a pin
+beside it: the value is published as `Sl.__STUB_DISABLED_LINE_FORMAT` and `tests/test_slashcmds.lua`
+compares it with the live library's constant through `Kit.assertLibraryConstant`, so a re-worded
+library line turns the suite red rather than leaving a stale sentence in the stub.
+
+The stub and the real instance are both file-scope locals, which is why `Sl.__cli` (`:696`) is
 published under the same `__` convention the options helpers use —
 `tests/test_surface_parity.lua` is its only reader, and a stub surface that cannot be reached cannot
 be compared against the one it stands in for.

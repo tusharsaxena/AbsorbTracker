@@ -121,6 +121,28 @@ test("the debug flag the library reads and writes is NS.State.debug", function()
   assertFalse(NS.DebugLog:IsEnabled(), "a change made behind the library is seen immediately")
 end)
 
+test("the library-absent stub's SetEnabled acks the new state as one space-joined line", function()
+  -- core/DebugLogSetup.lua's stub hands the printer two PARTS -- the label and the colored state --
+  -- rather than a pre-built line (events-frames-taint-§8's SHOULD half). NS.Print joins its parts
+  -- with one space, so the line the player reads is byte-identical to the old concatenation.
+  -- red under: a changed separator (the parts passed as "debug logging " and the state, which
+  -- prints two spaces; or the label and state glued into one argument without its space).
+  local NS2, M2 = dofile("tests/degraded_env.lua")()
+  M2.__resetPrinted()
+  NS2.DebugLog:SetEnabled(true)
+  NS2.DebugLog:SetEnabled(false)
+  local want = {
+    [NS2.PREFIX .. " debug logging |cff40ff40ON|r"]  = false,
+    [NS2.PREFIX .. " debug logging |cffff4040OFF|r"] = false,
+  }
+  for _, line in ipairs(M2.__printed()) do
+    if want[line] ~= nil then want[line] = true end
+  end
+  for line, seen in pairs(want) do
+    assertTrue(seen, "missing ack '" .. line .. "' in: " .. table.concat(M2.__printed(), " / "))
+  end
+end)
+
 test("NS.Debug is published and reaches the console buffer", function()
   NS.State.debug = true
   NS.DebugLog:Clear()

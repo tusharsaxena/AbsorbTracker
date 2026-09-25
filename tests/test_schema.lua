@@ -152,6 +152,27 @@ test("ValidateSchema flags an invalid page/type as a shape error", function()
   NS.Schema[#NS.Schema] = nil
 end)
 
+test("ValidateSchema prints through NS.Print, resolved at call time, with no hand-typed tag", function()
+  -- R-08: the chat tag comes from the single NS.PREFIX that NS.Print stamps (slash-commands-§4).
+  -- red under: a DEFAULT_CHAT_FRAME write with its own "[AT]" literal, or a load-time capture of
+  -- NS.Print that this spy cannot reach.
+  local bad = { path = "barWidth", page = "nope", type = "weird", label = "x" }
+  local lines, orig = {}, NS.Print
+  NS.Print = function(...) lines[#lines + 1] = table.concat({ ... }, " ") end
+  NS.Schema[#NS.Schema + 1] = bad
+  local ok, err = pcall(NS.ValidateSchema)
+  NS.Schema[#NS.Schema] = nil
+  NS.Print = orig
+  assertTrue(ok, tostring(err))
+  assertTrue(#lines > 0, "the shape errors reached chat through NS.Print")
+  local src = io.open("settings/Schema.lua", "r")
+  assertTrue(src ~= nil, "cannot open settings/Schema.lua (tests run from the repo root)")
+  local body = src:read("*a")
+  src:close()
+  assertEqual(body:find("[AT]", 1, true), nil, "no second copy of the chat tag in settings/Schema.lua")
+  assertEqual(body:find("DEFAULT_CHAT_FRAME", 1, true), nil, "no direct chat-frame write")
+end)
+
 -- ── Schema integrity ───────────────────────────────────────────────────────────────
 --
 -- ValidateSchema above is the runtime guard the addon ships with (it only PRINTS, and only checks
@@ -540,10 +561,10 @@ test("ApplyDefault deep-copies a color table so profiles never share one", funct
 end)
 
 test("ApplyDefault is a no-op for a row with no default", function()
-  T.rawSet("barWidth", 250)
-  NS.ApplyDefault({ path = "barWidth", type = "number" })   -- no `default` key
-  assertEqual(NS.GetSetting("barWidth"), 250, "nothing should have been written")
-  T.rawSet("barWidth", NS.flatDefaults.barWidth)
+  T.rawSet("units.player.barWidth", 250)
+  NS.ApplyDefault({ path = "units.player.barWidth", type = "number" })   -- no `default` key
+  assertEqual(NS.GetSetting("units.player.barWidth"), 250, "nothing should have been written")
+  T.rawSet("units.player.barWidth", NS.unitDefaults.barWidth)
 end)
 
 test("ResolvePath walks a dotted path", function()
@@ -832,4 +853,141 @@ test("a build without LibKa0s-Slash-1.0 falls back to a minimal FormatSchemaValu
   assertEqual(NS2.FormatSchemaValue({ type = "bool" }, nil), "nil")
   assertEqual(NS2.FormatSchemaValue({ type = "bool" }, true), "true")
   assertEqual(NS2.FormatSchemaValue({ type = "number", fmt = "%d px" }, 200), "200")
+end)
+
+-- the degradation stub, Schema minor 2
+--
+-- settings/Schema.lua's HostSchemaStub is the instance a library-less load writes through, and it
+-- keeps pace with LibKa0s-Schema-1.0 minor 2 (LibKa0s docs/api/Schema/version-2-docs.md, "The
+-- degradation stub"): SetMany's all-or-nothing batch, row.normalize, the instance id reaching a
+-- row's own get and ApplyDefault, and the writeThrough store for row-less paths the host names.
+-- Each case builds its own instance over a local store, so nothing touches the shared suite's db.
+
+local loadDegraded = dofile("tests/degraded_env.lua")
+local stubLib = loadDegraded().__schemaLib
+
+local function stubFixture(extra)
+  local store, calls = {}, { onChange = {}, announce = {}, batches = {} }
+  local rows = {
+    { path = "width", default = 100,
+      onChange = function(v) calls.onChange[#calls.onChange + 1] = "width=" .. tostring(v) end },
+    { path = "height", default = 20,
+      validate = function(v) return type(v) == "number", "not a number" end,
+      onChange = function(v) calls.onChange[#calls.onChange + 1] = "height=" .. tostring(v) end },
+  }
+  local d = {
+    rows = rows,
+    resolveRoot = function() return store, 1 end,
+    announce = function(row, path, value)
+      calls.announce[#calls.announce + 1] = { row = row, path = path, value = value }
+    end,
+    writeThrough = { "enabled" },
+  }
+  for k, v in pairs(extra or {}) do d[k] = v end
+  return stubLib:New(d), store, calls, rows
+end
+
+test("degraded Schema stub: SetMany refuses the whole batch on one invalid entry", function()
+  -- red under: committing inside phase 1 (entry 1 would already be in the store)
+  local S, store, calls = stubFixture()
+  local ok, err, why, index = S.SetMany({
+    { path = "width", value = 150 },
+    { path = "height", value = "tall" },
+  })
+  assertEqual(ok, false)
+  assertTrue(type(err) == "string" and err:find("invalid", 1, true) ~= nil, "err: " .. tostring(err))
+  assertEqual(why, "not a number")
+  assertEqual(index, 2)
+  assertEqual(store.width, nil, "entry 1 must not be stored when entry 2 is refused")
+  assertEqual(#calls.onChange, 0)
+  assertEqual(#calls.announce, 0)
+end)
+
+test("degraded Schema stub: SetMany refuses an unknown path with its index", function()
+  local S, store = stubFixture()
+  local ok, _, _, index = S.SetMany({ { path = "width", value = 1 }, { path = "nope", value = 2 } })
+  assertEqual(ok, false)
+  assertEqual(index, 2)
+  assertEqual(store.width, nil)
+end)
+
+test("degraded Schema stub: a valid SetMany stores both, reacts once each, announces per write",
+  function()
+  local S, store, calls = stubFixture()
+  assertEqual(S.SetMany({ { path = "width", value = 150 }, { path = "height", value = 30 } }), true)
+  assertEqual(store.width, 150)
+  assertEqual(store.height, 30)
+  assertEqual(table.concat(calls.onChange, ","), "width=150,height=30")
+  assertEqual(#calls.announce, 2)
+  assertEqual(calls.announce[1].path, "width")
+  assertEqual(calls.announce[2].path, "height")
+end)
+
+test("degraded Schema stub: SetMany announces once through announceBatch when given", function()
+  local batches = {}
+  local S, store, calls = stubFixture({
+    announceBatch = function(writes, rid) batches[#batches + 1] = { writes = writes, rid = rid } end,
+  })
+  assertEqual(S.SetMany({ { path = "width", value = 1 }, { path = "enabled", value = false } },
+    { instanceId = 7 }), true)
+  assertEqual(#batches, 1)
+  assertEqual(#batches[1].writes, 2)
+  assertEqual(batches[1].rid, 7)
+  assertEqual(batches[1].writes[2].row.writeThrough, true)
+  assertEqual(#calls.announce, 0, "announceBatch replaces the per-write announce")
+  assertEqual(store.enabled, false)
+end)
+
+test("degraded Schema stub: a writeThrough path with no row stores raw and announces a synthetic row",
+  function()
+  -- red under: dropping the through lookup (the write would be refused as an unknown path)
+  local S, store, calls = stubFixture()
+  assertEqual(S.Set("enabled", false), true)
+  assertEqual(store.enabled, false)
+  assertEqual(#calls.onChange, 0, "a written-through path runs no onChange")
+  assertEqual(#calls.announce, 1)
+  assertEqual(calls.announce[1].row.writeThrough, true)
+  assertEqual(calls.announce[1].row.path, "enabled")
+  assertEqual(S.FindRow("enabled"), nil, "FindRow answers only real rows")
+  S.Set("enabled", true)
+  assertTrue(calls.announce[2].row == calls.announce[1].row, "the synthetic row is built once")
+end)
+
+test("degraded Schema stub: a row-less path outside writeThrough is still refused", function()
+  local S, store, calls = stubFixture()
+  local ok, err = S.Set("nope", 1)
+  assertEqual(ok, false)
+  assertTrue(type(err) == "string" and err:find("no setting", 1, true) ~= nil, tostring(err))
+  assertEqual(store.nope, nil)
+  assertEqual(#calls.announce, 0)
+end)
+
+test("degraded Schema stub: row.normalize's answer is stored, and a nil answer refuses", function()
+  local S, store, calls, rows = stubFixture()
+  rows[1].normalize = function(v) if v < 0 then return nil, "negative" end return math.floor(v) end
+  assertEqual(S.Set("width", 12.7), true)
+  assertEqual(store.width, 12)
+  assertEqual(calls.onChange[1], "width=12", "onChange receives the normalized value")
+  local ok, err, why = S.Set("width", -1)
+  assertEqual(ok, false)
+  assertTrue(err:find("invalid", 1, true) ~= nil, err)
+  assertEqual(why, "negative")
+  assertEqual(store.width, 12)
+end)
+
+test("degraded Schema stub: Get forwards the instance id to a row's own get", function()
+  local S, _, _, rows = stubFixture()
+  local seen
+  rows[#rows + 1] = { path = "session", get = function(id) seen = id; return "v" end,
+    set = function() end }
+  assertEqual(S.Get("session", 42), "v")
+  assertEqual(seen, 42)
+end)
+
+test("degraded Schema stub: ApplyDefault forwards the instance id to Set", function()
+  local S, _, _, rows = stubFixture()
+  local seen
+  rows[1].onChange = function(_, rid) seen = rid end
+  assertEqual(S.ApplyDefault(rows[1], 9), true)
+  assertEqual(seen, 9)
 end)

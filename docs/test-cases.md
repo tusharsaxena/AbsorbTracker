@@ -23,7 +23,7 @@ badge and any count quoted in the docs must agree with it.
 - loadorder: LibStub returns nil for a missing major with the silent flag
 - loadorder: LibStub keeps the higher minor when a major registers twice
 
-### test_schema.lua (50)
+### test_schema.lua (60)
 
 - FormatSchemaValue formats by type
 - SchemaForPage keeps groups in registration order, which IS the Appearance tab strip
@@ -32,6 +32,7 @@ badge and any count quoted in the docs must agree with it.
 - ValidateSchema resolves every real path against defaults (0 errors, 0 missing)
 - ValidateSchema reports a planted path that does not resolve against defaults
 - ValidateSchema flags an invalid page/type as a shape error
+- ValidateSchema prints through NS.Print, resolved at call time, with no hand-typed tag
 - every schema row carries a label and a tooltip description
 - every schema path is unique
 - every schema row declares a default
@@ -75,14 +76,27 @@ badge and any count quoted in the docs must agree with it.
 - General's rows are the flat globals plus one enable toggle per unit
 - FormatSchemaValue resolves the Slash major at load, never per call
 - a build without LibKa0s-Slash-1.0 falls back to a minimal FormatSchemaValue
+- degraded Schema stub: SetMany refuses the whole batch on one invalid entry
+- degraded Schema stub: SetMany refuses an unknown path with its index
+- degraded Schema stub: a valid SetMany stores both, reacts once each, announces per write
+- degraded Schema stub: SetMany announces once through announceBatch when given
+- degraded Schema stub: a writeThrough path with no row stores raw and announces a synthetic row
+- degraded Schema stub: a row-less path outside writeThrough is still refused
+- degraded Schema stub: row.normalize's answer is stored, and a nil answer refuses
+- degraded Schema stub: Get forwards the instance id to a row's own get
+- degraded Schema stub: ApplyDefault forwards the instance id to Set
 
-### test_database.lua (31)
+### test_database.lua (38)
 
 - RunMigrations migrates a fresh DB to the current version (5)
 - a freshly-materialized global runs the ladder, because its default is pre-ladder
 - RunMigrations leaves an already-current (v5) DB unchanged
 - RunMigrations is idempotent across repeated runs
 - RunMigrations v2 retires the legacy updateInterval profile key
+- the account-wide schemaVersion default is 0 (savedvariables-§1)
+- NS.SCHEMA_VERSION is the highest ladder step's `to`
+- v2 clears updateInterval from every stored profile, not only the active one
+- a step that raises leaves the stamp unmoved and says so once in chat
 - RunMigrations backfills throttleWindow from flatDefaults
 - RunMigrations backfills a missing scalar per-unit key from the defaults
 - RunMigrations deep-copies per-unit table defaults (no shared reference to defaults)
@@ -109,6 +123,9 @@ badge and any count quoted in the docs must agree with it.
 - the per-profile stamp defaults to 1 so copyDefaults cannot mark a pre-v3 profile migrated
 - a fresh install logs no [Migrate] lift line -- nothing was actually lifted
 - a real upgrade still logs the lift, with an accurate count
+- profile adopt: a same-state switch publishes APPEARANCE once
+- profile adopt: an off-to-on switch publishes APPEARANCE once, not twice
+- profile adopt: an on-to-off switch stands down and delivers nothing
 
 ### test_units.lua (17)
 
@@ -130,22 +147,24 @@ badge and any count quoted in the docs must agree with it.
 - target and focus ship mirrored so a first enable looks like the player bar
 - every per-unit appearance row is in APPEARANCE_KEYS, and vice versa
 
-### test_envsetup.lua (6)
+### test_envsetup.lua (7)
 
 - EnvSetup: NS.Meta asks about THIS addon's folder, not its title or its frame prefix
 - EnvSetup: NS.Meta degrades to nil when the client exposes no manifest reader
 - EnvSetup: NS.Version prefers the TOC over this addon's own constant
 - EnvSetup: NS.Version falls back to this addon's own constant
 - EnvSetup degraded: an install with no LibKa0s still reads its own TOC
+- EnvSetup degraded: a legacy-only surface yields nil, and the dead global is never called
 - EnvSetup: the deleted shim is gone, and so is the file that was only ever the shim
 
-### test_coresetup.lua (5)
+### test_coresetup.lua (6)
 
 - core: the secret seam is the library's, not a private copy
 - core: the perf descriptor names the folder and leaves the close control to the library
 - core: NS.Print carries the [AT] tag and survives a secret arg
 - core: NS.Print and NS.Util.print are the same object after the AceConsole reclaim
 - core: the addon still prints, tagged, with LibKa0s absent
+- core: the degraded SafeRegisterEvent isolates a raise and lists the name once
 
 ### test_mediasetup.lua (10)
 
@@ -160,12 +179,13 @@ badge and any count quoted in the docs must agree with it.
 - MediaSetup: the LSM registration happens at file load, not at OnInitialize
 - MediaSetup: with no library there is no art, and that is not an error
 
-### test_debuglog.lua (12)
+### test_debuglog.lua (13)
 
 - the console's font resolves through the Media seam to the LibKa0s payload
 - the descriptor tells the library the FOLDER name, not just the frame name
 - and it takes that folder name from the vararg, not from a hand-typed literal
 - the debug flag the library reads and writes is NS.State.debug
+- the library-absent stub's SetEnabled acks the new state as one space-joined line
 - NS.Debug is published and reaches the console buffer
 - our title and our font reach the descriptor
 - the console checkbox the General page renders is wired to this addon
@@ -236,7 +256,7 @@ badge and any count quoted in the docs must agree with it.
 - debug: the flag still flips and acks with LibKa0s absent
 - debug: /at debug names the missing library instead of erroring
 - debug: every member the addon reaches for answers with LibKa0s absent
-- perf: the schema is COMPLETE with LibKa0s absent (the pages still finish loading)
+- perf: the schema with LibKa0s absent is the full one minus the composed rows, by tab
 - perf: the addon loads with LibKa0s absent
 - perf: /at perf explains itself instead of erroring with LibKa0s absent
 - perf: the brackets and the show ladder survive LibKa0s being absent
@@ -315,7 +335,7 @@ badge and any count quoted in the docs must agree with it.
 - class color on a target bar is the TARGET's class, not the player's
 - a MIRRORED focus bar reads the player's swatch but takes the focus's class
 - the background palette is per-unit too, and stays the DARKENED set
-- three bar frames exist and the player alias points at the player frame
+- three bar frames exist and the retired player aliases stay off the namespace
 - each bar carries its own unit tag and its own backdrop table
 
 ### test_display.lua (60)
@@ -348,7 +368,7 @@ badge and any count quoted in the docs must agree with it.
 - there is no test-mode flag left behind the lock
 - a LOCKED bar does not preview
 - a live repaint stands down while unlocked
-- re-locking ends any /at test hold and restores live data
+- re-locking ends any /at debug hold and restores live data
 - unlocking shows a bar the visibility dropdown or a missing unit would hide
 - unlocking does not override the addon-wide or per-unit switch
 - a hold that expires while unlocked falls back to the placeholder
@@ -361,14 +381,14 @@ badge and any count quoted in the docs must agree with it.
 - UpdateBarAppearance ends by applying visibility
 - ApplyVisibility shows the bar when the gate passes and hides it when it does not
 - UpdateAbsorbBar is a no-op while the bar is hidden
-- UpdateAbsorbBar is a no-op inside a /at test hold window
+- UpdateAbsorbBar is a no-op inside a /at debug hold window
 - UpdateAbsorbBar paints again once the hold window has expired
 - UpdateAbsorbBar scales the bar to max health and sets the absorb value
 - UpdateAbsorbBar substitutes 0 / 1 when the absorb and health reads come back nil
 - UpdateAbsorbBar writes the abbreviated value into the bar text
 - UpdateAbsorbBar reports true when it paints
 - UpdateAbsorbBar reports false for a bar it skipped
-- UpdateAbsorbBar reports false while a /at test hold is active
+- UpdateAbsorbBar reports false while a /at debug hold is active
 - each unit's enable flag governs only its own bar
 - a disabled unit stays hidden even when the others are on
 - an enabled target bar hides when there is no target
@@ -406,7 +426,7 @@ badge and any count quoted in the docs must agree with it.
 - degraded: with no widget the default stack reserves no strip room
 - an appearance pass over a bar with no handle raises nothing
 
-### test_helpers.lua (70)
+### test_helpers.lua (71)
 
 - CreatePanel returns a ctx wired to a panel, a body and an empty refresher list
 - the canvas frame carries OnCommit, OnDefault and OnRefresh from the library
@@ -464,6 +484,7 @@ badge and any count quoted in the docs must agree with it.
 - the page-wide mirror controls sit in the chrome block, never in the scroll
 - the chrome block reserves the band its second row needs
 - a raise inside the chrome block costs the block, not the page
+- a raise in the unit panel body is reported as one space-joined chat line
 - the chrome block's widgets go back to AceGUI's pool, after the render and not before
 - the mirrored hint is a laid-out row followed by a ROW_VSPACER
 - ClearScroll resets ctx.refreshers, so repeated renders do not leak stale closures
@@ -479,48 +500,68 @@ badge and any count quoted in the docs must agree with it.
 - /at resetposition does not claim success when the settings helpers are absent
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_launcher.lua (16)
+### test_launcher.lua (32)
 
 - launcher: Register builds ONE broker object and hands that same object to LibDBIcon
 - launcher: LibDBIcon is handed db.global.minimap ITSELF, not a copy
 - launcher: Register is idempotent
 - launcher: the broker label is the BRAND NAME in plain text
 - launcher: the label is not WIRED to the TOC Title, even though both read the same today
-- launcher: LEFT-click toggles the lock, through the seam the checkbox writes through
-- launcher: RIGHT-click always opens the settings panel, and touches nothing else
+- launcher: LEFT-click opens the settings panel, and writes nothing
+- launcher: RIGHT-click opens the options menu: the brand title, Enabled, Locked, nothing else
+- launcher menu: each entry reads its state on every open
+- launcher menu: Enabled runs the /at enable and /at disable handlers themselves
+- launcher menu: Locked runs the /at lock and /at unlock handlers themselves
+- launcher menu: while disabled, Locked is grayed with the note and Enabled stays live
+- launcher: with no client menu API, right-click falls back to the settings panel
+- launcher: the descriptor carries none of the fields Launcher minor 4 retired
+- launcher tooltip: enabled and locked, the whole tooltip is exactly five lines
+- launcher tooltip: the version is the TOC's, and absent it the title is the label alone
+- launcher tooltip: Locked follows the lock on every show, green Yes and red No
+- launcher tooltip: no Test mode line, because this addon has no Test mode
+- launcher tooltip: disabled, it still draws, says No, and the hints do not change
 - launcher: the icon file is the one the TOC names, and is a format the client can load
 - launcher: the Minimap button row is stored, global, and says SHOWN
 - launcher: the row's get/set invert onto `hide`, and the button follows immediately
 - launcher: Reset all settings cannot un-hide the button
 - launcher: the General page's Defaults button cannot un-hide the button either
 - launcher: the page Defaults button still resets every OTHER General row
+- launcher: /at get global.minimap.shown reads the row's sense off the stored hide
+- launcher: /at set global.minimap.shown false stores hide = true and hides the button
+- launcher: the old CLI spelling global.minimap.hide answers unknown setting
+- launcher: the renamed path is not reported missing from the defaults
+- launcher: a legacy store keeps its hidden button, and its angle, across the rename
 - launcher: with BOTH broker libraries absent, Register reports absent and does not raise
 - launcher: with LibDataBroker but no LibDBIcon, the plugin exists and the button does not
 - launcher: with LibKa0s absent the seam still answers, and still remembers the choice
 
-### test_optionssetup.lua (13)
+### test_optionssetup.lua (15)
 
 - the live and degraded builds veto exactly the same rows from Reset All
 - Reset All resets a sessionOnly row and fires its onChange once, on both builds
 - the degraded Reset All logs one line in total, the profile handler's, with no count
 - the degraded Reset All with no AceDB writes the session row and logs nothing
 - with LibKa0s absent, the lock and unlock verbs still write the store
+- with LibKa0s absent, /at disable stands the addon down and /at enable brings it back
+- with LibKa0s absent, /at unlock in combat is refused and the lock stays on
 - with LibKa0s absent, entering combat still re-locks unlocked bars in the store
 - the degraded stub publishes LSMValues, the one member reached at file load
-- the degraded stub publishes the five composers, the other load-time members
+- the degraded stub publishes the five composers, hollow
 - the degraded stub keeps no private copy of the library's layout constants
 - PARENT_TITLE reaches the library through the descriptor, not the namespace
 - the live arm patches LSM30_Border through the library, not through a private copy
 - the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
 - General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
 
-### test_slashcmds.lua (90)
+### test_slashcmds.lua (91)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
 - the About page renders one row per verb, through the same formatter as /at help
 - the About rows carry the help colors, without the chat indent
-- /at lock and /at unlock write the `locked` setting and acknowledge
+- /at lock and /at unlock write the `locked` setting and echo it in the set shape
+- /at unlock in combat echoes the refused write: the stored value, not the argument
+- /at lock and /at unlock each refresh an open options panel once
 - /at toggle turns every bar off, then every bar back on
 - /at toggle <unit> flips only that unit
 - /at toggle rejects an unknown unit and changes nothing
@@ -544,26 +585,21 @@ badge and any count quoted in the docs must agree with it.
 - /at set rejects a non-numeric value for a number setting
 - /at set writes a color from `r g b a` and echoes the STORED value
 - /at set accepts a bool written as a human word
-- /at test with a word it does not know prints the usage and changes nothing
-- bare /at test prints the usage and toggles nothing
-- the test verb's help line describes the value hold, not a mode
-- /at test with a value refuses while every bar is disabled and says how to fix it
-- /at test paints the given value and arms the hold window
-- /at test with a value and no hold holds it for 5 seconds
-- /at test keeps the bar scale usable for a value below the 100k floor
-- /at test schedules the expiry it just announced
-- re-locking the bars clears a live /at test preview
 - /at profile with no subcommand prints the sub-help
 - /at profile current names the active profile
 - /at profile list marks the current profile
 - /at profile use switches the active profile
 - /at profile use with no name prints usage and switches nothing
 - /at profile new creates a profile carrying the defaults, not the old values
+- /at profile new refuses a name that already exists and leaves it untouched
 - /at profile new with no name prints usage
 - /at profile copy pulls another profile's values into the current one
 - /at profile copy with no name prints usage
+- /at profile copy of a missing profile refuses before AceDB sees the name
+- /at profile copy of the current profile refuses
 - /at profile delete refuses to delete the profile in use
 - /at profile delete removes a profile that is not in use
+- /at profile delete of a missing profile says so and deletes nothing
 - /at profile delete with no name prints usage
 - /at profile reset restores the current profile's defaults in place
 - /at profile reset logs one [Set] line from the reset handler, counting the rows it changed
@@ -595,6 +631,11 @@ badge and any count quoted in the docs must agree with it.
 - parity: both dispatchers resolve the `options` alias to `config`
 - parity: an unknown verb reaches no handler and prints the same shape in both
 - parity: a bare /at reaches the config handler with an empty rest in both
+- degraded: the stub's disabled-line format is the library's, byte for byte
+- degraded: a schema verb prints the library-absent line
+- degraded: the library-absent line is keyed by its English text (localization-§2)
+- degraded: /at help rows are plain, with no color escape
+- degraded: DisabledLine is the live build's line, color escapes intact
 - /at set stores a multi-word string value whole
 - /at enable and /at disable write the Enable row's OWN path, through the one seam
 - /at disable echoes the stored value in the set shape, and /at enable undoes it
@@ -605,7 +646,6 @@ badge and any count quoted in the docs must agree with it.
 - a refused `toggle` does not touch a single bar's enabled flag
 - a refused `unlock` leaves the lock exactly where it was
 - a refused `update` publishes nothing on the bus
-- a refused `test <value>` paints nothing and arms no hold
 
 ### test_perfcmds.lua (42)
 
@@ -652,7 +692,25 @@ badge and any count quoted in the docs must agree with it.
 - /at perf report opens the debug console when it is hidden
 - /at perf report marks itself reviewed exactly once
 
-### test_widgets.lua (55)
+### test_debughold.lua (15)
+
+- the `test` verb is gone: it prints unknown command
+- COMMANDS carries no `test` row, and the debug row names `hold <value> [secs]`
+- /at debug hold with a word it does not know prints the usage and changes nothing
+- bare /at debug hold prints the usage and holds nothing
+- /at debug hold with a negative duration prints the usage and holds nothing
+- /at debug hold refuses a duration above 60 s and below 0.5 s
+- /at debug hold accepts both ends of the range
+- /at debug hold announces a fractional duration as given, and holds for it
+- /at debug hold refuses while every bar is disabled and says how to fix it
+- /at debug hold paints the given value and arms the hold window
+- /at debug hold with a value and no duration holds it for 5 seconds
+- /at debug hold keeps the bar scale usable for a value below the 100k floor
+- /at debug hold schedules the expiry it just announced
+- re-locking the bars clears a live /at debug hold preview
+- /at debug hold refuses while the addon is disabled: one line, no paint, no hold
+
+### test_widgets.lua (57)
 
 - NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
 - a bool row renders a CheckBox labeled from the schema
@@ -706,6 +764,8 @@ badge and any count quoted in the docs must agree with it.
 - a second OnShow rebuilds the panel body without stacking duplicate widgets
 - the General page draws its two groups as a tab strip, Master controls first
 - clicking Bars swaps the rows and leaves the button pair on Master controls
+- every unit's Appearance strip is its schema's groups, and each tab draws that group's rows
+- a mirrored unit's every tab draws the hint and none of the appearance rows
 - showing every page builds it without error
 - the main page's About content renders on its first OnShow
 - re-rendering the About page replaces its body rather than stacking a second copy
@@ -719,8 +779,8 @@ badge and any count quoted in the docs must agree with it.
 
 ### test_prose.lua (15)
 
-- prose: no authored file carries a British spelling from localization-5's published list
-- prose: the gate carries localization-5's two lists whole, and nothing of its own
+- prose: no authored file carries a British spelling from localization-§5's published list
+- prose: the gate carries localization-§5's two lists whole, and nothing of its own
 - prose self-test: the carve-out suppresses the named generated folder, and only it
 - prose self-test: a path the carve-out does not name is not covered by one that looks like it
 - prose self-test: a carve-out that is not a set of path strings is a failure, not a silence
@@ -746,7 +806,7 @@ badge and any count quoted in the docs must agree with it.
 - vendored Slash resolves a fallback-only override to its own strings
 - vendored Perf resolves a fallback-only override to its own strings
 
-### test_surface_parity.lua (8)
+### test_surface_parity.lua (10)
 
 - parity: the Core stub publishes everything core/CoreSetup.lua publishes live
 - parity: the DebugLog stub carries the whole live surface
@@ -756,6 +816,8 @@ badge and any count quoted in the docs must agree with it.
 - parity: the Bus stub carries the library's whole surface
 - parity: the Schema stub carries the library's lib-level surface
 - parity: the Schema stub's instance carries every member of a live instance
+- parity: the Perf stub carries every Perf member the addon reaches
+- parity: the Lifecycle stub carries the whole live surface
 
 ### test_vendor_sync.lua (3)
 
@@ -770,7 +832,15 @@ badge and any count quoted in the docs must agree with it.
 - lintconfig: every files[...] ignore is narrowed to a file or a name
 - lintconfig: no source file carries a bare inline luacheck ignore
 
-### test_disabled.lua (15)
+### test_events.lua (5)
+
+- events: the session rejected list exists and starts empty
+- events: one unknown lifecycle name costs only itself, and is listed once
+- events: one unknown unit event on the per-unit frame costs only itself
+- events: a name IsEventValid refuses never reaches the target
+- events: /at debug events lists the rejected names, and 'none' once they are gone
+
+### test_disabled.lua (17)
 
 - disabled 1: the enabled addon registers something to stand down from
 - disabled 3: writing the enable path leaves NOTHING registered
@@ -779,7 +849,8 @@ badge and any count quoted in the docs must agree with it.
 - disabled 6: firing every baseline event writes nothing, says nothing, shows nothing
 - disabled 7: every reserved verb answers, and only a feature verb refuses
 - disabled 7: a refused feature verb reaches no write seam
-- disabled 8: the left click is refused and writes nothing; the right click still opens the panel
+- disabled 7: `debug` stays live, and its `hold` sub-verb refuses on its own gate
+- disabled 8: the left click opens the panel; the menu grays Locked and still re-enables
 - disabled 9: re-enabling restores the registration set, from the settings as they are NOW
 - disabled 9: the bus subscriptions come back as the same five pairs, and each still reaches its consumer once
 - disabled 10: releasing one hold does not stand up an addon the other still holds down
@@ -787,17 +858,18 @@ badge and any count quoted in the docs must agree with it.
 - bus: a registration made while stood down is recorded, and not live until the stand-up
 - bus: a subscription its owner dropped is not brought back by a stand-up
 - bus: the stand-down and stand-up counts are the record's, and the latch drives both
+- lifecycle stub: PrintHolds names the addon and its holds as one space-joined line
 
 ### test_eol.lua (2)
 
 - eol: every tracked file carries the terminator .gitattributes declares for it
-- eol: .gitattributes is line-endings-5's canonical body for this repo kind
+- eol: .gitattributes is line-endings-§5's canonical body for this repo kind
 
 ### test_layout_cap.lua (13)
 
 - layoutcap: every authored file over the 1500-line cap is named in the census
 - layoutcap: no census row outlives the breach it records
-- layoutcap: every over-cap census row carries one of layout-1's three terminal states
+- layoutcap: every over-cap census row carries one of layout-§1's three terminal states
 - layoutcap: the census and the exempt set agree about which paths were exempted
 - layoutcap: an empty census is written as a result rather than left standing empty
 - layoutcap self-test: the parser reads the census nested under the register, and stops there
@@ -814,13 +886,13 @@ badge and any count quoted in the docs must agree with it.
 | Suite | Cases |
 |-------|------:|
 | test_loadorder.lua | 14 |
-| test_schema.lua | 50 |
-| test_database.lua | 31 |
+| test_schema.lua | 60 |
+| test_database.lua | 38 |
 | test_units.lua | 17 |
-| test_envsetup.lua | 6 |
-| test_coresetup.lua | 5 |
+| test_envsetup.lua | 7 |
+| test_coresetup.lua | 6 |
 | test_mediasetup.lua | 10 |
-| test_debuglog.lua | 12 |
+| test_debuglog.lua | 13 |
 | test_slash.lua | 14 |
 | test_timer.lua | 12 |
 | test_perf.lua | 33 |
@@ -829,19 +901,21 @@ badge and any count quoted in the docs must agree with it.
 | test_data.lua | 32 |
 | test_display.lua | 60 |
 | test_draghandle.lua | 22 |
-| test_helpers.lua | 70 |
-| test_launcher.lua | 16 |
-| test_optionssetup.lua | 13 |
-| test_slashcmds.lua | 90 |
+| test_helpers.lua | 71 |
+| test_launcher.lua | 32 |
+| test_optionssetup.lua | 15 |
+| test_slashcmds.lua | 91 |
 | test_perfcmds.lua | 42 |
-| test_widgets.lua | 55 |
+| test_debughold.lua | 15 |
+| test_widgets.lua | 57 |
 | test_docs.lua | 4 |
 | test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
-| test_surface_parity.lua | 8 |
+| test_surface_parity.lua | 10 |
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
-| test_disabled.lua | 15 |
+| test_events.lua | 5 |
+| test_disabled.lua | 17 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **710** |
+| **Total** | **776** |

@@ -40,7 +40,7 @@ NS.CreateOptionsPanel()
 
 -- Where Kit.assertSurfaceParity's by-name form looks the LIVE half up (kit 15, vendored by M4-01).
 -- Registered explicitly, and the explicitness is the point. Kit.expose auto-wires the mock's
--- LibStub for a repo whose stubs mirror LIBRARY TABLES; all four of this addon's library-backed
+-- LibStub for a repo whose stubs mirror LIBRARY TABLES; five of this addon's library-backed
 -- degradation stubs mirror an INSTANCE instead -- what `lib:New(descriptor)` returned. Left to the
 -- auto-wiring, "LibKa0s-Options-1.0" resolves the four-member library table (LAYOUT, New,
 -- PatchAlwaysShowScrollbar, STRINGS) rather than the surface the page files actually call, and
@@ -60,6 +60,9 @@ Kit.setSurfaceSource{
   -- Write, SameValue, New). Its INSTANCE is pinned with the two-table form instead, because the
   -- library's member manifest lists lib-level members only.
   ["LibKa0s-Schema-1.0"]   = mocks.LibStub("LibKa0s-Schema-1.0", true),
+  -- An INSTANCE again, like the first four: core/Lifecycle.lua's hold-set stub stands in for what
+  -- `lib:New(descriptor)` returned, not for the library table.
+  ["LibKa0s-Lifecycle-1.0"] = NS.lifecycle,
 }
 
 -- Kit.expose merges `test` and the assertions in, so the key set every existing suite file reads is
@@ -111,6 +114,9 @@ Kit.run{
     -- Peeled out of test_slashcmds when that file crossed the layout-§1 cap; it runs
     -- straight after its sibling so the two halves stay adjacent in a red.
     "test_perfcmds",
+    -- The value hold, `/at debug hold`, moved out of test_slashcmds with the verb it drives (it
+    -- was the `test` verb). Straight after the other two halves of the slash surface.
+    "test_debughold",
     "test_widgets",
     "test_docs",
     { name = "test_prose", dir = "tests/_kit/" },
@@ -118,6 +124,9 @@ Kit.run{
     "test_surface_parity",
     "test_vendor_sync",
     "test_lintconfig",
+    -- events-frames-taint-§1: the SafeRegister helpers. Straight before test_disabled, and it
+    -- puts the full registration set back, because test_disabled compares registration sets.
+    "test_events",
     -- slash-commands-§7's conformance suite. Last of this addon's own, because it drives the
     -- addon through OnEnable and a full disable/enable cycle on the SHARED environment: run
     -- earlier, its stand-downs would be another suite's mysteriously empty registration set.

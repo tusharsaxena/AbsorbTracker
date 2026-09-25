@@ -42,16 +42,23 @@ core\EnvSetup.lua
 # this file publishes, so a Constants that loaded first would resolve it to the fallback.
 core\MediaSetup.lua
 core\Constants.lua
+# LOAD-BEARING: publishes NS.version, captured into the perf descriptor by core/PerfSetup.lua at file load.
 core\Namespace.lua
+# Conventional order, not load-bearing: State.lua here, and Data.lua and Database.lua below, publish
+# tables and functions nothing captures at file load; every reader resolves them at call time.
 core\State.lua
+# LOAD-BEARING: publishes NS.NewBusTarget / NS.MSG; core/AbsorbTracker.lua subscribes UNITS with them at file load behind a guard, so a later position fails silently.
 core\Bus.lua
+# LOAD-BEARING: publishes NS.Print / NS.Util.print and NS.LIBKA0S_MISSING, captured at file load by LauncherSetup, AbsorbTracker and the stub branches of DebugLogSetup and PerfSetup.
 core\CoreSetup.lua
 # The stand-down latch. BEFORE PerfSetup, and that is load-bearing rather than tidy: Perf 12
 # requires `descriptor.lifecycle` and refuses at New without it, so a PerfSetup that loaded first
 # would raise. It is also where `enabled` and the perf arm stop being two mechanisms.
 core\Lifecycle.lua
+# LOAD-BEARING: publishes NS.Perf, a file-scope upvalue in core/AbsorbTracker.lua, modules/Display.lua and modules/Timer.lua (performance-§1).
 core\PerfSetup.lua
 core\Data.lua
+# LOAD-BEARING: publishes NS.Units, whose DeepCopy core/Database.lua takes at file load.
 core\Units.lua
 core\Database.lua
 core\DebugLogSetup.lua

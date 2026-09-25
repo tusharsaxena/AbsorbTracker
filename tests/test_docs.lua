@@ -191,7 +191,7 @@ end)
 --
 -- It used to live here: a BRITISH list, an ALLOWED list, a walk over the addon's own files, and
 -- the cases over them. All of it is gone, replaced by one line in tests/run.lua declaring
--- `{ name = "test_prose", dir = "tests/_kit/" }` (LibKa0s kit revision 24). localization-5 says
+-- `{ name = "test_prose", dir = "tests/_kit/" }` (LibKa0s kit revision 24). localization-§5 says
 -- wire the kit's gate or your own and NEVER both, because two gates over one rule is two copies
 -- of a list each required to be carried whole -- and the collection proved the cost: seven repos
 -- had written this by hand under three different filenames before the kit shipped one.

@@ -296,6 +296,25 @@ test("disabled 7: a refused feature verb reaches no write seam", function()
   enable()
 end)
 
+test("disabled 7: `debug` stays live, and its `hold` sub-verb refuses on its own gate", function()
+  -- `debug` is one of the reserved verbs, so the library's gate lets it through. `debug hold` paints
+  -- the bars, which is a feature, so it carries the same one line itself. The walk above sends each
+  -- verb bare and never reaches the sub-verb, which is why this step names it.
+  bringUp()
+  disable()
+  local real, armed = NS.HoldPreview, 0
+  NS.HoldPreview = function(...) armed = armed + 1 return real(...) end
+  M.__resetPrinted()
+  NS.Slash:OnSlash("debug hold 1000")
+  local out = M.__printed()
+  NS.HoldPreview = real
+
+  assertEqual(#out, 1, "`/at debug hold` refuses on ONE line: " .. joined(out))
+  assertTrue(out[1]:find(NS.Slash:DisabledLine(), 1, true) ~= nil, "`/at debug hold`: " .. out[1])
+  assertEqual(armed, 0, "a refused hold armed the preview")
+  enable()
+end)
+
 -- ── 8. the launcher ────────────────────────────────────────────────────────────────────────────
 
 local function launcherObject()
@@ -317,11 +336,13 @@ local function launcherObject()
   return NS.Launcher:Object()
 end
 
-test("disabled 8: the left click is refused and writes nothing; the right click still opens the panel", function()
-  -- launcher-§2's rung (b): this addon's left click drives the LOCK, which is its preview switch
-  -- (options-ui-§15's exemption), and a preview switch is a feature. The audit's finding was that
-  -- the button stayed clickable with NO gate at all, so a click wrote the stored tree of an addon
-  -- the player had switched off — a game event in every sense that matters.
+test("disabled 8: the left click opens the panel; the menu grays Locked and still re-enables", function()
+  -- launcher-§2 (v2.67.0, LibKa0s-Launcher minor 4). The left button no longer drives the lock: it
+  -- opens the settings panel, which is setup rather than a feature (§7), so it is not gated and
+  -- prints nothing. The lock -- this addon's preview switch, and a feature -- lives in the right
+  -- click's options menu now, where the library grays it while the addon is off. The audit's
+  -- original finding (a disabled addon's click wrote its stored tree) is therefore pinned on the
+  -- menu: a grayed Locked writes nothing, and Enabled is the one live entry.
   --
   -- The BUTTON stays on the minimap either way: `minimap.hide` is a per-installation display
   -- preference and says nothing about whether the addon is running.
@@ -334,25 +355,36 @@ test("disabled 8: the left click is refused and writes nothing; the right click 
   M.__resetSvWrites()
   M.__resetPrinted()
 
-  object.OnClick(object, "LeftButton")
-  local writes = M.__svWrites()
-  assertEqual(#writes, 0, "a disabled addon's launcher click wrote SavedVariables: "
-    .. (writes[1] and writes[1].path or ""))
-  assertEqual(#shownBars(), 0, "the click showed a frame: " .. joined(shownBars()))
-  assertEqual(#M.__printed(), 1, "one refusal line: " .. joined(M.__printed()))
-  assertTrue(M.__printed()[1]:find(NS.Slash:DisabledLine(), 1, true) ~= nil,
-    "and it is the dispatcher's own line, not a second spelling: " .. M.__printed()[1])
-  assertTrue(NS.GetSetting("locked"), "the lock did not move")
-
-  -- RIGHT-click is unchanged, in either state: the panel is setup, not a feature (§7), so the right
-  -- button opens it for the same reason `config` and the bare `/at` still do.
   local realOpen, opened = NS.OpenOptionsPanel, 0
   NS.OpenOptionsPanel = function() opened = opened + 1 end
-  object.OnClick(object, "RightButton")
+  object.OnClick(object, "LeftButton")
   NS.OpenOptionsPanel = realOpen
-  assertEqual(opened, 1, "right-click must still open the settings panel while disabled")
+  assertEqual(opened, 1, "left-click must open the settings panel while disabled")
+  local writes = M.__svWrites()
+  assertEqual(#writes, 0, "a disabled addon's left click wrote SavedVariables: "
+    .. (writes[1] and writes[1].path or ""))
+  assertEqual(#shownBars(), 0, "the click showed a frame: " .. joined(shownBars()))
+  assertEqual(#M.__printed(), 0, "the left click prints nothing: " .. joined(M.__printed()))
 
+  local Menu = dofile("tests/mock_menu.lua")(M)
+  Menu.install()
+  local ok, err = pcall(function()
+    object.OnClick(object, "RightButton")
+    local menu = assert(Menu.last, "the right click opened no menu")
+    assertFalse(menu:Find("Locked").enabled, "Locked is grayed while disabled")
+    menu:Click("Locked")
+    assertEqual(#M.__svWrites(), 0, "a grayed Locked wrote SavedVariables")
+    assertTrue(NS.GetSetting("locked"), "the lock did not move")
+    assertEqual(#shownBars(), 0, "the menu showed a frame: " .. joined(shownBars()))
+
+    -- Enabled is live, and it is `/at enable` itself: the way back is one click away.
+    object.OnClick(object, "RightButton")
+    Menu.last:Click("Enabled")
+    assertTrue(NS.GetSetting("enabled") ~= false, "the menu's Enabled re-enabled the addon")
+  end)
+  Menu.remove()
   enable()
+  assertTrue(ok, tostring(err))
 end)
 
 -- ── 9. re-enable, and the rebuild is from CURRENT state ────────────────────────────────────────
@@ -547,4 +579,28 @@ test("bus: the stand-down and stand-up counts are the record's, and the latch dr
   disable()
   assertEqual(NS.BusStandUp(), 0, "while a hold is taken a bare stand-up of the bus is refused")
   enable()
+end)
+
+test("lifecycle stub: PrintHolds names the addon and its holds as one space-joined line", function()
+  -- core/Lifecycle.lua's library-absent hold set hands the printer two PARTS -- "<addon>:" and the
+  -- hold list -- rather than a pre-formatted line (events-frames-taint-§8's SHOULD half). NS.Print
+  -- joins its parts with one space, so the line is byte-identical to the old "%s: %s" format.
+  -- red under: a changed separator (e.g. passing "AbsorbTracker: " with its own trailing space).
+  local NS2, M2 = dofile("tests/degraded_env.lua")()
+  NS2.db = { profile = NS2.Units.DeepCopy(NS2.defaults.profile), global = { minimap = {} } }
+  function NS2.db.GetCurrentProfile() return "Default" end
+  M2.__resetPrinted()
+  NS2.lifecycle:PrintHolds()
+  NS2.lifecycle:Hold("zeta")
+  NS2.lifecycle:Hold("alpha")
+  NS2.lifecycle:PrintHolds()
+  NS2.lifecycle:Release("zeta")
+  NS2.lifecycle:Release("alpha")
+  local out = {}
+  for _, line in ipairs(M2.__printed()) do
+    if line:find("AbsorbTracker:", 1, true) then out[#out + 1] = line end
+  end
+  assertEqual(#out, 2, "two PrintHolds lines: " .. table.concat(M2.__printed(), " / "))
+  assertEqual(out[1], NS2.PREFIX .. " AbsorbTracker: no holds")
+  assertEqual(out[2], NS2.PREFIX .. " AbsorbTracker: alpha, zeta")
 end)

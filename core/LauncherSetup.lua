@@ -14,29 +14,28 @@ local addonName, NS = ...
 -- behavior change is where they drift, and nothing reports it because both halves still work.
 --
 -- The library owns every line of that wiring, because it is identical in eleven addons. What this
--- file supplies is the part that is genuinely ours: our folder name, our logo, what our LEFT button
--- does, and how our settings panel opens.
+-- file supplies is the part that is genuinely ours: our folder name, our logo, how our settings
+-- panel opens, and the accessor-and-toggle pairs for the states we have.
 --
 -- ---------------------------------------------------------------------------
--- THE RUNG: (b), AND IT IS THE LOCK
+-- THE TWO BUTTONS, AND THE MENU'S TWO ENTRIES
 -- ---------------------------------------------------------------------------
 --
--- launcher-§2 orders the left click by what the player most likely wants. This addon has no primary
--- window, so rung (a) does not apply. It DOES have a preview switch — and here the preview switch is
--- the lock: options-ui-§15 exempts an addon whose unlocked view already IS its preview from the Test
--- mode row, and this addon takes that exemption (settings/General.lua, `locked`). So rung (b) it is,
--- and left-click toggles the lock.
+-- launcher-§2 (standard v2.67.0, LibKa0s-Launcher minor 4): LEFT-click opens the settings panel, on
+-- every addon, in either state; RIGHT-click opens the client's own context menu, which the library
+-- builds out of the pairs passed below. Neither button is ours to route (anti-pattern #81).
 --
--- IT DRIVES THE SAME SEAM THE CHECKBOX DRIVES, and holds no copy of the state. `NS.SetByPath` is
--- that seam (architecture-§5): the Lock frame checkbox, `/at lock`, `/at unlock`, `/at set locked`,
--- `/at reset locked` and the Defaults button all land in it, and its `locked` onChange is where the
--- in-combat unlock refusal, the preview clear and the repaint live. A click here therefore inherits
--- all of that for free — including being refused in combat, with the refusal's own printed line —
--- rather than reimplementing any of it.
+-- This addon's menu is Enabled and Locked, the row ADDONS.md records. There is no Test mode entry:
+-- options-ui-§15 exempts an addon whose unlocked view already IS its preview, and this one takes the
+-- exemption (settings/General.lua, `locked`), so the lock is the preview switch. There is no Show
+-- window entry: nothing here is a primary window.
 --
--- RIGHT-click always opens the settings panel, on every addon whatever its rung, which is what lets
--- the left button be spent on something better. That is the library's, not ours: we pass
--- `openSettings` and it wires both buttons.
+-- EACH TOGGLE IS THE SLASH VERB'S OWN HANDLER, looked up in NS.COMMANDS at click time — not a
+-- second implementation that agrees with it today. `/at enable|disable` and `/at lock|unlock` all
+-- write through `NS.SetByPath` (architecture-§5), whose onChange is where the stand-down latch,
+-- the in-combat unlock refusal, the preview clear and the repaint live, and then echo the STORED
+-- value (slash-commands-§8). A menu click therefore inherits all of it — including being refused in
+-- combat with the refusal's own line — and says exactly what the typed verb says.
 --
 -- ---------------------------------------------------------------------------
 -- WHY `minimap` IS A FUNCTION
@@ -58,6 +57,15 @@ local addonName, NS = ...
 -- with the other name. It is the same reason core/MediaSetup.lua and core/EnvSetup.lua are told it.
 
 local print = NS.Print
+
+--- Run the slash verb `name` exactly as the dispatcher would, by its own NS.COMMANDS handler.
+--- Resolved at click time: settings/Slash.lua builds NS.COMMANDS after this file loads.
+local function runVerb(name)
+    for _, command in ipairs(NS.COMMANDS or {}) do
+        if command[1] == name then return command[3]("") end
+    end
+    NS.Debug("Launcher", "no /at %s handler to run", name)
+end
 
 local lib = LibStub and LibStub("LibKa0s-Launcher-1.0", true)
 
@@ -123,46 +131,30 @@ NS.Launcher = lib:New({
         return type(g) == "table" and g.minimap or nil
     end,
 
-    -- REQUIRED. Right-click ALWAYS lands here, and so does left-click on rung (c) — which is not us.
-    -- Resolved at CLICK time rather than captured: settings/OptionsSetup.lua publishes
-    -- NS.OpenOptionsPanel after this file loads.
+    -- REQUIRED. LEFT-click always lands here, in either state; so does right-click on a client
+    -- with no context-menu API. Resolved at CLICK time rather than captured:
+    -- settings/OptionsSetup.lua publishes NS.OpenOptionsPanel after this file loads.
     openSettings = function() NS.OpenOptionsPanel() end,
 
-    -- THE LEFT CLICK, AND THE RUNG. Its presence is what says (b); passing nothing would say (c).
+    -- THE OPTIONS MENU (Launcher minor 4). Each accessor is asked on every open and every hover,
+    -- never cached; each toggle is the verb's own handler (see the head of this file).
     --
-    -- Reads the live value rather than tracking one, and writes through the single seam, so the
-    -- click, the checkbox and the two verbs are the same act. The combat refusal inside the
-    -- `locked` onChange may write the lock straight back and print its own line; the panel refresh
-    -- below therefore runs against what was STORED, not against what was asked for.
-    --
-    -- Nothing is printed on success: the bars becoming draggable (or stopping) is the feedback, and
-    -- a chat line on every minimap click would be noise the slash verbs only earn because a typed
-    -- command with no echo reads as ignored.
-    onClick = function()
-        -- THE DISABLED GATE (slash-commands-§7, launcher-§2). This is a rung-(b) left click: it
-        -- drives the addon's PREVIEW SWITCH, which is a feature, so a disabled addon refuses it on
-        -- the one collection-wide line and does nothing else. The audit's finding was blunter than
-        -- that -- the button stayed clickable with NO gate at all, so a click wrote the stored tree
-        -- of an addon the player had switched off. A mouse click is a game event in every sense
-        -- that matters here, and `What MUST stand down` reaches it.
-        --
-        -- BEFORE the write, not after: the seam below is NS.SetByPath, and reaching it would fire
-        -- the `locked` onChange and land in SavedVariables whatever this function printed.
-        --
-        -- THE LINE IS THE DISPATCHER'S, through NS.Slash:DisabledLine. `lib.DISABLED_LINE_FORMAT`
-        -- is the collection's one wording and the launcher MUST NOT re-spell it host-side.
-        --
-        -- RIGHT-click is untouched and still opens the settings panel, in either state. That is not
-        -- inconsistent with refusing this button: the panel is SETUP, not a feature (§7), so the
-        -- right button opens it for the same reason `config` and the bare `/at` still do. The button also stays ON the minimap --
-        -- `minimap.hide` is a per-installation display preference (launcher-§3) and says nothing
-        -- about whether the addon is running.
-        if NS.GetSetting("enabled") == false then
-            return print(NS.Slash:DisabledLine())
-        end
-        NS.SetByPath("locked", not NS.GetSetting("locked"))
-        if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
-    end,
+    -- Enabled: the store, not the latch, as the dispatcher's gate reads it. `setEnabled` is handed
+    -- the state to move TO, which picks the verb.
+    isEnabled  = function() return NS.GetSetting("enabled") ~= false end,
+    setEnabled = function(on) runVerb(on and "enable" or "disable") end,
+
+    -- Locked: the `locked` value the Lock frame checkbox reads. The verb is picked from the STORED
+    -- lock, so a combat refusal that wrote the lock back is what the next click toggles from. The
+    -- library grays this entry while the addon is disabled; `/at lock` refuses then too.
+    isLocked   = function() return NS.GetSetting("locked") and true or false end,
+    toggleLock = function() runVerb(NS.GetSetting("locked") and "unlock" or "lock") end,
+
+    -- THE STATUS TOOLTIP (Launcher minor 3, launcher-§1), drawn by the library in either state out
+    -- of `isEnabled` and `isLocked` above and `version` here. No `onTooltipShow`: nothing of ours to
+    -- append. `version` is the TOC's `## Version` and nothing else: nil (headless, or an unreadable
+    -- manifest) draws the label alone rather than NS.Version()'s "?" or the fallback constant.
+    version = function() return NS.Meta("Version") end,
 
     print = function(line) print(line) end,
     debug = function(tag, message) NS.Debug(tag, "%s", message) end,

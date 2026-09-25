@@ -19,7 +19,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 ### B. Slash surface
 6. `/at` alone → the settings panel opens on the **Ka0s Absorb Tracker** landing page (the About page, not a sub-page), tree expanded; no help block prints. `/at` followed by only spaces → the same. In combat → the single gray refusal line and no panel.
 7. `/absorbtracker` → identical: the panel opens on the landing page.
-8. `/at help` → gold command + em-dash + white desc for all 19 verbs: help, config, enable, disable, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, perf, update, version, test, profile. `toggle` reads *"Toggle bars on or off — `/at toggle [player|target|focus]`"*, and `debug` reads *"Toggle the debug console — `on`/`off` enable/disable logging"* and `perf` reads *"Measure performance — try `/at perf` for the workflow"*.
+8. `/at help` → gold command + em-dash + white desc for all 18 verbs: help, config, enable, disable, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, perf, update, version, profile. There is no `test` row: `/at test` prints `unknown command 'test'` then help. `toggle` reads *"Toggle bars on or off — `/at toggle [player|target|focus]`"*, and `debug` reads *"Toggle the debug console — `on`/`off` logging, `events`, `hold <value> [secs]`"* and `perf` reads *"Measure performance — try `/at perf` for the workflow"*.
 9. `/at wibble` → `unknown command 'wibble'` then help.
 10. `/at options` → opens the panel (back-compat alias for `config`).
 
@@ -38,7 +38,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 14d. **The visibility migration (upgrade only).** On a profile saved by 1.9.0 or earlier with *Show only in combat* **ticked**, log in on this build → **General visibility** reads **Only in combat**, and `/at get visibility` echoes `inCombat`. With it unticked before the upgrade → **Always**. Check a *second*, inactive profile the same way: switch to it after the upgrade and confirm its setting came across too — a migration that walked only the loaded profile is the failure this checks for.
 14b. **The strip is chrome, not a row.** Click between the two tabs several times → the strip stays pinned in place, the content below it swaps, and the first row of controls never lands *under* the tabs. Nothing stacks: click Master controls → Bars → Master controls and confirm you see one copy of each control, not two. Resize the Settings window (or open the panel for the first time on a fresh login, which is when the canvas has not measured itself yet) → the tabs sit on **one row**, not stacked vertically.
 14a. **Debug console checkbox (window show/hide).** Sits to the right of **Lock frame**, on the **Master controls** tab, where options-ui-§15 puts it. It is an ordinary schema row now rather than a bespoke partner, so `/at get state.debugConsole` and `/at set state.debugConsole true` reach it too — and `/at set state.debugConsole true` must open the window without writing anything to the profile (`/reload` → closed again). Tick on → the debug console window opens; untick → it hides (identical to the bare `/at debug`). It does **not** change logging: if logging was off, ticking on shows the window but no new lines stream until you enable logging (the window's own **Debug** header toggle, or `/at debug on`). Open/close the window by other means — bare `/at debug`, the window's **Close** button, or **Esc** — with the panel open → the checkbox tracks the window's visibility live. `/reload` → window closed and checkbox unchecked.
-14e. **No Test mode checkbox, and the lock does its job (preview-mode, options-ui-§15).** On **Master controls**, the line under **[Lock frame | Debug console]** is the **Reset position + Reset all settings** button pair — there is **no Test mode box**, and a box labeled *Test mode* appearing here is the duplicate-switch finding (anti-pattern #80). Enable the Target bar, clear your target, and with no shield up **untick Lock frame** → every enabled bar, the Target bar included, shows a partial placeholder fill reading `Absorb`, and the bars can be dragged. Set **General visibility** to *Never* → the bars stay up while unlocked. Tick **Lock frame** → the placeholders go and live data returns; with *Never* still set, every bar hides (set it back to *Always*). Untick again and pull a training dummy → the moment combat starts, chat prints `[AT] Bars locked — combat started` and the bars show live data; with the panel open, or reopened after the fight, **Lock frame** reads ticked. **The verbs are the same switch:** `/at unlock` → the box unticks itself and the placeholders show; `/at lock` → it ticks and live data returns. In combat, `/at unlock` (or unticking the box) → `[AT] Cannot unlock the bars during combat` and the box stays ticked, while `/at lock` still works.
+14e. **No Test mode checkbox, and the lock does its job (preview-mode, options-ui-§15).** On **Master controls**, the line under **[Lock frame | Debug console]** is the **Reset position + Reset all settings** button pair — there is **no Test mode box**, and a box labeled *Test mode* appearing here is the duplicate-switch finding (anti-pattern #80). Enable the Target bar, clear your target, and with no shield up **untick Lock frame** → every enabled bar, the Target bar included, shows a partial placeholder fill reading `Absorb`, and the bars can be dragged. Set **General visibility** to *Never* → the bars stay up while unlocked. Tick **Lock frame** → the placeholders go and live data returns; with *Never* still set, every bar hides (set it back to *Always*). Untick again and pull a training dummy → the moment combat starts, chat prints `[AT] Bars locked — combat started` and the bars show live data; with the panel open, or reopened after the fight, **Lock frame** reads ticked. **The verbs are the same switch:** with the panel open, `/at unlock` → the box unticks itself at once, chat echoes `locked = false` and the placeholders show; `/at lock` → it ticks, chat echoes `locked = true` and live data returns. In combat, `/at unlock` (or unticking the box) → `[AT] Cannot unlock the bars during combat` and the box stays ticked; the verb's last line is `locked = true` — the stored value, never an "unlocked" line — while `/at lock` still works.
 15. **Appearance — the chrome block and the strip.** The page opens with a **Unit** dropdown pinned at the top (Player / Target / Focus), a thin rule under it, then the strip **[ Size ][ Bar ][ Background ][ Border ][ Text ]** in that order, **Size** selected. There must be exactly **one** Unit picker on the page — a second copy down in the scrollable area is the bug options-ui-§14 exists to prevent. Walk the tabs: *Size* → Width / Height (drag Width → widens live). *Bar* → **[Bar texture | Bar opacity]** then **[Bar color | Use class color]**. *Background* → Background Texture alone, then **[Background color | Use class color]**. *Border* → **[Border style | Border thickness (px)]** then **[Border color | Use class color]**; change Style → edge changes, drag Thickness → grows/shrinks (inset recomputes, no glitch). *Text* → **[Font | Font size]**, **[Font color | Use class color]**, **[Font flags | Font shadow]**; change Font/flags → text updates live. Every LSM dropdown must **open with entries in it** — an empty one is the composer's media-list defect resurfacing, which section O covers directly. Tick **Font shadow** → a soft shadow appears behind the absorb number; untick → it goes away again rather than persisting until a `/reload`.
 16. **The picker drives every tab.** On *Border*, switch the Unit picker to **Target** → the page stays on the **Border** tab and now shows the target's border rows. Switching pages used to mean re-picking the unit three times; it must now be one pick for the whole page.
 17. **Bar Opacity (new).** Appearance → Player → *Bar* → drag **Bar Opacity** down to ~0.4 → the **whole** bar fades — fill, background, border **and** the absorb number together, not just the fill. Gain a shield so a live repaint lands → it stays faded (all three paint sites honor the setting). `/at unlock` → the drag placeholder is faded too. Set it back to 1 → fully opaque. Its default is **1**, so a bar you never touch must look exactly as it did before this setting existed.
@@ -61,18 +61,20 @@ that covers the pure logic; this suite covers everything that only runs against 
 27a. **Every path still resolves under its old name.** `/at get units.player.barWidth`, `units.player.borderSize` and `units.player.fontSize` all answer. The Bar/Border/Font *pages* collapsed into one; **not one stored key moved**, so an existing profile keeps every value it had. Confirm against a profile saved before this version: nothing reverted to a default.
 28. `/at resetall` → all pages revert **and** bar returns to center (position cleared) — same shared `RestoreAllDefaults` helper as the Reset All popup (step 20), so slash and button can never diverge.
 29. `/at resetposition` → bar snaps to center; other settings unchanged.
-30. `/at lock` / `/at unlock` → locks/unlocks dragging; dragged position persists across `/reload`. **Preview fill (preview-mode):** out of combat with no shield up, `/at unlock` → each bar shows a partial placeholder fill (not full, not empty) plus its drag handle strip above it (item 68), so there is something to grab; `/at lock` → the placeholder is gone and the bar is back on live data. The placeholder **survives a repaint**: while still unlocked, tick **Enable Player Bar** off and back on, flip the Master **Enable** switch, and change the **Visibility** dropdown — each publishes a repaint, and every visible bar must still read `Absorb` over a partial fill rather than dropping back to an empty strip reading `0`.
+30. `/at lock` / `/at unlock` → locks/unlocks dragging and echoes `locked = true` / `locked = false`; dragged position persists across `/reload`. **Preview fill (preview-mode):** out of combat with no shield up, `/at unlock` → each bar shows a partial placeholder fill (not full, not empty) plus its drag handle strip above it (item 68), so there is something to grab; `/at lock` → the placeholder is gone and the bar is back on live data. The placeholder **survives a repaint**: while still unlocked, tick **Enable Player Bar** off and back on, flip the Master **Enable** switch, and change the **Visibility** dropdown — each publishes a repaint, and every visible bar must still read `Absorb` over a partial fill rather than dropping back to an empty strip reading `0`.
 31. `/at toggle` → turns **every** bar off (if any was on), then a second call turns all three on. `/at toggle target` flips only the target bar and leaves the others alone; `/at toggle wibble` → `unknown unit 'wibble'` and nothing changes.
 32. `/at update` → `Forced refresh`; repaints from live absorb.
-33. `/at test 50000` → shows `50K` for 5s then reverts **on its own, with no `/at update` and no absorb event needed** — the announced duration is a scheduled expiry; `/at test 250000 3` → `250K` for 3s, same self-clearing. Then `/at test 250000 60` followed by `/at lock` → the fake value clears immediately, because re-locking ends the preview. `/at unlock` then `/at test 250000 3` → after 3s the bars fall back to the **placeholder**, not to live data, because unlocked is itself a preview. The same with the bars locked and **Test mode** ticked: after 3s, the placeholder.
-34. `/at test 50000` with every bar disabled → `Every bar is disabled; run /at toggle to turn them on…`; no hold window is armed. `/at test wibble` — and a bare `/at test` — → a usage line naming the one form the verb still has, and no hold starts.
+33. `/at debug hold 50000` → `Holding 50K on the bars for 5 s`, shows `50K` for 5s then reverts **on its own, with no `/at update` and no absorb event needed**, because the announced duration is a scheduled expiry. `/at debug hold 50000 2.5` → announces `2.5 s` (not `2 s`) and shows `50K` for about 2.5s, same self-clearing. Then `/at debug hold 250000 60` followed by `/at lock` → the fake value clears immediately, because re-locking ends the preview. `/at unlock` then `/at debug hold 250000 3` → after 3s the bars fall back to the **placeholder**, not to live data, because unlocked is itself a preview.
+34. `/at debug hold 50000` with every bar disabled → `Every bar is disabled; run /at toggle to turn them on…`; no hold window is armed. `/at debug hold 50000 -3`, `/at debug hold 50000 61`, `/at debug hold wibble` and a bare `/at debug hold` → `Usage: /at debug hold <value> [secs] — secs from 0.5 to 60, default 5`, and no hold starts. `/absorbtracker test 1` → `unknown command 'test'` and the help index: the verb is gone.
 
 ### G. Profiles — switch repaints the bar
 35. `/at profile list` / `current` → lists / prints current.
 36. `/at profile new SmokeTest` → switches to a defaults profile; bar repaints to default immediately.
+36a. `/at profile new Default` → `Profile 'Default' already exists — /at profile use Default switches to it, /at profile reset resets it`; you stay on SmokeTest and no bar resets.
 37. On SmokeTest `/at set units.player.barWidth 400`, then `/at profile use Default` → bar repaints to the original width (validates `OnProfileChanged`).
 38. `/at profile copy SmokeTest` → copies + repaints.
-39. `/at profile delete <current>` → refused; switch away, delete SmokeTest → deleted.
+38a. `/at profile copy NoSuchProfile` → `Profile 'NoSuchProfile' not found — /at profile list shows them`; `/at profile copy <current>` → `Cannot copy a profile onto itself`. Neither raises a Lua error (BugSack/BugGrabber clean) and neither changes a bar.
+39. `/at profile delete <current>` → refused; `/at profile delete NoSuchProfile` → `Profile 'NoSuchProfile' not found — /at profile list shows them`, no `Deleted` line; switch away, delete SmokeTest → deleted.
 40. **Panel-driven switch** — Profiles page dropdown switch → bar repaints live.
 40a. **The page draws.** Open another addon's options page first, then Absorb Tracker → Profiles → the AceDBOptions controls render (current profile, New, Copy From, Delete, Reset Profile): never a blank page under the header.
 
@@ -96,7 +98,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 
 ### I. SavedVariables migration — no-op on existing profile
 50. Customize a profile (e.g. `barWidth=260`, custom texture), `/reload` → all customized values **survive** (backfill only fills missing keys).
-51. Logout to flush, inspect `AbsorbTracker.lua` → `global.schemaVersion = 4` (the shipped v3 migration, which also lifted your old flat `barWidth`/etc. onto `profile.units.player`); `/reload` again → stays `4`, values unchanged. **No `hidden` key survives anywhere in the file** — the v4 step sweeps it from every profile, not just the active one, so check an inactive profile block too.
+51. Logout to flush, inspect `AbsorbTracker.lua` → `global.schemaVersion = 5` (the stamp persists because the shipped default is `0`, savedvariables-§1; the ladder also lifted your old flat `barWidth`/etc. onto `profile.units.player`); `/reload` again → stays `5`, values unchanged, and `/at debug on` shows the `[Init]` line with `schema v5`. **No `hidden` or `updateInterval` key survives anywhere in the file** — the v2 and v4 steps sweep them from every profile, not just the active one, so check an inactive profile block too.
 52. *(Optional)* Hand-delete one profile key from the SV file, log in → that key restored to default, others untouched, no error.
 
 ### J. Class-color overrides
@@ -184,7 +186,7 @@ to look different*, so check them against the expected output written here, **no
 96. `/at perf` full A/B run: start → measure A → measure B → finish → report → dump. The step panel renders, the console shows the run, and `AbsorbTrackerPerfDB` gains a record.
 97. **The parity capture.** Re-run the guided perf capture against the same target as the pre-extraction run, and diff bucket **call counts** and **presence** against the figures quoted in [`docs/investigations/2026-07-30-extraction-parity/analysis.md`](./investigations/2026-07-30-extraction-parity/analysis.md). Commit the result as a bundle under `docs/perf-analysis/<YYYYMMDD-HHMMSS>/`. Bucket figures moving is a bug in the extraction, not a measurement artifact — the extraction moved code between files, not between brackets.
 98. `/reload` → debug state is **off** again (session-only), bar position and profile survive.
-99. **The degraded load.** Rename `libs/LibKa0s/` aside, `/reload` → **zero Lua errors**; `/at` still answers and the host verbs still work; `/at list` is **complete** (every `units.<unit>.*` appearance path present — `settings/Appearance.lua` must finish loading even with no panel library); `/at config` prints **one** honest MISSING line naming `libs/LibKa0s` and opens nothing. Rename the folder back and `/reload`. (What this pins: `settings/OptionsSetup.lua`'s stub is load-completing, not member-answering — a nil `LSMValues` would abort `settings/Appearance.lua` at load and silently take most of the schema with it. `tests/test_perf.lua`'s `loadDegraded()` asserts this headlessly; this is the one in-game walk of it.)
+99. **The degraded load.** Rename `libs/LibKa0s/` aside, `/reload` → **zero Lua errors**; `/at` still answers and the host verbs still work; `/at config` prints **one** honest MISSING line naming `libs/LibKa0s` and opens nothing. Then walk the composed-row verbs: `/at disable` → the bars go away and **stay away** through a target swap; `/at enable` → they come back; `/at unlock` → the bars show their placeholder and can be dragged; `/at lock` → locked again. Then the slash stub itself: `/at help` → a header and one **plain** row per verb (`/at list  List every setting and its current value`, no gold, no em dash); `/at list` → exactly `/at list is unavailable: the LibKa0s library did not load.`, one line. No Lua error at any step. Rename the folder back and `/reload`. (What this pins: `settings/OptionsSetup.lua`'s stub is load-completing, not member-answering — a nil `LSMValues` would abort `settings/Appearance.lua` at load and silently take most of the schema with it — and its five composers are **hollow**, so `enabled` and `locked` have no row on this load. The verbs still land because `settings/Schema.lua` lists both paths in `writeThrough` and its announce runs the host's own reaction. `tests/test_perf.lua`'s `loadDegraded()` pins the row counts headlessly and `tests/test_optionssetup.lua` drives the verbs; this is the one in-game walk of it.)
 
 100. **The page-wide controls are in the chrome band, above the strip.** ⚠ They moved: both mirror controls were drawn into the **scroll**, under the tab strip, which is what options-ui-§14 forbids for a control that applies to every tab. Appearance → **Target**: the **Unit** picker sits at the top of the pinned band, **Use same styling as Player** and **Copy styling from Player** sit side by side under it — still in the band, above the hairline rule and above the tabs — and the **scroll** below the strip starts with the selected tab's own rows and nothing else. Scroll the page: the picker and the two mirror controls **do not move**, because they are not in the scroll. Click through all five tabs: they stay put and stay identical on every one, which is the property that was lost while they lived under the strip. Then switch the picker to **Player**: the two mirror controls disappear and the band shrinks by exactly one row, with the tab strip and the whole page moving up to meet it — no gap left behind, no tab drawn over the picker.
 101. **A raise inside the chrome block costs the block, not the page.** Temporarily break the block — e.g. edit `settings/UnitPanel.lua` and put `error("smoke")` at the top of `buildChromeBlock` — `/reload`, then open Appearance → Target. Expect: **one** `page header failed to build: …` line naming the failure, and the tab strip plus the selected tab's rows **still drawn** under an empty band. Pre-adoption the whole body aborted behind `RenderUnitPanel`'s outer pcall and the page came up with no strip and no rows either. Revert the edit and `/reload`. (What this pins: `H.PageHeader` pcalls and reports the builder. `tests/test_helpers.lua` asserts it headlessly; this is the in-game walk.)
@@ -377,11 +379,11 @@ spec or content is needed.
 **What this addon actually reads from the client in the player's language.** Two seams, and they are
 the whole list:
 
-- **`AbbreviateNumbers`** — the bar's value text (`modules/Display.lua:412`), the `/at test` line
-  (`settings/Slash.lua:349`, `:353`) and three debug lines (`core/AbsorbTracker.lua:204`, `:206`,
-  `:282`). Blizzard localizes both the suffix and the grouping: `1.2M` on enUS is not what a deDE
+- **`AbbreviateNumbers`** — the bar's value text (`modules/Display.lua:427`), the `/at debug hold` line
+  (`settings/Slash.lua:303`, `:328`) and three debug lines (`core/AbsorbTracker.lua:230`, `:232`,
+  `:308`). Blizzard localizes both the suffix and the grouping: `1.2M` on enUS is not what a deDE
   client returns for the same number.
-- **`UnitClass`** — `core/Data.lua:227` and `core/CoreSetup.lua:59` both `pcall` it and take the
+- **`UnitClass`** — `core/Data.lua:205` and `core/CoreSetup.lua:60` both `pcall` it and take the
   **third** return, the English class token (`PRIEST`), never the first, which is the class name in
   the player's language. `bgClassColors` is keyed on the token, so the class colors are supposed to
   be locale-independent by construction. That is the claim this step checks rather than assumes.
@@ -398,7 +400,7 @@ regression, and it is not what this section is looking for.
 
 110. **The value text renders and fits.** Log in on the non-English client with the player bar
      visible. Take an absorb worth a few hundred (Power Word: Shield), then one worth over a
-     million (a fully stacked shield on a geared character, or `/at test 1500000`, which drives the
+     million (a fully stacked shield on a geared character, or `/at debug hold 1500000`, which drives the
      same `AbbreviateNumbers` call for a held number of seconds).
 
      **Pass** — the number renders in the client's own convention, whatever that is, and stays
@@ -429,7 +431,7 @@ regression, and it is not what this section is looking for.
 
 **Sign-off without a non-English client.** Steps 110 to 112 all read the same two seams, and the
 headless suite reaches neither: `tests/wow_mock.lua:26` defines `AbbreviateNumbers` as
-`function(n) return tostring(n) end`, so `tests/test_display.lua:813` proves the value is *routed* to
+`function(n) return tostring(n) end`, so `tests/test_display.lua:766` proves the value is *routed* to
 it and nothing about what it *renders*; and the class-color cases (`GetBarColor`, `GetBgColor`,
 `GetBorderColor`, `GetFontColor`, and `class color on a target bar is the TARGET's class`) feed the
 mock's own English token in, which is the answer they are checking for. So there is no headless
@@ -437,7 +439,7 @@ stand-in to sign this off with, and **English steps are not sufficient** here �
 `ConsumableMaster` § 3c, where the numeric-subclass cases genuinely do stand in. Until the pass runs,
 the honest state of this section is unrun, and it is recorded that way rather than as coverage.
 
-### U. The launcher — the minimap button and the broker plugin (LibKa0s v1.39.0, launcher-§1–§4)
+### U. The launcher — the minimap button and the broker plugin (LibKa0s v1.39.0, options menu v1.58.0, launcher-§1–§4)
 
 The one section whose failures are all SILENT: a wrong icon path or a wrong TGA format draws nothing
 and raises nothing, and a second click implementation agrees with the first until the day it does
@@ -451,16 +453,27 @@ not. Every step here is therefore a look, not a log line.
    the ring — it follows, and stays where you left it after a `/reload`. (That is LibDBIcon writing
    `minimapPos` into `db.global.minimap`; if it snaps back, the launcher was handed a copy of that
    table rather than the table itself.)
-3. **LEFT-click toggles the lock** — the bars become draggable and paint their placeholder fill, and
-   a second left-click pins them again. Exactly what **General ▸ Master controls ▸ Lock frame** does,
-   because it is the same write: open the panel, leave it open, and left-click the button — the
-   checkbox moves with it.
-4. **Left-click in combat is refused.** Pull something, and while locked, left-click the button: chat
-   says `Cannot unlock the bars during combat` and nothing unlocks. Re-locking mid-combat is always
-   allowed, so you can never be stranded unlocked.
-5. **RIGHT-click opens the settings panel**, on its landing page, wherever the left click sits.
+3. **LEFT-click opens the settings panel**, on its landing page (launcher-§2, LibKa0s-Launcher
+   minor 4). Hover first: the tooltip ends `Left-click: Open settings` / `Right-click: Options menu`.
+4. **RIGHT-click opens the options menu**: the client's own context menu, titled
+   `Ka0s Absorb Tracker`, with exactly two checkboxes, **Enabled** (ticked) and **Locked** (ticked
+   while the bars are locked). No Test mode and no Show window entry. Click **Locked**: the bars
+   become draggable and paint their placeholder fill, and chat echoes `locked = false` — the same
+   line `/at unlock` prints, because it is `/at unlock`'s handler. Open the panel, leave it open,
+   right-click again and tick **Locked**: the bars pin, chat says `locked = true`, and **Lock frame**
+   moves with it.
+5. **Locked in combat is refused.** Pull something and, while locked, right-click and click
+   **Locked**: chat says `Cannot unlock the bars during combat` and nothing unlocks — the verb's own
+   refusal. Re-locking mid-combat is always allowed, so you can never be stranded unlocked. Then
+   click **Enabled** out of combat: chat echoes `enabled = false` and the bars stop drawing; open the
+   menu again and **Locked** reads `Locked (enable the addon first)`, grayed. Click **Enabled** to
+   turn it back on.
 6. **The visibility row.** Untick **General ▸ Master controls ▸ Minimap button**: the button vanishes
    **immediately**, not on the next reload. Tick it back: it returns, at the angle you dragged it to.
+   The CLI reads the row in the same sense: with the button shown, `/at get global.minimap.shown`
+   answers `global.minimap.shown = true`, and `/at get global.minimap.hide` answers `Setting not
+   found` (the path was renamed; the stored key under it was not). Untick the row, `/reload`: the
+   button is still hidden and the `get` answers `false`.
 7. **It survives a profile switch.** With the button hidden, switch profiles on the Profiles page.
    The button stays hidden — it is installation furniture, not a profile setting.
 8. **Reset all settings does not bring it back.** With the button hidden, press **Reset all settings**
@@ -474,17 +487,17 @@ not. Every step here is therefore a look, not a log line.
 10. **A broker display, if you have one.** Install Titan Panel / Bazooka / use ElvUI's data texts and
     add the plugin. Its row reads **`Ka0s Absorb Tracker`** in plain text — the brand name, filed
     beside the other Ka0s addons rather than alphabetically away from them — wearing the same logo,
-    and it answers the left and right clicks exactly as the minimap button does, because it is the
-    same object. There is deliberately **no setting** that hides the addon from a broker display;
+    and it answers the left click (settings) and right click (the same options menu) exactly as the
+    minimap button does, because it is the same object. There is deliberately **no setting** that hides the addon from a broker display;
     the display has its own per-plugin toggle.
 11. **`/at enable` / `/at disable`.** `/at disable` echoes `enabled = false` and the bars stop
     drawing. **Then check the way back is still open:** `/at` still opens the panel, `/at help` still
     lists every verb, and `/at enable` turns it back on. That is the MUST slash-commands-§2 makes,
     and the one that keeps the pair from being a one-way switch.
 12. **A disabled addon refuses a feature verb, and does not act.** Still disabled, run `/at toggle`,
-    `/at unlock`, `/at update` and `/at test 100000`. Each answers with **one** `[AT]` line naming
-    `/at enable`, and nothing happens — no bar appears, nothing becomes draggable, no fake value is
-    painted. Then confirm the repair verbs are still live: `/at list`, `/at get scale`,
+    `/at unlock`, `/at update` and `/at debug hold 100000`. Each answers with **one** `[AT]` line
+    naming `/at enable`, and nothing happens — no bar appears, nothing becomes draggable, no fake
+    value is painted. `/at debug` itself stays live: `/at debug events` still answers. Then confirm the repair verbs are still live: `/at list`, `/at get scale`,
     `/at set scale 1.2`, `/at profile list`, `/at resetposition` and `/at perf` all still answer.
     Turn it back on with `/at enable`.
 13. **The disabled state is TOTAL, not a draw gate** (slash-commands-§7). `/at debug on`, then
@@ -495,12 +508,12 @@ not. Every step here is therefore a look, not a log line.
     next shield repaints them without a `/reload`. What this pins is the difference between standing
     down and declining to react — with a draw gate every one of those lines still appears, because
     the handlers still run.
-14. **A disabled addon's minimap click writes nothing** (launcher-§2). Still disabled, note whether
-    the bars are locked, then **left-click the minimap button**. It answers with the **same one line**
-    `/at unlock` gives — word for word, because both come out of the dispatcher — and the lock does
-    **not** move. **Right-click** still opens the settings panel, and the *Enable Absorb Tracker*
-    checkbox on Master controls is live there. Re-tick it and the bars come back, which is the second
-    route in and the reason the panel is exempt.
+14. **A disabled addon's minimap button writes nothing** (launcher-§2). Still disabled, note whether
+    the bars are locked, then **right-click the minimap button**. The menu's **Locked** entry is
+    grayed and reads `Locked (enable the addon first)`; clicking it does nothing and the lock does
+    **not** move. **Enabled** is live and unticked. **Left-click** opens the settings panel, and the
+    *Enable Absorb Tracker* checkbox on Master controls is live there. Re-enable from either — the
+    menu's **Enabled** or the checkbox — and the bars come back.
 15. **The two holds do not fight.** `/at perf start`, `/at perf measure b` (the addon suspends), then
     `/at disable` mid-run, then `/at perf finish`. The finish line reads **`perf hold RELEASED — the
     addon stays down`** rather than `RESUMED`, and the bars stay gone — the player switched the

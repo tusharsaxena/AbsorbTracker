@@ -136,3 +136,31 @@ test("core: the addon still prints, tagged, with LibKa0s absent", function()
   assertEqual(out[2], NS2.PREFIX .. " first line")
   assertEqual(out[3], NS2.PREFIX .. " second line")
 end)
+
+test("core: the degraded SafeRegisterEvent isolates a raise and lists the name once", function()
+  -- red under: a stub body without the pcall (the target's raise escapes the helper).
+  local Loader = dofile("tests/_kit/loader.lua")
+  local buildMocks = dofile("tests/wow_mock.lua")
+  Loader.addonName = "AbsorbTracker"
+  local mocks2, NS2 = buildMocks(), {}
+  Loader.loadAll({
+    "core/EnvSetup.lua", "core/Constants.lua", "core/Namespace.lua", "core/CoreSetup.lua",
+  }, NS2, mocks2)
+
+  local target = {
+    RegisterEvent = function(_, event) if event == "BAD_EVENT" then error("unknown event") end end,
+    RegisterUnitEvent = function(_, event) if event == "BAD_EVENT" then error("unknown event") end end,
+  }
+  local rejected = {}
+  local ok, answer = pcall(NS2.SafeRegisterEvent, target, "BAD_EVENT", "Handler", rejected)
+  assertTrue(ok, "the degraded SafeRegisterEvent let the target's raise escape: " .. tostring(answer))
+  assertEqual(answer, false)
+  assertEqual(#rejected, 1)
+  assertEqual(rejected[1], "BAD_EVENT")
+  NS2.SafeRegisterEvent(target, "BAD_EVENT", "Handler", rejected)
+  assertEqual(#rejected, 1, "a name already listed is not appended again")
+  assertEqual(NS2.SafeRegisterEvent(target, "GOOD_EVENT", "Handler", rejected), true)
+  assertEqual(NS2.SafeRegisterUnitEvent(target, "BAD_EVENT", rejected, "player"), false)
+  assertEqual(#rejected, 1)
+  assertEqual(NS2.SafeRegisterEvents(target, { "GOOD_EVENT", "BAD_EVENT", "OTHER" }, "H", rejected), 2)
+end)

@@ -81,8 +81,8 @@ function addon:OnEnable()
     -- shared frame with plain RegisterEvent and has no unit filtering, so routing these two through
     -- AceEvent would pay a full C→Lua dispatch for every unit only to discard all but ours.
     --
-    -- events-frames-taint-§1 deviation (see docs/ARCHITECTURE.md): register them on private frames via
-    -- RegisterUnitEvent instead, so the client filters at the C level and OnEvent never fires for
+    -- The events-frames-taint-§1 unit-filter carve-out (see docs/ARCHITECTURE.md): register them on
+    -- private frames via RegisterUnitEvent instead, so the client filters at the C level and OnEvent never fires for
     -- other units. (The rest are global, payload-free events and stay on AceEvent.)
     --
     -- Extracted to its own method (rather than inlined here, as the original brief had it) purely
@@ -111,15 +111,41 @@ function addon:OnEnable()
     -- is emitted from DebugLog:SetEnabled on enable, the only point where it is current and visible.
 end
 
--- The three always-on, unit-agnostic registrations. Extracted from OnEnable so the perf probe's
--- Resume() restores exactly the set Suspend() tore down, rather than a hand-maintained copy of it
--- that could drift the moment a fourth event is added here (core/PerfSetup.lua). The per-unit and
--- swap registrations are NOT part of this set — SyncUnitEventFrames owns those, because they
--- depend on which units are currently enabled.
+-- EVERY REGISTRATION BELOW GOES THROUGH LibKa0s-Core's SafeRegister helpers (events-frames-taint-§1),
+-- published as NS.SafeRegisterEvent / NS.SafeRegisterUnitEvent by core/CoreSetup.lua. The client
+-- raises on a name it does not know, and a block of bare RegisterEvent calls loses every line after
+-- the one that raised: one event retired by a patch would take the whole enable path down. Through
+-- the helpers a refused name costs only itself, lands once in the session list
+-- NS.State.rejectedEvents (read back by `/at debug events` and the [Init] summary), and says so on
+-- the Events debug tag. StandUp inherits all seven call sites through the two methods below.
+local function noteRejected(ok, event)
+    if not ok then NS.Debug("Events", "rejected %s", event) end
+    return ok
+end
+
+local function safeRegister(target, event, handler)
+    return noteRejected(NS.SafeRegisterEvent(target, event, handler, NS.State.rejectedEvents), event)
+end
+
+local function safeRegisterUnit(frame, event, unit)
+    return noteRejected(NS.SafeRegisterUnitEvent(frame, event, NS.State.rejectedEvents, unit), event)
+end
+
+-- The three always-on, unit-agnostic registrations, as { event, method } pairs.
+local LIFECYCLE_EVENTS = {
+    { "PLAYER_ENTERING_WORLD", "OnEnterWorld" },
+    { "PLAYER_REGEN_DISABLED", "OnEnterCombat" },
+    { "PLAYER_REGEN_ENABLED",  "OnLeaveCombat" },
+}
+
+-- Extracted from OnEnable so the latch's StandUp restores exactly what StandDown tore down
+-- (core/Lifecycle.lua), rather than a hand-maintained copy of the set that could drift the moment
+-- a fourth event is added here. The per-unit and swap registrations are NOT part of this set —
+-- SyncUnitEventFrames owns those, because they depend on which units are currently enabled.
 function addon:RegisterLifecycleEvents()
-    self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnterWorld")
-    self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnEnterCombat")
-    self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnLeaveCombat")
+    for _, pair in ipairs(LIFECYCLE_EVENTS) do
+        safeRegister(self, pair[1], pair[2])
+    end
 end
 
 -- One private RegisterUnitEvent frame PER UNIT, registered only while that unit's bar is enabled.
@@ -161,8 +187,8 @@ function addon:SyncUnitEventFrames()
         if NS.Units.IsEnabled(unit) then
             -- RegisterUnitEvent replaces any prior registration for the same event on this frame,
             -- so re-registering an already-registered unit is a harmless no-op.
-            f:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", unit)
-            f:RegisterUnitEvent("UNIT_MAXHEALTH", unit)
+            safeRegisterUnit(f, "UNIT_ABSORB_AMOUNT_CHANGED", unit)
+            safeRegisterUnit(f, "UNIT_MAXHEALTH", unit)
         else
             f:UnregisterAllEvents()
         end
@@ -173,12 +199,12 @@ function addon:SyncUnitEventFrames()
     -- there is nothing to re-evaluate, and PLAYER_TARGET_CHANGED in particular fires constantly in
     -- ordinary play. AceEvent's Unregister is safe to call when not registered.
     if NS.Units.IsEnabled("target") then
-        self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnUnitSwap")
+        safeRegister(self, "PLAYER_TARGET_CHANGED", "OnUnitSwap")
     else
         self:UnregisterEvent("PLAYER_TARGET_CHANGED")
     end
     if NS.Units.IsEnabled("focus") then
-        self:RegisterEvent("PLAYER_FOCUS_CHANGED", "OnUnitSwap")
+        safeRegister(self, "PLAYER_FOCUS_CHANGED", "OnUnitSwap")
     else
         self:UnregisterEvent("PLAYER_FOCUS_CHANGED")
     end
@@ -309,18 +335,24 @@ local function adoptProfile(tag, fmt, ...)
     NS.Debug(tag, fmt, ...)
     -- THE NEW PROFILE CARRIES ITS OWN `enabled`, and AceDB replaced the whole table without any
     -- verb or checkbox being touched -- so the row's onChange never fired and the latch has not
-    -- heard about it. Re-read the store and re-evaluate: a player switching to a profile where the
-    -- addon is on expects it to come up, and one switching the other way expects it to go inert.
-    -- Reevaluate fires a callback only on an actual edge, so a profile that agrees with the old one
-    -- costs nothing. Before the publishes below, so a stand-up has resubscribed the bus by the time
-    -- they land -- and so a stand-down leaves them reaching nobody, which is correct.
+    -- heard about it. Re-read the store into the `disabled` hold: a player switching to a profile
+    -- where the addon is on expects it to come up, and one switching the other way expects it to go
+    -- inert. The latch's Set already re-evaluates and fires a callback only on an actual edge, so a
+    -- profile that agrees with the old one costs nothing and no second Reevaluate is needed. Before
+    -- the publishes below, so a stand-up has resubscribed the bus by the time they land -- and so a
+    -- stand-down leaves them reaching nobody, which is correct.
+    local wasDown = NS.lifecycle:IsDown()
     NS.SyncEnabledHold()
-    NS.lifecycle:Reevaluate()
     -- The new profile carries its own enable flags, so the event registrations have to follow it.
     NS.bus:SendMessage(NS.MSG.UNITS)
-    NS.bus:SendMessage(NS.MSG.POSITION)
-    NS.bus:SendMessage(NS.MSG.APPEARANCE)
-    NS.bus:SendMessage(NS.MSG.REPAINT)
+    -- The bar passes, unless the latch just stood up: StandUp (core/Lifecycle.lua) has already
+    -- published POSITION, APPEARANCE and REPAINT from the new profile, and a second round would run
+    -- every three-bar appearance pass twice.
+    if not (wasDown and not NS.lifecycle:IsDown()) then
+        NS.bus:SendMessage(NS.MSG.POSITION)
+        NS.bus:SendMessage(NS.MSG.APPEARANCE)
+        NS.bus:SendMessage(NS.MSG.REPAINT)
+    end
     if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
 end
 

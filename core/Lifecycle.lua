@@ -40,7 +40,7 @@ local addonName, NS = ...
 --     two swap events
 --   * every RegisterMessage on the internal bus (the LibKa0s-Bus-1.0 record core/Bus.lua keeps)
 --
--- and every timer is canceled: the coalescing repaint (modules/Timer.lua) and the `/at test`
+-- and every timer is canceled: the coalescing repaint (modules/Timer.lua) and the `/at debug hold`
 -- preview hold (modules/Display.lua). The bars go down through the SHOW LADDER rather than by an
 -- imperative Hide — NS.ShouldShowBar already answers no on both rungs — because a hidden frame
 -- comes back on a combat transition, a target swap or a settings change, and then the addon is
@@ -62,9 +62,10 @@ local lib = LibStub and LibStub("LibKa0s-Lifecycle-1.0", true)
 
 -- The five AceEvent registrations core/AbsorbTracker.lua makes on the addon object. Named once,
 -- here, so the teardown cannot fall short of the build-up: RegisterLifecycleEvents owns the first
--- three and SyncUnitEventFrames owns the last two, and a sixth added there without a line here
--- would be the survivor the whole section exists to catch. tests/test_disabled.lua compares the
--- sets rather than trusting this list.
+-- three and SyncUnitEventFrames owns the last two, all five through NS.SafeRegisterEvent (the
+-- LibKa0s-Core helper, so a refused name is simply never registered and needs no teardown), and a
+-- sixth added there without a line here would be the survivor the whole section exists to catch.
+-- tests/test_disabled.lua compares the sets rather than trusting this list.
 local ADDON_EVENTS = {
     "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
     "PLAYER_TARGET_CHANGED", "PLAYER_FOCUS_CHANGED",
@@ -170,8 +171,8 @@ if not lib then
         end,
         Reevaluate = function() return reevaluate() end,
         PrintHolds = function(self)
-            NS.Print(("%s: %s"):format(addonName,
-                #self:Holds() > 0 and table.concat(self:Holds(), ", ") or "no holds"))
+            NS.Print(addonName .. ":",
+                #self:Holds() > 0 and table.concat(self:Holds(), ", ") or "no holds")
             return true
         end,
     }

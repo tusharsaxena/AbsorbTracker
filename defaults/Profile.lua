@@ -101,18 +101,22 @@ NS.defaults.profile = {
 }
 
 NS.defaults.global = {
-    -- Persisted-DB schema version. NS:RunMigrations (core/Database.lua) reads/writes this once
-    -- at init — the idempotent seam future schema changes hook into. v3 introduced profile.units;
-    -- v4 dropped the dead `hidden` global; v5 mapped `showOnlyInCombat` onto `visibility`.
+    -- Persisted-DB schema version. NS:RunMigrations (core/Database.lua) reads it once at init and
+    -- is the only writer: it advances the stamp to a step's `to` only after that step returned, and
+    -- its target is NS.SCHEMA_VERSION, derived from the ladder's last step. v2 retired the
+    -- poll-interval key, v3 introduced profile.units, v4 dropped the dead `hidden` global and v5
+    -- mapped `showOnlyInCombat` onto `visibility`.
     --
-    -- The default is 1 ("pre-ladder"), NOT the current 5, for exactly the reason the per-profile
-    -- stamp above is 1: AceDB-3.0's copyDefaults fills every ABSENT key the moment the section is
-    -- instantiated, which happens BEFORE NS:RunMigrations reads it. A default of 5 would stamp
-    -- every freshly-materialized global as already-migrated, so `g.schemaVersion < step.to` is
-    -- false for every step and the ladder is structurally dead — including for a DB whose global
-    -- was wiped while its profiles still carried pre-v5 data. Every step is idempotent, so running
-    -- the ladder on a genuinely new install costs four no-ops and stamps 5.
-    schemaVersion = 1,
+    -- The default is 0, the pre-migration floor, and never the current version (savedvariables-§1).
+    -- AceDB's removeDefaults strips every stored value equal to its default at logout, so a stamp
+    -- that defaulted to the current version would never persist and the next raise of the version
+    -- would drag the default up with it, skipping the first real migration for every existing user.
+    -- And AceDB's defaults merge backfills a declared default onto a legacy account that stored no
+    -- stamp, so a default above 0 makes such an account read as already past those steps. 0 has
+    -- neither problem: a stamp the runner advanced differs from it and persists, and an account
+    -- with no stamp reads 0 and runs every step. Every step is idempotent, so a genuinely new
+    -- install costs five no-ops and is stamped 5.
+    schemaVersion = 0,
 
     -- LibDBIcon's OWN table, handed to it whole by core/LauncherSetup.lua (launcher-§3). Declaring
     -- it here is what MATERIALIZES it: AceDB's copyDefaults fills it in the moment the global
@@ -142,6 +146,6 @@ NS.defaults.global = {
 -- per-profile schema stamp and the `units` table.
 NS.flatDefaults = NS.defaults.profile
 
--- Per-unit default alias. settings/{Bar,Border,Font}.lua read each row's `default =` from here,
+-- Per-unit default alias. settings/Appearance.lua reads each row's `default =` from here,
 -- so every unit's rows share one canonical default regardless of which unit generated them.
 NS.unitDefaults = NS.defaults.profile.units.player

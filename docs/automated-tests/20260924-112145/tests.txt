@@ -1,0 +1,768 @@
+  PASS  loadorder: tocFiles returns every addon lua file, in TOC order
+  PASS  loadorder: core/MediaSetup.lua loads before core/Constants.lua
+  PASS  loadorder: tocFiles skips libs, directives and comments
+  PASS  loadorder: tocFiles converts backslashes to forward slashes
+  PASS  loadorder: every derived path exists on disk
+  PASS  loadorder: the runner loaded exactly the TOC's files, in the TOC's order
+  PASS  loadorder: tests/perf.lua derives its list from the TOC too
+  PASS  loadorder: xmlFiles returns every LibKa0s script the vendored XML lists, in its order
+  PASS  loadorder: the runner loaded exactly the vendored XML's library files, in its order
+  PASS  loadorder: the loaded library registered — NS.Perf is the lib, not the degradation stub
+  PASS  loadorder: tests/perf.lua derives its library half from the vendored XML too
+  PASS  loadorder: LibStub raises for a missing major without the silent flag
+  PASS  loadorder: LibStub returns nil for a missing major with the silent flag
+  PASS  loadorder: LibStub keeps the higher minor when a major registers twice
+  PASS  FormatSchemaValue formats by type
+  PASS  SchemaForPage keeps groups in registration order, which IS the Appearance tab strip
+  PASS  the page -> tab -> row-count partition is the designed one
+  PASS  no tab holds fewer than two visible controls
+  PASS  ValidateSchema resolves every real path against defaults (0 errors, 0 missing)
+  PASS  ValidateSchema reports a planted path that does not resolve against defaults
+  PASS  ValidateSchema flags an invalid page/type as a shape error
+  PASS  ValidateSchema prints through NS.Print, resolved at call time, with no hand-typed tag
+  PASS  every schema row carries a label and a tooltip description
+  PASS  every schema path is unique
+  PASS  every schema row declares a default
+  PASS  every row's default matches the value in defaults.profile
+  PASS  every persisted profile default is reachable from a schema row
+  PASS  every number row declares a usable min/max range
+  PASS  every string row supplies a values source
+  PASS  every row on every page carries a `group`
+  PASS  every color row is immediately followed by its class-color companion
+  PASS  no color row carries `disabledIf`, and every pair declares whose class it means
+  PASS  every media-backed row answers a populated option list
+  PASS  `disabledIf` names a real sibling setting
+  PASS  every schema row lands on a page the panel actually builds
+  PASS  FindSchemaRow returns the row for a known path and nil for an unknown one
+  PASS  SetByPath writes the value and fires the row's own onChange with it
+  PASS  a write stores, then logs its [Set] line, then runs the row's onChange, once each
+  PASS  SetByPath falls back to broadcasting APPEARANCE for a row with no onChange
+  PASS  the schema runtime is LibKa0s-Schema-1.0's, over the live schema array
+  PASS  the minimap row survives a sweep, and a named reset still resets it
+  PASS  SetByPath refuses a path with no schema row, and stores nothing
+  PASS  SetByPath stores a table value as a copy, so the caller's table never aliases the store
+  PASS  ApplyDefault deep-copies a color table so profiles never share one
+  PASS  ApplyDefault is a no-op for a row with no default
+  PASS  ResolvePath walks a dotted path
+  PASS  ResolvePath returns nil for a missing branch instead of raising
+  PASS  ResolvePath still handles a flat key
+  PASS  SetPath writes through a dotted path and creates intermediate tables
+  PASS  GetSetting and SetByPath round-trip a dotted path
+  PASS  ValidateSchema resolves nested paths against defaults.profile
+  PASS  SchemaForPage with no unit returns every unit's rows
+  PASS  SchemaForPage filtered to a unit excludes the other units' rows
+  PASS  the appearance page carries a full row set for all three units
+  PASS  each unit's row set for a page is the same size
+  PASS  the enable row is per-unit, lives on General, and survives mirroring
+  PASS  the Master controls tab is the canonical set, in order, and leads the General page
+  PASS  there is no Test mode row beside Lock frame
+  PASS  Reset all settings returns the lock to its shipped default
+  PASS  the Bars tab is the three enable toggles then the throttle, under their own headings
+  PASS  the mirror row exists for target and focus but not the player
+  PASS  the mirror row is kept out of the auto-rendered body
+  PASS  General's rows are the flat globals plus one enable toggle per unit
+  PASS  FormatSchemaValue resolves the Slash major at load, never per call
+  PASS  a build without LibKa0s-Slash-1.0 falls back to a minimal FormatSchemaValue
+  PASS  degraded Schema stub: SetMany refuses the whole batch on one invalid entry
+  PASS  degraded Schema stub: SetMany refuses an unknown path with its index
+  PASS  degraded Schema stub: a valid SetMany stores both, reacts once each, announces per write
+  PASS  degraded Schema stub: SetMany announces once through announceBatch when given
+  PASS  degraded Schema stub: a writeThrough path with no row stores raw and announces a synthetic row
+  PASS  degraded Schema stub: a row-less path outside writeThrough is still refused
+  PASS  degraded Schema stub: row.normalize's answer is stored, and a nil answer refuses
+  PASS  degraded Schema stub: Get forwards the instance id to a row's own get
+  PASS  degraded Schema stub: ApplyDefault forwards the instance id to Set
+  PASS  RunMigrations migrates a fresh DB to the current version (5)
+  PASS  a freshly-materialized global runs the ladder, because its default is pre-ladder
+  PASS  RunMigrations leaves an already-current (v5) DB unchanged
+  PASS  RunMigrations is idempotent across repeated runs
+  PASS  RunMigrations v2 retires the legacy updateInterval profile key
+  PASS  the account-wide schemaVersion default is 0 (savedvariables-§1)
+  PASS  NS.SCHEMA_VERSION is the highest ladder step's `to`
+  PASS  v2 clears updateInterval from every stored profile, not only the active one
+  PASS  a step that raises leaves the stamp unmoved and says so once in chat
+  PASS  RunMigrations backfills throttleWindow from flatDefaults
+  PASS  RunMigrations backfills a missing scalar per-unit key from the defaults
+  PASS  RunMigrations deep-copies per-unit table defaults (no shared reference to defaults)
+  PASS  RunMigrations does not overwrite an existing user value
+  PASS  RunMigrations is a safe no-op when the DB is absent
+  PASS  RunMigrations logs [Migrate] only when a version bump happens
+  PASS  RunMigrations emits the [Migrate] lines for a v1->v5 upgrade in order
+  PASS  InitDB produced a profile carrying every default key
+  PASS  v3 migration lifts flat appearance keys onto the player unit
+  PASS  v3 migration seeds target and focus disabled and mirrored
+  PASS  v3 migration leaves the remaining global keys flat
+  PASS  v4 drops the dead `hidden` key from every profile, not just the active one
+  PASS  v5 maps showOnlyInCombat onto visibility on every profile, not just the active one
+  PASS  v5 leaves a profile that never had the boolean on the shipped default
+  PASS  v4 does not resurrect `hidden` via the defaults backfill
+  PASS  v3 migration is idempotent
+  PASS  v3 migration does not share nested tables between units
+  PASS  the schema version lands on 5
+  PASS  real AceDB init: a legacy flat profile is lifted onto the player unit, not overwritten by fresh defaults
+  PASS  real AceDB init: a fresh install (no saved data) converges on factory defaults at v5
+  PASS  InitDB lifts EVERY saved profile, not only the active one
+  PASS  a profile that appears AFTER the upgrade is lifted when it becomes active
+  PASS  the InitDB sweep and the profile-change lift compose without double-applying
+  PASS  the per-profile stamp defaults to 1 so copyDefaults cannot mark a pre-v3 profile migrated
+  PASS  a fresh install logs no [Migrate] lift line -- nothing was actually lifted
+  PASS  a real upgrade still logs the lift, with an accurate count
+  PASS  profile adopt: a same-state switch publishes APPEARANCE once
+  PASS  profile adopt: an off-to-on switch publishes APPEARANCE once, not twice
+  PASS  profile adopt: an on-to-off switch stands down and delivers nothing
+  PASS  LIST is player, target, focus in render order
+  PASS  Get reads the unit's own value when it is not mirrored
+  PASS  Get resolves to the player's value when the unit is mirrored
+  PASS  player is never mirrored even if a mirror key is force-written
+  PASS  Position is never mirror-resolved
+  PASS  SetPosition writes the unit's own position while mirrored
+  PASS  CopyFromPlayer snapshots every appearance key and clears the mirror
+  PASS  a copied unit does not track later player changes
+  PASS  CopyFromPlayer deep-copies color tables rather than sharing them
+  PASS  CopyFromPlayer leaves position and enabled alone
+  PASS  CopyFromPlayer is a no-op for the player itself
+  PASS  CopyFromPlayer writes every key through the settings seam
+  PASS  CopyFromPlayer logs one [Set] copy line with its row count, and no per-row line
+  PASS  IsEnabled reads the per-unit flag and ignores the global hidden toggle
+  PASS  target and focus ship disabled so an upgrade changes nothing on screen
+  PASS  target and focus ship mirrored so a first enable looks like the player bar
+  PASS  every per-unit appearance row is in APPEARANCE_KEYS, and vice versa
+  PASS  EnvSetup: NS.Meta asks about THIS addon's folder, not its title or its frame prefix
+  PASS  EnvSetup: NS.Meta degrades to nil when the client exposes no manifest reader
+  PASS  EnvSetup: NS.Version prefers the TOC over this addon's own constant
+  PASS  EnvSetup: NS.Version falls back to this addon's own constant
+  PASS  EnvSetup degraded: an install with no LibKa0s still reads its own TOC
+  PASS  EnvSetup degraded: a legacy-only surface yields nil, and the dead global is never called
+  PASS  EnvSetup: the deleted shim is gone, and so is the file that was only ever the shim
+  PASS  core: the secret seam is the library's, not a private copy
+  PASS  core: the perf descriptor names the folder and leaves the close control to the library
+  PASS  core: NS.Print carries the [AT] tag and survives a secret arg
+  PASS  core: NS.Print and NS.Util.print are the same object after the AceConsole reclaim
+  PASS  core: the addon still prints, tagged, with LibKa0s absent
+  PASS  core: the degraded SafeRegisterEvent isolates a raise and lists the name once
+  PASS  MediaSetup: NS.Icon answers the vendored path, extensionless
+  PASS  MediaSetup: an icon the library does not ship answers nil
+  PASS  MediaSetup: NS.MediaFont answers the vendored face, and an unknown face answers nil
+  PASS  MediaSetup: the font this addon names is the face the library registers
+  PASS  MediaSetup: FONT_MONO resolves into the payload, not into this addon's own media/
+  PASS  MediaSetup: every mark this addon's windows draw is one the library ships
+  PASS  MediaSetup: every name the library ships has a file in the vendored copy
+  PASS  MediaSetup: the seam is handed the FOLDER name, never a frame prefix or a literal
+  PASS  MediaSetup: the LSM registration happens at file load, not at OnInitialize
+  PASS  MediaSetup: with no library there is no art, and that is not an error
+  PASS  the console's font resolves through the Media seam to the LibKa0s payload
+  PASS  the descriptor tells the library the FOLDER name, not just the frame name
+  PASS  and it takes that folder name from the vararg, not from a hand-typed literal
+  PASS  the debug flag the library reads and writes is NS.State.debug
+  PASS  the library-absent stub's SetEnabled acks the new state as one space-joined line
+  PASS  NS.Debug is published and reaches the console buffer
+  PASS  our title and our font reach the descriptor
+  PASS  the console checkbox the General page renders is wired to this addon
+  PASS  /at debug on enables session state
+  PASS  /at debug off disables session state
+  PASS  /at debug (no arg) toggles the window, not the state
+  PASS  /at debug on writes an [Init] summary naming our version, schema and profile
+  PASS  the console checkbox label the library renders is prose, not its own STRINGS key
+  PASS  NS.Print survives AceConsole's embed and stays the [AT]-prefixed printer
+  PASS  bare /at opens the settings panel through the config verb, not the help index
+  PASS  /at help prints the help index: header + one row per command
+  PASS  unknown verb prints 'unknown command' then the help index
+  PASS  /at version prints the addon version (slash-commands-§3)
+  PASS  /at get <path> dispatches to the schema read
+  PASS  /at list uses the mandated color scheme (slash-commands-§5)
+  PASS  /at set <path> <value> writes through the schema and preserves path case
+  PASS  /at set clamps out-of-range numbers to the row max
+  PASS  /at options is aliased to /at config (no unknown-command error)
+  PASS  /at config in combat refuses with a gray notice (options-ui-§2)
+  PASS  OpenOptionsPanel logs [Cfg] refused in combat
+  PASS  SetByPath logs one [Set] path = value line (debug-logging-§10)
+  PASS  the schema CLI's list header the library renders is prose, not its own STRINGS key
+  PASS  RequestRepaint coalesces multiple requests into one scheduled repaint
+  PASS  the coalesced repaint paints every tracked unit, not just the player
+  PASS  one coalesced pass counts one repaint, however many bars it painted
+  PASS  a pass in which no bar painted counts no repaint
+  PASS  a pass counts one repaint when only some of the bars painted
+  PASS  RequestRepaint schedules the timer at the throttleWindow delay
+  PASS  RequestRepaint hands AceTimer a clamped number, never the raw stored value
+  PASS  OnAbsorbChanged requests a repaint for the player
+  PASS  OnAbsorbChanged requests a repaint for any tracked unit, not just the player
+  PASS  OnMaxHealthChanged requests a repaint for the player
+  PASS  OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
+  PASS  OnEnterWorld requests a repaint
+  PASS  perf: the addon holds a real LibKa0s-Perf instance
+  PASS  perf: the descriptor declares this addon's buckets, with their nesting
+  PASS  perf: the capture OBSERVES visibility inside appearance, it does not just declare it
+  PASS  perf: a standalone ApplyVisibility claims no parent rather than inventing one
+  PASS  perf: the capture OBSERVES paintBar inside repaintPass, it does not just declare it
+  PASS  perf: a standalone UpdateAbsorbBar claims no parent rather than inventing one
+  PASS  perf: the throttle and console rows publish no restyle, because they have no stake in one
+  PASS  perf: records identify this addon and land in its own global
+  PASS  perf: the ring is reachable through its own global and nowhere in AceDB
+  PASS  perf: brackets record nothing while capture is off
+  PASS  perf: paintBar records when capture is on
+  PASS  perf: paintBar does not count a bar that early-outed
+  PASS  perf: repaintPass records one note per coalesced pass
+  PASS  perf: every declared bucket is reached by a real bracket
+  PASS  perf: suspend hides bars through the visibility ladder
+  PASS  perf: suspend unregisters every unit event frame
+  PASS  perf: suspend unregisters the lifecycle events
+  PASS  perf: resume restores the lifecycle set from one definition
+  PASS  perf: RequestRepaint no-ops while suspended
+  PASS  perf: CancelPendingRepaint drops a queued pass
+  PASS  perf: suspend leaves no repaint queued behind it
+  PASS  perf: the suspended state is session-only, never persisted
+  PASS  perf: lifecycle lines appear even with debug logging OFF
+  PASS  perf: the slash verb dispatches into the lib
+  PASS  debug: the flag still flips and acks with LibKa0s absent
+  PASS  debug: /at debug names the missing library instead of erroring
+  PASS  debug: every member the addon reaches for answers with LibKa0s absent
+  PASS  perf: the schema with LibKa0s absent is the full one minus the composed rows, by tab
+  PASS  perf: the addon loads with LibKa0s absent
+  PASS  perf: /at perf explains itself instead of erroring with LibKa0s absent
+  PASS  perf: the brackets and the show ladder survive LibKa0s being absent
+  PASS  every perf step label the library renders is prose, not its own STRINGS key
+  PASS  Perf: the descriptor hands the library the FOLDER name, not just the frame name
+  PASS  ShouldShowBar: a disabled unit wins even in combat
+  PASS  ShouldShowBar: default (enabled, visibility=always) is shown
+  PASS  ShouldShowBar: combat-only + in combat is shown
+  PASS  ShouldShowBar: combat-only + out of combat is hidden
+  PASS  ShouldShowBar: out-of-combat-only is the mirror of combat-only
+  PASS  ShouldShowBar: never hides the bar in either combat state
+  PASS  ShouldShowBar: an unrecognized visibility mode reads as always
+  PASS  ShouldShowBar: the addon-wide enable gates every unit, whatever the per-unit flag says
+  PASS  ShouldShowBar: combat-only shows when lockdown lags actual combat
+  PASS  SyncUnitEventFrames registers each enabled unit on its own frame, one token each
+  PASS  a disabled unit is registered for nothing at all
+  PASS  enabling a unit registers it and disabling it again unregisters
+  PASS  the target/focus swap events are registered only while that bar is enabled
+  PASS  SyncUnitEventFrames reuses its frames — a re-sync must not leak a new set
+  PASS  the UNITS message re-syncs the registrations
+  PASS  OnEnterCombat applies visibility and requests a repaint
+  PASS  OnLeaveCombat applies visibility and requests a repaint
+  PASS  OnLeaveCombat never opens config, even with a stale panelOpenPending (options-ui-§2)
+  PASS  combat rollup: OnLeaveCombat logs one [Combat] left summary with counts
+  PASS  OnAbsorbChanged is silent on an unchanged value (no per-event spam)
+  PASS  [Absorb] transition logs on a non-secret 0->nonzero change
+  PASS  ShouldShowBar: unlocking bypasses visibility entirely
+  PASS  bus, NewBusTarget, and the message catalog are published
+  PASS  the catalog is exactly the five declared messages, walkable with pairs
+  PASS  a receiver on its own target hears a message, then is silent after unregister
+  PASS  two receivers of one message both fire (no (message,target) clobber)
+  PASS  a message payload reaches the receiver after the message name
+  PASS  REPAINT routes through Timer to one coalesced repaint
+  PASS  APPEARANCE / VISIBILITY / POSITION route to their Display consumers
+  PASS  sending a message with no subscribers is a harmless no-op
+  PASS  the bus record is LibKa0s-Bus-1.0's, built under the folder name
+  PASS  the catalog is strict: an undeclared key raises at the call site
+  PASS  with LibKa0s absent, receivers still get a private working target and nothing is recorded
+  PASS  with LibKa0s absent, a UNITS publish while disabled registers nothing
+  PASS  GetSetting reads the value out of the active profile
+  PASS  GetSetting falls back to flatDefaults when the key is missing from the profile
+  PASS  GetSetting falls back to flatDefaults when the DB is absent entirely
+  PASS  GetSetting returns nil for a key that is neither in the profile nor the defaults
+  PASS  GetSetting returns a stored `false` rather than falling through to the default
+  PASS  SetByPath writes through to the active profile
+  PASS  SetByPath refuses without raising when the DB is absent, and writes nowhere
+  PASS  media fetchers return the hardcoded fallbacks when LSM is absent
+  PASS  media fetchers return the LSM path when LSM resolves the configured key
+  PASS  media fetchers fall back when LSM is present but the key does not resolve
+  PASS  ClearLSMCache lets a late-loading LSM be picked up
+  PASS  LSMValues yields a self-keyed map of the live LSM hash table
+  PASS  GetBarColor returns the stored color when useClassColorBar is off
+  PASS  GetBarColor substitutes the class color but KEEPS the stored alpha
+  PASS  GetBorderColor honors useClassColorBorder and keeps its own alpha
+  PASS  GetBorderColor returns the stored color when the toggle is off
+  PASS  GetBgColor uses the DIMMED class color, not the raw one
+  PASS  GetBgColor returns the stored color when the toggle is off
+  PASS  GetFontColor honors useClassColorText and keeps its own alpha
+  PASS  an unknown class keeps the CONFIGURED color, never a hue invented for the occasion
+  PASS  GetBarAlpha clamps a hand-edited SavedVariable to the slider's own range
+  PASS  GetThrottleWindow clamps a hand-edited SavedVariable to the row's own range
+  PASS  the four class-color toggles are independent of each other
+  PASS  media getters read through the unit's mirror resolution
+  PASS  a media getter with no unit still resolves the player
+  PASS  with LSM present, the media getter resolves the REQUESTED unit's own key, not the player's
+  PASS  GetBarColor reads the requested unit's color
+  PASS  class color on a target bar is the TARGET's class, not the player's
+  PASS  a MIRRORED focus bar reads the player's swatch but takes the focus's class
+  PASS  the background palette is per-unit too, and stays the DARKENED set
+  PASS  three bar frames exist and the retired player aliases stay off the namespace
+  PASS  each bar carries its own unit tag and its own backdrop table
+  PASS  RestoreBarPosition centers the bar when no position is saved
+  PASS  RestoreBarPosition restores the saved anchor verbatim
+  PASS  RestoreBarPosition clears the old anchors before re-anchoring
+  PASS  UpdateBarAppearance sizes the bar from the profile
+  PASS  UpdateBarAppearance derives the backdrop inset from borderSize (floor of a quarter)
+  PASS  UpdateBarAppearance floors the inset to 1 for a hairline border
+  PASS  UpdateBarAppearance scales the inset up with a thick border
+  PASS  UpdateBarAppearance clears the backdrop before re-applying it
+  PASS  UpdateBarAppearance pushes the resolved media into the backdrop
+  PASS  UpdateBarAppearance makes the bar immovable and mouse-inert when locked
+  PASS  UpdateBarAppearance restores drag + mouse when unlocked
+  PASS  an untouched profile paints the same white text and full alpha it always did
+  PASS  the Text tab's color reaches the absorb amount, alpha included
+  PASS  barAlpha reaches all three paint sites, not just the appearance pass
+  PASS  fontShadow reaches the absorb amount, and turning it off CLEARS the shadow
+  PASS  Master scale is applied to the frame on every appearance pass
+  PASS  Master alpha MULTIPLIES the per-unit barAlpha rather than replacing it
+  PASS  an unlocked bar paints a placeholder fill against a 0..1 scale
+  PASS  a locked bar paints no placeholder
+  PASS  a live repaint leaves the unlocked placeholder alone
+  PASS  UpdateAbsorbBar reports false while the bars are unlocked
+  PASS  HoldPreview arms an expiry timer for exactly the announced duration
+  PASS  the expiry timer clears the hold and republishes REPAINT
+  PASS  a hold that expires while unlocked falls back to the placeholder
+  PASS  ClearPreview reports whether a hold was actually live
+  PASS  there is no test-mode flag left behind the lock
+  PASS  a LOCKED bar does not preview
+  PASS  a live repaint stands down while unlocked
+  PASS  re-locking ends any /at debug hold and restores live data
+  PASS  unlocking shows a bar the visibility dropdown or a missing unit would hide
+  PASS  unlocking does not override the addon-wide or per-unit switch
+  PASS  a hold that expires while unlocked falls back to the placeholder
+  PASS  combat re-locks the bars, says so, and refreshes the panel
+  PASS  combat with the bars already locked says nothing and leaves the panel alone
+  PASS  unlocking will not happen in combat, and says why
+  PASS  re-locking in combat is always allowed
+  PASS  UpdateBarAppearance re-applies the font from the profile
+  PASS  UpdateBarAppearance tolerates a nil fontFlags by passing an empty flag string
+  PASS  UpdateBarAppearance ends by applying visibility
+  PASS  ApplyVisibility shows the bar when the gate passes and hides it when it does not
+  PASS  UpdateAbsorbBar is a no-op while the bar is hidden
+  PASS  UpdateAbsorbBar is a no-op inside a /at debug hold window
+  PASS  UpdateAbsorbBar paints again once the hold window has expired
+  PASS  UpdateAbsorbBar scales the bar to max health and sets the absorb value
+  PASS  UpdateAbsorbBar substitutes 0 / 1 when the absorb and health reads come back nil
+  PASS  UpdateAbsorbBar writes the abbreviated value into the bar text
+  PASS  UpdateAbsorbBar reports true when it paints
+  PASS  UpdateAbsorbBar reports false for a bar it skipped
+  PASS  UpdateAbsorbBar reports false while a /at debug hold is active
+  PASS  each unit's enable flag governs only its own bar
+  PASS  a disabled unit stays hidden even when the others are on
+  PASS  an enabled target bar hides when there is no target
+  PASS  the player bar never consults UnitExists
+  PASS  visibility=inCombat gates every bar on PLAYER combat
+  PASS  UpdateAbsorbBar reads the absorb of the unit it is painting
+  PASS  UpdateBarAppearance sizes the bar it is given, not always the player's
+  PASS  a mirrored unit paints with the player's size
+  PASS  the player bar defaults to dead center
+  PASS  target and focus default stacked above the player bar
+  PASS  ForEachUnit walks all three units in order
+  PASS  every bar body is registered for a left-button drag
+  PASS  dropping a bar body saves the position to that bar's own unit
+  PASS  dropping one bar leaves the other bars' positions alone
+  PASS  the widget major is present, so the handle is not the degraded path
+  PASS  every bar owns a drag handle: a named Button parented to the bar
+  PASS  the handle is labeled with its own unit's name
+  PASS  the handle moves its own bar, with the help icon from the Media seam
+  PASS  unlocking shows every bar's handle; locking hides it
+  PASS  an unlocked handle is exactly as wide as its bar
+  PASS  a handle over a narrow bar takes its own natural width instead
+  PASS  a locked pass does not resize the hidden handle
+  PASS  the combat re-lock hides every handle
+  PASS  a locked handle refuses the drag and does not move the bar
+  PASS  an unlocked handle drags its bar
+  PASS  dropping a handle saves the position to its own bar's unit
+  PASS  the handle and the bar body save through the same writer
+  PASS  the strip's tooltip names the addon and says how to move this bar
+  PASS  the strip's tooltip reads the lock on every hover
+  PASS  the help mark has its own tooltip, with a footer saying how to put the strip away
+  PASS  degraded: with LibKa0s absent the bars load with no handle and keep their own drag
+  PASS  degraded: with no widget the default stack reserves no strip room
+  PASS  an appearance pass over a bar with no handle raises nothing
+  PASS  CreatePanel returns a ctx wired to a panel, a body and an empty refresher list
+  PASS  the canvas frame carries OnCommit, OnDefault and OnRefresh from the library
+  PASS  OnDefault reaches a defaultsOnClick parked AFTER the panel is built
+  PASS  a page that parks no defaults action still has a callable, inert OnDefault
+  PASS  CreatePanel names the panel with the plain title for the Blizzard left tree
+  PASS  CreatePanel starts the panel hidden
+  PASS  CreatePanel only DECLARES the Defaults button, never builds it
+  PASS  CreatePanel records no Defaults intent when the page did not ask for one
+  PASS  CreatePanel carries the defaults tooltip through to the lazy builder
+  PASS  EnsureDefaultsButton builds the button once, then is idempotent
+  PASS  EnsureDefaultsButton is a safe no-op without AceGUI, and on a nil panel
+  PASS  EnsureDefaultsButton leaves a panel that never wanted one alone
+  PASS  RestoreDefaults resets every row on the named page
+  PASS  RestoreDefaults leaves other pages untouched
+  PASS  RestoreDefaults runs the ctx refreshers so open widgets re-read
+  PASS  RestoreDefaults survives a refresher that throws
+  PASS  RestoreDefaults on a page with no rows is a harmless no-op
+  PASS  the Defaults button fires each reset row's onChange exactly once
+  PASS  the appearance page's Defaults logs one [Set] line counting the rows it changed
+  PASS  the appearance page's Defaults at defaults already logs 0 rows
+  PASS  the general page's Defaults logs one [Set] line counting the rows it changed
+  PASS  the general page's Defaults at defaults already logs 0 rows
+  PASS  a nested bulk act logs exactly one line, the outer act's, summing every level
+  PASS  a nested bulk act that includes a profile reset logs only the handler's line
+  PASS  a page reset that raises still unmutes the seam
+  PASS  a bulk act that raises logs its one line marked as stopped by an error
+  PASS  a library page reset that raises logs its one line marked as stopped by an error
+  PASS  Reset All on a clean profile logs (0 rows)
+  PASS  a reset the addon did not drive logs the reset line with no count
+  PASS  a counted reset that never reached the handler leaks no count into a later reset
+  PASS  Reset All logs exactly one line in total, the profile handler's
+  PASS  RestoreAllDefaults resets every schema row that is not on the profiles page
+  PASS  RestoreAllDefaults clears the saved bar position so the bar recenters
+  PASS  RestoreAllDefaults publishes POSITION so the bar moves immediately
+  PASS  RestoreAllDefaults skips the profiles page (resetting it would delete user data)
+  PASS  RefreshAllPanels runs the refreshers of every registered panel
+  PASS  RefreshAllPanels isolates a throwing refresher from the rest
+  PASS  NS.RefreshOptionsPanel delegates to RefreshAllPanels
+  PASS  the cross-slice layout constants are published for the widget/about slices
+  PASS  a page renders nothing until its first OnShow
+  PASS  the Appearance page opens on the player unit with no mirror controls
+  PASS  the Unit picker is in the page's chrome block, and is the page's only picker
+  PASS  switching the picker to focus re-renders the page for that unit
+  PASS  the Appearance page draws one tab per schema group, in declaration order
+  PASS  clicking a tab switches the page to that tab's rows and nothing else's
+  PASS  a tab click keeps the chrome block, and never grows a second copy of it
+  PASS  a mirrored unit STILL gets its tab strip, with the mirrored state as content
+  PASS  a mirrored unit shows only its chrome block, no appearance rows
+  PASS  unchecking the mirror reveals the appearance rows
+  PASS  the copy button snapshots the player's styling and clears the mirror
+  PASS  a page Defaults button resets that page across every unit
+  PASS  RestoreAllDefaults clears all three saved positions
+  PASS  the mirror checkbox renders exactly once — the block owns it, RenderRows must skip it
+  PASS  the page-wide mirror controls sit in the chrome block, never in the scroll
+  PASS  the chrome block reserves the band its second row needs
+  PASS  a raise inside the chrome block costs the block, not the page
+  PASS  a raise in the unit panel body is reported as one space-joined chat line
+  PASS  the chrome block's widgets go back to AceGUI's pool, after the render and not before
+  PASS  the mirrored hint is a laid-out row followed by a ROW_VSPACER
+  PASS  ClearScroll resets ctx.refreshers, so repeated renders do not leak stale closures
+  PASS  the General page's Reset position button clears EVERY unit's saved position
+  PASS  the Reset position button and /at resetposition run the SAME shared helper
+  PASS  a page refresh re-syncs the mirror checkbox and re-runs the row partition
+  PASS  `/at set units.<unit>.mirror` re-syncs an open panel's mirror checkbox
+  PASS  the block's refresher cannot recurse: a refresh fired mid-render is a no-op
+  PASS  a raise mid-render must not latch the re-entrancy flag for the session
+  PASS  a failed unit-panel render is reported in chat, never swallowed
+  PASS  an ordinary schema write does NOT re-render the whole unit page
+  PASS  a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
+  PASS  /at resetposition does not claim success when the settings helpers are absent
+  PASS  the Defaults button the library renders is prose, not its own STRINGS key
+  PASS  launcher: Register builds ONE broker object and hands that same object to LibDBIcon
+  PASS  launcher: LibDBIcon is handed db.global.minimap ITSELF, not a copy
+  PASS  launcher: Register is idempotent
+  PASS  launcher: the broker label is the BRAND NAME in plain text
+  PASS  launcher: the label is not WIRED to the TOC Title, even though both read the same today
+  PASS  launcher: LEFT-click toggles the lock, through the seam the checkbox writes through
+  PASS  launcher: the disabled gate is the descriptor's, asked on every click and never cached
+  PASS  launcher: RIGHT-click always opens the settings panel, and touches nothing else
+  PASS  launcher: the icon file is the one the TOC names, and is a format the client can load
+  PASS  launcher: the Minimap button row is stored, global, and says SHOWN
+  PASS  launcher: the row's get/set invert onto `hide`, and the button follows immediately
+  PASS  launcher: Reset all settings cannot un-hide the button
+  PASS  launcher: the General page's Defaults button cannot un-hide the button either
+  PASS  launcher: the page Defaults button still resets every OTHER General row
+  PASS  launcher: /at get global.minimap.shown reads the row's sense off the stored hide
+  PASS  launcher: /at set global.minimap.shown false stores hide = true and hides the button
+  PASS  launcher: the old CLI spelling global.minimap.hide answers unknown setting
+  PASS  launcher: the renamed path is not reported missing from the defaults
+  PASS  launcher: a legacy store keeps its hidden button, and its angle, across the rename
+  PASS  launcher: with BOTH broker libraries absent, Register reports absent and does not raise
+  PASS  launcher: with LibDataBroker but no LibDBIcon, the plugin exists and the button does not
+  PASS  launcher: with LibKa0s absent the seam still answers, and still remembers the choice
+  PASS  the live and degraded builds veto exactly the same rows from Reset All
+  PASS  Reset All resets a sessionOnly row and fires its onChange once, on both builds
+  PASS  the degraded Reset All logs one line in total, the profile handler's, with no count
+  PASS  the degraded Reset All with no AceDB writes the session row and logs nothing
+  PASS  with LibKa0s absent, the lock and unlock verbs still write the store
+  PASS  with LibKa0s absent, /at disable stands the addon down and /at enable brings it back
+  PASS  with LibKa0s absent, /at unlock in combat is refused and the lock stays on
+  PASS  with LibKa0s absent, entering combat still re-locks unlocked bars in the store
+  PASS  the degraded stub publishes LSMValues, the one member reached at file load
+  PASS  the degraded stub publishes the five composers, hollow
+  PASS  the degraded stub keeps no private copy of the library's layout constants
+  PASS  PARENT_TITLE reaches the library through the descriptor, not the namespace
+  PASS  the live arm patches LSM30_Border through the library, not through a private copy
+  PASS  the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
+  PASS  General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
+  PASS  every COMMANDS entry is a {name, description, handler} triple
+  PASS  COMMANDS verbs are unique and already lower-case
+  PASS  the About page renders one row per verb, through the same formatter as /at help
+  PASS  the About rows carry the help colors, without the chat indent
+  PASS  /at lock and /at unlock write the `locked` setting and echo it in the set shape
+  PASS  /at unlock in combat echoes the refused write: the stored value, not the argument
+  PASS  /at lock and /at unlock each refresh an open options panel once
+  PASS  /at toggle turns every bar off, then every bar back on
+  PASS  /at toggle <unit> flips only that unit
+  PASS  /at toggle rejects an unknown unit and changes nothing
+  PASS  /at toggle requests a repaint when SHOWING, not when hiding
+  PASS  /at update publishes REPAINT and acknowledges
+  PASS  /at reset with no path prints usage rather than resetting anything
+  PASS  /at reset rejects a path that is not a setting
+  PASS  /at reset restores one setting and leaves its neighbors alone
+  PASS  /at reset <path> writes the default and fires the row's onChange exactly once
+  PASS  /at reset <path> logs exactly one [Set] line and fires onChange exactly once
+  PASS  /at reset does NOT lower-case its argument
+  PASS  /at resetall goes through the one shared RestoreAllDefaults helper
+  PASS  /at resetall really does restore the defaults end to end
+  PASS  /at resetall says the helpers are missing instead of claiming success
+  PASS  /at resetposition clears the saved anchor and republishes POSITION
+  PASS  /at get with no path prints usage
+  PASS  /at get on an unknown path says so instead of printing nil
+  PASS  /at set with no path prints usage and points at /at list
+  PASS  /at set on an unknown path says so
+  PASS  /at set rejects a junk boolean and lists the words it accepts
+  PASS  /at set rejects a non-numeric value for a number setting
+  PASS  /at set writes a color from `r g b a` and echoes the STORED value
+  PASS  /at set accepts a bool written as a human word
+  PASS  /at profile with no subcommand prints the sub-help
+  PASS  /at profile current names the active profile
+  PASS  /at profile list marks the current profile
+  PASS  /at profile use switches the active profile
+  PASS  /at profile use with no name prints usage and switches nothing
+  PASS  /at profile new creates a profile carrying the defaults, not the old values
+  PASS  /at profile new refuses a name that already exists and leaves it untouched
+  PASS  /at profile new with no name prints usage
+  PASS  /at profile copy pulls another profile's values into the current one
+  PASS  /at profile copy with no name prints usage
+  PASS  /at profile copy of a missing profile refuses before AceDB sees the name
+  PASS  /at profile copy of the current profile refuses
+  PASS  /at profile delete refuses to delete the profile in use
+  PASS  /at profile delete removes a profile that is not in use
+  PASS  /at profile delete of a missing profile says so and deletes nothing
+  PASS  /at profile delete with no name prints usage
+  PASS  /at profile reset restores the current profile's defaults in place
+  PASS  /at profile reset logs one [Set] line from the reset handler, counting the rows it changed
+  PASS  /at resetall logs one line in total, the same reset handler's
+  PASS  /at profile new logs the switch line, then a (0 rows) reset line
+  PASS  a profile copy logs one [Set] line naming both profiles
+  PASS  /at profile copy reaches the copy handler, one line
+  PASS  a profile switch keeps its [Profile] line and logs no [Set] line
+  PASS  /at profile rejects an unknown subcommand and reprints the sub-help
+  PASS  /at profile sub-verbs are case-insensitive
+  PASS  /at profile degrades gracefully when AceDB is unavailable
+  PASS  a profile switch repaints the bar through OnProfileChanged
+  PASS  set writes a dotted per-unit path
+  PASS  set on one unit leaves the others alone
+  PASS  an unqualified appearance key is rejected
+  PASS  a global key still uses its flat path
+  PASS  get echoes a dotted path
+  PASS  list groups the appearance page by unit
+  PASS  reset takes one fully-qualified path, not a page
+  PASS  resetposition clears all three positions
+  PASS  toggle round-trips the enabled set
+  PASS  /at get annotates a row whose unit is currently mirroring the player
+  PASS  /at get does NOT annotate an unmirrored unit, or the player
+  PASS  /at get does NOT annotate the per-unit rows a mirror never covers
+  PASS  /at set echoes the mirrored note alongside the value it just stored
+  PASS  /at list annotates only the mirrored units' appearance rows
+  PASS  the mirrored note keeps the Ka0s color scheme intact and stays subordinate
+  PASS  parity: both dispatchers fold the verb and preserve the rest's case
+  PASS  parity: both dispatchers resolve the `options` alias to `config`
+  PASS  parity: an unknown verb reaches no handler and prints the same shape in both
+  PASS  parity: a bare /at reaches the config handler with an empty rest in both
+  PASS  degraded: the stub's disabled-line format is the library's, byte for byte
+  PASS  degraded: a schema verb prints the library-absent line
+  PASS  degraded: the library-absent line is keyed by its English text (localization-§2)
+  PASS  degraded: /at help rows are plain, with no color escape
+  PASS  degraded: DisabledLine is the live build's line, color escapes intact
+  PASS  /at set stores a multi-word string value whole
+  PASS  /at enable and /at disable write the Enable row's OWN path, through the one seam
+  PASS  /at disable echoes the stored value in the set shape, and /at enable undoes it
+  PASS  the pair is never one-way: the dispatcher still answers while the addon is disabled
+  PASS  enable and disable hold no state of their own
+  PASS  every verb is either on the live list or refuses while disabled, and none is unclassified
+  PASS  the refusal is the collection's one line, tagged, and not re-spelled here
+  PASS  a refused `toggle` does not touch a single bar's enabled flag
+  PASS  a refused `unlock` leaves the lock exactly where it was
+  PASS  a refused `update` publishes nothing on the bus
+  PASS  /at perf (bare) reports status and prints usage
+  PASS  /at perf start starts a capture
+  PASS  /at perf start resets the counters from the previous capture
+  PASS  /at perf finish refuses when no run is active
+  PASS  /at perf finish does not print the summary
+  PASS  /at perf report still prints the summary on demand
+  PASS  /at perf finish saves the record to the perf ring
+  PASS  /at perf finish lifts a suspend left over from the capture
+  PASS  /at perf report prints without stopping the capture
+  PASS  /at perf routes output to the debug console, not chat
+  PASS  /at perf report writes the JSON to the console, not to a copy window
+  PASS  /at perf report emits parseable JSON carrying the schema stamp, as its LAST line
+  PASS  /at perf with an unknown sub falls back to the usage block
+  PASS  /at debug on|off still toggles logging with perf present
+  PASS  perf is a top-level verb in the help index
+  PASS  perf is registered in NS.COMMANDS, so the About page lists it too
+  PASS  /at debug no longer swallows a perf argument
+  PASS  /at perf start accepts an optional label, appended to the timestamp
+  PASS  /at perf start without a label still stamps the capture
+  PASS  /at perf start label reaches the saved record
+  PASS  /at perf start records who and where the capture happened
+  PASS  /at perf report prints the capture's context, not just the numbers
+  PASS  /at perf measure a arms Experiment A
+  PASS  /at perf measure b arms Experiment B and suspends
+  PASS  /at perf measure refuses outside an experiment
+  PASS  /at perf measure rejects an unknown window
+  PASS  /at perf bare reports the armed window
+  PASS  the perf usage block documents the measure workflow
+  PASS  /at perf start opens the panel instead of listing the steps in chat
+  PASS  /at perf cancel abandons the run and closes the panel
+  PASS  /at perf show, hide and toggle drive the panel without touching the run
+  PASS  /at perf (bare) opens the panel — it is the entry point to a run
+  PASS  /at perf then clicking Start runs a whole run without another typed command
+  PASS  a panel click reaches chat through this addon's print sink, like typing does
+  PASS  the perf usage block documents show/hide/toggle
+  PASS  /at perf cancel says so when there is nothing to cancel
+  PASS  the perf usage block documents cancel
+  PASS  /at perf start announces to the console with debug logging OFF
+  PASS  /at perf no longer offers suspend or resume
+  PASS  /at perf finish resumes before it saves, so a later error cannot strand the addon
+  PASS  /at perf report opens the debug console when it is hidden
+  PASS  /at perf report marks itself reviewed exactly once
+  PASS  the `test` verb is gone: it prints unknown command
+  PASS  COMMANDS carries no `test` row, and the debug row names `hold <value> [secs]`
+  PASS  /at debug hold with a word it does not know prints the usage and changes nothing
+  PASS  bare /at debug hold prints the usage and holds nothing
+  PASS  /at debug hold with a negative duration prints the usage and holds nothing
+  PASS  /at debug hold refuses a duration above 60 s and below 0.5 s
+  PASS  /at debug hold accepts both ends of the range
+  PASS  /at debug hold announces a fractional duration as given, and holds for it
+  PASS  /at debug hold refuses while every bar is disabled and says how to fix it
+  PASS  /at debug hold paints the given value and arms the hold window
+  PASS  /at debug hold with a value and no duration holds it for 5 seconds
+  PASS  /at debug hold keeps the bar scale usable for a value below the 100k floor
+  PASS  /at debug hold schedules the expiry it just announced
+  PASS  re-locking the bars clears a live /at debug hold preview
+  PASS  /at debug hold refuses while the addon is disabled: one line, no paint, no hold
+  PASS  NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
+  PASS  a bool row renders a CheckBox labeled from the schema
+  PASS  a checkbox reads its initial state from the current setting
+  PASS  clicking a checkbox writes through SetByPath
+  PASS  a checkbox registers a refresher that re-reads after an external change
+  PASS  every widget gets tooltip callbacks wired from the schema desc
+  PASS  relativeWidth is applied when given, full width otherwise
+  PASS  SessionCheckbox reads and writes the caller's get/set, never the DB
+  PASS  SessionCheckbox registers a refresher so external state changes show up
+  PASS  a number row renders a Slider carrying the schema's range and step
+  PASS  a slider shows the current value
+  PASS  a slider falls back to the row default when the stored value is not a number
+  PASS  releasing a slider snaps the value to the row's step
+  PASS  slider snapping is relative to the row's min, not to zero
+  PASS  a string row falls back to a plain Dropdown when the LSM widget is absent
+  PASS  a string row uses its dialogControl widget when that IS registered
+  PASS  a dropdown's list is alphabetically ordered by default
+  PASS  a row with explicit `sorting` keeps that order instead of sorting
+  PASS  a dropdown shows the current value and writes the chosen one
+  PASS  a dropdown's refresher re-applies the list, so a grown LSM list appears
+  PASS  a color row renders a ColorPicker seeded from the stored rgba
+  PASS  a color picker substitutes 1s for a missing/corrupt stored color
+  PASS  disabledIf grays a swatch out while its sibling toggle is on
+  PASS  the refresher re-evaluates disabledIf, so the pair tracks on the same frame
+  PASS  no shipped color row disables itself, under either class-color mode
+  PASS  OnValueConfirmed commits the color immediately (cancel must not wait on the throttle)
+  PASS  OnValueChanged throttles a drag to ONE timer and commits the latest value
+  PASS  a drag that resumes after the timer fired arms a fresh one
+  PASS  RenderField dispatches each schema type to its widget
+  PASS  RenderField returns nil for an unrecognized type instead of erroring
+  PASS  RenderField adds the widget to the parent it was given
+  PASS  RenderSchema pairs widgets two-to-a-row inside full-width Flow groups
+  PASS  RenderSchema gives each paired widget half the row
+  PASS  a `solo` row is rendered alone on its own line
+  PASS  `startsLine` flushes the pending line, so a declared pair can never be split
+  PASS  RenderSchema emits a Heading for each schema group
+  PASS  an afterGroup callback fires exactly once, after its group's last row
+  PASS  the Bars tab pairs the enable toggles with each other, not with a global
+  PASS  every tracked unit gets an enable toggle on the General page
+  PASS  visibility repaints for a target-only setup, not just for the player
+  PASS  the Reset All popup does not claim success when the settings helpers are absent
+  PASS  a pairWith partner is attached to the named row and is one-shot
+  PASS  RenderSchema runs a layout pass at the end
+  PASS  EnsureScroll is lazy, created once, and patched for an always-visible scrollbar
+  PASS  every schema page registered a real Blizzard subcategory at build time
+  PASS  the Profiles page self-skips when AceDBOptions is unavailable
+  PASS  the sidebar path is covered in combat, draws nothing and leaves the window open (options-ui-§2)
+  PASS  first OnShow builds the Defaults button and renders the page
+  PASS  the Defaults button restores just its own page
+  PASS  a second OnShow rebuilds the panel body without stacking duplicate widgets
+  PASS  the General page draws its two groups as a tab strip, Master controls first
+  PASS  clicking Bars swaps the rows and leaves the button pair on Master controls
+  PASS  every unit's Appearance strip is its schema's groups, and each tab draws that group's rows
+  PASS  a mirrored unit's every tab draws the hint and none of the appearance rows
+  PASS  showing every page builds it without error
+  PASS  the main page's About content renders on its first OnShow
+  PASS  re-rendering the About page replaces its body rather than stacking a second copy
+  PASS  README.md carries no angle-bracket argument placeholders
+  PASS  every Tier 2 documentation-map row agrees with docs/
+  PASS  every deviation id the register cites is assigned by a bundle in docs/audits/
+  PASS  docs/smoke-tests.md carries a non-English-client section
+  PASS  prose: no authored file carries a British spelling from localization-§5's published list
+  PASS  prose: the gate carries localization-§5's two lists whole, and nothing of its own
+  PASS  prose self-test: the carve-out suppresses the named generated folder, and only it
+  PASS  prose self-test: a path the carve-out does not name is not covered by one that looks like it
+  PASS  prose self-test: a carve-out that is not a set of path strings is a failure, not a silence
+  PASS  prose self-test: a TOC's file lines are read as paths, and its directives and comments are not
+  PASS  prose self-test: a .pkgmeta's ignore block is read, and the keys around it are not
+  PASS  prose self-test: an ignore entry covers a path exactly, by folder, and by wildcard
+  PASS  prose self-test: the carve-out admits a generated dump and refuses a file the TOC loads
+  PASS  prose self-test: a waiver-file exclusion meets the same two refusals as the carve-out
+  PASS  prose self-test: each list is refused on the matching rule its own scan uses
+  PASS  prose self-test: the scan and the refusals read the added exclusions through one reader
+  PASS  prose self-test: a narrowing is refused by what it suppresses, not by how it is written
+  PASS  prose self-test: the disclosure names what each entry suppressed, and says when it is bounded
+  PASS  prose self-test: a malformed waived is a failure, not a silence
+  PASS  the source matcher tells the three `L =` spellings apart
+  PASS  no LibKa0s descriptor in this addon is handed the key-returning locale table
+  PASS  locales/enUS.lua really does answer every key, so the check above guards something
+  PASS  LibKa0s-Core tripwire: Core ships no STRINGS and reads no descriptor L
+  PASS  LibKa0s-Options tripwire: Options reads no descriptor L
+  PASS  vendored DebugLog resolves a fallback-only override to its own strings
+  PASS  vendored Slash resolves a fallback-only override to its own strings
+  PASS  vendored Perf resolves a fallback-only override to its own strings
+  PASS  parity: the Core stub publishes everything core/CoreSetup.lua publishes live
+  PASS  parity: the DebugLog stub carries the whole live surface
+  PASS  parity: the Options stub carries every helper the degraded build can reach
+  PASS  parity: the Slash stub carries every dispatcher member the addon calls
+  PASS  parity: the Launcher stub carries the whole live surface
+  PASS  parity: the Bus stub carries the library's whole surface
+  PASS  parity: the Schema stub carries the library's lib-level surface
+  PASS  parity: the Schema stub's instance carries every member of a live instance
+  PASS  parity: the Perf stub carries every Perf member the addon reaches
+  PASS  parity: the Lifecycle stub carries the whole live surface
+  PASS  libs/LibKa0s is the LibKa0s release CLAUDE.md says this addon bundles
+  PASS  tests/_kit is the test kit that shipped with that release
+  PASS  the automated-test runner is recorded executable (100755)
+  PASS  lintconfig: .luacheckrc sets no top-level ignore
+  PASS  lintconfig: .luacheckrc switches no warning class off wholesale
+  PASS  lintconfig: every files[...] ignore is narrowed to a file or a name
+  PASS  lintconfig: no source file carries a bare inline luacheck ignore
+  PASS  events: the session rejected list exists and starts empty
+  PASS  events: one unknown lifecycle name costs only itself, and is listed once
+  PASS  events: one unknown unit event on the per-unit frame costs only itself
+  PASS  events: a name IsEventValid refuses never reaches the target
+  PASS  events: /at debug events lists the rejected names, and 'none' once they are gone
+  PASS  disabled 1: the enabled addon registers something to stand down from
+  PASS  disabled 3: writing the enable path leaves NOTHING registered
+  PASS  disabled 4: no timer, ticker or OnUpdate is left armed
+  PASS  disabled 5: every frame that was on screen is hidden, and stays hidden
+  PASS  disabled 6: firing every baseline event writes nothing, says nothing, shows nothing
+  PASS  disabled 7: every reserved verb answers, and only a feature verb refuses
+  PASS  disabled 7: a refused feature verb reaches no write seam
+  PASS  disabled 7: `debug` stays live, and its `hold` sub-verb refuses on its own gate
+  PASS  disabled 8: the left click is refused and writes nothing; the right click still opens the panel
+  PASS  disabled 9: re-enabling restores the registration set, from the settings as they are NOW
+  PASS  disabled 9: the bus subscriptions come back as the same five pairs, and each still reaches its consumer once
+  PASS  disabled 10: releasing one hold does not stand up an addon the other still holds down
+  PASS  disabled 10: the perf hold is session-only and the disabled hold is the stored path
+  PASS  bus: a registration made while stood down is recorded, and not live until the stand-up
+  PASS  bus: a subscription its owner dropped is not brought back by a stand-up
+  PASS  bus: the stand-down and stand-up counts are the record's, and the latch drives both
+  PASS  lifecycle stub: PrintHolds names the addon and its holds as one space-joined line
+  PASS  eol: every tracked file carries the terminator .gitattributes declares for it
+  PASS  eol: .gitattributes is line-endings-§5's canonical body for this repo kind
+  PASS  layoutcap: every authored file over the 1500-line cap is named in the census
+  PASS  layoutcap: no census row outlives the breach it records
+  PASS  layoutcap: every over-cap census row carries one of layout-§1's three terminal states
+  PASS  layoutcap: the census and the exempt set agree about which paths were exempted
+  PASS  layoutcap: an empty census is written as a result rather than left standing empty
+  PASS  layoutcap self-test: the parser reads the census nested under the register, and stops there
+  PASS  layoutcap self-test: a census outside its register, or at the wrong level, is not read
+  PASS  layoutcap self-test: an over-cap file missing from the census is reported, and an exempt one is not
+  PASS  layoutcap self-test: a census row that outlives its breach is reported
+  PASS  layoutcap self-test: an over-cap row that names no terminal state is reported
+  PASS  layoutcap self-test: the census and the exempt set are held to naming the same paths
+  PASS  layoutcap self-test: a census that states nothing is told apart from one that states none
+  PASS  layoutcap self-test: the exempt set takes folders as well as paths
+
+766 passed, 0 failed, 0 skipped, 766 total

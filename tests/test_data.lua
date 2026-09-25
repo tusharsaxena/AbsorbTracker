@@ -526,13 +526,15 @@ test("the background palette is per-unit too, and stays the DARKENED set", funct
   NS.db.profile.units.target.mirror = savedMirror
 end)
 
-test("three bar frames exist and the player alias points at the player frame", function()
+test("three bar frames exist and the retired player aliases stay off the namespace", function()
   assertTrue(NS.bars.player ~= nil)
   assertTrue(NS.bars.target ~= nil)
   assertTrue(NS.bars.focus ~= nil)
-  assertEqual(NS.bar, NS.bars.player)
-  assertEqual(NS.statusBar, NS.bars.player.statusBar)
-  assertEqual(NS.valueText, NS.bars.player.valueText)
+  -- The pre-multi-unit player aliases (bar / statusBar / valueText / backdropInfo) are gone: every caller,
+  -- tests included, indexes NS.bars[unit]. Keyed by string so the absence check is not itself a read.
+  for _, key in ipairs({ "bar", "statusBar", "valueText", "backdropInfo" }) do
+    assertEqual(NS[key], nil, "NS." .. key .. " is not republished")
+  end
 end)
 
 test("each bar carries its own unit tag and its own backdrop table", function()

@@ -114,8 +114,8 @@ so nothing (a combat transition, a target swap, a settings edit) can re-show a b
 
 **It is not a second teardown path.** Since Perf minor 12 the arm takes the `perf` hold on
 `NS.lifecycle` and the host's `StandDown` is what runs — the *same* function `/at disable` reaches
-through the `disabled` hold ([ARCHITECTURE.md → The disabled state is
-total](./ARCHITECTURE.md#the-disabled-state-is-total)). `NS.Perf.suspended` is now a **view** of that
+through the `disabled` hold ([lifecycle.md → The disabled state is
+total](./lifecycle.md)). `NS.Perf.suspended` is now a **view** of that
 latch rather than a boolean beside it, and assigning to it raises. The reason is one specific
 session: the player types `/at disable` halfway through a capture. With two booleans, whichever was
 written last decided whether the addon came back, and a `Resume` at the end of the run resurrected an

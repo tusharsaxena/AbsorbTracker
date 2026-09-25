@@ -19,8 +19,8 @@ end)
 -- it — copyDefaults out of the SHIPPED defaults, never a hand-set stamp — and what is asserted is
 -- that the ladder reached the profile. The nil'd-stamp case above passes either way, which is why
 -- it never caught this. The default's literal VALUE is deliberately not asserted: omitting the key
--- entirely is equally correct (copyDefaults copies nothing, and core/Database.lua:189 reads the
--- absent stamp as 1), so pinning `== 1` would only forbid a correct file.
+-- entirely would also reach every step (RunMigrations reads an absent stamp as 0); the value itself
+-- is pinned by the savedvariables-§1 test below, which requires the declared 0.
 test("a freshly-materialized global runs the ladder, because its default is pre-ladder", function()
   local savedDB = NS.db
   local profile = { updateInterval = 1.0, hidden = true, showOnlyInCombat = true,
@@ -61,6 +61,61 @@ test("RunMigrations v2 retires the legacy updateInterval profile key", function(
   NS:RunMigrations()
   assertEqual(NS.db.profile.updateInterval, nil)
   assertEqual(NS.db.global.schemaVersion, 5)
+end)
+
+-- savedvariables-§1 (v2.65.0): the account-wide default is 0, never a later floor. AceDB's
+-- removeDefaults strips a stored value equal to its default, and AceDB backfills a declared
+-- default onto a legacy account that stored no stamp; 0 has neither problem.
+test("the account-wide schemaVersion default is 0 (savedvariables-\194\1671)", function()
+  assertEqual(NS.defaults.global.schemaVersion, 0)
+end)
+
+test("NS.SCHEMA_VERSION is the highest ladder step's `to`", function()
+  local steps = NS.__migrationSteps
+  assertTrue(type(steps) == "table", "NS.__migrationSteps is the suite seam onto the ladder")
+  assertEqual(NS.SCHEMA_VERSION, steps[#steps].to)
+  assertEqual(NS.SCHEMA_VERSION, 5)
+end)
+
+-- The v2 step is PROFILE-scoped (it clears a profile key), so the account-wide stamp alone cannot
+-- gate it: before this, only the profile active at the first post-upgrade login lost the dead key,
+-- and every other stored profile carried it forever.
+test("v2 clears updateInterval from every stored profile, not only the active one", function()
+  local savedDB = NS.db
+  local default = { updateInterval = 0.1, schemaVersion = 3 }
+  local raid    = { updateInterval = 0.2, schemaVersion = 3 }
+  NS.db = {
+    profile = default,
+    global  = { schemaVersion = 1 },
+    sv      = { profiles = { Default = default, Raid = raid } },
+  }
+  local ok, err = pcall(NS.RunMigrations, NS)
+  NS.db = savedDB
+  if not ok then error(err) end
+  assertEqual(default.updateInterval, nil, "the active profile")
+  assertEqual(raid.updateInterval, nil, "an inactive stored profile")
+end)
+
+-- The runner owns the stamp and advances it only past a step that RETURNED. A step that raises
+-- leaves the stamp where it was, stops the ladder, and tells the player once.
+-- red under: stamping before apply, or no pcall around apply.
+test("a step that raises leaves the stamp unmoved and says so once in chat", function()
+  local savedDB = NS.db
+  local steps = assert(NS.__migrationSteps, "NS.__migrationSteps is missing")
+  local target = assert(NS.SCHEMA_VERSION, "NS.SCHEMA_VERSION is missing")
+  steps[#steps + 1] = { to = target + 1, apply = function() error("boom") end }
+  NS.db = { profile = { schemaVersion = 3 }, global = { schemaVersion = target } }
+  T.mocks.__resetPrinted()
+  local ok, err = pcall(NS.RunMigrations, NS)
+  local stamp = NS.db.global.schemaVersion
+  local printed = T.mocks.__printed()
+  steps[#steps] = nil
+  NS.db = savedDB
+  assertTrue(ok, "RunMigrations must not raise: " .. tostring(err))
+  assertEqual(stamp, target, "the stamp stays at the last completed step")
+  assertEqual(#printed, 1, "one chat line: " .. table.concat(printed, " / "))
+  assertTrue(printed[1]:find("Settings upgrade stopped at v5 -> v6", 1, true) ~= nil,
+    "the line names the stop: " .. tostring(printed[1]))
 end)
 
 test("RunMigrations backfills throttleWindow from flatDefaults", function()
@@ -119,7 +174,8 @@ end)
 -- Characterization: the ORDER of the [Migrate] lines across a full v1 -> v5 upgrade, not just
 -- their presence. A step's own message must precede its own "vX -> vY" stamp, and the ladder must
 -- climb one version at a time -- so the v4 `hidden` sweep is reported before "v3 -> v4", never
--- after it and never folded into a single v1 -> v5 jump.
+-- after it and never folded into a single v1 -> v5 jump. v2 reports its own profile count, like
+-- v4 and v5, since it became a sweep over every stored profile.
 test("RunMigrations emits the [Migrate] lines for a v1->v5 upgrade in order", function()
   local savedSV, savedDB, savedDebug = _G.AbsorbTrackerDB, NS.db, NS.State.debug
   -- `showOnlyInCombat` is seeded TRUE so the v5 step has real work to report, the same way
@@ -139,6 +195,7 @@ test("RunMigrations emits the [Migrate] lines for a v1->v5 upgrade in order", fu
   NS.db, _G.AbsorbTrackerDB, NS.State.debug = savedDB, savedSV, savedDebug
 
   local expected = {
+    "cleared `updateInterval` from 1 profile(s)",
     "v1 \226\134\146 v2",
     "v2 \226\134\146 v3",
     "dropped `hidden` from 1 profile(s)",
@@ -147,7 +204,7 @@ test("RunMigrations emits the [Migrate] lines for a v1->v5 upgrade in order", fu
     "v4 \226\134\146 v5",
   }
   local logged = table.concat(lines, "\n")
-  assertEqual(#lines, #expected, "exactly six [Migrate] lines: " .. logged)
+  assertEqual(#lines, #expected, "exactly seven [Migrate] lines: " .. logged)
   for i, want in ipairs(expected) do
     assertTrue(lines[i]:find(want, 1, true) ~= nil,
       ("line %d must be %q, got %q"):format(i, want, lines[i]))
@@ -450,4 +507,66 @@ test("a real upgrade still logs the lift, with an accurate count", function()
   NS.db, _G.AbsorbTrackerDB, NS.State.debug = savedDB, savedSV, savedDebug
   assertTrue(logged:find("lifted 2 profile(s) to v3", 1, true) ~= nil,
     "two profiles carried flat keys; the third was empty and must not be counted: " .. logged)
+end)
+
+-- ── A profile adopt publishes each bar pass once (review F-010) ──────────────────────────────
+--
+-- core/AbsorbTracker.lua's adoptProfile re-reads the new profile's `enabled` into the latch and
+-- then publishes the bar passes. On an off-to-on switch the latch's StandUp (core/Lifecycle.lua)
+-- has already published POSITION, APPEARANCE and REPAINT, so adoptProfile publishing them again
+-- ran every three-bar appearance pass twice. Counted at the send, through a wrapper on the shared
+-- publish target, so a StandUp publish and an adoptProfile publish both show.
+
+--- Run `fn` and answer how many times it SENT `msg` on NS.bus, and how many times the Display
+--- module's APPEARANCE consumer actually ran (the deliveries that reached a subscriber).
+local function countAppearance(fn)
+  local sends, delivered = 0, 0
+  local realSend, realUpdate = NS.bus.SendMessage, NS.UpdateBarAppearance
+  NS.bus.SendMessage = function(self, msg, ...)
+    if msg == NS.MSG.APPEARANCE then sends = sends + 1 end
+    return realSend(self, msg, ...)
+  end
+  NS.UpdateBarAppearance = function() delivered = delivered + 1 end
+  local ok, err = pcall(fn)
+  NS.bus.SendMessage, NS.UpdateBarAppearance = realSend, realUpdate
+  if not ok then error(err, 0) end
+  return sends, delivered
+end
+
+--- Put the suite's DB back on Default with the addon enabled and the two scratch profiles gone.
+local function dropScratchProfiles()
+  NS.db:SetProfile("Default")
+  NS.SetByPath("enabled", true)
+  NS.db.sv.profiles.ATAdoptOff, NS.db.sv.profiles.ATAdoptOn = nil, nil
+  T.mocks.__fireTimers()
+end
+
+test("profile adopt: a same-state switch publishes APPEARANCE once", function()
+  assertFalse(NS.lifecycle:IsDown(), "precondition: the addon is up on Default")
+  local sends = countAppearance(function() NS.db:SetProfile("ATAdoptOn") end)
+  assertFalse(NS.lifecycle:IsDown(), "a profile with the default `enabled` keeps the addon up")
+  dropScratchProfiles()
+  assertEqual(sends, 1, "both profiles enabled: no stand-up, one appearance pass")
+end)
+
+test("profile adopt: an off-to-on switch publishes APPEARANCE once, not twice", function()
+  -- red under: restoring the unconditional POSITION/APPEARANCE/REPAINT publishes in adoptProfile.
+  NS.db.sv.profiles.ATAdoptOff = { enabled = false }
+  NS.db:SetProfile("ATAdoptOff")
+  assertTrue(NS.lifecycle:IsDown(), "precondition: the stored `enabled = false` stood it down")
+  local sends = countAppearance(function() NS.db:SetProfile("ATAdoptOn") end)
+  local up = not NS.lifecycle:IsDown()
+  dropScratchProfiles()
+  assertTrue(up, "the default-enabled profile stood the addon up")
+  assertEqual(sends, 1, "StandUp's appearance pass is the only one")
+end)
+
+test("profile adopt: an on-to-off switch stands down and delivers nothing", function()
+  NS.db.sv.profiles.ATAdoptOff = { enabled = false }
+  local _, delivered = countAppearance(function() NS.db:SetProfile("ATAdoptOff") end)
+  local down = NS.lifecycle:IsDown()
+  dropScratchProfiles()
+  assertTrue(down, "the stored `enabled = false` left the latch down")
+  assertEqual(delivered, 0, "no appearance pass reaches a stood-down addon")
+  assertFalse(NS.lifecycle:IsDown(), "cleanup put the addon back up")
 end)

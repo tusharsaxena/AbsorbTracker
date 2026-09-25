@@ -486,32 +486,50 @@ end)
 --
 -- That is why settings/OptionsSetup.lua's stub is LOAD-COMPLETING rather than member-answering
 -- like the other four: it must publish every member a page file touches at load time. That set is
--- SIX now -- LSMValues plus the five schema COMPOSERS, which settings/General.lua and
--- settings/Appearance.lua call inside NS.RegisterSchemaRows. This case is what proves the stub
--- publishes them all, and it compares against the fully-loaded environment rather than against a
--- fixed number, so it cannot rot as pages are added.
+-- SIX -- LSMValues plus the five schema COMPOSERS, which settings/General.lua and
+-- settings/Appearance.lua call inside NS.RegisterSchemaRows. The composers are HOLLOW
+-- (options-ui-§1, anti-pattern #73): each answers {}, so the degraded schema is the hand-written
+-- rows alone and the composed rows are missing from it BY DESIGN.
 --
--- The comparison is over the PATH SET, not just the count. A count alone could be reached by a
--- different set of rows, and the stub's composers derive their paths from `prefix` and `keys` the
--- same way the library's do -- which is exactly the arithmetic that would silently diverge if
--- either side changed. Every stored setting a library-less session can `/at set` is in this set.
--- red under: a stub composer that drops a leaf, honors `keys` differently, or emits nothing.
-test("perf: the schema is COMPLETE with LibKa0s absent (the pages still finish loading)", function()
+-- So this pins three figures rather than one equality (options-ui-§1: both counts and the delta,
+-- as a named figure attributed to the composers). FULL is the live count, DEGRADED the library-
+-- absent count, and the GAP is the live path set minus the degraded one, attributed per composed
+-- tab: Master controls (H.MasterControls) and the four Appearance tabs whose blocks are composed
+-- (H.BarGroup, H.ColorPair, H.BorderGroup, H.FontGroup, once per tracked unit). Measured at the
+-- commit that made the composers hollow; a page that grows a row moves FULL and DEGRADED together,
+-- and a composer that grows a leaf moves FULL and one GAP entry together.
+-- red under: a stub composer emitting rows (the degraded set stops being a subset, or the gap
+-- shrinks), or a page file that aborts at load (the degraded count falls).
+test("perf: the schema with LibKa0s absent is the full one minus the composed rows, by tab", function()
   local NS2 = loadDegraded()
-  assertEqual(#NS2.Schema, #NS.Schema,
-    "a page file that aborts at load takes its rows with it and nothing else notices")
+  local FULL, DEGRADED = 70, 15
+  local GAP = { ["Master controls"] = 7, Bar = 12, Background = 6, Border = 12, Text = 18 }
+  assertEqual(#NS.Schema, FULL, "the full schema's row count")
+  assertEqual(#NS2.Schema, DEGRADED,
+    "the degraded schema's row count: a page file that aborts at load takes its rows with it")
 
   local live = {}
-  for _, row in ipairs(NS.Schema) do live[row.path] = true end
+  for _, row in ipairs(NS.Schema) do live[row.path] = row end
   for _, row in ipairs(NS2.Schema) do
-    assertTrue(live[row.path], row.path .. " exists only in the degraded schema")
+    assertTrue(live[row.path] ~= nil, row.path .. " exists only in the degraded schema")
     live[row.path] = nil
   end
-  local missing = {}
-  for path in pairs(live) do missing[#missing + 1] = path end
-  table.sort(missing)
-  assertEqual(#missing, 0,
-    "paths the degraded load never registered: " .. table.concat(missing, ", "))
+
+  local gap, sum, want = {}, 0, 0
+  for _, row in pairs(live) do
+    local g = row.group or "?"
+    gap[g] = (gap[g] or 0) + 1
+    sum = sum + 1
+  end
+  for g, n in pairs(GAP) do
+    assertEqual(gap[g], n, "the composed gap on the " .. g .. " tab")
+    want = want + n
+  end
+  for g in pairs(gap) do
+    assertTrue(GAP[g] ~= nil, "a live-only row on the " .. g .. " tab, which no composer fills")
+  end
+  assertEqual(sum, FULL - DEGRADED, "the gap is exactly full minus degraded")
+  assertEqual(want, FULL - DEGRADED, "and the per-tab attribution sums to it")
 end)
 
 test("perf: the addon loads with LibKa0s absent", function()

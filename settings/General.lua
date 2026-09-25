@@ -18,7 +18,7 @@ local H = NS.Helpers
 --     Master controls  [Enable Absorb Tracker]  [General visibility]
 --                      [Master scale]           [Master alpha]
 --                      [Lock frame]             [Debug console]
---                      [Test mode]                                     <- own line, startsLine
+--                      [Minimap button]                                <- alone: no Test mode row
 --                      [Reset position]         [Reset all settings]   <- button pair, afterGroup
 --     Bars             -- Tracked units --                             <- subgroup, options-ui-§7
 --                      [Enable Player Bar]      [Enable Target Bar]
@@ -38,13 +38,14 @@ local H = NS.Helpers
 -- MASTER CONTROLS LEADS, AND IS NOT OPTIONAL (options-ui-§15). The one thing every player looks for
 -- first -- how do I turn this off, how do I make it smaller, how do I put it back -- is in the same
 -- place, under the same words, in every Ka0s addon. The set is canonical rather than a menu: it may
--- not be reordered, renamed or split, and this addon draws all nine rows because it HAS a movable
--- frame (modules/Bar.lua calls SetMovable(true) on every bar), so nothing is omitted. That includes
--- Test mode: every addon with a positionable display ships one (preview-mode).
+-- not be reordered, renamed or split, and this addon draws seven rows plus the button pair. It HAS
+-- a movable frame (modules/Bar.lua calls SetMovable(true) on every bar), so none of the frame rows
+-- is omitted. What it does not draw is Test mode: it declares no `testModePath`, because unlocking
+-- is its preview (see the `locked` onChange below), so [Minimap button] stands alone on its line.
 --
--- IT IS COMPOSED, NEVER TYPED OUT. H.MasterControls emits the nine from one declaration, so nine
--- addons cannot drift into nine orders; hand-writing the block is anti-pattern #73. What this file
--- supplies is the part that is genuinely ours -- the defaults each row starts from and the
+-- IT IS COMPOSED, NEVER TYPED OUT. H.MasterControls emits the block from one declaration, so the
+-- collection's addons cannot drift into as many orders; hand-writing the block is anti-pattern #73.
+-- What this file supplies is the part that is genuinely ours -- the defaults each row starts from and the
 -- `onChange` each one fires.
 --
 -- WHAT MOVED HERE, AND IS THEREFORE GONE FROM WHERE IT WAS. Two controls over one setting is the
@@ -70,13 +71,13 @@ local H = NS.Helpers
 --
 -- Schema rows below double as the source for `/at list/get/set` on these paths.
 
--- The console toggle's stored path, VERBATIM and unprefixed: session state lives outside the
--- block's own prefix, and this is the literal the composer defaults to. Named once because the
--- registration below has to spell the same string.
 -- Re-entrancy guard for the in-combat unlock refusal in the `locked` onChange below: the corrective
 -- NS.SetByPath fires that same onChange, which would test the combat condition again and recurse.
 local unlockGuard = false
 
+-- The console toggle's stored path, VERBATIM and unprefixed: session state lives outside the
+-- block's own prefix, and this is the literal the composer defaults to. Named once because the
+-- registration below has to spell the same string.
 local DEBUG_CONSOLE_PATH = "state.debugConsole"
 
 -- The console row is bound to the console WINDOW's own show/hide state rather than to the profile
@@ -188,7 +189,7 @@ local masterOnChange = {
         end
 
         -- Both directions of the lock end preview mode (preview-mode): re-locking drops any live
-        -- `/at test <value>` hold so the bar returns to live data instead of keeping the fake
+        -- `/at debug hold <value>` hold so the bar returns to live data instead of keeping the fake
         -- value, and unlocking drops it too so what the user drags is the placeholder fill. The
         -- APPEARANCE pass is what paints, or stops painting, that placeholder — and it re-runs the
         -- visibility ladder itself (NS.UpdateBarAppearance calls NS.ApplyVisibility), which is why
@@ -206,8 +207,8 @@ local masterOnChange = {
 
     -- EXPLICITLY NOTHING, and that is the whole content of this entry. Without it the row falls
     -- through to settings/Schema.lua's `announce`, which publishes APPEARANCE -- a full
-    -- three-bar restyle costing 48 WoW API calls and 384.5 bytes per pass (tests/perf.lua's
-    -- `appearancePass`, measured 2026-09-08) for a checkbox that only shows and hides a window.
+    -- three-bar restyle, whose cost tests/perf.lua's `appearancePass` scenario measures on every run,
+    -- for a checkbox that only shows and hides a window.
     -- The console's own visibility is the ConsoleCheckbox's `set`, stamped below as the row's own
     -- `set`; nothing about a bar depends on it.
     --
@@ -224,6 +225,14 @@ local masterOnChange = {
     [NS.Constants.MINIMAP_PATH] = function() end,
 
 }
+
+-- Published for the write-through path (settings/Schema.lua's WRITE_THROUGH and its announce). On
+-- a load where H.MasterControls is the Options stub's hollow composer, `enabled` and `locked` have
+-- no row to carry these handlers, yet /at enable, /at disable, /at lock, /at unlock and the combat
+-- re-lock still write them. The announce looks the reaction up here by path, so the latch still
+-- moves and the in-combat unlock is still refused on exactly the install that lost the library.
+-- The same functions the rows carry on a full load: one reaction per path, never a second copy.
+NS.MasterReactions = masterOnChange
 
 -- The two rows whose storage is not the profile carry their own get/set, which LibKa0s-Schema-1.0
 -- consults before it walks a path (core/Data.lua says where each value lives, and why).
@@ -305,7 +314,7 @@ NS.RegisterSchemaRows({
         min = 0.05, max = 1, step = 0.05, fmt = "%.2f sec",
         -- Same declared no-op, same reason, and here the cost is per SLIDER STEP: a drag from 0.05
         -- to 1 is nineteen restyles of three bars. Nothing needs republishing either -- the next
-        -- arm reads the value fresh (`NS.GetSetting("throttleWindow")` at modules/Timer.lua's
+        -- arm reads the value fresh (`NS.GetThrottleWindow()` at modules/Timer.lua's
         -- ScheduleTimer call), so a window already in flight finishes on the old value and every
         -- window after it uses the new one, which is what a throttle change should do.
         onChange = function() end,

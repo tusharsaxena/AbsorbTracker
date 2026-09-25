@@ -29,7 +29,7 @@ local HANDLE_ROOM = DRAG and (DRAG.HEIGHT + DRAG.GAP) or 0
 
 -- ── preview mode (preview-mode) ─────────────────────────────────────────────────────────────
 --
--- Two things count as a preview here: the timed `/at test <value>` fill, and the UNLOCKED state in
+-- Two things count as a preview here: the timed `/at debug hold <value>` fill, and the UNLOCKED state in
 -- which the user is positioning the bars. There were three until the Test mode row was removed
 -- (options-ui-§15); the lock is now the only switch, and entering combat re-locks so a fight always
 -- starts on live data.
@@ -41,15 +41,15 @@ local HANDLE_ROOM = DRAG and (DRAG.HEIGHT + DRAG.GAP) or 0
 local PLACEHOLDER_FRACTION = 0.6
 local PLACEHOLDER_TEXT     = "Absorb"
 
--- The armed `/at test` expiry timer, or nil. The hold used to be a bare future timestamp that
--- nothing ever revisited: `/at test 5` announced five seconds, and the fake value then sat on the
+-- The armed `/at debug hold` expiry timer, or nil. The hold used to be a bare future timestamp that
+-- nothing ever revisited: a five-second hold was announced, and the fake value then sat on the
 -- bar until the next absorb event or an explicit `/at update`. preview-mode requires the announced
 -- duration to be honored, so the hold now arms a one-shot that clears it and repaints.
 local previewTimer
 
 --- True while the bars show the placeholder instead of live data — which is exactly while they are
 --- UNLOCKED. The one question all three preview sites ask (the appearance pass, the live repaint's
---- stand-down and the `/at test` expiry), so a way into preview that reached two of them could not
+--- stand-down and the `/at debug hold` expiry), so a way into preview that reached two of them could not
 --- strand the third.
 ---
 --- There used to be a second way in, `NS.State.testMode`, and `options-ui-§15` now forbids it: an
@@ -84,10 +84,10 @@ function NS.PaintPlaceholder(unit)
     return true
 end
 
---- End any `/at test` hold immediately, canceling its expiry timer. Returns true when a hold was
+--- End any `/at debug hold` immediately, canceling its expiry timer. Returns true when a hold was
 --- actually live, so a caller can tell "cleared something" from "nothing to clear".
 ---
---- The single seam: the expiry timer, a second `/at test`, and the `locked` toggle's onChange all
+--- The single seam: the expiry timer, a second `/at debug hold`, and the `locked` toggle's onChange all
 --- come through here, so re-locking can never leave a stale preview on screen. Publishing the
 --- repaint is the CALLER's job — the lock path already sends one, and a double repaint would be
 --- one wasted pass.
@@ -102,15 +102,15 @@ function NS.ClearPreview()
 end
 
 --- Hold the currently-painted fake value for `seconds`, then clear it and repaint. Returns the
---- absolute expiry time, which is what the tests and `/at test` read back.
+--- absolute expiry time, which is what the tests and `/at debug hold` read back.
 function NS.HoldPreview(seconds)
-    NS.ClearPreview()                       -- a second /at test replaces the first hold, never stacks
+    NS.ClearPreview()                       -- a second /at debug hold replaces the first hold, never stacks
     NS.testHoldUntil = GetTime() + seconds
     if NS.addon and NS.addon.ScheduleTimer then
         previewTimer = NS.addon:ScheduleTimer(function()
             previewTimer = nil
             NS.ClearPreview()
-            -- The previews overlap: `/at test <value>` can be run with the bars unlocked, and a
+            -- The previews overlap: `/at debug hold <value>` can be run with the bars unlocked, and a
             -- repaint stands down there too (see NS.UpdateAbsorbBar). Publishing REPAINT alone
             -- would therefore leave the fake value on the bar for good -- past the window this
             -- timer exists to enforce. Hand the bars back to the placeholder first; out of preview,
@@ -392,7 +392,7 @@ function NS.UpdateAbsorbBar(unit, parentBucket)
         return false
     end
 
-    -- /at test paints a fake value and sets testHoldUntil so this doesn't immediately overwrite it.
+    -- /at debug hold paints a fake value and sets testHoldUntil so this doesn't immediately overwrite it.
     if (NS.testHoldUntil or 0) > GetTime() then
         return false
     end

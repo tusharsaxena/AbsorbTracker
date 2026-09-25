@@ -42,7 +42,7 @@ launcher's disabled gate reddens 8; restoring the old draw-gate `enabled` onChan
 and 10. Step 5 stays green under all of them, which is precisely why step 5 alone is not a
 conformance test.
 
-### What the lint gate is a statement about (lint.md)
+### What the lint gate is a statement about (lint)
 
 `luacheck .` reading `0 warnings / 0 errors` is only worth something if the configuration is not the
 reason it reads that way. `.luacheckrc` therefore sets **no top-level `ignore`**, and
@@ -50,7 +50,7 @@ reason it reads that way. `.luacheckrc` therefore sets **no top-level `ignore`**
 
 | Case | What it refuses |
 |------|-----------------|
-| no top-level `ignore` | any `ignore` at the top of `.luacheckrc` — it reaches all 54 files whatever it names, so naming the variable does not rescue it |
+| no top-level `ignore` | any `ignore` at the top of `.luacheckrc` — it reaches all 63 files whatever it names, so naming the variable does not rescue it |
 | no wholesale class switch | `unused_args = false` and eight relatives, which is the same blanket spelled as a switch |
 | every `files[...]` ignore is narrow | a stanza keyed to a directory whose entries name no variable |
 | no bare inline directive | `-- luacheck: ignore` with no code after it, which silences every code on the line rather than the one that was meant |
@@ -167,7 +167,7 @@ differing lines for the library and **947** for the test kit. Re-vendoring to qu
 been the actual mistake — it would pull an untested library release for the sake of a clean diff.
 
 The re-vendor has since landed, so today the two questions give the same answer: `CLAUDE.md` names
-**v1.35.0**, the vendored payloads are that tag, and all four commands above come back empty. An
+**v1.58.0**, the vendored payloads are that tag, and all four commands above come back empty. An
 empty diff is what the state *after* a re-vendor looks like — not a stronger guarantee than the
 tag comparison below, which is the one that actually gates.
 

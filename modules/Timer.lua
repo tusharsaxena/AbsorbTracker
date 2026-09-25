@@ -27,7 +27,7 @@ local function doRepaint()
     -- Count ONE repaint for the whole pass, not one per bar. The `[Combat]` rollup reads
     -- "N events, M repaints" to show the throttle coalescing, and its N counts player events only
     -- — an M that scaled with the visible bar count could exceed N and read as if the throttle
-    -- were amplifying work. A pass in which no bar painted (all hidden, or a /at test hold) still
+    -- were amplifying work. A pass in which no bar painted (all hidden, or a /at debug hold) still
     -- counts nothing, so the "hidden bar is not a repaint" property is unchanged.
     local painted = false
     -- The bucket this pass IS, handed down so `paintBar`'s note records the containment the run

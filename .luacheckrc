@@ -6,12 +6,12 @@ codes = true
 -- library's testkit/, linted in LibKa0s as source, and linting the copy too would report every
 -- finding twice while letting the copy drift green as the original went red -- the one state the
 -- re-vendor diff gate exists to make impossible. Everything else under tests/ is ours and is
--- linted (lint.md).
+-- linted (lint).
 -- Under docs/ only the FROZEN evidence bundles are excluded — `lint` names exactly
 -- docs/audits/ and docs/reviews/. A blanket docs/ exclude would silently drop any Lua a future
 -- doc directory carries (a plan's worked example, a repro snippet) out of the gate.
 exclude_files = { "libs/", "docs/audits/", "docs/reviews/", "_dev/", "tests/_kit/" }
--- NO TOP-LEVEL `ignore`, and none is coming back (lint.md, `M4-11`). This file carried
+-- NO TOP-LEVEL `ignore`, and none is coming back (lint, `M4-11`). This file carried
 -- `ignore = { "212/self", "212/event", "211/addonName", "431" }` until `M4c-06`. Three of those
 -- four entries were narrowed to the variable already, which reads like the careful thing and is
 -- not: an entry at the TOP LEVEL reaches all 54 files whatever it names, so `211/addonName`
@@ -22,9 +22,10 @@ exclude_files = { "libs/", "docs/audits/", "docs/reviews/", "_dev/", "tests/_kit
 -- Removing the four lines reported THIRTY-TWO findings -- nineteen `211/addonName`, thirteen
 -- `212/self` -- and nineteen of the thirty-two were not conventions at all: nineteen files opened
 -- `local addonName, NS = ...` over a folder name they never read. Those are fixed at source and
--- now open `local _, NS = ...`. Seven files do read it -- Namespace, EnvSetup, CoreSetup,
--- MediaSetup, DebugLogSetup, PerfSetup and AbsorbTracker, each handing it to a vendored library
--- that cannot infer which folder it was copied into -- and those keep the name.
+-- now open `local _, NS = ...`. Nine files do read it -- Namespace, EnvSetup, MediaSetup, Bus,
+-- Lifecycle, PerfSetup, DebugLogSetup, LauncherSetup and AbsorbTracker, each handing it to a
+-- vendored library (or to `NS.name`) that cannot infer which folder it was copied into -- and those
+-- keep the name. CoreSetup is not among them: it opens `local _, NS = ...`.
 --
 -- Two of the four entries were silencing NOTHING, which is the same fault at its purest: with all
 -- four removed, this tree reported zero `212/event` and zero `431`. There is no unused `event`
@@ -44,14 +45,13 @@ read_globals = {
   -- RAID_CLASS_COLORS rather than C_ClassColor because that is what LibKa0s-Core-1.0 reads, and it
   -- is what every other unit frame on the player's screen is already reading (options-ui-§17).
   "RAID_CLASS_COLORS",
-  "InCombatLockdown", "UnitAffectingCombat", "Settings", "C_Timer", "C_AddOns",
-  "GetAddOnMetadata",
+  "InCombatLockdown", "UnitAffectingCombat", "Settings", "C_AddOns",
   -- ms CPU clock backing the perf brackets in core/AbsorbTracker.lua, modules/Display.lua and
   -- modules/Timer.lua. The probe they feed lives in libs/LibKa0s/Perf.lua, which this lint excludes.
   "debugprofilestop",
-  "hooksecurefunc", "DEFAULT_CHAT_FRAME",
-  "StaticPopup_Show", "CreateColor", "PlaySound",
-  "strsplit", "strtrim", "tinsert", "tremove", "select",
+  -- No C_Timer and no hooksecurefunc: timers go through AceTimer (library-stack-§1), so a raw call
+  -- to either lints red here rather than slipping through.
+  "DEFAULT_CHAT_FRAME", "StaticPopup_Show", "select",
 }
 globals = {
   "AbsorbTrackerDB",     -- the SavedVariables write target
@@ -75,7 +75,7 @@ files["tests/"] = {
 }
 
 -- ---------------------------------------------------------------------------
--- The narrowed 212s (lint.md, `M4c-06`)
+-- The narrowed 212s (lint, `M4c-06`)
 -- ---------------------------------------------------------------------------
 --
 -- Every stanza below names ONE file, and every entry inside it names the code AND the variable, in

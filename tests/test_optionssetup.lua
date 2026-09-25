@@ -63,7 +63,21 @@ test("the live and degraded builds veto exactly the same rows from Reset All", f
   -- would refresh the panel once per row for values about to be discarded whole. What survives the
   -- veto is the sessionOnly rows, which a profile reset cannot reach.
   -- red under: a predicate that vetoes only the profiles page, or one that vetoes everything.
+  --
+  -- Compared over the rows BOTH builds carry. The degraded schema is the live one minus the
+  -- composed rows (the Options stub's composers are hollow, options-ui-§1; tests/test_perf.lua
+  -- pins that gap), so a live-only row has no degraded verdict to compare against.
   local NS2 = loadDegraded()
+  local both = {}
+  for _, row in ipairs(NS2.Schema) do both[row.path] = true end
+  for _, p in ipairs({ "__probe.onProfilesPage", "__probe.onGeneralPage", "__probe.sessionOnly" }) do
+    both[p] = true
+  end
+  local function shared(list)
+    local out = {}
+    for p in list:gmatch("[^,]+") do if both[p] then out[#out + 1] = p end end
+    return table.concat(out, ",")
+  end
   local live = vetoedByResetAll(NS, Helpers.RestoreAllDefaults)
   local degraded = vetoedByResetAll(NS2, NS2.Helpers.RestoreAllDefaults)
 
@@ -73,7 +87,8 @@ test("the live and degraded builds veto exactly the same rows from Reset All", f
     "an ordinary profile-backed row must be vetoed; the profile reset covers it")
   assertFalse(live:find("__probe.sessionOnly", 1, true) ~= nil,
     "a sessionOnly row must still be swept — a profile reset cannot reach it")
-  assertEqual(degraded, live, "the degraded reset vetoes a different row set than the live one")
+  assertEqual(degraded, shared(live),
+    "the degraded reset vetoes a different row set than the live one")
   T.mocks.__fireTimers()
 end)
 
@@ -200,6 +215,42 @@ test("with LibKa0s absent, the lock and unlock verbs still write the store", fun
   T.mocks.__fireTimers()
 end)
 
+-- The addon-wide switch on a library-less load. `enabled` is a COMPOSED row, and the Options stub's
+-- composers answer {} (options-ui-§1, anti-pattern #73), so no row declares it there: the write
+-- lands through settings/Schema.lua's WRITE_THROUGH list, and the host's own reaction
+-- (NS.MasterReactions, published by settings/General.lua) is what moves the stand-down latch.
+-- red under: removing 'enabled' from WRITE_THROUGH, or dropping the announce's reaction dispatch.
+test("with LibKa0s absent, /at disable stands the addon down and /at enable brings it back", function()
+  local NS2, _, profile = degradedWithDb()
+  local ok, err = pcall(NS2.Slash.OnSlash, NS2.Slash, "disable")
+  assertTrue(ok, "/at disable raised: " .. tostring(err))
+  assertEqual(profile.enabled, false, "/at disable wrote enabled = false")
+  assertTrue(NS2.lifecycle:IsDown(), "and the latch stood the addon down")
+  ok, err = pcall(NS2.Slash.OnSlash, NS2.Slash, "enable")
+  assertTrue(ok, "/at enable raised: " .. tostring(err))
+  assertEqual(profile.enabled, true, "/at enable wrote enabled = true")
+  assertFalse(NS2.lifecycle:IsDown(), "and the latch stood the addon back up")
+  T.mocks.__fireTimers()
+end)
+
+-- The lock's reaction survives the same load: the in-combat unlock refusal is the host's own code
+-- (settings/General.lua's `locked` reaction), dispatched by the announce for a written-through path.
+-- red under: removing 'locked' from WRITE_THROUGH, or dropping the announce's reaction dispatch.
+test("with LibKa0s absent, /at unlock in combat is refused and the lock stays on", function()
+  local NS2, mocks2, profile = degradedWithDb()
+  local out = {}
+  mocks2.DEFAULT_CHAT_FRAME.AddMessage = function(_, msg) out[#out + 1] = msg end
+  local saved = mocks2.InCombatLockdown
+  mocks2.InCombatLockdown = function() return true end
+  local ok, err = pcall(NS2.Slash.OnSlash, NS2.Slash, "unlock")
+  mocks2.InCombatLockdown = saved
+  assertTrue(ok, "/at unlock raised: " .. tostring(err))
+  assertEqual(profile.locked, true, "the refusal wrote the lock back on")
+  assertTrue(table.concat(out, "\n"):find("Cannot unlock the bars during combat", 1, true) ~= nil,
+    "and the player is told: " .. table.concat(out, " | "))
+  T.mocks.__fireTimers()
+end)
+
 test("with LibKa0s absent, entering combat still re-locks unlocked bars in the store", function()
   local NS2, _, profile = degradedWithDb()
   profile.locked = false
@@ -218,54 +269,26 @@ test("the degraded stub publishes LSMValues, the one member reached at file load
   assertEqual(type(NS2.Helpers.LSMValues("statusbar")), "function", "and it returns a values fn")
 end)
 
-test("the degraded stub publishes the five composers, the other load-time members", function()
+test("the degraded stub publishes the five composers, hollow", function()
   -- settings/General.lua and settings/Appearance.lua call these inside NS.RegisterSchemaRows, at
   -- FILE LOAD, so a nil aborts the file and takes that page's rows out of the schema exactly as a
-  -- nil LSMValues does. tests/test_perf.lua compares the whole path set; this names the members and
-  -- pins the line the stub draws through them.
-  --
-  -- WHAT THEY REPRODUCE is the STORED surface: the path the live composer derives (so `prefix` and
-  -- `keys` are honored), the type, and the caller's default. WHAT THEY DO NOT is every label,
-  -- tooltip, range, media source and layout flag -- each of those is read by a widget or by the
-  -- library's CLI, and a library-less build has neither (settings/Slash.lua's own stub answers
-  -- every schema verb with "unavailable"). Copying them would be copying strings whose single
-  -- source is the whole point, for nobody to read.
-  -- red under: a stub composer returning {}, or one that stops honoring `keys`.
+  -- nil LSMValues does. So each must EXIST -- and each must answer the empty block (options-ui-§1):
+  -- the rows a composer emits are the library's, and a host copy of any of them, however little of
+  -- the row it reproduces, is anti-pattern #73. The composed paths a host verb still writes reach
+  -- the store through settings/Schema.lua's WRITE_THROUGH list instead (the cases above).
+  -- tests/test_perf.lua pins what the hollow answer costs the schema, as a named gap.
+  -- red under: a host copy of any composer (anti-pattern #73).
   local NS2 = loadDegraded()
+  local spec = { prefix = "units.player.", page = "appearance", group = "Probe",
+                 addonName = "Absorb Tracker", debugConsolePath = "state.debugConsole" }
   for _, name in ipairs({ "ColorPair", "FontGroup", "BorderGroup", "BarGroup", "MasterControls" }) do
     assertEqual(type(NS2.Helpers[name]), "function", name .. " is reached at file load")
+    local rows = NS2.Helpers[name](spec)
+    assertEqual(type(rows), "table", name .. " answers a table")
+    assertEqual(#rows, 0, name .. " answers the empty block, not a host copy of the library's")
   end
-
-  local rows = NS2.Helpers.BorderGroup({
-    prefix = "units.player.", page = "appearance", group = "Border",
-    keys = { borderStyle = "border" }, defaults = { borderSize = 12 },
-  })
-  assertEqual(#rows, 4, "the canonical border block is four rows")
-  assertEqual(rows[1].path, "units.player.border", "`keys` must move the stored path, not the leaf")
-  assertEqual(rows[2].default, 12, "and `defaults` must reach the row a reset reads")
-  assertEqual(rows[3].type, "color")
-  assertEqual(rows[4].path, "units.player.useClassColorBorder")
-  assertEqual(rows[1].label, nil, "the stub deliberately carries no label: nothing degraded reads one")
-
-  local master, tail = NS2.Helpers.MasterControls({
-    page = "general", addonName = "Absorb Tracker", debugConsolePath = "state.debugConsole",
-  })
-  assertEqual(#master, 6, "the canonical master set is six schema rows")
-  assertEqual(master[6].path, "state.debugConsole", "the console path is verbatim and unprefixed")
-  assertEqual(master[6].sessionOnly, true)
+  local _, tail = NS2.Helpers.MasterControls(spec)
   assertEqual(type(tail), "function", "the afterGroup hook is a no-op, not a nil")
-
-  -- The optional Test mode row, mirrored from the library's compose minor 6: present exactly when
-  -- the host names `testModePath`, verbatim, after the console, and carrying the caller's default.
-  -- red under: a stub that drops the leaf (tests/test_perf.lua's path-set parity goes red too).
-  local withTest = NS2.Helpers.MasterControls({
-    page = "general", debugConsolePath = "state.debugConsole",
-    testModePath = "state.testMode", defaults = { testMode = false },
-  })
-  assertEqual(#withTest, 7, "a host with a test mode gets a seventh row")
-  assertEqual(withTest[7].path, "state.testMode", "the test mode path is verbatim and unprefixed")
-  assertEqual(withTest[7].sessionOnly, true)
-  assertEqual(withTest[7].default, false, "and `defaults` reaches it, so a reset ends the mode")
 end)
 
 test("the degraded stub keeps no private copy of the library's layout constants", function()
@@ -296,6 +319,15 @@ test("PARENT_TITLE reaches the library through the descriptor, not the namespace
   assertEqual(NS.PARENT_TITLE, nil, "NS.PARENT_TITLE is a file-scope local now")
   assertEqual(T.mocks.__mainPanel.name, "Ka0s Absorb Tracker",
     "and the brand still reaches the canvas the library registers")
+  -- One literal (R-10): the local is the brand constant, not a second spelling of it. red under:
+  -- re-typing a literal into PARENT_TITLE, which drifts from C.BRAND on the next rename.
+  assertEqual(T.mocks.__mainPanel.name, NS.Constants.BRAND, "the canvas name IS the brand constant")
+  local src = io.open("settings/OptionsSetup.lua", "r")
+  assertTrue(src ~= nil, "cannot open settings/OptionsSetup.lua (tests run from the repo root)")
+  local body = src:read("*a")
+  src:close()
+  assertEqual(body:match("\n%s*local%s+PARENT_TITLE%s*=%s*([^\r\n]-)%s*\r?\n"), "NS.Constants.BRAND",
+    "PARENT_TITLE reads the one brand constant")
 end)
 
 -- ── the LSM30_Border patch, promoted to the library ────────────────────────────────

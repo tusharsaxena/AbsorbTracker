@@ -26,11 +26,21 @@ local SlashLib = LibStub and LibStub("LibKa0s-Slash-1.0", true)
 -- reaches it at CALL time, which is why a forward-declared local is enough.
 local cli
 
+-- The disabled line's format, the ONE library string the library-absent stub below carries, and it
+-- carries it verbatim: these are the bytes of LibKa0s-Slash-1.0's `lib.DISABLED_LINE_FORMAT`
+-- (v1.56.0), em dash spelled as the library spells it. slash-commands-§1 sanctions exactly this
+-- copy and requires the pin beside it: tests/test_slashcmds.lua compares it against the live
+-- library with Kit.assertLibraryConstant, so a re-worded library line turns the suite red instead
+-- of leaving a stale sentence behind. Published as a suite seam; nothing in the addon reads it.
+local STUB_DISABLED_LINE_FORMAT = "%s is disabled \226\128\148 enable it with |cFFFFFF00%s|r"
+Sl.__STUB_DISABLED_LINE_FORMAT = STUB_DISABLED_LINE_FORMAT
+
 -- Help row formatter — gold command + em-dash + white description. The coloring and the spacing
 -- are the library's one formatter; the two-space indent belongs to this renderer, because a chat
--- line sits under a header and a settings-panel label does not.
+-- line sits under a header and a settings-panel label does not. With the library absent there is
+-- no formatter to borrow and none is copied (slash-commands-§1), so the row renders plainly.
 local function PrintCmd(cmd, desc)
-    print("  " .. SlashLib.FormatRow(cmd, desc))
+    print("  " .. (SlashLib.FormatRow and SlashLib.FormatRow(cmd, desc) or (cmd .. "  " .. desc)))
 end
 
 -- Trailing note for a row whose unit is CURRENTLY mirroring the player.
@@ -55,8 +65,8 @@ end
 -- Forward declarations so the commands table can reference handlers defined below.
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
-local runDebug, runUpdate, runTest, runProfile, runToggle, runPerf
-local setEnabled
+local runDebug, runUpdate, runProfile, runToggle, runPerf
+local setEnabled, echoStored, runHold
 
 NS.COMMANDS = {
     {"help",          "List available commands",
@@ -86,19 +96,21 @@ NS.COMMANDS = {
         function() runResetAll() end},
     {"resetposition", "Move every bar back to its default position",
         function() runResetPosition() end},
-    {"lock",          "Lock the bar in place",
+    -- The echo is the STORED value, not the argument: the locked row's onChange refuses an unlock in
+    -- combat and writes true back, and a fixed "unlocked" line would contradict it (slash-commands-§8).
+    {"lock",          "Lock the bars in place",
         function()
             NS.SetByPath("locked", true)
-            print("Bar locked")
+            echoStored("locked")
         end},
-    {"unlock",        "Unlock the bar so it can be dragged",
+    {"unlock",        "Unlock the bars so they can be dragged",
         function()
             NS.SetByPath("locked", false)
-            print("Bar unlocked")
+            echoStored("locked")
         end},
     {"toggle",        "Toggle bars on or off \226\128\148 `/at toggle [player|target|focus]`",
         function(rest) runToggle(rest) end},
-    {"debug",         "Toggle the debug console \226\128\148 `on`/`off` enable/disable logging",
+    {"debug",         "Toggle the debug console \226\128\148 `on`/`off` logging, `events`, `hold <value> [secs]`",
         function(rest) runDebug(rest) end},
     {"perf",          "Measure performance \226\128\148 try `/at perf` for the workflow",
         function(rest) runPerf(rest) end},
@@ -106,8 +118,6 @@ NS.COMMANDS = {
         function() runUpdate() end},
     {"version",       "Print the addon version",
         function() print(("v%s"):format(NS.Version())) end},
-    {"test",          "Hold a fake absorb value on the bars \226\128\148 `/at test <value> [secs]`",
-        function(rest) runTest(rest) end},
     {"profile",       "Profile management \226\128\148 try `/at profile` for the list",
         function(rest) runProfile(rest) end},
 }
@@ -127,8 +137,10 @@ NS.COMMANDS = {
 --     so does the bare `/at`, which runs `config` and opens the settings panel. That is the case
 --     that settled it: a player reaches for the panel precisely when the addon is off, and the
 --     narrowing that refused it (standard v2.56.0, Slash minor 12) was reversed the same day.
---   * this addon's own FEATURE verbs -- `lock`, `unlock`, `toggle`, `update`, `test` -- get ONE
---     tagged line naming `/at enable` and reach no seam. §2's SHOULD, and this addon takes it.
+--   * this addon's own FEATURE verbs -- `lock`, `unlock`, `toggle`, `update` -- get ONE tagged line
+--     naming `/at enable` and reach no seam. §2's SHOULD, and this addon takes it. `debug` is live,
+--     but its `hold` sub-verb paints the bars, so runHold asks the same question and prints the
+--     same line itself.
 --   * a TYPO still gets `unknown command` and the index, because the addon did not understand it;
 --     the gate sits after the COMMANDS lookup, which is what tells the two cases apart.
 --
@@ -221,11 +233,13 @@ function runResetPosition()
 end
 
 -- ---------------------------------------------------------------------
--- /at debug / /at update / /at test
+-- /at debug / /at update
 -- ---------------------------------------------------------------------
 --
 -- /at debug        toggles the on-screen debug console window (state unchanged).
 -- /at debug on|off enables / disables session logging (debug-logging-§5).
+-- /at debug events lists the event names the client refused this session.
+-- /at debug hold <value> [secs] holds a fake absorb value on the bars (below).
 
 -- The whole guided run lives in LibKa0s-Perf; this is only the dispatch. The lib deliberately
 -- registers no slash command of its own (slash-commands-§3: every verb goes through this table with
@@ -234,15 +248,104 @@ function runPerf(rest)
     for _, line in ipairs(NS.Perf.OnCommand(rest or "")) do print(line) end
 end
 
-function runDebug(rest)
-    local sub = (rest or ""):match("^(%S*)") or ""
-    sub = sub:lower()
-    if sub == "on" or sub == "off" then
-        if NS.DebugLog and NS.DebugLog.SetEnabled then
-            NS.DebugLog:SetEnabled(sub == "on")
-        elseif NS.State then
-            NS.State.debug = (sub == "on")
+local function setDebugLogging(on)
+    if NS.DebugLog and NS.DebugLog.SetEnabled then
+        NS.DebugLog:SetEnabled(on)
+    elseif NS.State then
+        NS.State.debug = on
+    end
+end
+
+-- `/at debug events`: every event name the client refused this session (events-frames-taint-§1),
+-- as the SafeRegister helpers recorded it in NS.State.rejectedEvents (core/AbsorbTracker.lua).
+local function printRejectedEvents()
+    local list = NS.State and NS.State.rejectedEvents
+    if type(list) ~= "table" or #list == 0 then
+        print("Rejected events: none")
+    else
+        print("Rejected events: " .. table.concat(list, ", "))
+    end
+end
+
+-- `/at debug hold <value> [secs]` paints that value on every visible bar and holds it for a few
+-- seconds. It is a DIAGNOSTIC, not a visibility switch: it fakes an absorb amount so the bar's text,
+-- fill and abbreviation can be eyeballed without waiting for a real shield.
+--
+-- It used to be the top-level `test <value> [secs]` verb. This addon's unlocked view is its
+-- preview, and options-ui-§15 and preview-mode say an addon in that shape ships no `test` verb
+-- (anti-pattern #80): `/at unlock` and `/at lock` are the switch. The value hold answers a
+-- different question, so it stays, under `debug`, which is where the standard puts a kept
+-- one-shot hold.
+--
+-- The duration is validated rather than passed through: -3 used to be announced as "-3 s" and
+-- handed to AceTimer, which clamps it to almost nothing, and `%d` announced 2.5 as "2 s".
+local HOLD_USAGE = "Usage: /at debug hold <value> [secs] \226\128\148 secs from 0.5 to 60, default 5"
+local HOLD_MIN, HOLD_MAX, HOLD_DEFAULT = 0.5, 60, 5
+
+--- The value and the seconds from `/at debug hold`'s arguments, or nil when either is unusable.
+--- A word after the seconds is ignored. The range test is written as `not (min <= secs <= max)`
+--- so that a NaN, which compares false with everything, is refused rather than slipping past two
+--- `<`/`>` checks.
+local function parseHold(rest)
+    local first, second = (rest or ""):match("^(%S*)%s*(%S*)")
+    local n = tonumber(first)
+    local secs = HOLD_DEFAULT
+    if second ~= "" then secs = tonumber(second) end
+    if not n or n ~= n or not secs then return nil end
+    if not (secs >= HOLD_MIN and secs <= HOLD_MAX) then return nil end
+    return n, secs
+end
+
+local function paintHold(n)
+    for _, unit in ipairs(NS.Units.LIST) do
+        local bar = NS.bars[unit]
+        if bar and NS.ShouldShowBar(unit) then
+            bar.valueText:SetText(AbbreviateNumbers(n))
+            bar.statusBar:SetMinMaxValues(0, math.max(n, 100000))
+            bar.statusBar:SetValue(n)
         end
+    end
+end
+
+function runHold(rest)
+    -- `debug` is a live verb (slash-commands-§2), so the library's gate never sees this one. A hold
+    -- paints the bars, which is a feature, so it refuses on the collection's one line itself.
+    if NS.GetSetting("enabled") == false then return print(Sl:DisabledLine()) end
+
+    local n, secs = parseHold(rest)
+    if not n then return print(HOLD_USAGE) end
+
+    -- Nothing to paint if every bar is off. Checks `enabled` per unit rather than a master
+    -- toggle — there is no `hidden` global any more (schema v4).
+    local anyEnabled = false
+    for _, unit in ipairs(NS.Units.LIST) do
+        if NS.Units.IsEnabled(unit) then anyEnabled = true break end
+    end
+    if not anyEnabled then
+        return print("Every bar is disabled; run /at toggle to turn them on before testing")
+    end
+
+    print(("Holding %s on the bars for %s s"):format(AbbreviateNumbers(n), ("%g"):format(secs)))
+    paintHold(n)
+    -- Honors the duration just announced: NS.HoldPreview arms a one-shot that clears the hold and
+    -- republishes REPAINT at expiry (modules/Display.lua).
+    NS.HoldPreview(secs)
+end
+
+-- The sub-verbs `/at debug` takes; anything else (including nothing) toggles the console window.
+-- Each handler gets the rest of the line after its sub-verb.
+local DEBUG_VERBS = {
+    on     = function() setDebugLogging(true) end,
+    off    = function() setDebugLogging(false) end,
+    events = printRejectedEvents,
+    hold   = function(rest) runHold(rest) end,
+}
+
+function runDebug(rest)
+    local sub, subrest = (rest or ""):match("^(%S*)%s*(.*)$")
+    local handler = DEBUG_VERBS[(sub or ""):lower()]
+    if handler then
+        handler(subrest)
         return
     end
     if NS.DebugLog and NS.DebugLog.Toggle then
@@ -294,81 +397,40 @@ end
 -- NO STATE OF THEIR OWN (slash-commands-§2): no second key, no session flag, no `NS.enabled` local.
 -- The one write goes through NS.SetByPath, which is the seam the Master-controls checkbox,
 -- `/at set enabled true` and the Defaults button all go through, so the row's `onChange` --
--- VISIBILITY then REPAINT (settings/General.lua) -- runs whichever surface was used.
+-- NS.SyncEnabledHold (settings/General.lua) -- runs whichever surface was used.
 --
--- THE VERBS ARE NOT A SECOND DEFINITION OF *DISABLED* EITHER. `enabled` gates NS.ShouldShowBar's
--- second rung and nothing else: no file unloads, no event registration changes, and the dispatcher
--- is registered unconditionally in OnInitialize. That is what keeps the pair from being one-way --
+-- WHAT *DISABLED* MEANS HERE (slash-commands-§7). NS.SyncEnabledHold moves the `disabled` hold on
+-- the one stand-down latch (core/Lifecycle.lua). On the edge the latch runs StandDown, which
+-- unregisters the three per-unit event frames, the five AceEvent registrations and the internal
+-- bus, so the addon stops watching rather than merely stops drawing. What StandDown leaves alone
+-- is SETUP, not a feature: the dispatcher (registered unconditionally in OnInitialize), the
+-- COMMANDS table and the settings registration. That is what keeps the pair from being one-way --
 -- `/at`, `/at enable`, `/at help` and `/at config` all still answer with the addon off, which
 -- slash-commands-§2 makes a MUST because the alternative strands a player in a settings panel they
 -- were trying not to open. tests/test_slashcmds.lua pins it.
---
--- The echo is slash-commands-§5's `set` shape, read back from the STORE rather than from the
--- argument, through the same formatter `/at get` and the [Set] debug line use. The colored pair is
--- the library's; with the library absent it renders plainly, exactly as the degraded help rows do,
--- rather than this file carrying a second copy of the color codes (testing-§8).
 function setEnabled(on)
     NS.SetByPath("enabled", on)
+    echoStored("enabled")
+end
+
+-- The one confirmation line for a verb that writes a schema path (slash-commands-§8): refresh an
+-- open panel so its widget moves with the verb, then print slash-commands-§5's `set` shape, read
+-- back from the STORE rather than from the argument -- an onChange that refused or coerced the
+-- write is what the player is told about. Same formatter `/at get` and the [Set] debug line use.
+-- The colored pair is the library's; with the library absent it renders plainly, exactly as the
+-- degraded help rows do, rather than this file carrying a second copy of the color codes
+-- (testing-§8).
+function echoStored(path)
     if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
-    local row    = NS.FindSchemaRow("enabled")
-    local stored = NS.GetSetting("enabled")
+    local row    = NS.FindSchemaRow(path)
+    local stored = NS.GetSetting(path)
     local value  = row and NS.FormatSchemaValue(row, stored) or tostring(stored)
-    print(SlashLib.FormatKV and SlashLib.FormatKV("enabled", value) or ("enabled = " .. value))
+    print(SlashLib.FormatKV and SlashLib.FormatKV(path, value) or (path .. " = " .. value))
 end
 
 function runUpdate()
     NS.bus:SendMessage(NS.MSG.REPAINT)
     print("Forced refresh")
-end
-
--- `/at test <value> [secs]` paints that value on every visible bar and holds it for a few
--- seconds. It is a DIAGNOSTIC, not a visibility switch: it fakes an absorb amount so the bar's text,
--- fill and abbreviation can be eyeballed without waiting for a real shield.
---
--- The `[on|off]` form is gone with test mode itself (options-ui-§15): this addon's unlocked view is
--- its preview, so `/at unlock` and `/at lock` are the switch, and a second verb for the same state
--- was the finding (anti-pattern #80). The value hold survives because it answers a different
--- question and nothing else in the addon answers it.
-local TEST_USAGE = "Usage: /at test <value> [secs] holds a fake value on the bars"
-
-local function runTestHold(args)
-    local n    = tonumber(args[1])
-    local hold = tonumber(args[2]) or 5
-
-    -- Nothing to paint if every bar is off. Checks `enabled` per unit rather than a master
-    -- toggle — there is no `hidden` global any more (schema v4).
-    local anyEnabled = false
-    for _, unit in ipairs(NS.Units.LIST) do
-        if NS.Units.IsEnabled(unit) then anyEnabled = true break end
-    end
-    if not anyEnabled then
-        print("Every bar is disabled; run /at toggle to turn them on before testing")
-        return
-    end
-
-    print(("Testing display with value: %s for %d s"):format(AbbreviateNumbers(n), hold))
-    for _, unit in ipairs(NS.Units.LIST) do
-        local bar = NS.bars[unit]
-        if bar and NS.ShouldShowBar(unit) then
-            bar.valueText:SetText(AbbreviateNumbers(n))
-            bar.statusBar:SetMinMaxValues(0, math.max(n, 100000))
-            bar.statusBar:SetValue(n)
-        end
-    end
-    -- Honors the duration just announced: NS.HoldPreview arms a one-shot that clears the hold and
-    -- republishes REPAINT at expiry (modules/Display.lua). Setting a bare NS.testHoldUntil, which
-    -- is what this used to do, left the fake value on the bar past the announced window until the
-    -- next absorb event happened to arrive.
-    NS.HoldPreview(hold)
-end
-
-function runTest(rest)
-    local args = {}
-    for w in (rest or ""):gmatch("%S+") do args[#args + 1] = w end
-    -- A bare `/at test` used to toggle test mode and now has nothing to toggle, so it prints the
-    -- usage rather than silently doing nothing — a player with the old habit gets told what changed.
-    if not tonumber(args[1]) then return print(TEST_USAGE) end
-    runTestHold(args)
 end
 
 -- ---------------------------------------------------------------------
@@ -404,6 +466,20 @@ local function needsName(verb, fn)
     end
 end
 
+-- True when `name` is one of the stored profiles. Exact and case-sensitive, as AceDB names are.
+-- new, copy and delete check the name here first, so AceDB never sees a name it would raise on
+-- (CopyProfile) or silently ignore (DeleteProfile).
+local function profileExists(db, name)
+    for _, existing in ipairs(db:GetProfiles()) do
+        if existing == name then return true end
+    end
+    return false
+end
+
+local function printNotFound(name)
+    print("Profile '" .. name .. "' not found \226\128\148 /at profile list shows them")
+end
+
 -- The sub-verb table, keyed by the lowercased verb. Built once at load.
 local PROFILE_VERBS = {
     list = function(db)
@@ -424,17 +500,27 @@ local PROFILE_VERBS = {
         print("Switched to profile '" .. name .. "'")
     end),
 
-    -- SetProfile first, THEN ResetProfile: the reset has to land on the new profile, not the one
-    -- being left behind. It is not redundant: `new` on a name that already exists resets that
-    -- profile. Both resets here are counted (NS.ResetProfileCounted), so OnProfileReset's line
-    -- carries the rows changed — `(0 rows)` for a profile that did not exist (debug-logging-§10).
+    -- `new` only ever makes a profile: an existing name is refused, never switched to and reset,
+    -- because that would wipe it on one typed command. SetProfile first, THEN ResetProfile, so the
+    -- reset lands on the new profile, not the one being left behind. The reset is counted
+    -- (NS.ResetProfileCounted), so OnProfileReset's line reads `(0 rows)` for the fresh profile
+    -- (debug-logging-§10).
     new = needsName("new", function(db, name)
+        if profileExists(db, name) then
+            return print("Profile '" .. name .. "' already exists \226\128\148 /at profile use "
+                .. name .. " switches to it, /at profile reset resets it")
+        end
         db:SetProfile(name)
         NS.ResetProfileCounted(db)
         print("Created and switched to new profile '" .. name .. "'")
     end),
 
+    -- AceDB's CopyProfile raises on the current or a missing name, so both are refused first.
     copy = needsName("copy", function(db, name)
+        if name == db:GetCurrentProfile() then
+            return print("Cannot copy a profile onto itself")
+        end
+        if not profileExists(db, name) then return printNotFound(name) end
         db:CopyProfile(name)
         print("Copied settings from profile '" .. name .. "'")
     end),
@@ -443,6 +529,7 @@ local PROFILE_VERBS = {
         if name == db:GetCurrentProfile() then
             return print("Cannot delete the current profile")
         end
+        if not profileExists(db, name) then return printNotFound(name) end
         db:DeleteProfile(name, true)   -- silent: we print our own line
         print("Deleted profile '" .. name .. "'")
     end),
@@ -479,32 +566,32 @@ end
 -- ---------------------------------------------------------------------
 
 -- A missing vendored lib must degrade, not error at load. `/at` is registered unconditionally, so
--- something has to answer it. Note what is NOT here: no copy of the row formatter, no copy of the
--- parser, no copy of the key/value shape. Hand-copying the strings whose drift the extraction
--- exists to end is the one duplicate testing-§8 most specifically forbids, so a degraded help row
--- renders plainly and says so instead.
+-- something has to answer it. The stub takes the shape slash-commands-§1 prescribes: no copy of
+-- the row formatter, no copy of the parser, no copy of the key/value shape. Hand-copying the
+-- strings whose drift the extraction exists to end is the duplicate testing-§8 forbids, so a
+-- degraded help row renders plainly (`/at list  List every setting ...`). The single library string
+-- it does carry is the disabled line's format, verbatim and pinned (STUB_DISABLED_LINE_FORMAT).
 --
 -- The host verbs never went to the library, so they keep working untouched. What is lost is the
--- schema CLI, and each of those verbs names the missing library rather than going quiet.
+-- schema CLI, and each of those verbs prints the collection's library-absent line through the
+-- locale (keyed by its English text, localization-§2) rather than going quiet.
 if not SlashLib then
-    local missing = " is unavailable. " .. NS.LIBKA0S_MISSING .. "."
-    SlashLib = { FormatRow = function(cmd, desc) return cmd .. " \226\128\148 " .. desc end }
+    SlashLib = {}
 
     function SlashLib:New(d)
         local stub = { SetRowAnnotator = function() end }
-        -- The one line a disabled addon says, and the degraded arm has to be able to say it: the
-        -- launcher's left click calls this member directly (core/LauncherSetup.lua), and a nil
-        -- there would raise on a click rather than refuse it.
+        -- The one line a disabled addon says, and the degraded arm has to be able to say it:
+        -- runHold (`/at debug hold`, above) calls this member directly on a disabled addon, and a
+        -- nil there would raise on the verb rather than refuse it.
         --
-        -- PLAINLY, exactly as the degraded help rows render -- same words, no color escapes. The
-        -- library's `DISABLED_LINE_FORMAT` is not copied here: hand-copying the strings whose drift
-        -- the extraction exists to end is the one duplicate testing-§8 most specifically forbids,
-        -- and the copy would be the thing that survives the day the collection re-words the line.
+        -- The SAME line the library builds, color escapes and all: the stub formats the library's
+        -- verbatim format string (STUB_DISABLED_LINE_FORMAT, pinned by the suite) with the same two
+        -- arguments the library's DisabledLine passes. slash-commands-§1 sanctions this one copy.
         stub.DisabledLine = function()
-            return NS.Constants.BRAND .. " is disabled \226\128\148 enable it with /at enable"
+            return STUB_DISABLED_LINE_FORMAT:format(NS.Constants.BRAND, "/at enable")
         end
         local function absent(verb)
-            return function() print("/at " .. verb .. missing) end
+            return function() print(NS.L["%s is unavailable: the LibKa0s library did not load."]:format("/at " .. verb)) end
         end
         for _, verb in ipairs({ "List", "Get", "Set", "Reset", "ResetAll" }) do
             stub["Cli" .. verb] = absent(verb:lower())
@@ -512,7 +599,7 @@ if not SlashLib then
         stub.LandingRows = function()
             local out = {}
             for _, e in ipairs(d.commands) do
-                out[#out + 1] = SlashLib.FormatRow("/at " .. e[1], e[2])
+                out[#out + 1] = "/at " .. e[1] .. "  " .. e[2]
             end
             return out
         end
@@ -628,9 +715,9 @@ cli:SetRowAnnotator(MirrorNote)
 Sl.__cli = cli
 
 --- The one line a disabled addon says, built by the library and re-spelled nowhere
---- (slash-commands-§7). Published because the LAUNCHER's refused left click prints the very same
---- line (core/LauncherSetup.lua), and a second copy of one sentence across two files is how eleven
---- addons ended up with eleven wordings.
+--- (slash-commands-§7). Published because runHold's refusal (`/at debug hold`, a live verb the
+--- library's gate never sees) prints the very same line, and the suites compare against it; a second
+--- copy of one sentence is how eleven addons ended up with eleven wordings.
 function Sl:DisabledLine() return cli:DisabledLine() end
 
 --- The command list the About page renders. Same coloring and spacing as `/at help`, without the

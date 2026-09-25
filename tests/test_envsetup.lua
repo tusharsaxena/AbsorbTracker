@@ -70,7 +70,7 @@ end)
 
 test("EnvSetup degraded: an install with no LibKa0s still reads its own TOC", function()
   -- The case that earns the written-out fallbacks. Without LibKa0s the seam answers nil for
-  -- everything unless it repeats the ladder the deleted shim ran, and nil is not an error a player
+  -- everything unless it repeats the ladder's live rung, C_AddOns, and nil is not an error a player
   -- would ever see reported: it is a blank version after `/at version` and an empty About page.
   -- tests/degraded_env.lua loads the whole TOC with libs/LibKa0s/*.lua left out, so this runs the
   -- else-branch of both helpers as a LOAD rather than as a hand-stub.
@@ -82,6 +82,22 @@ test("EnvSetup degraded: an install with no LibKa0s still reads its own TOC", fu
   assertEqual(NS2.Version(), "9.9.9")
   mocks2.C_AddOns = nil
   assertEqual(NS2.Version(), NS2.version, "and still the constant when nothing can be read")
+end)
+
+test("EnvSetup degraded: a legacy-only surface yields nil, and the dead global is never called", function()
+  -- compat: a fallback rung that calls a global no admitted client provides is dead code, deleted
+  -- rather than kept. Every client this addon's `## Interface` line admits carries the reader only as
+  -- C_AddOns' member, so with the library AND C_AddOns both absent the seam has nothing left to try:
+  -- it answers nil. A bare global standing in their place is a surface no admitted client has, and
+  -- the seam must not reach for it.
+  local NS2, mocks2 = loadDegraded()
+  local called = false
+  mocks2.C_AddOns = nil
+  mocks2.GetAddOnMetadata = function() called = true; return "9.9.9" end
+  local v = NS2.Meta("Version")
+  mocks2.GetAddOnMetadata = nil
+  assertNil(v)
+  assertTrue(not called, "the deleted pre-11.0 rung must not be restored")
 end)
 
 test("EnvSetup: the deleted shim is gone, and so is the file that was only ever the shim", function()

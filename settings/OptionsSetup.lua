@@ -23,7 +23,7 @@ local print = NS.Print
 -- file-scope local, not an NS export: it reaches the library as descriptor.parentTitle, and the two
 -- files that used to read it off the namespace (settings/Panel.lua, settings/Helpers.lua) are inside
 -- the library now.
-local PARENT_TITLE = "Ka0s Absorb Tracker"
+local PARENT_TITLE = NS.Constants.BRAND
 
 -- The one rule about what a global reset must not touch. Profiles rows are AceDBOptions-supplied and
 -- resetting them deletes user data, which is not what "restore defaults" means to anyone. Named once
@@ -56,7 +56,7 @@ local PARENT_TITLE = "Ka0s Absorb Tracker"
 -- around their walk, so both are covered, and so is any reset the library grows later that
 -- brackets its sweep. It is not a wrapper on this descriptor's `applyDefault` any more: the
 -- runtime's own ApplyDefault calls its own Set, so a wrapper here would be bypassed by a reset
--- driven through the instance. `/at reset global.minimap.hide` is deliberately NOT covered: a
+-- driven through the instance. `/at reset global.minimap.shown` is deliberately NOT covered: a
 -- single named reset opens no bracket, and a player who names this row is asking for exactly it.
 local function survivesEveryReset(row)
     return row.path == NS.Constants.MINIMAP_PATH
@@ -187,11 +187,14 @@ local descriptor = {
 --
 -- So this stub publishes every member a page file touches AT LOAD TIME. Measured, one member at a
 -- time, by deleting it and re-running the library-absent load (tests/degraded_env.lua) to see
--- whether #NS.Schema still matches the fully-loaded environment. That set is SIX now: LSMValues,
--- which settings/Appearance.lua calls inside a schema-row literal, and the five schema COMPOSERS,
--- which settings/General.lua and settings/Appearance.lua call inside NS.RegisterSchemaRows. Dropping
--- any one of them raises out of a page file and takes that page's rows with it; dropping anything
--- else changed nothing.
+-- whether the page files still finish. That set is still SIX: LSMValues, which
+-- settings/Appearance.lua calls inside a schema-row literal, and the five schema COMPOSERS, which
+-- settings/General.lua and settings/Appearance.lua call inside NS.RegisterSchemaRows. Dropping any
+-- one of them raises out of a page file and takes that page's rows with it; dropping anything else
+-- changed nothing. The five composers are HOLLOW -- each answers {} (options-ui-§1, v2.65.0;
+-- anti-pattern #73) -- so the degraded schema is the hand-written rows alone, and the composed
+-- rows are the one named gap between it and the full schema (tests/test_perf.lua pins all three
+-- figures).
 --
 -- RestoreAllDefaults is kept even though it measured as call-time, because the call it answers is
 -- `/at resetall` and the StaticPopup's OnAccept closure in settings/General.lua — a recovery path,
@@ -203,9 +206,10 @@ local descriptor = {
 -- never gets, so nothing in that build ever read them. A host copy of a library constant is the copy
 -- that goes stale.
 --
--- tests/test_optionssetup.lua pins that member set, and tests/test_perf.lua asserts #NS.Schema
--- against the fully-loaded environment over a whole library-absent load. Those cases are the only
--- thing standing between this stub and a silent half-load, so do not weaken either.
+-- tests/test_optionssetup.lua pins that member set and the composers' empty answer, and
+-- tests/test_perf.lua pins the full count, the degraded count and the gap between them, attributed
+-- per composed tab, over a whole library-absent load. Those cases are the only thing standing
+-- between this stub and a silent half-load, so do not weaken either.
 --
 -- Note what is NOT here: no copy of a widget maker, no copy of the flow engine, no copy of the
 -- header, no copy of lib.LAYOUT. Hand-copying the code whose drift the extraction exists to end is
@@ -219,162 +223,27 @@ if not lib then
     -- Reached at load, so it must be real enough for the page files to finish.
     Helpers.LSMValues = function() return function() return {} end end
 
-    -- ── the composers ──────────────────────────────────────────────────────────────────────
+    -- ── the composers: hollow ───────────────────────────────────────────────────────────────
     --
-    -- The other five load-time members, and the line drawn through them is what keeps this from
-    -- being the copy of the library the paragraph above forbids.
+    -- The other five load-time members, and each answers the EMPTY block (options-ui-§1): the page
+    -- files finish loading and register what they wrote by hand, and no composed row exists. The
+    -- rows a composer would have emitted are the library's, labels, paths and defaults alike, and
+    -- a host copy of them is anti-pattern #73 however little of the row it reproduces.
     --
-    -- WHAT THEY REPRODUCE: the STORED SURFACE, and only that — one row per canonical leaf, at the
-    -- path the live composer derives (so `keys` and `prefix` are honored exactly), carrying its
-    -- type and the caller's `default`. That is what a schema IS to everything outside the panel.
+    -- What that costs a library-less session is only what it has lost anyway: the panel, and the
+    -- schema CLI, whose verbs all answer "unavailable" here (settings/Slash.lua's own stub). The
+    -- composed paths a HOST verb still writes -- `enabled` and `locked` -- are declared in
+    -- settings/Schema.lua's WRITE_THROUGH list, so /at enable, /at disable, /at lock, /at unlock
+    -- and the combat re-lock store and react without a row. Reads never needed one: NS.GetSetting
+    -- walks the store and falls back to the shipped defaults.
     --
-    -- WHAT THEY DELIBERATELY DO NOT: every label, tooltip, range, media source, `startsLine`,
-    -- `hasAlpha` and `classColorSource` the live composers emit. Each of those is read by a WIDGET
-    -- or by the library's CLI, and this build has neither — the schema verbs (`/at list/get/set/
-    -- reset`) all answer "unavailable" here (settings/Slash.lua's own stub), so nothing in a
-    -- library-less session ever looks at any of them. Copying them would be copying strings whose
-    -- single source is the whole point, to be read by nobody.
-    local ORDER_STEP = 10
-
-    --- Emit one block. A leaf is `{ leaf = , type = , path = , sessionOnly = }`; `path`, where
-    --- given, is VERBATIM and unprefixed (the debug-console toggle is the one such row).
-    local function composeBlock(leaves, spec)
-        spec = spec or {}
-        local keys, defaults, omit = spec.keys or {}, spec.defaults or {}, spec.omit or {}
-        local rows = {}
-        for _, leaf in ipairs(leaves) do
-            if not omit[leaf.leaf] then
-                -- The caller's override first, then the leaf's own -- which only the minimap leaf
-                -- declares, because it is the one canonical row whose default the LIVE composer
-                -- hard-codes (`default = true`) rather than taking from the host. An explicit nil
-                -- test, not `or`, so a declared `false` survives.
-                local default = defaults[leaf.leaf]
-                if default == nil then default = leaf.default end
-                rows[#rows + 1] = {
-                    path        = leaf.path
-                        or ((spec.prefix or "") .. (keys[leaf.leaf] or leaf.leaf)),
-                    page        = spec.page,
-                    group       = spec.group,
-                    subgroup    = spec.subgroup,
-                    order       = (tonumber(spec.order) or 0) + (#rows * ORDER_STEP),
-                    type        = leaf.type,
-                    default     = default,
-                    sessionOnly = leaf.sessionOnly,
-                }
-            end
-        end
-        -- An `extra` is a hand-written row and arrives whole; it takes the block's page, group and
-        -- subgroup and continues the order, exactly as it does live.
-        for _, extra in ipairs(spec.extra or {}) do
-            local copy = {}
-            for k, v in pairs(extra) do copy[k] = v end
-            copy.page, copy.group, copy.subgroup = spec.page, spec.group, spec.subgroup
-            copy.order = (tonumber(spec.order) or 0) + (#rows * ORDER_STEP)
-            rows[#rows + 1] = copy
-        end
-        return rows
+    -- MasterControls keeps its two-value shape, the rows and the afterGroup tail, so
+    -- settings/General.lua's destructuring call still gets a callable tail. MASTER_GROUP is not
+    -- published: its one reader is General's build(), which a library-less load never reaches.
+    for _, name in ipairs({ "ColorPair", "FontGroup", "BorderGroup", "BarGroup" }) do
+        Helpers[name] = function() return {} end
     end
-
-    Helpers.ColorPair = function(spec)
-        spec = spec or {}
-        local key = spec.key or "color"
-        local companion = spec.companionKey
-            or ("useClassColor" .. key:sub(1, 1):upper() .. key:sub(2))
-        return composeBlock({
-            { leaf = key,       type = "color" },
-            { leaf = companion, type = "bool"  },
-        }, spec)
-    end
-
-    Helpers.FontGroup = function(spec)
-        return composeBlock({
-            { leaf = "font",              type = "string" },
-            { leaf = "fontSize",          type = "number" },
-            { leaf = "fontColor",         type = "color"  },
-            { leaf = "useClassColorFont", type = "bool"   },
-            { leaf = "fontFlags",         type = "string" },
-            { leaf = "fontShadow",        type = "bool"   },
-        }, spec)
-    end
-
-    Helpers.BorderGroup = function(spec)
-        spec = spec or {}
-        local leaves = {
-            { leaf = "borderStyle",         type = "string" },
-            { leaf = "borderSize",          type = "number" },
-            { leaf = "borderColor",         type = "color"  },
-            { leaf = "useClassColorBorder", type = "bool"   },
-        }
-        if spec.show then
-            table.insert(leaves, 1, { leaf = "borderShow", type = "bool" })
-        end
-        return composeBlock(leaves, spec)
-    end
-
-    Helpers.BarGroup = function(spec)
-        return composeBlock({
-            { leaf = "barTexture",       type = "string" },
-            { leaf = "barAlpha",         type = "number" },
-            { leaf = "barColor",         type = "color"  },
-            { leaf = "useClassColorBar", type = "bool"   },
-        }, spec)
-    end
-
-    -- The group name is the host's own — settings/General.lua uses it as the afterGroup key — so it
-    -- is published here rather than left to the caller to spell twice. It is not one of lib.LAYOUT's
-    -- numbers; it is the literal options-ui-§15 mandates, and the tab it names has to exist in the
-    -- schema on both paths for the two row sets to match.
-    Helpers.MASTER_GROUP = "Master controls"
-
-    Helpers.MasterControls = function(spec)
-        spec = spec or {}
-        -- The frame-only rows drop through the same `omit` table a caller uses, so there is one
-        -- code path rather than a `frameless` branch per row.
-        local omit = {}
-        for k in pairs(spec.omit or {}) do omit[k] = true end
-        if spec.frameless then omit.scale, omit.alpha, omit.locked = true, true, true end
-
-        local leaves = {
-            { leaf = "enabled",      type = "bool"   },
-            { leaf = "visibility",   type = "string" },
-            { leaf = "scale",        type = "number" },
-            { leaf = "alpha",        type = "number" },
-            { leaf = "locked",       type = "bool"   },
-            { leaf = "debugConsole", type = "bool", sessionOnly = true,
-              path = spec.debugConsolePath or "state.debugConsole" },
-        }
-        -- The Minimap button row, mirroring the library's since compose minor 7 (launcher-§3): only
-        -- when the host names `minimapPath`, taken verbatim like the console path. STORED, so no
-        -- `sessionOnly` -- and `default = true`, the row's own SHOWN sense, which the live composer
-        -- hard-codes and this arm therefore has to carry rather than read off `spec.defaults`.
-        --
-        -- Emitted BEFORE Test mode because that is the live order: every addon has a minimap button
-        -- and only some have a test mode, so the always-present row takes the column that always
-        -- exists.
-        local minimapLeaf
-        if spec.minimapPath then
-            minimapLeaf = { leaf = "minimap", type = "bool", default = true,
-                            path = spec.minimapPath }
-            leaves[#leaves + 1] = minimapLeaf
-        end
-        -- The Test mode row, mirroring the library's since compose minor 6 (options-ui-§15): only
-        -- when the host names `testModePath`, taken verbatim like the console path.
-        if spec.testModePath then
-            local slot = #leaves + 1
-            leaves[slot] = { leaf = "testMode", type = "bool", sessionOnly = true,
-                             startsLine = true, path = spec.testModePath }
-        end
-
-        local rows = composeBlock(leaves, {
-            prefix = spec.prefix, page = spec.page, subgroup = spec.subgroup,
-            group  = spec.group or Helpers.MASTER_GROUP,
-            order  = spec.order, keys = spec.keys, defaults = spec.defaults,
-            omit   = omit, extra = spec.extra,
-        })
-        -- The closing button pair is a widget act and there is nothing here to draw into, so the
-        -- afterGroup hook is the no-op every other maker in this stub is.
-        return rows, function() end
-    end
+    Helpers.MasterControls = function() return {}, function() end end
 
     Helpers.RestoreAllDefaults = function()
         -- Bracketed exactly as the library brackets the live walk (debug-logging-§10): the session
