@@ -1,0 +1,1 @@
+fixed: docs accurate against code except debug.md's trace-tag table (missing [Profile]/[Cfg], [Set] per-write and [Launcher] library lines); fixed in DR-AT-05R; gate 802/0, luacheck 0/0, lizard clean
