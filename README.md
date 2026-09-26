@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-802%2F802_passing-green)
+![Tests](https://img.shields.io/badge/Tests-809%2F809_passing-green)
 
 Ka0s Absorb Tracker puts your absorb shields on screen as a movable bar. Every shield on the unit,
 added into one number, so a glance tells you how much damage you can eat before your health starts
@@ -30,6 +30,10 @@ shield up (drag the strip or the bar itself) — and an enabled Target or Focus 
 comes up even when you have nothing targeted or focused, so you can see where it sits. Unlocking is
 the whole of it: there is no separate test mode to turn on. Entering combat locks the bars again by
 itself, so a fight always starts on real numbers, and you cannot unlock in the middle of one.
+
+Each strip has a small X next to its `?`, the Player bar's too. Click it and that bar turns off.
+Tick its box on General → Bars, or type `/at toggle` with the unit (`/at toggle target`), and it
+comes back where you left it.
 
 To check how a real number looks on the bars, use `/at debug hold`. `/at debug hold 50000` puts a
 50K absorb on every visible bar for five seconds. Add a second number to hold it longer or shorter,

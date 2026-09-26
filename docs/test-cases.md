@@ -407,7 +407,7 @@ badge and any count quoted in the docs must agree with it.
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_draghandle.lua (22)
+### test_draghandle.lua (29)
 
 - every bar body is registered for a left-button drag
 - dropping a bar body saves the position to that bar's own unit
@@ -428,6 +428,13 @@ badge and any count quoted in the docs must agree with it.
 - the strip's tooltip names the addon and says how to move this bar
 - the strip's tooltip reads the lock on every hover
 - the help mark has its own tooltip, with a footer saying how to put the strip away
+- every bar's strip carries a close mark, the player bar included
+- the close mark's art comes from the Media seam
+- a strip with a close mark reserves room for it on both sides
+- clicking X turns off exactly that unit's bar, through the schema seam
+- clicking X leaves the bar's position, the other bars and the addon-wide enable alone
+- clicking X prints one line naming the way back
+- the close mark's tooltip says what X does and names the same way back
 - degraded: with LibKa0s absent the bars load with no handle and keep their own drag
 - degraded: with no widget the default stack reserves no strip room
 - an appearance pass over a bar with no handle raises nothing
@@ -932,7 +939,7 @@ badge and any count quoted in the docs must agree with it.
 | test_bus.lua | 12 |
 | test_data.lua | 32 |
 | test_display.lua | 60 |
-| test_draghandle.lua | 22 |
+| test_draghandle.lua | 29 |
 | test_helpers.lua | 71 |
 | test_launcher.lua | 32 |
 | test_optionssetup.lua | 15 |
@@ -952,4 +959,4 @@ badge and any count quoted in the docs must agree with it.
 | test_diagnostics_contract.lua | 7 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **802** |
+| **Total** | **809** |

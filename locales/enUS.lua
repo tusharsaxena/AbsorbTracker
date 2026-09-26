@@ -18,10 +18,10 @@ NS.L = setmetatable(NS.L or {}, { __index = function(_, k) return k end })
 -- addons does not read four different answers to the same question. `lib.L` does not reach it
 -- either, so its key went with the call site.
 --
--- What IS routed is the unlocked drag handle over each bar (modules/Bar.lua): its unit label and
--- both of its tooltips; and the library-absent line (slash-commands-§1), one sentence with one
--- placeholder, the full verb, which settings/Slash.lua's library-absent stub prints for each schema
--- verb it cannot run. (The minimap tooltip's left-click hint left with LibKa0s-Launcher minor 4,
+-- What IS routed is the unlocked drag handle over each bar (modules/Bar.lua): its unit label, its
+-- three tooltips and its close mark's chat line; and the library-absent line (slash-commands-§1),
+-- one sentence with one placeholder, the full verb, which settings/Slash.lua's library-absent
+-- stub prints for each schema verb it cannot run. (The minimap tooltip's left-click hint left with LibKa0s-Launcher minor 4,
 -- whose hints and menu are the library's own strings.) Every key below is read by one of those
 -- two -- enUS.lua carries no key nothing reads (localization-§3)
 -- -- and the English-only register row is otherwise unchanged: the rest of the addon's strings are
@@ -49,6 +49,15 @@ L["Locked. Unlock the bars to drag this handle \226\128\148 /at unlock."] =
     "Locked. Unlock the bars to drag this handle \226\128\148 /at unlock."
 L["Lock the bars to hide this handle \226\128\148 /at lock."] =
     "Lock the bars to hide this handle \226\128\148 /at lock."
+
+-- The close mark's tooltip and the chat line its click prints. `%s` in the way back is the unit
+-- token `/at toggle` takes (player, target, focus), not its label.
+L["Hide the %s bar"] = "Hide the %s bar"
+L["Click to hide this bar."] = "Click to hide this bar."
+L["Re-enable it on General > Bars or with /at toggle %s."] =
+    "Re-enable it on General > Bars or with /at toggle %s."
+L["%s bar hidden. Re-enable it on General > Bars or with /at toggle %s."] =
+    "%s bar hidden. Re-enable it on General > Bars or with /at toggle %s."
 
 -- The diagnostics report (debug-logging-§14): the `diagnostics` row in `/at help` and on the About
 -- page (settings/Slash.lua), and the one chat line the report prints, handed to LibKa0s-DebugLog

@@ -22,6 +22,21 @@ local function savePosition(bar)
     NS.Units.SetPosition(bar.unit, { point = point, relPoint = relPoint, x = x, y = y })
 end
 
+--- The close mark's click: turn off this ONE bar. It writes the existing per-unit enable row --
+--- `units.<unit>.enabled`, the row General > Bars draws and `/at toggle <unit>` flips -- through
+--- NS.SetByPath, the one schema write seam, so the [Set] trace, the row's onChange (which re-syncs
+--- the unit's event registrations and repaints), the refresh bus and an open panel all fire exactly
+--- as they do from the checkbox. Never the addon-wide `enabled` and never the shared `locked`: the
+--- other bars stay where they are. Position is untouched, so turning the bar back on puts it back
+--- where it was. One chat line names the way back; the X's tooltip carries the same sentence.
+---
+--- No combat rule of its own: the strip is only shown unlocked, and the lock closes in combat.
+local function closeBar(unit, label)
+    NS.SetByPath("units." .. unit .. ".enabled", false)
+    NS.Print(format(L["%s bar hidden. Re-enable it on General > Bars or with /at toggle %s."],
+        label, unit))
+end
+
 --- The unlocked drag handle over one bar: LibKa0s-Widgets-1.0's DragHandle, a dark strip with a
 --- gold edge, the unit's name centered in gold and a help mark at its right end. The three bars
 --- stack and look alike, so the strip is what tells the user which one they are about to drag,
@@ -40,9 +55,13 @@ end
 --- Nothing here is protected: the bars are plain frames, and the lock refuses to open in combat
 --- (settings/General.lua's `locked` row) and re-locks when combat starts (core/AbsorbTracker.lua),
 --- so a strip is never shown, and never dragged, mid-fight.
+---
+--- EVERY STRIP CARRIES A CLOSE MARK, the player bar's included (the owner's ruling, DR-OW-03): an
+--- X left of the help mark that turns off THIS bar and nothing wider. See closeBar.
 local function buildHandle(bar, unit, globalName)
     if not (Widgets and Widgets.DragHandle) then return nil end
     local label = L[NS.Units.LABEL[unit] or unit]
+    local wayBack = format(L["Re-enable it on General > Bars or with /at toggle %s."], unit)
     local handle = Widgets.DragHandle(bar, {
         name      = globalName .. "Handle",
         label     = label,
@@ -82,6 +101,14 @@ local function buildHandle(bar, unit, globalName)
                     return L["Lock the bars to hide this handle \226\128\148 /at lock."]
                 end,
             },
+        },
+        -- The close mark. Its art is the Media seam's; nil falls back to the widget's own texture.
+        onClose      = function() closeBar(unit, label) end,
+        closeIcon    = NS.Icon and NS.Icon("close") or nil,
+        closeTooltip = {
+            title  = format(L["Hide the %s bar"], label),
+            anchor = "ANCHOR_TOPRIGHT",
+            body   = { L["Click to hide this bar."], wayBack },
         },
     })
     if handle then
