@@ -46,7 +46,7 @@ for `-Slash-1.0` without a separate setup file. `core/MediaSetup.lua` and `core/
 eighth and ninth seams, and the two odd ones: `LibKa0s-Media-1.0` and `LibKa0s-Env-1.0` take no
 descriptor, only this addon's FOLDER name — a texture path is absolute from `Interface\AddOns\` and a
 TOC manifest is keyed by folder, and a vendored copy cannot know which folder it was copied into.
-**Twelve majors bound by name** of the fifteen `libs/LibKa0s/` vendors (twenty-two files); Compat,
+**Twelve majors bound by name** of the fifteen `libs/LibKa0s/` vendors (twenty-seven files); Compat,
 Pool and Item are registered and unread. `LibKa0s-Widgets-1.0` is bound with no setup seam:
 `modules/Bar.lua` reads it to build each bar's unlocked drag handle (`DragHandle`) and
 `modules/Display.lua` reads its published `DRAG_HANDLE` sizes for the default stack, and DebugLog also

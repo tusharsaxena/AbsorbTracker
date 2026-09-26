@@ -177,8 +177,16 @@ test("LibKa0s-Options tripwire: Options reads no descriptor L", function()
     "Options is expected to own its strings — if this went away, so did the reason for this shape")
   assertTrue(type(rawget(lib, "LAYOUT")) == "table", "and `L` inside that file is this table")
 
-  for _, rel in ipairs({ "Options.lua", "OptionsWidgets.lua", "OptionsScroll.lua" }) do
-    local src = libSource("libs/LibKa0s/" .. rel)
+  -- Every file of the Options major, read off the vendored XML rather than typed here: LibKa0s
+  -- v1.62.0 peeled OptionsIds/OptionsIdList out of OptionsWidgets.lua and OptionsRegistry out of
+  -- Options.lua, and a hand-typed list would have let that moved code leave the tripwire unseen.
+  local files = {}
+  for _, path in ipairs(dofile("tests/_kit/loader.lua").xmlFiles("libs/LibKa0s/LibKa0s.xml")) do
+    if path:match("^libs/LibKa0s/Options%w*%.lua$") then files[#files + 1] = path end
+  end
+  assertTrue(#files >= 10, "the Options major ships ten files as of LibKa0s v1.62.0; found " .. #files)
+  for _, rel in ipairs(files) do
+    local src = libSource(rel)
     assertNil(src:find("d.L", 1, true),
       rel .. " now reads a descriptor L — the Options major can express the trap, so every host "
       .. "descriptor needs a rendered assertion and this tripwire needs replacing")

@@ -303,6 +303,8 @@ if not lib then
         Helpers[name] = function() end
     end
     -- LibKa0s v1.35.0's render-time members, carried inert because the owner asked for them on every consumer.
+    -- Since LibKa0s v1.62.0 the id members live in OptionsIds.lua / OptionsIdList.lua (minor 1 each), peeled
+    -- unchanged out of OptionsWidgets.lua; same members on the same instance, so the stub is unchanged.
     Helpers.ChoiceGrid, Helpers.IdInput, Helpers.IdList = function() end, function() end, function() end
     Helpers.ResolveId         = function() return nil end
     Helpers.UnnamedCandidates = function() return nil end
