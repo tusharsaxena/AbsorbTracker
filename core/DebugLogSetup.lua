@@ -143,6 +143,23 @@ NS.DebugLog = lib:New({
     onVisibilityChanged = function()
         if NS.Helpers and NS.Helpers.RefreshAllPanels then NS.Helpers.RefreshAllPanels() end
     end,
+
+    -- The diagnostics report (debug-logging-§14, DebugLog 14.1). `brandName` is the full brand both
+    -- markers carry, the same plain-text string the LDB label and the disabled line use
+    -- (core/Constants.lua loads before this file). `diagnostics` is asked each time a report runs,
+    -- never at :New, because modules/Diagnostics.lua loads after this file.
+    brandName   = NS.Constants.BRAND,
+    diagnostics = function()
+        return NS.Diagnostics and NS.Diagnostics.Sections and NS.Diagnostics.Sections() or {}
+    end,
+
+    -- The one console string this addon routes through its locale: the report's chat line
+    -- (STD-09, STD-13). A PLAIN table holding that one key, never the locale table itself, whose
+    -- key-returning fallback would answer every other key with its own name (the `L` trap,
+    -- tests/test_ltrap.lua). The key is the library's English, set in locales/enUS.lua.
+    L = {
+        DIAG_WRITTEN = NS.L["Diagnostic report written to the debug console: %d lines. Use Copy to share it."],
+    },
 })
 
 -- The global gated sink (Ka0s debug-logging-§4), published under the name sixteen call sites across

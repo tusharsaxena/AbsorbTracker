@@ -349,7 +349,21 @@ local function visibilityReason(unit)
     return "always"
 end
 
+--- Read-only diagnostics seam (debug-logging-§14): the rung that decides `unit`'s bar right now, in
+--- the same words the [Bar] transition line uses. Pure: it reads the ladder's inputs and writes
+--- nothing, so the diagnostics report can print it without changing what it describes.
+function NS.VisibilityReason(unit)
+    return visibilityReason(unit or "player")
+end
+
 local dbgLastShown = {}   -- module-local: last applied visibility per unit, for transition logging
+
+--- Read-only diagnostics seam: what ApplyVisibility last applied to `unit`'s bar (true shown,
+--- false hidden), or nil before the first pass. Recorded on every pass whatever the debug flag, so
+--- the report can set it against ShouldShowBar and against the frame's own IsShown.
+function NS.LastAppliedVisibility(unit)
+    return dbgLastShown[unit or "player"]
+end
 function NS.ApplyVisibility(unit)
     unit = unit or "player"
     local bar = NS.bars[unit]

@@ -373,3 +373,74 @@ test("ShouldShowBar: unlocking bypasses visibility entirely", function()
     T.rawSet("locked", savedLocked)
   end)
 end)
+
+-- ── Read-only diagnostics seams (DR-AT-02) ──────────────────────────────────────────
+-- The diagnostics report (/at debug diagnostics) prints which rung of the ladder decided each bar,
+-- what ApplyVisibility last applied, and the since-combat-start counters. All three lived in
+-- file-local state, so these accessors publish them read-only. Nothing here writes: the report
+-- must never change what it describes.
+test("seam: VisibilityReason names the rung ShouldShowBar decided on", function()
+  withState(false, "always", false, function()
+    assertEqual(NS.VisibilityReason("player"), "unit disabled")
+  end)
+  withState(true, "always", false, function()
+    assertEqual(NS.VisibilityReason("player"), "always")
+    assertEqual(NS.VisibilityReason(), "always", "defaults to the player, like ShouldShowBar")
+  end)
+  withState(true, "inCombat", false, function()
+    assertEqual(NS.VisibilityReason("player"), "visibility=inCombat")
+    T.rawSet("locked", false)
+    assertEqual(NS.VisibilityReason("player"), "unlocked")
+  end)
+end)
+
+test("seam: LastAppliedVisibility reports what ApplyVisibility applied, debug on or off", function()
+  assertEqual(NS.State.debug and true or false, false, "debug is off, so this is not the log gate")
+  withState(true, "always", false, function()
+    NS.ApplyVisibility("player")
+    assertEqual(NS.LastAppliedVisibility("player"), true)
+  end)
+  withState(false, "always", false, function()
+    NS.ApplyVisibility("player")
+    assertEqual(NS.LastAppliedVisibility("player"), false)
+  end)
+  withState(true, "always", false, function() NS.ApplyVisibility("player") end)
+  assertEqual(NS.LastAppliedVisibility("nosuchunit"), nil, "a unit never applied answers nil")
+end)
+
+test("seam: SessionCounters returns a copy of the since-combat-start counters", function()
+  local mocks = T.mocks
+  local savedAbs = mocks.UnitGetTotalAbsorbs
+  mocks.UnitGetTotalAbsorbs = function() return 5000 end
+  NS.State.debug = true
+  NS.addon:OnEnterCombat()                 -- resets the counters
+  NS.addon:OnAbsorbChanged(nil, "player")
+  NS.addon:OnAbsorbChanged(nil, "player")
+  NS.NoteRepaint()
+  NS.State.debug = false
+  mocks.UnitGetTotalAbsorbs = savedAbs
+  local c = NS.SessionCounters()
+  assertEqual(c.absorbEvents, 2)
+  assertEqual(c.repaints, 1)
+  assertEqual(c.lastAbsorb, 5000, "the last NON-secret absorb value read")
+  c.absorbEvents, c.repaints = 99, 99
+  local again = NS.SessionCounters()
+  assertEqual(again.absorbEvents, 2, "a copy: writing the result changes nothing")
+  assertTrue(again ~= c, "a fresh table on every call")
+  NS.addon:OnLeaveCombat()
+  mocks.__fireTimers()
+end)
+
+test("seam: the diagnostics accessors answer on a library-less load too", function()
+  local NS2 = dofile("tests/degraded_env.lua")()
+  for _, name in ipairs({ "VisibilityReason", "LastAppliedVisibility", "IsRepaintPending",
+                          "SessionCounters" }) do
+    assertEqual(type(NS2[name]), "function", name .. " is published without LibKa0s")
+  end
+  assertFalse(NS2.IsRepaintPending(), "nothing armed on a fresh load")
+  assertEqual(NS2.LastAppliedVisibility("player"), nil, "nothing applied yet")
+  local c = NS2.SessionCounters()
+  assertEqual(c.absorbEvents, 0)
+  assertEqual(c.repaints, 0)
+  assertEqual(c.lastAbsorb, nil)
+end)

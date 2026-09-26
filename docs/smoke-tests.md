@@ -19,7 +19,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 ### B. Slash surface
 6. `/at` alone → the settings panel opens on the **Ka0s Absorb Tracker** landing page (the About page, not a sub-page), tree expanded; no help block prints. `/at` followed by only spaces → the same. In combat → the single gray refusal line and no panel.
 7. `/absorbtracker` → identical: the panel opens on the landing page.
-8. `/at help` → gold command + em-dash + white desc for all 18 verbs: help, config, enable, disable, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, perf, update, version, profile. There is no `test` row: `/at test` prints `unknown command 'test'` then help. `toggle` reads *"Toggle bars on or off — `/at toggle [player|target|focus]`"*, and `debug` reads *"Toggle the debug console — `on`/`off` logging, `events`, `hold <value> [secs]`"* and `perf` reads *"Measure performance — try `/at perf` for the workflow"*.
+8. `/at help` → gold command + em-dash + white desc for all 19 verbs: help, config, enable, disable, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, diagnostics, perf, update, version, profile. There is no `test` row: `/at test` prints `unknown command 'test'` then help. `toggle` reads *"Toggle bars on or off — `/at toggle [player|target|focus]`"*, and `debug` reads *"Toggle the debug console — `on`/`off` logging, `diagnostics`, `events`, `hold <value> [secs]`"*, `diagnostics` reads *"Write a diagnostics report to the debug console"* and `perf` reads *"Measure performance — try `/at perf` for the workflow"*.
 9. `/at wibble` → `unknown command 'wibble'` then help.
 10. `/at options` → opens the panel (back-compat alias for `config`).
 
@@ -125,7 +125,8 @@ that covers the pure logic; this suite covers everything that only runs against 
 66. **A second profile keeps its own layout across the upgrade.** (Upgrade check — only meaningful from a pre-v3 SavedVariables file.) With two profiles both saved before this version, log in on one, then `/at profile use <the other>` → the second profile's saved bar width / colors / position are intact, not factory defaults. Logout and inspect `AbsorbTracker.lua`: **every** entry under `profiles` carries `schemaVersion = 3`, and none still has a flat `barWidth` / `position` at its root.
 
 67. **Every enabled bar tracks its own unit's absorb (regression).** Enable target and focus, set focus to yourself and target yourself, then gain and consume an absorb → **all three bars fill and empty together**, each showing the same abbreviated number. Then target another player (or a training dummy) with a shield on them → the target bar reads *their* absorb, not yours. Pre-fix the coalesced repaint painted the player only, so the target and focus StatusBars never had a value written at all and sat permanently full with no text (`modules/Timer.lua` called `NS.UpdateAbsorbBar()` bare, defaulting the unit to `"player"`).
-68. **Each bar gets a drag handle strip while unlocked.** `/at unlock` → just above each visible bar sits a dark strip with a thin gold border, the unit's name centered in gold (**Player** / **Target** / **Focus**, each naming the bar it sits on) and a small gray `?` at its right end — the same strip ConsumableMaster shows over its macro bar when unlocked. `/at lock` → every strip disappears. Check: (a) over a default-width bar the strip is exactly as wide as the bar; set a bar's width to 40 px and the strip stays wide enough for its label and `?`, centered on the bar; (b) on a fresh profile the default stack leaves each strip clear of the bar above it — no strip overlaps another bar; (c) drag a bar by its strip → it moves, and after `/reload` it is where you dropped it; drag by the `?` → same; drag by the bar body → still works; (d) hover the strip → a tooltip titled **Absorb Tracker** reading `Drag to move the Target bar.` (per unit); hover the `?` → a tooltip titled `Target bar` with two lines and a gray footer `Lock the bars to hide this handle — /at lock.`; the `?` brightens on hover only if a click is wired (none is, so it stays gray); (e) `/at unlock` then enter combat → the bars re-lock and every strip vanishes with the `Bars locked — combat started` line, and no Lua error or taint message appears. The strip is a drag affordance with no schema row, so it appears on no settings page and in no `/at list` output.
+68. **Each bar gets a drag handle strip while unlocked.** `/at unlock` → just above each visible bar sits a dark strip with a thin gold border, the unit's name centered in gold (**Player** / **Target** / **Focus**, each naming the bar it sits on) and a small gray `?` at its right end — the same strip ConsumableMaster shows over its macro bar when unlocked. `/at lock` → every strip disappears. Check: (a) over a default-width bar the strip is exactly as wide as the bar; set a bar's width to 40 px and the strip stays wide enough for its label, its X and `?`, centered on the bar; (b) on a fresh profile the default stack leaves each strip clear of the bar above it — no strip overlaps another bar; (c) drag a bar by its strip → it moves, and after `/reload` it is where you dropped it; drag by the `?` → same; drag by the bar body → still works; (d) hover the strip → a tooltip titled **Absorb Tracker** reading `Drag to move the Target bar.` (per unit); hover the `?` → a tooltip titled `Target bar` with two lines and a gray footer `Lock the bars to hide this handle — /at lock.`; the `?` brightens on hover only if a click is wired (none is, so it stays gray); (e) `/at unlock` then enter combat → the bars re-lock and every strip vanishes with the `Bars locked — combat started` line, and no Lua error or taint message appears. The strip is a drag affordance with no schema row, so it appears on no settings page and in no `/at list` output.
+68b. **Each strip's X turns off that one bar, the player bar included (S6).** Enable Target and Focus and have both units, then `/at unlock` → every strip, **Player** included, shows a small gray X just left of its `?`, and a bar set to 40 px wide still keeps its label, X and `?` clear of each other. Hover the X on the Target strip → it brightens and a tooltip titled `Hide the Target bar` reads `Click to hide this bar.` and `Re-enable it on General > Bars or with /at toggle target.` Click it → only the Target bar and its strip go; Player and Focus stay put and stay unlocked, and chat prints `Target bar hidden. Re-enable it on General > Bars or with /at toggle target.` Open General → Bars → **Enable Target Bar** is now unticked. `/at toggle target` → the bar comes back **exactly where it was**. Repeat on the **Player** strip (chat names `/at toggle player`) and bring it back by ticking **Enable Player Bar** → same result. A left-drag that starts on the X moves the bar and hides nothing. The addon-wide **Enable** switch on Master controls never changes.
 
 69. **A disabled bar receives no events (performance).** `/at debug on`, then untick **Enable Target Bar** and **Enable Focus Bar**. Target something with a shield on it and let it take damage → the debug console shows **no** `[Bar] target:` transition lines and no repaint activity attributable to the target. Tick **Enable Target Bar** back on → target-driven activity resumes immediately, with no `/reload` needed. (What this pins: `addon:SyncUnitEventFrames` unregisters a disabled unit's `UNIT_ABSORB_AMOUNT_CHANGED` / `UNIT_MAXHEALTH` entirely, and drops the `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` watch with it. The registration set follows the enable flags through the `UNITS` bus message, so switching profiles re-syncs it too — check that by switching to a profile with different enable flags.)
 70. **The enable flags survive a profile switch and re-sync the events.** On a profile with Target enabled, `/at profile new SmokeUnits` → the fresh profile has Target off (factory default) and the target bar disappears; `/at profile use Default` → Target comes back on and its bar tracks again without a `/reload`.
@@ -190,7 +191,7 @@ to look different*, so check them against the expected output written here, **no
 
 100. **The page-wide controls are in the chrome band, above the strip.** ⚠ They moved: both mirror controls were drawn into the **scroll**, under the tab strip, which is what options-ui-§14 forbids for a control that applies to every tab. Appearance → **Target**: the **Unit** picker sits at the top of the pinned band, **Use same styling as Player** and **Copy styling from Player** sit side by side under it — still in the band, above the hairline rule and above the tabs — and the **scroll** below the strip starts with the selected tab's own rows and nothing else. Scroll the page: the picker and the two mirror controls **do not move**, because they are not in the scroll. Click through all five tabs: they stay put and stay identical on every one, which is the property that was lost while they lived under the strip. Then switch the picker to **Player**: the two mirror controls disappear and the band shrinks by exactly one row, with the tab strip and the whole page moving up to meet it — no gap left behind, no tab drawn over the picker.
 101. **A raise inside the chrome block costs the block, not the page.** Temporarily break the block — e.g. edit `settings/UnitPanel.lua` and put `error("smoke")` at the top of `buildChromeBlock` — `/reload`, then open Appearance → Target. Expect: **one** `page header failed to build: …` line naming the failure, and the tab strip plus the selected tab's rows **still drawn** under an empty band. Pre-adoption the whole body aborted behind `RenderUnitPanel`'s outer pcall and the page came up with no strip and no rows either. Revert the edit and `/reload`. (What this pins: `H.PageHeader` pcalls and reports the builder. `tests/test_helpers.lua` asserts it headlessly; this is the in-game walk.)
-102. **Nothing renders a raw locale key.** Open `/at config` and walk all three sub-pages and every tab on each, then `/at debug` and `/at perf`. Every label, tooltip title, section heading, button and step name reads as **English prose**. A `SCREAMING_SNAKE_CASE` string anywhere on screen — `STEP_START`, `PANEL_TITLE_SUFFIX`, `LIST_HEADER` — is the `L` trap: a descriptor was handed the addon's `NS.L`, whose metatable answers every key with the key, so the library's own strings became unreachable. It fails for **every** key in that module at once, so if you see one you will see dozens. This addon translates nothing and therefore passes `L` to no descriptor at all; `tests/test_ltrap.lua` guards the source, and this is the one check that sees what actually rendered. (KickCD shipped this bug once — see `../LibKa0s/docs/adoption-prompt.md`, "The `L` trap".)
+102. **Nothing renders a raw locale key.** Open `/at config` and walk all three sub-pages and every tab on each, then `/at debug` and `/at perf`. Every label, tooltip title, section heading, button and step name reads as **English prose**. A `SCREAMING_SNAKE_CASE` string anywhere on screen — `STEP_START`, `PANEL_TITLE_SUFFIX`, `LIST_HEADER` — is the `L` trap: a descriptor was handed the addon's `NS.L`, whose metatable answers every key with the key, so the library's own strings became unreachable. It fails for **every** key in that module at once, so if you see one you will see dozens. The one `L` this addon hands a descriptor is the DebugLog descriptor's plain one-key table (`DIAG_WRITTEN`, the diagnostics chat line), never `NS.L` itself; `tests/test_ltrap.lua` guards the source, and this is the one check that sees what actually rendered. (KickCD shipped this bug once — see `../LibKa0s/docs/adoption-prompt.md`, "The `L` trap".)
 
 ### N. The LibKa0s-Env-1.0 seam (TOC metadata)
 
@@ -380,7 +381,7 @@ spec or content is needed.
 the whole list:
 
 - **`AbbreviateNumbers`** — the bar's value text (`modules/Display.lua:427`), the `/at debug hold` line
-  (`settings/Slash.lua:303`, `:328`) and three debug lines (`core/AbsorbTracker.lua:230`, `:232`,
+  (`settings/Slash.lua:310`, `:335`) and three debug lines (`core/AbsorbTracker.lua:230`, `:232`,
   `:308`). Blizzard localizes both the suffix and the grouping: `1.2M` on enUS is not what a deDE
   client returns for the same number.
 - **`UnitClass`** — `core/Data.lua:205` and `core/CoreSetup.lua:60` both `pcall` it and take the
@@ -519,6 +520,45 @@ not. Every step here is therefore a look, not a log line.
     addon stays down`** rather than `RESUMED`, and the bars stay gone — the player switched the
     addon off and a finishing capture must not switch it back on. `/at enable` brings it back.
 
+### V. The diagnostics report (`/at diagnostics`, debug-logging-§14, LibKa0s v1.60.0)
+
+Run after the diagnostics rollout (`DR-AT-03`). The report is read-only and its body is plain
+English, so what can go wrong is a line missing, a trace line lost, a flag moved, or a raise on a
+secret value. [debug.md](./debug.md) has the section list and the caps.
+
+1. **The report appends, and the trace survives.** `/at debug on`, gain and lose a shield, then
+   `/at diagnostics`. The console shows the `[Absorb]` trace lines **above**
+   `==== Ka0s Absorb Tracker diagnostics begin ====`; nothing was cleared. The report ends with
+   `==== Ka0s Absorb Tracker diagnostics end: N line(s) ====`, and chat carries one line: *Diagnostic
+   report written to the debug console: N lines. Use Copy to share it.*
+2. **The sections are there, in order.** Between the markers: the identity lines (client build,
+   locale, `debug logging: on`, the combat reads, `LibKa0s running:`), then the schema, profile and
+   `test mode: none` rows, then `[Life]`, `[Set]`, `[Unit]`, `[Frame]`, `[Media]`, `[Color]`,
+   `[Absorb]`, `[Events]`, `[Repaint]`, `[Counters]` and `[UI]`. No line reads `section ... failed`.
+   Each `[Unit]` line names a `reason=` rung, and each `[Media]` line a `rung=`.
+3. **Ungated, and the flag untouched.** `/at debug off`, then `/at diagnostics`. The report lands in
+   full, the identity line reads `debug logging: off`, the console header still reads **Debug:
+   OFF**, and the next shield change writes nothing.
+4. **Both forms while disabled.** `/at disable`, then `/at diagnostics`, then
+   `/at debug diagnostics`. Both write a full report; the state row reads `enabled (stored)=false
+   stood down=true`, `[Events]` reads `stood down: every registration released`, and `[Repaint]`
+   reads `pending=stood down`. `/at enable` afterwards.
+5. **The long alias.** `/absorbtracker diagnostics` and `/absorbtracker debug diagnostics` write the
+   same report as `/at`.
+6. **No alias.** `/at debug diag` toggles the console like any unknown word and writes no report;
+   `/at diag` prints `unknown command 'diag'` and the help index.
+7. **In combat, and in restricted content.** Run `/at diagnostics` in combat with a shield up, and
+   again inside a dungeon or raid where absorbs are secret. No Lua error. The `[Absorb]` rows read
+   `<secret>` where the client hides the value, and no other section fails.
+8. **Copy is clean.** After step 1, press the console's **Copy** and paste into a text editor. The
+   paste holds the trace, both markers with the brand, and no `|c`, `|T` or `|H` escapes.
+9. **The buffer cap.** Fill the console past 3000 lines (leave `/at debug on` through a long fight, or
+   run `/at diagnostics` repeatedly). The counter reads `N / 3000 lines` and pins at `3000 / 3000`;
+   **Copy** opens without a noticeable hitch.
+10. **Library absent.** In the degraded load of step 99 (`libs/LibKa0s/` renamed aside), `/at
+    diagnostics` and `/at debug diagnostics` each print `/at diagnostics is unavailable: the LibKa0s
+    library did not load.` and raise nothing.
+
 ### Triage references (if a step fails)
 - Bootstrap / events / profile repaint — `core/AbsorbTracker.lua` (`OnEnable`, `OnProfileChanged`)
 - TOC metadata (the `/at version` string, the About page's Notes blurb) — `LibKa0s-Env-1.0` (`libs/LibKa0s/Env.lua`), wired by `core/EnvSetup.lua` as `NS.Meta` / `NS.Version`
@@ -531,6 +571,7 @@ not. Every step here is therefore a look, not a log line.
 - Perf probe / suspend / capture ring / step panel — `LibKa0s-Perf-1.0` (`libs/LibKa0s/`), wired up by `core/PerfSetup.lua`; protocol in `docs/performance.md`
 - DB init + idempotent migration — `core/Database.lua`
 - Debug console — `LibKa0s-DebugLog-1.0` (`libs/LibKa0s/`), wired up by `core/DebugLogSetup.lua`
+- The diagnostics report — the frame, header, cap and chat line are `libs/LibKa0s/DebugLogDiagnostics.lua`'s; the sections are `modules/Diagnostics.lua`; the dispatch is `settings/Slash.lua`'s `runDebug` / `runDiagnostics`
 - The minimap button, the broker plugin and the click rung — `LibKa0s-Launcher-1.0` (`libs/LibKa0s/Launcher.lua`), wired up by `core/LauncherSetup.lua`; the icon file itself is `media/logos/absorbtracker.logo.128.tga` and the visibility row's inversion is in `core/Data.lua`
 - LSM border alignment fix — `LibKa0s-Options-1.0` (`libs/LibKa0s/Options.lua`, `lib.__PatchLSM30Border`), called from `settings/OptionsSetup.lua`'s live arm
 - Class-color-aware getters and the frame-alpha clamp — `core/Data.lua` (`GetBarColor`/`GetBgColor`/`GetBorderColor`/`GetFontColor`, all through one `resolveColor`; `GetBarAlpha`)

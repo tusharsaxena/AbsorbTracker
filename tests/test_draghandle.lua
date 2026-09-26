@@ -313,6 +313,91 @@ test("the help mark has its own tooltip, with a footer saying how to put the str
   assertEqual(lines[#lines], "Lock the bars to hide this handle \226\128\148 /at lock.")
 end)
 
+-- ── the close mark (X-04, X-05): every bar, the player bar included ─────────────────────────
+
+-- Click one strip's X with that unit's bar enabled, spying on the schema write seam and on chat.
+-- Everything the click touches is put back afterwards, through the same seam.
+local function clickClose(unit)
+  local c = NS.db.profile.units[unit]
+  local savedEnabled, savedPos = c.enabled, c.position
+  c.enabled = true
+  c.position = { point = "TOP", relPoint = "TOP", x = 3, y = -4 }
+  local writes, lines = {}, {}
+  local realSet, realPrint = NS.SetByPath, NS.Print
+  NS.SetByPath = function(path, v, ...)
+    writes[#writes + 1] = { path, v }
+    return realSet(path, v, ...)
+  end
+  NS.Print = function(...) lines[#lines + 1] = table.concat({ ... }, " ") end
+  local ok, err = pcall(function()
+    withLocked(false, function() NS.bars[unit].handle.close:__fire("OnClick", "LeftButton") end)
+  end)
+  NS.SetByPath, NS.Print = realSet, realPrint
+  local after = { enabled = c.enabled, position = c.position }
+  c.position = savedPos
+  NS.SetByPath("units." .. unit .. ".enabled", savedEnabled)
+  if not ok then error(err) end
+  return writes, lines, after
+end
+
+test("every bar's strip carries a close mark, the player bar included", function()
+  for _, unit in ipairs(NS.Units.LIST) do
+    local handle = NS.bars[unit].handle
+    assertTrue(handle.close ~= nil, unit .. " strip has no close mark")
+    assertTrue(handle.close.icon ~= nil, unit .. " close mark has no art")
+  end
+end)
+
+test("the close mark's art comes from the Media seam", function()
+  local spec = specFor("player")
+  assertTrue(type(spec.onClose) == "function", "the player strip is handed an onClose")
+  assertEqual(spec.closeIcon, NS.Icon("close"))
+  assertTrue(spec.closeIcon ~= nil, "the vendored catalog ships a close mark")
+end)
+
+test("a strip with a close mark reserves room for it on both sides", function()
+  local D = Widgets.DRAG_HANDLE
+  for _, unit in ipairs(NS.Units.LIST) do
+    assertEqual(NS.bars[unit].handle:Reserve(), D.RESERVE + D.HELP_HIT + D.CLOSE_GAP,
+      unit .. " strip does not reserve the close mark's room")
+  end
+end)
+
+test("clicking X turns off exactly that unit's bar, through the schema seam", function()
+  for _, unit in ipairs(NS.Units.LIST) do
+    local writes, _, after = clickClose(unit)
+    assertEqual(#writes, 1, unit .. ": one write, and only one")
+    assertEqual(writes[1][1], "units." .. unit .. ".enabled")
+    assertEqual(writes[1][2], false)
+    assertEqual(after.enabled, false, unit .. " bar still enabled after X")
+  end
+end)
+
+test("clicking X leaves the bar's position, the other bars and the addon-wide enable alone", function()
+  local addonOn, playerOn = NS.GetSetting("enabled"), NS.Units.IsEnabled("player")
+  local _, _, after = clickClose("target")
+  assertEqual(after.position.point, "TOP")
+  assertEqual(after.position.x, 3)
+  assertEqual(after.position.y, -4)
+  assertEqual(NS.GetSetting("enabled"), addonOn, "X must never touch the addon-wide enable")
+  assertEqual(NS.Units.IsEnabled("player"), playerOn, "X on one bar leaves the others alone")
+end)
+
+test("clicking X prints one line naming the way back", function()
+  local _, lines = clickClose("target")
+  assertEqual(#lines, 1)
+  assertEqual(lines[1], "Target bar hidden. Re-enable it on General > Bars or with /at toggle target.")
+  local _, playerLines = clickClose("player")
+  assertEqual(playerLines[1], "Player bar hidden. Re-enable it on General > Bars or with /at toggle player.")
+end)
+
+test("the close mark's tooltip says what X does and names the same way back", function()
+  local title, lines = hover(NS.bars.focus.handle.close)
+  assertEqual(title, "Hide the Focus bar")
+  assertEqual(lines[1], "Click to hide this bar.")
+  assertEqual(lines[#lines], "Re-enable it on General > Bars or with /at toggle focus.")
+end)
+
 -- ── degraded: no widget, no strip, nothing raises ────────────────────────────────────────────
 
 test("degraded: with LibKa0s absent the bars load with no handle and keep their own drag", function()

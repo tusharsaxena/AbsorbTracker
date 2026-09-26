@@ -84,9 +84,10 @@ local Media = LibStub and LibStub("LibKa0s-Media-1.0", true)
 --- The texture path for one shipped icon, or nil.
 ---
 --- ONE CALL SITE: modules/Bar.lua's drag handle, which passes `NS.Icon("help")`
---- to LibKa0s-Widgets-1.0's DragHandle as the help mark's art — the first control
---- this addon draws itself, which is what this seam was kept published for. A
---- nil answer is fine there: the widget falls back to its own Blizzard texture.
+--- and `NS.Icon("close")` to LibKa0s-Widgets-1.0's DragHandle as the help and
+--- close marks' art — the first controls this addon draws itself, which is what
+--- this seam was kept published for. A nil answer is fine there: the widget
+--- falls back to its own Blizzard texture for each.
 --- The two windows that draw the rest of this collection's marks — the debug
 --- console with its Copy window, and the perf step panel — never come through
 --- here: they are drawn entirely inside libs/LibKa0s, which builds its own paths

@@ -83,6 +83,21 @@ _G.AT_TEST = Kit.expose{
   rawSet = function(path, value) NS.SetPath(NS.db.profile, path, value) end,
 }
 
+-- The facts the kit's diagnostics contract runs against (tests/_kit/test_diagnostics_contract.lua):
+-- the brand both markers carry, the one door every verb comes through, the live console, and the
+-- two switches the contract flips. `setDisabled` writes `enabled` through NS.SetByPath, the seam
+-- `/at disable` and the Master-controls checkbox use, so its onChange moves the stand-down latch
+-- and the dispatcher's gate sees exactly what a player's disabled addon shows it. `setDebug` writes
+-- the session flag directly, with no chat line. No `retired`: this addon never shipped another name
+-- for the report.
+Kit.diagnostics = {
+  brand       = NS.Constants.BRAND,
+  dispatch    = function(line) NS.Slash:OnSlash(line) end,
+  console     = function() return NS.DebugLog end,
+  setDebug    = function(on) NS.State.debug = on and true or false end,
+  setDisabled = function(off) NS.SetByPath("enabled", not off) end,
+}
+
 -- --- load test suites (order is load-order-sensitive; keep it) ---
 --
 -- `dir` is given explicitly, so Kit.run calls Kit.assertSuiteInventory before it loads anything:
@@ -131,9 +146,11 @@ Kit.run{
     -- addon through OnEnable and a full disable/enable cycle on the SHARED environment: run
     -- earlier, its stand-downs would be another suite's mysteriously empty registration set.
     "test_disabled",
-    -- debug-logging-§14's dispatcher contract, shipped in the kit (revision 27). One declared skip
-    -- until the addon ships its report and sets Kit.diagnostics (DR-AT-03); straight after
-    -- test_disabled, because its own cases drive the dispatcher through the disabled state too.
+    -- debug-logging-§14: this addon's half of the diagnostics report (the DX-AT sections, the
+    -- command surface, the library-absent arm), then the kit's shared dispatcher contract (revision
+    -- 27), wired through Kit.diagnostics above. Both after test_disabled, because both drive the
+    -- addon through the disabled state and put it back.
+    "test_diagnostics",
     { name = "test_diagnostics_contract", dir = "tests/_kit/" },
     -- Shipped in the kit, so every consumer inherits the gate instead of re-typing it; the
     -- inventory assertion goes red in any repo that vendors it and leaves it undeclared.

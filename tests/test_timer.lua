@@ -174,3 +174,21 @@ test("OnEnterWorld requests a repaint", function()
   assertEqual(#mocks.__timers, 1)
   mocks.__fireTimers()
 end)
+
+-- Read-only diagnostics seam (DR-AT-02): the report prints whether a coalesced pass is queued.
+test("seam: IsRepaintPending tracks the one-shot without arming or canceling it", function()
+  local mocks = T.mocks
+  NS.CancelPendingRepaint()
+  mocks.__timers = {}
+  assertEqual(NS.IsRepaintPending(), false, "nothing armed")
+  NS.RequestRepaint()
+  assertEqual(NS.IsRepaintPending(), true, "armed")
+  assertEqual(NS.IsRepaintPending(), true, "asking twice does not consume it")
+  assertEqual(#mocks.__timers, 1, "asking arms nothing")
+  mocks.__fireTimers()
+  assertEqual(NS.IsRepaintPending(), false, "the pass fired")
+  NS.RequestRepaint()
+  NS.CancelPendingRepaint()
+  assertEqual(NS.IsRepaintPending(), false, "canceled")
+  mocks.__timers = {}
+end)

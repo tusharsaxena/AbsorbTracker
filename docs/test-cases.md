@@ -213,7 +213,7 @@ badge and any count quoted in the docs must agree with it.
 - SetByPath logs one [Set] path = value line (debug-logging-§10)
 - the schema CLI's list header the library renders is prose, not its own STRINGS key
 
-### test_timer.lua (12)
+### test_timer.lua (13)
 
 - RequestRepaint coalesces multiple requests into one scheduled repaint
 - the coalesced repaint paints every tracked unit, not just the player
@@ -227,6 +227,7 @@ badge and any count quoted in the docs must agree with it.
 - OnMaxHealthChanged requests a repaint for the player
 - OnMaxHealthChanged requests a repaint for any tracked unit, not just the player
 - OnEnterWorld requests a repaint
+- seam: IsRepaintPending tracks the one-shot without arming or canceling it
 
 ### test_perf.lua (33)
 
@@ -264,7 +265,7 @@ badge and any count quoted in the docs must agree with it.
 - every perf step label the library renders is prose, not its own STRINGS key
 - Perf: the descriptor hands the library the FOLDER name, not just the frame name
 
-### test_visibility.lua (22)
+### test_visibility.lua (26)
 
 - ShouldShowBar: a disabled unit wins even in combat
 - ShouldShowBar: default (enabled, visibility=always) is shown
@@ -288,6 +289,10 @@ badge and any count quoted in the docs must agree with it.
 - OnAbsorbChanged is silent on an unchanged value (no per-event spam)
 - [Absorb] transition logs on a non-secret 0->nonzero change
 - ShouldShowBar: unlocking bypasses visibility entirely
+- seam: VisibilityReason names the rung ShouldShowBar decided on
+- seam: LastAppliedVisibility reports what ApplyVisibility applied, debug on or off
+- seam: SessionCounters returns a copy of the since-combat-start counters
+- seam: the diagnostics accessors answer on a library-less load too
 
 ### test_bus.lua (12)
 
@@ -402,7 +407,7 @@ badge and any count quoted in the docs must agree with it.
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_draghandle.lua (22)
+### test_draghandle.lua (29)
 
 - every bar body is registered for a left-button drag
 - dropping a bar body saves the position to that bar's own unit
@@ -423,6 +428,13 @@ badge and any count quoted in the docs must agree with it.
 - the strip's tooltip names the addon and says how to move this bar
 - the strip's tooltip reads the lock on every hover
 - the help mark has its own tooltip, with a footer saying how to put the strip away
+- every bar's strip carries a close mark, the player bar included
+- the close mark's art comes from the Media seam
+- a strip with a close mark reserves room for it on both sides
+- clicking X turns off exactly that unit's bar, through the schema seam
+- clicking X leaves the bar's position, the other bars and the addon-wide enable alone
+- clicking X prints one line naming the way back
+- the close mark's tooltip says what X does and names the same way back
 - degraded: with LibKa0s absent the bars load with no handle and keep their own drag
 - degraded: with no widget the default stack reserves no strip room
 - an appearance pass over a bar with no handle raises nothing
@@ -771,9 +783,10 @@ badge and any count quoted in the docs must agree with it.
 - the main page's About content renders on its first OnShow
 - re-rendering the About page replaces its body rather than stacking a second copy
 
-### test_docs.lua (4)
+### test_docs.lua (5)
 
 - README.md carries no angle-bracket argument placeholders
+- README.md carries ## Reporting a bug with the standard's text, placed and pointed at
 - every Tier 2 documentation-map row agrees with docs/
 - every deviation id the register cites is assigned by a bundle in docs/audits/
 - docs/smoke-tests.md carries a non-English-client section
@@ -841,7 +854,7 @@ badge and any count quoted in the docs must agree with it.
 - events: a name IsEventValid refuses never reaches the target
 - events: /at debug events lists the rejected names, and 'none' once they are gone
 
-### test_disabled.lua (17)
+### test_disabled.lua (18)
 
 - disabled 1: the enabled addon registers something to stand down from
 - disabled 3: writing the enable path leaves NOTHING registered
@@ -851,6 +864,7 @@ badge and any count quoted in the docs must agree with it.
 - disabled 7: every reserved verb answers, and only a feature verb refuses
 - disabled 7: a refused feature verb reaches no write seam
 - disabled 7: `debug` stays live, and its `hold` sub-verb refuses on its own gate
+- disabled 7: both diagnostics forms reach RunDiagnostics, each once, with no refusal
 - disabled 8: the left click opens the panel; the menu grays Locked and still re-enables
 - disabled 9: re-enabling restores the registration set, from the settings as they are NOW
 - disabled 9: the bus subscriptions come back as the same five pairs, and each still reaches its consumer once
@@ -861,9 +875,30 @@ badge and any count quoted in the docs must agree with it.
 - bus: the stand-down and stand-up counts are the record's, and the latch drives both
 - lifecycle stub: PrintHolds names the addon and its holds as one space-joined line
 
-### test_diagnostics_contract.lua (1)
+### test_diagnostics.lua (12)
 
-- diagnostics contract: debug-logging-§14 (skipped: Kit.diagnostics is not set in the runner, so this repo's dispatcher is not wired to the shared contract yet. Every Ka0s addon owes debug-logging-§14's report; wire Kit.diagnostics once the report exists)
+- diagnostics: the row sits straight after debug and its text is routed through NS.L
+- diagnostics: the report carries every DX-AT section, and none of them fails
+- diagnostics: a changed setting prints as path = value (default), and the always rows print
+- diagnostics: a secret absorb prints as <secret> and costs no section
+- diagnostics: stood down, the released runtime state says so rather than printing empty
+- diagnostics: the report reads state and changes none of it
+- diagnostics: the media rung is read off LSM, never off the path the getter answered
+- diagnostics: the session's rejected events are folded into the report
+- diagnostics: a raising section costs exactly one line and the rest still print
+- diagnostics: an over-cap report ends in the truncated line, then the end marker
+- diagnostics: the chat line is ours to localize and names the line count
+- diagnostics: with the library absent both forms print the one absent line
+
+### test_diagnostics_contract.lua (7)
+
+- diagnostics contract: both forms run the report
+- diagnostics contract: the debug word is matched in any case
+- diagnostics contract: both markers carry the brand and the end counts the report
+- diagnostics contract: the report appends after what the console already holds
+- diagnostics contract: the report lands with logging off and leaves it off
+- diagnostics contract: both forms run while the addon is disabled
+- diagnostics contract: no other name runs the report
 
 ### test_eol.lua (2)
 
@@ -899,13 +934,13 @@ badge and any count quoted in the docs must agree with it.
 | test_mediasetup.lua | 10 |
 | test_debuglog.lua | 14 |
 | test_slash.lua | 14 |
-| test_timer.lua | 12 |
+| test_timer.lua | 13 |
 | test_perf.lua | 33 |
-| test_visibility.lua | 22 |
+| test_visibility.lua | 26 |
 | test_bus.lua | 12 |
 | test_data.lua | 32 |
 | test_display.lua | 60 |
-| test_draghandle.lua | 22 |
+| test_draghandle.lua | 29 |
 | test_helpers.lua | 71 |
 | test_launcher.lua | 32 |
 | test_optionssetup.lua | 15 |
@@ -913,15 +948,16 @@ badge and any count quoted in the docs must agree with it.
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 15 |
 | test_widgets.lua | 57 |
-| test_docs.lua | 4 |
+| test_docs.lua | 5 |
 | test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 10 |
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_events.lua | 5 |
-| test_disabled.lua | 17 |
-| test_diagnostics_contract.lua | 1 |
+| test_disabled.lua | 18 |
+| test_diagnostics.lua | 12 |
+| test_diagnostics_contract.lua | 7 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **778** |
+| **Total** | **810** |
