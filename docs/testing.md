@@ -50,7 +50,7 @@ reason it reads that way. `.luacheckrc` therefore sets **no top-level `ignore`**
 
 | Case | What it refuses |
 |------|-----------------|
-| no top-level `ignore` | any `ignore` at the top of `.luacheckrc` — it reaches all 63 files whatever it names, so naming the variable does not rescue it |
+| no top-level `ignore` | any `ignore` at the top of `.luacheckrc` — it reaches all 66 files whatever it names, so naming the variable does not rescue it |
 | no wholesale class switch | `unused_args = false` and eight relatives, which is the same blanket spelled as a switch |
 | every `files[...]` ignore is narrow | a stanza keyed to a directory whose entries name no variable |
 | no bare inline directive | `-- luacheck: ignore` with no code after it, which silences every code on the line rather than the one that was meant |

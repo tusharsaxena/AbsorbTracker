@@ -65,7 +65,7 @@ end
 -- Forward declarations so the commands table can reference handlers defined below.
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
-local runDebug, runUpdate, runProfile, runToggle, runPerf
+local runDebug, runDiagnostics, runUpdate, runProfile, runToggle, runPerf
 local setEnabled, echoStored, runHold
 
 NS.COMMANDS = {
@@ -110,8 +110,14 @@ NS.COMMANDS = {
         end},
     {"toggle",        "Toggle bars on or off \226\128\148 `/at toggle [player|target|focus]`",
         function(rest) runToggle(rest) end},
-    {"debug",         "Toggle the debug console \226\128\148 `on`/`off` logging, `events`, `hold <value> [secs]`",
+    {"debug",         "Toggle the debug console \226\128\148 `on`/`off` logging, `diagnostics`, `events`, `hold <value> [secs]`",
         function(rest) runDebug(rest) end},
+    -- debug-logging-§14's report, and one of slash-commands-§2's reserved verbs, so it answers
+    -- while the addon is disabled (Slash 16's LIVE_VERBS, which liveVerbs below is built on).
+    -- Straight after `debug`, next to the console it writes into. The one other form is the
+    -- `debug diagnostics` word; there is no `diag`, `dump` or `dx` alias anywhere (STD-04).
+    {"diagnostics",   NS.L["Write a diagnostics report to the debug console"],
+        function() runDiagnostics() end},
     {"perf",          "Measure performance \226\128\148 try `/at perf` for the workflow",
         function(rest) runPerf(rest) end},
     {"update",        "Force a bar refresh",
@@ -237,6 +243,7 @@ end
 -- ---------------------------------------------------------------------
 --
 -- /at debug        toggles the on-screen debug console window (state unchanged).
+-- /at debug diagnostics writes the diagnostics report (debug-logging-§14), tested FIRST.
 -- /at debug on|off enables / disables session logging (debug-logging-§5).
 -- /at debug events lists the event names the client refused this session.
 -- /at debug hold <value> [secs] holds a fake absorb value on the bars (below).
@@ -341,9 +348,24 @@ local DEBUG_VERBS = {
     hold   = function(rest) runHold(rest) end,
 }
 
+-- `/at diagnostics` and `/at debug diagnostics`: the report, appended to the console after whatever
+-- trace is there (modules/Diagnostics.lua supplies the sections, LibKa0s-DebugLog the rest). With
+-- the library absent the DebugLog stub prints the collection's library-absent line instead.
+function runDiagnostics()
+    if NS.DebugLog and NS.DebugLog.RunDiagnostics then
+        NS.DebugLog:RunDiagnostics()
+    else
+        print("Debug console unavailable")
+    end
+end
+
 function runDebug(rest)
     local sub, subrest = (rest or ""):match("^(%S*)%s*(.*)$")
-    local handler = DEBUG_VERBS[(sub or ""):lower()]
+    sub = (sub or ""):lower()
+    -- `diagnostics` FIRST, before on/off, the topic words and the window toggle (STD-03). Any other
+    -- word, `diag` included, is an ordinary unknown word and toggles the window, as it always has.
+    if sub == "diagnostics" then return runDiagnostics() end
+    local handler = DEBUG_VERBS[sub]
     if handler then
         handler(subrest)
         return

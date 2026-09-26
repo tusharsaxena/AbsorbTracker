@@ -50,6 +50,15 @@ L["Locked. Unlock the bars to drag this handle \226\128\148 /at unlock."] =
 L["Lock the bars to hide this handle \226\128\148 /at lock."] =
     "Lock the bars to hide this handle \226\128\148 /at lock."
 
+-- The diagnostics report (debug-logging-§14): the `diagnostics` row in `/at help` and on the About
+-- page (settings/Slash.lua), and the one chat line the report prints, handed to LibKa0s-DebugLog
+-- as its DIAG_WRITTEN string (core/DebugLogSetup.lua). The report body itself is English
+-- diagnostic text and is not routed here.
+L["Write a diagnostics report to the debug console"] =
+    "Write a diagnostics report to the debug console"
+L["Diagnostic report written to the debug console: %d lines. Use Copy to share it."] =
+    "Diagnostic report written to the debug console: %d lines. Use Copy to share it."
+
 -- The library-absent line: `%s` is the full verb, e.g. `/at list` (settings/Slash.lua's stub).
 L["%s is unavailable: the LibKa0s library did not load."] =
     "%s is unavailable: the LibKa0s library did not load."

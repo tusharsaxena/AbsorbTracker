@@ -866,9 +866,29 @@ badge and any count quoted in the docs must agree with it.
 - bus: the stand-down and stand-up counts are the record's, and the latch drives both
 - lifecycle stub: PrintHolds names the addon and its holds as one space-joined line
 
-### test_diagnostics_contract.lua (1)
+### test_diagnostics.lua (11)
 
-- diagnostics contract: debug-logging-§14 (skipped: Kit.diagnostics is not set in the runner, so this repo's dispatcher is not wired to the shared contract yet. Every Ka0s addon owes debug-logging-§14's report; wire Kit.diagnostics once the report exists)
+- diagnostics: the row sits straight after debug and its text is routed through NS.L
+- diagnostics: the report carries every DX-AT section, and none of them fails
+- diagnostics: a changed setting prints as path = value (default), and the always rows print
+- diagnostics: a secret absorb prints as <secret> and costs no section
+- diagnostics: stood down, the released runtime state says so rather than printing empty
+- diagnostics: the report reads state and changes none of it
+- diagnostics: the session's rejected events are folded into the report
+- diagnostics: a raising section costs exactly one line and the rest still print
+- diagnostics: an over-cap report ends in the truncated line, then the end marker
+- diagnostics: the chat line is ours to localize and names the line count
+- diagnostics: with the library absent both forms print the one absent line
+
+### test_diagnostics_contract.lua (7)
+
+- diagnostics contract: both forms run the report
+- diagnostics contract: the debug word is matched in any case
+- diagnostics contract: both markers carry the brand and the end counts the report
+- diagnostics contract: the report appends after what the console already holds
+- diagnostics contract: the report lands with logging off and leaves it off
+- diagnostics contract: both forms run while the addon is disabled
+- diagnostics contract: no other name runs the report
 
 ### test_eol.lua (2)
 
@@ -926,7 +946,8 @@ badge and any count quoted in the docs must agree with it.
 | test_lintconfig.lua | 4 |
 | test_events.lua | 5 |
 | test_disabled.lua | 17 |
-| test_diagnostics_contract.lua | 1 |
+| test_diagnostics.lua | 11 |
+| test_diagnostics_contract.lua | 7 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **783** |
+| **Total** | **800** |

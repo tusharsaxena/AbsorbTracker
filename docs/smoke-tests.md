@@ -19,7 +19,7 @@ that covers the pure logic; this suite covers everything that only runs against 
 ### B. Slash surface
 6. `/at` alone → the settings panel opens on the **Ka0s Absorb Tracker** landing page (the About page, not a sub-page), tree expanded; no help block prints. `/at` followed by only spaces → the same. In combat → the single gray refusal line and no panel.
 7. `/absorbtracker` → identical: the panel opens on the landing page.
-8. `/at help` → gold command + em-dash + white desc for all 18 verbs: help, config, enable, disable, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, perf, update, version, profile. There is no `test` row: `/at test` prints `unknown command 'test'` then help. `toggle` reads *"Toggle bars on or off — `/at toggle [player|target|focus]`"*, and `debug` reads *"Toggle the debug console — `on`/`off` logging, `events`, `hold <value> [secs]`"* and `perf` reads *"Measure performance — try `/at perf` for the workflow"*.
+8. `/at help` → gold command + em-dash + white desc for all 19 verbs: help, config, enable, disable, list, get, set, reset, resetall, resetposition, lock, unlock, toggle, debug, diagnostics, perf, update, version, profile. There is no `test` row: `/at test` prints `unknown command 'test'` then help. `toggle` reads *"Toggle bars on or off — `/at toggle [player|target|focus]`"*, and `debug` reads *"Toggle the debug console — `on`/`off` logging, `diagnostics`, `events`, `hold <value> [secs]`"*, `diagnostics` reads *"Write a diagnostics report to the debug console"* and `perf` reads *"Measure performance — try `/at perf` for the workflow"*.
 9. `/at wibble` → `unknown command 'wibble'` then help.
 10. `/at options` → opens the panel (back-compat alias for `config`).
 
@@ -380,7 +380,7 @@ spec or content is needed.
 the whole list:
 
 - **`AbbreviateNumbers`** — the bar's value text (`modules/Display.lua:427`), the `/at debug hold` line
-  (`settings/Slash.lua:303`, `:328`) and three debug lines (`core/AbsorbTracker.lua:230`, `:232`,
+  (`settings/Slash.lua:310`, `:335`) and three debug lines (`core/AbsorbTracker.lua:230`, `:232`,
   `:308`). Blizzard localizes both the suffix and the grouping: `1.2M` on enUS is not what a deDE
   client returns for the same number.
 - **`UnitClass`** — `core/Data.lua:205` and `core/CoreSetup.lua:60` both `pcall` it and take the
