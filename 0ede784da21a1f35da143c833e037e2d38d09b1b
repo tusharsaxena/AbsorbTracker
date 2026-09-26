@@ -1,0 +1,1 @@
+clean: README ## Reporting a bug is STD-17 verbatim with /at (no destination, no link), placed between Troubleshooting and Issues, STD-18 row + FAQ pointer; new test_docs case fails on the old README; gate re-run 802/0, luacheck 0/0, lizard clean, max 1447 lines
