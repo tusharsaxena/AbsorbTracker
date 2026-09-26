@@ -1,0 +1,1 @@
+clean: NR-AT-01 matches its task; payload byte-identical to v1.61.0 (c6183bd), kit untouched, CRLF held; parity case fails without the NavRail stub (NavRail is missing) and passes with it; gate 810/0/0, luacheck 0/0, lizard clean
