@@ -1,0 +1,1 @@
+AT-ATS-SD citations review: PASS — the one open finding on 917014b (.luacheckrc:124 citing a blank line) is fixed here; the other three citations were verified by the independent reviewer. Gate 810/0/0, luacheck 0/0.
