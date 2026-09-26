@@ -190,7 +190,7 @@ to look different*, so check them against the expected output written here, **no
 
 100. **The page-wide controls are in the chrome band, above the strip.** ⚠ They moved: both mirror controls were drawn into the **scroll**, under the tab strip, which is what options-ui-§14 forbids for a control that applies to every tab. Appearance → **Target**: the **Unit** picker sits at the top of the pinned band, **Use same styling as Player** and **Copy styling from Player** sit side by side under it — still in the band, above the hairline rule and above the tabs — and the **scroll** below the strip starts with the selected tab's own rows and nothing else. Scroll the page: the picker and the two mirror controls **do not move**, because they are not in the scroll. Click through all five tabs: they stay put and stay identical on every one, which is the property that was lost while they lived under the strip. Then switch the picker to **Player**: the two mirror controls disappear and the band shrinks by exactly one row, with the tab strip and the whole page moving up to meet it — no gap left behind, no tab drawn over the picker.
 101. **A raise inside the chrome block costs the block, not the page.** Temporarily break the block — e.g. edit `settings/UnitPanel.lua` and put `error("smoke")` at the top of `buildChromeBlock` — `/reload`, then open Appearance → Target. Expect: **one** `page header failed to build: …` line naming the failure, and the tab strip plus the selected tab's rows **still drawn** under an empty band. Pre-adoption the whole body aborted behind `RenderUnitPanel`'s outer pcall and the page came up with no strip and no rows either. Revert the edit and `/reload`. (What this pins: `H.PageHeader` pcalls and reports the builder. `tests/test_helpers.lua` asserts it headlessly; this is the in-game walk.)
-102. **Nothing renders a raw locale key.** Open `/at config` and walk all three sub-pages and every tab on each, then `/at debug` and `/at perf`. Every label, tooltip title, section heading, button and step name reads as **English prose**. A `SCREAMING_SNAKE_CASE` string anywhere on screen — `STEP_START`, `PANEL_TITLE_SUFFIX`, `LIST_HEADER` — is the `L` trap: a descriptor was handed the addon's `NS.L`, whose metatable answers every key with the key, so the library's own strings became unreachable. It fails for **every** key in that module at once, so if you see one you will see dozens. This addon translates nothing and therefore passes `L` to no descriptor at all; `tests/test_ltrap.lua` guards the source, and this is the one check that sees what actually rendered. (KickCD shipped this bug once — see `../LibKa0s/docs/adoption-prompt.md`, "The `L` trap".)
+102. **Nothing renders a raw locale key.** Open `/at config` and walk all three sub-pages and every tab on each, then `/at debug` and `/at perf`. Every label, tooltip title, section heading, button and step name reads as **English prose**. A `SCREAMING_SNAKE_CASE` string anywhere on screen — `STEP_START`, `PANEL_TITLE_SUFFIX`, `LIST_HEADER` — is the `L` trap: a descriptor was handed the addon's `NS.L`, whose metatable answers every key with the key, so the library's own strings became unreachable. It fails for **every** key in that module at once, so if you see one you will see dozens. The one `L` this addon hands a descriptor is the DebugLog descriptor's plain one-key table (`DIAG_WRITTEN`, the diagnostics chat line), never `NS.L` itself; `tests/test_ltrap.lua` guards the source, and this is the one check that sees what actually rendered. (KickCD shipped this bug once — see `../LibKa0s/docs/adoption-prompt.md`, "The `L` trap".)
 
 ### N. The LibKa0s-Env-1.0 seam (TOC metadata)
 
@@ -519,6 +519,45 @@ not. Every step here is therefore a look, not a log line.
     addon stays down`** rather than `RESUMED`, and the bars stay gone — the player switched the
     addon off and a finishing capture must not switch it back on. `/at enable` brings it back.
 
+### V. The diagnostics report (`/at diagnostics`, debug-logging-§14, LibKa0s v1.60.0)
+
+Run after the diagnostics rollout (`DR-AT-03`). The report is read-only and its body is plain
+English, so what can go wrong is a line missing, a trace line lost, a flag moved, or a raise on a
+secret value. [debug.md](./debug.md) has the section list and the caps.
+
+1. **The report appends, and the trace survives.** `/at debug on`, gain and lose a shield, then
+   `/at diagnostics`. The console shows the `[Absorb]` trace lines **above**
+   `==== Ka0s Absorb Tracker diagnostics begin ====`; nothing was cleared. The report ends with
+   `==== Ka0s Absorb Tracker diagnostics end: N line(s) ====`, and chat carries one line: *Diagnostic
+   report written to the debug console: N lines. Use Copy to share it.*
+2. **The sections are there, in order.** Between the markers: the identity lines (client build,
+   locale, `debug logging: on`, the combat reads, `LibKa0s running:`), then the schema, profile and
+   `test mode: none` rows, then `[Life]`, `[Set]`, `[Unit]`, `[Frame]`, `[Media]`, `[Color]`,
+   `[Absorb]`, `[Events]`, `[Repaint]`, `[Counters]` and `[UI]`. No line reads `section ... failed`.
+   Each `[Unit]` line names a `reason=` rung, and each `[Media]` line a `rung=`.
+3. **Ungated, and the flag untouched.** `/at debug off`, then `/at diagnostics`. The report lands in
+   full, the identity line reads `debug logging: off`, the console header still reads **Debug:
+   OFF**, and the next shield change writes nothing.
+4. **Both forms while disabled.** `/at disable`, then `/at diagnostics`, then
+   `/at debug diagnostics`. Both write a full report; the state row reads `enabled (stored)=false
+   stood down=true`, `[Events]` reads `stood down: every registration released`, and `[Repaint]`
+   reads `pending=stood down`. `/at enable` afterwards.
+5. **The long alias.** `/absorbtracker diagnostics` and `/absorbtracker debug diagnostics` write the
+   same report as `/at`.
+6. **No alias.** `/at debug diag` toggles the console like any unknown word and writes no report;
+   `/at diag` prints `unknown command 'diag'` and the help index.
+7. **In combat, and in restricted content.** Run `/at diagnostics` in combat with a shield up, and
+   again inside a dungeon or raid where absorbs are secret. No Lua error. The `[Absorb]` rows read
+   `<secret>` where the client hides the value, and no other section fails.
+8. **Copy is clean.** After step 1, press the console's **Copy** and paste into a text editor. The
+   paste holds the trace, both markers with the brand, and no `|c`, `|T` or `|H` escapes.
+9. **The buffer cap.** Fill the console past 3000 lines (leave `/at debug on` through a long fight, or
+   run `/at diagnostics` repeatedly). The counter reads `N / 3000 lines` and pins at `3000 / 3000`;
+   **Copy** opens without a noticeable hitch.
+10. **Library absent.** In the degraded load of step 99 (`libs/LibKa0s/` renamed aside), `/at
+    diagnostics` and `/at debug diagnostics` each print `/at diagnostics is unavailable: the LibKa0s
+    library did not load.` and raise nothing.
+
 ### Triage references (if a step fails)
 - Bootstrap / events / profile repaint — `core/AbsorbTracker.lua` (`OnEnable`, `OnProfileChanged`)
 - TOC metadata (the `/at version` string, the About page's Notes blurb) — `LibKa0s-Env-1.0` (`libs/LibKa0s/Env.lua`), wired by `core/EnvSetup.lua` as `NS.Meta` / `NS.Version`
@@ -531,6 +570,7 @@ not. Every step here is therefore a look, not a log line.
 - Perf probe / suspend / capture ring / step panel — `LibKa0s-Perf-1.0` (`libs/LibKa0s/`), wired up by `core/PerfSetup.lua`; protocol in `docs/performance.md`
 - DB init + idempotent migration — `core/Database.lua`
 - Debug console — `LibKa0s-DebugLog-1.0` (`libs/LibKa0s/`), wired up by `core/DebugLogSetup.lua`
+- The diagnostics report — the frame, header, cap and chat line are `libs/LibKa0s/DebugLogDiagnostics.lua`'s; the sections are `modules/Diagnostics.lua`; the dispatch is `settings/Slash.lua`'s `runDebug` / `runDiagnostics`
 - The minimap button, the broker plugin and the click rung — `LibKa0s-Launcher-1.0` (`libs/LibKa0s/Launcher.lua`), wired up by `core/LauncherSetup.lua`; the icon file itself is `media/logos/absorbtracker.logo.128.tga` and the visibility row's inversion is in `core/Data.lua`
 - LSM border alignment fix — `LibKa0s-Options-1.0` (`libs/LibKa0s/Options.lua`, `lib.__PatchLSM30Border`), called from `settings/OptionsSetup.lua`'s live arm
 - Class-color-aware getters and the frame-alpha clamp — `core/Data.lua` (`GetBarColor`/`GetBgColor`/`GetBorderColor`/`GetFontColor`, all through one `resolveColor`; `GetBarAlpha`)

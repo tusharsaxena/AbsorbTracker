@@ -338,7 +338,7 @@ Older bundles and plans under `docs/` that still name the file are frozen histor
 | `profiles.md` | Present | AceDB profiles are user-visible — the Profiles settings page |
 | `message-bus.md` | Present | Spill target of the hub's ~60-line rule (the more-than-ten-message trigger is not met: five messages); the catalog table stays in `## Message Bus` |
 | `compat-layer.md` | Not applicable | Not applicable — this addon calls no deprecated or version-variant client API outside LibKa0s's majors (compat, v2.65.0 applicability condition); the TOC metadata read is LibKa0s-Env-1.0's, reached through `core/EnvSetup.lua`, whose library-absent fallback is `C_AddOns` then nil |
-| `debug.md` | Not applicable | The console is `LibKa0s-DebugLog-1.0`’s, with no debug surface of the addon’s own |
+| `debug.md` | Present | The diagnostics report is a debug surface of the addon’s own (documentation-§3, v2.68.0): its sections, caps and what it never reads, plus the `debug events` and `debug hold` words and the trace tags |
 | `perf-analysis/README.md` | Present | The performance harness is wired (`core/PerfSetup.lua`) |
 
 ### Verification and record

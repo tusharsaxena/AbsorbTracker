@@ -198,7 +198,8 @@ here.
 **`debug`** — `diagnostics` is tested first and runs the report; then `DEBUG_VERBS`, a table keyed by the lowercased token: `on` or `off` sets session
 logging, `events` prints the session's rejected event names, and `hold` passes the rest of the line
 to `runHold`; anything else (including nothing) toggles the console window. The window and the flag are two different things, which is why the
-Master controls checkbox is not a second switch for the same state.
+Master controls checkbox is not a second switch for the same state. The report's sections, its
+caps and the trace tags are documented in [debug.md](./debug.md).
 
 **`toggle`** — one optional unit token, validated against `NS.Units.LABEL`; an unknown token prints
 the expected list rather than silently doing nothing. Both arms write through `NS.SetByPath`, so the

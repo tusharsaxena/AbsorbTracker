@@ -334,6 +334,13 @@ NS.DebugLog = lib:New({
                                                -- it says.
     onVisibilityChanged = function() ... end,  -- NS.Helpers.RefreshAllPanels, so a console opened
                                                -- by /at debug moves the General page's checkbox
+
+    -- The diagnostics report (debug-logging-§14). The library writes the markers, header, cap
+    -- and chat line; the sections are modules/Diagnostics.lua's, asked for at report time.
+    brandName   = NS.Constants.BRAND,                  -- both markers carry it
+    diagnostics = function() ... end,                  -- NS.Diagnostics.Sections()
+    L = { DIAG_WRITTEN = NS.L["..."] },                -- the one chat line, localized; a plain
+                                                       -- one-key table, never NS.L itself
 })
 
 -- Bound bare, which is why all thirteen NS.Debug call sites across five files are unchanged.
@@ -343,7 +350,9 @@ NS.Debug = NS.DebugLog.Debug
 With the library absent this file degrades to a stub covering **every** member the addon calls
 (`/at debug`, the General page's checkbox, `core/PerfSetup.lua`'s log sink) — and the stub still
 flips `NS.State.debug`, because the flag is ours and a user who types `/at debug on` should not be
-told nothing happened. What is lost is the window, and the stub says so once.
+told nothing happened. What is lost is the window, and the stub says so once. Its `RunDiagnostics`
+prints `/at diagnostics is unavailable: the LibKa0s library did not load.` and writes nothing. The
+report's sections, caps and trace tags are documented in [debug.md](./debug.md).
 
 The instance's surface, unchanged from before the extraction:
 
@@ -371,6 +380,9 @@ NS.DebugLog.buffer                       -- capped plain-text mirror of the log 
 NS.DebugLog:BufferSize() / :LastLine()   -- read seams over that buffer
 NS.DebugLog:FindLine(substr)             -- newest buffered line containing substr, or nil
 NS.DebugLog:IsEnabled()                  -- reads OUR flag back through the descriptor
+NS.DebugLog:RunDiagnostics()             -- the diagnostics report (debug-logging-§14): appends
+                                         -- markers, header and our sections, ungated; the stub
+                                         -- prints the library-absent line and returns 0
 NS.DebugLog.MakeCloseButton(parent, fn)  -- re-exported from LibKa0s-Core-1.0, so the console and
                                          -- the perf panel share ONE close-button factory
 ```

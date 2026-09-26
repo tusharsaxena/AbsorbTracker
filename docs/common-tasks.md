@@ -313,6 +313,26 @@ if t0 then Perf.Note("myBucket", debugprofilestop() - t0) end
 
 Add the bucket name to `NS.Perf.BUCKET_ORDER` or it records but never prints.
 
+## Add a section to the diagnostics report
+
+`/at diagnostics` (debug-logging-§14) is built on `LibKa0s-DebugLog-1.0`'s helper: the library
+writes the markers, the identity header, the per-section `pcall`, the cap and the chat line, and
+this addon supplies sections only. Writing any of those here is anti-pattern #90.
+
+1. **Write the section in `modules/Diagnostics.lua`** as `local function mySection(out)`. Every line
+   goes through `out:add(tag, fmt, ...)` (or `out:joined` / `out:list` for a list, which wrap and
+   cap), with `%s` only: the library stringifies each argument through `SafeToString` first.
+2. **Read, never write.** No setter, publish, repaint request, hold, timer, `Show`/`Hide` or
+   `Clear`. If the state you need lives in a file-local, publish a read-only accessor next to it
+   (the way `NS.IsRepaintPending` sits in `modules/Timer.lua`) rather than reaching in.
+3. **Guard every number.** Test it with `out:readable(v)` before formatting or comparing it. An
+   absorb or max-health value is never compared or converted at all: pass it through the file's
+   `secretSafe`, which asks `NS.IsConcatSafe` and prints `<secret>` otherwise.
+4. **Say when it is stood down.** If the section reads machinery that stand-down releases, print
+   one `stood down: ...` line while `NS.IsStoodDown()` is true.
+5. **Add it to `SECTIONS`** in report order, then describe it in [debug.md](./debug.md)'s shape
+   table, and extend `tests/test_diagnostics.lua` (the every-section case's `ONCE` and `PER_UNIT` lists hold one line from each section).
+
 ## Working conventions
 
 - Replies are terse; cite code as `file_path:line`; no summary the diff already gives.
@@ -326,3 +346,4 @@ Add the bucket name to `NS.Perf.BUCKET_ORDER` or it records but never prints.
 - [schema.md](./schema.md) — schema row grammar.
 - [settings-panel.md](./settings-panel.md) — sub-page registration mechanics.
 - [midnight-quirks.md](./midnight-quirks.md) — patch-day breakage catalog.
+- [debug.md](./debug.md) — the diagnostics report, the `debug` words and the trace tags.
