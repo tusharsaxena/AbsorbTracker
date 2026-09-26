@@ -165,3 +165,9 @@ Please file new reports there rather than in comments, so nothing gets lost.
 | 1.3.0 | 2026-01-31 | - Bundled everything the addon needs, so nothing has to be installed separately<br>- Added screenshots for the public release |
 | 1.1.0 | 2026-01-31 | - Dependencies install automatically |
 | 1.0.0 | 2026-01-31 | - Initial release: movable absorb bar with configurable size, textures, colors, border, and font, plus saved setups |
+
+## Credits
+
+The debug console uses [JetBrains Mono](https://www.jetbrains.com/lp/mono/), licensed under the SIL
+Open Font License 1.1, and the **?** and **X** on the bar's drag handle are drawn from [Open Iconic](https://github.com/iconic/open-iconic) (MIT). Both ship inside the bundled LibKa0s payload,
+with their license text beside them.
