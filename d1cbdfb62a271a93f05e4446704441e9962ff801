@@ -1,0 +1,1 @@
+fixed: X on all three strips writes units.<unit>.enabled via SetByPath, prints the way back, per X-01/X-04/X-05 and DR-OW-03; 7 X-05 cases fail with Bar.lua reverted; gate green (809/0, luacheck 0/0, lizard clean); fixed one 125-col enUS comment line in d15ba41 (DR-AT-06R)
