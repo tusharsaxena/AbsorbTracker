@@ -70,6 +70,40 @@ test("README.md carries no angle-bracket argument placeholders", function()
       .. table.concat(offenders, "; "))
 end)
 
+-- ── README: the Reporting a bug section is the standard's text ──────────────────────────────
+
+-- documentation-§1 item 9 fixes this section's body word for word, with the addon's real slash.
+-- It names no destination and carries no link: players send the report to the owner privately
+-- with their bug report. The section sits between Troubleshooting and Issues and feature
+-- requests, and a Troubleshooting row points at it.
+local REPORTING_BODY = table.concat({
+  "1. Type `/at debug on` and reproduce the bug.",
+  "2. Type `/at diagnostics`.",
+  "3. If the debug window isn't open, open it with `/at debug`. Press **Copy**, copy the entire "
+    .. "output, and include it with your bug report.",
+  "",
+  "The report is added after the debug trace in the same window, so one copy carries both.",
+}, "\n")
+
+local REPORTING_ROW =
+  "| Something looks wrong and I want to report it | Follow [Reporting a bug](#reporting-a-bug) below. |"
+
+test("README.md carries ## Reporting a bug with the standard's text, placed and pointed at", function()
+  local body = readFile("README.md"):gsub("\r", "")
+  local tIdx = body:find("\n## Troubleshooting\n", 1, true)
+  local rIdx = body:find("\n## Reporting a bug\n", 1, true)
+  local iIdx = body:find("\n## Issues and feature requests\n", 1, true)
+  assertTrue(rIdx ~= nil, "README.md has no `## Reporting a bug` section")
+  assertTrue(tIdx ~= nil and iIdx ~= nil and tIdx < rIdx and rIdx < iIdx,
+    "`## Reporting a bug` must sit between Troubleshooting and Issues and feature requests")
+  local section = body:match("\n## Reporting a bug\n\n(.-)\n+## ")
+  assertEqual(section, REPORTING_BODY, "the section body must be the standard's text with /at")
+  assertTrue(not section:lower():find("github", 1, true) and not section:find("](", 1, true),
+    "the section names no destination and carries no link")
+  assertTrue(body:sub(tIdx, rIdx):find(REPORTING_ROW, 1, true) ~= nil,
+    "Troubleshooting carries the row that points at the section")
+end)
+
 -- ── The Tier 2 documentation map says what docs/ actually holds ─────────────────
 
 -- `documentation-§3` files a conditional doc as Present or as Not applicable, and Not applicable is
