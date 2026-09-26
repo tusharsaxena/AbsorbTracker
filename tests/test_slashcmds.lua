@@ -239,7 +239,7 @@ end)
 -- `/at reset` takes a PATH and resets one setting. The page-shaped form this addon used to carry
 -- was removed deliberately (a user-visible change, not an extraction artifact), so these describe
 -- the new behavior rather than being retargeted onto it. The capability did not go anywhere: the
--- Bar page's Defaults button still resets that page across every unit, pinned in test_helpers.lua.
+-- Bar page's Defaults button still resets that page across every unit, pinned in test_panelpages.lua.
 
 test("/at reset with no path prints usage rather than resetting anything", function()
   NS.SetByPath("units.player.barWidth", 250)

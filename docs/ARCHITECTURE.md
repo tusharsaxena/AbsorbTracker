@@ -389,10 +389,10 @@ an open issue naming the seam a peel would follow, or a ratified row in the regi
 a re-check trigger. The census records which one, one row per over-cap file; the 1000-1500 band is
 observed and dispositioned in the automated-tests watch list alone (`automated-tests-§4`).
 
-Nothing is over the cap today. The largest authored file is `tests/test_helpers.lua` at 1447 lines,
-measured on 2026-09-24 with `git ls-files '*.lua' | grep -v '^libs/' | grep -v '^tests/_kit/' |
+Nothing is over the cap today. The largest authored file is `tests/test_slashcmds.lua` at 1321 lines,
+measured on 2026-09-26 with `git ls-files '*.lua' | grep -v '^libs/' | grep -v '^tests/_kit/' |
 xargs wc -l | sort -rn`. `tests/test_slashcmds.lua` was peeled into `tests/test_perfcmds.lua` when it
-crossed the cap, and its value-hold cases later moved to `tests/test_debughold.lua` with the verb. The vendored `tests/_kit/test_layout_cap.lua` gates this census against the tree.
+crossed the cap, and its value-hold cases later moved to `tests/test_debughold.lua` with the verb. `tests/test_helpers.lua` (1447) had its rendered-page cases peeled into `tests/test_panelpages.lua` before it reached the cap (R-14). The vendored `tests/_kit/test_layout_cap.lua` gates this census against the tree.
 
 ## Performance & Profiler Attribution
 

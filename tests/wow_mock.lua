@@ -13,7 +13,7 @@ return function()
   local M = base()
 
   -- AceGUI:Release is the kit's (kit revision 16, LibKa0s v1.30.0): settings/UnitPanel.lua's
-  -- chrome block releases its widgets, and tests/test_helpers.lua reads the kit's `w.__released`.
+  -- chrome block releases its widgets, and tests/test_panelpages.lua reads the kit's `w.__released`.
 
   -- Absorb and health, the two values this addon exists to read. Unit-taking so a test can vary
   -- target/focus independently of the player.

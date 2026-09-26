@@ -123,6 +123,9 @@ Kit.run{
     "test_display",
     "test_draghandle",
     "test_helpers",
+    -- Peeled out of test_helpers near the layout-§1 cap (R-14). Straight after it: its first case
+    -- asserts the Appearance page has not rendered yet, so nothing earlier may fire that OnShow.
+    "test_panelpages",
     "test_launcher",
     "test_optionssetup",
     "test_slashcmds",

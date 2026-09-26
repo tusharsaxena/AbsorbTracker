@@ -369,7 +369,7 @@ lib.__PatchLSM30Border()
 -- NS.Helpers IS the library instance, not a table decorated from it. Two things then hold that a
 -- copy-across would break: settings/UnitPanel.lua and settings/About.lua decorate the same table
 -- the library's own members live on (so RenderUnitPanel can call RenderRows through `Helpers` like
--- every other page does), and a test that swaps a member out to spy on it — tests/test_helpers.lua
+-- every other page does), and a test that swaps a member out to spy on it — tests/test_panelpages.lua
 -- does exactly that with ResetAllPositions — is swapping the one the library's own callers see.
 NS.Helpers = lib:New(descriptor)
 local Helpers = NS.Helpers
