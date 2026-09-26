@@ -132,8 +132,10 @@ above the begin marker is made of.
 | `[Events]` | `core/AbsorbTracker.lua` | The client refused an event registration |
 | `[Bus]` | `core/Bus.lua` | A subscription was refused on stand-up |
 | `[Migrate]` | `core/Database.lua` | A schema migration step ran or failed |
-| `[Set]` | `LibKa0s-Schema-1.0` | One line per bulk copy or reset (`debug-logging-§10`) |
-| `[Launcher]` | `core/LauncherSetup.lua` | A launcher click found no `/at` handler to run |
+| `[Set]` | `LibKa0s-Schema-1.0`, `core/AbsorbTracker.lua` | Every setting write, as `path = value`; one line per bulk copy or reset instead of one per row (`debug-logging-§10`); a profile copied or reset |
+| `[Profile]` | `core/AbsorbTracker.lua` | The active profile changed |
+| `[Launcher]` | `core/LauncherSetup.lua`, `LibKa0s-Launcher-1.0` | A launcher click found no `/at` handler to run, and the library's own launcher notes |
+| `[Cfg]` | `LibKa0s-Options-1.0` | The settings panel opened, or a register or open was held back in combat |
 | `[Perf]` | `LibKa0s-Perf-1.0` | The perf run's lines, written ungated ([performance.md](performance.md)) |
 
 ## Which to paste
