@@ -1,0 +1,1 @@
+clean: DR-AT-07 reviewed; new disabled-7 diagnostics case goes red when runDebug's diagnostics branch is renamed (scratch copy), README Reporting a bug matches STD-17 verbatim for /at, AUD-01 steps 1-6 re-checked, doc counts (810, 633 lines) and CRLF verified; gate re-run: 810 passed 0 failed, luacheck 0/0 in 66 files, lizard -C 15 -w clean, largest non-vendored Lua 1447 lines
