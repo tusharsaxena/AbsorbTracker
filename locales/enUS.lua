@@ -21,9 +21,9 @@ NS.L = setmetatable(NS.L or {}, { __index = function(_, k) return k end })
 -- What IS routed is the unlocked drag handle over each bar (modules/Bar.lua): its unit label, its
 -- three tooltips and its close mark's chat line; and the library-absent line (slash-commands-§1),
 -- one sentence with one placeholder, the full verb, which settings/Slash.lua's library-absent
--- stub prints for each schema verb it cannot run. (The minimap tooltip's left-click hint left with LibKa0s-Launcher minor 4,
--- whose hints and menu are the library's own strings.) Every key below is read by one of those
--- two -- enUS.lua carries no key nothing reads (localization-§3)
+-- stub prints for each schema verb it cannot run. (The minimap tooltip's left-click hint left
+-- with LibKa0s-Launcher minor 4, whose hints and menu are the library's own strings.) Every key
+-- below is read by one of those two -- enUS.lua carries no key nothing reads (localization-§3)
 -- -- and the English-only register row is otherwise unchanged: the rest of the addon's strings are
 -- still hardcoded, and a future pass wraps them here without touching call sites.
 
