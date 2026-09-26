@@ -696,7 +696,7 @@ test("the sidebar path is covered in combat, draws nothing and leaves the window
   -- refused until PLAYER_REGEN_ENABLED, which draws the page from current state.
   --
   -- The cover is asserted rather than "nothing rendered" alone, and deliberately: the Appearance
-  -- page has already been shown (tests/test_helpers.lua runs first and drives it), so a no-render
+  -- page has already been shown (tests/test_panelpages.lua runs first and drives it), so a no-render
   -- assertion could pass with no lock present at all. A shown ctx.__combatCover is a claim only the
   -- library's lock can satisfy.
   --

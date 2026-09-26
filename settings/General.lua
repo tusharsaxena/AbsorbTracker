@@ -121,7 +121,7 @@ local masterRows, masterTail = H.MasterControls({
     -- diverge. They did once: the old body nil'd `db.profile.position`, the pre-v3 flat key the v3
     -- migration deletes, which made the button a silent no-op (see Helpers.ResetAllPositions).
     -- Resolved at CLICK time, not captured: settings/UnitPanel.lua decorates the helper onto the
-    -- instance AFTER this file loads, and tests/test_helpers.lua swaps it out to spy on it.
+    -- instance AFTER this file loads, and tests/test_panelpages.lua swaps it out to spy on it.
     onResetPosition  = function() NS.Helpers.ResetAllPositions() end,
     -- options-ui-§12's global reset, through the confirmation the act has always carried.
     onResetAll       = function() StaticPopup_Show("ABSORBTRACKER_RESET_ALL") end,

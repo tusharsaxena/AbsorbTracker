@@ -117,13 +117,13 @@ files["core/Database.lua"] = {
   ignore = { "212/self" },
 }
 
--- Four receivers, and the parity gate is why they stay methods. `SlashLib:New(d)` at :410 is the
+-- Four receivers, and the parity gate is why they stay methods. `SlashLib:New(d)` at :603 is the
 -- degraded-arm stub for LibKa0s-Slash-1.0, whose real entry point is `function lib:New(d)`
--- (libs/LibKa0s/Slash.lua:375) and which is called as `SlashLib:New({...})` at :448 either way -- a
+-- (libs/LibKa0s/Slash.lua:484) and which is called as `SlashLib:New({...})` at :661 either way -- a
 -- stub that quietly narrows a signature is a stub that lets a caller pass here and fail in the
 -- client. `Sl:LandingRows`, `Sl:OnSlash` and `Sl:Register` mirror the library instance member for
 -- member, which is exactly what tests/test_surface_parity.lua asserts through `Sl.__cli`, and they
--- are reached with a colon from settings/About.lua:29, core/AbsorbTracker.lua:44 and some sixty
+-- are reached with a colon from settings/About.lua:29, core/AbsorbTracker.lua:52 and some sixty
 -- call sites across the slash suites.
 files["settings/Slash.lua"] = {
   ignore = { "212/self" },

@@ -439,7 +439,7 @@ badge and any count quoted in the docs must agree with it.
 - degraded: with no widget the default stack reserves no strip room
 - an appearance pass over a bar with no handle raises nothing
 
-### test_helpers.lua (40)
+### test_helpers.lua (71)
 
 - CreatePanel returns a ctx wired to a panel, a body and an empty refresher list
 - the canvas frame carries OnCommit, OnDefault and OnRefresh from the library
@@ -480,10 +480,6 @@ badge and any count quoted in the docs must agree with it.
 - RefreshAllPanels isolates a throwing refresher from the rest
 - NS.RefreshOptionsPanel delegates to RefreshAllPanels
 - the cross-slice layout constants are published for the widget/about slices
-- the Defaults button the library renders is prose, not its own STRINGS key
-
-### test_panelpages.lua (31)
-
 - a page renders nothing until its first OnShow
 - the Appearance page opens on the player unit with no mirror controls
 - the Unit picker is in the page's chrome block, and is the page's only picker
@@ -515,6 +511,7 @@ badge and any count quoted in the docs must agree with it.
 - an ordinary schema write does NOT re-render the whole unit page
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
+- the Defaults button the library renders is prose, not its own STRINGS key
 
 ### test_launcher.lua (32)
 
@@ -944,8 +941,7 @@ badge and any count quoted in the docs must agree with it.
 | test_data.lua | 32 |
 | test_display.lua | 60 |
 | test_draghandle.lua | 29 |
-| test_helpers.lua | 40 |
-| test_panelpages.lua | 31 |
+| test_helpers.lua | 71 |
 | test_launcher.lua | 32 |
 | test_optionssetup.lua | 15 |
 | test_slashcmds.lua | 91 |
