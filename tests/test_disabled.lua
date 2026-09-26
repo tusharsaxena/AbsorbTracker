@@ -317,6 +317,31 @@ test("disabled 7: `debug` stays live, and its `hold` sub-verb refuses on its own
   enable()
 end)
 
+test("disabled 7: both diagnostics forms reach RunDiagnostics, each once, with no refusal", function()
+  -- debug-logging-§14 and AUD-01 step 3: the report is live while disabled in BOTH forms. The walk
+  -- above sends `diagnostics` bare; `debug diagnostics` is a sub-word of a live verb, so this step
+  -- names it. The shared kit case checks the same from outside; this pins it on this suite's own
+  -- stand-down path. red under: a `debug` handler that no longer tests `diagnostics`, or a
+  -- `diagnostics` row dropped from the live set.
+  bringUp()
+  disable()
+  local real, calls = NS.DebugLog.RunDiagnostics, 0
+  NS.DebugLog.RunDiagnostics = function() calls = calls + 1 end
+  local refusal = NS.Slash:DisabledLine()
+  for _, form in ipairs({ "diagnostics", "debug diagnostics" }) do
+    calls = 0
+    M.__resetPrinted()
+    NS.Slash:OnSlash(form)
+    local out = M.__printed()
+    assertEqual(calls, 1, "`/at " .. form .. "` ran the report once while disabled")
+    for _, line in ipairs(out) do
+      assertTrue(line:find(refusal, 1, true) == nil, "`/at " .. form .. "` refused: " .. line)
+    end
+  end
+  NS.DebugLog.RunDiagnostics = real
+  enable()
+end)
+
 -- ── 8. the launcher ────────────────────────────────────────────────────────────────────────────
 
 local function launcherObject()

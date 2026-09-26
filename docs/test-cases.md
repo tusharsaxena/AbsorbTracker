@@ -854,7 +854,7 @@ badge and any count quoted in the docs must agree with it.
 - events: a name IsEventValid refuses never reaches the target
 - events: /at debug events lists the rejected names, and 'none' once they are gone
 
-### test_disabled.lua (17)
+### test_disabled.lua (18)
 
 - disabled 1: the enabled addon registers something to stand down from
 - disabled 3: writing the enable path leaves NOTHING registered
@@ -864,6 +864,7 @@ badge and any count quoted in the docs must agree with it.
 - disabled 7: every reserved verb answers, and only a feature verb refuses
 - disabled 7: a refused feature verb reaches no write seam
 - disabled 7: `debug` stays live, and its `hold` sub-verb refuses on its own gate
+- disabled 7: both diagnostics forms reach RunDiagnostics, each once, with no refusal
 - disabled 8: the left click opens the panel; the menu grays Locked and still re-enables
 - disabled 9: re-enabling restores the registration set, from the settings as they are NOW
 - disabled 9: the bus subscriptions come back as the same five pairs, and each still reaches its consumer once
@@ -954,9 +955,9 @@ badge and any count quoted in the docs must agree with it.
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_events.lua | 5 |
-| test_disabled.lua | 17 |
+| test_disabled.lua | 18 |
 | test_diagnostics.lua | 12 |
 | test_diagnostics_contract.lua | 7 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **809** |
+| **Total** | **810** |
