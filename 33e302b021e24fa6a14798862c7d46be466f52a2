@@ -1,0 +1,1 @@
+fixed: DR-AT-03 meets DX-AT/STD-19 and the owner rulings (no alias, both forms while disabled, secret-safe, read-only); one defect fixed in a2c89b3 (DR-AT-03R): media fallback flag compared paths and read fallback=yes on default installs, now rung=lsm|lsm default|fallback asked of LSM; gate green 801/0, luacheck 0/0, lizard clean
