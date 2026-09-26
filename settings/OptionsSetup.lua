@@ -312,6 +312,9 @@ if not lib then
     -- addon does not adopt tab-scoped refresh; the stub exists so the degraded build's surface
     -- keeps matching the live one.
     Helpers.SelectTab = function() end
+    -- NavRail, new at LibKa0s v1.61.0 (OptionsNav minor 1): drawn only by a page render, and no
+    -- page here draws a rail, so the same inert no-op answers.
+    Helpers.NavRail = function() end
     Helpers.__panels   = function() return {} end
     Helpers.__panelFor = function() return nil end
 
