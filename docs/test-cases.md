@@ -866,7 +866,7 @@ badge and any count quoted in the docs must agree with it.
 - bus: the stand-down and stand-up counts are the record's, and the latch drives both
 - lifecycle stub: PrintHolds names the addon and its holds as one space-joined line
 
-### test_diagnostics.lua (11)
+### test_diagnostics.lua (12)
 
 - diagnostics: the row sits straight after debug and its text is routed through NS.L
 - diagnostics: the report carries every DX-AT section, and none of them fails
@@ -874,6 +874,7 @@ badge and any count quoted in the docs must agree with it.
 - diagnostics: a secret absorb prints as <secret> and costs no section
 - diagnostics: stood down, the released runtime state says so rather than printing empty
 - diagnostics: the report reads state and changes none of it
+- diagnostics: the media rung is read off LSM, never off the path the getter answered
 - diagnostics: the session's rejected events are folded into the report
 - diagnostics: a raising section costs exactly one line and the rest still print
 - diagnostics: an over-cap report ends in the truncated line, then the end marker
@@ -946,8 +947,8 @@ badge and any count quoted in the docs must agree with it.
 | test_lintconfig.lua | 4 |
 | test_events.lua | 5 |
 | test_disabled.lua | 17 |
-| test_diagnostics.lua | 11 |
+| test_diagnostics.lua | 12 |
 | test_diagnostics_contract.lua | 7 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **800** |
+| **Total** | **801** |

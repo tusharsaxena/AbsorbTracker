@@ -212,6 +212,42 @@ test("diagnostics: the report reads state and changes none of it", function()
   assertEqual(cleared, 0, "the console was not cleared")
 end)
 
+test("diagnostics: the media rung is read off LSM, never off the path the getter answered", function()
+  -- DX-AT's "fallback rung". Three rungs: LSM resolved the stored name (`lsm`), LSM answered its own
+  -- default for a name nobody registered (`lsm default`, e.g. a SharedMedia pack uninstalled), or
+  -- there is no LSM and the getter's literal drew (`fallback`). The shipped border and font names
+  -- resolve under LSM to the very paths C.FALLBACK_BORDER and C.FALLBACK_FONT hold, so a flag
+  -- computed by comparing paths reads "fallback" on every default install.
+  -- red under: a rung computed as `resolved == C.FALLBACK_*`.
+  local C = NS.Constants
+  local byName = {
+    ["Blizzard Tooltip"] = C.FALLBACK_BORDER, ["Friz Quadrata TT"] = C.FALLBACK_FONT,
+    ["Blizzard Raid Bar"] = "Interface\\RaidFrame\\Raid-Bar-Hp-Fill",
+  }
+  local fake = { Fetch = function(_, _, key, noDefault)
+    if byName[key] then return byName[key] end
+    if noDefault then return nil end
+    return "Interface\\LSM\\Default"
+  end }
+  local realGetLSM = NS.GetLSM
+  NS.GetLSM = function() return fake end
+  local bg = NS.Units.Config("player").bgTexture
+  NS.Units.Config("player").bgTexture = "An Uninstalled Pack Texture"
+  local ok, lines = pcall(report)
+  NS.Units.Config("player").bgTexture = bg
+  NS.GetLSM = realGetLSM
+  assertTrue(ok, tostring(lines))
+  assertTrue(find(lines, "[Media] player: border=Blizzard Tooltip -> "
+    .. C.FALLBACK_BORDER .. " rung=lsm") ~= nil, joined(lines))
+  assertTrue(find(lines, "[Media] player: font=Friz Quadrata TT -> "
+    .. C.FALLBACK_FONT .. " rung=lsm") ~= nil, joined(lines))
+  assertTrue(find(lines, "[Media] player: bgTexture=An Uninstalled Pack Texture -> "
+    .. "Interface\\LSM\\Default rung=lsm default") ~= nil, joined(lines))
+  lines = report()
+  assertTrue(find(lines, "[Media] player: border=Blizzard Tooltip -> "
+    .. C.FALLBACK_BORDER .. " rung=fallback") ~= nil, "no LSM headlessly: " .. joined(lines))
+end)
+
 test("diagnostics: the session's rejected events are folded into the report", function()
   -- `/at debug events` stays as a topic (debug-logging-§4's MAY); the report carries the same list,
   -- so a pasted report does not need a second command.

@@ -170,20 +170,35 @@ local function framesSection(out)
     end
 end
 
---- One media row: the stored LSM name, what it resolved to, and whether that is the fallback rung.
-local function mediaRow(out, unit, key, resolved, fallback)
-    out:add("Media", "%s: %s=%s -> %s fallback=%s", unit, key, NS.Units.Get(unit, key), resolved,
-        yesno(resolved == fallback))
+--- Which rung of core/Data.lua's media getters drew `name`: `lsm` when LSM knows the name,
+--- `lsm default` when LSM answered its own default for a name nobody registered (a SharedMedia pack
+--- uninstalled), `fallback` when there is no LSM, or no answer, and the getter's literal drew. Asked
+--- of LSM rather than read off the resolved path: the shipped border and font names resolve to the
+--- very paths C.FALLBACK_BORDER and C.FALLBACK_FONT hold, so comparing paths calls every default
+--- install a fallback.
+local function mediaRung(kind, name)
+    local lsm = NS.GetLSM and NS.GetLSM()
+    if not lsm then return "fallback" end
+    local ok, own = pcall(lsm.Fetch, lsm, kind, name, true)
+    if ok and own then return "lsm" end
+    local okDefault, default = pcall(lsm.Fetch, lsm, kind, name)
+    if okDefault and default then return "lsm default" end
+    return "fallback"
+end
+
+--- One media row: the stored LSM name, what it resolved to, and the rung that resolved it.
+local function mediaRow(out, unit, key, kind, resolved)
+    local name = NS.Units.Get(unit, key)
+    out:add("Media", "%s: %s=%s -> %s rung=%s", unit, key, name, resolved, mediaRung(kind, name))
 end
 
 --- Per unit: the four media paths the bar draws with, through the mirror.
 local function mediaSection(out)
-    local C = NS.Constants
     for _, unit in ipairs(NS.Units.LIST) do
-        mediaRow(out, unit, "barTexture", NS.GetBarTexture(unit), C.FALLBACK_TEXTURE)
-        mediaRow(out, unit, "bgTexture", NS.GetBgTexture(unit), C.FALLBACK_TEXTURE)
-        mediaRow(out, unit, "border", NS.GetBorder(unit), C.FALLBACK_BORDER)
-        mediaRow(out, unit, "font", NS.GetFont(unit), C.FALLBACK_FONT)
+        mediaRow(out, unit, "barTexture", "statusbar", NS.GetBarTexture(unit))
+        mediaRow(out, unit, "bgTexture", "statusbar", NS.GetBgTexture(unit))
+        mediaRow(out, unit, "border", "border", NS.GetBorder(unit))
+        mediaRow(out, unit, "font", "font", NS.GetFont(unit))
     end
 end
 
