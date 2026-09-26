@@ -26,7 +26,7 @@ Three groups, and most readers need exactly one:
 The addon declares **no** `## Dependencies` line. Its `## OptionalDeps` (`AbsorbTracker.toc:8`) reads
 `Ace3, LibStub, CallbackHandler-1.0, LibSharedMedia-3.0, LibDataBroker-1.1, LibDBIcon-1.0`, and
 **every one of those is vendored** under `libs/` and listed in the TOC's `# Libraries` block
-(`AbsorbTracker.toc:16-32`), alongside `LibKa0s` (`libs\LibKa0s\LibKa0s.xml`). `OptionalDeps` exists
+(`AbsorbTracker.toc:15-32`), alongside `LibKa0s` (`libs\LibKa0s\LibKa0s.xml`). `OptionalDeps` exists
 so the client loads a *standalone* copy first when the user happens to have one; it is not an
 install instruction. **A player installs the addon and nothing else** (`library-stack`).
 
@@ -129,6 +129,18 @@ documented state, not a compliance failure (`performance-§10`). Do not hand-edi
 compensate.
 
 ### git — required by the test suite, not just by you
+
+Four gates read the tracked file set through `git`, and each one **fails**, rather than skips,
+when it cannot run it:
+
+```
+tests/test_lintconfig.lua:211     io.popen("git ls-files -z '*.lua'")
+tests/_kit/test_eol.lua:130       io.popen('git ls-files -z | git check-attr text eol --stdin -z 2>/dev/null')
+tests/_kit/test_layout_cap.lua:171  io.popen("git ls-files -z")
+tests/_kit/test_prose.lua:379     io.popen("git ls-files -z")
+```
+
+So `lua tests/run.lua` is not green outside a git checkout, or on a machine without `git`.
 
 The vendor-sync gate shells out to `git` to prove the vendored `libs/LibKa0s/` and
 `tests/_kit/` payloads are byte-identical to the LibKa0s release `CLAUDE.md` claims to bundle.

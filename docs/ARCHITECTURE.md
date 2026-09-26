@@ -326,7 +326,7 @@ Older bundles and plans under `docs/` that still name the file are frozen histor
 | `module-map.md` | Every non-vendored file, its responsibility, and load order |
 | `schema.md` | The persisted shape, every default, and the migration seam |
 | `settings-panel.md` | The panel tree, per-option behavior, and the write seam |
-| `data-flow.md` | Aura event in → shield accounting → what the bar shows |
+| `data-flow.md` | Bootstrap, then absorb event in → coalesced repaint → what the bar shows; the settings-write and profile-change paths |
 | `common-tasks.md` | Recipes for the changes made most often here |
 
 ### Conditional (documentation-§3, Tier 2)

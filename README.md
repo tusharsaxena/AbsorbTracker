@@ -23,85 +23,55 @@ _**Absorb Tracker in Action**_
 
 ## Usage
 
-The first time you log in after installing, the Player bar appears centered and unlocked. Drag it
-where you want it and type `/at lock` to pin it there. While the bars are unlocked, each one shows a
-partial fill and a small handle strip above it with the unit's name on it. That gives you something
-to grab even with no shield up; you can drag the strip or the bar itself. An enabled Target or Focus
-bar also comes up while unlocked, even with nothing targeted or focused, so you can see where it
-sits. There is no separate test mode. Unlocking is all it takes. Entering combat locks the bars
-again on its own, so every fight starts on real numbers, and you can't unlock in the middle of one.
+The first time you log in, the Player bar shows up in the middle of the screen, unlocked. An
+unlocked bar draws a partial fill and a small handle strip with the unit's name, so there's
+something to grab even with no shield up. That is the whole preview. There's no separate test
+mode. `/at lock` pins the bars and `/at unlock` frees them again. Entering combat locks them for
+you, and you can't unlock in the middle of a fight.
 
-Each strip has a small X next to its `?`, the Player bar's included. Click it and that bar turns
-off. It comes back where you left it when you tick its box on General → Bars, or type `/at toggle`
-with the unit (`/at toggle target`).
+Setting up takes four steps.
 
-`/at debug hold` lets you check how a real number looks on the bars. `/at debug hold 50000` puts a
-50K absorb on every visible bar for five seconds. Add a second number to hold it longer or shorter,
-anywhere from half a second to a minute (`/at debug hold 250000 10`). At least one bar has to be
-enabled, or the number has nowhere to show.
+1. Place the Player bar. Drag the bar or its handle strip where you want it, then type `/at lock`.
+   If a bar ever ends up somewhere you can't reach, `/at resetposition` puts every bar back in the
+   middle. The small X on the strip turns that bar off. Tick its box on General → Bars, or type
+   `/at toggle player`, to bring it back.
+2. Turn on Target and Focus. Both ship switched off. Tick **Enable Target Bar** or **Enable Focus
+   Bar** on General → Bars. A Target or Focus bar only draws while you have that unit, but it shows
+   while unlocked even with nothing targeted, so you can drag it into place. Each bar keeps its own
+   position.
+3. Style the bars. The **Unit** picker at the top of the Appearance page picks the bar you're
+   editing, and the Size, Bar, Background, Border and Text tabs sit under it. The bar fill,
+   background, border and text can each take a class color, and it's always the class of that
+   bar's own unit, so the Target bar wears your target's. Target and Focus start with **Use same
+   styling as Player** ticked and follow the Player bar live. Untick it to style one yourself, or
+   press **Copy styling from Player** for a one-time copy.
+4. Decide when the bars show. General → Master controls covers all three at once. **General
+   visibility** picks always, only in combat, only out of combat or never, and master scale and
+   master alpha sit next to it. Master alpha multiplies with each bar's own **Bar opacity**, so 50%
+   under a master alpha of 50% draws at 25%.
 
-Tick **Enable Target Bar** or **Enable Focus Bar** on General → Bars to bring up the other two. All
-three switches sit together there, next to **Update throttle**, so you never need a trip to the
-Appearance page just to turn a bar on. An enabled Target or Focus bar only draws while you actually
-have that unit. Clear your target and its bar goes with it. Each bar keeps its own position, so
-unlock, drag and lock is a separate trip for each one.
+To see how a real number looks, `/at debug hold 50000` puts a 50K absorb on every visible bar for
+five seconds (add a second number for anywhere from half a second to a minute). The minimap button
+opens the settings on a left-click, and a right-click gives you a small menu to turn the addon on or
+off (the same as `/at enable` and `/at disable`) and lock or unlock the bars. You can hide it with
+**Minimap button** on General → Master controls.
 
-The Appearance page controls the look. A **Unit** picker above the tab strip chooses which bar you
-are editing, and there's only one of it, above all five tabs, so you pick the bar once rather than
-on every tab. Size, fill texture and color, background, border and the text of the absorb number
-each get their own tab. Fill, background, border and text also have a **Use class color** toggle.
-The class comes from the bar's own unit: your target's on the Target bar, not yours. When the game
-won't name a class (an NPC, a critter, an empty target), the bar falls back to the color you
-picked, and the picker beside the toggle stays usable either way. Opacity applies in both cases,
-because a class color sets a hue and not a transparency.
-
-You don't have to style the same bar twice. Tick **Use same styling as Player** and that bar tracks
-the Player bar's look live. **Copy styling from Player** takes a snapshot instead, and after that
-you're free to diverge.
-
-General → Master controls covers all three bars at once: the addon's own off switch, **General
-visibility** (always, only in combat, only out of combat, never), master scale, master alpha, the
-lock, the debug console, and the two reset buttons. Master alpha is not the same thing as the
-per-bar **Bar opacity** on the Appearance page. Bar opacity dims a single bar, and the two
-multiply, so 50% under a master alpha of 50% draws at 25%. General and Appearance each have a
-**Defaults** button that reverts that page across all three bars in one go. Profiles has a page to
-itself for saving setups and switching between them. New characters start on the shared
-**Default** profile until you give one a setup of its own.
-
-Anything the panel does, `/at` does too. `/at list` prints every setting with its current value.
-`/at get` and `/at set` read and write one setting by its fully qualified path
-(`/at set units.target.useClassColorBar true`). The globals go by their plain names instead:
-`enabled`, `visibility`, `scale`, `alpha`, `locked` and `throttleWindow`. You can reset at three
-sizes. `/at reset` reverts a single setting, `/at resetposition` moves every bar home, and
-`/at resetall` puts the lot back and recenters the bars. `/at toggle` flips all the bars at once or
-one by name, `/at update` forces a repaint, and `/at version` prints the installed version. Run
-`/at profile` or `/at perf` bare and each prints its own verbs. The addon's chat output starts with
-a cyan `[AT]` tag.
-
-There's a **minimap button** too, wearing the addon's logo. Left-click opens the settings panel.
-Right-click opens a small menu where you can turn the addon on or off and lock or unlock the bars,
-the same as `/at enable`, `/at disable`, `/at lock` and `/at unlock`. You can drag the button
-anywhere around the ring. While the addon is off, the lock entry is grayed out until you enable it
-again. Hovering shows the version, whether the addon is enabled and whether the bars are locked,
-and that works even while the addon is off. Titan Panel, Bazooka and ElvUI's data texts get the
-same plugin, and it behaves the same way there. Don't want the button? Untick **Minimap button** on
-**General ▸ Master controls** and it stays gone across profile switches. `/at disable` turns the
-addon off without uninstalling it and `/at enable` brings it back. Both still work with the addon
-off.
-
-Everything else is configuration, on the addon's own page under Settings → AddOns in game. Typing
-`/at` (or `/absorbtracker`) on its own opens that page, and `/at help` prints the full command
-list.
+Everything else is on the addon's page under Settings → AddOns, and `/at` (or `/absorbtracker`) on
+its own opens it. `/at help` prints the full command list.
 
 ## How the bar works
 
-Each enabled bar watches every absorb on its unit at once (Power Word: Shield, Ice Barrier, trinket
-procs, whatever else is up) and adds them into one total. That total is the bar.
+The number comes from the game's `UnitGetTotalAbsorbs`, which adds up every absorb shield on a
+unit. In combat the game can hand that number back as a secret: an addon can pass it to a bar or
+format it for display, but it can't read it or compare it to anything. So Absorb Tracker never
+does math on your shield. It gives the game's number straight to the bar and lets the game draw it.
 
-1. A tracked unit gains or loses a shield, and the addon works out how much absorb is left.
-2. The bar fills to match, with the number written across it in short form (`1.2M`).
+1. A tracked unit gains or loses a shield (Power Word: Shield, Ice Barrier, a trinket proc,
+   whatever else is up), and the game reports the new total.
+2. The bar fills to that total, measured against the unit's maximum health, with the number written
+   across it in short form (`1.2M`).
 3. Damage and expiry drain it toward 0.
-4. With nothing up, the bar reads 0 and sits nearly empty.
+4. With nothing up, the bar reads 0 and sits empty.
 
 At any moment, then, the bar shows how much a unit can take before its health starts dropping.
 
@@ -114,7 +84,7 @@ At any moment, then, the bar shows how much a unit can take before its health st
 | How do I turn on the Target or Focus bar? | General page → **Bars** tab → tick **Enable Target Bar** or **Enable Focus Bar**. It only appears while you actually have that unit. |
 | Can the Target/Focus bar match my Player bar automatically? | Yes, tick **Use same styling as Player**. It's a live link, so anything you change on the Player bar carries over at once. Uncheck it when you want to style that bar on its own, or use **Copy styling from Player** for a one-time copy you can then take in your own direction. |
 | How do I move a bar? | Type `/at unlock`, drag the bar you want where you want it, then `/at lock`. Each bar remembers its own position, and `/at resetposition` snaps all of them back to their default spots. Unlocking also brings up the Target and Focus bars with nothing targeted, so you can place those too. |
-| Can I show the bars only while I'm fighting? | Yes. Set **General visibility** to *Only in combat* on **General ▸ Master controls**. Every enabled bar then hides out of combat and comes back the moment you enter combat. |
+| Can I show the bars only while I'm fighting? | Yes. Set **General visibility** to *Only in combat* on **General → Master controls**. Every enabled bar then hides out of combat and comes back the moment you enter combat. |
 | Can I have different setups? | Yes. Use the Profiles page in the settings panel to save and switch between setups. New characters start on the shared **Default** profile, so your changes carry over until you choose a separate setup. |
 | Why is my bar empty? | The fill only shows a value when that unit has an absorb up. With no shield it sits empty, but the background and border stay where you placed them. |
 | Why won't the settings panel open in combat? | WoW doesn't let addons change settings screens while you're fighting, so `/at config` answers with a gray "cannot open settings during combat" line instead. Run it again once you're out of combat and it opens normally. |
@@ -128,9 +98,9 @@ At any moment, then, the bar shows how much a unit can take before its health st
 |---------|-----|
 | The Player bar never shows up | Check that **Enable Player Bar** is ticked on the General page (or run `/at toggle player`) and that the addon is enabled on the character-select screen. If **General visibility** is *Only in combat*, you also have to be in combat. The background and border show even with no shield, so if you see *nothing*, the bar is hidden rather than empty. |
 | The Target/Focus bar never shows up | Confirm **Enable Target Bar** / **Enable Focus Bar** is ticked on the General page. Even when enabled, it only appears while you actually have that target or focus set. No target or focus means no bar, by design. |
-| The bar(s) disappear when I leave combat | **General visibility** is set to *Only in combat*. Set it back to *Always* on **General ▸ Master controls**. |
+| The bar(s) disappear when I leave combat | **General visibility** is set to *Only in combat*. Set it back to *Always* on **General → Master controls**. |
 | `/at debug hold 50000` does nothing | It needs at least one enabled bar to paint on. If every bar is off, run `/at toggle` (or tick an **Enable ... Bar** box) and try again. It also needs a number. To see the bars without one, just `/at unlock`. The old `test` command is gone, and `/at debug hold` does the same job. |
-| A bar won't stay where I put it | Lock it once it's positioned: `/at lock`, or tick **Lock frame** on **General ▸ Master controls**. Unlock again whenever you want to drag it. |
+| A bar won't stay where I put it | Lock it once it's positioned: `/at lock`, or tick **Lock frame** on **General → Master controls**. Unlock again whenever you want to drag it. |
 | My class color isn't showing | The bar has to be visible and have an active shield for the color to appear. Check that the matching **Use class color** toggle is on. It follows the *bar's own unit*, so a Target bar takes your target's class, and falls back to your picked color when there is no target to read one from. |
 | Custom textures or fonts aren't in the dropdowns | Install a media pack addon (one that includes SharedMedia). Without one you still get WoW's built-in options plus the shared Ka0s textures and fonts the bundled library registers, but nothing beyond those. JetBrains Mono, the face the debug console prints in, is one of them. |
 | A bar's position resets after I log out | WoW only saves your settings on a clean logout, so a crash or a force-quit can drop the last position. Log out through the menu and it will stick. |
