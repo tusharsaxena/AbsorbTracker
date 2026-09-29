@@ -266,28 +266,37 @@ The headless suite cannot see this: `tests/wow_mock.lua` answers enUS for every 
 
 ## Pending sign-off
 
-No client run is recorded for these yet. Two kinds are listed: old checks that were never run, and checks that are new in the 2026-09-29 rework or whose expectation was corrected against the code in it. Run them, fill their `Result:` lines, then remove their rows.
+No client run is recorded for these yet. Two kinds are listed: old checks that were never run (including steps the 2026-09-24 remediation rewrote, whose owed sessions in `Ka0sAddonsCommonTasks/docs/2026-09-23-REVIEW_AND_STANDARDS_AUDIT_REMEDIATION/06_SMOKE_TESTS.md` have no recorded result), and checks that are new in the 2026-09-29 rework or whose expectation was corrected against the code in it. Run them, fill their `Result:` lines, then remove their rows.
 
 | ID | Origin | Why it is owed |
 |---|---|---|
 | SLASH-3 | Old § B step 8, with § M step 87 | The `profile` row's help text is new with the verb (`SP-AT-02`) |
+| SLASH-4 | Old § B steps 8 and 9, with § F step 34 | Rewritten by `AT-11` (2026-09-24): `/at test` is gone and prints `unknown command`; session AT.8 of the 2026-09-23 remediation plan is owed and was never run |
 | PANEL-3 | Old § D steps 14 and 14e | Corrected: the old step left out the **Minimap button** row and shortened the **Update throttle (in sec)** label |
 | PANEL-4 | Old § P step 105 (`M4-01`, session 3), merged with § D step 14b | The pooled tab strip's re-dressing has never been checked in a client |
 | PANEL-7 | Old § D step 20, with § F step 28 | Corrected: `/at resetall`'s chat line has no final period, unlike the button's |
 | PANEL-8 | Old § D step 20a | Corrected: the tooltip says `Profiles -> Reset Profile`, not an arrow |
 | PROFILE-3, PROFILE-6–8, PROFILE-10–12 | New with the `profile <name>` verb (LibKa0s v1.63.0, `SP-AT-02`) | The verb's list, already-current, unknown-name, quotes, `use`, combat and disabled paths have never run in a client |
 | PROFILE-5 | Old § G step 37, rerouted through the verb | The switch now goes through `/at profile <name>` and its `Switched to profile` line |
+| PROFILE-9, PROFILE-14, PROFILE-15 | Old § G steps 36 and 36a (PROFILE-9), 38 and 38a (PROFILE-14), 39 (PROFILE-15) | Added or rewritten by `AT-03` (2026-09-24): `new` refuses an existing name, and `copy` and `delete` check the name first; session AT.6 of the 2026-09-23 remediation plan is owed and was never run |
 | PROFILE-13 | Old § K step 70 | The switch back now goes through `/at profile <name>` |
+| STATE-3 | Old § U step 12 | Rewritten by `AT-11` (2026-09-24): the refused verbs now include `/at debug hold`, and `/at debug events` stays live; no client run is recorded since |
 | COMBAT-4 | Old § C step 13a (CX03; rewritten for the LibKa0s v1.46.1 cover) | On the 2026-09-07 cycle's checklist, none of which was run; no client run is recorded since the v1.46.1 cover |
+| COMBAT-5, COMBAT-6 | Old § D step 14e, with § K step 68 (COMBAT-5) | Rewritten by `AT-04` (2026-09-24): the in-combat `/at unlock` now ends with the stored `locked = true` (COMBAT-6); session AT.7 of the 2026-09-23 remediation plan, which also checks the combat re-lock line (COMBAT-5), is owed and was never run |
+| BAR-11 | Old § D step 14e, with § F step 30 | Rewritten by `AT-04` (2026-09-24): `/at lock` and `/at unlock` echo `locked = true` / `locked = false` and the open panel follows at once; session AT.7 of the 2026-09-23 remediation plan is owed and was never run |
 | BAR-12 | Old § K step 68 | Corrected: a bar cannot be set to 40 px, so the narrow case uses the 50 px minimum |
 | LOOK-5, LOOK-6 | Old § O steps 103–104 (`M3-03`, session 4) | The composed media lists have never been checked in a client without the local workaround |
 | LOOK-8 | Old § Q step 107 (`M4-02`–`M4-08`) | Never run; five Border patch deletions landed on a green suite only |
+| MIGRATE-2 | Old § I step 51 | Rewritten by `AT-06` (2026-09-24): the stamp is now `schemaVersion = 5` and the `[Init]` line reads `schema v5`; session AT.1 of the 2026-09-23 remediation plan is owed and was never run |
 | MIGRATE-6 | Old § R step 108 (`M4-20`), with § K step 66 | Never run against real AceDB's profile store; corrected to read the SavedVariables file, since the `[Migrate]` line is logged before debug logging can be on; its hand-made block now carries a flat color and position as well as the width, so the position lift is checked in the client again |
+| LAUNCH-5, LAUNCH-7 | Old § U steps 6 (LAUNCH-5) and 8 (LAUNCH-7) | `AT-12` (2026-09-24) renamed the row's CLI path to `global.minimap.shown` and added its `get` step; sessions AT.1 and AT.2 of the 2026-09-23 remediation plan (the path, the reload and Reset all) are owed and were never run |
 | DIAG-4, DIAG-35, DIAG-37 | Old § H step 41c (DIAG-4); § L steps 81 and 84a (DIAG-35); § L steps 83 and 85 (DIAG-37) | Corrected: the perf panel has six rows and no JSON Dump row, and **Report** prints the JSON line itself |
+| DIAG-16, DIAG-17 | Old § F steps 33 (DIAG-16) and 34 (DIAG-17) | Rewritten by `AT-11` (2026-09-24): the value hold moved from `/at test` to `/at debug hold` with a validated duration; session AT.8 of the 2026-09-23 remediation plan is owed and was never run |
 | DIAG-28, DIAG-34 | Old § L steps 72, 79 | Corrected: `start` prints no step list, and `finish` prints `addon RESUMED — restored` |
 | DIAG-30 | Old § L step 74 | Corrected: the report pads the `active:` label, so the row is not the literal `active: (not sampled)` |
 | DIAG-40 | Old § P step 106 (`M4-01`, session 3) | The US perf strings have never been checked in a client; corrected to the timestamp the library always stamps |
 | DIAG-41 | Old § S step 109 (`M4-16`) | Never run since the panel's close control moved to the library |
 | DIAG-43 | Old § L step 86a (`M4-22`) | Folded into the unrun `M4-16` session; corrected to read the JSON from **Report** |
-| DEGRADED-2 | Old § M step 99, with § V step 10 | The `/at profile` step is new with the verb's degraded stub (`SP-AT-02`) |
+| DEGRADED-1 | Old § M step 99 | Rewritten by `AT-08` (2026-09-24): `disable`, `enable`, `unlock` and `lock` now write through without the library; session X2.3 of the 2026-09-23 remediation plan is owed and was never run |
+| DEGRADED-2 | Old § M step 99, with § V step 10 | The `/at profile` step is new with the verb's degraded stub (`SP-AT-02`); the plain help rows and the `/at list` line (`AT-09`, 2026-09-24) are session X2.6 of the 2026-09-23 remediation plan, owed and never run |
 | LOC-1–3 | Old § T steps 110–112 (`M5-08`) | No non-English client has run them |
