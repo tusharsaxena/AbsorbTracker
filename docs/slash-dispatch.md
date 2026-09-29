@@ -14,7 +14,7 @@ a table of its own, `perf` hands its remainder to the perf library, `toggle` par
 ## Registration
 
 `Sl:Register` (`settings/Slash.lua:779`) registers both names through AceConsole-3.0, called once
-from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:44`, guarded so a load where
+from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:52`, guarded so a load where
 `settings/Slash.lua` never ran degrades rather than errors):
 
 ```lua
