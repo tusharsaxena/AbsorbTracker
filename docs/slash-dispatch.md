@@ -13,7 +13,7 @@ a table of its own, `perf` hands its remainder to the perf library, `toggle` par
 
 ## Registration
 
-`Sl:Register` (`settings/Slash.lua:755`) registers both names through AceConsole-3.0, called once
+`Sl:Register` (`settings/Slash.lua:762`) registers both names through AceConsole-3.0, called once
 from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:44`, guarded so a load where
 `settings/Slash.lua` never ran degrades rather than errors):
 
@@ -252,7 +252,9 @@ generic dispatcher knows nothing about.
 a plain help index still render, a bare `/at` still runs the `config` verb exactly as the library
 does, the host verbs — which never went to the library — keep working untouched, and each schema verb
 (`list`, `get`, `set`, `reset`, `resetall`) prints the collection's library-absent line through the
-locale, keyed by its English text (localization-§2):
+locale, keyed by its English text (localization-§2). So do the stub's `CliProfile` and
+`ProfileSwitch` (Slash minor 17), for `/at profile`: with the library absent there is no store
+adapter to trust, so they switch nothing:
 
 ```
 [AT] /at list is unavailable: the LibKa0s library did not load.

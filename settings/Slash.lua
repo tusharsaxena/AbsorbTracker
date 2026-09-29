@@ -618,6 +618,13 @@ if not SlashLib then
         for _, verb in ipairs({ "List", "Get", "Set", "Reset", "ResetAll" }) do
             stub["Cli" .. verb] = absent(verb:lower())
         end
+        -- The profile verb (Slash minor 17, LibKa0s v1.63.0) takes route (b): with the library
+        -- absent there is no store adapter to trust, so both members print the library-absent
+        -- line for `/at profile` and switch nothing. The live instance has both, so the stub
+        -- carries both (tests/test_surface_parity.lua).
+        local absentProfile = absent("profile")
+        stub.CliProfile = absentProfile
+        stub.ProfileSwitch = function() absentProfile(); return false end
         stub.LandingRows = function()
             local out = {}
             for _, e in ipairs(d.commands) do
