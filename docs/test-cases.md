@@ -569,7 +569,7 @@ badge and any count quoted in the docs must agree with it.
 - the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
 - General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
 
-### test_slashcmds.lua (91)
+### test_slashcmds.lua (100)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -601,10 +601,12 @@ badge and any count quoted in the docs must agree with it.
 - /at set rejects a non-numeric value for a number setting
 - /at set writes a color from `r g b a` and echoes the STORED value
 - /at set accepts a bool written as a human word
-- /at profile with no subcommand prints the sub-help
+- /at profile with no subcommand lists the profiles, then prints the sub-help
 - /at profile current names the active profile
 - /at profile list marks the current profile
 - /at profile use switches the active profile
+- /at profile use of an unknown name refuses it and creates nothing
+- /at profile use reaches a profile named like a sub-verb
 - /at profile use with no name prints usage and switches nothing
 - /at profile new creates a profile carrying the defaults, not the old values
 - /at profile new refuses a name that already exists and leaves it untouched
@@ -624,7 +626,12 @@ badge and any count quoted in the docs must agree with it.
 - a profile copy logs one [Set] line naming both profiles
 - /at profile copy reaches the copy handler, one line
 - a profile switch keeps its [Profile] line and logs no [Set] line
-- /at profile rejects an unknown subcommand and reprints the sub-help
+- /at profile <word> that is neither a sub-verb nor a profile is refused and creates nothing
+- /at profile <name> switches to an existing profile and the profile handler runs
+- /at profile <name> keeps case and inner spaces, and strips one pair of quotes
+- /at profile <name> in the wrong case is refused with a did-you-mean
+- /at profile <current name> says so and switches nothing
+- /at profile <name> refuses in combat and switches nothing
 - /at profile sub-verbs are case-insensitive
 - /at profile degrades gracefully when AceDB is unavailable
 - a profile switch repaints the bar through OnProfileChanged
@@ -662,6 +669,8 @@ badge and any count quoted in the docs must agree with it.
 - a refused `toggle` does not touch a single bar's enabled flag
 - a refused `unlock` leaves the lock exactly where it was
 - a refused `update` publishes nothing on the bus
+- /at profile <name> switches while the addon is disabled
+- degraded: /at profile prints the library-absent line and switches nothing
 
 ### test_perfcmds.lua (42)
 
@@ -948,7 +957,7 @@ badge and any count quoted in the docs must agree with it.
 | test_panelpages.lua | 31 |
 | test_launcher.lua | 32 |
 | test_optionssetup.lua | 15 |
-| test_slashcmds.lua | 91 |
+| test_slashcmds.lua | 100 |
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 15 |
 | test_widgets.lua | 57 |
@@ -964,4 +973,4 @@ badge and any count quoted in the docs must agree with it.
 | test_diagnostics_contract.lua | 7 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **810** |
+| **Total** | **819** |

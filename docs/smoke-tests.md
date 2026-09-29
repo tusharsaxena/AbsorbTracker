@@ -381,7 +381,7 @@ spec or content is needed.
 the whole list:
 
 - **`AbbreviateNumbers`** — the bar's value text (`modules/Display.lua:427`), the `/at debug hold` line
-  (`settings/Slash.lua:310`, `:335`) and three debug lines (`core/AbsorbTracker.lua:230`, `:232`,
+  (`settings/Slash.lua:312`, `:337`) and three debug lines (`core/AbsorbTracker.lua:230`, `:232`,
   `:308`). Blizzard localizes both the suffix and the grouping: `1.2M` on enUS is not what a deDE
   client returns for the same number.
 - **`UnitClass`** — `core/Data.lua:205` and `core/CoreSetup.lua:60` both `pcall` it and take the

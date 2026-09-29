@@ -428,10 +428,34 @@ local function backToDefault()
   T.mocks.__fireTimers()
 end
 
-test("/at profile with no subcommand prints the sub-help", function()
+-- Make sure `name` is a stored profile without leaving it active. AceDB's SetProfile creates a
+-- missing profile, which is exactly what the verb itself must never do, so the setup does it here.
+local function ensureProfile(name)
+  NS.db:SetProfile(name)
+  backToDefault()
+end
+
+local function profileSet()
+  local names = NS.db:GetProfiles()
+  table.sort(names)
+  return table.concat(names, ",")
+end
+
+test("/at profile with no subcommand lists the profiles, then prints the sub-help", function()
+  -- Spec S3 step 2: bare `profile` is CliProfile("") (the library's list, current marked, the hint
+  -- row) and then this addon's own sub-help, in that order.
+  -- red under: the old sub-help-only answer, or the two printed the other way round.
   local out = slash("profile")
-  assertTrue(contains(out, "Profile commands"), joined(out))
-  for _, sub in ipairs({ "list", "current", "use", "new", "copy", "delete", "reset" }) do
+  local listAt, helpAt
+  for i, line in ipairs(out) do
+    if line:find("Profiles$") and not listAt then listAt = i end
+    if line:find("Profile commands", 1, true) then helpAt = i end
+  end
+  assertTrue(listAt ~= nil, "the library's list header prints: " .. joined(out))
+  assertTrue(contains(out, "Default (current)"), "the current profile is marked: " .. joined(out))
+  assertTrue(contains(out, "/at profile <name> switches profile"), "the hint row: " .. joined(out))
+  assertTrue(helpAt ~= nil and helpAt > listAt, "the sub-help follows the list: " .. joined(out))
+  for _, sub in ipairs({ "<name>", "list", "current", "use", "new", "copy", "delete", "reset" }) do
     assertTrue(contains(out, "/at profile " .. sub), "sub-help lists " .. sub)
   end
 end)
@@ -452,10 +476,32 @@ test("/at profile list marks the current profile", function()
 end)
 
 test("/at profile use switches the active profile", function()
+  ensureProfile("Alt")
   local out = slash("profile use Alt")
   assertEqual(NS.db:GetCurrentProfile(), "Alt")
-  assertTrue(contains(out, "Switched to profile 'Alt'"), joined(out))
+  assertTrue(contains(out, "Switched to profile 'Alt'."), joined(out))
   backToDefault()
+end)
+
+test("/at profile use of an unknown name refuses it and creates nothing", function()
+  -- D3: `use` routes through the library's ProfileSwitch, so a typo no longer becomes a profile.
+  -- red under: the old `use`, which handed any name to AceDB's SetProfile (and AceDB creates it).
+  local before = profileSet()
+  local out = slash("profile use Ghost")
+  assertEqual(NS.db:GetCurrentProfile(), "Default", "nothing switched")
+  assertEqual(profileSet(), before, "no profile was created")
+  assertTrue(contains(out, "No profile named 'Ghost'."), joined(out))
+  assertTrue(contains(out, "Default (current)"), "the list follows the refusal: " .. joined(out))
+end)
+
+test("/at profile use reaches a profile named like a sub-verb", function()
+  -- The escape hatch: `/at profile list` is the sub-verb, so `use` is how a profile named `list`
+  -- is reached.
+  ensureProfile("list")
+  local out = slash("profile use list")
+  assertEqual(NS.db:GetCurrentProfile(), "list", joined(out))
+  backToDefault()
+  NS.db:DeleteProfile("list", true)
 end)
 
 test("/at profile use with no name prints usage and switches nothing", function()
@@ -671,16 +717,81 @@ test("/at profile copy reaches the copy handler, one line", function()
 end)
 
 test("a profile switch keeps its [Profile] line and logs no [Set] line", function()
+  ensureProfile("Alt")
   local lines = debugLines(function() slash("profile use Alt") end)
   backToDefault()
   assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
   assertTrue(lines[1]:find("[Profile] changed \226\134\146 Alt", 1, true) ~= nil, lines[1])
 end)
 
-test("/at profile rejects an unknown subcommand and reprints the sub-help", function()
+test("/at profile <word> that is neither a sub-verb nor a profile is refused and creates nothing", function()
+  -- Spec S3 step 2: a first word that is not a sub-verb goes to CliProfile, so an unknown word is
+  -- the library's unknown-profile refusal, followed by the list.
+  -- red under: the old `Unknown profile subcommand` line, or a fallback that called SetProfile.
+  local before = profileSet()
   local out = slash("profile frobnicate")
-  assertTrue(contains(out, "Unknown profile subcommand 'frobnicate'"), joined(out))
-  assertTrue(contains(out, "Profile commands"), "the sub-help follows the error")
+  assertEqual(NS.db:GetCurrentProfile(), "Default", "nothing switched")
+  assertEqual(profileSet(), before, "no profile was created")
+  assertTrue(contains(out, "No profile named 'frobnicate'."), joined(out))
+  assertTrue(contains(out, "Default (current)"), "the list follows the refusal: " .. joined(out))
+  assertFalse(contains(out, "Unknown profile subcommand"), joined(out))
+end)
+
+test("/at profile <name> switches to an existing profile and the profile handler runs", function()
+  -- red under: the bare-name form not reaching CliProfile, or a switch that skips AceDB's callback
+  -- (the handler's `[Profile] changed` line is how the adopt path shows it ran).
+  ensureProfile("Alt")
+  local out
+  local lines = debugLines(function() out = slash("profile Alt") end)
+  local current = NS.db:GetCurrentProfile()
+  backToDefault()
+  assertEqual(current, "Alt", joined(out))
+  assertTrue(contains(out, "Switched to profile 'Alt'."), joined(out))
+  assertEqual(#lines, 1, "exactly one line: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find("[Profile] changed \226\134\146 Alt", 1, true) ~= nil, lines[1])
+end)
+
+test("/at profile <name> keeps case and inner spaces, and strips one pair of quotes", function()
+  ensureProfile("Raid Night")
+  local out = slash("profile \"Raid Night\"")
+  assertEqual(NS.db:GetCurrentProfile(), "Raid Night", joined(out))
+  backToDefault()
+  out = slash("profile 'Raid Night'")
+  assertEqual(NS.db:GetCurrentProfile(), "Raid Night", joined(out))
+  backToDefault()
+  out = slash("profile Raid Night")
+  assertEqual(NS.db:GetCurrentProfile(), "Raid Night", "unquoted, the spaces are kept: " .. joined(out))
+  backToDefault()
+  NS.db:DeleteProfile("Raid Night", true)
+end)
+
+test("/at profile <name> in the wrong case is refused with a did-you-mean", function()
+  -- AceDB names are case-sensitive; the verb never folds one onto another, and never creates it.
+  ensureProfile("Alt")
+  local before = profileSet()
+  local out = slash("profile ALT")
+  assertEqual(NS.db:GetCurrentProfile(), "Default", joined(out))
+  assertEqual(profileSet(), before, "no profile was created")
+  assertTrue(contains(out, "No profile named 'ALT'."), joined(out))
+  assertTrue(contains(out, "Did you mean 'Alt'?"), joined(out))
+end)
+
+test("/at profile <current name> says so and switches nothing", function()
+  local lines = debugLines(function()
+    assertTrue(contains(slash("profile Default"), "Already on profile 'Default'."))
+  end)
+  assertEqual(#lines, 0, "no profile event fired: " .. table.concat(lines, " | "))
+end)
+
+test("/at profile <name> refuses in combat and switches nothing", function()
+  ensureProfile("Alt")
+  local saved = T.mocks.InCombatLockdown
+  T.mocks.InCombatLockdown = function() return true end
+  local ok, out = pcall(slash, "profile Alt")
+  T.mocks.InCombatLockdown = saved
+  assertTrue(ok, tostring(out))
+  assertEqual(NS.db:GetCurrentProfile(), "Default", joined(out))
+  assertTrue(contains(out, "Can't switch profiles in combat."), joined(out))
 end)
 
 test("/at profile sub-verbs are case-insensitive", function()
@@ -698,6 +809,8 @@ end)
 test("a profile switch repaints the bar through OnProfileChanged", function()
   -- core/Database.lua wires OnProfileChanged/Copied/Reset to NS.OnProfileChanged, which republishes
   -- POSITION / APPEARANCE / REPAINT so the bar picks up the new profile's look immediately.
+  -- `use` switches to an existing profile only (D3), so the target exists before the spies go on.
+  ensureProfile("Switched")
   local seen = { pos = 0, app = 0, rep = 0 }
   local target = NS.NewBusTarget()
   target:RegisterMessage(NS.MSG.POSITION,   function() seen.pos = seen.pos + 1 end)
@@ -1318,4 +1431,40 @@ test("a refused `update` publishes nothing on the bus", function()
   assertEqual(#sent, 0, "a refused verb published: " .. table.concat(sent, ", "))
 
   NS.SetByPath("enabled", true)
+end)
+
+test("/at profile <name> switches while the addon is disabled", function()
+  -- `profile` is on this addon's liveVerbs (settings/Slash.lua), so the bare-name form answers with
+  -- the addon off: the player who disabled it to get out from under a profile can switch away.
+  -- red under: `profile` dropped from liveVerbs, which answers the refusal line instead.
+  ensureProfile("Alt")
+  local out = slashWhileDisabled("profile Alt")
+  local current = NS.db:GetCurrentProfile()
+  backToDefault()
+  NS.SetByPath("enabled", true)
+  assertFalse(contains(out, REFUSAL), joined(out))
+  assertEqual(current, "Alt", joined(out))
+  assertTrue(contains(out, "Switched to profile 'Alt'."), joined(out))
+end)
+
+test("degraded: /at profile prints the library-absent line and switches nothing", function()
+  -- Spec S3 step 5: the stub's CliProfile and ProfileSwitch take route (b). A fake store with a
+  -- SetProfile spy stands in for AceDB, so the sub-tree's own AceDB guard passes and the stub is
+  -- what answers.
+  local NS2 = degradedBuild()
+  local saved, calls = NS2.db, 0
+  NS2.db = {
+    profile = {}, global = {},
+    GetProfiles = function() return { "Default", "Alt" }, 2 end,
+    GetCurrentProfile = function() return "Default" end,
+    SetProfile = function() calls = calls + 1 end,
+  }
+  local named, used, bare = degradedLines("profile Alt"), degradedLines("profile use Alt"), degradedLines("profile")
+  NS2.db = saved
+  local want = "/at profile is unavailable: the LibKa0s library did not load."
+  assertEqual(named[1], want, joined(named))
+  assertEqual(#named, 1, "one line: " .. joined(named))
+  assertEqual(bare[1], want, "bare, the stub answers before the sub-help: " .. joined(bare))
+  assertEqual(used[1], want, joined(used))
+  assertEqual(calls, 0, "nothing switched")
 end)
