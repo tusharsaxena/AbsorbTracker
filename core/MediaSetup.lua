@@ -102,7 +102,7 @@ local Media = LibStub and LibStub("LibKa0s-Media-1.0", true)
 --- THAT RULE IS ABOUT THIS CATALOG, NOT ABOUT EVERY TEXTURE PATH, and the
 --- distinction is worth spelling out because the unscoped reading trims the wrong
 --- path. `core/Constants.lua`'s `C.LOGO_PATH` names the About-page logo WITH its
---- `.tga`, has done since before this seam existed, and renders — smoke item `11a`
+--- `.tga`, has done since before this seam existed, and renders — smoke check `PANEL-2`
 --- has walked it every release. It is this addon's own art, not one of the
 --- library's names, and it is not governed here. What is recorded is narrower: for
 --- a path the library BUILDS from `ICONS`, the extensionless spelling is the

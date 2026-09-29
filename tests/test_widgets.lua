@@ -703,7 +703,7 @@ test("the sidebar path is covered in combat, draws nothing and leaves the window
   -- red under: giving either page back a ctx.panel:SetScript("OnShow", ...) of its own.
   -- Profiles is the third page on SetRenderer and cannot be driven here -- AceDBOptions is absent
   -- in the harness, so it self-skips and registers no subcategory (the case above pins that).
-  -- docs/smoke-tests.md § C step 13a walks all three in the client.
+  -- docs/smoke-tests.md COMBAT-4 walks all three in the client.
   local lib = T.mocks.LibStub("LibKa0s-Options-1.0")
   local savedICL = T.mocks.InCombatLockdown
   T.mocks.InCombatLockdown = function() return true end

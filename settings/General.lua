@@ -342,7 +342,7 @@ StaticPopupDialogs["ABSORBTRACKER_RESET_ALL"] = {
         -- runResetAll spells out: on a load where settings/OptionsSetup.lua never ran there is
         -- nothing to delegate to, and printing the ack anyway claims success for work that did not
         -- happen. Same two branches as the slash verb; the wording keeps this popup's trailing
-        -- period, which docs/smoke-tests.md step 20 checks for.
+        -- period, which docs/smoke-tests.md PANEL-7 checks for.
         if NS.Helpers and NS.Helpers.RestoreAllDefaults then
             NS.Helpers.RestoreAllDefaults()
             print("All settings reset to defaults.")
