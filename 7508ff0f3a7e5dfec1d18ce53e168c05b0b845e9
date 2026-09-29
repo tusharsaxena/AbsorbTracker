@@ -1,0 +1,1 @@
+OK SP-AT-02 PASS: vendor byte-identical to v1.63.0 (libs/LibKa0s, tests/_kit); gate 819/0/0 + luacheck 0/0; 15 scratch mutations all caught; docs/citations/test-cases/badge consistent
