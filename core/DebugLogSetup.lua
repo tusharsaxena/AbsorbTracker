@@ -46,6 +46,12 @@ if not lib then
         buffer = {},
         Add             = function() end,
         Debug           = function() end,
+        -- The change gates and the at-enable queue (DebugLogGates 1): with no console there is
+        -- nothing to write into, so each answers false, as the live ones do with logging off.
+        DebugOnce       = function() return false end,
+        DebugChanged    = function() return false end,
+        DebugForget     = function() end,
+        DebugAtEnable   = function() return false end,
         Clear           = function() end,
         Show            = function() sayOnce() end,
         Hide            = function() end,

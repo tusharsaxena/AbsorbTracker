@@ -158,4 +158,10 @@ NS.Launcher = lib:New({
 
     print = function(line) print(line) end,
     debug = function(tag, message) NS.Debug(tag, "%s", message) end,
+    -- Register's STATE lines (LibDataBroker-1.1 or LibDBIcon-1.0 absent, no minimap table,
+    -- `registered`; Launcher minor 5) go to the console's at-enable queue (DebugLogGates 1).
+    -- Register runs at OnInitialize, when session logging is always off, so through `debug` they
+    -- were gated off every time; held, they land the first time the player turns logging on
+    -- (debug-logging-§8's "dependencies once at enable"). Events stay on `debug`.
+    debugAtEnable = function(tag, message) NS.DebugLog.DebugAtEnable(tag, "%s", message) end,
 })

@@ -387,7 +387,7 @@ shared-frame problem above, the addon ships its own harnesses:
 
 The instrumentation harness was the first thing to leave this addon for a shared library; it is now
 one of five. `LibKa0s` is a Ka0s-owned library, vendored into `libs/LibKa0s/` the same way Ace3 is —
-copied in, not depended on at runtime. The payload now ships **fifteen majors across twenty-seven files**,
+copied in, not depended on at runtime. The payload now ships **fifteen majors across twenty-eight files**,
 load-ordered by `libs/LibKa0s/LibKa0s.xml`; the five that take a descriptor are carried by
 `Core.lua`, `DebugLog.lua`, `Slash.lua`, `Options.lua` (+ nine attach files, `OptionsRegistry.lua`
 through `OptionsNav.lua`) and `Perf.lua` (+ `PerfPanel.lua`); `Lifecycle.lua`

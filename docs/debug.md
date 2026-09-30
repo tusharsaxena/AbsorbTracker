@@ -137,22 +137,38 @@ above the begin marker is made of, and they are chosen so a pasted log can answe
 what it did (`debug-logging-§8`): the flows, the state edges it reacts to, work it held and let go,
 each refusal with the guard that made it, the dependencies, and each error it caught.
 
+**Which lines are the library's.** LibKa0s writes some of these lines itself, through the gated sink
+this addon passes as each descriptor's `debug` (Slash, Options, Lifecycle, Launcher): `[Lifecycle]`
+whole, the dispatcher's `[Cmd] refused ...` lines, the Options major's `[Cfg]` lines and the
+launcher's `[Launcher]` state lines, plus `[Init]`, `[Debug]`, `[Set]` and `[Perf]` as before. The
+**Written by** column names them. This addon writes no copy of a library line: its own lines say
+only what the library cannot know (`[Life]`'s teardown and rebuild, its own verbs' `[Cmd]`
+refusals). Its "once" and "on change" lines use the console's change gates (`DebugOnce`,
+`DebugChanged`) rather than tables of its own, so the console's Clear and turning logging on
+re-arm them, and the launcher's state lines go through the console's at-enable queue
+(`DebugAtEnable`). `tests/test_debugcoverage.lua`, `tests/test_launcher.lua` and
+`tests/test_slash.lua` pin the library lines landing here, each once, with one exception: the
+Options major's `register parked (in combat)` / `register flushed (combat ended)` pair is reached
+only by a first registration inside combat, which the shared harness (registered at load) cannot
+replay, so that pair rests on the library's own suite (LibKa0s `tests/test_options_combat_debug.lua`).
+
 | Tag | Written by | When |
 |---|---|---|
 | `[Init]`, `[Debug]` | the library, `core/DebugLogSetup.lua` (the summary) | On `/at debug on` and `off`: the flag change, and the session summary (version, schema, profile). The summary adds, only when there is something to say, the number of events the client refused, `stood down (holds: ...)` when the addon is inert at that moment, and `missing libraries: ...` for any library from the report's list this install lacks. Logging is off at login, so this is the one place the dependency line is said, once |
-| `[Life]` | `core/Lifecycle.lua` | The addon stands down (`stood down (holds: disabled)`, or `perf` during a capture's suspended arm), saying whether a queued repaint was dropped, and stands up again, with the bus subscriptions replayed |
+| `[Lifecycle]` | `LibKa0s-Lifecycle-1.0` (the library's line) | Each stand-down and stand-up edge, naming the hold that moved and the resulting set: `stood down: added disabled (holds: disabled)` (or `perf` during a capture's suspended arm) and `stood up: released disabled (holds: none)`. A call that moves no edge writes nothing |
+| `[Life]` | `core/Lifecycle.lua` | Straight after the library's `[Lifecycle]` edge, what this addon's teardown and rebuild found: `teardown: pending repaint dropped=yes` or `=no`, and `rebuild from current state: N bus subscription(s) replayed`. Never the edge or the holds a second time |
 | `[World]` | `core/AbsorbTracker.lua` | `PLAYER_ENTERING_WORLD`, naming the kind: `login`, `reload` or `zone change` |
 | `[Combat]` | `core/AbsorbTracker.lua` | Combat starts (`entered`, or `entered: bars re-locked` when the bars were unlocked), and on leaving it one rollup: the player's absorb events, the repaints, and the final absorb when it is readable |
 | `[Absorb]` | `core/AbsorbTracker.lua` | The player's shield comes up or goes away (values only when readable), and the read turning secret or readable again: one line per edge, so a log from restricted content says why it holds no transitions |
 | `[Bar]` | `modules/Display.lua` | A bar is shown or hidden, with the rung that decided it (only on a change). A `/at debug hold` holding live repaints for N s, and its end: `hold expired` or `hold cleared early` (a re-lock, a second hold, a stand-down) |
 | `[Set]` | `LibKa0s-Schema-1.0`, `core/AbsorbTracker.lua`, `settings/General.lua` | Every setting write, as `path = value`; one line per bulk copy or reset instead of one per row (`debug-logging-§10`); a profile copied or reset; `locked: unlock refused (in combat)` |
 | `[Profile]` | `core/AbsorbTracker.lua` | The active profile changed |
-| `[Cmd]` | `settings/Slash.lua` | A command refused, naming the guard: a verb the disabled gate refused (`toggle refused: addon disabled`), `/at debug hold` (addon disabled, bad arguments, every bar disabled), `/at toggle` with an unknown unit |
-| `[Events]` | `core/AbsorbTracker.lua` | The client refused an event registration: once per name per session, however many syncs retry it |
+| `[Cmd]` | `LibKa0s-Slash-1.0` (the library's lines), `settings/Slash.lua` | A command refused, naming the guard. The library's, for every refusal the dispatcher decides, as `refused <verb>: <guard>`: the disabled gate (`refused toggle: disabled`), an `unknown verb`, `get` / `set` / `reset` `usage` and `not found`, a `parse` or `write refused`, `no default`, and the profile switch's `unavailable`, `already current`, `in combat` and `unknown profile`. This addon's, for its own verbs the dispatcher never refuses: `/at debug hold` (addon disabled, bad arguments, every bar disabled) and `/at toggle` with an unknown unit |
+| `[Events]` | `core/AbsorbTracker.lua` | The client refused an event registration: once per name, however many syncs retry it, through the console's change gate (`DebugOnce`), so a Clear or turning logging on re-arms it |
 | `[Bus]` | `core/Bus.lua` | A subscription was refused on stand-up |
 | `[Migrate]` | `core/Database.lua` | A schema migration step ran or failed |
-| `[Cfg]` | `LibKa0s-Options-1.0`, `settings/UnitPanel.lua` | The settings panel opened, or a register or open was held back in combat; a unit panel render that raised, once per distinct error |
-| `[Launcher]` | `core/LauncherSetup.lua`, `LibKa0s-Launcher-1.0` | A launcher click found no `/at` handler to run, and the library's own launcher notes |
+| `[Cfg]` | `LibKa0s-Options-1.0` (the library's lines), `settings/UnitPanel.lua` | The library's: the settings panel opened, a register parked in combat and its `register flushed (combat ended)`, an open refused in combat, and each act the combat lock refused, once per combat, as `<what> refused (in combat)` (`write <path>`, `defaults <page>`, `button <text>`, `toggle <label>`, `tab <key>`, `show <page>`, …). This addon's: a unit panel render that raised, once per distinct error through the console's change gate (`DebugChanged`), so a Clear re-arms it |
+| `[Launcher]` | `LibKa0s-Launcher-1.0` (the library's lines), `core/LauncherSetup.lua` | The library's: `Register`'s state lines (`LibDataBroker-1.1 absent; no launcher`, `LibDBIcon-1.0 absent; broker plugin only`, `registered`), held by the console's at-enable queue and written the first time logging is turned on, after `[Init]`, once; and its event notes. This addon's: a launcher click that found no `/at` handler to run |
 | `[Perf]` | `LibKa0s-Perf-1.0` | The perf run's lines, written ungated ([performance.md](performance.md)) |
 
 **Quiet steady state** (`debug-logging-§9`). The addon's repeating paths log nothing while nothing

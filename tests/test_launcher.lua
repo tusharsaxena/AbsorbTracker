@@ -786,6 +786,60 @@ test("launcher: with BOTH broker libraries absent, Register reports absent and d
   assertNil(ns.Launcher:Object())
 end)
 
+--- The debug lines in `ns`'s console that contain `needle`.
+local function consoleCount(ns, needle)
+  local n = 0
+  for _, l in ipairs(ns.DebugLog.buffer) do
+    if l:find(needle, 1, true) then n = n + 1 end
+  end
+  return n
+end
+
+--- `fn` with chat swallowed, since SetEnabled prints the flag change.
+local function quietly(mocks, fn)
+  local cf = mocks.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function() end
+  local ok, err = pcall(fn)
+  cf.AddMessage = old
+  if not ok then error(err, 0) end
+end
+
+test("launcher: Register's state lines wait for logging to be turned on, then land once", function()
+  -- red under: dropping `debugAtEnable` from the Launcher descriptor (core/LauncherSetup.lua).
+  -- Register runs at OnInitialize with session logging off, so through `debug` alone its
+  -- dependency lines were gated off on every login and never reached a pasted log
+  -- (debug-logging-§8). Held by the console's at-enable queue (DebugLogGates 1), they land
+  -- the first time the player turns logging on, after the session bracket, and only that once.
+  local ns, mocks = freshEnv()
+  assertFalse(ns.State.debug, "logging is off, as at login")
+  ns.Launcher:Register()
+  ns.Launcher:Register()                                -- a retried Register holds its line once
+  assertEqual(consoleCount(ns, "[Launcher]"), 0, "nothing written while logging is off")
+  quietly(mocks, function() ns.DebugLog:SetEnabled(true) end)
+  assertEqual(consoleCount(ns, "[Launcher] LibDataBroker-1.1 absent; no launcher"), 1,
+    "the dependency line lands at enable, once")
+  local init, dep
+  for i, l in ipairs(ns.DebugLog.buffer) do
+    if l:find("[Init]", 1, true) then init = init or i end
+    if l:find("[Launcher]", 1, true) then dep = dep or i end
+  end
+  assertTrue(init ~= nil and dep ~= nil and init < dep, "after the [Init] summary")
+  quietly(mocks, function()
+    ns.DebugLog:SetEnabled(false)
+    ns.DebugLog:SetEnabled(true)
+  end)
+  assertEqual(consoleCount(ns, "[Launcher] LibDataBroker-1.1 absent"), 1, "one-shot: not again on the next enable")
+end)
+
+test("launcher: with logging already on, Register's state line is written at once, and once", function()
+  -- red under: a host that ALSO routed the line through `debug`, which would write it twice.
+  local ns, mocks = freshEnv()
+  quietly(mocks, function() ns.DebugLog:SetEnabled(true) end)
+  ns.Launcher:Register()
+  assertEqual(consoleCount(ns, "[Launcher] LibDataBroker-1.1 absent; no launcher"), 1)
+end)
+
 test("launcher: with LibDataBroker but no LibDBIcon, the plugin exists and the button does not", function()
   -- The honest middle answer: a broker display still shows the addon, and `Register` still returns
   -- false, because the section's headline surface — the button — is not there. Registering the

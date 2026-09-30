@@ -131,13 +131,12 @@ end
 -- NS.State.rejectedEvents (read back by `/at debug events` and the [Init] summary), and says so on
 -- the Events debug tag. StandUp inherits all seven call sites through the two methods below.
 -- Once per distinct name (debug-logging-§8's caught-error rule): SyncUnitEventFrames re-registers on
--- every UNITS message and every stand-up, and a retired name is refused again each time.
-local loggedRejected = {}
+-- every UNITS message and every stand-up, and a retired name is refused again each time. The gate is
+-- the console's (DebugLogGates 1), not a table of this file's: it is gated like NS.Debug, remembers
+-- nothing while logging is off, and is re-armed by the console's Clear and by turning logging on,
+-- which a hand-rolled table never was. Looked up at call time, like every NS.DebugLog member.
 local function noteRejected(ok, event)
-    if not ok and not loggedRejected[event] and NS.State and NS.State.debug then
-        loggedRejected[event] = true
-        NS.Debug("Events", "rejected %s", event)
-    end
+    if not ok then NS.DebugLog.DebugOnce("rejected:" .. event, "Events", "rejected %s", event) end
     return ok
 end
 

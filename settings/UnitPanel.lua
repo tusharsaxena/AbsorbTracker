@@ -392,9 +392,10 @@ end
 --- guard: the page looks frozen for the rest of the session and only /reload recovers it. The
 --- library pcalls each refresher for the same reason. The failure is reported rather than
 --- swallowed, because a page that silently declines to draw is the same bug wearing a hat.
--- The last render error traced, so a panel that raises on every refresh is one [Cfg] line, not
--- one per render (debug-logging-§8: once per distinct error).
-local lastRenderError
+-- A panel that raises on every refresh is one [Cfg] line, not one per render (debug-logging-§8:
+-- once per distinct error). The gate is the console's DebugChanged (DebugLogGates 1), keyed here,
+-- so the console's Clear and turning logging on re-arm it; nothing is remembered with logging off.
+local RENDER_ERROR_KEY = "unitPanelRender"
 
 function Helpers.RenderUnitPanel(ctx, pageKey)
     if not NS.AceGUI then return end
@@ -411,9 +412,7 @@ function Helpers.RenderUnitPanel(ctx, pageKey)
 
     if not ok then
         NS.Print("Unit panel render failed:", err)
-        if NS.State and NS.State.debug and err ~= lastRenderError then
-            lastRenderError = err
-            NS.Debug("Cfg", "unit panel render failed (%s): %s", pageKey, err)
-        end
+        NS.DebugLog.DebugChanged(RENDER_ERROR_KEY, "Cfg", "unit panel render failed (%s): %s",
+            pageKey, err)
     end
 end

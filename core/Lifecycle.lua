@@ -71,15 +71,12 @@ local ADDON_EVENTS = {
     "PLAYER_TARGET_CHANGED", "PLAYER_FOCUS_CHANGED",
 }
 
--- debug-logging-§8's stand-down edge: which holds took the latch, and whether a queued repaint was
--- dropped on the way. The holds list is built behind the gate (§4). A cleared `/at debug hold`
--- says so on its own line, from NS.ClearPreview. Its own function so StandDown stays under
--- lizard's threshold.
-local function traceStandDown(dropped)
-    if not (NS.State and NS.State.debug and NS.lifecycle) then return end
-    NS.Debug("Life", "stood down (holds: %s): pending repaint dropped=%s",
-        table.concat(NS.lifecycle:Holds(), ", "), dropped and "yes" or "no")
-end
+-- debug-logging-§8's stand-down edge is the LIBRARY'S line now (Lifecycle minor 3): the latch
+-- writes `[Lifecycle] stood down: added <key> (holds: <set>)` through the descriptor's `debug`
+-- before it calls StandDown, so this file no longer names the edge or the holds. What only this
+-- file knows is what the teardown found, and that is its own [Life] line: whether a queued repaint
+-- was dropped on the way. A cleared `/at debug hold` says so on its own line, from
+-- NS.ClearPreview.
 
 --- Make the addon inert, without a /reload and in the same turn as the write.
 ---
@@ -93,7 +90,7 @@ local function StandDown()
     -- gone.
     local dropped = NS.CancelPendingRepaint and NS.CancelPendingRepaint()
     if NS.ClearPreview then NS.ClearPreview() end
-    traceStandDown(dropped)
+    NS.Debug("Life", "teardown: pending repaint dropped=%s", dropped and "yes" or "no")
 
     -- At the SOURCE, never imperatively. NS.ShouldShowBar's rung 0 asks NS.IsStoodDown, and the
     -- latch flips `down` BEFORE it calls this, so the ladder already says no and one pass takes all
@@ -123,9 +120,10 @@ end
 local function StandUp()
     -- The bus first, so the three publishes at the bottom reach the receivers they exist for.
     local replayed = NS.BusStandUp and NS.BusStandUp() or 0
-    -- The stand-up edge (debug-logging-§8), before the rebuild so the trace reads cause, then effect.
-    NS.Debug("Life", "stood up: %s bus subscription(s) replayed, rebuilding from current state",
-        replayed)
+    -- The stand-up edge itself is the library's `[Lifecycle] stood up: released <key>` line, written
+    -- before this callback runs. What the rebuild found is ours, before the rebuild so the trace
+    -- reads cause, then effect.
+    NS.Debug("Life", "rebuild from current state: %s bus subscription(s) replayed", replayed)
 
     local addon = NS.addon
     if addon then
@@ -197,6 +195,10 @@ else
         standDown = StandDown,
         standUp   = StandUp,
         print     = function(line) NS.Print(line) end,
+        -- The host's gated sink (Lifecycle minor 3): each stand-down and stand-up edge is one
+        -- [Lifecycle] line naming the hold that moved and the resulting set. Resolved at call
+        -- time, since core/DebugLogSetup.lua publishes NS.Debug after this file loads.
+        debug     = function(tag, message) NS.Debug(tag, "%s", message) end,
     })
 end
 

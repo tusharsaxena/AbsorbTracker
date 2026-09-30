@@ -516,7 +516,7 @@ badge and any count quoted in the docs must agree with it.
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
 - /at resetposition does not claim success when the settings helpers are absent
 
-### test_launcher.lua (32)
+### test_launcher.lua (34)
 
 - launcher: Register builds ONE broker object and hands that same object to LibDBIcon
 - launcher: LibDBIcon is handed db.global.minimap ITSELF, not a copy
@@ -548,6 +548,8 @@ badge and any count quoted in the docs must agree with it.
 - launcher: the renamed path is not reported missing from the defaults
 - launcher: a legacy store keeps its hidden button, and its angle, across the rename
 - launcher: with BOTH broker libraries absent, Register reports absent and does not raise
+- launcher: Register's state lines wait for logging to be turned on, then land once
+- launcher: with logging already on, Register's state line is written at once, and once
 - launcher: with LibDataBroker but no LibDBIcon, the plugin exists and the button does not
 - launcher: with LibKa0s absent the seam still answers, and still remembers the choice
 
@@ -903,9 +905,10 @@ badge and any count quoted in the docs must agree with it.
 - diagnostics: the chat line is ours to localize and names the line count
 - diagnostics: with the library absent both forms print the one absent line
 
-### test_debugcoverage.lua (14)
+### test_debugcoverage.lua (21)
 
-- coverage: a stand-down and a stand-up are one [Life] line each, naming the holds
+- coverage: a stand-down and a stand-up are the library's one [Lifecycle] line each, naming the holds
+- coverage: a hold that fires no edge writes no [Lifecycle] line
 - coverage: the stand-down line says whether it dropped a queued repaint
 - coverage: [World] names the loading screen's kind: login, reload or zone change
 - coverage: entering combat unlocked says the bars were re-locked
@@ -913,12 +916,18 @@ badge and any count quoted in the docs must agree with it.
 - quiet: the repaint throttle, the swap and max-health events and the ladder log nothing unchanged
 - coverage: a /at debug hold logs when it holds live repaints and when it lets them go
 - coverage: an in-combat unlock refusal names the guard
-- coverage: a verb the disabled gate refuses is one [Cmd] line; help is not a refusal
+- coverage: a verb the disabled gate refuses is the library's one [Cmd] line; help is not a refusal
+- coverage: the dispatcher's other refusals land as the library's [Cmd] lines
+- coverage: with logging off, a refusal writes nothing to the console
 - coverage: /at debug hold names which guard refused it, once
 - coverage: [Init] names missing libraries and a stood-down addon, and nothing on a clean one
 - coverage: the real MissingLibraries answers an array the ui section and [Init] share
 - coverage: a refused event name is one [Events] line, however many syncs refuse it
+- coverage: the console's Clear re-arms the refused-event gate
+- coverage: with logging off, a refused event spends nothing
 - coverage: a unit panel that raises on every render is one [Cfg] line per distinct error
+- coverage: the console's Clear re-arms the unit panel's render-error gate
+- coverage: a Defaults click refused in combat is the library's one [Cfg] line per combat
 
 ### test_diagnostics_contract.lua (9)
 
@@ -975,7 +984,7 @@ badge and any count quoted in the docs must agree with it.
 | test_draghandle.lua | 29 |
 | test_helpers.lua | 40 |
 | test_panelpages.lua | 31 |
-| test_launcher.lua | 32 |
+| test_launcher.lua | 34 |
 | test_optionssetup.lua | 15 |
 | test_slashcmds.lua | 100 |
 | test_perfcmds.lua | 42 |
@@ -990,8 +999,8 @@ badge and any count quoted in the docs must agree with it.
 | test_events.lua | 5 |
 | test_disabled.lua | 18 |
 | test_diagnostics.lua | 12 |
-| test_debugcoverage.lua | 14 |
+| test_debugcoverage.lua | 21 |
 | test_diagnostics_contract.lua | 9 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **836** |
+| **Total** | **845** |

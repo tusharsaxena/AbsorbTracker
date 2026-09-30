@@ -780,7 +780,9 @@ test("/at profile <current name> says so and switches nothing", function()
   local lines = debugLines(function()
     assertTrue(contains(slash("profile Default"), "Already on profile 'Default'."))
   end)
-  assertEqual(#lines, 0, "no profile event fired: " .. table.concat(lines, " | "))
+  -- The one line is the library's refusal (Slash minor 18); no [Profile] switch line fires.
+  assertEqual(#lines, 1, "no profile event fired: " .. table.concat(lines, " | "))
+  assertTrue(lines[1]:find("[Cmd] refused profile Default: already current", 1, true) ~= nil, lines[1])
 end)
 
 test("/at profile <name> refuses in combat and switches nothing", function()
