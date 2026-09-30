@@ -795,10 +795,11 @@ badge and any count quoted in the docs must agree with it.
 - the main page's About content renders on its first OnShow
 - re-rendering the About page replaces its body rather than stacking a second copy
 
-### test_docs.lua (5)
+### test_docs.lua (6)
 
 - README.md carries no angle-bracket argument placeholders
 - README.md carries ## Reporting a bug with the standard's text, placed and pointed at
+- README.md carries no numbered list
 - every Tier 2 documentation-map row agrees with docs/
 - every deviation id the register cites is assigned by a bundle in docs/audits/
 - docs/smoke-tests.md carries a non-English-client section
@@ -980,7 +981,7 @@ badge and any count quoted in the docs must agree with it.
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 15 |
 | test_widgets.lua | 57 |
-| test_docs.lua | 5 |
+| test_docs.lua | 6 |
 | test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 10 |
@@ -993,4 +994,4 @@ badge and any count quoted in the docs must agree with it.
 | test_diagnostics_contract.lua | 9 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **835** |
+| **Total** | **836** |

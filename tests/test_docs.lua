@@ -77,9 +77,9 @@ end)
 -- with their bug report. The section sits between Troubleshooting and Issues and feature
 -- requests, and a Troubleshooting row points at it.
 local REPORTING_BODY = table.concat({
-  "1. Type `/at debug on` and reproduce the bug.",
-  "2. Type `/at diagnostics`.",
-  "3. If the debug window isn't open, open it with `/at debug`. Press **Copy**, copy the entire "
+  "- Type `/at debug on` and reproduce the bug.",
+  "- Type `/at diagnostics`.",
+  "- If the debug window isn't open, open it with `/at debug`. Press **Copy**, copy the entire "
     .. "output, and include it with your bug report.",
   "",
   "The report is added after the debug trace in the same window, so one copy carries both.",
@@ -102,6 +102,25 @@ test("README.md carries ## Reporting a bug with the standard's text, placed and 
     "the section names no destination and carries no link")
   assertTrue(body:sub(tIdx, rIdx):find(REPORTING_ROW, 1, true) ~= nil,
     "Troubleshooting carries the row that points at the section")
+end)
+
+-- ── README: bullets, never numbered lists ───────────────────────────────────────
+
+-- documentation-§1 (standard v2.72.0): CurseForge's description page does not render a numbered
+-- list, so every list in README.md is a `- ` bullet list and the words carry any order. Fenced
+-- code blocks are skipped; the check is on the rendered prose.
+test("README.md carries no numbered list", function()
+  local body = readFile("README.md"):gsub("\r", "")
+  local offenders, inFence, n = {}, false, 0
+  for line in (body .. "\n"):gmatch("(.-)\n") do
+    n = n + 1
+    if line:match("^%s*```") then
+      inFence = not inFence
+    elseif not inFence and line:match("^%s*%d+[.)]%s") then
+      offenders[#offenders + 1] = "line " .. n
+    end
+  end
+  assertEqual(#offenders, 0, "numbered list lines in README.md: " .. table.concat(offenders, ", "))
 end)
 
 -- ── The Tier 2 documentation map says what docs/ actually holds ─────────────────
