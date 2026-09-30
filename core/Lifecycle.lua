@@ -71,6 +71,16 @@ local ADDON_EVENTS = {
     "PLAYER_TARGET_CHANGED", "PLAYER_FOCUS_CHANGED",
 }
 
+-- debug-logging-§8's stand-down edge: which holds took the latch, and whether a queued repaint was
+-- dropped on the way. The holds list is built behind the gate (§4). A cleared `/at debug hold`
+-- says so on its own line, from NS.ClearPreview. Its own function so StandDown stays under
+-- lizard's threshold.
+local function traceStandDown(dropped)
+    if not (NS.State and NS.State.debug and NS.lifecycle) then return end
+    NS.Debug("Life", "stood down (holds: %s): pending repaint dropped=%s",
+        table.concat(NS.lifecycle:Holds(), ", "), dropped and "yes" or "no")
+end
+
 --- Make the addon inert, without a /reload and in the same turn as the write.
 ---
 --- ORDER IS LOAD-BEARING. The bars are taken down by publishing VISIBILITY, and the bus
@@ -81,8 +91,9 @@ local function StandDown()
     -- Nothing armed may survive: a repaint queued a moment ago would land inside the stand-down,
     -- and the preview hold's one-shot would repaint a fake value onto a bar that is meant to be
     -- gone.
-    if NS.CancelPendingRepaint then NS.CancelPendingRepaint() end
+    local dropped = NS.CancelPendingRepaint and NS.CancelPendingRepaint()
     if NS.ClearPreview then NS.ClearPreview() end
+    traceStandDown(dropped)
 
     -- At the SOURCE, never imperatively. NS.ShouldShowBar's rung 0 asks NS.IsStoodDown, and the
     -- latch flips `down` BEFORE it calls this, so the ladder already says no and one pass takes all
@@ -111,7 +122,10 @@ end
 --- to come back as it is NOW (performance-§6).
 local function StandUp()
     -- The bus first, so the three publishes at the bottom reach the receivers they exist for.
-    if NS.BusStandUp then NS.BusStandUp() end
+    local replayed = NS.BusStandUp and NS.BusStandUp() or 0
+    -- The stand-up edge (debug-logging-§8), before the rebuild so the trace reads cause, then effect.
+    NS.Debug("Life", "stood up: %s bus subscription(s) replayed, rebuilding from current state",
+        replayed)
 
     local addon = NS.addon
     if addon then

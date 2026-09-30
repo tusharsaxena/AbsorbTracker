@@ -28,6 +28,10 @@ if NS.Util and NS.Util.print then NS.Print = NS.Util.print end
 -- debug is on. Reset at combat start, flushed as one [Combat] rollup at combat end.
 local dbgAbsorbEvents, dbgRepaints = 0, 0
 local dbgLastAbsorb   -- last NON-secret absorb value seen (nil until a non-secret read)
+-- Whether the last player read was a secret (nil before the first read). Change-gated: the
+-- readable/secret EDGE is one [Absorb] line, never one per event (debug-logging-§9's quiet steady
+-- state), and it is what explains a restricted-content log with no shield transitions in it.
+local dbgAbsorbSecret
 
 -- Called by modules/Display.lua on each actual repaint. Gated: counts nothing when debug is off.
 function NS.NoteRepaint()
@@ -126,8 +130,14 @@ end
 -- the helpers a refused name costs only itself, lands once in the session list
 -- NS.State.rejectedEvents (read back by `/at debug events` and the [Init] summary), and says so on
 -- the Events debug tag. StandUp inherits all seven call sites through the two methods below.
+-- Once per distinct name (debug-logging-§8's caught-error rule): SyncUnitEventFrames re-registers on
+-- every UNITS message and every stand-up, and a retired name is refused again each time.
+local loggedRejected = {}
 local function noteRejected(ok, event)
-    if not ok then NS.Debug("Events", "rejected %s", event) end
+    if not ok and not loggedRejected[event] and NS.State and NS.State.debug then
+        loggedRejected[event] = true
+        NS.Debug("Events", "rejected %s", event)
+    end
     return ok
 end
 
@@ -226,21 +236,35 @@ end
 -- so it stays gated on unit == "player" — counting target/focus events here would make the rollup
 -- report a number that doesn't match what it prints. Gate the debug read so it costs nothing when
 -- debug is off (debug-logging-§4).
+-- The player's absorb, traced by transition only. Called behind the debug gate. Only compares when
+-- the value is NOT a combat secret (IsConcatSafe == readable); the readable/secret edge itself is
+-- one line each way.
+local function traceAbsorb()
+    local v = UnitGetTotalAbsorbs("player") or 0
+    local secret = not NS.IsConcatSafe(v)
+    if secret ~= dbgAbsorbSecret then
+        if secret then
+            NS.Debug("Absorb", "reads secret: shield transitions not traced until readable")
+        elseif dbgAbsorbSecret then
+            NS.Debug("Absorb", "reads readable again")
+        end
+        dbgAbsorbSecret = secret
+    end
+    if secret then return end
+    local prev = dbgLastAbsorb
+    if prev ~= nil and prev == 0 and v ~= 0 then
+        NS.Debug("Absorb", "shield up: %s \226\134\146 %s", prev, AbbreviateNumbers(v))
+    elseif prev ~= nil and prev ~= 0 and v == 0 then
+        NS.Debug("Absorb", "shield gone: %s \226\134\146 0", AbbreviateNumbers(prev))
+    end
+    dbgLastAbsorb = v
+end
+
 function addon:OnAbsorbChanged(_, unit)
     local t0 = Perf.on and debugprofilestop()
     if unit == "player" and NS.State and NS.State.debug then
         dbgAbsorbEvents = dbgAbsorbEvents + 1
-        local v = UnitGetTotalAbsorbs("player") or 0
-        -- Only compare when the value is NOT a combat secret (IsConcatSafe == readable).
-        if NS.IsConcatSafe(v) then
-            local prev = dbgLastAbsorb
-            if prev ~= nil and prev == 0 and v ~= 0 then
-                NS.Debug("Absorb", "shield up: %s \226\134\146 %s", prev, AbbreviateNumbers(v))
-            elseif prev ~= nil and prev ~= 0 and v == 0 then
-                NS.Debug("Absorb", "shield gone: %s \226\134\146 0", AbbreviateNumbers(prev))
-            end
-            dbgLastAbsorb = v
-        end
+        traceAbsorb()
     end
     NS.bus:SendMessage(NS.MSG.REPAINT)
     -- Measures the handler only — bus publish included, the repaint itself NOT (that is deferred
@@ -258,8 +282,11 @@ function addon:OnMaxHealthChanged(_)
     NS.bus:SendMessage(NS.MSG.REPAINT)
 end
 
-function addon:OnEnterWorld()
-    NS.Debug("World", "entering world")
+-- AceEvent hands PLAYER_ENTERING_WORLD's two flags through, so the line says which of the three a
+-- loading screen was: the first login, a /reload, or a zone or instance change.
+function addon:OnEnterWorld(_, isLogin, isReload)
+    NS.Debug("World", "entering world (%s)",
+        isLogin and "login" or isReload and "reload" or "zone change")
     NS.bus:SendMessage(NS.MSG.VISIBILITY)
     NS.bus:SendMessage(NS.MSG.REPAINT)
 end
@@ -289,7 +316,8 @@ function addon:OnEnterCombat()
     -- (NS.UpdateBarAppearance), so visibility is re-evaluated on that path too. Publishing again
     -- here would run the whole ladder over all three bars a second time on every pull that started
     -- unlocked: six ApplyVisibility calls where three is the answer.
-    if not NS.GetSetting("locked") then
+    local relocked = not NS.GetSetting("locked")
+    if relocked then
         NS.SetByPath("locked", true)
         NS.Print("Bars locked \226\128\148 combat started")
         if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
@@ -302,7 +330,7 @@ function addon:OnEnterCombat()
     -- carrying stale residue from the previous debug-on combat.
     dbgAbsorbEvents, dbgRepaints = 0, 0
     if NS.State and NS.State.debug then
-        NS.Debug("Combat", "entered")
+        NS.Debug("Combat", relocked and "entered: bars re-locked" or "entered")
     end
 end
 

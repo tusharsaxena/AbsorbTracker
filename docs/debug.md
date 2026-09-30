@@ -10,6 +10,11 @@ way they drive every Ka0s console (`debug-logging`; the in-game walk is the DIAG
 This page covers what the library does not: the **diagnostics report**, whose sections this addon
 writes, the two addon-owned `debug` words, and the trace tags this addon logs under.
 
+The console's title bar also carries the library's orange **Diagnostics** link, just right of the
+Debug On/Off label; a click runs the same report, `NS.DebugLog:RunDiagnostics()`. Running the
+report, by either slash form or the link, also **turns debug logging on for the session**
+(`debug-logging-§14`), as `/at debug on` would; a `/reload` turns it off again.
+
 | Verb | Runs | Console tag | Answers |
 |---|---|---|---|
 | `/at diagnostics` or `/at debug diagnostics` | `NS.DebugLog:RunDiagnostics()` over `NS.Diagnostics.Sections()` (`modules/Diagnostics.lua`) | `[Diag]` markers, one tag per section | Everything a maintainer asks first: build, state, settings, each bar's show ladder, frames, media, colors, the absorb readout, events, the repaint throttle, the combat counters and the UI |
@@ -23,10 +28,11 @@ own `diagnostics` row as well. `runDebug` tests `diagnostics` first, then `on`, 
 ## The raw-append rule
 
 The report writes through the library's raw append (`NS.DebugLog:Add(tag, line)`, which
-`RunDiagnostics` calls), and **not** through the gated sink `NS.Debug`. So it prints whether logging
-is on or off: you do not need `/at debug on` first, and turning logging on adds nothing to it. A
+`RunDiagnostics` calls), and **not** through the gated sink `NS.Debug`. So it lands in full whatever
+the flag said: you do not need `/at debug on` first, and turning logging on adds nothing to it. A
 report the player asked for is not idle cost, and a console that stays empty because the flag
-happened to be off reads as a broken verb (`debug-logging-§4`).
+happened to be off reads as a broken verb (`debug-logging-§4`). The run turns logging on anyway
+(see **What it does to the console** below), so the next reproduction is traced as well.
 
 Two consequences follow:
 
@@ -50,8 +56,14 @@ left behind travel in one **Copy**.
 `/at debug diag` is an ordinary unknown word, which toggles the console like any other, and
 `/at diag` is an unknown command.
 
-**What it does to the console.** It never clears it, and it never changes the logging flag, only
-prints it. It shows the console if it was hidden. Then it prints one chat line, the only localized
+**What it does to the console.** It never clears it. When logging is off it **turns logging on for
+the session** first, through the flag's one seam (`NS.DebugLog:SetEnabled(true)`), so the chat
+`debug logging ON` line, `[Debug] logging enabled` and the `[Init]` summary land just above the
+begin marker and the identity header reads `debug logging: on`. It never turns logging off, and with
+logging already on it writes no second enable line; a `/reload` turns it off again, as it always
+does. This addon keeps the library's default (its descriptor does not set
+`diagnosticsEnablesLogging = false`). The sections themselves only print the flag and never change
+it. The report shows the console if it was hidden. Then it prints one chat line, the only localized
 line of the report: *Diagnostic report written to the debug console: N lines. Use Copy to share it.*
 
 **The shape.** The library writes the frame and this addon writes the sections, in this order:
@@ -96,7 +108,8 @@ down`. Stored configuration (settings, units, media, colors) prints as normal.
 
 **What it deliberately does not read or call.**
 
-- **No writes and no machinery.** No setter or `NS.SetByPath`, no bus publish, no
+- **No writes and no machinery** in any section (the run's one write is the session logging flag,
+  above). No setter or `NS.SetByPath`, no bus publish, no
   `NS.RequestRepaint`, no `SyncUnitEventFrames`, no Lifecycle hold, no timer, no `Show`/`Hide`, no
   `OpenOptionsPanel`, and never `Clear()`. It reads through the four read-only seams (`NS.VisibilityReason`,
   `NS.LastAppliedVisibility`, `NS.IsRepaintPending`, `NS.SessionCounters`) and through getters.
@@ -117,33 +130,51 @@ down`. Stored configuration (settings, units, media, colors) prints as normal.
 Nothing is redacted: the report goes to the maintainer privately with a bug report. Report lines
 are English diagnostic text and do not go through `NS.L`; the one chat line does.
 
-## Trace tags
+## Coverage
 
 With `/at debug on`, the gated sink `NS.Debug` writes these tags. They are what the report's trace
-above the begin marker is made of.
+above the begin marker is made of, and they are chosen so a pasted log can answer why the addon did
+what it did (`debug-logging-§8`): the flows, the state edges it reacts to, work it held and let go,
+each refusal with the guard that made it, the dependencies, and each error it caught.
 
 | Tag | Written by | When |
 |---|---|---|
-| `[Init]`, `[Debug]` | the library | On `/at debug on` and `off`: the session summary and the flag change |
-| `[Absorb]` | `core/AbsorbTracker.lua` | A shield comes up or goes away (values only when readable) |
-| `[Bar]` | `modules/Display.lua` | A bar is shown or hidden, with the rung that decided it |
-| `[Combat]` | `core/AbsorbTracker.lua` | Combat starts, and on leaving it, the absorb-event and repaint counts |
-| `[World]` | `core/AbsorbTracker.lua` | `PLAYER_ENTERING_WORLD` |
-| `[Events]` | `core/AbsorbTracker.lua` | The client refused an event registration |
+| `[Init]`, `[Debug]` | the library, `core/DebugLogSetup.lua` (the summary) | On `/at debug on` and `off`: the flag change, and the session summary (version, schema, profile). The summary adds, only when there is something to say, the number of events the client refused, `stood down (holds: ...)` when the addon is inert at that moment, and `missing libraries: ...` for any library from the report's list this install lacks. Logging is off at login, so this is the one place the dependency line is said, once |
+| `[Life]` | `core/Lifecycle.lua` | The addon stands down (`stood down (holds: disabled)`, or `perf` during a capture's suspended arm), saying whether a queued repaint was dropped, and stands up again, with the bus subscriptions replayed |
+| `[World]` | `core/AbsorbTracker.lua` | `PLAYER_ENTERING_WORLD`, naming the kind: `login`, `reload` or `zone change` |
+| `[Combat]` | `core/AbsorbTracker.lua` | Combat starts (`entered`, or `entered: bars re-locked` when the bars were unlocked), and on leaving it one rollup: the player's absorb events, the repaints, and the final absorb when it is readable |
+| `[Absorb]` | `core/AbsorbTracker.lua` | The player's shield comes up or goes away (values only when readable), and the read turning secret or readable again: one line per edge, so a log from restricted content says why it holds no transitions |
+| `[Bar]` | `modules/Display.lua` | A bar is shown or hidden, with the rung that decided it (only on a change). A `/at debug hold` holding live repaints for N s, and its end: `hold expired` or `hold cleared early` (a re-lock, a second hold, a stand-down) |
+| `[Set]` | `LibKa0s-Schema-1.0`, `core/AbsorbTracker.lua`, `settings/General.lua` | Every setting write, as `path = value`; one line per bulk copy or reset instead of one per row (`debug-logging-§10`); a profile copied or reset; `locked: unlock refused (in combat)` |
+| `[Profile]` | `core/AbsorbTracker.lua` | The active profile changed |
+| `[Cmd]` | `settings/Slash.lua` | A command refused, naming the guard: a verb the disabled gate refused (`toggle refused: addon disabled`), `/at debug hold` (addon disabled, bad arguments, every bar disabled), `/at toggle` with an unknown unit |
+| `[Events]` | `core/AbsorbTracker.lua` | The client refused an event registration: once per name per session, however many syncs retry it |
 | `[Bus]` | `core/Bus.lua` | A subscription was refused on stand-up |
 | `[Migrate]` | `core/Database.lua` | A schema migration step ran or failed |
-| `[Set]` | `LibKa0s-Schema-1.0`, `core/AbsorbTracker.lua` | Every setting write, as `path = value`; one line per bulk copy or reset instead of one per row (`debug-logging-§10`); a profile copied or reset |
-| `[Profile]` | `core/AbsorbTracker.lua` | The active profile changed |
+| `[Cfg]` | `LibKa0s-Options-1.0`, `settings/UnitPanel.lua` | The settings panel opened, or a register or open was held back in combat; a unit panel render that raised, once per distinct error |
 | `[Launcher]` | `core/LauncherSetup.lua`, `LibKa0s-Launcher-1.0` | A launcher click found no `/at` handler to run, and the library's own launcher notes |
-| `[Cfg]` | `LibKa0s-Options-1.0` | The settings panel opened, or a register or open was held back in combat |
 | `[Perf]` | `LibKa0s-Perf-1.0` | The perf run's lines, written ungated ([performance.md](performance.md)) |
+
+**Quiet steady state** (`debug-logging-§9`). The addon's repeating paths log nothing while nothing
+they report changes: the absorb and max-health events, the coalesced repaint pass, the target and
+focus swaps and the visibility pass. The absorb path logs only a shield's transition or the
+readable/secret edge, and the visibility pass only a bar that changed state.
+`tests/test_debugcoverage.lua` drives each of them repeatedly and holds the log still.
+
+**Deliberately not logged.** A per-event or per-pass line on any path above; each target or focus
+swap (a `[Bar]` line already says when one shows or hides a bar); which unit frames are
+registered after a toggle (the `[Set]` line for `units.<unit>.enabled` says it, and the report's
+`events` section shows the result); and a media fallback, which the report's `media` section
+names per row. The disabled state's chat lines still go to chat: the `[Cmd]` line is the log's copy
+of the refusal, not a second message to the player.
 
 ## Which to paste
 
 For any bug, follow the README's **Reporting a bug** steps: `/at debug on`, reproduce the problem,
 run `/at diagnostics`, then open the console with `/at debug` if it is not already open, press
 **Copy** and include the entire output with the report. That one copy holds the trace and the whole
-report, and the report already carries what `/at debug events` prints.
+report, and the report already carries what `/at debug events` prints. A report run before
+reproducing leaves logging on, so what follows it is traced too.
 
 - For a bar that is missing or showing when it should not, run the report **while the bar is in
   that state**: the `units` section names the rung of the show ladder that decided it.

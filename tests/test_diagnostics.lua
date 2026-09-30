@@ -184,17 +184,18 @@ test("diagnostics: stood down, the released runtime state says so rather than pr
   assertTrue(find(lines, "[Unit] player: enabled=true") ~= nil, "configuration still prints")
 end)
 
-test("diagnostics: the report reads state and changes none of it", function()
+test("diagnostics: the sections change nothing, and the run only turns logging on", function()
   -- debug-logging-§14 (STD-05): no hold, no event, no timer, no stand-up, no settings panel, no
   -- Clear. Snapshotted around the REAL run, which writes into the console and prints its chat line.
   -- red under: a section that calls NS.RequestRepaint, OpenOptionsPanel, SyncUnitEventFrames or a
-  -- setter; a report that clears the console first.
+  -- setter; a report that clears the console first; a run that leaves logging off.
   NS.SetByPath("enabled", true)
   NS.DebugLog:Show()       -- shown first, so the reveal the report performs is not in the diff
+  NS.DebugLog:SetEnabled(false)   -- off, so the run's own enable (and its [Init] summary) is inside the diff
   local registrations = #M.__registrations()
   local timers = #M.__timers
   local holds = table.concat(NS.lifecycle:Holds(), ",")
-  local pending, debug = NS.IsRepaintPending(), NS.State.debug
+  local pending = NS.IsRepaintPending()
   local opened, cleared = 0, 0
   local open, clear = NS.OpenOptionsPanel, NS.DebugLog.Clear
   NS.OpenOptionsPanel = function() opened = opened + 1 end
@@ -207,7 +208,9 @@ test("diagnostics: the report reads state and changes none of it", function()
   assertEqual(#M.__timers, timers, "no timer armed")
   assertEqual(table.concat(NS.lifecycle:Holds(), ","), holds, "no hold taken or released")
   assertEqual(NS.IsRepaintPending(), pending, "the throttle is as it was")
-  assertEqual(NS.State.debug, debug, "the debug flag is as it was")
+  -- The one thing a RUN changes is the session logging flag, and only ever to on (debug-logging-§14
+  -- at v2.71.0); the kit's diagnostics contract holds the off-to-on edge and the no-second-enable case.
+  assertTrue(NS.State.debug, "a run leaves logging on, never off")
   assertEqual(opened, 0, "the settings panel was not opened")
   assertEqual(cleared, 0, "the console was not cleared")
 end)

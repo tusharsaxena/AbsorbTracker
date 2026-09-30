@@ -100,7 +100,8 @@ function NS.BusStandDown() return NS.busRecord:StandDown() end
 --- stand-up is inside the latch's callback, so the library never raises out of it.
 function NS.BusStandUp()
     local replayed, rejected = NS.busRecord:StandUp()
-    if #rejected > 0 and NS.Debug then
+    -- The list is joined behind the debug gate (debug-logging-§4), not before it.
+    if #rejected > 0 and NS.Debug and NS.State and NS.State.debug then
         NS.Debug("Bus", "rejected on stand-up: %s", table.concat(rejected, ", "))
     end
     return replayed

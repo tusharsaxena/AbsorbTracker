@@ -13,8 +13,8 @@ a table of its own, `perf` hands its remainder to the perf library, `toggle` par
 
 ## Registration
 
-`Sl:Register` (`settings/Slash.lua:779`) registers both names through AceConsole-3.0, called once
-from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:52`, guarded so a load where
+`Sl:Register` (`settings/Slash.lua:806`) registers both names through AceConsole-3.0, called once
+from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:56`, guarded so a load where
 `settings/Slash.lua` never ran degrades rather than errors):
 
 ```lua
@@ -127,7 +127,7 @@ The library lowercases only the verb; the remainder is passed through untouched.
 here, because every schema path in this addon is camelCase and per-unit —
 `/at set units.target.barWidth 250` is the shipped form, and folding the whole line would address a
 row that does not exist. `/at profile` repeats the rule one level down: `runProfile`
-(`settings/Slash.lua:572`) lowercases the sub-verb and leaves its argument alone, because AceDB
+(`settings/Slash.lua:581`) lowercases the sub-verb and leaves its argument alone, because AceDB
 profile names are case-sensitive and a folded name deletes or switches to the wrong profile. A first
 word that is not a sub-verb is not lowercased at all: the whole remainder goes to the library's
 `CliProfile` as a profile name.
@@ -154,7 +154,7 @@ word that is not a sub-verb is not lowercased at all: the whole remainder goes t
 | `/at lock` / `/at unlock` | inline | `NS.SetByPath("locked", …)`, then `echoStored("locked")` — the same helper `setEnabled` uses: it refreshes an open options panel so **Lock frame** moves with the verb, and prints slash-commands-§5's `locked = true` shape read back from the store, so an unlock the row's `onChange` refuses in combat is echoed as the `locked = true` it left behind rather than as a success line. The launcher menu's **Locked** entry runs these same two handlers, out of `NS.COMMANDS` (`core/LauncherSetup.lua`), so it writes the path through the same seam; the launcher's left click opens the settings panel and writes nothing (launcher-§2, LibKa0s-Launcher minor 4). |
 | `/at toggle [player\|target\|focus]` | `runToggle` | Bare: flip **every** bar — all off if any is on, otherwise all on. With a unit token: that one bar. See the note below. |
 | `/at debug [on\|off]` | `runDebug` | Bare toggles the console **window**; `on`/`off` set session logging through `NS.DebugLog:SetEnabled`. |
-| `/at diagnostics`, `/at debug diagnostics` | `runDiagnostics` | The diagnostics report (debug-logging-§14): `NS.DebugLog:RunDiagnostics()` appends it to the console after whatever trace is there, with logging on or off, and shows the console. The sections are `modules/Diagnostics.lua`'s; the markers, header, cap and chat line are the library's. The only two forms: `/at debug diag`, `/at diag` and any other short name are not aliases (`debug diag` toggles the window like any unknown word; `diag` is an unknown command). |
+| `/at diagnostics`, `/at debug diagnostics` | `runDiagnostics` | The diagnostics report (debug-logging-§14): `NS.DebugLog:RunDiagnostics()` turns session logging on first when it is off (`NS.DebugLog:SetEnabled(true)`, as `/at debug on` would; a `/reload` turns it off again), appends the report to the console after whatever trace is there, and shows the console. The console's orange **Diagnostics** title-bar link is a third way to run the same call. The sections are `modules/Diagnostics.lua`'s; the markers, header, cap and chat line are the library's. The only two slash forms: `/at debug diag`, `/at diag` and any other short name are not aliases (`debug diag` toggles the window like any unknown word; `diag` is an unknown command). |
 | `/at debug events` | `runDebug` → `printRejectedEvents` | Every event name the client refused this session (`NS.State.rejectedEvents`, events-frames-taint-§1), comma-joined, or `Rejected events: none`. |
 | `/at debug hold <value> [secs]` | `runDebug` → `runHold` | The one-shot value hold: `<value>` painted on every visible bar and held by `NS.HoldPreview` for the seconds given, 0.5 to 60 with a default of 5. It announces `Holding <value> on the bars for <secs> s`, with the seconds as typed (`2.5`, not `2`). A missing or non-numeric value, or seconds outside the range, prints `Usage: /at debug hold <value> [secs] — secs from 0.5 to 60, default 5` and holds nothing. It refuses while every bar is disabled, and while the addon is disabled (the gate note above). It used to be the top-level `test` verb. This addon's unlocked view is its preview, and options-ui-§15 and preview-mode say an addon in that shape ships no `test` verb, so `/at unlock` and `/at lock` are the switch and the hold moved under `debug`. |
 | `/at perf [sub]` | `runPerf` → `NS.Perf.OnCommand` | The guided perf run. Sub-verbs are the library's; see [performance.md](./performance.md). |
@@ -168,7 +168,7 @@ Four verbs parse a remainder of their own. `profile` and `debug` dispatch throug
 own (`PROFILE_VERBS`, `DEBUG_VERBS`), `perf` hands its remainder on, and `toggle` parses one word;
 `profile` is the one this page is really about.
 
-**`profile`** — `runProfile` (`settings/Slash.lua:572`) reads the first word of the remainder,
+**`profile`** — `runProfile` (`settings/Slash.lua:581`) reads the first word of the remainder,
 lowercased, and picks one of three routes (spec S3 of the 2026-09-29 profile-verb run):
 
 1. **Nothing**: `cli:CliProfile("")` prints the library's list (header `Profiles`, one row per
@@ -264,7 +264,7 @@ generic dispatcher knows nothing about.
 ## When the library is absent
 
 `/at` is registered unconditionally, so something has to answer it. With `LibKa0s-Slash-1.0` missing,
-`settings/Slash.lua:611` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
+`settings/Slash.lua:620` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
 a plain help index still render, a bare `/at` still runs the `config` verb exactly as the library
 does, the host verbs — which never went to the library — keep working untouched, and each schema verb
 (`list`, `get`, `set`, `reset`, `resetall`) prints the collection's library-absent line through the

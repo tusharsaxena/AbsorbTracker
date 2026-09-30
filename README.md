@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-819%2F819_passing-green)
+![Tests](https://img.shields.io/badge/Tests-835%2F835_passing-green)
 
 Ka0s Absorb Tracker shows your absorb shields as a movable bar. It adds every shield on the unit
 into one number, so a glance tells you how much damage you can eat before your health starts
@@ -31,24 +31,24 @@ you, and you can't unlock in the middle of a fight.
 
 Setting up takes four steps.
 
-1. Place the Player bar. Drag the bar or its handle strip where you want it, then type `/at lock`.
-   If a bar ever ends up somewhere you can't reach, `/at resetposition` puts every bar back in the
-   middle. The small X on the strip turns that bar off. Tick its box on General → Bars, or type
-   `/at toggle player`, to bring it back.
-2. Turn on Target and Focus. Both ship switched off. Tick **Enable Target Bar** or **Enable Focus
-   Bar** on General → Bars. A Target or Focus bar only draws while you have that unit, but it shows
-   while unlocked even with nothing targeted, so you can drag it into place. Each bar keeps its own
-   position.
-3. Style the bars. The **Unit** picker at the top of the Appearance page picks the bar you're
-   editing, and the Size, Bar, Background, Border and Text tabs sit under it. The bar fill,
-   background, border and text can each take a class color, and it's always the class of that
-   bar's own unit, so the Target bar wears your target's. Target and Focus start with **Use same
-   styling as Player** ticked and follow the Player bar live. Untick it to style one yourself, or
-   press **Copy styling from Player** for a one-time copy.
-4. Decide when the bars show. General → Master controls covers all three at once. **General
-   visibility** picks always, only in combat, only out of combat or never, and master scale and
-   master alpha sit next to it. Master alpha multiplies with each bar's own **Bar opacity**, so 50%
-   under a master alpha of 50% draws at 25%.
+- Place the Player bar. Drag the bar or its handle strip where you want it, then type `/at lock`.
+  If a bar ever ends up somewhere you can't reach, `/at resetposition` puts every bar back in the
+  middle. The small X on the strip turns that bar off. Tick its box on General → Bars, or type
+  `/at toggle player`, to bring it back.
+- Turn on Target and Focus. Both ship switched off. Tick **Enable Target Bar** or **Enable Focus
+  Bar** on General → Bars. A Target or Focus bar only draws while you have that unit, but it shows
+  while unlocked even with nothing targeted, so you can drag it into place. Each bar keeps its own
+  position.
+- Style the bars. The **Unit** picker at the top of the Appearance page picks the bar you're
+  editing, and the Size, Bar, Background, Border and Text tabs sit under it. The bar fill,
+  background, border and text can each take a class color, and it's always the class of that
+  bar's own unit, so the Target bar wears your target's. Target and Focus start with **Use same
+  styling as Player** ticked and follow the Player bar live. Untick it to style one yourself, or
+  press **Copy styling from Player** for a one-time copy.
+- Decide when the bars show. General → Master controls covers all three at once. **General
+  visibility** picks always, only in combat, only out of combat or never, and master scale and
+  master alpha sit next to it. Master alpha multiplies with each bar's own **Bar opacity**, so 50%
+  under a master alpha of 50% draws at 25%.
 
 To see how a real number looks, `/at debug hold 50000` puts a 50K absorb on every visible bar for
 five seconds (add a second number for anywhere from half a second to a minute). The minimap button
@@ -66,12 +66,12 @@ unit. In combat the game can hand that number back as a secret: an addon can pas
 format it for display, but it can't read it or compare it to anything. So Absorb Tracker never
 does math on your shield. It gives the game's number straight to the bar and lets the game draw it.
 
-1. A tracked unit gains or loses a shield (Power Word: Shield, Ice Barrier, a trinket proc,
-   whatever else is up), and the game reports the new total.
-2. The bar fills to that total, measured against the unit's maximum health, with the number written
-   across it in short form (`1.2M`).
-3. Damage and expiry drain it toward 0.
-4. With nothing up, the bar reads 0 and sits empty.
+- A tracked unit gains or loses a shield (Power Word: Shield, Ice Barrier, a trinket proc,
+  whatever else is up), and the game reports the new total.
+- The bar fills to that total, measured against the unit's maximum health, with the number written
+  across it in short form (`1.2M`).
+- Damage and expiry drain it toward 0.
+- With nothing up, the bar reads 0 and sits empty.
 
 At any moment, then, the bar shows how much a unit can take before its health starts dropping.
 
@@ -109,9 +109,9 @@ At any moment, then, the bar shows how much a unit can take before its health st
 
 ## Reporting a bug
 
-1. Type `/at debug on` and reproduce the bug.
-2. Type `/at diagnostics`.
-3. If the debug window isn't open, open it with `/at debug`. Press **Copy**, copy the entire output, and include it with your bug report.
+- Type `/at debug on` and reproduce the bug.
+- Type `/at diagnostics`.
+- If the debug window isn't open, open it with `/at debug`. Press **Copy**, copy the entire output, and include it with your bug report.
 
 The report is added after the debug trace in the same window, so one copy carries both.
 

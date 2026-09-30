@@ -795,10 +795,11 @@ badge and any count quoted in the docs must agree with it.
 - the main page's About content renders on its first OnShow
 - re-rendering the About page replaces its body rather than stacking a second copy
 
-### test_docs.lua (5)
+### test_docs.lua (6)
 
 - README.md carries no angle-bracket argument placeholders
 - README.md carries ## Reporting a bug with the standard's text, placed and pointed at
+- README.md carries no numbered list
 - every Tier 2 documentation-map row agrees with docs/
 - every deviation id the register cites is assigned by a bundle in docs/audits/
 - docs/smoke-tests.md carries a non-English-client section
@@ -894,7 +895,7 @@ badge and any count quoted in the docs must agree with it.
 - diagnostics: a changed setting prints as path = value (default), and the always rows print
 - diagnostics: a secret absorb prints as <secret> and costs no section
 - diagnostics: stood down, the released runtime state says so rather than printing empty
-- diagnostics: the report reads state and changes none of it
+- diagnostics: the sections change nothing, and the run only turns logging on
 - diagnostics: the media rung is read off LSM, never off the path the getter answered
 - diagnostics: the session's rejected events are folded into the report
 - diagnostics: a raising section costs exactly one line and the rest still print
@@ -902,13 +903,32 @@ badge and any count quoted in the docs must agree with it.
 - diagnostics: the chat line is ours to localize and names the line count
 - diagnostics: with the library absent both forms print the one absent line
 
-### test_diagnostics_contract.lua (7)
+### test_debugcoverage.lua (14)
+
+- coverage: a stand-down and a stand-up are one [Life] line each, naming the holds
+- coverage: the stand-down line says whether it dropped a queued repaint
+- coverage: [World] names the loading screen's kind: login, reload or zone change
+- coverage: entering combat unlocked says the bars were re-locked
+- quiet: the absorb read's secret edge is one line each way, however many events
+- quiet: the repaint throttle, the swap and max-health events and the ladder log nothing unchanged
+- coverage: a /at debug hold logs when it holds live repaints and when it lets them go
+- coverage: an in-combat unlock refusal names the guard
+- coverage: a verb the disabled gate refuses is one [Cmd] line; help is not a refusal
+- coverage: /at debug hold names which guard refused it, once
+- coverage: [Init] names missing libraries and a stood-down addon, and nothing on a clean one
+- coverage: the real MissingLibraries answers an array the ui section and [Init] share
+- coverage: a refused event name is one [Events] line, however many syncs refuse it
+- coverage: a unit panel that raises on every render is one [Cfg] line per distinct error
+
+### test_diagnostics_contract.lua (9)
 
 - diagnostics contract: both forms run the report
 - diagnostics contract: the debug word is matched in any case
 - diagnostics contract: both markers carry the brand and the end counts the report
 - diagnostics contract: the report appends after what the console already holds
-- diagnostics contract: the report lands with logging off and leaves it off
+- diagnostics contract: the report lands with logging off and turns it on for the session
+- diagnostics contract: an addon that opts out lands the report and leaves logging off (skipped: this addon keeps the default (Kit.diagnostics.enablesLogging is not false), so its report turns logging on; the case above holds it)
+- diagnostics contract: with logging already on, the report writes no second enable line
 - diagnostics contract: both forms run while the addon is disabled
 - diagnostics contract: no other name runs the report
 
@@ -961,7 +981,7 @@ badge and any count quoted in the docs must agree with it.
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 15 |
 | test_widgets.lua | 57 |
-| test_docs.lua | 5 |
+| test_docs.lua | 6 |
 | test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
 | test_surface_parity.lua | 10 |
@@ -970,7 +990,8 @@ badge and any count quoted in the docs must agree with it.
 | test_events.lua | 5 |
 | test_disabled.lua | 18 |
 | test_diagnostics.lua | 12 |
-| test_diagnostics_contract.lua | 7 |
+| test_debugcoverage.lua | 14 |
+| test_diagnostics_contract.lua | 9 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **819** |
+| **Total** | **836** |

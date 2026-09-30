@@ -184,6 +184,9 @@ local masterOnChange = {
             NS.SetByPath("locked", true)
             unlockGuard = false
             print("Cannot unlock the bars during combat")
+            -- The refusal names its guard (debug-logging-§8): the two [Set] lines above it read
+            -- as an unlock and a re-lock, and this says why.
+            NS.Debug("Set", "locked: unlock refused (in combat)")
             if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
             return
         end

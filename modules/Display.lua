@@ -98,6 +98,9 @@ function NS.ClearPreview()
         if NS.addon and NS.addon.CancelTimer then NS.addon:CancelTimer(previewTimer) end
         previewTimer = nil
     end
+    -- The flush half of debug-logging-§8's deferred work, for a hold ended before its expiry (a
+    -- re-lock, a second hold, a stand-down). The expiry's own line is in HoldPreview.
+    if held then NS.Debug("Bar", "hold cleared early") end
     return held
 end
 
@@ -106,10 +109,15 @@ end
 function NS.HoldPreview(seconds)
     NS.ClearPreview()                       -- a second /at debug hold replaces the first hold, never stacks
     NS.testHoldUntil = GetTime() + seconds
+    -- The hold half of debug-logging-§8's deferred work: live repaints stand down until expiry.
+    NS.Debug("Bar", "hold: live repaints held for %s s", seconds)
     if NS.addon and NS.addon.ScheduleTimer then
         previewTimer = NS.addon:ScheduleTimer(function()
             previewTimer = nil
+            -- Expired, not cleared early: drop the stamp first so ClearPreview does not call it early.
+            NS.testHoldUntil = nil
             NS.ClearPreview()
+            NS.Debug("Bar", "hold expired: repaint published")
             -- The previews overlap: `/at debug hold <value>` can be run with the bars unlocked, and a
             -- repaint stands down there too (see NS.UpdateAbsorbBar). Publishing REPAINT alone
             -- would therefore leave the fake value on the bar for good -- past the window this
