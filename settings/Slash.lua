@@ -124,7 +124,9 @@ NS.COMMANDS = {
         function() runUpdate() end},
     {"version",       "Print the addon version",
         function() print(("v%s"):format(NS.Version())) end},
-    {"profile",       "Profile management \226\128\148 try `/at profile` for the list",
+    -- The collection's `profile` row (LibKa0s-Slash minor 17): a name switches through the library's
+    -- CliProfile, and this addon keeps its own sub-verb tree beside it (runProfile, below).
+    {"profile",       NS.L["List profiles, or switch to one: profile <name>"],
         function(rest) runProfile(rest) end},
 }
 
@@ -459,11 +461,14 @@ end
 -- /at profile
 -- ---------------------------------------------------------------------
 
--- The sub-help rows, in the order they print. One row per sub-verb, and the order is the contract.
+-- The sub-help rows, in the order they print. One row per form, and the order is the contract. The
+-- first is the bare-name form, the library's CliProfile; `use` reaches a profile whose name is also
+-- a sub-verb (a profile called `list`).
 local PROFILE_HELP = {
+    { "<name>",          "Switch to an existing profile" },
     { "list",            "List all profiles" },
     { "current",         "Show current profile name" },
-    { "use <name>",      "Switch to profile" },
+    { "use <name>",      "Switch to an existing profile, even one named like a sub-verb" },
     { "new <name>",      "Create new profile with defaults" },
     { "copy <name>",     "Copy settings from another profile" },
     { "delete <name>",   "Delete a profile" },
@@ -517,9 +522,11 @@ local PROFILE_VERBS = {
         print("Current profile: " .. db:GetCurrentProfile())
     end,
 
-    use = needsName("use", function(db, name)
-        db:SetProfile(name)
-        print("Switched to profile '" .. name .. "'")
+    -- The library's switch (LibKa0s-Slash minor 17): an unknown name is refused with the list and
+    -- never created, the current one says so, and a switch is refused in combat. `use` used to hand
+    -- any name to AceDB's SetProfile, which creates what it is handed, so a typo became a profile.
+    use = needsName("use", function(_, name)
+        cli:ProfileSwitch(name)
     end),
 
     -- `new` only ever makes a profile: an existing name is refused, never switched to and reset,
@@ -571,16 +578,20 @@ function runProfile(rest)
     -- Only the VERB is lowercased. The argument keeps its case — AceDB profile names are
     -- case-sensitive, and folding one would address the wrong profile.
     local sub, subarg = (rest or ""):match("^(%S*)%s*(.*)$")
-    sub = (sub or ""):lower()
+    local verb = (sub or ""):lower()
 
-    if sub == "" then return printProfileHelp() end
-
-    local handler = PROFILE_VERBS[sub]
-    if not handler then
-        print("Unknown profile subcommand '" .. sub .. "'")
+    -- Bare: the library's list (current marked), then this tree's own sub-help.
+    if verb == "" then
+        cli:CliProfile("")
         return printProfileHelp()
     end
-    return handler(db, subarg)
+
+    local handler = PROFILE_VERBS[verb]
+    if handler then return handler(db, subarg) end
+
+    -- Not a sub-verb: the whole remainder is a profile name, case, quotes and spaces as typed, and
+    -- the library parses it. An unknown name is refused there, never created.
+    return cli:CliProfile(rest)
 end
 
 -- ---------------------------------------------------------------------
@@ -618,6 +629,13 @@ if not SlashLib then
         for _, verb in ipairs({ "List", "Get", "Set", "Reset", "ResetAll" }) do
             stub["Cli" .. verb] = absent(verb:lower())
         end
+        -- The profile verb (Slash minor 17, LibKa0s v1.63.0) takes route (b): with the library
+        -- absent there is no store adapter to trust, so both members print the library-absent
+        -- line for `/at profile` and switch nothing. The live instance has both, so the stub
+        -- carries both (tests/test_surface_parity.lua).
+        local absentProfile = absent("profile")
+        stub.CliProfile = absentProfile
+        stub.ProfileSwitch = function() absentProfile(); return false end
         stub.LandingRows = function()
             local out = {}
             for _, e in ipairs(d.commands) do
@@ -667,6 +685,11 @@ cli = SlashLib:New({
     print   = function(line) print(line) end,
     version = NS.Version,
 
+    -- The profile store CliProfile and ProfileSwitch drive (Slash minor 17), asked at CALL time
+    -- because NS.db is built at ADDON_LOADED, after this file. The no-AceDB fallback shape has no
+    -- SetProfile, and the library answers that with its "not available" line.
+    profiles = function() return NS.db end,
+
     -- ── the disabled gate ──────────────────────────────────────────────────────
     --
     -- Asked at DISPATCH time and never cached, which is what makes the command straight after an
@@ -690,7 +713,8 @@ cli = SlashLib:New({
     --                    (`units.<unit>.position`, architecture-§5's named non-setting state).
     --                    Refusing it would withhold from a bar's anchor the repair the schema CLI
     --                    guarantees for every value beside it, purely over where that anchor lives.
-    --   `profile`        is settings management -- list, switch, copy, create, delete, reset. A
+    --   `profile`        is settings management -- list, switch, copy, create, delete, reset. Not in
+    --                    the library's LIVE_VERBS (Slash minor 17 leaves it a host verb). A
     --                    player who turned the addon off to get out from under a broken profile is
     --                    exactly the player who needs to switch away from it.
     --

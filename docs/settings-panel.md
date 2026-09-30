@@ -362,7 +362,7 @@ Each page now declares its body through **`Helpers.SetRenderer(ctx, fn)`** (`lib
 
 `SetRenderer` also owns **when** a page draws — first show, and again on the next show after `Helpers.RefreshAllPanels` marked it dirty while it was hidden (an on-screen page re-renders immediately). That replaced the per-page `rendered` one-shot flags, and it is why every renderer either opens with `Helpers.ClearScroll` or, like `RenderUnitPanel`, does its own.
 
-`tests/test_widgets.lua` drives the General and Appearance panels' `OnShow` under a mocked `InCombatLockdown` and asserts both are covered, neither drew, the Settings window was **not** closed (no `SettingsPanel:Close`, no `HideUIPanel`), and exactly one `COMBAT_LOCKED_NOTICE` line was printed across both shows. The Profiles page is on the same helper but cannot be driven headless — AceDBOptions is absent in the harness, so the page self-skips — and `docs/smoke-tests.md` § C step 13a walks all three in the client.
+`tests/test_widgets.lua` drives the General and Appearance panels' `OnShow` under a mocked `InCombatLockdown` and asserts both are covered, neither drew, the Settings window was **not** closed (no `SettingsPanel:Close`, no `HideUIPanel`), and exactly one `COMBAT_LOCKED_NOTICE` line was printed across both shows. The Profiles page is on the same helper but cannot be driven headless — AceDBOptions is absent in the harness, so the page self-skips — and `docs/smoke-tests.md` COMBAT-4 walks all three in the client.
 
 ## LSM swatch dropdowns
 

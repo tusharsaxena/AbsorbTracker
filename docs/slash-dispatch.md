@@ -13,8 +13,8 @@ a table of its own, `perf` hands its remainder to the perf library, `toggle` par
 
 ## Registration
 
-`Sl:Register` (`settings/Slash.lua:755`) registers both names through AceConsole-3.0, called once
-from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:44`, guarded so a load where
+`Sl:Register` (`settings/Slash.lua:779`) registers both names through AceConsole-3.0, called once
+from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:52`, guarded so a load where
 `settings/Slash.lua` never ran degrades rather than errors):
 
 ```lua
@@ -81,7 +81,7 @@ is gated by default** and has to argue its way onto the list:
 | `debug`, `diagnostics`, `perf` | Diagnostics, not features. The usual reason to reach for any of them is that the addon is misbehaving. `diagnostics` is the standard's thirteenth reserved verb (debug-logging-§14) and arrived on `SlashLib.LIVE_VERBS` with Slash minor 16, so the builder picked it up with no edit here. |
 | `get`, `set`, `list`, `reset`, `resetall` | The schema CLI. Reading and repairing settings is exactly what a player does while the addon is off. |
 | `resetposition` | **This addon's own reading, not the standard's list.** It is `reset` for the one piece of stored state no schema row addresses (`units.<unit>.position`); refusing it would withhold from a bar's anchor the repair the CLI guarantees for every value beside it, purely because of where that anchor is stored. |
-| `profile` | **Also ours.** Settings management — list, switch, copy, create, delete, reset. A player who turned the addon off to get out from under a broken profile is the one who needs to switch away from it. |
+| `profile` | **Also ours.** Settings management — list, switch, copy, create, delete, reset. A player who turned the addon off to get out from under a broken profile is the one who needs to switch away from it, and `/at profile <name>` does that while disabled. Slash minor 17 ships the verb's behavior but leaves `profile` off `SlashLib.LIVE_VERBS`, a host verb each addon argues onto its own `liveVerbs`, which is why it is appended here. |
 
 Everything else refuses: `lock`, `unlock`, `toggle`, `update`. Each draws, shows or hides the thing
 the addon exists to do, which is `§2`'s own definition of a feature verb.
@@ -127,8 +127,10 @@ The library lowercases only the verb; the remainder is passed through untouched.
 here, because every schema path in this addon is camelCase and per-unit —
 `/at set units.target.barWidth 250` is the shipped form, and folding the whole line would address a
 row that does not exist. `/at profile` repeats the rule one level down: `runProfile`
-(`settings/Slash.lua:565`) lowercases the sub-verb and leaves its argument alone, because AceDB
-profile names are case-sensitive and a folded name deletes or switches to the wrong profile.
+(`settings/Slash.lua:572`) lowercases the sub-verb and leaves its argument alone, because AceDB
+profile names are case-sensitive and a folded name deletes or switches to the wrong profile. A first
+word that is not a sub-verb is not lowercased at all: the whole remainder goes to the library's
+`CliProfile` as a profile name.
 
 **Schema paths are fully qualified.** The pre-1.9 unqualified `/at set barWidth 250` is rejected:
 `FindSchemaRow` has no bare-key row for a per-unit setting. Only the eight unit-agnostic rows —
@@ -158,7 +160,7 @@ profile names are case-sensitive and a folded name deletes or switches to the wr
 | `/at perf [sub]` | `runPerf` → `NS.Perf.OnCommand` | The guided perf run. Sub-verbs are the library's; see [performance.md](./performance.md). |
 | `/at update` | `runUpdate` | Publish `MSG.REPAINT`. |
 | `/at version` | inline | `v<version>` from `NS.Version()`. |
-| `/at profile <sub> [name]` | `runProfile` | The sub-verb tree below. |
+| `/at profile [name]`, `/at profile <sub> [name]` | `runProfile` → `cli:CliProfile` or the sub-verb tree | Bare lists the profiles (the library's list, the current one marked) and then prints the sub-help. A name switches to that **existing** profile through `LibKa0s-Slash-1.0`'s `CliProfile` (minor 17); a name that is not stored is refused with the list and never created. A sub-verb runs the tree below. |
 
 ## The sub-verb trees
 
@@ -166,28 +168,42 @@ Four verbs parse a remainder of their own. `profile` and `debug` dispatch throug
 own (`PROFILE_VERBS`, `DEBUG_VERBS`), `perf` hands its remainder on, and `toggle` parses one word;
 `profile` is the one this page is really about.
 
-**`profile`** — `PROFILE_VERBS` (`settings/Slash.lua:506`), a table keyed by the lowercased sub-verb,
-built once at load and dispatched at `:556`:
+**`profile`** — `runProfile` (`settings/Slash.lua:572`) reads the first word of the remainder,
+lowercased, and picks one of three routes (spec S3 of the 2026-09-29 profile-verb run):
+
+1. **Nothing**: `cli:CliProfile("")` prints the library's list (header `Profiles`, one row per
+   profile sorted case-insensitively, the current one marked `(current)`, then the hint row
+   `/at profile <name> switches profile`), and then this tree's own sub-help.
+2. **A sub-verb**, matched case-insensitively: `PROFILE_VERBS` (`:511`), a table keyed by the
+   lowercased sub-verb, built once at load and dispatched at `:589`.
+3. **Anything else**: `cli:CliProfile(rest)` with the whole remainder, case, inner spaces and one
+   pair of surrounding quotes as the library parses them. An existing profile is switched to, the
+   current one answers `Already on profile '<name>'.`, a switch in combat is refused, and a name
+   that is not stored answers `No profile named '<name>'.`, a did-you-mean when exactly one stored
+   name matches in another case, and the list. The verb never creates a profile.
 
 | Sub-verb | Takes a name | What it does |
 |---|---|---|
 | `list` | no | Every profile, the current one marked. |
 | `current` | no | The current profile's name. |
-| `use <name>` | yes | `db:SetProfile(name)`. |
+| `use <name>` | yes | `cli:ProfileSwitch(name)`, the library's switch with the same refusals as route 3. It is how a profile named like a sub-verb (`list`) is reached. It used to hand any name to `db:SetProfile`, which creates a missing profile, so a typo became one. |
 | `new <name>` | yes | `SetProfile` **then** `ResetProfile` — the reset has to land on the new profile, not the one being left behind. |
 | `copy <name>` | yes | `db:CopyProfile(name)`. |
 | `delete <name>` | yes | Refuses the current profile; otherwise `db:DeleteProfile(name, true)` and prints its own line. |
 | `reset` | no | `db:ResetProfile()`. |
 
-A bare `/at profile` prints the sub-help built from `PROFILE_HELP` (`:441`), whose row order is the
-contract — the table is what the help iterates, so the two cannot drift. An unknown sub-verb prints
-`Unknown profile subcommand '<name>'` and then that same help. The four name-taking verbs share one
-guard, `needsName(verb, fn)` (`:460`), which wraps at file load rather than at dispatch: a missing
-name prints `Usage: /at profile <verb> <name>` and the handler never runs, and a dispatch allocates
-nothing. Adding a sub-verb is one `PROFILE_VERBS` entry plus one `PROFILE_HELP` row.
+The sub-help is built from `PROFILE_HELP` (`:467`), whose row order is the contract — the table is
+what the help iterates, so the two cannot drift. Its first row is the bare-name form. The four
+name-taking verbs share one guard, `needsName(verb, fn)` (`:487`), which wraps at file load rather
+than at dispatch: a missing name prints `Usage: /at profile <verb> <name>` and the handler never
+runs, and a dispatch allocates nothing. Adding a sub-verb is one `PROFILE_VERBS` entry plus one
+`PROFILE_HELP` row. The descriptor's `profiles` field hands the library `NS.db`, asked at call time.
+The library logs nothing: the switch's one debug line is `[Profile] changed → <name>`, from the
+addon's `OnProfileChanged` handler, which also repaints the bars and refreshes an open panel.
 
 The whole tree is gated on AceDB: with no `db.SetProfile` the verb prints
 `Profile system requires AceDB-3.0` and stops, rather than indexing a shim that has no profiles.
+`profile` stays live while the addon is disabled (`liveVerbs`, above).
 Detail in [profiles.md](./profiles.md).
 
 **`perf`** — `runPerf` strips nothing and hands the remainder straight to `NS.Perf.OnCommand`, which
@@ -213,7 +229,7 @@ anybody. So bare `toggle` turns everything off if anything is on, and everything
 ## The mirror note
 
 `MirrorNote` (`settings/Slash.lua:58`) is handed to the library through `cli:SetRowAnnotator`
-(`:621`). It appends `(mirrored — the bar shows Player's appearance)` in gray to a row whose unit is
+(`:755`). It appends `(mirrored — the bar shows Player's appearance)` in gray to a row whose unit is
 currently mirroring, and it exists because `/at get` and `/at set` resolve through `NS.GetSetting`,
 which walks the raw profile path and never consults `NS.Units.Get`. They therefore read and write the
 unit's **stored** value, not the mirror-resolved one. That is deliberate and self-consistent — it is
@@ -248,11 +264,13 @@ generic dispatcher knows nothing about.
 ## When the library is absent
 
 `/at` is registered unconditionally, so something has to answer it. With `LibKa0s-Slash-1.0` missing,
-`settings/Slash.lua:600` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
+`settings/Slash.lua:611` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
 a plain help index still render, a bare `/at` still runs the `config` verb exactly as the library
 does, the host verbs — which never went to the library — keep working untouched, and each schema verb
 (`list`, `get`, `set`, `reset`, `resetall`) prints the collection's library-absent line through the
-locale, keyed by its English text (localization-§2):
+locale, keyed by its English text (localization-§2). So do the stub's `CliProfile` and
+`ProfileSwitch` (Slash minor 17), for `/at profile`: with the library absent there is no store
+adapter to trust, so they switch nothing:
 
 ```
 [AT] /at list is unavailable: the LibKa0s library did not load.
@@ -272,7 +290,7 @@ beside it: the value is published as `Sl.__STUB_DISABLED_LINE_FORMAT` and `tests
 compares it with the live library's constant through `Kit.assertLibraryConstant`, so a re-worded
 library line turns the suite red rather than leaving a stale sentence in the stub.
 
-The stub and the real instance are both file-scope locals, which is why `Sl.__cli` (`:696`) is
+The stub and the real instance are both file-scope locals, which is why `Sl.__cli` (`:762`) is
 published under the same `__` convention the options helpers use —
 `tests/test_surface_parity.lua` is its only reader, and a stub surface that cannot be reached cannot
 be compared against the one it stands in for.

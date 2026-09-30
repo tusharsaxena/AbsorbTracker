@@ -3,7 +3,7 @@
 The console is **`LibKa0s-DebugLog-1.0`**'s, wired by `core/DebugLogSetup.lua`: the window, the
 buffer (3000 lines, `lib.MAX_BUFFER`), the **Copy** box, the `on`/`off` seam and the chat
 acknowledgment are the library's, and `/at debug`, `/at debug on` and `/at debug off` drive it the
-way they drive every Ka0s console (`debug-logging`; the in-game walk is section H of
+way they drive every Ka0s console (`debug-logging`; the in-game walk is the DIAG checks of
 [smoke-tests.md](smoke-tests.md)). The descriptor and the instance's surface are in
 [module-map.md](module-map.md#debuglogsetup-coredebuglogsetuplua).
 

@@ -233,8 +233,8 @@ end)
 -- COVERAGE WENT UP ON THE SWAP. This file's version walked a glob of the addon's own source. The
 -- kit's reads the tracked set out of git, so the TOC, the docs, the locale files and .luacheckrc
 -- are held to the same rule, and its exclusions are a named list rather than whatever the glob
--- happened to miss. Anything this repo must NOT correct goes in tests/prose_waivers.lua, per file
--- and per word, with the reason beside it.
+-- happened to miss. Anything this repo must NOT correct would go in an optional tests/prose_waivers.lua (none today),
+-- per file and per word, with the reason beside it.
 
 -- ── The smoke suite's non-English-client section ───────────────────────────────
 

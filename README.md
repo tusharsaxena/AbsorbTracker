@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-810%2F810_passing-green)
+![Tests](https://img.shields.io/badge/Tests-819%2F819_passing-green)
 
 Ka0s Absorb Tracker shows your absorb shields as a movable bar. It adds every shield on the unit
 into one number, so a glance tells you how much damage you can eat before your health starts
@@ -85,7 +85,7 @@ At any moment, then, the bar shows how much a unit can take before its health st
 | Can the Target/Focus bar match my Player bar automatically? | Yes, tick **Use same styling as Player**. It's a live link, so anything you change on the Player bar carries over at once. Uncheck it when you want to style that bar on its own, or use **Copy styling from Player** for a one-time copy you can then take in your own direction. |
 | How do I move a bar? | Type `/at unlock`, drag the bar you want where you want it, then `/at lock`. Each bar remembers its own position, and `/at resetposition` snaps all of them back to their default spots. Unlocking also brings up the Target and Focus bars with nothing targeted, so you can place those too. |
 | Can I show the bars only while I'm fighting? | Yes. Set **General visibility** to *Only in combat* on **General → Master controls**. Every enabled bar then hides out of combat and comes back the moment you enter combat. |
-| Can I have different setups? | Yes. Use the Profiles page in the settings panel to save and switch between setups. New characters start on the shared **Default** profile, so your changes carry over until you choose a separate setup. |
+| Can I have different setups? | Yes. Use the Profiles page in the settings panel to save and switch between setups, or type `/at profile Name` to switch to one you have saved (`/at profile` lists them). New characters start on the shared **Default** profile, so your changes carry over until you choose a separate setup. |
 | Why is my bar empty? | The fill only shows a value when that unit has an absorb up. With no shield it sits empty, but the background and border stay where you placed them. |
 | Why won't the settings panel open in combat? | WoW doesn't let addons change settings screens while you're fighting, so `/at config` answers with a gray "cannot open settings during combat" line instead. Run it again once you're out of combat and it opens normally. |
 | What is the "Update throttle" setting for? | The bar redraws the moment a shield changes, not on a timer. The throttle only caps how fast it can repaint during a burst of rapid changes. The default suits almost everyone, so you'll rarely need to touch it. |

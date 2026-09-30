@@ -22,8 +22,9 @@ NS.L = setmetatable(NS.L or {}, { __index = function(_, k) return k end })
 -- three tooltips and its close mark's chat line; and the library-absent line (slash-commands-§1),
 -- one sentence with one placeholder, the full verb, which settings/Slash.lua's library-absent
 -- stub prints for each schema verb it cannot run. (The minimap tooltip's left-click hint left
--- with LibKa0s-Launcher minor 4, whose hints and menu are the library's own strings.) Every key
--- below is read by one of those two -- enUS.lua carries no key nothing reads (localization-§3)
+-- with LibKa0s-Launcher minor 4, whose hints and menu are the library's own strings.) So are the
+-- `diagnostics` and `profile` rows of `/at help` and the diagnostics chat line. Every key below is
+-- read by one of those -- enUS.lua carries no key nothing reads (localization-§3)
 -- -- and the English-only register row is otherwise unchanged: the rest of the addon's strings are
 -- still hardcoded, and a future pass wraps them here without touching call sites.
 
@@ -67,6 +68,11 @@ L["Write a diagnostics report to the debug console"] =
     "Write a diagnostics report to the debug console"
 L["Diagnostic report written to the debug console: %d lines. Use Copy to share it."] =
     "Diagnostic report written to the debug console: %d lines. Use Copy to share it."
+
+-- The `profile` row in `/at help` and on the About page (settings/Slash.lua): the collection's
+-- one description for the verb (LibKa0s-Slash minor 17).
+L["List profiles, or switch to one: profile <name>"] =
+    "List profiles, or switch to one: profile <name>"
 
 -- The library-absent line: `%s` is the full verb, e.g. `/at list` (settings/Slash.lua's stub).
 L["%s is unavailable: the LibKa0s library did not load."] =
