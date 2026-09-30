@@ -894,7 +894,7 @@ badge and any count quoted in the docs must agree with it.
 - diagnostics: a changed setting prints as path = value (default), and the always rows print
 - diagnostics: a secret absorb prints as <secret> and costs no section
 - diagnostics: stood down, the released runtime state says so rather than printing empty
-- diagnostics: the report reads state and changes none of it
+- diagnostics: the sections change nothing, and the run only turns logging on
 - diagnostics: the media rung is read off LSM, never off the path the getter answered
 - diagnostics: the session's rejected events are folded into the report
 - diagnostics: a raising section costs exactly one line and the rest still print

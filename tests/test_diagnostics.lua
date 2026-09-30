@@ -184,7 +184,7 @@ test("diagnostics: stood down, the released runtime state says so rather than pr
   assertTrue(find(lines, "[Unit] player: enabled=true") ~= nil, "configuration still prints")
 end)
 
-test("diagnostics: the report reads state and changes none of it", function()
+test("diagnostics: the sections change nothing, and the run only turns logging on", function()
   -- debug-logging-§14 (STD-05): no hold, no event, no timer, no stand-up, no settings panel, no
   -- Clear. Snapshotted around the REAL run, which writes into the console and prints its chat line.
   -- red under: a section that calls NS.RequestRepaint, OpenOptionsPanel, SyncUnitEventFrames or a
