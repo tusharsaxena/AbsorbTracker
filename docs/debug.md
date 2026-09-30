@@ -10,6 +10,11 @@ way they drive every Ka0s console (`debug-logging`; the in-game walk is the DIAG
 This page covers what the library does not: the **diagnostics report**, whose sections this addon
 writes, the two addon-owned `debug` words, and the trace tags this addon logs under.
 
+The console's title bar also carries the library's orange **Diagnostics** link, just right of the
+Debug On/Off label; a click runs the same report, `NS.DebugLog:RunDiagnostics()`. Running the
+report, by either slash form or the link, also **turns debug logging on for the session**
+(`debug-logging-§14`), as `/at debug on` would; a `/reload` turns it off again.
+
 | Verb | Runs | Console tag | Answers |
 |---|---|---|---|
 | `/at diagnostics` or `/at debug diagnostics` | `NS.DebugLog:RunDiagnostics()` over `NS.Diagnostics.Sections()` (`modules/Diagnostics.lua`) | `[Diag]` markers, one tag per section | Everything a maintainer asks first: build, state, settings, each bar's show ladder, frames, media, colors, the absorb readout, events, the repaint throttle, the combat counters and the UI |
@@ -23,10 +28,11 @@ own `diagnostics` row as well. `runDebug` tests `diagnostics` first, then `on`, 
 ## The raw-append rule
 
 The report writes through the library's raw append (`NS.DebugLog:Add(tag, line)`, which
-`RunDiagnostics` calls), and **not** through the gated sink `NS.Debug`. So it prints whether logging
-is on or off: you do not need `/at debug on` first, and turning logging on adds nothing to it. A
+`RunDiagnostics` calls), and **not** through the gated sink `NS.Debug`. So it lands in full whatever
+the flag said: you do not need `/at debug on` first, and turning logging on adds nothing to it. A
 report the player asked for is not idle cost, and a console that stays empty because the flag
-happened to be off reads as a broken verb (`debug-logging-§4`).
+happened to be off reads as a broken verb (`debug-logging-§4`). The run turns logging on anyway
+(see **What it does to the console** below), so the next reproduction is traced as well.
 
 Two consequences follow:
 
@@ -50,8 +56,14 @@ left behind travel in one **Copy**.
 `/at debug diag` is an ordinary unknown word, which toggles the console like any other, and
 `/at diag` is an unknown command.
 
-**What it does to the console.** It never clears it, and it never changes the logging flag, only
-prints it. It shows the console if it was hidden. Then it prints one chat line, the only localized
+**What it does to the console.** It never clears it. When logging is off it **turns logging on for
+the session** first, through the flag's one seam (`NS.DebugLog:SetEnabled(true)`), so the chat
+`debug logging ON` line, `[Debug] logging enabled` and the `[Init]` summary land just above the
+begin marker and the identity header reads `debug logging: on`. It never turns logging off, and with
+logging already on it writes no second enable line; a `/reload` turns it off again, as it always
+does. This addon keeps the library's default (its descriptor does not set
+`diagnosticsEnablesLogging = false`). The sections themselves only print the flag and never change
+it. The report shows the console if it was hidden. Then it prints one chat line, the only localized
 line of the report: *Diagnostic report written to the debug console: N lines. Use Copy to share it.*
 
 **The shape.** The library writes the frame and this addon writes the sections, in this order:
@@ -96,7 +108,8 @@ down`. Stored configuration (settings, units, media, colors) prints as normal.
 
 **What it deliberately does not read or call.**
 
-- **No writes and no machinery.** No setter or `NS.SetByPath`, no bus publish, no
+- **No writes and no machinery** in any section (the run's one write is the session logging flag,
+  above). No setter or `NS.SetByPath`, no bus publish, no
   `NS.RequestRepaint`, no `SyncUnitEventFrames`, no Lifecycle hold, no timer, no `Show`/`Hide`, no
   `OpenOptionsPanel`, and never `Clear()`. It reads through the four read-only seams (`NS.VisibilityReason`,
   `NS.LastAppliedVisibility`, `NS.IsRepaintPending`, `NS.SessionCounters`) and through getters.
@@ -160,7 +173,8 @@ of the refusal, not a second message to the player.
 For any bug, follow the README's **Reporting a bug** steps: `/at debug on`, reproduce the problem,
 run `/at diagnostics`, then open the console with `/at debug` if it is not already open, press
 **Copy** and include the entire output with the report. That one copy holds the trace and the whole
-report, and the report already carries what `/at debug events` prints.
+report, and the report already carries what `/at debug events` prints. A report run before
+reproducing leaves logging on, so what follows it is traced too.
 
 - For a bar that is missing or showing when it should not, run the report **while the bar is in
   that state**: the `units` section names the rung of the show ladder that decided it.
