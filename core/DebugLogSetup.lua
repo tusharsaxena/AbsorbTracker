@@ -93,6 +93,27 @@ if not lib then
     return
 end
 
+-- What the [Init] summary adds only when it has something to say, so a clean session's line stays
+-- as it was: the events the client refused, the stand-down holds (the addon's own enable state at
+-- the moment logging starts, debug-logging-§8's state edge) and the libraries this install is
+-- missing (§8's dependency line, said once, when logging is switched on).
+local function initSuffix()
+    local parts = {}
+    local rejected = NS.State and NS.State.rejectedEvents
+    if type(rejected) == "table" and #rejected > 0 then
+        parts[#parts + 1] = (", rejected events: %d"):format(#rejected)
+    end
+    if NS.lifecycle and NS.lifecycle:IsDown() then
+        parts[#parts + 1] = ", stood down (holds: " .. table.concat(NS.lifecycle:Holds(), ", ") .. ")"
+    end
+    local missing = NS.Diagnostics and NS.Diagnostics.MissingLibraries
+        and NS.Diagnostics.MissingLibraries() or {}
+    if #missing > 0 then
+        parts[#parts + 1] = ", missing libraries: " .. table.concat(missing, ", ")
+    end
+    return table.concat(parts)
+end
+
 NS.DebugLog = lib:New({
     -- Seeds AbsorbTrackerDebugWindow / AbsorbTrackerDebugCopyWindow / …DebugCopyScroll. Two hosts
     -- sharing a name would clobber each other's globals and each other's Esc handler.
@@ -130,12 +151,7 @@ NS.DebugLog = lib:New({
         local line = ("%s v%s, schema v%s, profile '%s'"):format(
             NS.SafeToString(NS.name), NS.SafeToString(NS.version),
             NS.SafeToString(schemaVer or "?"), NS.SafeToString(profile or "?"))
-        -- Only when something was refused: a clean session's [Init] line stays as it was.
-        local rejected = NS.State and NS.State.rejectedEvents
-        if type(rejected) == "table" and #rejected > 0 then
-            line = line .. (", rejected events: %d"):format(#rejected)
-        end
-        return line
+        return line .. initSuffix()
     end,
 
     -- The General page's console checkbox mirrors the window's visibility, so a console opened from

@@ -319,10 +319,17 @@ end
 function runHold(rest)
     -- `debug` is a live verb (slash-commands-§2), so the library's gate never sees this one. A hold
     -- paints the bars, which is a feature, so it refuses on the collection's one line itself.
-    if NS.GetSetting("enabled") == false then return print(Sl:DisabledLine()) end
+    -- Each refusal names its guard in the log as well as in chat (debug-logging-§8).
+    if NS.GetSetting("enabled") == false then
+        NS.Debug("Cmd", "debug hold refused: addon disabled")
+        return print(Sl:DisabledLine())
+    end
 
     local n, secs = parseHold(rest)
-    if not n then return print(HOLD_USAGE) end
+    if not n then
+        NS.Debug("Cmd", "debug hold refused: bad arguments '%s'", rest or "")
+        return print(HOLD_USAGE)
+    end
 
     -- Nothing to paint if every bar is off. Checks `enabled` per unit rather than a master
     -- toggle — there is no `hidden` global any more (schema v4).
@@ -331,6 +338,7 @@ function runHold(rest)
         if NS.Units.IsEnabled(unit) then anyEnabled = true break end
     end
     if not anyEnabled then
+        NS.Debug("Cmd", "debug hold refused: every bar disabled")
         return print("Every bar is disabled; run /at toggle to turn them on before testing")
     end
 
@@ -397,6 +405,7 @@ function runToggle(rest)
 
     if token ~= "" then
         if not NS.Units.LABEL[token] then
+            NS.Debug("Cmd", "toggle refused: unknown unit '%s'", token)
             local names = table.concat(NS.Units.LIST, ", ")
             return print(("unknown unit '%s' \226\128\148 expected one of: %s"):format(token, names))
         end
@@ -673,6 +682,22 @@ if not SlashLib then
     end
 end
 
+-- The library's disabled gate answers a refused verb with the disabled line and nothing else, so
+-- that line arriving FIRST in a dispatch is the refusal (help and an unknown word lead with other
+-- lines). The dispatcher's printer notes it once as a [Cmd] line naming the guard
+-- (debug-logging-§8), and reads the gate's own line rather than a second copy of its rule. The verb
+-- is recorded only while logging is on, so with it off this costs one nil test per printed line.
+local dispatchVerb
+local function dispatchPrint(line)
+    if dispatchVerb then
+        if line == cli:DisabledLine() then
+            NS.Debug("Cmd", "%s refused: addon disabled", dispatchVerb)
+        end
+        dispatchVerb = nil
+    end
+    print(line)
+end
+
 -- Build the dispatcher now that NS.COMMANDS exists. The table is passed IN, not owned: the About
 -- page renders the same one, and a library that owned it would drag the options library into
 -- depending on this one.
@@ -682,7 +707,7 @@ cli = SlashLib:New({
     commands     = NS.COMMANDS,
     aliases      = { options = "config" },   -- backward-compat: `/at options` -> `/at config`
 
-    print   = function(line) print(line) end,
+    print   = dispatchPrint,
     version = NS.Version,
 
     -- The profile store CliProfile and ProfileSwitch drive (Slash minor 17), asked at CALL time
@@ -772,7 +797,9 @@ function Sl:DisabledLine() return cli:DisabledLine() end
 function Sl:LandingRows() return cli:LandingRows() end
 
 function Sl:OnSlash(msg)
+    dispatchVerb = NS.State and NS.State.debug and ((msg or ""):match("^%s*(%S+)") or ""):lower() or nil
     cli:OnSlash(msg)
+    dispatchVerb = nil
 end
 
 

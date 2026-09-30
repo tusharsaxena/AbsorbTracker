@@ -154,6 +154,9 @@ Kit.run{
     -- 27), wired through Kit.diagnostics above. Both after test_disabled, because both drive the
     -- addon through the disabled state and put it back.
     "test_diagnostics",
+    -- The debug log's coverage and quiet steady state (debug-logging-§8, §9). After
+    -- test_diagnostics, on the shared environment: it takes the addon down and back up.
+    "test_debugcoverage",
     { name = "test_diagnostics_contract", dir = "tests/_kit/" },
     -- Shipped in the kit, so every consumer inherits the gate instead of re-typing it; the
     -- inventory assertion goes red in any repo that vendors it and leaves it undeclared.

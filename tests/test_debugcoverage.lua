@@ -1,0 +1,315 @@
+-- tests/test_debugcoverage.lua — the debug log's coverage (debug-logging-§8) and its quiet steady
+-- state (debug-logging-§9).
+--
+-- The 060 audit (DL-AT-02) added the lines a support read of a pasted log needs beyond the flows:
+-- the addon's own stand-down and stand-up edges, the loading-screen kind, the combat re-lock, the
+-- readable/secret edge of the absorb read, each held and flushed `/at debug hold`, the refusals
+-- that name their guard, the dependency and enable state in the [Init] summary, and a caught
+-- error once per distinct message. Each case below pins one of those, with what goes red without it.
+--
+-- The other half is §9's quiet steady state: a repeating path must not log when nothing it reports
+-- changed. Every repeating path this addon has is exercised N times with no change and must append
+-- nothing (or, for the secret edge, exactly its one line).
+--
+-- Runs after test_diagnostics, on the shared environment, and puts back what it changes: the
+-- enable flag, the lock, the debug flag, the kit's bad-event table and the rejected list.
+
+local T = _G.AT_TEST
+local NS, M = T.NS, T.mocks
+local test, assertEqual, assertTrue = T.test, T.assertEqual, T.assertTrue
+
+--- The debug lines `fn` appends, with logging on for its duration.
+local function debugLines(fn)
+  local before = #NS.DebugLog.buffer
+  NS.State.debug = true
+  local ok, err = pcall(fn)
+  NS.State.debug = false
+  if not ok then error(err, 0) end
+  local out = {}
+  for i = before + 1, #NS.DebugLog.buffer do out[#out + 1] = NS.DebugLog.buffer[i] end
+  return out
+end
+
+local function joined(lines) return table.concat(lines, " | ") end
+
+--- How many of `lines` contain `needle` (plain find).
+local function count(lines, needle)
+  local n = 0
+  for _, l in ipairs(lines) do
+    if l:find(needle, 1, true) then n = n + 1 end
+  end
+  return n
+end
+
+--- Run a slash line with chat swallowed.
+local function slash(line)
+  local cf = M.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function() end
+  local ok, err = pcall(NS.Slash.OnSlash, NS.Slash, line)
+  cf.AddMessage = old
+  if not ok then error(err, 0) end
+end
+
+--- Run `fn` with the addon disabled, and bring it back up whatever happens.
+local function whileDisabled(fn)
+  NS.SetByPath("enabled", false)
+  local ok, err = pcall(fn)
+  NS.SetByPath("enabled", true)
+  M.__fireTimers()
+  if not ok then error(err, 0) end
+end
+
+-- ── state edges ────────────────────────────────────────────────────────────────────────────
+
+test("coverage: a stand-down and a stand-up are one [Life] line each, naming the holds", function()
+  -- red under: dropping the NS.Debug line from StandDown or StandUp in core/Lifecycle.lua. Without
+  -- them a log from a player who switched the addon off shows bars vanishing and no reason why.
+  NS.SetByPath("enabled", true)
+  local down = debugLines(function() NS.SetByPath("enabled", false) end)
+  local up = debugLines(function() NS.SetByPath("enabled", true) end)
+  M.__fireTimers()
+  assertEqual(count(down, "[Life] stood down (holds: disabled)"), 1, joined(down))
+  assertEqual(count(up, "[Life] stood up:"), 1, joined(up))
+end)
+
+test("coverage: the stand-down line says whether it dropped a queued repaint", function()
+  -- red under: StandDown discarding CancelPendingRepaint's answer (the line would always say no).
+  NS.SetByPath("enabled", true)
+  M.__fireTimers()
+  NS.RequestRepaint()
+  assertTrue(NS.IsRepaintPending(), "a repaint is queued before the stand-down")
+  local down = debugLines(function() NS.SetByPath("enabled", false) end)
+  NS.SetByPath("enabled", true)
+  M.__fireTimers()
+  assertEqual(count(down, "pending repaint dropped=yes"), 1, joined(down))
+end)
+
+test("coverage: [World] names the loading screen's kind: login, reload or zone change", function()
+  -- red under: the old bare `entering world` line, which reads the same for all three.
+  local lines = debugLines(function()
+    NS.addon:OnEnterWorld("PLAYER_ENTERING_WORLD", true, false)
+    NS.addon:OnEnterWorld("PLAYER_ENTERING_WORLD", false, true)
+    NS.addon:OnEnterWorld("PLAYER_ENTERING_WORLD", false, false)
+  end)
+  M.__fireTimers()
+  assertEqual(count(lines, "[World] entering world (login)"), 1, joined(lines))
+  assertEqual(count(lines, "[World] entering world (reload)"), 1, joined(lines))
+  assertEqual(count(lines, "[World] entering world (zone change)"), 1, joined(lines))
+end)
+
+test("coverage: entering combat unlocked says the bars were re-locked", function()
+  -- red under: logging a bare `entered` on both branches of OnEnterCombat.
+  T.rawSet("locked", false)
+  local lines = debugLines(function() NS.addon:OnEnterCombat() end)
+  local plain = debugLines(function() NS.addon:OnEnterCombat() end)
+  M.__fireTimers()
+  assertEqual(count(lines, "[Combat] entered: bars re-locked"), 1, joined(lines))
+  assertEqual(count(plain, "re-locked"), 0, "already locked: " .. joined(plain))
+  assertEqual(count(plain, "[Combat] entered"), 1, joined(plain))
+end)
+
+--- A combat secret as far as a headless run can make one: it survives `..`, and raises on every
+--- comparison, so a trace that compared it would fail here.
+local function secret()
+  local function refuse() error("attempted arithmetic or comparison on a secret value", 2) end
+  return setmetatable({}, {
+    __concat = function() return "secret-propagated" end,
+    __lt = refuse, __le = refuse, __add = refuse, __sub = refuse, __mul = refuse,
+    __div = refuse, __unm = refuse,
+  })
+end
+
+test("quiet: the absorb read's secret edge is one line each way, however many events", function()
+  -- red under: logging the secret state per event (twenty lines here) or not at all (a Mythic+ log
+  -- with no [Absorb] line and nothing saying why). The one-line-per-edge is debug-logging-§9's
+  -- quiet steady state on the addon's highest-frequency path.
+  local saved = M.UnitGetTotalAbsorbs
+  local s = secret()
+  local lines = debugLines(function()
+    M.UnitGetTotalAbsorbs = function() return 5000 end
+    NS.addon:OnAbsorbChanged(nil, "player")
+    M.UnitGetTotalAbsorbs = function() return s end
+    for _ = 1, 20 do NS.addon:OnAbsorbChanged(nil, "player") end
+    M.UnitGetTotalAbsorbs = function() return 5000 end
+    for _ = 1, 20 do NS.addon:OnAbsorbChanged(nil, "player") end
+  end)
+  M.UnitGetTotalAbsorbs = saved
+  M.__fireTimers()
+  assertEqual(count(lines, "[Absorb] reads secret"), 1, joined(lines))
+  assertEqual(count(lines, "[Absorb] reads readable again"), 1, joined(lines))
+  assertEqual(#lines, 2, "nothing else on an unchanged value: " .. joined(lines))
+end)
+
+test("quiet: the repaint throttle, the swap and max-health events and the ladder log nothing unchanged", function()
+  -- red under: any per-pass line on these paths. Each fires many times a second in combat, and a
+  -- line per pass (even one the console folds into `(xN)`) evicts the lines that matter from the
+  -- 3000-line buffer before the reporter reaches Copy (debug-logging-§9, anti-patterns #91).
+  NS.SetByPath("enabled", true)
+  M.__fireTimers()
+  NS.ForEachUnit(NS.ApplyVisibility)       -- settle the last-applied state first
+  local lines = debugLines(function()
+    for _ = 1, 10 do
+      NS.RequestRepaint()
+      M.__fireTimers()
+      NS.addon:OnMaxHealthChanged("UNIT_MAXHEALTH", "player")
+      NS.ForEachUnit(NS.ApplyVisibility)
+      M.__fireTimers()
+    end
+  end)
+  assertEqual(#lines, 0, "steady state appended: " .. joined(lines))
+end)
+
+-- ── deferred work ──────────────────────────────────────────────────────────────────────────
+
+test("coverage: a /at debug hold logs when it holds live repaints and when it lets them go", function()
+  -- red under: dropping either line in modules/Display.lua. A held-then-never-flushed hold is what
+  -- a "the bar froze on a number" report looks like, and the pair is the evidence (§8).
+  local expired = debugLines(function()
+    NS.HoldPreview(5)
+    M.__now = M.__now + 6
+    M.__fireTimers()
+  end)
+  assertEqual(count(expired, "[Bar] hold: live repaints held for 5 s"), 1, joined(expired))
+  assertEqual(count(expired, "[Bar] hold expired"), 1, joined(expired))
+  assertEqual(count(expired, "cleared early"), 0, "an expiry is not an early clear: " .. joined(expired))
+
+  local early = debugLines(function()
+    NS.HoldPreview(5)
+    NS.ClearPreview()
+  end)
+  M.__fireTimers()
+  assertEqual(count(early, "[Bar] hold cleared early"), 1, joined(early))
+end)
+
+-- ── refusals name their guard ──────────────────────────────────────────────────────────────
+
+test("coverage: an in-combat unlock refusal names the guard", function()
+  -- red under: dropping the [Set] refusal line in settings/General.lua; the log then shows an
+  -- unlock and a re-lock back to back with nothing saying why.
+  T.rawSet("locked", true)
+  local saved = M.InCombatLockdown
+  M.InCombatLockdown = function() return true end
+  local ok, lines = pcall(debugLines, function() NS.SetByPath("locked", false) end)
+  M.InCombatLockdown = saved
+  M.__fireTimers()
+  assertTrue(ok, tostring(lines))
+  assertEqual(count(lines, "[Set] locked: unlock refused (in combat)"), 1, joined(lines))
+end)
+
+test("coverage: a verb the disabled gate refuses is one [Cmd] line; help is not a refusal", function()
+  -- red under: the dispatcher's printer no longer noting the gate's line (settings/Slash.lua), or
+  -- noting every disabled line, which would call the help index's notice a refusal.
+  local refused, help
+  whileDisabled(function()
+    refused = debugLines(function() slash("toggle") end)
+    help = debugLines(function() slash("help") end)
+  end)
+  assertEqual(count(refused, "[Cmd] toggle refused: addon disabled"), 1, joined(refused))
+  assertEqual(count(help, "refused"), 0, joined(help))
+end)
+
+test("coverage: /at debug hold names which guard refused it, once", function()
+  -- red under: dropping any of the three [Cmd] lines in runHold.
+  local disabled
+  whileDisabled(function()
+    disabled = debugLines(function() slash("debug hold 5000") end)
+  end)
+  assertEqual(count(disabled, "[Cmd] debug hold refused: addon disabled"), 1, joined(disabled))
+  assertEqual(count(disabled, "refused"), 1, "one refusal line, not two: " .. joined(disabled))
+  local bad = debugLines(function() slash("debug hold 5000 99") end)
+  assertEqual(count(bad, "[Cmd] debug hold refused: bad arguments"), 1, joined(bad))
+  local unknown = debugLines(function() slash("toggle nosuchunit") end)
+  assertEqual(count(unknown, "[Cmd] toggle refused: unknown unit 'nosuchunit'"), 1, joined(unknown))
+end)
+
+-- ── dependencies and enable state, once, in [Init] ────────────────────────────────────────
+
+--- The [Init] line `/at debug on` writes, with MissingLibraries answering `missing`.
+local function initLine(missing)
+  local D = NS.Diagnostics
+  local real = D.MissingLibraries
+  D.MissingLibraries = function() return missing end
+  local before = #NS.DebugLog.buffer
+  local ok, err = pcall(NS.DebugLog.SetEnabled, NS.DebugLog, true)
+  NS.DebugLog:SetEnabled(false)
+  D.MissingLibraries = real
+  if not ok then error(err, 0) end
+  for i = before + 1, #NS.DebugLog.buffer do
+    local l = NS.DebugLog.buffer[i]
+    if l:find("[Init]", 1, true) then return l end
+  end
+  return nil
+end
+
+local function quietly(fn)
+  local cf = M.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function() end
+  local ok, res = pcall(fn)
+  cf.AddMessage = old
+  if not ok then error(res, 0) end
+  return res
+end
+
+test("coverage: [Init] names missing libraries and a stood-down addon, and nothing on a clean one", function()
+  -- red under: dropping initSuffix's two new parts (core/DebugLogSetup.lua). The flag is off at
+  -- login, so the moment logging is switched on is the one place a dependency or the addon's own
+  -- enable state can be said once (debug-logging-§8).
+  NS.SetByPath("enabled", true)
+  local clean = quietly(function() return initLine({}) end)
+  assertTrue(clean ~= nil, "an [Init] line was written")
+  assertEqual(clean:find("missing libraries", 1, true), nil, clean)
+  assertEqual(clean:find("stood down", 1, true), nil, clean)
+
+  local missing = quietly(function() return initLine({ "LibDBIcon-1.0" }) end)
+  assertTrue(missing:find("missing libraries: LibDBIcon-1.0", 1, true) ~= nil, missing)
+
+  local down
+  whileDisabled(function() down = quietly(function() return initLine({}) end) end)
+  assertTrue(down:find("stood down (holds: disabled)", 1, true) ~= nil, down)
+end)
+
+test("coverage: the real MissingLibraries answers an array the ui section and [Init] share", function()
+  local list = NS.Diagnostics.MissingLibraries()
+  assertEqual(type(list), "table")
+  assertTrue(list ~= NS.Diagnostics.MissingLibraries(), "a fresh array each call")
+end)
+
+-- ── caught errors, once per distinct error ─────────────────────────────────────────────────
+
+test("coverage: a refused event name is one [Events] line, however many syncs refuse it", function()
+  -- red under: noteRejected logging on every refusal (core/AbsorbTracker.lua). SyncUnitEventFrames
+  -- runs on every UNITS message, so a retired name would otherwise log on every toggle.
+  local lines = debugLines(function()
+    M.__badEvents = { UNIT_MAXHEALTH = true }
+    for _ = 1, 5 do
+      for _, f in pairs(NS.addon.__unitEventFrames or {}) do f:UnregisterAllEvents() end
+      NS.addon:SyncUnitEventFrames()
+    end
+  end)
+  M.__badEvents = {}
+  local list = NS.State.rejectedEvents
+  for i = #list, 1, -1 do list[i] = nil end
+  NS.addon:SyncUnitEventFrames()
+  assertEqual(count(lines, "[Events] rejected UNIT_MAXHEALTH"), 1, joined(lines))
+end)
+
+test("coverage: a unit panel that raises on every render is one [Cfg] line per distinct error", function()
+  -- red under: dropping lastRenderError's comparison in settings/UnitPanel.lua (a panel that raises
+  -- on every refresh would log once per refresh), or dropping the line (the error is chat-only).
+  local H = NS.Helpers
+  assertTrue(type(H.RenderUnitPanel) == "function", "the entry point is published")
+  assertTrue(NS.AceGUI ~= nil, "AceGUI is loaded, so the render runs")
+  local realClear = H.ClearScroll
+  H.ClearScroll = function() error("planted render failure", 0) end
+  local ok, lines = pcall(debugLines, function()
+    quietly(function()
+      for _ = 1, 3 do H.RenderUnitPanel({}, "appearance") end
+    end)
+  end)
+  H.ClearScroll = realClear
+  assertTrue(ok, tostring(lines))
+  assertEqual(count(lines, "[Cfg] unit panel render failed (appearance): planted render failure"), 1,
+    joined(lines))
+end)

@@ -296,11 +296,18 @@ local function uiSection(out)
     out:add("UI", "settings panel open=%s", open and true or false)
     local L = NS.Launcher
     out:add("UI", "launcher: registered=%s shown=%s", L and L:IsRegistered(), L and L:IsShown())
+    out:joined("UI", "libraries missing:", D.MissingLibraries())
+end
+
+--- The libraries from LIBRARIES this install does not have, as a fresh array. Shared by the `ui`
+--- section and the [Init] summary (core/DebugLogSetup.lua), which is debug-logging-§8's dependency
+--- line: said once, when logging is switched on, rather than on each call that consults a library.
+function D.MissingLibraries()
     local missing = {}
     for _, major in ipairs(LIBRARIES) do
         if not (LibStub and LibStub(major, true)) then missing[#missing + 1] = major end
     end
-    out:joined("UI", "libraries missing:", missing)
+    return missing
 end
 
 local SECTIONS = {

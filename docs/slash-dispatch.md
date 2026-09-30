@@ -13,8 +13,8 @@ a table of its own, `perf` hands its remainder to the perf library, `toggle` par
 
 ## Registration
 
-`Sl:Register` (`settings/Slash.lua:779`) registers both names through AceConsole-3.0, called once
-from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:52`, guarded so a load where
+`Sl:Register` (`settings/Slash.lua:806`) registers both names through AceConsole-3.0, called once
+from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:56`, guarded so a load where
 `settings/Slash.lua` never ran degrades rather than errors):
 
 ```lua
@@ -127,7 +127,7 @@ The library lowercases only the verb; the remainder is passed through untouched.
 here, because every schema path in this addon is camelCase and per-unit —
 `/at set units.target.barWidth 250` is the shipped form, and folding the whole line would address a
 row that does not exist. `/at profile` repeats the rule one level down: `runProfile`
-(`settings/Slash.lua:572`) lowercases the sub-verb and leaves its argument alone, because AceDB
+(`settings/Slash.lua:581`) lowercases the sub-verb and leaves its argument alone, because AceDB
 profile names are case-sensitive and a folded name deletes or switches to the wrong profile. A first
 word that is not a sub-verb is not lowercased at all: the whole remainder goes to the library's
 `CliProfile` as a profile name.
@@ -168,7 +168,7 @@ Four verbs parse a remainder of their own. `profile` and `debug` dispatch throug
 own (`PROFILE_VERBS`, `DEBUG_VERBS`), `perf` hands its remainder on, and `toggle` parses one word;
 `profile` is the one this page is really about.
 
-**`profile`** — `runProfile` (`settings/Slash.lua:572`) reads the first word of the remainder,
+**`profile`** — `runProfile` (`settings/Slash.lua:581`) reads the first word of the remainder,
 lowercased, and picks one of three routes (spec S3 of the 2026-09-29 profile-verb run):
 
 1. **Nothing**: `cli:CliProfile("")` prints the library's list (header `Profiles`, one row per
@@ -264,7 +264,7 @@ generic dispatcher knows nothing about.
 ## When the library is absent
 
 `/at` is registered unconditionally, so something has to answer it. With `LibKa0s-Slash-1.0` missing,
-`settings/Slash.lua:611` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
+`settings/Slash.lua:620` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
 a plain help index still render, a bare `/at` still runs the `config` verb exactly as the library
 does, the host verbs — which never went to the library — keep working untouched, and each schema verb
 (`list`, `get`, `set`, `reset`, `resetall`) prints the collection's library-absent line through the
