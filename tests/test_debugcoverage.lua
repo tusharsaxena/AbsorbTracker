@@ -338,6 +338,42 @@ test("coverage: a refused event name is one [Events] line, however many syncs re
   assertEqual(count(lines, "[Events] rejected UNIT_MAXHEALTH"), 1, joined(lines))
 end)
 
+--- One refusal pass of UNIT_MAXHEALTH, through the real SyncUnitEventFrames, then the kit's bad
+--- table and the rejected list put back.
+local function refuseMaxHealth(times)
+  M.__badEvents = { UNIT_MAXHEALTH = true }
+  for _ = 1, times do
+    for _, f in pairs(NS.addon.__unitEventFrames or {}) do f:UnregisterAllEvents() end
+    NS.addon:SyncUnitEventFrames()
+  end
+  M.__badEvents = {}
+  local list = NS.State.rejectedEvents
+  for i = #list, 1, -1 do list[i] = nil end
+  NS.addon:SyncUnitEventFrames()
+end
+
+test("coverage: the console's Clear re-arms the refused-event gate", function()
+  -- red under: a hand-rolled once-table in core/AbsorbTracker.lua in place of the console's
+  -- DebugOnce (DebugLogGates 1). A reader who cleared the console and reproduced saw nothing and
+  -- took it for nothing happening; the console's gate is re-armed by Clear.
+  debugLines(function() refuseMaxHealth(2) end)          -- spend the key, whatever state it was in
+  local spent = debugLines(function() refuseMaxHealth(2) end)
+  assertEqual(count(spent, "[Events] rejected UNIT_MAXHEALTH"), 0, "still once: " .. joined(spent))
+  NS.DebugLog:Clear()
+  local rearmed = debugLines(function() refuseMaxHealth(3) end)
+  assertEqual(count(rearmed, "[Events] rejected UNIT_MAXHEALTH"), 1, joined(rearmed))
+end)
+
+test("coverage: with logging off, a refused event spends nothing", function()
+  -- red under: a gate that remembered the key with logging off, so the line never landed once the
+  -- player turned logging on.
+  NS.DebugLog:Clear()
+  NS.State.debug = false
+  refuseMaxHealth(2)
+  local lines = debugLines(function() refuseMaxHealth(1) end)
+  assertEqual(count(lines, "[Events] rejected UNIT_MAXHEALTH"), 1, joined(lines))
+end)
+
 test("coverage: a unit panel that raises on every render is one [Cfg] line per distinct error", function()
   -- red under: dropping lastRenderError's comparison in settings/UnitPanel.lua (a panel that raises
   -- on every refresh would log once per refresh), or dropping the line (the error is chat-only).
@@ -355,4 +391,28 @@ test("coverage: a unit panel that raises on every render is one [Cfg] line per d
   assertTrue(ok, tostring(lines))
   assertEqual(count(lines, "[Cfg] unit panel render failed (appearance): planted render failure"), 1,
     joined(lines))
+end)
+
+test("coverage: the console's Clear re-arms the unit panel's render-error gate", function()
+  -- red under: the old lastRenderError upvalue in settings/UnitPanel.lua in place of the console's
+  -- DebugChanged: after a Clear the same error stayed silent until a different one came along.
+  local H = NS.Helpers
+  local realClear = H.ClearScroll
+  H.ClearScroll = function() error("planted render failure", 0) end
+  local ok, res = pcall(function()
+    debugLines(function() quietly(function() H.RenderUnitPanel({}, "appearance") end) end)
+    local spent = debugLines(function() quietly(function() H.RenderUnitPanel({}, "appearance") end) end)
+    NS.DebugLog:Clear()
+    local rearmed = debugLines(function()
+      quietly(function()
+        for _ = 1, 3 do H.RenderUnitPanel({}, "appearance") end
+      end)
+    end)
+    return { spent = spent, rearmed = rearmed }
+  end)
+  H.ClearScroll = realClear
+  assertTrue(ok, tostring(res))
+  assertEqual(count(res.spent, "[Cfg] unit panel render failed"), 0, "still once: " .. joined(res.spent))
+  assertEqual(count(res.rearmed, "[Cfg] unit panel render failed (appearance): planted render failure"), 1,
+    joined(res.rearmed))
 end)

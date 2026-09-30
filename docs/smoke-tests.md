@@ -16,7 +16,7 @@ These are the checks only a live client can make: real frames, the live absorb e
 | LOOK-1–16 | Appearance | The Appearance page, media dropdowns, opacity, font color, class colors, mirror and copy |
 | MIGRATE-1–6 | Upgrades | SavedVariables backfill, the schema stamp, the visibility and v3 migrations |
 | LAUNCH-1–10 | Launcher | Minimap button, options menu, broker display |
-| DIAG-1–50 | Diagnostics | Debug console and its Diagnostics link, value hold, bulk log lines, the library's refusal and stand-down lines, diagnostics report (which turns logging on), perf run, resizing the console, its Copy window and the perf panel |
+| DIAG-1–51 | Diagnostics | Debug console and its Diagnostics link, value hold, bulk log lines, the library's refusal and stand-down lines, diagnostics report (which turns logging on), perf run, resizing the console, its Copy window and the perf panel |
 | DEGRADED-1–4 | Degraded | LibKa0s absent, and the partial breaks that show a failure's signature |
 | LOC-1–3 | Non-English client | What a deDE or frFR client renders |
 
@@ -208,6 +208,7 @@ Setup for the verb checks: run PROFILE-9 first, so a `SmokeTest` profile exists 
 - **DIAG-48. The Diagnostics link.** `/at debug` → the title bar's left end reads **Debug: OFF**, a small gap, then **Diagnostics** in orange: plain text like the Debug label, with no button frame, box or border. Hover it → it brightens, and no tooltip appears. Click it → a full report lands, exactly as `/at diagnostics` writes it (DIAG-19), with the one chat line; logging turns on (DIAG-21), and the gap stays the same small gap now that the label reads **Debug: ON**. Click it again with logging on → a second report below the first. Drag the console's grip in as far as it goes (DIAG-45) → the link still fits between the Debug label and the gold title, overlapping neither. Result:
 - **DIAG-49. A dispatcher refusal lands in the console.** `/at debug on`, open the console. `/at wibble` → chat prints `unknown command 'wibble'` and the help index as before, and the console logs exactly one `[Cmd] refused wibble: unknown verb`. `/at disable`, then `/at toggle` → chat prints the one disabled line, and the console logs exactly one `[Cmd] refused toggle: disabled`, not a second `toggle refused: addon disabled` line. `/at enable`, `/at debug off`. Result:
 - **DIAG-50. A stand-down edge lands in the console.** `/at debug on`, open the console. `/at disable` → exactly one `[Lifecycle] stood down: added disabled (holds: disabled)`, then `[Life] teardown: pending repaint dropped=no` (or `=yes`), and no `[Life] stood down` line. `/at disable` again → no new `[Lifecycle]` line. `/at enable` → exactly one `[Lifecycle] stood up: released disabled (holds: none)`, then `[Life] rebuild from current state: N bus subscription(s) replayed`, and the bars come back. `/at debug off`. Result:
+- **DIAG-51. The launcher's state line lands when logging is turned on.** `/reload`, then `/at debug on` and open the console → after `[Debug] logging enabled` and the `[Init]` line, exactly one `[Launcher] registered`. `/at debug off`, `/at debug on` → no second `[Launcher] registered`. Clear the console, `/at debug off`. Result:
 
 ### Diagnostics report
 
@@ -309,7 +310,7 @@ No client run is recorded for these yet. Three kinds are listed: old checks that
 | DIAG-45–47 | New on 2026-09-30 (`DL-AT-01`) | The console, its Copy window and the perf panel became resizable with LibKa0s v1.64.0; no client has dragged a grip yet |
 | DIAG-21 | Existing check, expectation reversed | Rewritten by `DL-AT-03` (2026-09-30): a report now turns debug logging on for the session (debug-logging-§14 at v2.71.0) instead of leaving the flag untouched; no client has run it |
 | DIAG-48 | New on 2026-09-30 (`DL-AT-03`) | The console's orange **Diagnostics** link arrived with LibKa0s v1.64.0 (DebugLog 17); no client has clicked it |
-| DIAG-49, DIAG-50, STATE-4 | New or corrected on 2026-10-01 (`DG-AT-01`) | The dispatcher's refusals and the stand-down / stand-up edges became the library's lines with LibKa0s v1.65.0 (Slash 18, Lifecycle 3); no client has seen them in the console yet |
+| DIAG-49–51, STATE-4 | New or corrected on 2026-10-01 (`DG-AT-01`) | The dispatcher's refusals, the stand-down / stand-up edges and the launcher's at-enable state line became the library's lines with LibKa0s v1.65.0 (Slash 18, Lifecycle 3, Launcher 5, DebugLogGates 1); no client has seen them in the console yet |
 | DIAG-2, DIAG-4, DIAG-45 | Corrected on 2026-09-30 (`DL-AT-03`) | The title bar gained the **Diagnostics** link, which these checks now name |
 | DEGRADED-1 | Old § M step 99 | Rewritten by `AT-08` (2026-09-24): `disable`, `enable`, `unlock` and `lock` now write through without the library; session X2.3 of the 2026-09-23 remediation plan is owed and was never run |
 | DEGRADED-2 | Old § M step 99, with § V step 10 | The `/at profile` step is new with the verb's degraded stub (`SP-AT-02`); the plain help rows and the `/at list` line (`AT-09`, 2026-09-24) are session X2.6 of the 2026-09-23 remediation plan, owed and never run |
