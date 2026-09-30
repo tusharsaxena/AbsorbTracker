@@ -41,6 +41,14 @@ through `adoptProfile`, which re-reads the store because a profile switch can fl
 nothing else being touched. The latch's `Set` re-evaluates on its own, and when that stands the addon
 up, `adoptProfile` leaves the bar passes to `StandUp` rather than publishing them a second time.
 
+**The edge is the library's line in the log.** The descriptor passes the gated sink as `debug`
+(`LibKa0s-Lifecycle-1.0` minor 3), so each stand-down and stand-up is one `[Lifecycle]` line written
+before the callback runs, naming the hold that moved and the resulting set
+(`stood down: added disabled (holds: disabled)`, `stood up: released disabled (holds: none)`); a
+call that moves no edge writes nothing. `StandDown` and `StandUp` add one `[Life]` line each for
+what only they know (whether a queued repaint was dropped, how many bus subscriptions were
+replayed), and never name the edge or the holds again ([debug.md](./debug.md#coverage)).
+
 **There is no second teardown path.** `core/PerfSetup.lua` no longer carries `suspend` / `resume`:
 those bodies **are** `NS.StandDown` / `NS.StandUp`, and the perf descriptor passes the latch
 instead. Two mechanisms that both mean "be inert" diverge on the first module added after the second

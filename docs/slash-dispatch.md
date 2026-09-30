@@ -71,6 +71,16 @@ it. The launcher no longer prints it: since `LibKa0s-Launcher-1.0` minor 4 the l
 the settings panel in either state and the options menu grays its feature entries while disabled,
 so there is no launcher refusal line (launcher-§2).
 
+**The refusal reaches the log as well, and it is the library's line.** The descriptor passes the
+gated sink as `debug` (`LibKa0s-Slash-1.0` minor 18), so every refusal the dispatcher decides writes
+one `[Cmd] refused <verb>: <guard>` line after its chat line: the disabled gate (`refused toggle:
+disabled`), an unknown verb, `get` / `set` / `reset` usage and not-found, a parse or write refusal,
+a reset with no default, and the profile switch's unavailable, already-current, in-combat and
+unknown-profile refusals. This file used to find the gate's refusal by matching the dispatcher's
+printed line against `DisabledLine()`; that match is gone, so each refusal is one line. The
+refusals of this addon's own verbs, which the dispatcher never sees (`/at debug hold`, `/at toggle
+<unknown unit>`), stay this file's `[Cmd]` lines ([debug.md](./debug.md#coverage)).
+
 The polarity is still deliberate. `liveVerbs` names what keeps answering, so **a verb added tomorrow
 is gated by default** and has to argue its way onto the list:
 

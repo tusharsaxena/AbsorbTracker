@@ -682,22 +682,6 @@ if not SlashLib then
     end
 end
 
--- The library's disabled gate answers a refused verb with the disabled line and nothing else, so
--- that line arriving FIRST in a dispatch is the refusal (help and an unknown word lead with other
--- lines). The dispatcher's printer notes it once as a [Cmd] line naming the guard
--- (debug-logging-§8), and reads the gate's own line rather than a second copy of its rule. The verb
--- is recorded only while logging is on, so with it off this costs one nil test per printed line.
-local dispatchVerb
-local function dispatchPrint(line)
-    if dispatchVerb then
-        if line == cli:DisabledLine() then
-            NS.Debug("Cmd", "%s refused: addon disabled", dispatchVerb)
-        end
-        dispatchVerb = nil
-    end
-    print(line)
-end
-
 -- Build the dispatcher now that NS.COMMANDS exists. The table is passed IN, not owned: the About
 -- page renders the same one, and a library that owned it would drag the options library into
 -- depending on this one.
@@ -707,8 +691,17 @@ cli = SlashLib:New({
     commands     = NS.COMMANDS,
     aliases      = { options = "config" },   -- backward-compat: `/at options` -> `/at config`
 
-    print   = dispatchPrint,
+    print   = function(line) print(line) end,
     version = NS.Version,
+
+    -- The host's gated sink (Slash minor 18). Every refusal the dispatcher decides for itself -- the
+    -- disabled gate, an unknown verb, get/set/reset usage and not-found, a parse or write refusal,
+    -- the profile switch's unavailable / already-current / in-combat / unknown-profile -- writes one
+    -- `[Cmd] refused <verb>: <guard>` line through it, after its chat line. It replaced this file's
+    -- old match of the gate's chat line against DisabledLine, so a refusal is one line, the
+    -- library's (debug-logging-§8). The refusals of the host's own verbs (runHold, `toggle`)
+    -- the library never sees, so those stay ours.
+    debug   = function(tag, message) NS.Debug(tag, "%s", message) end,
 
     -- The profile store CliProfile and ProfileSwitch drive (Slash minor 17), asked at CALL time
     -- because NS.db is built at ADDON_LOADED, after this file. The no-AceDB fallback shape has no
@@ -797,9 +790,7 @@ function Sl:DisabledLine() return cli:DisabledLine() end
 function Sl:LandingRows() return cli:LandingRows() end
 
 function Sl:OnSlash(msg)
-    dispatchVerb = NS.State and NS.State.debug and ((msg or ""):match("^%s*(%S+)") or ""):lower() or nil
     cli:OnSlash(msg)
-    dispatchVerb = nil
 end
 
 

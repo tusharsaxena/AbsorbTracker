@@ -62,15 +62,34 @@ end
 
 -- ── state edges ────────────────────────────────────────────────────────────────────────────
 
-test("coverage: a stand-down and a stand-up are one [Life] line each, naming the holds", function()
-  -- red under: dropping the NS.Debug line from StandDown or StandUp in core/Lifecycle.lua. Without
-  -- them a log from a player who switched the addon off shows bars vanishing and no reason why.
+test("coverage: a stand-down and a stand-up are the library's one [Lifecycle] line each, naming the holds", function()
+  -- red under: dropping `debug` from the Lifecycle descriptor in core/Lifecycle.lua (Lifecycle
+  -- minor 3 then writes nothing), or a host line of its own naming the edge again. Without the edge
+  -- a log from a player who switched the addon off shows bars vanishing and no reason why.
   NS.SetByPath("enabled", true)
   local down = debugLines(function() NS.SetByPath("enabled", false) end)
   local up = debugLines(function() NS.SetByPath("enabled", true) end)
   M.__fireTimers()
-  assertEqual(count(down, "[Life] stood down (holds: disabled)"), 1, joined(down))
-  assertEqual(count(up, "[Life] stood up:"), 1, joined(up))
+  assertEqual(count(down, "[Lifecycle] stood down: added disabled (holds: disabled)"), 1, joined(down))
+  assertEqual(count(up, "[Lifecycle] stood up: released disabled (holds: none)"), 1, joined(up))
+  -- One line per edge: the host's [Life] lines say what the teardown and the rebuild found, and
+  -- never the edge or the holds a second time.
+  assertEqual(count(down, "[Life] stood down"), 0, "the edge once: " .. joined(down))
+  assertEqual(count(down, "holds:"), 1, "the holds once: " .. joined(down))
+  assertEqual(count(up, "[Life] stood up"), 0, "the edge once: " .. joined(up))
+  assertEqual(count(up, "[Life] rebuild from current state:"), 1, joined(up))
+end)
+
+test("coverage: a hold that fires no edge writes no [Lifecycle] line", function()
+  -- red under: a host line written from SyncEnabledHold on every call. Re-taking a held hold, or
+  -- releasing one that is not held, moves nothing, so nothing is said (Lifecycle minor 3).
+  NS.SetByPath("enabled", true)
+  local lines = debugLines(function()
+    NS.SyncEnabledHold()
+    NS.SyncEnabledHold()
+  end)
+  assertEqual(count(lines, "[Lifecycle]"), 0, joined(lines))
+  assertEqual(count(lines, "[Life]"), 0, joined(lines))
 end)
 
 test("coverage: the stand-down line says whether it dropped a queued repaint", function()
@@ -82,7 +101,7 @@ test("coverage: the stand-down line says whether it dropped a queued repaint", f
   local down = debugLines(function() NS.SetByPath("enabled", false) end)
   NS.SetByPath("enabled", true)
   M.__fireTimers()
-  assertEqual(count(down, "pending repaint dropped=yes"), 1, joined(down))
+  assertEqual(count(down, "[Life] teardown: pending repaint dropped=yes"), 1, joined(down))
 end)
 
 test("coverage: [World] names the loading screen's kind: login, reload or zone change", function()
@@ -197,16 +216,40 @@ test("coverage: an in-combat unlock refusal names the guard", function()
   assertEqual(count(lines, "[Set] locked: unlock refused (in combat)"), 1, joined(lines))
 end)
 
-test("coverage: a verb the disabled gate refuses is one [Cmd] line; help is not a refusal", function()
-  -- red under: the dispatcher's printer no longer noting the gate's line (settings/Slash.lua), or
-  -- noting every disabled line, which would call the help index's notice a refusal.
-  local refused, help
+test("coverage: a verb the disabled gate refuses is the library's one [Cmd] line; help is not a refusal", function()
+  -- red under: dropping `debug` from the Slash descriptor (settings/Slash.lua; Slash minor 18 then
+  -- writes nothing), or a host line of its own for the same refusal, such as the old match of the
+  -- gate's chat line against DisabledLine, which would make the refusal two lines.
+  local refused, help, alias
   whileDisabled(function()
     refused = debugLines(function() slash("toggle") end)
     help = debugLines(function() slash("help") end)
+    alias = debugLines(function() slash("TOGGLE") end)
   end)
-  assertEqual(count(refused, "[Cmd] toggle refused: addon disabled"), 1, joined(refused))
+  assertEqual(count(refused, "[Cmd] refused toggle: disabled"), 1, joined(refused))
+  assertEqual(count(refused, "refused"), 1, "one refusal line, not two: " .. joined(refused))
+  assertEqual(count(alias, "[Cmd] refused toggle: disabled"), 1, "the verb as dispatched: " .. joined(alias))
   assertEqual(count(help, "refused"), 0, joined(help))
+end)
+
+test("coverage: the dispatcher's other refusals land as the library's [Cmd] lines", function()
+  -- red under: dropping `debug` from the Slash descriptor. An unknown verb and a set the parser
+  -- refuses reached chat only before Slash minor 18.
+  local unknown = debugLines(function() slash("nosuchverb") end)
+  assertEqual(count(unknown, "[Cmd] refused nosuchverb: unknown verb"), 1, joined(unknown))
+  local usage = debugLines(function() slash("get") end)
+  assertEqual(count(usage, "[Cmd] refused get: usage"), 1, joined(usage))
+  local missing = debugLines(function() slash("get no.such.path") end)
+  assertEqual(count(missing, "[Cmd] refused get no.such.path: not found"), 1, joined(missing))
+end)
+
+test("coverage: with logging off, a refusal writes nothing to the console", function()
+  -- red under: a Slash sink that bypassed the gate (a bare D:Add rather than NS.Debug).
+  NS.State.debug = false
+  local before = #NS.DebugLog.buffer
+  whileDisabled(function() slash("toggle") end)
+  slash("nosuchverb")
+  assertEqual(#NS.DebugLog.buffer, before, "nothing appended with logging off")
 end)
 
 test("coverage: /at debug hold names which guard refused it, once", function()
