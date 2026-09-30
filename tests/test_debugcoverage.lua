@@ -375,8 +375,9 @@ test("coverage: with logging off, a refused event spends nothing", function()
 end)
 
 test("coverage: a unit panel that raises on every render is one [Cfg] line per distinct error", function()
-  -- red under: dropping lastRenderError's comparison in settings/UnitPanel.lua (a panel that raises
-  -- on every refresh would log once per refresh), or dropping the line (the error is chat-only).
+  -- red under: a bare NS.Debug in place of NS.DebugLog.DebugChanged (keyed by RENDER_ERROR_KEY) in
+  -- settings/UnitPanel.lua (a panel that raises on every refresh would log once per refresh), or
+  -- dropping the [Cfg] line (the error is chat-only).
   local H = NS.Helpers
   assertTrue(type(H.RenderUnitPanel) == "function", "the entry point is published")
   assertTrue(NS.AceGUI ~= nil, "AceGUI is loaded, so the render runs")
@@ -415,4 +416,38 @@ test("coverage: the console's Clear re-arms the unit panel's render-error gate",
   assertEqual(count(res.spent, "[Cfg] unit panel render failed"), 0, "still once: " .. joined(res.spent))
   assertEqual(count(res.rearmed, "[Cfg] unit panel render failed (appearance): planted render failure"), 1,
     joined(res.rearmed))
+end)
+
+-- ── the Options major's combat lock (G3) ───────────────────────────────────────────────────
+
+--- Run the Options library's combat hooks with `locked`: the edge that re-arms its refusal lines.
+local function combatEdge(locked)
+  local lib = M.LibStub("LibKa0s-Options-1.0")
+  for hook in pairs(lib.__combatHooks) do hook(locked) end
+end
+
+test("coverage: a Defaults click refused in combat is the library's one [Cfg] line per combat", function()
+  -- red under: dropping `debug` from the Options descriptor in settings/OptionsSetup.lua (Options
+  -- minor 27 then writes nothing), a host line of its own for the same refusal, or a library that
+  -- wrote the line once per click rather than once per combat.
+  local H = NS.Helpers
+  local saved = M.InCombatLockdown
+  M.InCombatLockdown = function() return true end
+  local ok, res = pcall(function()
+    return quietly(function()
+      combatEdge(true)   -- combat begins: whatever an earlier case spent is re-armed
+      local first = debugLines(function() H.RestoreDefaults("appearance") end)
+      local repeated = debugLines(function()
+        H.RestoreDefaults("appearance")
+        H.RestoreDefaults("appearance")
+      end)
+      return { first = first, repeated = repeated }
+    end)
+  end)
+  M.InCombatLockdown = saved
+  quietly(function() combatEdge(false) end)
+  assertTrue(ok, tostring(res))
+  assertEqual(count(res.first, "[Cfg] defaults appearance refused (in combat)"), 1, joined(res.first))
+  assertEqual(count(res.first, "refused"), 1, "the library's line only, no host copy: " .. joined(res.first))
+  assertEqual(#res.repeated, 0, "once per combat: " .. joined(res.repeated))
 end)

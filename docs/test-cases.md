@@ -905,7 +905,7 @@ badge and any count quoted in the docs must agree with it.
 - diagnostics: the chat line is ours to localize and names the line count
 - diagnostics: with the library absent both forms print the one absent line
 
-### test_debugcoverage.lua (20)
+### test_debugcoverage.lua (21)
 
 - coverage: a stand-down and a stand-up are the library's one [Lifecycle] line each, naming the holds
 - coverage: a hold that fires no edge writes no [Lifecycle] line
@@ -927,6 +927,7 @@ badge and any count quoted in the docs must agree with it.
 - coverage: with logging off, a refused event spends nothing
 - coverage: a unit panel that raises on every render is one [Cfg] line per distinct error
 - coverage: the console's Clear re-arms the unit panel's render-error gate
+- coverage: a Defaults click refused in combat is the library's one [Cfg] line per combat
 
 ### test_diagnostics_contract.lua (9)
 
@@ -998,8 +999,8 @@ badge and any count quoted in the docs must agree with it.
 | test_events.lua | 5 |
 | test_disabled.lua | 18 |
 | test_diagnostics.lua | 12 |
-| test_debugcoverage.lua | 20 |
+| test_debugcoverage.lua | 21 |
 | test_diagnostics_contract.lua | 9 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **844** |
+| **Total** | **845** |

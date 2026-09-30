@@ -146,8 +146,11 @@ only what the library cannot know (`[Life]`'s teardown and rebuild, its own verb
 refusals). Its "once" and "on change" lines use the console's change gates (`DebugOnce`,
 `DebugChanged`) rather than tables of its own, so the console's Clear and turning logging on
 re-arm them, and the launcher's state lines go through the console's at-enable queue
-(`DebugAtEnable`). `tests/test_debugcoverage.lua` and `tests/test_launcher.lua` pin each
-library line landing here, once.
+(`DebugAtEnable`). `tests/test_debugcoverage.lua`, `tests/test_launcher.lua` and
+`tests/test_slash.lua` pin the library lines landing here, each once, with one exception: the
+Options major's `register parked (in combat)` / `register flushed (combat ended)` pair is reached
+only by a first registration inside combat, which the shared harness (registered at load) cannot
+replay, so that pair rests on the library's own suite (LibKa0s `tests/test_options_combat_debug.lua`).
 
 | Tag | Written by | When |
 |---|---|---|
