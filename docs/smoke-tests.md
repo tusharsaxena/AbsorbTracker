@@ -16,7 +16,7 @@ These are the checks only a live client can make: real frames, the live absorb e
 | LOOK-1–16 | Appearance | The Appearance page, media dropdowns, opacity, font color, class colors, mirror and copy |
 | MIGRATE-1–6 | Upgrades | SavedVariables backfill, the schema stamp, the visibility and v3 migrations |
 | LAUNCH-1–10 | Launcher | Minimap button, options menu, broker display |
-| DIAG-1–44 | Diagnostics | Debug console, value hold, bulk log lines, diagnostics report, perf run |
+| DIAG-1–47 | Diagnostics | Debug console, value hold, bulk log lines, diagnostics report, perf run, resizing the console, its Copy window and the perf panel |
 | DEGRADED-1–4 | Degraded | LibKa0s absent, and the partial breaks that show a failure's signature |
 | LOC-1–3 | Non-English client | What a deDE or frFR client renders |
 
@@ -183,7 +183,7 @@ Setup for the verb checks: run PROFILE-9 first, so a `SmokeTest` profile exists 
 
 ## Diagnostics
 
-**Code:** the console is `LibKa0s-DebugLog-1.0`, wired by `core/DebugLogSetup.lua`; the report's frame and cap are `libs/LibKa0s/DebugLogDiagnostics.lua`, its sections `modules/Diagnostics.lua`, its dispatch `runDebug` / `runDiagnostics` in `settings/Slash.lua`; the perf probe and step panel are `LibKa0s-Perf-1.0`, wired by `core/PerfSetup.lua` (protocol in [performance.md](./performance.md)). See [debug.md](./debug.md).
+**Code:** the console is `LibKa0s-DebugLog-1.0`, wired by `core/DebugLogSetup.lua`; the report's frame and cap are `libs/LibKa0s/DebugLogDiagnostics.lua`, its sections `modules/Diagnostics.lua`, its dispatch `runDebug` / `runDiagnostics` in `settings/Slash.lua`; the perf probe and step panel are `LibKa0s-Perf-1.0`, wired by `core/PerfSetup.lua` (protocol in [performance.md](./performance.md)); the size grip all three windows share is `MakeResizable` in `libs/LibKa0s/Core.lua`. See [debug.md](./debug.md).
 
 ### Debug console
 
@@ -238,6 +238,12 @@ Setup for the verb checks: run PROFILE-9 first, so a `SmokeTest` profile exists 
 - **DIAG-43. The report names the nesting it observed.** A full capture (`start`, `measure a`, a pull, `measure b`, a pull, `finish`), then **Report** → the nesting sentence for `paintBar` names `repaintPass` as an observed parent, and both show non-zero `calls`. **Copy** the JSON line the same Report printed → its `paintBar` bucket carries `"observedWithin":"repaintPass"` beside `"within"`. `paintBar` with calls and `repaintPass` with none, or a `paintBar` still reported as declared-only, is the finding. Result:
 - **DIAG-44. A code move does not move the figures.** After a release that moves code between files (a LibKa0s extraction, say), run a guided capture against the same target as the newest capture under `docs/perf-analysis/` and compare bucket call counts and presence; record the capture there. A moved figure is a bug in the move, not noise. Result:
 
+### Resizing
+
+- **DIAG-45. Resizing the debug console.** `/at debug` → **Absorb Tracker — Debug** opens at 700 × 344 with a size grip in its bottom-right corner, clear of the `N / 3000 lines` counter. Drag the grip out → the window grows on both axes, the lines reflow to the new width, the scrollbar and the line counter follow, and no line is lost. Drag it in as far as it goes → it stops while the **Debug** toggle, the gold title and the three marks all still fit, with the counter and a few lines showing. Close it and `/at debug` again → the size you left it at. `/reload` → it opens at 700 × 344 again. With another Ka0s addon loaded, open its console too → it opens at its own default, and resizing one leaves the other as it was. Result:
+- **DIAG-46. Resizing the Copy window.** In the console click the copy mark → the Copy window opens at 560 × 360 with a grip in its bottom-right corner. Drag the grip → it resizes on both axes and the text area widens and narrows with it; the scroll bar's down arrow stays clickable above the grip. Drag it in as far as it goes → it stops at 240 × 140. Close it and click copy again → the size you left. `/reload` → 560 × 360 again. Another Ka0s addon's Copy window keeps its own size. Result:
+- **DIAG-47. Resizing the perf panel.** `/at perf` → the **Absorb Tracker — Perf Run** panel opens at its usual size with a grip in its bottom-right corner. Drag the grip → only the width changes, and every step row (dot, name and slash command) stretches to it; dragging up or down does nothing. Drag it narrower → it stops at the width it opened at. Close it and `/at perf` again → the width you left. `/reload` → the usual width again. Another Ka0s addon's perf panel is unaffected. Result:
+
 ## Degraded
 
 **Code:** the Options stub is `settings/OptionsSetup.lua`; the Slash stub is the `if not SlashLib` arm of `settings/Slash.lua`; `tests/test_perf.lua`'s `loadDegraded()` and `tests/test_optionssetup.lua` pin the degraded load headlessly.
@@ -266,7 +272,7 @@ The headless suite cannot see this: `tests/wow_mock.lua` answers enUS for every 
 
 ## Pending sign-off
 
-No client run is recorded for these yet. Two kinds are listed: old checks that were never run (including steps the 2026-09-24 remediation rewrote, whose owed sessions in `Ka0sAddonsCommonTasks/docs/2026-09-23-REVIEW_AND_STANDARDS_AUDIT_REMEDIATION/06_SMOKE_TESTS.md` have no recorded result), and checks that are new in the 2026-09-29 rework or whose expectation was corrected against the code in it. Run them, fill their `Result:` lines, then remove their rows.
+No client run is recorded for these yet. Three kinds are listed: old checks that were never run (including steps the 2026-09-24 remediation rewrote, whose owed sessions in `Ka0sAddonsCommonTasks/docs/2026-09-23-REVIEW_AND_STANDARDS_AUDIT_REMEDIATION/06_SMOKE_TESTS.md` have no recorded result), checks that are new in the 2026-09-29 rework or whose expectation was corrected against the code in it, and checks added after it. Run them, fill their `Result:` lines, then remove their rows.
 
 | ID | Origin | Why it is owed |
 |---|---|---|
@@ -297,6 +303,7 @@ No client run is recorded for these yet. Two kinds are listed: old checks that w
 | DIAG-40 | Old § P step 106 (`M4-01`, session 3) | The US perf strings have never been checked in a client; corrected to the timestamp the library always stamps |
 | DIAG-41 | Old § S step 109 (`M4-16`) | Never run since the panel's close control moved to the library |
 | DIAG-43 | Old § L step 86a (`M4-22`) | Folded into the unrun `M4-16` session; corrected to read the JSON from **Report** |
+| DIAG-45–47 | New on 2026-09-30 (`DL-AT-01`) | The console, its Copy window and the perf panel became resizable with LibKa0s v1.64.0; no client has dragged a grip yet |
 | DEGRADED-1 | Old § M step 99 | Rewritten by `AT-08` (2026-09-24): `disable`, `enable`, `unlock` and `lock` now write through without the library; session X2.3 of the 2026-09-23 remediation plan is owed and was never run |
 | DEGRADED-2 | Old § M step 99, with § V step 10 | The `/at profile` step is new with the verb's degraded stub (`SP-AT-02`); the plain help rows and the `/at list` line (`AT-09`, 2026-09-24) are session X2.6 of the 2026-09-23 remediation plan, owed and never run |
 | LOC-1–3 | Old § T steps 110–112 (`M5-08`) | No non-English client has run them |
