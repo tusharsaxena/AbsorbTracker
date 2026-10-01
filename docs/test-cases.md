@@ -196,7 +196,7 @@ badge and any count quoted in the docs must agree with it.
 - /at debug on writes an [Init] summary naming our version, schema and profile
 - the console checkbox label the library renders is prose, not its own STRINGS key
 
-### test_slash.lua (14)
+### test_slash.lua (19)
 
 - NS.Print survives AceConsole's embed and stays the [AT]-prefixed printer
 - bare /at opens the settings panel through the config verb, not the help index
@@ -212,6 +212,11 @@ badge and any count quoted in the docs must agree with it.
 - OpenOptionsPanel logs [Cfg] refused in combat
 - SetByPath logs one [Set] path = value line (debug-logging-§10)
 - the schema CLI's list header the library renders is prose, not its own STRINGS key
+- slash verbs: /at debug lowercases its sub-verb and keeps the remainder (EVENTS, HOLD)
+- slash verbs: /at profile NEW <MixedCase> lowercases only the verb
+- slash verbs: the stub's split agrees with the live dispatcher's over a corpus
+- slash verbs: degraded /at debug events and /at profile current still answer
+- slash verbs: degraded /at profile list lists from the store, plainly
 
 ### test_timer.lua (13)
 
@@ -994,7 +999,7 @@ badge and any count quoted in the docs must agree with it.
 | test_coresetup.lua | 6 |
 | test_mediasetup.lua | 10 |
 | test_debuglog.lua | 14 |
-| test_slash.lua | 14 |
+| test_slash.lua | 19 |
 | test_timer.lua | 13 |
 | test_perf.lua | 33 |
 | test_visibility.lua | 26 |
@@ -1025,4 +1030,4 @@ badge and any count quoted in the docs must agree with it.
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
-| **Total** | **859** |
+| **Total** | **864** |

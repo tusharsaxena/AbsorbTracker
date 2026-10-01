@@ -187,3 +187,153 @@ test("the schema CLI's list header the library renders is prose, not its own STR
   assertNil(header:match("^[A-Z][A-Z0-9_]+$"),
     "the list header resolved to prose, not to its own key (got '" .. header .. "')")
 end)
+
+-- -- slash verbs: the sub-verb split (AbsorbTracker#33) -------------------------------------
+--
+-- `/at debug`, `/at profile` and `/at toggle` each split their own sub-verb off the line, and the
+-- library-absent stub's dispatcher splits the top verb. The rule they share is LibKa0s-Slash's
+-- SplitVerb contract: the verb is lowercased, the remainder keeps its case and its inner spacing.
+-- These cases pin that behavior from the player's side, in both builds, so the split can move to
+-- one shared function without a visible change. tests/test_slashcmds.lua is at layout-§1's cap, so
+-- they live here.
+
+local function plainSlash(line)
+  local out = capture(function() NS.Slash:OnSlash(line) end)
+  local plain = {}
+  for i, l in ipairs(out) do plain[i] = stripColor(l) end
+  return plain
+end
+
+local function joinedLines(lines) return table.concat(lines, "\n") end
+
+local function hasLine(lines, needle)
+  return joinedLines(lines):find(needle, 1, true) ~= nil
+end
+
+-- A library-free build, loaded once (tests/degraded_env.lua), with the one-shot "library missing"
+-- banner burnt so it never counts as a verb's output.
+local degradedNS, degradedMocks
+local function degraded()
+  if not degradedNS then
+    degradedNS, degradedMocks = dofile("tests/degraded_env.lua")()
+    local cf = degradedMocks.DEFAULT_CHAT_FRAME
+    local old = rawget(cf, "AddMessage")
+    cf.AddMessage = function() end
+    degradedNS.Print("burn the banner")
+    cf.AddMessage = old
+  end
+  return degradedNS, degradedMocks
+end
+
+-- Every chat line one degraded slash input printed, the build's tag stripped off the front.
+local function degradedSlash(line)
+  local NS2, mocks2 = degraded()
+  local out = {}
+  local cf  = mocks2.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function(_, msg) out[#out + 1] = (tostring(msg):gsub("^%S+%s", "")) end
+  local ok, err = pcall(function() NS2.Slash:OnSlash(line) end)
+  cf.AddMessage = old
+  if not ok then error(err) end
+  return out
+end
+
+-- A duck-typed profile store for the degraded build, which never runs InitDB.
+local function withFakeStore(NS2, fn)
+  local saved = NS2.db
+  NS2.db = {
+    profile = {}, global = {},
+    GetProfiles = function() return { "Default", "Alt" }, 2 end,
+    GetCurrentProfile = function() return "Default" end,
+    SetProfile = function() end,
+  }
+  local ok, err = pcall(fn)
+  NS2.db = saved
+  if not ok then error(err) end
+end
+
+-- Drive one line through `env` with every top-level handler replaced by a recorder; describe the
+-- verb reached and the rest handed over.
+local function routed(env, envMocks, line)
+  local saved, ran, gotRest = {}, nil, nil
+  for i, entry in ipairs(env.COMMANDS) do
+    saved[i] = entry[3]
+    entry[3] = function(rest) ran, gotRest = entry[1], rest end
+  end
+  local cf  = envMocks.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function() end
+  local ok, err = pcall(function() env.Slash:OnSlash(line) end)
+  cf.AddMessage = old
+  for i, entry in ipairs(env.COMMANDS) do entry[3] = saved[i] end
+  if not ok then error(err) end
+  return ("verb=%s rest=%q"):format(tostring(ran), tostring(gotRest))
+end
+
+test("slash verbs: /at debug lowercases its sub-verb and keeps the remainder (EVENTS, HOLD)", function()
+  -- red under: a runDebug split that stops lowercasing the sub-verb, or one that loses the remainder.
+  local lower, upper = plainSlash("debug events"), plainSlash("debug EVENTS")
+  assertTrue(hasLine(upper, "Rejected events:"), joinedLines(upper))
+  assertEqual(joinedLines(upper), joinedLines(lower), "EVENTS answers as events does")
+
+  NS.db.profile.units.player.enabled = true
+  local real, held = NS.HoldPreview, {}
+  NS.HoldPreview = function(secs) held[#held + 1] = secs end
+  local ok, out = pcall(plainSlash, "debug HOLD 1234 2")
+  NS.HoldPreview = real
+  NS.ClearPreview()
+  assertTrue(ok, tostring(out))
+  assertTrue(hasLine(out, "Holding"), joinedLines(out))
+  assertEqual(#held, 1, "the hold reached NS.HoldPreview once")
+  assertEqual(held[1], 2, "the remainder `1234 2` reached runHold whole")
+end)
+
+test("slash verbs: /at profile NEW <MixedCase> lowercases only the verb", function()
+  -- red under: a runProfile split that folds the argument, which would make `casepin`.
+  local out = plainSlash("profile NEW CasePin")
+  local current = NS.db:GetCurrentProfile()
+  NS.db:SetProfile("Default")
+  T.mocks.__fireTimers()
+  NS.db:DeleteProfile("CasePin", true)
+  assertEqual(current, "CasePin", joinedLines(out))
+  assertTrue(hasLine(out, "Created and switched to new profile 'CasePin'"), joinedLines(out))
+  for _, name in ipairs(NS.db:GetProfiles()) do
+    assertTrue(name ~= "casepin", "the argument was not folded")
+  end
+end)
+
+test("slash verbs: the stub's split agrees with the live dispatcher's over a corpus", function()
+  -- The stub dispatcher splits the top verb itself; the live one is the library's. Both must reach
+  -- the same handler with the same rest.
+  -- red under: any drift of the stub's split (a verb not folded, a rest trimmed or re-cased).
+  local NS2, mocks2 = degraded()
+  for _, line in ipairs({ "DEBUG events", "  profile   Raid Night", "Toggle TARGET", "debug HOLD 5 2",
+      "x" }) do
+    assertEqual(routed(NS2, mocks2, line), routed(NS, T.mocks, line),
+      ("degraded and live route %q alike"):format(line))
+  end
+end)
+
+test("slash verbs: degraded /at debug events and /at profile current still answer", function()
+  -- The host's sub-verbs never went to the library, so they keep working on a degraded load.
+  -- red under: a sub-verb split that reaches into the library without a stub behind it.
+  local NS2 = degraded()
+  local events, current
+  withFakeStore(NS2, function()
+    events = degradedSlash("debug EVENTS")
+    current = degradedSlash("profile CURRENT")
+  end)
+  assertTrue(hasLine(events, "Rejected events: none"), joinedLines(events))
+  assertTrue(hasLine(current, "Current profile: Default"), joinedLines(current))
+end)
+
+test("slash verbs: degraded /at profile list lists from the store, plainly", function()
+  -- With the library absent there is no shared name list, so `list` prints the store's own.
+  -- red under: a `list` that needs the library, or one that drops the header or the marker.
+  local NS2 = degraded()
+  local out
+  withFakeStore(NS2, function() out = degradedSlash("profile list") end)
+  assertTrue(hasLine(out, "Available profiles"), joinedLines(out))
+  assertTrue(hasLine(out, "Default (current)"), joinedLines(out))
+  assertTrue(hasLine(out, "  Alt"), joinedLines(out))
+end)
