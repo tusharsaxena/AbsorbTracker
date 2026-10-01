@@ -8,7 +8,7 @@ These are the checks only a live client can make: real frames, the live absorb e
 |---|---|---|
 | INSTALL-1–5 | Install | Fresh load, shipped defaults, `/reload`, AddOns-list logo, the TOC version |
 | SLASH-1–11 | Slash | Bare `/at`, help, unknown verbs, `list` / `get` / `set` / `reset` |
-| PANEL-1–9 | Panel | Opening the panel, About page, General layout, tab strips, live edits, Defaults, Reset All, locale keys |
+| PANEL-1–10 | Panel | Opening the panel, About page, General layout, tab strips, live edits, Defaults, Reset All, locale keys, the folder name on the descriptor |
 | PROFILE-1–15 | Profiles | The Profiles page, the `profile <name>` verb and the `/at profile` sub-verbs |
 | STATE-1–5 | State | The addon-wide enable switch and the stand-down latch |
 | COMBAT-1–6 | Combat | Secret values, the settings combat gate, the sidebar lock, lock and unlock in combat |
@@ -69,6 +69,7 @@ These are the checks only a live client can make: real frames, the live absorb e
 - **PANEL-7. Reset All, from the button and from the verb.** Drag the bar off center and change values on General and Appearance. General → **Reset all settings** → **Yes** → General and Appearance revert, chat prints `[AT] All settings reset to defaults.`, the bar recenters, and the profile list is untouched. Repeat the setup, then `/at resetall` → the same outcome, except that its chat line `[AT] All settings reset to defaults` has no final period (both go through `Helpers.RestoreAllDefaults`). Result:
 - **PANEL-8. Reset All says what it does, and does only that.** Make a second profile on the Profiles page first. Hover **Reset all settings** → the tooltip reads verbatim *"Reset the current profile to its defaults — the same thing Profiles -> Reset Profile does. Your other profiles are not affected."* (a typed `->`, not an arrow) Click it → the popup reads verbatim *"Reset this profile to the addon's defaults? Everything you have configured or added in it is discarded — your other profiles are not affected."* Accept → every setting and every bar position is back to shipped, you are still on the same profile, and the profile list is unchanged. Result:
 - **PANEL-9. No raw locale keys.** Walk every tab of all three sub-pages, then open `/at debug` and `/at perf` → every label, tooltip title, heading, button and step name reads as English prose. A `SCREAMING_SNAKE_CASE` string anywhere (`STEP_START`, `PANEL_TITLE_SUFFIX`, `LIST_HEADER`) is the `L` trap: a descriptor was handed `NS.L`, and every key of that module shows at once. `tests/test_ltrap.lua` guards the source; this is the only check of what rendered. Result:
+- **PANEL-10. The panel still loads with the folder name on its descriptor.** `/console scriptErrors 1`, then `/reload` twice → no Lua error and no LibKa0s minor-mismatch line. `/at config` → every page (the parent About page, General with both tabs, Appearance with all five tabs, Profiles) renders exactly as in PANEL-1 to PANEL-3. `settings/OptionsSetup.lua` now passes `addonName` (the folder name) to `LibKa0s-Options-1.0` (LibKa0s#42, LibKa0s v1.67.0); this addon has no id list, so nothing should look different. Result:
 
 ## Profiles
 
@@ -287,6 +288,7 @@ No client run is recorded for these yet. Three kinds are listed: old checks that
 | PANEL-4 | Old § P step 105 (`M4-01`, session 3), merged with § D step 14b | The pooled tab strip's re-dressing has never been checked in a client |
 | PANEL-7 | Old § D step 20, with § F step 28 | Corrected: `/at resetall`'s chat line has no final period, unlike the button's |
 | PANEL-8 | Old § D step 20a | Corrected: the tooltip says `Profiles -> Reset Profile`, not an arrow |
+| PANEL-10 | New on 2026-10-02 (`CA-AT-NM`) | The Options descriptor gained `addonName` with LibKa0s v1.67.0 (LibKa0s#42); no client has loaded it yet |
 | PROFILE-3, PROFILE-6–8, PROFILE-10–12 | New with the `profile <name>` verb (LibKa0s v1.63.0, `SP-AT-02`) | The verb's list, already-current, unknown-name, quotes, `use`, combat and disabled paths have never run in a client |
 | PROFILE-5 | Old § G step 37, rerouted through the verb | The switch now goes through `/at profile <name>` and its `Switched to profile` line |
 | PROFILE-9, PROFILE-14, PROFILE-15 | Old § G steps 36 and 36a (PROFILE-9), 38 and 38a (PROFILE-14), 39 (PROFILE-15) | Added or rewritten by `AT-03` (2026-09-24): `new` refuses an existing name, and `copy` and `delete` check the name first; session AT.6 of the 2026-09-23 remediation plan is owed and was never run |

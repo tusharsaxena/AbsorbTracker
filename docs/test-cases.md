@@ -559,7 +559,7 @@ badge and any count quoted in the docs must agree with it.
 - launcher: with LibDataBroker but no LibDBIcon, the plugin exists and the button does not
 - launcher: with LibKa0s absent the seam still answers, and still remembers the choice
 
-### test_optionssetup.lua (15)
+### test_optionssetup.lua (18)
 
 - the live and degraded builds veto exactly the same rows from Reset All
 - Reset All resets a sessionOnly row and fires its onChange once, on both builds
@@ -576,6 +576,9 @@ badge and any count quoted in the docs must agree with it.
 - the live arm patches LSM30_Border through the library, not through a private copy
 - the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
 - General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
+- the Options descriptor tells the library the FOLDER name
+- and the Options descriptor takes that name from the first vararg, not a literal
+- the art that name points at is vendored on disk
 
 ### test_slashcmds.lua (100)
 
@@ -1003,7 +1006,7 @@ badge and any count quoted in the docs must agree with it.
 | test_panelpages.lua | 24 |
 | test_panelmirror.lua | 10 |
 | test_launcher.lua | 34 |
-| test_optionssetup.lua | 15 |
+| test_optionssetup.lua | 18 |
 | test_slashcmds.lua | 100 |
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 15 |
@@ -1022,4 +1025,4 @@ badge and any count quoted in the docs must agree with it.
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
-| **Total** | **856** |
+| **Total** | **859** |

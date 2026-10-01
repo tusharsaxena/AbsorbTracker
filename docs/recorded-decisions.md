@@ -86,9 +86,9 @@ they exist is not obvious from the code.
   at `f445da8`; the only surviving name is the degraded stub's field in `core/DebugLogSetup.lua`.
   Re-check if the addon ever grows a window of its own.
 
-- **Bootstrap spelling and file headers (`documentation-§9`).** Nineteen authored files open
-  `local _, NS = ...` (the nine that read the folder name bind `addonName`, see
-  [module-map.md → The `NS` bus](./module-map.md#the-ns-bus)), and luacheck keeps that spelling honest. Seven of the nineteen carry a self-naming
+- **Bootstrap spelling and file headers (`documentation-§9`).** Eighteen authored files open
+  `local _, NS = ...` (the ten that read the folder name bind `addonName`, see
+  [module-map.md → The `NS` bus](./module-map.md#the-ns-bus)), and luacheck keeps that spelling honest. Six of the eighteen carry a self-naming
   header comment (`-- AbsorbTracker: settings/General.lua` or `-- core/CoreSetup.lua — …`); the
   section grandfathers the headers already in place, so they stay where they are, and a file
   authored from here follows the section's placement rule.
