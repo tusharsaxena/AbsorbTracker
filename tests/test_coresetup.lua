@@ -32,6 +32,23 @@ test("core: the secret seam is the library's, not a private copy", function()
   assertEqual(NS.SafeToString(secretMock), lib.SECRET)
 end)
 
+test("core: NS.SECRET is the library's sentinel, live and degraded", function()
+  -- AbsorbTracker#33: the addon's own secret readouts print NS.SECRET, never a spelled literal.
+  -- Live it is Core's own string; the stub carries the one copy, pinned to the library's bytes.
+  -- red under: a live arm that stops publishing it, or a stub literal that drifts from lib.SECRET.
+  local lib = T.mocks.LibStub("LibKa0s-Core-1.0")
+  assertEqual(NS.SECRET, lib.SECRET)
+  local Loader = dofile("tests/_kit/loader.lua")
+  local buildMocks = dofile("tests/wow_mock.lua")
+  Loader.addonName = "AbsorbTracker"
+  local mocks2, NS2 = buildMocks(), {}
+  Loader.loadAll({
+    "core/EnvSetup.lua", "core/Constants.lua", "core/Namespace.lua", "core/CoreSetup.lua",
+  }, NS2, mocks2)
+  T.assertLibraryConstant(NS2.SECRET, "LibKa0s-Core-1.0", "SECRET")
+  assertEqual(NS2.SafeToString(secretMock), NS2.SECRET, "the stub renders a secret as NS.SECRET")
+end)
+
 test("core: the perf descriptor names the folder and leaves the close control to the library", function()
   -- ANTI-PATTERN #64, THE ONE THIS SUITE EXISTS FOR: a wrapper that does not carry every argument
   -- its target takes. core/PerfSetup.lua's `decorate` used to call

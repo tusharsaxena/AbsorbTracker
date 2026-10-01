@@ -330,7 +330,7 @@ this addon supplies sections only. Writing any of those here is anti-pattern #90
    (the way `NS.IsRepaintPending` sits in `modules/Timer.lua`) rather than reaching in.
 3. **Guard every number.** Test it with `out:readable(v)` before formatting or comparing it. An
    absorb or max-health value is never compared or converted at all: pass it through the file's
-   `secretSafe`, which asks `NS.IsConcatSafe` and prints `<secret>` otherwise.
+   `secretSafe`, which asks `NS.IsConcatSafe` and returns `NS.SECRET` (`<secret>`) otherwise.
 4. **Say when it is stood down.** If the section reads machinery that stand-down releases, print
    one `stood down: ...` line while `NS.IsStoodDown()` is true.
 5. **Add it to `SECTIONS`** in report order, then describe it in [debug.md](./debug.md)'s shape

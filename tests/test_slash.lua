@@ -337,3 +337,72 @@ test("slash verbs: degraded /at profile list lists from the store, plainly", fun
   assertTrue(hasLine(out, "Default (current)"), joinedLines(out))
   assertTrue(hasLine(out, "  Alt"), joinedLines(out))
 end)
+
+test("slash verbs: the stub's SplitVerb returns what the library's does, over a corpus", function()
+  -- The one splitter the stub carries (slash-commands-§1's minimal dispatch) must be the library's
+  -- contract exactly; live, the seam is the library's own function.
+  -- red under: any drift of the stub split, or a live build that splits with a private copy.
+  local lib = T.mocks.LibStub("LibKa0s-Slash-1.0")
+  assertTrue(NS.Slash.__SplitVerb == lib.SplitVerb, "live, the split is the library's function")
+  local NS2 = degraded()
+  local stub = NS2.Slash.__SplitVerb
+  assertTrue(type(stub) == "function" and stub ~= lib.SplitVerb, "degraded, the stub's own splitter")
+  local corpus = { false, "", "x", "LIST", "use Raid Night", "  a  b ", "HOLD 5 2" }
+  for _, input in ipairs(corpus) do
+    local arg = input or nil
+    local sv, sr = stub(arg)
+    local lv, lr = lib.SplitVerb(arg)
+    local label = ("input %q"):format(tostring(arg))
+    assertEqual(sv, lv, label .. ": verb")
+    assertEqual(sr, lr, label .. ": rest")
+  end
+end)
+
+-- The names printed under `header` (a line ending in it), in order, up to the first non-row line.
+local function listedUnder(lines, header)
+  local names, inList = {}, false
+  for _, line in ipairs(lines) do
+    if inList then
+      local name = line:match("^%S+   (%S.-)$")
+      if not name then break end
+      names[#names + 1] = (name:gsub(" %(current%)$", ""))
+    elseif line:find(header .. "$") then
+      inList = true
+    end
+  end
+  return names
+end
+
+test("slash verbs: /at profile list and bare /at profile list the same names in the same order", function()
+  -- AbsorbTracker#33: `list` used to walk db:GetProfiles() unsorted while bare `/at profile` printed
+  -- the library's sorted list, so the two routes could disagree. Both now read Slash.ProfileNames.
+  -- red under: `list` walking the store directly again.
+  for _, name in ipairs({ "zeta", "Alpha", "beta" }) do NS.db:SetProfile(name) end
+  NS.db:SetProfile("Default")
+  T.mocks.__fireTimers()
+  local list, bare = plainSlash("profile list"), plainSlash("profile")
+  local want = T.mocks.LibStub("LibKa0s-Slash-1.0").ProfileNames(NS.db)
+  for _, name in ipairs({ "zeta", "Alpha", "beta" }) do NS.db:DeleteProfile(name, true) end
+
+  local fromList, fromBare = listedUnder(list, "Available profiles"), listedUnder(bare, "Profiles")
+  assertEqual(table.concat(fromList, ","), table.concat(want, ","), joinedLines(list))
+  assertEqual(table.concat(fromBare, ","), table.concat(fromList, ","), joinedLines(bare))
+  local at = {}
+  for i, name in ipairs(fromList) do at[name] = i end
+  assertTrue(at.Alpha < at.beta and at.beta < at.Default and at.Default < at.zeta,
+    "sorted ignoring case: " .. table.concat(fromList, ","))
+  assertTrue(hasLine(list, "Default (current)"), joinedLines(list))
+end)
+
+test("slash verbs: /at profile list names the current profile even when the store leaves it out", function()
+  -- AceDB's GetProfiles appends the current profile itself; a duck-typed store need not.
+  -- red under: `list` walking the store directly again.
+  local real = NS.db.GetProfiles
+  NS.db.GetProfiles = function() return { "Other" }, 1 end
+  local ok, out = pcall(plainSlash, "profile list")
+  NS.db.GetProfiles = real
+  assertTrue(ok, tostring(out))
+  assertEqual(table.concat(listedUnder(out, "Available profiles"), ","), "Default,Other",
+    joinedLines(out))
+  assertTrue(hasLine(out, "Default (current)"), joinedLines(out))
+end)

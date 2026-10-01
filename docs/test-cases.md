@@ -157,9 +157,10 @@ badge and any count quoted in the docs must agree with it.
 - EnvSetup degraded: a legacy-only surface yields nil, and the dead global is never called
 - EnvSetup: the deleted shim is gone, and so is the file that was only ever the shim
 
-### test_coresetup.lua (6)
+### test_coresetup.lua (7)
 
 - core: the secret seam is the library's, not a private copy
+- core: NS.SECRET is the library's sentinel, live and degraded
 - core: the perf descriptor names the folder and leaves the close control to the library
 - core: NS.Print carries the [AT] tag and survives a secret arg
 - core: NS.Print and NS.Util.print are the same object after the AceConsole reclaim
@@ -196,7 +197,7 @@ badge and any count quoted in the docs must agree with it.
 - /at debug on writes an [Init] summary naming our version, schema and profile
 - the console checkbox label the library renders is prose, not its own STRINGS key
 
-### test_slash.lua (19)
+### test_slash.lua (22)
 
 - NS.Print survives AceConsole's embed and stays the [AT]-prefixed printer
 - bare /at opens the settings panel through the config verb, not the help index
@@ -217,6 +218,9 @@ badge and any count quoted in the docs must agree with it.
 - slash verbs: the stub's split agrees with the live dispatcher's over a corpus
 - slash verbs: degraded /at debug events and /at profile current still answer
 - slash verbs: degraded /at profile list lists from the store, plainly
+- slash verbs: the stub's SplitVerb returns what the library's does, over a corpus
+- slash verbs: /at profile list and bare /at profile list the same names in the same order
+- slash verbs: /at profile list names the current profile even when the store leaves it out
 
 ### test_timer.lua (13)
 
@@ -996,10 +1000,10 @@ badge and any count quoted in the docs must agree with it.
 | test_database.lua | 38 |
 | test_units.lua | 17 |
 | test_envsetup.lua | 7 |
-| test_coresetup.lua | 6 |
+| test_coresetup.lua | 7 |
 | test_mediasetup.lua | 10 |
 | test_debuglog.lua | 14 |
-| test_slash.lua | 19 |
+| test_slash.lua | 22 |
 | test_timer.lua | 13 |
 | test_perf.lua | 33 |
 | test_visibility.lua | 26 |
@@ -1030,4 +1034,4 @@ badge and any count quoted in the docs must agree with it.
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
-| **Total** | **864** |
+| **Total** | **868** |

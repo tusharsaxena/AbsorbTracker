@@ -9,7 +9,7 @@ These are the checks only a live client can make: real frames, the live absorb e
 | INSTALL-1–5 | Install | Fresh load, shipped defaults, `/reload`, AddOns-list logo, the TOC version |
 | SLASH-1–11 | Slash | Bare `/at`, help, unknown verbs, `list` / `get` / `set` / `reset` |
 | PANEL-1–10 | Panel | Opening the panel, About page, General layout, tab strips, live edits, Defaults, Reset All, locale keys, the folder name on the descriptor |
-| PROFILE-1–15 | Profiles | The Profiles page, the `profile <name>` verb and the `/at profile` sub-verbs |
+| PROFILE-1–16 | Profiles | The Profiles page, the `profile <name>` verb and the `/at profile` sub-verbs |
 | STATE-1–5 | State | The addon-wide enable switch and the stand-down latch |
 | COMBAT-1–6 | Combat | Secret values, the settings combat gate, the sidebar lock, lock and unlock in combat |
 | BAR-1–16 | Bars | Absorb tracking on three units, visibility, scale, toggle, preview, drag strips, positions |
@@ -17,7 +17,7 @@ These are the checks only a live client can make: real frames, the live absorb e
 | MIGRATE-1–6 | Upgrades | SavedVariables backfill, the schema stamp, the visibility and v3 migrations |
 | LAUNCH-1–10 | Launcher | Minimap button, options menu, broker display |
 | DIAG-1–51 | Diagnostics | Debug console and its Diagnostics link, value hold, bulk log lines, the library's refusal and stand-down lines, diagnostics report (which turns logging on), perf run, resizing the console, its Copy window and the perf panel |
-| DEGRADED-1–4 | Degraded | LibKa0s absent, and the partial breaks that show a failure's signature |
+| DEGRADED-1–5 | Degraded | LibKa0s absent, and the partial breaks that show a failure's signature |
 | LOC-1–3 | Non-English client | What a deDE or frFR client renders |
 
 ## Before you start
@@ -92,6 +92,7 @@ Setup for the verb checks: run PROFILE-9 first, so a `SmokeTest` profile exists 
 - **PROFILE-13. The enable flags follow the profile.** On `Default`, enable the Target bar and target someone. `/at profile new SmokeUnits` → the fresh profile has Target off and the target bar disappears. `/at profile Default` → Target is on again and its bar tracks a shield without a `/reload`. Delete `SmokeUnits`. Result:
 - **PROFILE-14. `copy` and its refusals.** On `Default`, `/at profile copy SmokeTest` → `Copied settings from profile 'SmokeTest'` and the bars repaint to SmokeTest's look. `/at profile copy NoSuchProfile` → `Profile 'NoSuchProfile' not found — /at profile list shows them`. `/at profile copy Default` → `Cannot copy a profile onto itself`. Neither refusal raises a Lua error or changes a bar. `/at profile reset` → `Profile reset to defaults` and the bars repaint. Result:
 - **PROFILE-15. `delete` and its refusals.** `/at profile delete Default` while on `Default` → `Cannot delete the current profile`. `/at profile delete NoSuchProfile` → the `not found` line and no `Deleted` line. `/at profile delete SmokeTest` → `Deleted profile 'SmokeTest'`. Result:
+- **PROFILE-16. `list` and the bare list agree.** On `Default`, `/at profile new alpha`, `/at profile new Zeta`, then `/at profile Default`. `/at profile list` → `Available profiles`, then the rows sorted without regard to case (`alpha`, `Default`, `Zeta`, with any other profile in its place), and `Default (current)` marked once. Bare `/at profile` → the same names in the same order under its `Profiles` header. `/at profile delete alpha`, `/at profile delete Zeta`. Result:
 
 ## State
 
@@ -258,6 +259,7 @@ Setup for the verb checks: run PROFILE-9 first, so a `SmokeTest` profile exists 
 - **DEGRADED-2. The slash stub answers honestly.** Still without the library: `/at help` → a header and one plain row per verb (`/at list  List every setting and its current value`: no gold, no em dash). `/at list` → exactly `/at list is unavailable: the LibKa0s library did not load.` `/at profile Default` → `/at profile is unavailable: the LibKa0s library did not load.` and nothing switches. `/at diagnostics` and `/at debug diagnostics` → `/at diagnostics is unavailable: the LibKa0s library did not load.` `/at debug` prints one chat line and opens no window. No Lua error anywhere. Rename the folder back and `/reload`. Result:
 - **DEGRADED-3. No folder name, and the controls fall back to words.** With the library in place, remove `addonName = addonName` from `core/DebugLogSetup.lua`'s descriptor, `/reload`, `/at debug` → the title bar shows the words **Copy** and **Clear** and an **×**, spaced as before the art existed, not gaps. Restore the line and `/reload`. Result:
 - **DEGRADED-4. Missing art is blank space, silently.** Rename `libs/LibKa0s/media/icons/` aside, `/reload`, `/at debug` → three blank gaps at the right end of the title bar and no error. That is the failure signature DIAG-2 hunts for (`Media.Icon` builds a path without checking the file; `tests/test_mediasetup.lua` is what stops it shipping). Rename the folder back and `/reload`. Result:
+- **DEGRADED-5. Host sub-verbs still split without the library.** Rename `libs/LibKa0s/` aside, `/reload`. `/at profile list` → `Available profiles` and every profile, the current one marked `(current)` (order not checked). `/at profile CURRENT` → `Current profile: <name>`. `/at debug EVENTS` → the `Rejected events:` line. `/at toggle TARGET` → only the Target bar flips; run it again to flip it back. No Lua error anywhere. Rename the folder back and `/reload`. Result:
 
 ## Non-English client
 
@@ -266,7 +268,7 @@ The headless suite cannot see this: `tests/wow_mock.lua` answers enUS for every 
 **What this addon reads in the player's language.** Two seams, and they are the whole list:
 
 - **`AbbreviateNumbers`**: the bar's value text (`modules/Display.lua:449`), the `/at debug hold` line (`settings/Slash.lua:312`, `:345`) and three debug lines (`core/AbsorbTracker.lua:256`, `:258`, `:344`). Blizzard localizes both the suffix and the grouping.
-- **`UnitClass`**: `core/Data.lua:205` and `core/CoreSetup.lua:60` both `pcall` it and take the third return, the English class token (`PRIEST`), never the first, the localized class name. `bgClassColors` is keyed on the token, so class colors should be locale-independent. LOC-2 checks that rather than assuming it.
+- **`UnitClass`**: `core/Data.lua:205` and `core/CoreSetup.lua:65` both `pcall` it and take the third return, the English class token (`PRIEST`), never the first, the localized class name. `bgClassColors` is keyed on the token, so class colors should be locale-independent. LOC-2 checks that rather than assuming it.
 
 **What it does not read.** No chat or tooltip `_G` constant, no parsed tooltip line, no `subType` where a `classID` exists, and nothing another tool parses. `grep -rn '_G\[' core modules settings defaults` finds only `core/Constants.lua`'s texture paths; rerun it rather than trusting this line. Every label, tooltip and chat line is an English literal and stays English on a German client. That is the addon's scope, not a failure.
 
@@ -293,6 +295,7 @@ No client run is recorded for these yet. Three kinds are listed: old checks that
 | PROFILE-5 | Old § G step 37, rerouted through the verb | The switch now goes through `/at profile <name>` and its `Switched to profile` line |
 | PROFILE-9, PROFILE-14, PROFILE-15 | Old § G steps 36 and 36a (PROFILE-9), 38 and 38a (PROFILE-14), 39 (PROFILE-15) | Added or rewritten by `AT-03` (2026-09-24): `new` refuses an existing name, and `copy` and `delete` check the name first; session AT.6 of the 2026-09-23 remediation plan is owed and was never run |
 | PROFILE-13 | Old § K step 70 | The switch back now goes through `/at profile <name>` |
+| PROFILE-16 | New on 2026-10-02 (`CA-AT-01`) | `/at profile list` now lists LibKa0s-Slash's `ProfileNames` (AbsorbTracker#33): sorted ignoring case, the same order as the bare form; no client has run it |
 | STATE-3 | Old § U step 12 | Rewritten by `AT-11` (2026-09-24): the refused verbs now include `/at debug hold`, and `/at debug events` stays live; no client run is recorded since |
 | COMBAT-4 | Old § C step 13a (CX03; rewritten for the LibKa0s v1.46.1 cover) | On the 2026-09-07 cycle's checklist, none of which was run; no client run is recorded since the v1.46.1 cover |
 | COMBAT-5, COMBAT-6 | Old § D step 14e, with § K step 68 (COMBAT-5) | Rewritten by `AT-04` (2026-09-24): the in-combat `/at unlock` now ends with the stored `locked = true` (COMBAT-6); session AT.7 of the 2026-09-23 remediation plan, which also checks the combat re-lock line (COMBAT-5), is owed and was never run. COMBAT-6 is also corrected: the old step unticked **Lock frame** in combat, which the LibKa0s v1.46 combat cover makes impossible, so that half is dropped |
@@ -317,4 +320,5 @@ No client run is recorded for these yet. Three kinds are listed: old checks that
 | DIAG-2, DIAG-4, DIAG-45 | Corrected on 2026-09-30 (`DL-AT-03`) | The title bar gained the **Diagnostics** link, which these checks now name |
 | DEGRADED-1 | Old § M step 99 | Rewritten by `AT-08` (2026-09-24): `disable`, `enable`, `unlock` and `lock` now write through without the library; session X2.3 of the 2026-09-23 remediation plan is owed and was never run |
 | DEGRADED-2 | Old § M step 99, with § V step 10 | The `/at profile` step is new with the verb's degraded stub (`SP-AT-02`); the plain help rows and the `/at list` line (`AT-09`, 2026-09-24) are session X2.6 of the 2026-09-23 remediation plan, owed and never run |
+| DEGRADED-5 | New on 2026-10-02 (`CA-AT-01`) | `/at debug`, `/at profile` and `/at toggle` split through the slash stub's one `SplitVerb` on a degraded load (AbsorbTracker#33); no client has run it |
 | LOC-1–3 | Old § T steps 110–112 (`M5-08`) | No non-English client has run them |
