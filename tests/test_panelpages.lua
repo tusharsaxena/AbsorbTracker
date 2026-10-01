@@ -139,8 +139,17 @@ local function tabButtons(ctx)
   return out
 end
 
+-- The strip the page owes: one tab per distinct `group` among the unit's DRAWN rows, in declaration
+-- order. Derived here from the schema rather than read back from the page's own partition, so a
+-- case comparing it with the buttons on screen compares two independent answers.
 local function tabNames(ctx)
-  local names = NS.Helpers.__partitionTabs(NS.SchemaForPage("appearance", ctx.unit))
+  local names, seen = {}, {}
+  for _, row in ipairs(NS.SchemaForPage("appearance", ctx.unit)) do
+    if row.group and not row.skipRender and not seen[row.group] then
+      seen[row.group] = true
+      names[#names + 1] = row.group
+    end
+  end
   return names
 end
 
@@ -870,6 +879,83 @@ test("a mirror-state change DOES re-render -- the two-tier refresher keeps both 
   panel:Hide()
   ctx.unit = "player"
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
+end)
+
+-- Every label and every text in the scroll, depth-first.
+local function scrollContent(ctx)
+  local labels, texts = {}, {}
+  local function walk(w)
+    for _, child in ipairs(w.children or {}) do
+      if child.labelText then labels[child.labelText] = true end
+      if child.text then texts[child.text] = true end
+      walk(child)
+    end
+  end
+  walk(ctx.scroll)
+  return labels, texts
+end
+
+test("after a tab click the two-tier refresher is still registered", function()
+  -- AbsorbTracker#32. The page's block refresher is appended AFTER the body, and a tab click that
+  -- cleared the scroll and redrew only the rows (RenderTabbedSchema's own click, without the
+  -- minor-8 `rerender`) would reset ctx.refreshers and lose it: the checkbox and the row partition
+  -- would stop following a mirror change made through the refreshers alone. RestoreDefaults is that
+  -- path -- it resets units.focus.mirror to `true` and runs only the refreshers.
+  -- red under: a tab click that does not re-run the whole page render.
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  NS.db.profile.units.focus.mirror = false
+  ctx.unit, ctx.activeTab = "focus", nil
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+
+  tabButtons(ctx)[2]:__fire("OnClick")
+  assertEqual(ctx.activeTab, "Bar", "the click retargets the page to the second tab")
+  assertTrue((scrollContent(ctx))["Use class color"], "precondition: the Bar tab's rows are drawn")
+
+  NS.Helpers.RestoreDefaults("appearance", ctx)
+  assertEqual(NS.db.profile.units.focus.mirror, true, "the reset re-mirrored the unit")
+  local labels, texts = scrollContent(ctx)
+  assertTrue(chromeLabel(ctx, "Use same styling as Player").value,
+    "the block's checkbox follows the reset after a tab click")
+  assertFalse(labels["Use class color"], "the now-mirrored unit's rows are gone")
+  assertTrue(texts["Linked to Player \226\128\148 uncheck to customize."], "and the hint replaces them")
+
+  ctx.unit, ctx.activeTab = "player", nil
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+end)
+
+test("the Link group never becomes a tab, mirrored or not", function()
+  -- The mirror row is the Link group's only row and carries skipRender: its widget is the bespoke
+  -- checkbox in the chrome block. A partition that kept skipRender rows would grow a sixth tab,
+  -- "Link", holding nothing, on target and focus.
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  local realStrip, keys = Helpers.TabStrip, nil
+  Helpers.TabStrip = function(c, spec, ...)
+    keys = {}
+    for i, t in ipairs(spec.tabs) do keys[i] = t.key end
+    return realStrip(c, spec, ...)
+  end
+  local ok, err = pcall(function()
+    for _, unit in ipairs({ "target", "focus" }) do
+      for _, mirrored in ipairs({ false, true }) do
+        NS.db.profile.units[unit].mirror = mirrored
+        ctx.unit, ctx.activeTab, keys = unit, nil, nil
+        NS.Helpers.RenderUnitPanel(ctx, "appearance")
+        local where = unit .. (mirrored and " (mirrored)" or "")
+        assertTrue(keys ~= nil, where .. ": the strip was drawn")
+        assertEqual(table.concat(keys, ","), "Size,Bar,Background,Border,Text",
+          where .. ": five tabs, and Link is none of them")
+      end
+    end
+  end)
+  Helpers.TabStrip = realStrip
+  NS.db.profile.units.target.mirror, NS.db.profile.units.focus.mirror = true, true
+  ctx.unit, ctx.activeTab = "player", nil
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+  if not ok then error(err, 0) end
 end)
 
 test("a hidden Appearance page is not rebuilt by a mirror flip; its next OnShow rebuilds it", function()

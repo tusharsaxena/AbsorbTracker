@@ -482,7 +482,7 @@ badge and any count quoted in the docs must agree with it.
 - the cross-slice layout constants are published for the widget/about slices
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_panelpages.lua (32)
+### test_panelpages.lua (34)
 
 - a page renders nothing until its first OnShow
 - the Appearance page opens on the player unit with no mirror controls
@@ -514,6 +514,8 @@ badge and any count quoted in the docs must agree with it.
 - a failed unit-panel render is reported in chat, never swallowed
 - an ordinary schema write does NOT re-render the whole unit page
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
+- after a tab click the two-tier refresher is still registered
+- the Link group never becomes a tab, mirrored or not
 - a hidden Appearance page is not rebuilt by a mirror flip; its next OnShow rebuilds it
 - /at resetposition does not claim success when the settings helpers are absent
 
@@ -995,7 +997,7 @@ badge and any count quoted in the docs must agree with it.
 | test_display.lua | 60 |
 | test_draghandle.lua | 29 |
 | test_helpers.lua | 40 |
-| test_panelpages.lua | 32 |
+| test_panelpages.lua | 34 |
 | test_launcher.lua | 34 |
 | test_optionssetup.lua | 15 |
 | test_slashcmds.lua | 100 |
@@ -1016,4 +1018,4 @@ badge and any count quoted in the docs must agree with it.
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
-| **Total** | **854** |
+| **Total** | **856** |
