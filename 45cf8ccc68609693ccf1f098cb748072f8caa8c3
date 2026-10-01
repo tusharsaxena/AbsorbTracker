@@ -1,1 +1,1 @@
-OK GI-AT-01 — pin case asserts no rebuild + _dirty while hidden and rebuild on OnShow; red-verified by swapping SetRenderer for a hand-wired OnShow; comment + settings-panel.md sentence; gate green (855/0/1, luacheck 0/0, sighted maxCcn 14)
+OK GI-AT-01 — pin case asserts no rebuild + _dirty while hidden and a correct rebuild on OnShow; non-vacuous (implementer showed red without SetRenderer); doc sentence in UnitPanel.lua and settings-panel.md
