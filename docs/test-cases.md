@@ -482,7 +482,7 @@ badge and any count quoted in the docs must agree with it.
 - the cross-slice layout constants are published for the widget/about slices
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_panelpages.lua (34)
+### test_panelpages.lua (24)
 
 - a page renders nothing until its first OnShow
 - the Appearance page opens on the player unit with no mirror controls
@@ -507,6 +507,10 @@ badge and any count quoted in the docs must agree with it.
 - ClearScroll resets ctx.refreshers, so repeated renders do not leak stale closures
 - the General page's Reset position button clears EVERY unit's saved position
 - the Reset position button and /at resetposition run the SAME shared helper
+- /at resetposition does not claim success when the settings helpers are absent
+
+### test_panelmirror.lua (10)
+
 - a page refresh re-syncs the mirror checkbox and re-runs the row partition
 - `/at set units.<unit>.mirror` re-syncs an open panel's mirror checkbox
 - the block's refresher cannot recurse: a refresh fired mid-render is a no-op
@@ -517,7 +521,6 @@ badge and any count quoted in the docs must agree with it.
 - after a tab click the two-tier refresher is still registered
 - the Link group never becomes a tab, mirrored or not
 - a hidden Appearance page is not rebuilt by a mirror flip; its next OnShow rebuilds it
-- /at resetposition does not claim success when the settings helpers are absent
 
 ### test_launcher.lua (34)
 
@@ -997,7 +1000,8 @@ badge and any count quoted in the docs must agree with it.
 | test_display.lua | 60 |
 | test_draghandle.lua | 29 |
 | test_helpers.lua | 40 |
-| test_panelpages.lua | 34 |
+| test_panelpages.lua | 24 |
+| test_panelmirror.lua | 10 |
 | test_launcher.lua | 34 |
 | test_optionssetup.lua | 15 |
 | test_slashcmds.lua | 100 |

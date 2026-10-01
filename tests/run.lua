@@ -126,6 +126,9 @@ Kit.run{
     -- Peeled out of test_helpers near the layout-§1 cap (R-14). Straight after it: its first case
     -- asserts the Appearance page has not rendered yet, so nothing earlier may fire that OnShow.
     "test_panelpages",
+    -- Its mirror half, peeled out when test_panelpages entered the layout-§1 1000-1500 band;
+    -- straight after it, so the Appearance page those cases reach is the one it already opened.
+    "test_panelmirror",
     "test_launcher",
     "test_optionssetup",
     "test_slashcmds",
