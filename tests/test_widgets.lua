@@ -975,7 +975,8 @@ local function withAppearance(unit, mirrored, body)
 end
 
 test("every unit's Appearance strip is its schema's groups, and each tab draws that group's rows", function()
-  -- red under: partitionTabs keeping `skipRender` rows (a sixth "Link" tab on target and focus),
+  -- red under: a partition keeping an all-skipRender group as a tab (e.g. dropping
+  -- untabbedSkipRender: a sixth "Link" tab on target and focus),
   -- or the tab click re-rendering the rows without retargeting them.
   for _, unit in ipairs(NS.Units.LIST) do
     withAppearance(unit, false, function(ctx, specs)
