@@ -126,6 +126,9 @@ Kit.run{
     -- Peeled out of test_helpers near the layout-§1 cap (R-14). Straight after it: its first case
     -- asserts the Appearance page has not rendered yet, so nothing earlier may fire that OnShow.
     "test_panelpages",
+    -- Its mirror half, peeled out when test_panelpages entered the layout-§1 1000-1500 band;
+    -- straight after it, so the Appearance page those cases reach is the one it already opened.
+    "test_panelmirror",
     "test_launcher",
     "test_optionssetup",
     "test_slashcmds",
@@ -165,5 +168,8 @@ Kit.run{
     -- Documented deviations. No Kit.layoutCap opts: the hub is the default and nothing here
     -- is generated data, so there is no exempt set to hand it.
     { name = "test_layout_cap", dir = "tests/_kit/" },
+    -- automated-tests-§3: the sighted complexity gate (kit revision 35). Pins the sanitizer the
+    -- runner's complexity suite measures through, and the parity reader that fails a blind run.
+    { name = "test_lizard_sighted", dir = "tests/_kit/" },
   },
 }

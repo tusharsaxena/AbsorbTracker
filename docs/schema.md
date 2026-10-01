@@ -413,7 +413,7 @@ Defaults live in `defaults/Profile.lua`'s `NS.defaults.profile`. The six globals
 | Appearance | Border | 4 |
 | Appearance | Text | 6 |
 
-Appearance counts are **per unit** (the page renders one unit at a time behind the banner); General's are unfiltered, because that page renders with `ctx.unit` nil and shows all three enable toggles at once. The Master controls tab's two **reset buttons** are not rows and are not counted — they are the tab's closing button pair. `mirror` is in neither column either: it carries `skipRender`, so `Helpers.__partitionTabs` leaves it out of the strip and the page's chrome block draws it. `tests/test_schema.lua` asserts this table.
+Appearance counts are **per unit** (the page renders one unit at a time behind the banner); General's are unfiltered, because that page renders with `ctx.unit` nil and shows all three enable toggles at once. The Master controls tab's two **reset buttons** are not rows and are not counted — they are the tab's closing button pair. `mirror` is in neither column either: it carries `skipRender`, so `H.RenderTabbedSchema`'s `untabbedSkipRender` (OptionsTabs minor 8) keeps its all-`skipRender` Link group off the strip and the page's chrome block draws it. `tests/test_schema.lua` asserts this table.
 
 ### General page (flat globals + the per-unit enable toggles)
 
@@ -432,7 +432,7 @@ Appearance counts are **per unit** (the page renders one unit at a time behind t
 
 | Key | Type | Default | Range / Values | Description |
 |-----|------|---------|----------------|-------------|
-| `mirror` | bool | `true` (target, focus only — player has no row, it's the mirror source) | — | Live-mirror every appearance key from the player. `alwaysPerUnit = true`, `skipRender = true` — not drawn by `RenderRows`; `Helpers.RenderUnitPanel` draws it as the header "Use same styling as Player" checkbox instead. It carries `group = "Link"` because options-ui-§13 wants every row attributable to a section, and draws no tab because `__partitionTabs` skips `skipRender` rows. |
+| `mirror` | bool | `true` (target, focus only — player has no row, it's the mirror source) | — | Live-mirror every appearance key from the player. `alwaysPerUnit = true`, `skipRender = true` — not drawn by `RenderRows`; `Helpers.RenderUnitPanel` draws it as the header "Use same styling as Player" checkbox instead. It carries `group = "Link"` because options-ui-§13 wants every row attributable to a section, and draws no tab because `H.RenderTabbedSchema`'s `untabbedSkipRender` (OptionsTabs minor 8) keeps the all-`skipRender` Link group off the strip. |
 | `barWidth` | number | `200` | 50 – 500 px | Bar width. Hint `"%d px"`. **Size** tab. |
 | `barHeight` | number | `20` | 10 – 100 px | Bar height. Hint `"%d px"`. **Size** tab. |
 | `barTexture` | string | `"Blizzard Raid Bar"` | LSM `statusbar` catalog | Status-bar fill texture. `dialogControl = "LSM30_Statusbar"`, `startsLine`. Composed by `H.BarGroup`. **Bar** tab. |

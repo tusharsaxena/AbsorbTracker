@@ -87,13 +87,18 @@ here would be false precision.
 
 ### lizard — the complexity report
 
-Drives the `complexity` suite of `tests/_kit/run-automated-tests.sh` with the exact invocation `performance-§10` fixes:
+Drives the `complexity` suite of `tests/_kit/run-automated-tests.sh`. Run the suite through the runner:
 
 ```sh
-lizard -l lua -x "./libs/*" -x "./tests/_kit/*" .
+bash tests/_kit/run-automated-tests.sh --suite complexity
 ```
 
-That command, the tool version, and the date are stamped in the report's own generated header.
+Since kit revision 35 the runner does not run lizard over the real tree. It copies every measured file
+into a sanitized "sighted shadow" (`tests/_kit/lizard_sighted.lua`), runs the fixed `performance-§10`
+invocation `lizard -l lua -L 1500 -x "./libs/*" -x "./tests/_kit/*" .` there, and checks function-count
+parity per file. Raw `lizard` over the real tree is blind in Lua (it loses whole functions over `#` and
+some keywords, WowAddonStandards#6), so it is not the suite: use it only to confirm the tool is
+installed. The command, the tool version, and the date are stamped in the report's own generated header.
 
 **Install it with `pipx`, not `pip`.** Ubuntu 24.04 marks its system Python `EXTERNALLY-MANAGED`
 (PEP 668), so `pip install lizard` **fails** with `error: externally-managed-environment`. This is
@@ -260,7 +265,8 @@ do when one is red — this file only tells you what to install.
 ```sh
 lua tests/run.lua                                       # the headless suite — all green
 luacheck .                                              # 0 warnings / 0 errors
-lizard -l lua -x "./libs/*" -x "./tests/_kit/*" .       # the `complexity` suite; recorded in each run bundle
+bash tests/_kit/run-automated-tests.sh --suite complexity   # the `complexity` suite (sighted, kit 35)
+lizard --version                                        # tool install check only; raw lizard is blind in Lua
 ```
 
 The first two are the **green gate**: both must pass before every commit. The third is a **report**

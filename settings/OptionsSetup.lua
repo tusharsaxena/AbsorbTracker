@@ -286,9 +286,9 @@ if not lib then
         -- going red. The exemption leaves that file in the same commit as this line arrives.
         "SetRenderer",
         -- The chrome band (options-ui-§13 / §14), new to the surface at LibKa0s v1.23.0. Every one of
-        -- these is reached from a page builder or a tab click: settings/General.lua calls
-        -- RenderTabbedSchema, settings/UnitPanel.lua calls PageHeader and TabStrip, and both reach
-        -- SetChromeHeight through them. A no-op is the honest answer for the same reason
+        -- these is reached from a page builder or a tab click: settings/General.lua and
+        -- settings/UnitPanel.lua call RenderTabbedSchema (which draws the TabStrip), UnitPanel also
+        -- calls PageHeader, and both reach SetChromeHeight through them. A no-op is the honest answer for the same reason
         -- RenderSchema's is -- there is no panel to draw into.
         --
         -- PageHeader rather than PageBanner: the Appearance page's one chrome block carries the Unit

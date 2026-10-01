@@ -482,7 +482,7 @@ badge and any count quoted in the docs must agree with it.
 - the cross-slice layout constants are published for the widget/about slices
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_panelpages.lua (31)
+### test_panelpages.lua (24)
 
 - a page renders nothing until its first OnShow
 - the Appearance page opens on the player unit with no mirror controls
@@ -503,10 +503,14 @@ badge and any count quoted in the docs must agree with it.
 - a raise inside the chrome block costs the block, not the page
 - a raise in the unit panel body is reported as one space-joined chat line
 - the chrome block's widgets go back to AceGUI's pool, after the render and not before
-- the mirrored hint is a laid-out row followed by a ROW_VSPACER
+- the mirrored hint is a full-width line followed by a ROW_VSPACER
 - ClearScroll resets ctx.refreshers, so repeated renders do not leak stale closures
 - the General page's Reset position button clears EVERY unit's saved position
 - the Reset position button and /at resetposition run the SAME shared helper
+- /at resetposition does not claim success when the settings helpers are absent
+
+### test_panelmirror.lua (10)
+
 - a page refresh re-syncs the mirror checkbox and re-runs the row partition
 - `/at set units.<unit>.mirror` re-syncs an open panel's mirror checkbox
 - the block's refresher cannot recurse: a refresh fired mid-render is a no-op
@@ -514,7 +518,9 @@ badge and any count quoted in the docs must agree with it.
 - a failed unit-panel render is reported in chat, never swallowed
 - an ordinary schema write does NOT re-render the whole unit page
 - a mirror-state change DOES re-render -- the two-tier refresher keeps both halves
-- /at resetposition does not claim success when the settings helpers are absent
+- after a tab click the two-tier refresher is still registered
+- the Link group never becomes a tab, mirrored or not
+- a hidden Appearance page is not rebuilt by a mirror flip; its next OnShow rebuilds it
 
 ### test_launcher.lua (34)
 
@@ -962,6 +968,17 @@ badge and any count quoted in the docs must agree with it.
 - layoutcap self-test: a census that states nothing is told apart from one that states none
 - layoutcap self-test: the exempt set takes folders as well as paths
 
+### test_lizard_sighted.lua (8)
+
+- lizard sighted: every hazard lizard loses a function over is neutralized
+- lizard sighted: fields, strings, comments and look-alike names come through unchanged
+- lizard sighted: a method definition is rewritten to its dot form with self
+- lizard sighted: no line is added or removed, CRLF included
+- lizard sighted: countFunctions counts the keyword, not strings, comments or longer names
+- lizard sighted: listedCounts reads the per-file table, once per file
+- lizard sighted: parity names every file whose counts differ, and only those
+- lizard sighted: lizard lists every function of a hazard fixture once it is sanitized
+
 ## Totals
 
 | Suite | Cases |
@@ -983,7 +1000,8 @@ badge and any count quoted in the docs must agree with it.
 | test_display.lua | 60 |
 | test_draghandle.lua | 29 |
 | test_helpers.lua | 40 |
-| test_panelpages.lua | 31 |
+| test_panelpages.lua | 24 |
+| test_panelmirror.lua | 10 |
 | test_launcher.lua | 34 |
 | test_optionssetup.lua | 15 |
 | test_slashcmds.lua | 100 |
@@ -1003,4 +1021,5 @@ badge and any count quoted in the docs must agree with it.
 | test_diagnostics_contract.lua | 9 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
-| **Total** | **845** |
+| test_lizard_sighted.lua | 8 |
+| **Total** | **856** |

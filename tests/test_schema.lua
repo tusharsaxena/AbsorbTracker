@@ -19,9 +19,9 @@ end)
 test("SchemaForPage keeps groups in registration order, which IS the Appearance tab strip",
   function()
   -- Filtered to one unit so the three units' rows don't interleave when checking group order.
-  -- This is the strip a player sees, left to right: RenderTabbedSchema (and this addon's own
-  -- Helpers.__partitionTabs, which draws the strip because the page has a bespoke header above it)
-  -- both take one tab per distinct `group` in declaration order. The whole list, in order, not just
+  -- This is the strip a player sees, left to right: RenderTabbedSchema takes one tab per distinct
+  -- `group` in declaration order (the page keeps its skipRender-only Link group off the strip with
+  -- `untabbedSkipRender`, OptionsTabs minor 8). The whole list, in order, not just
   -- the first three -- a run that ends where the assertions stop is a run that can grow a fourth
   -- tab nobody named.
   local rows = NS.SchemaForPage("appearance", "player")
