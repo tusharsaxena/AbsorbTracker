@@ -7,8 +7,8 @@
 --
 -- Neither generalizes. RenderUnitPanel reads NS.Units and the mirror partition, which no other Ka0s
 -- addon has; ResetAllPositions clears a per-unit saved frame position, which is this addon's data
--- model. Everything they stand on — ClearScroll, EnsureScroll, RenderGrid, RenderRows, PageHeader,
--- TabStrip, AttachTooltip — is LibKa0s-Options-1.0's, reached through the same NS.Helpers table, which IS the library instance
+-- model. Everything they stand on — ClearScroll, EnsureScroll, PageHeader, RenderTabbedSchema,
+-- AttachTooltip — is LibKa0s-Options-1.0's, reached through the same NS.Helpers table, which IS the library instance
 -- (settings/OptionsSetup.lua). Decorating it rather than sitting beside it is what lets a page file
 -- call H.RenderUnitPanel and H.RenderSchema without knowing or caring which is which.
 
@@ -83,46 +83,28 @@ end
 ---      strip is drawn under the block and unconditionally, and the mirrored state is CONTENT
 ---      INSIDE the page: a one-line hint, under the strip where the rows would be.
 ---
---- The strip is drawn with H.TabStrip directly rather than through H.RenderTabbedSchema, for the
---- reason MultiMeters' Columns page gives for the same choice: RenderTabbedSchema owns the whole
---- page body -- it renders the active group's rows and nothing else, and its tab click is a
---- ClearScroll plus a re-render of ITSELF. This page substitutes a hint for those rows whenever the
---- unit is mirrored, which is a body RenderTabbedSchema has no way to draw and its tab click would
---- overwrite. A tab click here re-renders the whole page instead, which is the same path the Unit
---- picker and the mirror checkbox already take.
+---      Drawn by H.RenderTabbedSchema with three opts OptionsTabs minor 8 added for this page
+---      (LibKa0s v1.66.0, issue #32). Each replaces a piece the page used to compose itself:
+---
+---        untabbedSkipRender -- the mirror row is the Link group's only row and carries skipRender
+---                              (its widget is the checkbox in the block above), so Link is no tab.
+---                              The strip is one tab per remaining group, in declaration order.
+---        disabledReplaces   -- a mirrored unit draws the hint INSTEAD of its rows, never the rows
+---                              disabled under it. disabledFor answers the mirror state this render
+---                              captured, the same value the refresher below compares against.
+---        rerender           -- a tab click re-runs this whole render rather than ClearScroll plus a
+---                              rows-only redraw, so the block above and the refresher registered
+---                              after the body survive it. It is the path the Unit picker and the
+---                              mirror checkbox already take.
+---
+---      The hint keeps the library's notice font, GameFontHighlightSmall, which is also AceGUI's
+---      own Label font, so it reads exactly as the Label this page drew itself before.
 ---
 --- Full rebuild on every call rather than a persistent header widget: AceGUI's widget pool exists
 --- exactly to make release-and-recreate cheap, so each call clears ctx.scroll and rebuilds.
 ---
 --- The body is a private local so the public entry point below can pcall it — see the re-entrancy
 --- guard there. Call Helpers.RenderUnitPanel, never this.
-
---- The page's tabs, in strip order: one per distinct `group` among the unit's rows, in the order
---- the rows were registered (settings/Appearance.lua's array IS the strip). Derived rather than
---- listed, for the reason options-ui-§13 gives against a second selector: a tab list declared apart
---- from the rows goes stale the first time a section is renamed and nothing says so.
----
---- `skipRender` rows are EXCLUDED, and that exclusion is what lets every row on this page carry a
---- `group` (options-ui-§13) without the mirror flag becoming a tab of its own holding one invisible
---- widget. Its `group` names its subject for anything walking the schema; its widget is the bespoke
---- mirror checkbox, which is drawn in the page's chrome block above the strip and belongs to no tab.
---- @return table  group names in declaration order
---- @return table  { [group] = { row, ... } }
-local function partitionTabs(rows)
-    local order, byGroup = {}, {}
-    for _, row in ipairs(rows) do
-        if row.group and not row.skipRender then
-            if not byGroup[row.group] then
-                byGroup[row.group] = {}
-                order[#order + 1] = row.group
-            end
-            local bucket = byGroup[row.group]
-            bucket[#bucket + 1] = row
-        end
-    end
-    return order, byGroup
-end
-Helpers.__partitionTabs = partitionTabs
 
 -- The chrome block's own arithmetic.
 --
@@ -261,24 +243,6 @@ end
 Helpers.__releaseStaleChromeWidgets = releaseStaleChromeWidgets
 
 
---- The mirrored unit's empty state, drawn UNDER the strip where that tab's rows would be.
----
---- It used to be the last item of the mirror header, above the strip, back when a mirrored unit got
---- no strip at all. Under options-ui-§13 the strip is unconditional, so the state it describes is
---- ordinary page content: one line, in the place the thing it is explaining the absence of would be.
---- Handed to RenderGrid as data like every other bespoke item on this page, so a raise inside it
---- costs the line rather than the whole page.
-local function renderMirroredHint(ctx)
-    Helpers.RenderGrid(ctx, { { wide = true, make = function(_, parent)
-        local hint = NS.AceGUI:Create("Label")
-        -- An em dash (\226\128\148), never a figure dash: the figure dash is missing from the
-        -- settings-panel font and renders as an empty box.
-        hint:SetText("Linked to Player \226\128\148 uncheck to customize.")
-        hint:SetFullWidth(true)
-        parent:AddChild(hint)
-    end } })
-end
-
 local function renderUnitPanelBody(ctx, pageKey)
     ctx.unit = ctx.unit or "player"
     Helpers.ClearScroll(ctx)
@@ -289,7 +253,7 @@ local function renderUnitPanelBody(ctx, pageKey)
     local cb                                   -- hoisted: the refresher at the bottom re-syncs it
 
     -- 1. The block, always, and BEFORE the strip: PageHeader records its own share of the chrome
-    --    band in ctx.__bannerHeight, which TabStrip then adds to the rows it reserves for itself.
+    --    band in ctx.__bannerHeight, which the strip then adds to the rows it reserves for itself.
     --    Called the other way round, the strip's reservation would not know about it and the tabs
     --    would draw on top of the picker.
     --
@@ -310,37 +274,18 @@ local function renderUnitPanelBody(ctx, pageKey)
     })
 
     -- 2. The strip, ALWAYS (options-ui-§13), and then either the active tab's rows or -- for a
-    --    mirrored unit, whose appearance rows are all hidden -- the hint that takes their place.
-    --    The mirror row itself carries skipRender, so partitionTabs leaves it out of the strip and
-    --    RenderRows leaves it to the block above.
-    local rows = NS.SchemaForPage(pageKey, ctx.unit)
-    local tabs, byGroup = partitionTabs(rows)
-    if #tabs > 0 then
-        -- A stale pointer heals to the first tab rather than being trusted, exactly as the
-        -- library's own RenderTabbedSchema does: a tab naming a group this page no longer has
-        -- would render an empty page under a full strip.
-        if not (ctx.activeTab and byGroup[ctx.activeTab]) then
-            ctx.activeTab = tabs[1]
-        end
-        local spec = {}
-        for i, name in ipairs(tabs) do spec[i] = { key = name, label = name } end
-        Helpers.TabStrip(ctx, {
-            tabs  = spec,
-            value = ctx.activeTab,
-            onSelect = function(key)
-                if key == ctx.activeTab then return end
-                ctx.activeTab = key
-                -- The whole page, not just the rows: a mirrored unit's body is the hint rather
-                -- than the tab's rows, and a schema-only redraw would put the rows back.
-                Helpers.RenderUnitPanel(ctx, pageKey)
-            end,
-        })
-        if mirrored then
-            renderMirroredHint(ctx)
-        else
-            Helpers.RenderRows(ctx, byGroup[ctx.activeTab], nil, nil, { noHeadings = true })
-        end
-    end
+    --    mirrored unit -- the hint that takes their place. See the doc block above for the opts.
+    --    The library heals a stale ctx.activeTab to the first tab, and its RenderRows leaves the
+    --    skipRender mirror row to the block above.
+    Helpers.RenderTabbedSchema(ctx, pageKey, nil, nil, {
+        untabbedSkipRender = true,
+        disabledReplaces   = true,
+        disabledFor        = function() return mirrored end,
+        -- An em dash (\226\128\148), never a figure dash: the figure dash is missing from the
+        -- settings-panel font and renders as an empty box.
+        disabledNotice     = "Linked to Player \226\128\148 uncheck to customize.",
+        rerender           = function(c) Helpers.RenderUnitPanel(c, pageKey) end,
+    })
 
     if scroll and scroll.DoLayout then scroll:DoLayout() end
 

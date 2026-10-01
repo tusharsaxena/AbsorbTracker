@@ -207,10 +207,9 @@ test("clicking a tab switches the page to that tab's rows and nothing else's", f
 end)
 
 test("a tab click keeps the chrome block, and never grows a second copy of it", function()
-  -- The reason this page drives H.TabStrip itself instead of handing the whole body to
-  -- H.RenderTabbedSchema: that function renders the active group's rows and nothing else, and its
-  -- tab click is ClearScroll + a re-render of ITSELF — which would overwrite the hint this page
-  -- draws in place of those rows whenever the unit is mirrored.
+  -- The page hands RenderTabbedSchema a `rerender` (OptionsTabs minor 8), so a tab click re-runs
+  -- the whole page render, block included, rather than the library's ClearScroll + rows-only
+  -- redraw. The block is drawn once per render and its ledger replaced, never stacked.
   local panel = barPanel()
   panel:__fire("OnShow")
   local ctx = NS.Helpers.__lastUnitCtx
@@ -557,11 +556,11 @@ test("the chrome block's widgets go back to AceGUI's pool, after the render and 
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
-test("the mirrored hint is a laid-out row followed by a ROW_VSPACER", function()
-  -- What is left in the scroll for a mirrored unit, and RenderGrid emits AddSpacer(ROW_VSPACER)
-  -- after every flushed row unconditionally -- so the hint keeps the same vertical rhythm as any
-  -- schema row further down a page. AddSpacer builds a SimpleGroup with no layout and a fixed
-  -- height, which is what tells the two apart.
+test("the mirrored hint is a full-width line followed by a ROW_VSPACER", function()
+  -- What is left in the scroll for a mirrored unit: RenderTabbedSchema's disabled notice (a
+  -- full-width Label, through TextRow) and the ROW_VSPACER the library adds under it, so the hint
+  -- keeps the vertical rhythm of a schema row -- and nothing after them (disabledReplaces).
+  -- AddSpacer builds a SimpleGroup with a fixed height, which is what tells the spacer apart.
   local panel = barPanel()
   panel:__fire("OnShow")
   local ctx = NS.Helpers.__lastUnitCtx
@@ -570,11 +569,11 @@ test("the mirrored hint is a laid-out row followed by a ROW_VSPACER", function()
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
   local kids = ctx.scroll.children
-  assertEqual(kids[1].type, "SimpleGroup")
-  assertEqual(kids[1].layout, "Flow", "the hint is a laid-out row, not a spacer")
+  assertEqual(kids[1].type, "Label", "the hint is a line of its own")
+  assertEqual(kids[1].text, "Linked to Player \226\128\148 uncheck to customize.")
   assertEqual(kids[2].type, "SimpleGroup")
-  assertEqual(kids[2].height, Helpers.ROW_VSPACER,
-    "and it is followed by the ROW_VSPACER that follows every flushed row")
+  assertEqual(kids[2].height, Helpers.ROW_VSPACER, "and it is followed by a ROW_VSPACER")
+  assertEqual(kids[3], nil, "and nothing under it: the hint replaces the rows")
 
   ctx.unit = "player"
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
@@ -756,7 +755,8 @@ test("a raise mid-render must not latch the re-entrancy flag for the session", f
 
   -- The strip, NOT a widget inside the chrome block: H.PageHeader pcalls its builder, so a raise
   -- in there is contained before it ever reaches the body and could not redden this. The seams the
-  -- OUTER pcall owns are the ones the body calls directly, and TabStrip is one of them.
+  -- OUTER pcall owns are the ones the body reaches directly, and TabStrip is one of them (drawn
+  -- by RenderTabbedSchema, which does not pcall it).
   local savedStrip = Helpers.TabStrip
   Helpers.TabStrip = function() error("planted render failure") end
   local ok = pcall(NS.Helpers.RenderUnitPanel, ctx, "appearance")

@@ -253,8 +253,9 @@ local function addUnitRows(unit)
     --
     -- IT CARRIES A GROUP AND STILL DRAWS NO TAB. options-ui-§13 wants every row attributable to a
     -- section, and a group-less row is the authoring defect the library now reports; but this row's
-    -- widget is the bespoke mirror header, not a tab's content, so settings/UnitPanel.lua's
-    -- partition skips `skipRender` rows when it builds the strip. Naming the subject and drawing no
+    -- widget is the bespoke mirror header, not a tab's content, so settings/UnitPanel.lua hands
+    -- RenderTabbedSchema `untabbedSkipRender` (OptionsTabs minor 8), which keeps an all-skipRender
+    -- group off the strip. Naming the subject and drawing no
     -- tab for it is the honest pair — the alternative was a whole tab holding one invisible row.
     if unit ~= "player" then
         rows[#rows + 1] = {

@@ -908,15 +908,14 @@ test("clicking Bars swaps the rows and leaves the button pair on Master controls
   assertEqual(ctx.activeTab, "Master controls")
 end)
 
--- ── The Appearance page's strip: the host's own composition, pinned ─────────────────────────
+-- ── The Appearance page's strip, pinned per unit and per tab (AT-15) ─────────────────────────
 --
--- settings/UnitPanel.lua draws this strip with H.TabStrip itself rather than handing the body to
--- H.RenderTabbedSchema. The v1.56.0 opts (tabs, disabledFor, disabledNotice) were weighed against
--- it and declined: the library's partition makes a tab of the mirror row's `skipRender` "Link"
--- group, and its disabledFor draws the rows disabled under the notice instead of replacing them
--- with it (GitHub issue #32, re-checked at the next Options minor).
--- These cases pin what the host composition draws, per unit and per tab, so an adoption at the
--- next Options minor has a characterization to stay green against.
+-- Written against the host composition settings/UnitPanel.lua carried until LibKa0s v1.66.0
+-- (partitionTabs + H.TabStrip), when the library's partition made a tab of the mirror row's
+-- `skipRender` "Link" group and its disabledFor drew the rows disabled under the notice. The page
+-- now hands the body to H.RenderTabbedSchema with OptionsTabs minor 8's untabbedSkipRender,
+-- disabledReplaces and rerender (GitHub issue #32), and these cases stayed green, untouched,
+-- across that adoption: they are what the page draws, whoever composes it.
 
 -- The group order the schema declares for a unit, read straight off the rows: the strip's
 -- expected keys. `skipRender` rows name a subject and draw no tab.

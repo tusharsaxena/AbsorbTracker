@@ -503,7 +503,7 @@ badge and any count quoted in the docs must agree with it.
 - a raise inside the chrome block costs the block, not the page
 - a raise in the unit panel body is reported as one space-joined chat line
 - the chrome block's widgets go back to AceGUI's pool, after the render and not before
-- the mirrored hint is a laid-out row followed by a ROW_VSPACER
+- the mirrored hint is a full-width line followed by a ROW_VSPACER
 - ClearScroll resets ctx.refreshers, so repeated renders do not leak stale closures
 - the General page's Reset position button clears EVERY unit's saved position
 - the Reset position button and /at resetposition run the SAME shared helper
