@@ -367,6 +367,11 @@ local function renderUnitPanelBody(ctx, pageKey)
     --
     -- Registered LAST so the row refreshers above have already run; RefreshAllPanels iterates the
     -- pre-render table, so a closure registered by a re-render is not re-invoked in the same pass.
+    --
+    -- It runs only while the page is SHOWN. The page declares its body through SetRenderer
+    -- (settings/Appearance.lua), so the library's refresh gate marks a hidden page dirty without
+    -- running its refreshers, and the next OnShow rebuilds it (options-ui-§11, anti-pattern #39).
+    -- tests/test_panelpages.lua pins it (AbsorbTracker#20).
     local renderedUnit, renderedMirrored = ctx.unit, mirrored
     ctx.refreshers[#ctx.refreshers + 1] = function()
         local nowMirrored = NS.Units.IsMirrored(renderedUnit)

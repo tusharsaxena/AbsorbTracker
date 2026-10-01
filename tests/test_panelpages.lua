@@ -872,6 +872,45 @@ test("a mirror-state change DOES re-render -- the two-tier refresher keeps both 
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
+test("a hidden Appearance page is not rebuilt by a mirror flip; its next OnShow rebuilds it", function()
+  -- AbsorbTracker#20 (review F-008), pinned. The two-tier refresher above re-renders the page on a
+  -- mirror flip, and that rebuild is only worth paying for a page on screen. The page declares its
+  -- body through Helpers.SetRenderer (settings/Appearance.lua), so the library's refresh gate marks
+  -- a hidden ctx dirty and returns without running its refreshers; SetRenderer's OnShow repaints it
+  -- later (options-ui-§11). Red under: the page dropping SetRenderer, which brings back the legacy
+  -- path that runs every refresher of a page nobody can see.
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  NS.db.profile.units.focus.mirror = false
+  ctx.unit = "focus"
+  -- The Size tab, which holds the "Bar Width (in px)" row mirrorHeaderState looks for, rather than
+  -- whichever tab an earlier case left active.
+  ctx.activeTab = "Size"
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+  assertTrue(select(2, mirrorHeaderState(ctx)), "precondition: the unlinked unit's rows are drawn")
+
+  panel:Hide()
+  local widgetsBefore = #NS.AceGUI.__created
+  NS.SetByPath("units.focus.mirror", true)
+  NS.Helpers.RefreshAllPanels()
+  assertEqual(#NS.AceGUI.__created, widgetsBefore,
+    "a hidden page must not be rebuilt by the mirror flip")
+  assertTrue(ctx._dirty == true, "it is flagged dirty instead")
+
+  panel:Show()
+  panel:__fire("OnShow")
+  assertTrue(#NS.AceGUI.__created > widgetsBefore, "the next OnShow rebuilds the page")
+  local checked, hasRows = mirrorHeaderState(ctx)
+  assertTrue(checked, "and the block's checkbox shows the flag written while it was hidden")
+  assertFalse(hasRows, "and the now-mirrored unit's rows are gone")
+
+  panel:Hide()
+  NS.db.profile.units.focus.mirror = true
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+end)
+
 test("/at resetposition does not claim success when the settings helpers are absent", function()
   -- Same silent-lie shape as the Reset Position no-op: the acknowledgment must live inside the
   -- guard, not after it.
