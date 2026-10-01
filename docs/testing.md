@@ -96,7 +96,7 @@ There are **two checkpoints**, and a suite's answer differs between them, so bot
 | `lint` | `luacheck .` | **gates** | **gates** |
 | `tests` | `lua tests/run.lua` | **gates** | **gates** |
 | `perf` | `lua tests/perf.lua` | no — recorded | **gates** — `pass` required |
-| `complexity` | `lizard -l lua -x "./libs/*" -x "./tests/_kit/*" .` | no — recorded | **gates** — `pass`, zero functions above CCN 15 |
+| `complexity` | `bash tests/_kit/run-automated-tests.sh --suite complexity` (lizard over the kit's sighted shadow, with function-count parity; kit revision 35) | no — recorded | **gates** — `pass`, zero functions above CCN 15 |
 
 **`perf` and `complexity` never fail a run and never block a commit** (`performance-§9`,
 `performance-§10`). They are measured, recorded and diffed — a threshold that fails a run teaches
@@ -167,7 +167,7 @@ differing lines for the library and **947** for the test kit. Re-vendoring to qu
 been the actual mistake — it would pull an untested library release for the sake of a clean diff.
 
 The re-vendor has since landed, so today the two questions give the same answer: `CLAUDE.md` names
-**v1.65.0**, the vendored payloads are that tag, and all four commands above come back empty. An
+**v1.66.0**, the vendored payloads are that tag, and all four commands above come back empty. An
 empty diff is what the state *after* a re-vendor looks like — not a stronger guarantee than the
 tag comparison below, which is the one that actually gates.
 

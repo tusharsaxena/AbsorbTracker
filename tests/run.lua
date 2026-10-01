@@ -165,5 +165,8 @@ Kit.run{
     -- Documented deviations. No Kit.layoutCap opts: the hub is the default and nothing here
     -- is generated data, so there is no exempt set to hand it.
     { name = "test_layout_cap", dir = "tests/_kit/" },
+    -- automated-tests-§3: the sighted complexity gate (kit revision 35). Pins the sanitizer the
+    -- runner's complexity suite measures through, and the parity reader that fails a blind run.
+    { name = "test_lizard_sighted", dir = "tests/_kit/" },
   },
 }
