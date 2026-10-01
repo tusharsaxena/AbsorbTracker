@@ -1,0 +1,1 @@
+OK GI-AT-02 — renderUnitPanelBody delegates to RenderTabbedSchema with untabbedSkipRender/disabledReplaces/rerender per design; chrome before, refresher after, guard kept; characterization cases landed first and stay green; AT-15 bodies untouched; font default matches AceGUI Label; panelmirror peel keeps panelpages out of the band; docs moved
