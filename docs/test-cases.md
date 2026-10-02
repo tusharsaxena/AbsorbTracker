@@ -157,9 +157,10 @@ badge and any count quoted in the docs must agree with it.
 - EnvSetup degraded: a legacy-only surface yields nil, and the dead global is never called
 - EnvSetup: the deleted shim is gone, and so is the file that was only ever the shim
 
-### test_coresetup.lua (6)
+### test_coresetup.lua (7)
 
 - core: the secret seam is the library's, not a private copy
+- core: NS.SECRET is the library's sentinel, live and degraded
 - core: the perf descriptor names the folder and leaves the close control to the library
 - core: NS.Print carries the [AT] tag and survives a secret arg
 - core: NS.Print and NS.Util.print are the same object after the AceConsole reclaim
@@ -196,7 +197,7 @@ badge and any count quoted in the docs must agree with it.
 - /at debug on writes an [Init] summary naming our version, schema and profile
 - the console checkbox label the library renders is prose, not its own STRINGS key
 
-### test_slash.lua (14)
+### test_slash.lua (22)
 
 - NS.Print survives AceConsole's embed and stays the [AT]-prefixed printer
 - bare /at opens the settings panel through the config verb, not the help index
@@ -212,6 +213,14 @@ badge and any count quoted in the docs must agree with it.
 - OpenOptionsPanel logs [Cfg] refused in combat
 - SetByPath logs one [Set] path = value line (debug-logging-§10)
 - the schema CLI's list header the library renders is prose, not its own STRINGS key
+- slash verbs: /at debug lowercases its sub-verb and keeps the remainder (EVENTS, HOLD)
+- slash verbs: /at profile NEW <MixedCase> lowercases only the verb
+- slash verbs: the stub's split agrees with the live dispatcher's over a corpus
+- slash verbs: degraded /at debug events and /at profile current still answer
+- slash verbs: degraded /at profile list lists from the store, plainly
+- slash verbs: the stub's SplitVerb returns what the library's does, over a corpus
+- slash verbs: /at profile list and bare /at profile list the same names in the same order
+- slash verbs: /at profile list names the current profile even when the store leaves it out
 
 ### test_timer.lua (13)
 
@@ -559,7 +568,7 @@ badge and any count quoted in the docs must agree with it.
 - launcher: with LibDataBroker but no LibDBIcon, the plugin exists and the button does not
 - launcher: with LibKa0s absent the seam still answers, and still remembers the choice
 
-### test_optionssetup.lua (15)
+### test_optionssetup.lua (18)
 
 - the live and degraded builds veto exactly the same rows from Reset All
 - Reset All resets a sessionOnly row and fires its onChange once, on both builds
@@ -576,6 +585,9 @@ badge and any count quoted in the docs must agree with it.
 - the live arm patches LSM30_Border through the library, not through a private copy
 - the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
 - General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
+- the Options descriptor tells the library the FOLDER name
+- and the Options descriptor takes that name from the first vararg, not a literal
+- the art that name points at is vendored on disk
 
 ### test_slashcmds.lua (100)
 
@@ -988,10 +1000,10 @@ badge and any count quoted in the docs must agree with it.
 | test_database.lua | 38 |
 | test_units.lua | 17 |
 | test_envsetup.lua | 7 |
-| test_coresetup.lua | 6 |
+| test_coresetup.lua | 7 |
 | test_mediasetup.lua | 10 |
 | test_debuglog.lua | 14 |
-| test_slash.lua | 14 |
+| test_slash.lua | 22 |
 | test_timer.lua | 13 |
 | test_perf.lua | 33 |
 | test_visibility.lua | 26 |
@@ -1003,7 +1015,7 @@ badge and any count quoted in the docs must agree with it.
 | test_panelpages.lua | 24 |
 | test_panelmirror.lua | 10 |
 | test_launcher.lua | 34 |
-| test_optionssetup.lua | 15 |
+| test_optionssetup.lua | 18 |
 | test_slashcmds.lua | 100 |
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 15 |
@@ -1022,4 +1034,4 @@ badge and any count quoted in the docs must agree with it.
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
-| **Total** | **856** |
+| **Total** | **868** |

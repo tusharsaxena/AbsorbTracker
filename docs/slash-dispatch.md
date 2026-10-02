@@ -13,7 +13,7 @@ a table of its own, `perf` hands its remainder to the perf library, `toggle` par
 
 ## Registration
 
-`Sl:Register` (`settings/Slash.lua:806`) registers both names through AceConsole-3.0, called once
+`Sl:Register` (`settings/Slash.lua:818`) registers both names through AceConsole-3.0, called once
 from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:56`, guarded so a load where
 `settings/Slash.lua` never ran degrades rather than errors):
 
@@ -137,8 +137,11 @@ The library lowercases only the verb; the remainder is passed through untouched.
 here, because every schema path in this addon is camelCase and per-unit —
 `/at set units.target.barWidth 250` is the shipped form, and folding the whole line would address a
 row that does not exist. `/at profile` repeats the rule one level down: `runProfile`
-(`settings/Slash.lua:581`) lowercases the sub-verb and leaves its argument alone, because AceDB
-profile names are case-sensitive and a folded name deletes or switches to the wrong profile. A first
+(`settings/Slash.lua:589`) splits through the library's `SlashLib.SplitVerb` (Slash minor 19), which
+lowercases the sub-verb and leaves its argument alone, because AceDB profile names are
+case-sensitive and a folded name deletes or switches to the wrong profile. `/at debug` and
+`/at toggle` split through the same function. With the library absent the stub carries the file's
+one `SplitVerb`, with the same contract, pinned against the library's by `tests/test_slash.lua`. A first
 word that is not a sub-verb is not lowercased at all: the whole remainder goes to the library's
 `CliProfile` as a profile name.
 
@@ -178,14 +181,14 @@ Four verbs parse a remainder of their own. `profile` and `debug` dispatch throug
 own (`PROFILE_VERBS`, `DEBUG_VERBS`), `perf` hands its remainder on, and `toggle` parses one word;
 `profile` is the one this page is really about.
 
-**`profile`** — `runProfile` (`settings/Slash.lua:581`) reads the first word of the remainder,
+**`profile`** — `runProfile` (`settings/Slash.lua:589`) reads the first word of the remainder,
 lowercased, and picks one of three routes (spec S3 of the 2026-09-29 profile-verb run):
 
 1. **Nothing**: `cli:CliProfile("")` prints the library's list (header `Profiles`, one row per
    profile sorted case-insensitively, the current one marked `(current)`, then the hint row
    `/at profile <name> switches profile`), and then this tree's own sub-help.
-2. **A sub-verb**, matched case-insensitively: `PROFILE_VERBS` (`:511`), a table keyed by the
-   lowercased sub-verb, built once at load and dispatched at `:589`.
+2. **A sub-verb**, matched case-insensitively: `PROFILE_VERBS` (`:520`), a table keyed by the
+   lowercased sub-verb, built once at load and dispatched at `:606`.
 3. **Anything else**: `cli:CliProfile(rest)` with the whole remainder, case, inner spaces and one
    pair of surrounding quotes as the library parses them. An existing profile is switched to, the
    current one answers `Already on profile '<name>'.`, a switch in combat is refused, and a name
@@ -194,7 +197,7 @@ lowercased, and picks one of three routes (spec S3 of the 2026-09-29 profile-ver
 
 | Sub-verb | Takes a name | What it does |
 |---|---|---|
-| `list` | no | Every profile, the current one marked. |
+| `list` | no | `Available profiles`, then every profile, the current one marked ` (current)`. The names are `SlashLib.ProfileNames(db)` (Slash minor 17), so `list` and the bare form print the same names in the same order; with the library absent, the store's own `GetProfiles()` list. |
 | `current` | no | The current profile's name. |
 | `use <name>` | yes | `cli:ProfileSwitch(name)`, the library's switch with the same refusals as route 3. It is how a profile named like a sub-verb (`list`) is reached. It used to hand any name to `db:SetProfile`, which creates a missing profile, so a typo became one. |
 | `new <name>` | yes | `SetProfile` **then** `ResetProfile` — the reset has to land on the new profile, not the one being left behind. |
@@ -274,7 +277,7 @@ generic dispatcher knows nothing about.
 ## When the library is absent
 
 `/at` is registered unconditionally, so something has to answer it. With `LibKa0s-Slash-1.0` missing,
-`settings/Slash.lua:620` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
+`settings/Slash.lua:628` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
 a plain help index still render, a bare `/at` still runs the `config` verb exactly as the library
 does, the host verbs — which never went to the library — keep working untouched, and each schema verb
 (`list`, `get`, `set`, `reset`, `resetall`) prints the collection's library-absent line through the

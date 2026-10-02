@@ -370,8 +370,8 @@ function runDiagnostics()
 end
 
 function runDebug(rest)
-    local sub, subrest = (rest or ""):match("^(%S*)%s*(.*)$")
-    sub = (sub or ""):lower()
+    -- The library's split (Slash minor 19), or the stub's below: the sub-verb folded, the rest as typed.
+    local sub, subrest = SlashLib.SplitVerb(rest)
     -- `diagnostics` FIRST, before on/off, the topic words and the window toggle (STD-03). Any other
     -- word, `diag` included, is an ordinary unknown word and toggles the window, as it always has.
     if sub == "diagnostics" then return runDiagnostics() end
@@ -401,7 +401,7 @@ end
 -- panel checkbox — publishing UNITS (re-syncing event registrations), APPEARANCE and REPAINT.
 -- The CLI and the checkbox therefore can never drift onto different code paths.
 function runToggle(rest)
-    local token = (rest or ""):match("^(%S*)"):lower()
+    local token = SlashLib.SplitVerb(rest)
 
     if token ~= "" then
         if not NS.Units.LABEL[token] then
@@ -518,10 +518,18 @@ end
 
 -- The sub-verb table, keyed by the lowercased verb. Built once at load.
 local PROFILE_VERBS = {
+    -- The library's name list (Slash minor 17): sorted ignoring case, the current profile always
+    -- in it, the same order bare `/at profile` prints. With the library absent there is no shared
+    -- list to borrow and none is copied, so the store's own list prints as it comes.
     list = function(db)
         print("Available profiles")
-        local current = db:GetCurrentProfile()
-        for _, name in ipairs(db:GetProfiles()) do
+        local names, current
+        if SlashLib.ProfileNames then
+            names, current = SlashLib.ProfileNames(db)
+        else
+            names, current = db:GetProfiles(), db:GetCurrentProfile()
+        end
+        for _, name in ipairs(names) do
             local marker = (name == current) and " (current)" or ""
             print("  " .. name .. marker)
         end
@@ -585,9 +593,9 @@ function runProfile(rest)
     end
 
     -- Only the VERB is lowercased. The argument keeps its case — AceDB profile names are
-    -- case-sensitive, and folding one would address the wrong profile.
-    local sub, subarg = (rest or ""):match("^(%S*)%s*(.*)$")
-    local verb = (sub or ""):lower()
+    -- case-sensitive, and folding one would address the wrong profile. That asymmetry is
+    -- SplitVerb's contract (libs/LibKa0s/Slash.lua, lib.SplitVerb), not this file's.
+    local verb, subarg = SlashLib.SplitVerb(rest)
 
     -- Bare: the library's list (current marked), then this tree's own sub-help.
     if verb == "" then
@@ -619,6 +627,17 @@ end
 -- locale (keyed by its English text, localization-§2) rather than going quiet.
 if not SlashLib then
     SlashLib = {}
+
+    -- The stub's one verb split, and the only one in this file: runDebug, runProfile, runToggle and
+    -- the stub's own OnSlash below all split through SlashLib.SplitVerb, which is the library's
+    -- when it loaded and this when it did not. slash-commands-§1 sanctions a stub that splits the
+    -- message for minimal dispatch; this is that routing, not a copy of anything the library
+    -- renders. Same contract: the verb lowercased, the rest kept as typed, never nil.
+    -- tests/test_slash.lua compares it with the library's over a corpus.
+    function SlashLib.SplitVerb(rest)
+        local verb, remainder = (rest or ""):match("^(%S*)%s*(.*)$")
+        return (verb or ""):lower(), remainder or ""
+    end
 
     function SlashLib:New(d)
         local stub = { SetRowAnnotator = function() end }
@@ -670,11 +689,10 @@ if not SlashLib then
                 if config then return config[3]("") end
                 return stub.PrintHelp()
             end
-            local cmd, rest = raw:match("^(%S+)%s*(.*)$")
-            cmd = (cmd or ""):lower()
+            local cmd, rest = SlashLib.SplitVerb(raw)
             cmd = (d.aliases or {})[cmd] or cmd
             local e = find(cmd)
-            if e then return e[3](rest or "") end
+            if e then return e[3](rest) end
             print("unknown command '" .. cmd .. "'")
             stub.PrintHelp()
         end
@@ -778,6 +796,9 @@ cli:SetRowAnnotator(MirrorNote)
 -- instance are otherwise both file-scope locals, and a stub surface that cannot be reached cannot
 -- be compared. tests/test_surface_parity.lua is the only reader.
 Sl.__cli = cli
+-- The verb split every host verb above runs through: the library's live, the stub's degraded.
+-- Published for tests/test_slash.lua's corpus pin; nothing in the addon reads it.
+Sl.__SplitVerb = SlashLib.SplitVerb
 
 --- The one line a disabled addon says, built by the library and re-spelled nowhere
 --- (slash-commands-§7). Published because runHold's refusal (`/at debug hold`, a live verb the

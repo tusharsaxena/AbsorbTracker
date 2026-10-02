@@ -32,6 +32,11 @@ if not lib then
     -- at all. So the fallbacks work — they are the pre-library implementations, kept short — and the
     -- honest "it is not installed" line is said ONCE, on the first line the addon prints, rather
     -- than stapled to every one of them.
+    -- The secret sentinel: the ONE copy of the library's `lib.SECRET` this file carries, as the
+    -- stub's sanctioned literal (events-frames-taint-§8). Everything that renders a secret, here and
+    -- in modules/Diagnostics.lua, reads NS.SECRET rather than spelling it.
+    NS.SECRET = "<secret>"
+
     local function probeConcat(v) return table.concat({ v }) end
     function NS.IsConcatSafe(v)
         return (pcall(probeConcat, v))
@@ -41,7 +46,7 @@ if not lib then
         if v == nil then return "nil" end
         if type(v) == "boolean" then return tostring(v) end
         if NS.IsConcatSafe(v) then return tostring(v) end
-        return "<secret>"
+        return NS.SECRET
     end
 
     -- The class-color resolver, and a working fallback rather than a no-op for the same reason the
@@ -114,6 +119,9 @@ end
 
 NS.IsConcatSafe = lib.IsConcatSafe
 NS.SafeToString = lib.SafeToString
+-- The sentinel a secret renders as (Core minor 9), so the addon's own secret-safe readouts print
+-- the library's string rather than a copy of it. The stub above publishes the one literal.
+NS.SECRET = lib.SECRET
 
 -- ONE class-color resolver for the collection (options-ui-§17). This addon used to own a private
 -- one in core/Data.lua reading `C_ClassColor.GetClassColor`, while two sibling addons owned one

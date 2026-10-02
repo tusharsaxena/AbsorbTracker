@@ -27,6 +27,7 @@ TOC order under `# Settings` is `settings/Schema.lua` → `Slash.lua` → `Optio
 | Field | What this addon supplies |
 |------|------|
 | `parentTitle` / `mainPanelName` | `NS.Constants.BRAND` (`"Ka0s Absorb Tracker"`) and `"AbsorbTrackerMainPanel"`. |
+| `addonName` | The folder name, from the first vararg. The library builds its IdList help-mark art path from it (LibKa0s#42); latent here, since no page draws an id list. |
 | `print` / `debug` | `NS.Print` (cyan `[AT]` prefix) and `NS.Debug`. |
 | `get` / `set` / `applyDefault` | `NS.GetSetting` / `NS.SetByPath` / `NS.ApplyDefault` — so a panel write takes exactly the path a `/at set` takes. |
 | `rowsForPage(pageKey, filter)` / `allRows` | `NS.SchemaForPage` and `NS.Schema`. `filter` is `ctx.unit`, passed through uninterpreted — that is what makes a per-unit page render only the selected unit's rows while General (`ctx.unit` nil) gets every unit's. |

@@ -18,8 +18,9 @@ local _, NS = ...
 --     NS.LastAppliedVisibility, NS.IsRepaintPending, NS.SessionCounters) and through getters.
 --   * it never COMPARES, CONVERTS or DOES ARITHMETIC on an absorb or a max-health value. In
 --     restricted content UnitGetTotalAbsorbs and UnitHealthMax answer secrets. The readout is
---     gated by NS.IsConcatSafe and a secret prints as `<secret>`. Nothing reads the bar's own
---     GetValue or GetText either: those hold the same secret, handed to the C side.
+--     gated by NS.IsConcatSafe and a secret prints as NS.SECRET (`<secret>`, LibKa0s-Core's
+--     sentinel, published by core/CoreSetup.lua). Nothing reads the bar's own GetValue or GetText
+--     either: those hold the same secret, handed to the C side.
 --   * it never trusts a number it has not proved readable (`out:readable`) before formatting it.
 --
 -- WHY IT LOADS ON A LIBRARY-LESS INSTALL. With LibKa0s absent the DebugLog stub answers
@@ -70,7 +71,7 @@ end
 local function secretSafe(v)
     if v == nil then return "nil" end
     if NS.IsConcatSafe and NS.IsConcatSafe(v) then return v end
-    return "<secret>"
+    return NS.SECRET
 end
 
 local function stoodDown() return NS.IsStoodDown and NS.IsStoodDown() or false end

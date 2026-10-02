@@ -476,3 +476,71 @@ test("General's Reset all settings tooltip says it is the same act as Profiles -
   assertEqual(#lines, 1, "one tooltip body line")
   assertEqual(lines[1], RESET_ALL_TIP)
 end)
+
+-- ── the folder name, for the library's help-mark art (LibKa0s#42) ─────────────────
+--
+-- LibKa0s-Options-1.0 builds the IdList help mark from `descriptor.addonName`: the vendored
+-- `info` art lives at Interface\AddOns\<folder>\libs\LibKa0s\media\icons\info, and the folder is the
+-- one thing no other descriptor field carries (PARENT_TITLE is the brand, mainPanelName a frame
+-- name). Without it the library draws Blizzard's blue disc and says so on a Cfg debug line. This
+-- addon has no IdList today, so the field is latent here; it is passed so the first list that grows
+-- a help line draws the collection's art, not the client's.
+
+-- The descriptor settings/OptionsSetup.lua actually hands `lib:New`, captured by a spy on a second
+-- full load, the way tests/test_debuglog.lua captures the DebugLog one: the call happens once, at
+-- file load, long before any case runs.
+local function captureOptionsDescriptor()
+  local Loader     = dofile("tests/_kit/loader.lua")
+  local buildMocks = dofile("tests/wow_mock.lua")
+  Loader.addonName = "AbsorbTracker"
+  local mocks2, NS2 = buildMocks(), {}
+  Loader.loadAll(Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml"), NS2, mocks2)
+
+  local lib = mocks2.LibStub("LibKa0s-Options-1.0")
+  local realNew, seen = lib.New, nil
+  lib.New = function(self, d) seen = d; return realNew(self, d) end
+  local ok, err = pcall(Loader.loadAll, Loader.tocFiles("AbsorbTracker.toc"), NS2, mocks2)
+  lib.New = realNew
+  if not ok then error(err, 0) end
+  return seen
+end
+
+test("the Options descriptor tells the library the FOLDER name", function()
+  -- Asserted on the table the library received, not on the source text, so a decoy
+  -- `d.addonName = addonName` on a table lib:New never sees cannot pass (anti-pattern #64).
+  -- red under: dropping `addonName = addonName,` from the descriptor.
+  local d = captureOptionsDescriptor()
+  assertTrue(type(d) == "table", "settings/OptionsSetup.lua never called lib:New")
+  assertEqual(d.addonName, "AbsorbTracker",
+    "the Options descriptor carries no folder name, so a help mark would draw the client glyph")
+end)
+
+test("and the Options descriptor takes that name from the first vararg, not a literal", function()
+  -- The spy cannot tell the vararg from a quoted "AbsorbTracker"; a literal is a second place to
+  -- edit on a folder rename, and a wrong folder draws the fallback glyph. And `addonName` is the
+  -- FOLDER here, not the MasterControls compose spec's display label of the same field name.
+  -- red under: keeping `local _, NS = ...`, or typing the name as a literal.
+  local f = io.open("settings/OptionsSetup.lua", "r")
+  assertTrue(f ~= nil, "cannot open settings/OptionsSetup.lua (tests run from the repo root)")
+  local src = f:read("*a")
+  f:close()
+  local body = src:gsub("%-%-[^\r\n]*", "")
+  assertTrue(body:match("^%s*local%s+addonName%s*,%s*NS%s*=%s*%.%.%.") ~= nil,
+    "the file must keep its first vararg as `local addonName, NS = ...`")
+  local desc = body:match("\nlocal%s+descriptor%s*=%s*(%b{})")
+  assertTrue(desc ~= nil, "cannot find the `local descriptor = { ... }` table")
+  assertTrue(desc:find("[\r\n]%s*addonName%s*=%s*addonName%s*,") ~= nil,
+    "the descriptor must pass `addonName = addonName,`")
+  assertTrue(body:find("\"AbsorbTracker\"", 1, true) == nil,
+    "the folder name must come from the vararg, never a literal")
+end)
+
+test("the art that name points at is vendored on disk", function()
+  -- The one residual the library's loaded-addon check cannot catch: a correct folder name with the
+  -- payload somewhere other than libs/LibKa0s. red under: a vendor move or a pruned media/icons.
+  local f = io.open("libs/LibKa0s/media/icons/info.tga", "rb")
+  assertTrue(f ~= nil, "libs/LibKa0s/media/icons/info.tga is missing, so the help mark has no art")
+  local size = f:seek("end")
+  f:close()
+  assertTrue(size > 0, "libs/LibKa0s/media/icons/info.tga is empty")
+end)

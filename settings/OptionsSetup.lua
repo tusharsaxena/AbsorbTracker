@@ -1,4 +1,4 @@
-local _, NS = ...
+local addonName, NS = ...
 
 -- settings/OptionsSetup.lua — wires the addon into LibKa0s-Options-1.0.
 --
@@ -77,6 +77,9 @@ local lib = LibStub and LibStub("LibKa0s-Options-1.0", true)
 local descriptor = {
     parentTitle   = PARENT_TITLE,
     mainPanelName = "AbsorbTrackerMainPanel",
+    -- The FOLDER name (first vararg): the library builds its IdList help-mark art path from it
+    -- (LibKa0s#42). Not the MasterControls display label that shares the field name.
+    addonName     = addonName,
 
     print = function(line) print(line) end,
     debug = function(tag, fmt, ...) NS.Debug(tag, fmt, ...) end,

@@ -166,6 +166,8 @@ test("diagnostics: a secret absorb prints as <secret> and costs no section", fun
   assertEqual(#failures(lines), 0, "no section failed: " .. joined(failures(lines)))
   assertTrue(find(lines, "[Absorb] player: absorb=<secret> max health=<secret>") ~= nil,
     joined(lines))
+  assertTrue(find(lines, "absorb=" .. NS.SECRET .. " max health=" .. NS.SECRET) ~= nil,
+    "the readout prints the published sentinel: " .. joined(lines))
 end)
 
 test("diagnostics: stood down, the released runtime state says so rather than printing empty", function()
