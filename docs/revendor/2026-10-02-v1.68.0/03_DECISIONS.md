@@ -41,3 +41,38 @@ not a real gap in the addon or the library. The run instructions file a decline 
 If the owner later wants every strip in the collection to place its tooltip the same way, the
 re-check trigger is a request that names AbsorbTracker's strip. The adoption would then be a
 `place` on all three descriptors in `buildHandle`.
+
+## B1 reversed — `tooltipPlace` **adopted** (TP-AT-02, 2026-10-03)
+
+The decline above is reversed by the owner. Told that this strip already opens its tooltips above
+the strip rather than at the cursor, the owner answered: "Yes, have consistency across all ka0s
+addons". The re-check trigger named above, a request that covers AbsorbTracker's strip, is met.
+
+What was adopted, in `modules/Bar.lua`:
+
+- A spec-level `tooltipPlace = NS.Util.PlaceTooltipBeside` in `buildHandle`, so the hook covers all
+  three tooltips: the strip's, the `?`'s and the X's. Point 3 above counted the marks being moved as a
+  cost. Under a one-placement-for-every-strip rule it is the point, because a strip whose marks open
+  somewhere else is the inconsistency the owner ruled out.
+- `NS.Util.PlaceTooltipBeside` mirrors KickCD's (`core/Util.lua`, TP-KC-01) line for line, so the
+  behavior is identical across addons. The tooltip's `TOPLEFT` goes 4 px right of the strip's
+  `TOPRIGHT`. When the strip's right edge plus the tooltip's width would pass the screen's right
+  edge, its `TOPRIGHT` goes 4 px left of the strip's `TOPLEFT` instead. A hovered `?` or X resolves to
+  its strip. Every read is in screen pixels, each times its frame's effective scale, which matters
+  here because a bar carries its own scale times the master scale.
+- One difference from KickCD, and it is only in the guard's spelling. KickCD asks
+  `NS.Compat.IsSecret`. This addon has no Compat module, and the one question it asks of a value
+  that may be secret is `NS.IsConcatSafe` (LibKa0s-Core, or the degraded stub's probe), so the
+  placement asks that. A missing, nil, secret or non-number read answers nil with nothing anchored,
+  and the widget falls back to the cursor. The function returns true only once the tooltip is placed.
+- The two descriptor `anchor = "ANCHOR_TOPRIGHT"` fields (help and close) are removed. While a hook
+  is in force the widget reads no owner or anchor, so they had become dead configuration.
+
+Point 2's clamp argument does not carry over. The host now measures the screen edge itself, which is
+what the left flip is for.
+
+Tests (written first, all nine red before the code) are in `tests/test_draghandle.lua`: six
+placement cases (right, left flip, the `?` and the X resolving to the strip, a scaled strip, a
+secret read, a nil read) and three hover cases (every strip and both its marks owned once by
+UIParent at `ANCHOR_NONE` and anchored beside the strip, the left flip, and the cursor fallback).
+In-game check: `docs/smoke-tests.md` BAR-17, owner-run, unmarked.

@@ -50,3 +50,10 @@ All run through `/home/tushar/.claude/wow-addon/bin/ka0s-bounded`.
 
 In-game smoke: none is new. BAR-12 (d) already covers the strip and `?` tooltips, and their placement
 does not change.
+
+## Later: B1 adopted (TP-AT-02, 2026-10-03)
+
+The owner reversed the B1 decline so that every Ka0s strip places its tooltips the same way. The
+strip's, the `?`'s and the X's tooltips now open beside the strip through `tooltipPlace`
+(`NS.Util.PlaceTooltipBeside`, in `modules/Bar.lua`). The reasoning and what changed are appended to
+`03_DECISIONS.md`. BAR-17 is the new in-game check. The sections above record the run as it was.
