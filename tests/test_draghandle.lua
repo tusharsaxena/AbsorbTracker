@@ -277,13 +277,52 @@ end)
 
 -- ── tooltips ─────────────────────────────────────────────────────────────────────────────────
 
+-- Rawset every { frame, key, value } in `list` while `body` runs, then put back whatever was there.
+-- The kit's frames answer an unknown capitalized method with the frame itself, which is not a
+-- number, so a case that wants a geometry read to succeed has to hand the frame its answer.
+local function withRaw(list, body)
+  local saved = {}
+  for i, p in ipairs(list) do
+    saved[i] = rawget(p[1], p[2])
+    rawset(p[1], p[2], p[3])
+  end
+  local ok, err = pcall(body)
+  for i, p in ipairs(list) do rawset(p[1], p[2], saved[i]) end
+  if not ok then error(err) end
+end
+
+local function answer(v) return function() return v end end
+
+-- A screen `g.screen` px wide (UIParent's right edge), `strip` with its right edge at `g.right` and
+-- an effective scale of `g.scale` (1 by default), GameTooltip `g.width` px wide, and the strip's two
+-- marks parented to it (the kit's GetParent answers the frame itself). SetOwner and SetPoint on
+-- GameTooltip are recorded into `g.owners` and `g.points` rather than no-opped.
+local function withScreen(strip, g, body)
+  local tip, ui = T.mocks.GameTooltip, T.mocks.UIParent
+  g.owners, g.points = {}, {}
+  local list = {
+    { ui, "GetRight", answer(g.screen) }, { ui, "GetEffectiveScale", answer(1) },
+    { strip, "GetRight", answer(g.right) }, { strip, "GetEffectiveScale", answer(g.scale or 1) },
+    { tip, "GetWidth", answer(g.width) }, { tip, "GetEffectiveScale", answer(1) },
+    { tip, "SetOwner", function(_, owner, anchor) g.owners[#g.owners + 1] = { owner, anchor } end },
+    { tip, "SetPoint", function(_, ...) g.points[#g.points + 1] = { ... } end },
+    { tip, "ClearAllPoints", function() g.points = {} end },
+  }
+  for _, mark in ipairs({ strip.help, strip.close }) do list[#list + 1] = { mark, "GetParent", answer(strip) } end
+  withRaw(list, body)
+end
+
 -- The lines one hover of `frame` put on GameTooltip: the title (SetText) then every AddLine.
-local function hover(frame)
+-- `strip` is the strip `frame` belongs to (itself when omitted); it is given room on a 1000 px
+-- screen, so the strip's placement succeeds and the tooltip is drawn once.
+local function hover(frame, strip)
   local tip = T.mocks.GameTooltip
-  local lines = {}
-  local texts = record(tip, "SetText", function()
-    local added = record(tip, "AddLine", function() frame:__fire("OnEnter") end)
-    for _, a in ipairs(added) do lines[#lines + 1] = a[1] end
+  local lines, texts = {}, nil
+  withScreen(strip or frame, { screen = 1000, right = 500, width = 200 }, function()
+    texts = record(tip, "SetText", function()
+      local added = record(tip, "AddLine", function() frame:__fire("OnEnter") end)
+      for _, a in ipairs(added) do lines[#lines + 1] = a[1] end
+    end)
   end)
   frame:__fire("OnLeave")
   return texts[1] and texts[1][1], lines
@@ -307,7 +346,7 @@ test("the help mark has its own tooltip, with a footer saying how to put the str
   local help = NS.bars.focus.handle.help
   assertTrue(help ~= nil, "the widget built its help mark")
   local title, lines
-  withLocked(false, function() title, lines = hover(help) end)
+  withLocked(false, function() title, lines = hover(help, NS.bars.focus.handle) end)
   assertEqual(title, "Focus bar")
   assertEqual(lines[1], "Drag this handle, or the bar itself, to move the bar.")
   assertEqual(lines[#lines], "Lock the bars to hide this handle \226\128\148 /at lock.")
@@ -392,10 +431,159 @@ test("clicking X prints one line naming the way back", function()
 end)
 
 test("the close mark's tooltip says what X does and names the same way back", function()
-  local title, lines = hover(NS.bars.focus.handle.close)
+  local title, lines = hover(NS.bars.focus.handle.close, NS.bars.focus.handle)
   assertEqual(title, "Hide the Focus bar")
   assertEqual(lines[1], "Click to hide this bar.")
   assertEqual(lines[#lines], "Re-enable it on General > Bars or with /at toggle focus.")
+end)
+
+-- ── where the tooltips sit: beside the strip (TP-AT-02) ─────────────────────────────────────
+--
+-- Every strip hands the widget NS.Util.PlaceTooltipBeside as `tooltipPlace` (LibKa0s
+-- WidgetsDragHandle minor 4), the same placement every Ka0s strip uses (KickCD's TP-KC-01). The
+-- owner's rule: the tooltip sits to the strip's RIGHT, or to its LEFT when the strip's right edge
+-- plus the tooltip's width would leave the screen. Only a literal `true` means placed; anything
+-- else makes the widget fall back to the cursor, so a read that cannot be trusted must answer
+-- non-true and leave the tooltip unanchored rather than guess.
+
+-- A bare strip with its two marks and a bare tooltip, for the placement on its own. The marks'
+-- parent is the strip, as the widget builds them; `strip.help` is what marks a frame as the strip.
+local function placeBench()
+  local M = T.mocks
+  local strip, tip = M.__stubFrame(), M.__stubFrame()
+  strip.help, strip.close = M.__stubFrame(), M.__stubFrame()
+  rawset(strip.help, "GetParent", answer(strip))
+  rawset(strip.close, "GetParent", answer(strip))
+  local points = {}
+  rawset(tip, "SetPoint", function(_, ...) points[#points + 1] = { ... } end)
+  rawset(tip, "ClearAllPoints", function() for i = #points, 1, -1 do points[i] = nil end end)
+  rawset(tip, "GetEffectiveScale", answer(1))
+  return strip, tip, points
+end
+
+-- Run the placement for `frame` (the strip or one of its marks) on a `screen` px screen with the
+-- strip's right edge at `right` (or the result of `read`) and a tooltip `width` px wide.
+local function place(strip, tip, frame, g)
+  local placed
+  withRaw({
+    { T.mocks.UIParent, "GetRight", answer(g.screen) },
+    { T.mocks.UIParent, "GetEffectiveScale", answer(1) },
+    { strip, "GetRight", g.read or answer(g.right) },
+    { strip, "GetEffectiveScale", answer(g.scale or 1) },
+    { tip, "GetWidth", answer(g.width) },
+  }, function() placed = NS.Util.PlaceTooltipBeside(tip, frame) end)
+  return placed
+end
+
+test("PlaceTooltipBeside puts the tooltip to the strip's right when it fits", function()
+  local strip, tip, points = placeBench()
+  assertEqual(place(strip, tip, strip, { screen = 1000, right = 500, width = 200 }), true,
+    "a placement it made answers true")
+  assertEqual(#points, 1)
+  local point, rel, relPoint, x, y = unpack(points[1])
+  assertEqual(point, "TOPLEFT")
+  assertTrue(rawequal(rel, strip), "anchored to the strip itself")
+  assertEqual(relPoint, "TOPRIGHT")
+  assertEqual(x, 4, "a 4 px gap clear of the strip's right edge")
+  assertEqual(y, 0)
+end)
+
+test("PlaceTooltipBeside flips to the strip's left when the right side would leave the screen", function()
+  -- red under: a placement that always anchors right (900 + 200 runs 100 px off a 1000 px screen)
+  local strip, tip, points = placeBench()
+  assertEqual(place(strip, tip, strip, { screen = 1000, right = 900, width = 200 }), true)
+  assertEqual(#points, 1)
+  local point, rel, relPoint, x, y = unpack(points[1])
+  assertEqual(point, "TOPRIGHT")
+  assertTrue(rawequal(rel, strip))
+  assertEqual(relPoint, "TOPLEFT")
+  assertEqual(x, -4, "a 4 px gap clear of the strip's left edge")
+  assertEqual(y, 0)
+end)
+
+test("PlaceTooltipBeside anchors to the STRIP when the hovered frame is its ? mark or its X", function()
+  -- The widget hands the hook the frame hovered; for a mark that is the mark, whose parent is the
+  -- strip. One position for the strip and both its marks, not three.
+  for _, key in ipairs({ "help", "close" }) do
+    local strip, tip, points = placeBench()
+    assertEqual(place(strip, tip, strip[key], { screen = 1000, right = 500, width = 200 }), true, key)
+    local _, rel, relPoint = unpack(points[1])
+    assertTrue(rawequal(rel, strip), "the " .. key .. " mark resolves to its strip")
+    assertEqual(relPoint, "TOPRIGHT")
+  end
+end)
+
+test("PlaceTooltipBeside compares in screen pixels, so a scaled strip flips when it should", function()
+  -- red under: comparing the strip's raw GetRight (450, in its own scaled units) with the screen.
+  -- At an effective scale of 2 (a bar scale times the master scale) its right edge is 900 screen
+  -- px, and 900 + 200 does not fit in 1000.
+  local strip, tip, points = placeBench()
+  assertEqual(place(strip, tip, strip, { screen = 1000, right = 450, width = 200, scale = 2 }), true)
+  assertEqual(points[1][1], "TOPRIGHT")
+end)
+
+test("PlaceTooltipBeside answers non-true and anchors nothing when a read is secret", function()
+  -- red under: a placement that does arithmetic on whatever GetRight answered. The secret here is
+  -- a plain number the concat probe refuses, so only the secret guard can catch it.
+  local SECRET_EDGE = 123.5
+  local realSafe = NS.IsConcatSafe
+  NS.IsConcatSafe = function(v) return v ~= SECRET_EDGE and realSafe(v) end
+  local strip, tip, points = placeBench()
+  local ok, placed = pcall(place, strip, tip, strip, { screen = 1000, right = SECRET_EDGE, width = 200 })
+  NS.IsConcatSafe = realSafe
+  if not ok then error(placed) end
+  assertTrue(placed ~= true, "the widget must fall back to the cursor")
+  assertEqual(#points, 0, "nothing anchored on a guess")
+end)
+
+test("PlaceTooltipBeside answers non-true and anchors nothing when a read is nil", function()
+  -- A strip not yet laid out answers nil for its edges in the client.
+  local strip, tip, points = placeBench()
+  assertTrue(place(strip, tip, strip, { screen = 1000, read = answer(nil), width = 200 }) ~= true)
+  assertEqual(#points, 0)
+end)
+
+test("hovering a strip, its ? or its X puts the tooltip beside the strip, owned once", function()
+  -- red under: a spec without the hook, which owns the tooltip by the hovered frame (ANCHOR_TOP
+  -- off the strip, ANCHOR_TOPRIGHT off a mark) and anchors nothing beside the strip.
+  for _, unit in ipairs(NS.Units.LIST) do
+    local strip = NS.bars[unit].handle
+    for _, frame in ipairs({ strip, strip.help, strip.close }) do
+      local g = { screen = 1000, right = 500, width = 200 }
+      withScreen(strip, g, function() frame:__fire("OnEnter") end)
+      frame:__fire("OnLeave")
+      assertEqual(#g.owners, 1, unit .. ": placed on the first try, so owned once")
+      assertTrue(rawequal(g.owners[1][1], T.mocks.UIParent), "owned by UIParent, as the hook requires")
+      assertEqual(g.owners[1][2], "ANCHOR_NONE")
+      assertEqual(#g.points, 1)
+      local point, rel, relPoint = unpack(g.points[1])
+      assertEqual(point, "TOPLEFT")
+      assertTrue(rawequal(rel, strip), unit .. ": beside the strip, whichever part was hovered")
+      assertEqual(relPoint, "TOPRIGHT")
+    end
+  end
+end)
+
+test("a strip near the screen's right edge opens its tooltip on its left", function()
+  local strip = NS.bars.player.handle
+  local g = { screen = 1000, right = 900, width = 200 }
+  withScreen(strip, g, function() strip:__fire("OnEnter") end)
+  strip:__fire("OnLeave")
+  local point, rel, relPoint = unpack(g.points[1])
+  assertEqual(point, "TOPRIGHT")
+  assertTrue(rawequal(rel, strip))
+  assertEqual(relPoint, "TOPLEFT", "900 + 200 leaves a 1000 px screen, so the left side")
+end)
+
+test("a strip whose geometry cannot be read falls back to the cursor tooltip", function()
+  -- The widget's own fallback: re-owned at the cursor, with the same lines redrawn.
+  local strip = NS.bars.target.handle
+  local g = { screen = 1000, right = nil, width = 200 }
+  withScreen(strip, g, function() strip:__fire("OnEnter") end)
+  strip:__fire("OnLeave")
+  assertEqual(#g.owners, 2)
+  assertEqual(g.owners[2][2], "ANCHOR_CURSOR")
+  assertEqual(#g.points, 0, "nothing anchored beside the strip")
 end)
 
 -- ── degraded: no widget, no strip, nothing raises ────────────────────────────────────────────

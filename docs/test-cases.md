@@ -416,7 +416,7 @@ badge and any count quoted in the docs must agree with it.
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_draghandle.lua (29)
+### test_draghandle.lua (38)
 
 - every bar body is registered for a left-button drag
 - dropping a bar body saves the position to that bar's own unit
@@ -444,6 +444,15 @@ badge and any count quoted in the docs must agree with it.
 - clicking X leaves the bar's position, the other bars and the addon-wide enable alone
 - clicking X prints one line naming the way back
 - the close mark's tooltip says what X does and names the same way back
+- PlaceTooltipBeside puts the tooltip to the strip's right when it fits
+- PlaceTooltipBeside flips to the strip's left when the right side would leave the screen
+- PlaceTooltipBeside anchors to the STRIP when the hovered frame is its ? mark or its X
+- PlaceTooltipBeside compares in screen pixels, so a scaled strip flips when it should
+- PlaceTooltipBeside answers non-true and anchors nothing when a read is secret
+- PlaceTooltipBeside answers non-true and anchors nothing when a read is nil
+- hovering a strip, its ? or its X puts the tooltip beside the strip, owned once
+- a strip near the screen's right edge opens its tooltip on its left
+- a strip whose geometry cannot be read falls back to the cursor tooltip
 - degraded: with LibKa0s absent the bars load with no handle and keep their own drag
 - degraded: with no widget the default stack reserves no strip room
 - an appearance pass over a bar with no handle raises nothing
@@ -1010,7 +1019,7 @@ badge and any count quoted in the docs must agree with it.
 | test_bus.lua | 12 |
 | test_data.lua | 32 |
 | test_display.lua | 60 |
-| test_draghandle.lua | 29 |
+| test_draghandle.lua | 38 |
 | test_helpers.lua | 40 |
 | test_panelpages.lua | 24 |
 | test_panelmirror.lua | 10 |
@@ -1034,4 +1043,4 @@ badge and any count quoted in the docs must agree with it.
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
-| **Total** | **868** |
+| **Total** | **877** |
