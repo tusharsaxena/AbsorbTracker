@@ -19,8 +19,8 @@ ignore:
   # enumeration going stale, not about a package growing.
   - .claude          # untracked; listed under packaging
   - .superpowers     # untracked; listed under packaging
-  # Tracked, and the only entries here that change a download. Four screenshots,
-  # 2.0M, project-page art the CurseForge CDN already serves. CLAUDE.md and
+  # Tracked, and the only entries here that change a download. One screenshot,
+  # 20K, project-page art the CurseForge CDN already serves. CLAUDE.md and
   # DEPENDENCIES.md are developer documentation; README.md and LICENSE stay,
   # because players do read those.
   - media/screenshots

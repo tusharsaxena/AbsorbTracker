@@ -100,6 +100,10 @@ parity per file. Raw `lizard` over the real tree is blind in Lua (it loses whole
 some keywords, WowAddonStandards#6), so it is not the suite: use it only to confirm the tool is
 installed. The command, the tool version, and the date are stamped in the report's own generated header.
 
+The headless suite reaches for it too, without needing it: the vendored
+`tests/_kit/test_lizard_sighted.lua:187` runs lizard end-to-end over a sanitized fixture when
+`command -v lizard` finds it, and skips that one case, with its reason, when it does not.
+
 **Install it with `pipx`, not `pip`.** Ubuntu 24.04 marks its system Python `EXTERNALLY-MANAGED`
 (PEP 668), so `pip install lizard` **fails** with `error: externally-managed-environment`. This is
 the instruction that works:

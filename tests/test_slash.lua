@@ -194,8 +194,8 @@ end)
 -- library-absent stub's dispatcher splits the top verb. The rule they share is LibKa0s-Slash's
 -- SplitVerb contract: the verb is lowercased, the remainder keeps its case and its inner spacing.
 -- These cases pin that behavior from the player's side, in both builds, so the split can move to
--- one shared function without a visible change. tests/test_slashcmds.lua is at layout-§1's cap, so
--- they live here.
+-- one shared function without a visible change. tests/test_slashcmds.lua was at layout-§1's cap when
+-- they were written, so they live here.
 
 local function plainSlash(line)
   local out = capture(function() NS.Slash:OnSlash(line) end)

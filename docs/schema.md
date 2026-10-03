@@ -260,7 +260,9 @@ NS.Bulk.Run(act, scope, walk)           -- a host act in a bracket that always c
                                                 -- re-raises the walk's error unchanged
 
 -- The profile reset's count (OnProfileReset's `(N rows)`, debug-logging-§10)
-NS.ProfileRowsOffDefault()              -> number    -- profile rows whose value differs from default
+NS.ProfileRowsOffDefault()              -> number    -- profile rows whose value differs from default;
+                                                -- a test seam, published for the headless suite
+                                                -- (no addon code calls it)
 NS.ResetProfileCounted(db)              -- db:ResetProfile() with that count left pending;
                                                 -- cleared on return or raise, error re-raised
 NS.ConsumeResetCount()                  -> number|nil -- the pending count, taken once (nil when

@@ -442,6 +442,8 @@ local function reachedByProfileReset(row)
     return row.path ~= MINIMAP_PATH and row.page ~= "profiles"
 end
 
+-- A test seam: published for the headless suite (tests/test_launcher.lua), which uses it to prove the
+-- minimap row stays out of the count. No addon code calls it.
 function NS.ProfileRowsOffDefault() return S.CountOffDefault(reachedByProfileReset) end
 
 function NS.ResetProfileCounted(db)

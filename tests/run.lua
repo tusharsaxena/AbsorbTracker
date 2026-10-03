@@ -132,6 +132,9 @@ Kit.run{
     "test_launcher",
     "test_optionssetup",
     "test_slashcmds",
+    -- The /at profile sub-dispatcher, peeled out of test_slashcmds near the layout-§1 cap. Straight
+    -- after it, where those cases ran before the split.
+    "test_slashprofile",
     -- Peeled out of test_slashcmds when that file crossed the layout-§1 cap; it runs
     -- straight after its sibling so the two halves stay adjacent in a red.
     "test_perfcmds",

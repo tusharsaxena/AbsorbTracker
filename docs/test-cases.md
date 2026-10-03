@@ -598,7 +598,7 @@ badge and any count quoted in the docs must agree with it.
 - and the Options descriptor takes that name from the first vararg, not a literal
 - the art that name points at is vendored on disk
 
-### test_slashcmds.lua (100)
+### test_slashcmds.lua (66)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -630,40 +630,6 @@ badge and any count quoted in the docs must agree with it.
 - /at set rejects a non-numeric value for a number setting
 - /at set writes a color from `r g b a` and echoes the STORED value
 - /at set accepts a bool written as a human word
-- /at profile with no subcommand lists the profiles, then prints the sub-help
-- /at profile current names the active profile
-- /at profile list marks the current profile
-- /at profile use switches the active profile
-- /at profile use of an unknown name refuses it and creates nothing
-- /at profile use reaches a profile named like a sub-verb
-- /at profile use with no name prints usage and switches nothing
-- /at profile new creates a profile carrying the defaults, not the old values
-- /at profile new refuses a name that already exists and leaves it untouched
-- /at profile new with no name prints usage
-- /at profile copy pulls another profile's values into the current one
-- /at profile copy with no name prints usage
-- /at profile copy of a missing profile refuses before AceDB sees the name
-- /at profile copy of the current profile refuses
-- /at profile delete refuses to delete the profile in use
-- /at profile delete removes a profile that is not in use
-- /at profile delete of a missing profile says so and deletes nothing
-- /at profile delete with no name prints usage
-- /at profile reset restores the current profile's defaults in place
-- /at profile reset logs one [Set] line from the reset handler, counting the rows it changed
-- /at resetall logs one line in total, the same reset handler's
-- /at profile new logs the switch line, then a (0 rows) reset line
-- a profile copy logs one [Set] line naming both profiles
-- /at profile copy reaches the copy handler, one line
-- a profile switch keeps its [Profile] line and logs no [Set] line
-- /at profile <word> that is neither a sub-verb nor a profile is refused and creates nothing
-- /at profile <name> switches to an existing profile and the profile handler runs
-- /at profile <name> keeps case and inner spaces, and strips one pair of quotes
-- /at profile <name> in the wrong case is refused with a did-you-mean
-- /at profile <current name> says so and switches nothing
-- /at profile <name> refuses in combat and switches nothing
-- /at profile sub-verbs are case-insensitive
-- /at profile degrades gracefully when AceDB is unavailable
-- a profile switch repaints the bar through OnProfileChanged
 - set writes a dotted per-unit path
 - set on one unit leaves the others alone
 - an unqualified appearance key is rejected
@@ -700,6 +666,43 @@ badge and any count quoted in the docs must agree with it.
 - a refused `update` publishes nothing on the bus
 - /at profile <name> switches while the addon is disabled
 - degraded: /at profile prints the library-absent line and switches nothing
+
+### test_slashprofile.lua (34)
+
+- /at profile with no subcommand lists the profiles, then prints the sub-help
+- /at profile current names the active profile
+- /at profile list marks the current profile
+- /at profile use switches the active profile
+- /at profile use of an unknown name refuses it and creates nothing
+- /at profile use reaches a profile named like a sub-verb
+- /at profile use with no name prints usage and switches nothing
+- /at profile new creates a profile carrying the defaults, not the old values
+- /at profile new refuses a name that already exists and leaves it untouched
+- /at profile new with no name prints usage
+- /at profile copy pulls another profile's values into the current one
+- /at profile copy with no name prints usage
+- /at profile copy of a missing profile refuses before AceDB sees the name
+- /at profile copy of the current profile refuses
+- /at profile delete refuses to delete the profile in use
+- /at profile delete removes a profile that is not in use
+- /at profile delete of a missing profile says so and deletes nothing
+- /at profile delete with no name prints usage
+- /at profile reset restores the current profile's defaults in place
+- /at profile reset logs one [Set] line from the reset handler, counting the rows it changed
+- /at resetall logs one line in total, the same reset handler's
+- /at profile new logs the switch line, then a (0 rows) reset line
+- a profile copy logs one [Set] line naming both profiles
+- /at profile copy reaches the copy handler, one line
+- a profile switch keeps its [Profile] line and logs no [Set] line
+- /at profile <word> that is neither a sub-verb nor a profile is refused and creates nothing
+- /at profile <name> switches to an existing profile and the profile handler runs
+- /at profile <name> keeps case and inner spaces, and strips one pair of quotes
+- /at profile <name> in the wrong case is refused with a did-you-mean
+- /at profile <current name> says so and switches nothing
+- /at profile <name> refuses in combat and switches nothing
+- /at profile sub-verbs are case-insensitive
+- /at profile degrades gracefully when AceDB is unavailable
+- a profile switch repaints the bar through OnProfileChanged
 
 ### test_perfcmds.lua (42)
 
@@ -1025,7 +1028,8 @@ badge and any count quoted in the docs must agree with it.
 | test_panelmirror.lua | 10 |
 | test_launcher.lua | 34 |
 | test_optionssetup.lua | 18 |
-| test_slashcmds.lua | 100 |
+| test_slashcmds.lua | 66 |
+| test_slashprofile.lua | 34 |
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 15 |
 | test_widgets.lua | 57 |
