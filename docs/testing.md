@@ -106,7 +106,7 @@ with its reason**, never a pass.
 
 **At the tag, all four gate** (`automated-tests-§3`, *The release gate*). The release run's
 `manifest.json` must show all four suites at `pass` and `suites.complexity.warnings` at `0`;
-`/wow-addon:bump-version` evaluates that, not this script, whose exit code is unchanged. A `skip`
+`/dev-copilot:bump-version` evaluates that, not this script, whose exit code is unchanged. A `skip`
 there is **NOT EVALUATED** rather than passed — install the tool and re-run.
 
 The runner is **vendored** from `LibKa0s`'s `testkit/`; never edit `tests/_kit/`. A kit fix goes

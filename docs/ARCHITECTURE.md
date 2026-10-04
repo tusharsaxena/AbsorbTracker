@@ -367,7 +367,7 @@ Older bundles and plans under `docs/` that still name the file are frozen histor
 Ratified departures from the Ka0s WoW Addon Standard, in the row shape `documentation-§3` fixes.
 **This is the single home**: a decision may be reasoned at length in an audit bundle, a topic doc or
 this repo's GitHub issues, and the row cites it — but a deviation that is not in this table is not
-ratified. A fresh `/wow-addon:standards-audit` reads the register first and records a match as
+ratified. A fresh `/dev-copilot:wow-standards-audit` reads the register first and records a match as
 accepted rather than re-filing it.
 
 | Rule | What differs | Why | Decided | Re-check trigger |
