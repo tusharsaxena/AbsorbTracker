@@ -753,7 +753,7 @@ Total.
 - /at perf report opens the debug console when it is hidden
 - /at perf report marks itself reviewed exactly once
 
-### test_debughold.lua (15)
+### test_debughold.lua (16)
 
 - the `test` verb is gone: it prints unknown command
 - COMMANDS carries no `test` row, and the debug row names `hold <value> [secs]`
@@ -770,6 +770,7 @@ Total.
 - /at debug hold schedules the expiry it just announced
 - re-locking the bars clears a live /at debug hold preview
 - /at debug hold refuses while the addon is disabled: one line, no paint, no hold
+- /at debug hold refuses while stood down for a perf capture, arms no timer
 
 ### test_widgets.lua (57)
 
@@ -1036,7 +1037,7 @@ Total.
 | test_slashcmds.lua | 66 |
 | test_slashprofile.lua | 34 |
 | test_perfcmds.lua | 42 |
-| test_debughold.lua | 15 |
+| test_debughold.lua | 16 |
 | test_widgets.lua | 57 |
 | test_docs.lua | 6 |
 | test_prose.lua | 15 |
@@ -1053,4 +1054,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **879** |
+| **Total** | **880** |

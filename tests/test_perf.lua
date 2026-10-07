@@ -532,10 +532,16 @@ test("perf: the schema with LibKa0s absent is the full one minus the composed ro
   assertEqual(want, FULL - DEGRADED, "and the per-tab attribution sums to it")
 end)
 
+-- The show ladder asks the stand-down latch (NS.IsStoodDown, modules/Display.lua rung 0), not the
+-- Perf stub's `suspended` field, so the assertion reads the latch. The stub keeps `suspended = false`
+-- for the LibKa0s Perf host contract (tests/test_surface_parity.lua), but reading that literal back
+-- could never fail for a ladder reason.
+-- red under: a degraded NS.IsStoodDown that answers true (a latch stub left holding), which hides
+-- every bar while the old read of the stub's `suspended` literal stayed green.
 test("perf: the addon loads with LibKa0s absent", function()
   local NS2 = loadDegraded()
   assertEqual(NS2.Perf.on, false, "the bracket gate is off and stays off")
-  assertEqual(NS2.Perf.suspended, false, "and the show ladder sees a running addon")
+  assertEqual(NS2.IsStoodDown(), false, "and the stand-down latch reports a running addon")
   assertEqual(type(NS2.Perf.Note), "function", "Note")
 end)
 

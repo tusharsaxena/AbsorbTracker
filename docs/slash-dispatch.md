@@ -99,6 +99,10 @@ the addon exists to do, which is `§2`'s own definition of a feature verb.
 One sub-verb carries a gate of its own. `debug` is live, so the library never refuses
 `/at debug hold`, but the hold paints fake values on the bars, and that is a feature. `runHold`
 checks the stored `enabled` itself and prints the same line (`Sl:DisabledLine()`) without painting.
+It then asks the stand-down latch (`NS.IsStoodDown()`), because a perf capture's suspend
+(`/at perf measure b`) stands the addon down without touching `enabled`; stood down, it prints
+`Bars are suspended for a perf capture; run /at perf finish (or /at perf measure a) first` and
+returns before parsing, painting or arming the expiry timer.
 `on`, `off`, `diagnostics`, `events` and a bare `/at debug` still answer with the addon off.
 
 Three inputs are worth their own sentence, because they are where minor 12 and minors 13–14 differ and
