@@ -249,28 +249,31 @@ NS.Perf.on = false
 -- repaint path itself, BOTH arms rise together and `off <= on + 1` still holds. The dormant arm
 -- therefore also carries an ABSOLUTE ceiling.
 --
--- RE-BASELINED 2026-10-07, when both arms moved onto the shipped doRepaint (NS.Timer.__doRepaint).
--- The previous figure -- 48.0 bytes/pass under a 72 ceiling, set 2026-09-08 -- was honest about
--- what it measured, but what it measured was a test closure over NS.UpdateAbsorbBar: the outer
--- repaintPass bracket, the `parent` derivation and doRepaint's own per-pass closure never ran.
--- Pointed at the seam with the old 72 ceiling, this gate went red at 144.0: that is what the
--- shipped pass costs, and the old gate could not see it.
+-- RE-BASELINED 2026-10-07 (twice, both on the shipped doRepaint, NS.Timer.__doRepaint).
 --
---   measured   144.0 bytes/pass, three consecutive runs of the dormant arm, identical to the
---              decimal in all three. This is allocation ACCOUNTING, not a sampled timing -- it does
---              not jitter, which is why a margin here can be small. The figure INCLUDES doRepaint's
---              per-pass `function(unit)` closure handed to NS.ForEachUnit; paintBars (48.0) is the
---              same pass without it and without the outer bracket.
---   ceiling    168 = 144.0 + 24.
+-- First (AT-01): both arms moved off a test closure over NS.UpdateAbsorbBar -- 48.0 bytes/pass
+-- under a 72 ceiling, set 2026-09-08, which never reached the outer repaintPass bracket, the
+-- `parent` derivation or doRepaint's own fan-out -- and onto the seam. That gate went red at 144.0,
+-- and the ceiling was re-derived to 168 = 144.0 + 24. The whole 144.0 was doRepaint's per-pass
+-- `function(unit)` closure handed to NS.ForEachUnit, plus the two upvalues it closed over
+-- (`painted`, `parent`).
+--
+-- Second (AT-05): doRepaint now walks NS.Units.LIST with a plain loop, so a coalesced pass
+-- allocates no closure. The ceiling came down with the measurement, by the same method:
+--
+--   measured   0.0 bytes/pass (was 144.0), three consecutive runs of the dormant arm, identical
+--              to the decimal in all three. This is allocation ACCOUNTING, not a sampled timing --
+--              it does not jitter, which is why a margin here can be small. paintBars (48.0) is
+--              now the HEAVIER row: its 48 bytes are its own test closure, not the bars.
+--   ceiling    24 = 0.0 + 24.
 --   margin     DERIVED, not guessed. The cheapest regression this line exists to catch is one
 --              extra table per pass, and that cost was re-measured on this commit rather than
 --              assumed: adding a single `{}` to this scenario's body moves the figure
---              144.0 -> 208.0, so one empty table costs 64 bytes/pass under this interpreter.
+--              0.0 -> 64.0, so one empty table costs 64 bytes/pass under this interpreter.
 --              24 < 64, so the smallest allocation anyone can add still trips the ceiling.
 --
--- Raise it only by filling in those three lines again -- a rise IS the finding. Removing the
--- per-pass closure LOWERS the measurement; re-derive the ceiling down with it, by the same method.
-local PROBE_OFF_BYTES_CEILING = 168
+-- Raise it only by filling in those three lines again -- a rise IS the finding.
+local PROBE_OFF_BYTES_CEILING = 24
 
 assert_(probeOff.bytesPerIter <= PROBE_OFF_BYTES_CEILING,
   ("a dormant pass allocated %.1f bytes/iter, over the %d-byte ceiling — the repaint path grew")

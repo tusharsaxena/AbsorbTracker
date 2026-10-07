@@ -78,11 +78,13 @@ CPU never does. Exit code is non-zero on an assertion failure.
 | `probeOverheadOff` / `On` | Is the instrumentation itself free when capture is off? Both arms run the shipped `doRepaint`, so the outer `repaintPass` bracket and every `paintBar` bracket are on the measured path. |
 
 `paintBars` and `repaintPass` both assert 12 API calls per pass (4 per bar × 3 bars). As of
-2026-10-07, `paintBars` allocates 48.0 bytes per pass, and `repaintPass` and `probeOverheadOff`
-allocate 144.0. The 96-byte gap is `doRepaint`'s own fan-out: the per-pass `function(unit)`
-closure it hands to `NS.ForEachUnit`, and the upvalues that closure captures. The dormant arm is held under
-`PROBE_OFF_BYTES_CEILING` (168: the 144.0 measurement plus 24 bytes of headroom, less than the
-64 bytes one empty table costs). `tests/perf.lua` records how that ceiling was derived.
+2026-10-07, `repaintPass` and `probeOverheadOff` allocate 0.0 bytes per pass: `doRepaint` walks
+`NS.Units.LIST` with a plain loop, so a coalesced pass allocates nothing. Before that change they
+allocated 144.0, all of it the per-pass `function(unit)` closure `doRepaint` handed to
+`NS.ForEachUnit` and the two upvalues it closed over. `paintBars` allocates 48.0, which is its own
+test closure, not the bars. The dormant arm is held under `PROBE_OFF_BYTES_CEILING` (24: the 0.0
+measurement plus 24 bytes of headroom, less than the 64 bytes one empty table costs).
+`tests/perf.lua` records how that ceiling was derived.
 
 ### Reading the output
 
