@@ -223,6 +223,8 @@ the menu, the tooltip, the inverted visibility row and the icon's format are in
 subscription and timer in the same turn, rather than hiding the bars. One `LibKa0s-Lifecycle-1.0`
 latch (`core/Lifecycle.lua`) carries two holds, `disabled` and `perf`. What stands down, what
 survives as setup, and how `StandUp` rebuilds from current state: [lifecycle.md](./lifecycle.md).
+A stand-up in combat (or an `OnEnable` after a `/reload` mid-fight) ends with `NS.RelockForCombat`,
+the helper `OnEnterCombat` re-locks through, so unlocked bars show live data for the rest of the fight.
 
 ## Event Subscriptions
 

@@ -897,15 +897,16 @@ Total.
 - lintconfig: every files[...] ignore is narrowed to a file or a name
 - lintconfig: no source file carries a bare inline luacheck ignore
 
-### test_events.lua (5)
+### test_events.lua (6)
 
 - events: the session rejected list exists and starts empty
 - events: one unknown lifecycle name costs only itself, and is listed once
 - events: one unknown unit event on the per-unit frame costs only itself
 - events: a name IsEventValid refuses never reaches the target
 - events: /at debug events lists the rejected names, and 'none' once they are gone
+- events: OnEnable while in combat on an unlocked profile re-locks
 
-### test_disabled.lua (18)
+### test_disabled.lua (19)
 
 - disabled 1: the enabled addon registers something to stand down from
 - disabled 3: writing the enable path leaves NOTHING registered
@@ -919,6 +920,7 @@ Total.
 - disabled 8: the left click opens the panel; the menu grays Locked and still re-enables
 - disabled 9: re-enabling restores the registration set, from the settings as they are NOW
 - disabled 9: the bus subscriptions come back as the same five pairs, and each still reaches its consumer once
+- disabled 9: /at enable mid-combat on an unlocked profile re-locks and prints once
 - disabled 10: releasing one hold does not stand up an addon the other still holds down
 - disabled 10: the perf hold is session-only and the disabled hold is the stored path
 - bus: a registration made while stood down is recorded, and not live until the stand-up
@@ -1045,8 +1047,8 @@ Total.
 | test_surface_parity.lua | 11 |
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
-| test_events.lua | 5 |
-| test_disabled.lua | 18 |
+| test_events.lua | 6 |
+| test_disabled.lua | 19 |
 | test_diagnostics.lua | 12 |
 | test_debugcoverage.lua | 21 |
 | test_diagnostics_contract.lua | 8 |
@@ -1054,4 +1056,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **880** |
+| **Total** | **882** |
