@@ -160,7 +160,7 @@ Total.
 - EnvSetup degraded: a legacy-only surface yields nil, and the dead global is never called
 - EnvSetup: the deleted shim is gone, and so is the file that was only ever the shim
 
-### test_coresetup.lua (7)
+### test_coresetup.lua (8)
 
 - core: the secret seam is the library's, not a private copy
 - core: NS.SECRET is the library's sentinel, live and degraded
@@ -168,6 +168,7 @@ Total.
 - core: NS.Print carries the [AT] tag and survives a secret arg
 - core: NS.Print and NS.Util.print are the same object after the AceConsole reclaim
 - core: the addon still prints, tagged, with LibKa0s absent
+- core: NS.Format formats its parts into one tagged line, live and degraded
 - core: the degraded SafeRegisterEvent isolates a raise and lists the name once
 
 ### test_mediasetup.lua (10)
@@ -943,7 +944,7 @@ Total.
 - diagnostics: the chat line is ours to localize and names the line count
 - diagnostics: with the library absent both forms print the one absent line
 
-### test_debugcoverage.lua (21)
+### test_debugcoverage.lua (23)
 
 - coverage: a stand-down and a stand-up are the library's one [Lifecycle] line each, naming the holds
 - coverage: a hold that fires no edge writes no [Lifecycle] line
@@ -951,6 +952,8 @@ Total.
 - coverage: [World] names the loading screen's kind: login, reload or zone change
 - coverage: entering combat unlocked says the bars were re-locked
 - quiet: the absorb read's secret edge is one line each way, however many events
+- coverage: the console's Clear re-arms the absorb read's secret edge
+- coverage: the console's Clear re-arms the bar visibility line
 - quiet: the repaint throttle, the swap and max-health events and the ladder log nothing unchanged
 - coverage: a /at debug hold logs when it holds live repaints and when it lets them go
 - coverage: an in-combat unlock refusal names the guard
@@ -1020,7 +1023,7 @@ Total.
 | test_database.lua | 38 |
 | test_units.lua | 17 |
 | test_envsetup.lua | 7 |
-| test_coresetup.lua | 7 |
+| test_coresetup.lua | 8 |
 | test_mediasetup.lua | 10 |
 | test_debuglog.lua | 14 |
 | test_slash.lua | 22 |
@@ -1050,10 +1053,10 @@ Total.
 | test_events.lua | 6 |
 | test_disabled.lua | 19 |
 | test_diagnostics.lua | 12 |
-| test_debugcoverage.lua | 21 |
+| test_debugcoverage.lua | 23 |
 | test_diagnostics_contract.lua | 8 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **882** |
+| **Total** | **885** |

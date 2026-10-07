@@ -154,6 +154,28 @@ test("core: the addon still prints, tagged, with LibKa0s absent", function()
   assertEqual(out[3], NS2.PREFIX .. " second line")
 end)
 
+test("core: NS.Format formats its parts into one tagged line, live and degraded", function()
+  -- The printer's format seam (events-frames-taint-§8: hand the parts to the printer rather than
+  -- joining them first). core/Database.lua's migration-failure line is its caller (AT-08).
+  -- red under: NS.Format not published on either path.
+  local out = chatOf(T.mocks, function() NS.Format("stopped at v%s -> v%s; kept", 5, 6) end)
+  assertEqual(out[#out], NS.PREFIX .. " stopped at v5 -> v6; kept")
+
+  local Loader = dofile("tests/_kit/loader.lua")
+  local buildMocks = dofile("tests/wow_mock.lua")
+  Loader.addonName = "AbsorbTracker"
+  local mocks2, NS2 = buildMocks(), {}
+  Loader.loadAll({
+    "core/EnvSetup.lua", "core/Constants.lua", "core/Namespace.lua", "core/CoreSetup.lua",
+  }, NS2, mocks2)
+  local out2 = chatOf(mocks2, function()
+    NS2.Format("stopped at v%s -> v%s; kept", 5, 6)
+    NS2.Format("%d rows", secretMock)                 -- an unsatisfiable format still lands
+  end)
+  assertEqual(out2[#out2 - 1], NS2.PREFIX .. " stopped at v5 -> v6; kept")
+  assertEqual(out2[#out2], NS2.PREFIX .. " %d rows <secret>")
+end)
+
 test("core: the degraded SafeRegisterEvent isolates a raise and lists the name once", function()
   -- red under: a stub body without the pcall (the target's raise escapes the helper).
   local Loader = dofile("tests/_kit/loader.lua")

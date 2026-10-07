@@ -145,9 +145,14 @@ test("quiet: the absorb read's secret edge is one line each way, however many ev
   -- quiet steady state on the addon's highest-frequency path.
   local saved = M.UnitGetTotalAbsorbs
   local s = secret()
-  local lines = debugLines(function()
+  -- Settle on a readable value first: the edge is the console's DebugChanged gate now, so the first
+  -- readable observation after a Clear or an enable states itself once (AT-08), and that one line
+  -- is not what this case counts.
+  debugLines(function()
     M.UnitGetTotalAbsorbs = function() return 5000 end
     NS.addon:OnAbsorbChanged(nil, "player")
+  end)
+  local lines = debugLines(function()
     M.UnitGetTotalAbsorbs = function() return s end
     for _ = 1, 20 do NS.addon:OnAbsorbChanged(nil, "player") end
     M.UnitGetTotalAbsorbs = function() return 5000 end
@@ -156,8 +161,44 @@ test("quiet: the absorb read's secret edge is one line each way, however many ev
   M.UnitGetTotalAbsorbs = saved
   M.__fireTimers()
   assertEqual(count(lines, "[Absorb] reads secret"), 1, joined(lines))
-  assertEqual(count(lines, "[Absorb] reads readable again"), 1, joined(lines))
+  assertEqual(count(lines, "[Absorb] reads readable"), 1, joined(lines))
   assertEqual(#lines, 2, "nothing else on an unchanged value: " .. joined(lines))
+end)
+
+test("coverage: the console's Clear re-arms the absorb read's secret edge", function()
+  -- red under: a hand-rolled memo in core/AbsorbTracker.lua's traceAbsorb in place of the console's
+  -- DebugChanged (debug-logging-§9, AT-A-09). A reader who cleared the console mid-key and
+  -- reproduced saw no [Absorb] line at all and nothing saying why.
+  local saved = M.UnitGetTotalAbsorbs
+  local s = secret()
+  M.UnitGetTotalAbsorbs = function() return s end
+  local ok, err = pcall(function()
+    debugLines(function() NS.addon:OnAbsorbChanged(nil, "player") end)   -- spend the edge
+    local spent = debugLines(function() NS.addon:OnAbsorbChanged(nil, "player") end)
+    assertEqual(count(spent, "[Absorb] reads secret"), 0, "still gated: " .. joined(spent))
+    NS.DebugLog:Clear()
+    local rearmed = debugLines(function() NS.addon:OnAbsorbChanged(nil, "player") end)
+    assertEqual(count(rearmed, "[Absorb] reads secret"), 1, joined(rearmed))
+  end)
+  M.UnitGetTotalAbsorbs = function() return 5000 end
+  debugLines(function() NS.addon:OnAbsorbChanged(nil, "player") end)     -- leave it readable
+  M.UnitGetTotalAbsorbs = saved
+  M.__fireTimers()
+  if not ok then error(err, 0) end
+end)
+
+test("coverage: the console's Clear re-arms the bar visibility line", function()
+  -- red under: the hand-rolled `show ~= dbgLastShown[unit]` memo in modules/Display.lua's
+  -- NS.ApplyVisibility (debug-logging-§9, AT-A-09): the bar's state was never restated after a
+  -- Clear, so a fresh log began with no [Bar] line for a bar that was plainly on screen.
+  NS.SetByPath("enabled", true)
+  M.__fireTimers()
+  debugLines(function() NS.ApplyVisibility("player") end)                 -- spend the key
+  local spent = debugLines(function() NS.ApplyVisibility("player") end)
+  assertEqual(count(spent, "[Bar] player:"), 0, "still gated: " .. joined(spent))
+  NS.DebugLog:Clear()
+  local rearmed = debugLines(function() NS.ApplyVisibility("player") end)
+  assertEqual(count(rearmed, "[Bar] player:"), 1, joined(rearmed))
 end)
 
 test("quiet: the repaint throttle, the swap and max-health events and the ladder log nothing unchanged", function()
@@ -166,7 +207,9 @@ test("quiet: the repaint throttle, the swap and max-health events and the ladder
   -- 3000-line buffer before the reporter reaches Copy (debug-logging-§9, anti-patterns #91).
   NS.SetByPath("enabled", true)
   M.__fireTimers()
-  NS.ForEachUnit(NS.ApplyVisibility)       -- settle the last-applied state first
+  -- Settle the [Bar] gates first, with logging ON: the line is the console's DebugChanged gate,
+  -- which remembers only what it wrote, so the first logged pass states each bar once (AT-08).
+  debugLines(function() NS.ForEachUnit(NS.ApplyVisibility) end)
   local lines = debugLines(function()
     for _ = 1, 10 do
       NS.RequestRepaint()

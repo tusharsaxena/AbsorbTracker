@@ -28,10 +28,6 @@ if NS.Util and NS.Util.print then NS.Print = NS.Util.print end
 -- debug is on. Reset at combat start, flushed as one [Combat] rollup at combat end.
 local dbgAbsorbEvents, dbgRepaints = 0, 0
 local dbgLastAbsorb   -- last NON-secret absorb value seen (nil until a non-secret read)
--- Whether the last player read was a secret (nil before the first read). Change-gated: the
--- readable/secret EDGE is one [Absorb] line, never one per event (debug-logging-§9's quiet steady
--- state), and it is what explains a restricted-content log with no shield transitions in it.
-local dbgAbsorbSecret
 
 -- Called by modules/Display.lua on each actual repaint. Gated: counts nothing when debug is off.
 function NS.NoteRepaint()
@@ -240,19 +236,17 @@ end
 -- report a number that doesn't match what it prints. Gate the debug read so it costs nothing when
 -- debug is off (debug-logging-§4).
 -- The player's absorb, traced by transition only. Called behind the debug gate. Only compares when
--- the value is NOT a combat secret (IsConcatSafe == readable); the readable/secret edge itself is
--- one line each way.
+-- the value is NOT a combat secret (IsConcatSafe == readable). The readable/secret EDGE is one
+-- [Absorb] line each way, never one per event (debug-logging-§9's quiet steady state), and it is
+-- what explains a restricted-content log with no shield transitions in it. It goes through the
+-- console's own DebugChanged gate rather than a memo of ours, so a Clear() or a fresh enable
+-- re-arms it and the state is restated on the next read; the cost is that the first readable
+-- observation of an armed gate writes one "reads readable" line too.
 local function traceAbsorb()
     local v = UnitGetTotalAbsorbs("player") or 0
     local secret = not NS.IsConcatSafe(v)
-    if secret ~= dbgAbsorbSecret then
-        if secret then
-            NS.Debug("Absorb", "reads secret: shield transitions not traced until readable")
-        elseif dbgAbsorbSecret then
-            NS.Debug("Absorb", "reads readable again")
-        end
-        dbgAbsorbSecret = secret
-    end
+    NS.DebugLog.DebugChanged("absorb:secret", "Absorb", secret
+        and "reads secret: shield transitions not traced until readable" or "reads readable")
     if secret then return end
     local prev = dbgLastAbsorb
     if prev ~= nil and prev == 0 and v ~= 0 then

@@ -229,10 +229,13 @@ end)
 -- The library's own `count` is not N: it counts every row whose applyDefault returned, changed or
 -- not, and General's `state.debugConsole` (no default, so nothing written) among them.
 
--- The debug lines one act appends, with debug on for its duration.
+-- The debug lines one act appends, with debug on for its duration. The bars are settled first,
+-- with logging on: a reset repaints them, and each bar's first logged pass states it once through
+-- the console's [Bar] change gate (AT-08), which is not a line the act wrote.
 local function linesOf(fn)
-  local before = #NS.DebugLog.buffer
   NS.State.debug = true
+  NS.ForEachUnit(NS.ApplyVisibility)
+  local before = #NS.DebugLog.buffer
   local ok, err = pcall(fn)
   NS.State.debug = false
   if not ok then error(err, 0) end

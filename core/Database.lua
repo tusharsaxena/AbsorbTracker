@@ -231,8 +231,8 @@ local function runLadder(g, profile)
             local ok, err = pcall(step.apply, profile)
             if not ok then
                 NS.Debug("Migrate", "v%s \226\134\146 v%s failed: %s", from, step.to, tostring(err))
-                NS.Print("Settings upgrade stopped at v" .. from .. " -> v" .. step.to
-                    .. "; saved settings were left as they were")
+                NS.Format("Settings upgrade stopped at v%s -> v%s; saved settings were left as they were",
+                    from, step.to)
                 break
             end
             NS.Debug("Migrate", "v%s \226\134\146 v%s", from, step.to)

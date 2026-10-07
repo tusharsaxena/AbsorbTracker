@@ -114,6 +114,18 @@ if not lib then
     end
     Util.print = NS.Print
 
+    -- The printer's format seam, the library's rule kept short: every argument stringified
+    -- secret-safe first, the format pcall'd, and an unsatisfiable one still lands as the format
+    -- verbatim plus its parts, space-joined. Through Util.print, which the AceConsole embed never
+    -- touches, so the once-said missing-library line is shared with NS.Print.
+    function NS.Format(fmt, ...)
+        local parts = {}
+        for i = 1, select("#", ...) do parts[i] = NS.SafeToString((select(i, ...))) end
+        local safeFmt = NS.SafeToString(fmt)
+        local ok, out = pcall(string.format, safeFmt, unpack(parts))
+        if ok then Util.print(out) else Util.print(safeFmt, unpack(parts)) end
+    end
+
     return
 end
 
@@ -154,3 +166,7 @@ local printer = lib:New({
 -- captured because it is the identical object. tests/test_slash.lua asserts the identity directly.
 NS.Print = printer.Print
 Util.print = NS.Print
+-- The printer's format seam: a format string and its parts, formatted by the library over
+-- secret-safe strings (events-frames-taint-§8's "hand the parts to the printer"). AceConsole embeds
+-- Print and Printf, never Format, so this name needs no reclaim.
+NS.Format = printer.Format

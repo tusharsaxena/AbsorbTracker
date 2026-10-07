@@ -412,7 +412,7 @@ Every one of them follows the same shape: the algorithms are lib code, and this 
 
 | Major | Wired by | What the descriptor carries | Published as |
 |---|---|---|---|
-| `LibKa0s-Core-1.0` | `core/CoreSetup.lua` | the `[AT]` prefix, passed as a **function** so a later `NS.PREFIX` change is not frozen in | `NS.Print`, `NS.Util.print`, `NS.IsConcatSafe`, `NS.SafeToString` |
+| `LibKa0s-Core-1.0` | `core/CoreSetup.lua` | the `[AT]` prefix, passed as a **function** so a later `NS.PREFIX` change is not frozen in | `NS.Print`, `NS.Util.print`, `NS.Format`, `NS.IsConcatSafe`, `NS.SafeToString` |
 | `LibKa0s-DebugLog-1.0` | `core/DebugLogSetup.lua` | frame-name prefix, title, monospace font, `/at`, call-time `print`/`safeToString`, the `[Init]` summary, and `isEnabled`/`setEnabled` over `NS.State.debug` | `NS.DebugLog`, `NS.Debug` |
 | `LibKa0s-Slash-1.0` | `settings/Slash.lua` (no separate setup file) | `NS.COMMANDS`, the schema read/write/default seams, `groupKey`, the mirror annotator | `NS.Slash`, an addon-owned table wrapping the private dispatcher instance |
 | `LibKa0s-Options-1.0` | `settings/OptionsSetup.lua` | the brand, the schema seams, the reset policy hooks, the color codec, AceTimer, LSM | `NS.Helpers` (the instance itself), `NS.AceGUI`, the four `NS.*OptionsPanel*` wrappers |
