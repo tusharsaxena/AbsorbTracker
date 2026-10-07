@@ -46,7 +46,7 @@ for `-Slash-1.0` without a separate setup file. `core/MediaSetup.lua` and `core/
 eighth and ninth seams, and the two odd ones: `LibKa0s-Media-1.0` and `LibKa0s-Env-1.0` take no
 descriptor, only this addon's FOLDER name — a texture path is absolute from `Interface\AddOns\` and a
 TOC manifest is keyed by folder, and a vendored copy cannot know which folder it was copied into.
-**Twelve majors bound by name** of the fifteen `libs/LibKa0s/` vendors (thirty-two files); Compat,
+**Twelve majors bound by name** of the fifteen `libs/LibKa0s/` vendors (the files `libs/LibKa0s/LibKa0s.xml` lists); Compat,
 Pool and Item are registered and unread. `LibKa0s-Widgets-1.0` has its own seam,
 `core/WidgetsSetup.lua`, which resolves the major once and publishes `NS.Widgets`: the live major, or a
 stub carrying exactly the two members the addon reaches (`DragHandle` answering nil, so no strip is
@@ -310,6 +310,11 @@ standard wrote the carve-out.
   it on the degraded load). What is lost is the registration-level stand-down of the five bus
   subscriptions themselves on that one install shape, which is also already without Options, Slash
   and the rest of LibKa0s.
+- **A Master scale change may move a dragged bar** (unverified in a client). Saved positions are
+  stored in the bar's own scaled space (`modules/Bar.lua`'s `savePosition`) and reapplied unchanged
+  (`modules/Display.lua`'s `NS.RestoreBarPosition`), while the bar takes `SetScale` from Master scale,
+  so the distance from the anchor scales with it. Pending smoke check BAR-18 (review S-05); a fix is
+  designed only if it confirms.
 
 ## Documentation map
 

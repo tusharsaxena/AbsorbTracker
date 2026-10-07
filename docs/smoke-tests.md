@@ -12,7 +12,7 @@ These are the checks only a live client can make: real frames, the live absorb e
 | PROFILE-1–16 | Profiles | The Profiles page, the `profile <name>` verb and the `/at profile` sub-verbs |
 | STATE-1–5 | State | The addon-wide enable switch and the stand-down latch |
 | COMBAT-1–6 | Combat | Secret values, the settings combat gate, the sidebar lock, lock and unlock in combat |
-| BAR-1–17 | Bars | Absorb tracking on three units, visibility, scale, toggle, preview, drag strips and where their tooltips open, positions |
+| BAR-1–18 | Bars | Absorb tracking on three units, visibility, scale, toggle, preview, drag strips and where their tooltips open, positions, and whether Master scale moves a dragged bar |
 | LOOK-1–17 | Appearance | The Appearance page, media dropdowns, opacity, font color, class colors, mirror and copy, tab clicks through the library's strip |
 | MIGRATE-1–6 | Upgrades | SavedVariables backfill, the schema stamp, the visibility and v3 migrations |
 | LAUNCH-1–10 | Launcher | Minimap button, options menu, broker display |
@@ -136,6 +136,7 @@ Setup for the verb checks: run PROFILE-9 first, so a `SmokeTest` profile exists 
 - **BAR-15. Reset position moves every bar.** With the target bar enabled and visible, drag the player and target bars to distinct spots, change a width, then General → Master controls → **Reset position** → both bars snap to their stacked defaults and the width is unchanged. Repeat with `/at resetposition` → the same. `/reload` → the reset positions persist. Result:
 - **BAR-16. A disabled bar gets no events.** `/at debug on`, untick **Enable Target Bar** and **Enable Focus Bar**, target something with a shield and let it take damage → no `[Bar] target:` line and no repaint caused by the target. Tick **Enable Target Bar** → target activity resumes at once, no `/reload`. `/at debug off`. Result:
 - **BAR-17. Strip tooltips open beside the strip.** `/at unlock` with the bars near the middle of the screen. Hover the Player strip → its tooltip opens to the strip's **right**, top edges level, a small gap from the strip, and does not cover the bar stacked above. Hover its `?`, then its X → each tooltip opens in that same place, beside the strip and not beside the mark. Drag the Player bar to the right edge of the screen and hover the strip, the `?` and the X again → all three open to the strip's **left** instead, fully on screen. Set **Master scale** high (or the bar's scale) and repeat near the right edge → the flip still happens before the tooltip would leave the screen. A tooltip that follows the pointer, sits above the strip, or runs off the right edge is the finding. Result:
+- **BAR-18. Master scale keeps a dragged bar in place.** Confirm or refute only. `/at unlock`, drag the Player bar well away from its default spot, `/at lock`. Note where it sits on screen, then General → Master controls → set **Master scale** from `1.0` to `1.5` → does the bar's on-screen position move (not just grow about its spot)? Set it back to `1.0` → does it return? Record `moved` or `stayed` for each change. Result:
 
 ## Appearance
 
@@ -303,6 +304,7 @@ No client run is recorded for these yet. Three kinds are listed: old checks that
 | COMBAT-5, COMBAT-6 | Old § D step 14e, with § K step 68 (COMBAT-5) | Rewritten by `AT-04` (2026-09-24): the in-combat `/at unlock` now ends with the stored `locked = true` (COMBAT-6); session AT.7 of the 2026-09-23 remediation plan, which also checks the combat re-lock line (COMBAT-5), is owed and was never run. COMBAT-6 is also corrected: the old step unticked **Lock frame** in combat, which the LibKa0s v1.46 combat cover makes impossible, so that half is dropped |
 | BAR-11 | Old § D step 14e, with § F step 30 | Rewritten by `AT-04` (2026-09-24): `/at lock` and `/at unlock` echo `locked = true` / `locked = false` and the open panel follows at once; session AT.7 of the 2026-09-23 remediation plan is owed and was never run |
 | BAR-12 | Old § K step 68 | Corrected: a bar cannot be set to 40 px, so the narrow case uses the 50 px minimum |
+| BAR-18 | New on 2026-10-07 (`AT-09`, review F-005 / S-05) | Confirm or refute: saved positions are in the bar's scaled space, so a Master scale change may shift a dragged bar. A fix (C-6, a stored-shape change with a savedvariables-§1 v6 ladder step, or a cheaper rescale in the setter) is designed only if this confirms |
 | BAR-17, BAR-12 (d), BAR-13 | New or corrected on 2026-10-03 (`TP-AT-02`) | The strip's, the `?`'s and the X's tooltips moved beside the strip with LibKa0s v1.68.0's `tooltipPlace` (the owner's ruling: one placement for every Ka0s strip); no client has hovered them yet |
 | LOOK-5, LOOK-6 | Old § O steps 103–104 (`M3-03`, session 4) | The composed media lists have never been checked in a client without the local workaround |
 | LOOK-8 | Old § Q step 107 (`M4-02`–`M4-08`) | Never run; five Border patch deletions landed on a green suite only |
