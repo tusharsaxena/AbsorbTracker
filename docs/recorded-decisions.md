@@ -28,6 +28,46 @@ The perf capture ring, the complexity tooling and the bracket idiom are all stil
 [performance.md](./performance.md) and the hub's `## Performance & Profiler Attribution`, where they
 belong as design, not as departures.
 
+**Retired on 2026-10-07** — the `savedvariables-§1` row for the **per-profile** `schemaVersion` stamp
+at `db.profile.schemaVersion`, decided 2026-07-28:
+
+- **What it cited.** savedvariables-§1 put the migration stamp account-wide, in the global
+  namespace's defaults, advanced by one runner. The row recorded a second, per-profile stamp gating
+  the v3 lift (flat appearance keys onto `profile.units.<unit>`), because an account-wide flag cannot
+  gate a per-profile mutation: a second pre-v3 profile would have its stored appearance stranded
+  forever.
+- **Why it is no longer a deviation.** Since standard v2.65.0, savedvariables-§1 (*Who owns the
+  stamp*) requires a profile-scoped step to run for every stored profile, either by walking the raw
+  `profiles` table or idempotently from AceDB's `OnProfileChanged` / `OnProfileCopied` /
+  `OnProfileReset` callbacks against a per-profile stamp, and forbids gating it by the account-wide
+  stamp alone. The v3 lift takes both routes. `migrateAllProfiles` in `core/Database.lua` sweeps the
+  active profile and every profile in `db.sv.profiles` at load, and `NS.OnProfileChanged`,
+  `NS.OnProfileCopied` and `NS.OnProfileReset` in `core/AbsorbTracker.lua` re-run
+  `NS.MigrateProfileToV3` (through `adoptProfile`) for a profile that only appears afterwards. The
+  account-wide stamp keeps its default of `0` and its runner. The argument in full is
+  [profiles.md → The v3 lift, and why the gate is per-profile](./profiles.md#the-v3-lift-and-why-the-gate-is-per-profile).
+- **Two residual differences**, recorded so a later audit does not re-raise them blind. §1's MUSTs
+  on the default and on who writes the stamp are worded for the account-wide stamp and its runner;
+  the per-profile route names neither, so each is read here as that rule's purpose applied to the
+  per-profile stamp:
+  - **The per-profile stamp defaults to `1`, not `0`** (`NS.defaults.profile.schemaVersion` in
+    `defaults/Profile.lua`). §1's "default 0, never the current version" exists to dodge two AceDB
+    failures: `removeDefaults` stripping a stamp equal to its default at logout, and the defaults
+    merge marking an unstamped legacy profile as already migrated. `1` is a floor below the only
+    per-profile version, `3`, and never the current one, so it avoids both: a lifted profile stores
+    `3`, which differs from the default and persists, and an unstamped pre-v3 profile reads `1` and
+    is lifted. A default of `0` would work the same way.
+  - **The lift writes the per-profile stamp itself** (`NS.MigrateProfileToV3` in
+    `core/Database.lua` sets `profile.schemaVersion = 3`), where §1 has the runner own the stamp and
+    a step never write it. The callback route has no runner: `MigrateProfileToV3` is the gate and
+    the step in one, called from the load sweep and from the callbacks alike. It keeps the rule's
+    purpose: the stamp is the function's last write, made only after every flat key has moved, so a
+    lift that raises leaves the profile at its old stamp and the next load or profile event retries
+    it. The account-wide stamp is still the runner's alone (`runLadder`), and its v3 step is
+    stamp-only.
+  - **Re-check trigger** for both: a savedvariables-§1 ruling on per-profile stamp
+    defaults/ownership.
+
 ## Recorded, but not deviations
 
 The first two entries below cite no rule; the last two cite one and meet it. All four are kept on
