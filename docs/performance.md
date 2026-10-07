@@ -71,10 +71,18 @@ CPU never does. Exit code is non-zero on an assertion failure.
 |----------|----------|
 | coalescing | Do 1,000 absorb events collapse into exactly one repaint? |
 | `absorbEvent` | What does one absorb event cost with the throttle already armed? |
-| `paintPass` | What does one coalesced repaint over three bars cost? |
+| `paintBars` | What does the bar-level paint cost — `NS.UpdateAbsorbBar` over three bars from a test closure, without the scheduler? |
+| `repaintPass` | What does the **shipped** coalesced pass cost — `modules/Timer.lua`'s `doRepaint`, reached through the test seam `NS.Timer.__doRepaint`? |
 | `appearancePass` | What does a full restyle cost (`SetBackdrop` ×2 + four LSM fetches per bar)? |
 | `settingsRead` | Does the `Units.Get` hot read path allocate? |
-| `probeOverheadOff` / `On` | Is the instrumentation itself free when capture is off? |
+| `probeOverheadOff` / `On` | Is the instrumentation itself free when capture is off? Both arms run the shipped `doRepaint`, so the outer `repaintPass` bracket and every `paintBar` bracket are on the measured path. |
+
+`paintBars` and `repaintPass` both assert 12 API calls per pass (4 per bar × 3 bars). As of
+2026-10-07, `paintBars` allocates 48.0 bytes per pass, and `repaintPass` and `probeOverheadOff`
+allocate 144.0. The 96-byte gap is `doRepaint`'s own fan-out: the per-pass `function(unit)`
+closure it hands to `NS.ForEachUnit`, and the upvalues that closure captures. The dormant arm is held under
+`PROBE_OFF_BYTES_CEILING` (168: the 144.0 measurement plus 24 bytes of headroom, less than the
+64 bytes one empty table costs). `tests/perf.lua` records how that ceiling was derived.
 
 ### Reading the output
 
@@ -83,8 +91,9 @@ treat the mock's API calls as real costs — under the headless mock every WoW A
 `ms/iter` measures our Lua and nothing else. That is the whole limitation, and it is why the
 in-game harness exists.
 
-`bytes/iter` and `api/iter` are the durable numbers. If `api/iter` for `paintPass` changes, someone
-added or removed a UI call in the repaint path and should know it.
+`bytes/iter` and `api/iter` are the durable numbers. If `api/iter` for `paintBars` or `repaintPass`
+changes, someone added or removed a UI call in the repaint path and should know it. If the
+`bytes/iter` gap between the two moves, the scheduler's own pass changed, not the bars.
 
 ---
 

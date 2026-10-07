@@ -86,3 +86,9 @@ if NS.NewBusTarget then
     -- A tracked target (core/Bus.lua), so the stand-down can unregister it.
     NS.Timer.__ev:RegisterMessage(NS.MSG.REPAINT, function() NS.RequestRepaint() end)
 end
+
+-- Test seam ONLY (tests/perf.lua), beside the __ev seam above: the file-local doRepaint itself, so the
+-- offline perf runner measures the shipped coalesced pass -- the outer repaintPass bracket, the
+-- `parent` derivation and the per-pass fan-out -- rather than a test-written copy of it. No
+-- production code calls it; a pass is armed only through RequestRepaint.
+NS.Timer.__doRepaint = doRepaint
