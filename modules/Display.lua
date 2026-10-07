@@ -22,10 +22,10 @@ local STACK_GAP = 8
 -- the gap it keeps off the bar, both read off LibKa0s-Widgets-1.0's published values rather than
 -- copied here. The default stack leaves it clear, or the player bar's strip would sit over the
 -- bottom of the target bar -- and take its drags -- on the first unlock of a fresh profile. Zero on
--- a build with no widget, which draws no strip and so needs no room.
-local Widgets = LibStub and LibStub("LibKa0s-Widgets-1.0", true)
-local DRAG = Widgets and Widgets.DRAG_HANDLE
-local HANDLE_ROOM = DRAG and (DRAG.HEIGHT + DRAG.GAP) or 0
+-- a build with no widget: the core/WidgetsSetup.lua stub publishes HEIGHT and GAP as 0, because it
+-- draws no strip and so needs no room.
+local DRAG = NS.Widgets.DRAG_HANDLE
+local HANDLE_ROOM = DRAG.HEIGHT + DRAG.GAP
 
 -- ── preview mode (preview-mode) ─────────────────────────────────────────────────────────────
 --

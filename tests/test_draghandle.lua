@@ -605,6 +605,23 @@ test("degraded: with no widget the default stack reserves no strip room", functi
   assertEqual(ty, NS2.Units.Get("player", "barHeight") + 8, "the pre-strip bar height + 8px gap")
 end)
 
+test("degraded: NS.Widgets is the stub, whose DragHandle draws nothing and whose strip takes no room", function()
+  -- The setup seam's contract, read off a real partial load: core/WidgetsSetup.lua publishes a
+  -- stub when the major is absent, its DragHandle answers nil (so NS.CreateBar draws no strip) and
+  -- its DRAG_HANDLE sizes add to zero (so modules/Display.lua's HANDLE_ROOM is 0).
+  -- red under: NS.Widgets unpublished on the degraded path, or a stub whose sizes leave room.
+  local NS2 = loadDegraded()
+  assertTrue(type(NS2.Widgets) == "table", "core/WidgetsSetup.lua publishes NS.Widgets degraded")
+  assertNil(NS2.Widgets.DragHandle(NS2.bars.player, {}), "the stub's DragHandle builds nothing")
+  local D = NS2.Widgets.DRAG_HANDLE
+  assertEqual(D.HEIGHT + D.GAP, 0, "the stub reserves no strip room")
+  for _, unit in ipairs(NS2.Units.LIST) do
+    assertNil(NS2.bars[unit].handle, unit .. " drew a strip through the stub")
+  end
+  local _, _, _, ty = NS2.DefaultPosition("target")
+  assertEqual(ty, NS2.Units.Get("player", "barHeight") + 8, "HANDLE_ROOM is 0: bar height + 8px gap")
+end)
+
 test("an appearance pass over a bar with no handle raises nothing", function()
   local bar = NS.bars.target
   local handle = bar.handle

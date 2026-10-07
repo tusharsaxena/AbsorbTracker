@@ -27,7 +27,7 @@ only (Interface 120100), English only.
 The addon is an **AceAddon** (`core/AbsorbTracker.lua`) mixing in AceEvent / AceTimer / AceConsole.
 `NS`, the second of the two varargs the client hands every TOC-loaded file, is the shared private
 namespace bus in every file; there is no `_G[addonName]` table. The ten files that hand the folder
-name (the first vararg) to a vendored library bind it as `addonName`; the other nineteen open
+name (the first vararg) to a vendored library bind it as `addonName`; the other twenty open
 `local _, NS = ...` so luacheck can report a bound name nothing reads. Which ten, and why:
 [module-map.md → The `NS` bus](./module-map.md#the-ns-bus).
 
@@ -47,10 +47,12 @@ eighth and ninth seams, and the two odd ones: `LibKa0s-Media-1.0` and `LibKa0s-E
 descriptor, only this addon's FOLDER name — a texture path is absolute from `Interface\AddOns\` and a
 TOC manifest is keyed by folder, and a vendored copy cannot know which folder it was copied into.
 **Twelve majors bound by name** of the fifteen `libs/LibKa0s/` vendors (thirty-two files); Compat,
-Pool and Item are registered and unread. `LibKa0s-Widgets-1.0` is bound with no setup seam:
-`modules/Bar.lua` reads it to build each bar's unlocked drag handle (`DragHandle`) and
-`modules/Display.lua` reads its published `DRAG_HANDLE` sizes for the default stack, and DebugLog also
-reaches it for its Copy window. See [Five extracted libraries, one descriptor
+Pool and Item are registered and unread. `LibKa0s-Widgets-1.0` has its own seam,
+`core/WidgetsSetup.lua`, which resolves the major once and publishes `NS.Widgets`: the live major, or a
+stub carrying exactly the two members the addon reaches (`DragHandle` answering nil, so no strip is
+drawn, and `DRAG_HANDLE` with `HEIGHT` and `GAP` of 0, so the default stack keeps no strip room).
+`modules/Bar.lua` reads it to build each bar's unlocked drag handle and `modules/Display.lua` reads its
+`DRAG_HANDLE` sizes for the default stack; DebugLog also reaches the major for its Copy window. See [Five extracted libraries, one descriptor
 each](./performance.md#five-extracted-libraries-one-descriptor-each).
 
 There is no `:NewModule()` hierarchy. Modules are plain files hanging functions on `NS`, and a
@@ -72,6 +74,7 @@ time, guarded with `if NS.X then … end` where the load-order coupling is soft.
 | `core/Database.lua` | `NS:InitDB` (AceDB + profile callbacks) and `NS:RunMigrations` (schema-version seam). |
 | `core/Units.lua` | `NS.Units` — unit identity (`LIST`/`LABEL`), mirror resolution (`IsMirrored`/`SourceUnit`/`Get`), per-unit position read/write, and `CopyFromPlayer`. The only file that reads `db.profile.units` for appearance. |
 | `core/LauncherSetup.lua` | The `LibKa0s-Launcher-1.0` seam — see [Launcher](#launcher) below. Builds the one LDB object at file load and publishes `NS.Launcher`; `Register()` waits for `OnInitialize`, because the table it hands LibDBIcon is `db.global.minimap` and there is none until `NS:InitDB` has run. Degrades to a stub answering the same five members off the store, so the Master-controls checkbox is still honest with the library absent. |
+| `core/WidgetsSetup.lua` | The `LibKa0s-Widgets-1.0` seam: resolves the major once and publishes `NS.Widgets`, which `modules/Bar.lua` and `modules/Display.lua` capture at load (a load-bearing TOC line, before the modules). Degrades to a stub carrying only what the addon reaches: `DragHandle` answering nil (no strip) and `DRAG_HANDLE = { HEIGHT = 0, GAP = 0 }` (no strip room). |
 | `core/DebugLogSetup.lua` | Wires the addon into `LibKa0s-DebugLog-1.0` — the on-screen console (`debug-logging`) is a vendored library, not addon code. Builds `NS.DebugLog` via `lib:New{...}` and binds `NS.Debug` bare off it. What this file supplies: the frame-name prefix, the title, the monospace font, the `/at` slash name, the call-time `print`/`safeToString` hooks, the `onVisibilityChanged` panel refresh, the diagnostics report's `brandName` and call-time `diagnostics` sections hook (debug-logging-§14), the `[Init]` session summary, and — the part that must not move — `isEnabled`/`setEnabled` over `NS.State.debug`, so the logging flag stays this addon's single truth. Degrades to a stub that still flips the flag when the library is absent, and whose `RunDiagnostics` prints the library-absent line and writes nothing. The library's surface is unchanged: `FormatPlain`/`FormatColored`, `SetEnabled`, `Show`/`Hide`/`Toggle`/`IsShown`, the `debug-logging-§11` always-shown scrollbar (`UpdateScrollBar`) + bottom line counter (`UpdateStatus`, `lib.MAX_BUFFER = 3000`), `ConsoleCheckbox()` — the General page's checkbox spec that shows/hides the window (not the logging flag) — and the harness-facing `CopyText`/`FindLine`/`BufferSize`/`LastLine` plus the raw `buffer` array. The copy window itself is no longer DebugLog's own: as of minor 12 it is `LibKa0s-Widgets-1.0`'s `CopyWindow`, which the module hard-floors on (`NEEDS_WIDGETS = 7`) — the one place this addon reaches an eighth major, and it reaches it indirectly. |
 | `core/AbsorbTracker.lua` | AceAddon promotion; `OnInitialize` (InitDB, slash register, launcher register — in that order, because the launcher needs the DB), `OnEnable` (the login sequence), event handlers, `OnProfileChanged`. |
 | `defaults/Profile.lua` | Six flat globals (`enabled`/`visibility`/`scale`/`alpha`/`locked`/`throttleWindow` — the first four are options-ui-§15's Master controls set; there is no `hidden` master toggle) + `NS.defaults.profile.units.{player,target,focus}` (each unit's own appearance table, built by a factory so no table is shared across units) + `NS.defaults.global.schemaVersion = 0` (savedvariables-§1: the pre-migration floor, never the current version. The runner's target is `NS.SCHEMA_VERSION` = **5**, derived in `core/Database.lua` from the ladder's last step — v2 retired `updateInterval`, v3 introduced `profile.units`, v4 dropped the dead `hidden` toggle, v5 mapped `showOnlyInCombat` onto `visibility`. A default equal to the current version would be stripped by AceDB's `removeDefaults` at every logout and backfilled onto a legacy account that stored no stamp, making both read as already migrated); `NS.flatDefaults` alias, `NS.unitDefaults` (= `defaults.profile.units.player`, the canonical per-row default source for `settings/Appearance.lua`). |

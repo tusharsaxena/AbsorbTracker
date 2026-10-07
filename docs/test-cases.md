@@ -418,7 +418,7 @@ Total.
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_draghandle.lua (38)
+### test_draghandle.lua (39)
 
 - every bar body is registered for a left-button drag
 - dropping a bar body saves the position to that bar's own unit
@@ -457,6 +457,7 @@ Total.
 - a strip whose geometry cannot be read falls back to the cursor tooltip
 - degraded: with LibKa0s absent the bars load with no handle and keep their own drag
 - degraded: with no widget the default stack reserves no strip room
+- degraded: NS.Widgets is the stub, whose DragHandle draws nothing and whose strip takes no room
 - an appearance pass over a bar with no handle raises nothing
 
 ### test_helpers.lua (40)
@@ -867,7 +868,7 @@ Total.
 - vendored Slash resolves a fallback-only override to its own strings
 - vendored Perf resolves a fallback-only override to its own strings
 
-### test_surface_parity.lua (10)
+### test_surface_parity.lua (11)
 
 - parity: the Core stub publishes everything core/CoreSetup.lua publishes live
 - parity: the DebugLog stub carries the whole live surface
@@ -879,6 +880,7 @@ Total.
 - parity: the Schema stub's instance carries every member of a live instance
 - parity: the Perf stub carries every Perf member the addon reaches
 - parity: the Lifecycle stub carries the whole live surface
+- parity: the Widgets stub carries every Widgets member the addon reaches
 
 ### test_vendor_sync.lua (3)
 
@@ -1024,7 +1026,7 @@ Total.
 | test_bus.lua | 12 |
 | test_data.lua | 32 |
 | test_display.lua | 60 |
-| test_draghandle.lua | 38 |
+| test_draghandle.lua | 39 |
 | test_helpers.lua | 40 |
 | test_panelpages.lua | 24 |
 | test_panelmirror.lua | 10 |
@@ -1038,7 +1040,7 @@ Total.
 | test_docs.lua | 6 |
 | test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
-| test_surface_parity.lua | 10 |
+| test_surface_parity.lua | 11 |
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_events.lua | 5 |
@@ -1050,4 +1052,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **876** |
+| **Total** | **878** |

@@ -66,6 +66,8 @@ core\DebugLogSetup.lua
 # hands it to LibDataBroker and LibDBIcon waits for OnInitialize, because db.global.minimap does
 # not exist until NS:InitDB has run.
 core\LauncherSetup.lua
+# LOAD-BEARING: publishes NS.Widgets, captured as a file-scope upvalue by modules/Bar.lua and modules/Display.lua.
+core\WidgetsSetup.lua
 core\AbsorbTracker.lua
 
 # Defaults

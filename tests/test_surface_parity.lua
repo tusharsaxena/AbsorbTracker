@@ -1,7 +1,7 @@
 -- tests/test_surface_parity.lua — every degradation stub carries the whole live surface.
 --
--- The addon adopts nine LibKa0s seams — Core, DebugLog, Options, Slash, Launcher, Bus, Schema, Perf
--- and Lifecycle — and each of the nine setup files carries a degradation stub for the install where
+-- The addon adopts ten LibKa0s seams — Core, DebugLog, Options, Slash, Launcher, Bus, Schema, Perf,
+-- Lifecycle and Widgets — and each of the ten setup files carries a degradation stub for the install where
 -- libs/LibKa0s is missing. A stub is a
 -- second implementation of somebody else's surface, so it drifts the moment the library grows a
 -- member the host starts calling: the live path stays green, and the degraded path raises in
@@ -283,4 +283,60 @@ test("parity: the Lifecycle stub carries the whole live surface", function()
   local NS2 = loadDegraded()
   assertTrue(type(NS2.lifecycle) == "table", "core/Lifecycle.lua publishes NS.lifecycle either way")
   T.assertSurfaceParity(NS2.lifecycle, "LibKa0s-Lifecycle-1.0", {})
+end)
+
+-- ── Widgets ────────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the Widgets stub carries every Widgets member the addon reaches", function()
+  -- The Perf case's shape, for the Perf case's reason: LibKa0s-Widgets-1.0 publishes a whole
+  -- widget kit (Reorder, the panel helpers, the strip's own internals) and the host reaches two
+  -- members of it, so an ignore set covering the rest would be most of the major. core/WidgetsSetup.lua
+  -- publishes the live major as NS.Widgets, or a stub carrying exactly what the host reaches:
+  --   grep -rohE '\bWidgets[.:][A-Za-z_]+' core modules settings | sort -u
+  -- answers DragHandle and DRAG_HANDLE (modules/Bar.lua draws the strip with the first and anchors
+  -- it at DRAG_HANDLE.GAP; modules/Display.lua sizes the default stack from DRAG_HANDLE.HEIGHT and
+  -- GAP). The derivation below re-runs that grep over the TOC's own file list with comments
+  -- stripped, so a member the host starts reaching joins this case or turns it red.
+  -- red under: NS.Widgets unpublished (both arms nil), or a stub missing DRAG_HANDLE.
+  local reached = { "DragHandle", "DRAG_HANDLE" }
+  local Loader = dofile("tests/_kit/loader.lua")
+  local seen, derived = {}, {}
+  for _, path in ipairs(Loader.tocFiles("AbsorbTracker.toc")) do
+    local f = assert(io.open(path, "r"))
+    local src = f:read("*a"):gsub("%-%-[^\n]*", "")
+    f:close()
+    for k in src:gmatch("%f[%w_]Widgets[.:]([%a_][%w_]*)") do
+      if not seen[k] then seen[k] = true; derived[#derived + 1] = k end
+    end
+  end
+  table.sort(derived)
+  assertTrue(table.concat(derived, ",") == "DRAG_HANDLE,DragHandle",
+    "the host reaches exactly DragHandle and DRAG_HANDLE of the Widgets major, derived: "
+    .. table.concat(derived, ","))
+
+  local live = T.mocks.LibStub("LibKa0s-Widgets-1.0", true)
+  local NS2 = loadDegraded()
+  assertTrue(NS.Widgets ~= nil and NS.Widgets == live,
+    "core/WidgetsSetup.lua publishes the live major itself as NS.Widgets")
+  assertTrue(type(NS2.Widgets) == "table", "and publishes its degradation stub under the same name")
+  local problems = {}
+  for _, k in ipairs(reached) do
+    local lv, dv = NS.Widgets[k], NS2.Widgets[k]
+    if lv == nil then problems[#problems + 1] = k .. " is missing live" end
+    if dv == nil then
+      problems[#problems + 1] = ("%s is missing degraded (live: %s)"):format(k, type(lv))
+    elseif type(lv) ~= type(dv) then
+      problems[#problems + 1] = ("%s is a %s live but %s degraded"):format(k, type(lv), type(dv))
+    end
+  end
+  -- DRAG_HANDLE's two read fields, on both arms: Display adds them at file load.
+  for _, field in ipairs({ "HEIGHT", "GAP" }) do
+    for arm, W in pairs({ live = NS.Widgets, degraded = NS2.Widgets }) do
+      if not (W and type(W.DRAG_HANDLE) == "table" and type(W.DRAG_HANDLE[field]) == "number") then
+        problems[#problems + 1] = ("DRAG_HANDLE.%s is not a number %s"):format(field, arm)
+      end
+    end
+  end
+  assertTrue(#problems == 0, "LibKa0s-Widgets-1.0: the stub diverges from what the addon reaches in "
+    .. #problems .. " place(s) — " .. table.concat(problems, "; "))
 end)
