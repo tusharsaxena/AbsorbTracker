@@ -158,6 +158,9 @@ end)
 
 test("SetByPath logs one [Set] path = value line (debug-logging-§10)", function()
   NS.State.debug = true
+  -- The write repaints the bars, and each bar's first logged pass states it once through the
+  -- console's [Bar] change gate (AT-08). Settle those first so the last line is the write's own.
+  NS.ForEachUnit(NS.ApplyVisibility)
   local before = #NS.DebugLog.buffer
   -- A schema row's path: since LibKa0s-Schema-1.0 the seam refuses a path with no row (the legacy
   -- flat `barWidth` this case used to write is one), and a refused write is not a mutation, so it

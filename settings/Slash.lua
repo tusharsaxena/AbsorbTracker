@@ -324,6 +324,16 @@ function runHold(rest)
         NS.Debug("Cmd", "debug hold refused: addon disabled")
         return print(Sl:DisabledLine())
     end
+    -- The stored `enabled` is not the only way down. A perf capture's suspend (`/at perf measure b`)
+    -- takes the `perf` hold on the stand-down latch and leaves the setting alone, so the line above
+    -- never sees it. Asked of the latch (core/Lifecycle.lua), before anything is parsed or painted:
+    -- a hold here would paint a bar the capture hid and arm an expiry that republishes REPAINT onto
+    -- a stood-down bus.
+    if NS.IsStoodDown() then
+        NS.Debug("Cmd", "debug hold refused: stood down")
+        return print("Bars are suspended for a perf capture; run /at perf finish "
+            .. "(or /at perf measure a) first")
+    end
 
     local n, secs = parseHold(rest)
     if not n then

@@ -97,7 +97,11 @@ Never from a snapshot taken on the way down. `StandUp` re-subscribes the bus, ca
 `RegisterLifecycleEvents` and `SyncUnitEventFrames` — which read the enabled set **as it is now** —
 and publishes `POSITION` → `VISIBILITY` → `APPEARANCE` → `REPAINT`. `POSITION` is there and is not
 symmetric with `StandDown` for a reason: a login that came up disabled never applied the stored
-anchors, so a later enable has to place the bars before it shows them.
+anchors, so a later enable has to place the bars before it shows them. Last, and only while
+`UnitAffectingCombat("player")`, it calls `NS.RelockForCombat`: an enable mid-fight comes up after
+the `PLAYER_REGEN_DISABLED` that would have re-locked, so unlocked bars are re-locked (one
+`Bars locked — in combat` line) and the fight runs on live data, not the placeholder. `OnEnable`'s
+running path does the same for a `/reload` mid-fight.
 
 `tests/test_disabled.lua` is the conformance suite §7 requires, and it asserts on the **registration
 set** through the kit's recording mocks — never on a handler's return value, because a suite written

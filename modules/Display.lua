@@ -22,10 +22,10 @@ local STACK_GAP = 8
 -- the gap it keeps off the bar, both read off LibKa0s-Widgets-1.0's published values rather than
 -- copied here. The default stack leaves it clear, or the player bar's strip would sit over the
 -- bottom of the target bar -- and take its drags -- on the first unlock of a fresh profile. Zero on
--- a build with no widget, which draws no strip and so needs no room.
-local Widgets = LibStub and LibStub("LibKa0s-Widgets-1.0", true)
-local DRAG = Widgets and Widgets.DRAG_HANDLE
-local HANDLE_ROOM = DRAG and (DRAG.HEIGHT + DRAG.GAP) or 0
+-- a build with no widget: the core/WidgetsSetup.lua stub publishes HEIGHT and GAP as 0, because it
+-- draws no strip and so needs no room.
+local DRAG = NS.Widgets.DRAG_HANDLE
+local HANDLE_ROOM = DRAG.HEIGHT + DRAG.GAP
 
 -- ── preview mode (preview-mode) ─────────────────────────────────────────────────────────────
 --
@@ -364,7 +364,10 @@ function NS.VisibilityReason(unit)
     return visibilityReason(unit or "player")
 end
 
-local dbgLastShown = {}   -- module-local: last applied visibility per unit, for transition logging
+-- Module-local: last applied visibility per unit, the diagnostics record below. The [Bar] debug
+-- line no longer reads it: that line is the console's DebugChanged gate, keyed per unit, so a
+-- Clear() or a fresh enable re-arms it and the bar's state is restated on its next pass.
+local dbgLastShown = {}
 
 --- Read-only diagnostics seam: what ApplyVisibility last applied to `unit`'s bar (true shown,
 --- false hidden), or nil before the first pass. Recorded on every pass whatever the debug flag, so
@@ -378,8 +381,11 @@ function NS.ApplyVisibility(unit)
     if not bar then return end
     local t0 = Perf.on and debugprofilestop()
     local show = NS.ShouldShowBar(unit)
-    if NS.State and NS.State.debug and show ~= dbgLastShown[unit] then
-        NS.Debug("Bar", "%s: %s (%s)", unit, show and "shown" or "hidden", visibilityReason(unit))
+    -- Inside the flag guard so neither the key nor the reason is built with logging off. The gate
+    -- writes when the line changes, so a new reason for an unchanged state is a line too.
+    if NS.State and NS.State.debug then
+        NS.DebugLog.DebugChanged("bar:" .. unit, "Bar", "%s: %s (%s)", unit,
+            show and "shown" or "hidden", visibilityReason(unit))
     end
     dbgLastShown[unit] = show
     if show then bar:Show() else bar:Hide() end

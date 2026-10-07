@@ -26,7 +26,7 @@ answer differs between them, so the table names both:
 | `lint` | `luacheck .` | **gates** | **gates** |
 | `tests` | `lua tests/run.lua` | **gates** | **gates** |
 | `perf` | `lua tests/perf.lua` | no — recorded | **gates** — `pass` required |
-| `complexity` | `lizard -l lua -x "./libs/*" -x "./tests/_kit/*" .` | no — recorded | **gates** — `pass`, zero functions above CCN 15 |
+| `complexity` | `bash tests/_kit/run-automated-tests.sh --suite complexity` (lizard `-L 1500` over the kit's sighted shadow) | no — recorded | **gates** — `pass`, zero functions above CCN 15 |
 
 `perf` and `complexity` are **measured, recorded and diffed — they never fail a run and never block
 a commit** (`performance-§9`, `performance-§10`). A threshold that fails a run teaches everyone to

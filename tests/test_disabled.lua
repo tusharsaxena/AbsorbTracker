@@ -502,6 +502,44 @@ test("disabled 9: the bus subscriptions come back as the same five pairs, and ea
   assertEqual(calls.units, 1, "UNITS re-syncs the unit frames once")
 end)
 
+test("disabled 9: /at enable mid-combat on an unlocked profile re-locks and prints once", function()
+  -- Review C-5 (AT-R-04). The only re-lock used to be OnEnterCombat's, at PLAYER_REGEN_DISABLED, and
+  -- a player who switches the addon back on mid-fight has already had that edge: the bars came back
+  -- unlocked, in preview, and stayed on the placeholder for the rest of the fight. StandUp ends with
+  -- NS.RelockForCombat when the player is in combat, so the fight runs on live data.
+  -- red under: a StandUp that does not call NS.RelockForCombat; a StandUp that calls it out of
+  -- combat too; a helper that prints on both a stand-up and a nested re-entry (two lines).
+  bringUp()
+  disable()
+  T.rawSet("locked", false)
+  local savedUAC = M.UnitAffectingCombat
+  M.UnitAffectingCombat = function(unit) return unit == "player" end
+  M.__resetPrinted()
+  local ok, err = pcall(function() NS.Slash:OnSlash("enable") end)
+  M.UnitAffectingCombat = savedUAC
+  local out = M.__printed()
+  local locked = NS.GetSetting("locked")
+  NS.CancelPendingRepaint()
+  for i = #M.__timers, 1, -1 do M.__timers[i] = nil end
+  NS.SetByPath("enabled", true)
+  if not ok then error(err, 0) end
+  assertFalse(NS.lifecycle:IsDown(), "the verb stood the addon up")
+  assertEqual(locked, true, "standing up in combat re-locks, so the fight starts on live data")
+  local lines = 0
+  for _, line in ipairs(out) do
+    if line:find("Bars locked", 1, true) then lines = lines + 1 end
+  end
+  assertEqual(lines, 1, "one line saying why: " .. joined(out))
+
+  -- And out of combat the same stand-up leaves an unlocked profile unlocked: the player is placing
+  -- bars, and nothing is about to start.
+  disable()
+  T.rawSet("locked", false)
+  enable()
+  assertEqual(NS.GetSetting("locked"), false, "out of combat a stand-up keeps the profile's lock")
+  T.rawSet("locked", true)
+end)
+
 -- ── 10. the latch ──────────────────────────────────────────────────────────────────────────────
 
 test("disabled 10: releasing one hold does not stand up an addon the other still holds down", function()

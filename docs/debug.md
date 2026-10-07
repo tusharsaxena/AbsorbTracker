@@ -39,7 +39,10 @@ Two consequences follow:
 - `debug` and `diagnostics` are reserved verbs (`slash-commands-§2`), so the report still answers
   while the addon is **disabled**, through both forms. The sections that describe released machinery
   say so (see **Stood down** below). `/at debug hold` is the one `debug` word that refuses while
-  disabled, because it paints the bars ([slash-dispatch.md](slash-dispatch.md)).
+  disabled, because it paints the bars ([slash-dispatch.md](slash-dispatch.md)). It also refuses
+  while the addon is stood down for any other reason, which in practice is a perf capture's suspended
+  arm (`/at perf measure b`): `Bars are suspended for a perf capture; run /at perf finish (or /at perf
+  measure a) first`, and no expiry timer is armed.
 - Without LibKa0s, `core/DebugLogSetup.lua`'s degraded stub keeps the verbs from raising: `Show`
   prints the one "debug console window is unavailable" line and `Add` is a no-op. `/at diagnostics`
   prints `/at diagnostics is unavailable: the LibKa0s library did not load.`, writes nothing and
@@ -159,11 +162,11 @@ replay, so that pair rests on the library's own suite (LibKa0s `tests/test_optio
 | `[Life]` | `core/Lifecycle.lua` | Straight after the library's `[Lifecycle]` edge, what this addon's teardown and rebuild found: `teardown: pending repaint dropped=yes` or `=no`, and `rebuild from current state: N bus subscription(s) replayed`. Never the edge or the holds a second time |
 | `[World]` | `core/AbsorbTracker.lua` | `PLAYER_ENTERING_WORLD`, naming the kind: `login`, `reload` or `zone change` |
 | `[Combat]` | `core/AbsorbTracker.lua` | Combat starts (`entered`, or `entered: bars re-locked` when the bars were unlocked), and on leaving it one rollup: the player's absorb events, the repaints, and the final absorb when it is readable |
-| `[Absorb]` | `core/AbsorbTracker.lua` | The player's shield comes up or goes away (values only when readable), and the read turning secret or readable again: one line per edge, so a log from restricted content says why it holds no transitions |
-| `[Bar]` | `modules/Display.lua` | A bar is shown or hidden, with the rung that decided it (only on a change). A `/at debug hold` holding live repaints for N s, and its end: `hold expired` or `hold cleared early` (a re-lock, a second hold, a stand-down) |
+| `[Absorb]` | `core/AbsorbTracker.lua` | The player's shield comes up or goes away (values only when readable), and the read turning secret or readable: one line per edge through the console's change gate (`DebugChanged`), restated after a Clear or turning logging on, so a log from restricted content says why it holds no transitions |
+| `[Bar]` | `modules/Display.lua` | A bar is shown or hidden, with the rung that decided it (only on a change, through the console's change gate `DebugChanged`, so a Clear or turning logging on restates it). A `/at debug hold` holding live repaints for N s, and its end: `hold expired` or `hold cleared early` (a re-lock, a second hold, a stand-down) |
 | `[Set]` | `LibKa0s-Schema-1.0`, `core/AbsorbTracker.lua`, `settings/General.lua` | Every setting write, as `path = value`; one line per bulk copy or reset instead of one per row (`debug-logging-§10`); a profile copied or reset; `locked: unlock refused (in combat)` |
 | `[Profile]` | `core/AbsorbTracker.lua` | The active profile changed |
-| `[Cmd]` | `LibKa0s-Slash-1.0` (the library's lines), `settings/Slash.lua` | A command refused, naming the guard. The library's, for every refusal the dispatcher decides, as `refused <verb>: <guard>`: the disabled gate (`refused toggle: disabled`), an `unknown verb`, `get` / `set` / `reset` `usage` and `not found`, a `parse` or `write refused`, `no default`, and the profile switch's `unavailable`, `already current`, `in combat` and `unknown profile`. This addon's, for its own verbs the dispatcher never refuses: `/at debug hold` (addon disabled, bad arguments, every bar disabled) and `/at toggle` with an unknown unit |
+| `[Cmd]` | `LibKa0s-Slash-1.0` (the library's lines), `settings/Slash.lua` | A command refused, naming the guard. The library's, for every refusal the dispatcher decides, as `refused <verb>: <guard>`: the disabled gate (`refused toggle: disabled`), an `unknown verb`, `get` / `set` / `reset` `usage` and `not found`, a `parse` or `write refused`, `no default`, and the profile switch's `unavailable`, `already current`, `in combat` and `unknown profile`. This addon's, for its own verbs the dispatcher never refuses: `/at debug hold` (addon disabled, stood down, bad arguments, every bar disabled) and `/at toggle` with an unknown unit |
 | `[Events]` | `core/AbsorbTracker.lua` | The client refused an event registration: once per name, however many syncs retry it, through the console's change gate (`DebugOnce`), so a Clear or turning logging on re-arms it |
 | `[Bus]` | `core/Bus.lua` | A subscription was refused on stand-up |
 | `[Migrate]` | `core/Database.lua` | A schema migration step ran or failed |

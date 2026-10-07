@@ -114,8 +114,10 @@ test("a step that raises leaves the stamp unmoved and says so once in chat", fun
   assertTrue(ok, "RunMigrations must not raise: " .. tostring(err))
   assertEqual(stamp, target, "the stamp stays at the last completed step")
   assertEqual(#printed, 1, "one chat line: " .. table.concat(printed, " / "))
-  assertTrue(printed[1]:find("Settings upgrade stopped at v5 -> v6", 1, true) ~= nil,
-    "the line names the stop: " .. tostring(printed[1]))
+  -- The whole line, byte for byte: AT-08 moved it from a hand-joined string to the printer's
+  -- format seam, and the player must not see the difference.
+  assertEqual(printed[1], NS.PREFIX .. " Settings upgrade stopped at v" .. target .. " -> v"
+    .. (target + 1) .. "; saved settings were left as they were", "the line names the stop")
 end)
 
 test("RunMigrations backfills throttleWindow from flatDefaults", function()

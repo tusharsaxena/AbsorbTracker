@@ -163,3 +163,32 @@ test("events: /at debug events lists the rejected names, and 'none' once they ar
     assertTrue(registered(NS.addon, "event", e), e .. " is registered again after cleanup")
   end
 end)
+
+-- Review C-5 (AT-R-04): a /reload mid-fight on an unlocked profile reaches OnEnable while the player
+-- is in combat, after the one PLAYER_REGEN_DISABLED that would have re-locked. The running path ends
+-- with NS.RelockForCombat, so the fight is not spent on the placeholder.
+test("events: OnEnable while in combat on an unlocked profile re-locks", function()
+  -- red under: an OnEnable that does not call NS.RelockForCombat on its running path; one that calls
+  -- it out of combat (the second half below).
+  local savedUAC = M.UnitAffectingCombat
+  T.rawSet("locked", false)
+  M.UnitAffectingCombat = function(unit) return unit == "player" end
+  local ok, out = pcall(capture, function() NS.addon:OnEnable() end)
+  M.UnitAffectingCombat = savedUAC
+  local locked = NS.GetSetting("locked")
+  T.rawSet("locked", false)
+  local ok2, err2 = pcall(NS.addon.OnEnable, NS.addon)
+  local lockedOut = NS.GetSetting("locked")
+  T.rawSet("locked", true)
+  NS.CancelPendingRepaint()
+  for i = #M.__timers, 1, -1 do M.__timers[i] = nil end
+  if not ok then error(out, 0) end
+  if not ok2 then error(err2, 0) end
+  assertEqual(locked, true, "entering the world in combat re-locks the bars")
+  local lines = 0
+  for _, line in ipairs(out) do
+    if line:find("Bars locked", 1, true) then lines = lines + 1 end
+  end
+  assertEqual(lines, 1, "one line saying why: " .. table.concat(out, " / "))
+  assertEqual(lockedOut, false, "out of combat OnEnable keeps the profile's lock")
+end)

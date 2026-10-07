@@ -143,6 +143,15 @@ local function StandUp()
         NS.bus:SendMessage(NS.MSG.APPEARANCE)
         NS.bus:SendMessage(NS.MSG.REPAINT)
     end
+
+    -- LAST, and only in combat (review C-5): an `/at enable` mid-fight comes up after the one
+    -- PLAYER_REGEN_DISABLED that would have re-locked, so an unlocked profile would otherwise spend
+    -- the fight on the placeholder. The latch has already released (this runs after it), so the
+    -- re-lock's own write is an ordinary one. Looked up at call time: core/AbsorbTracker.lua loads
+    -- after this file.
+    if NS.RelockForCombat and UnitAffectingCombat("player") then
+        NS.RelockForCombat("in combat")
+    end
 end
 
 -- Published so core/PerfSetup.lua's degraded stub and tests/test_disabled.lua can name the same two

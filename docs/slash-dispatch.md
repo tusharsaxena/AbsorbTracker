@@ -13,8 +13,8 @@ a table of its own, `perf` hands its remainder to the perf library, `toggle` par
 
 ## Registration
 
-`Sl:Register` (`settings/Slash.lua:818`) registers both names through AceConsole-3.0, called once
-from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:56`, guarded so a load where
+`Sl:Register` (`settings/Slash.lua:828`) registers both names through AceConsole-3.0, called once
+from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:52`, guarded so a load where
 `settings/Slash.lua` never ran degrades rather than errors):
 
 ```lua
@@ -99,6 +99,10 @@ the addon exists to do, which is `§2`'s own definition of a feature verb.
 One sub-verb carries a gate of its own. `debug` is live, so the library never refuses
 `/at debug hold`, but the hold paints fake values on the bars, and that is a feature. `runHold`
 checks the stored `enabled` itself and prints the same line (`Sl:DisabledLine()`) without painting.
+It then asks the stand-down latch (`NS.IsStoodDown()`), because a perf capture's suspend
+(`/at perf measure b`) stands the addon down without touching `enabled`; stood down, it prints
+`Bars are suspended for a perf capture; run /at perf finish (or /at perf measure a) first` and
+returns before parsing, painting or arming the expiry timer.
 `on`, `off`, `diagnostics`, `events` and a bare `/at debug` still answer with the addon off.
 
 Three inputs are worth their own sentence, because they are where minor 12 and minors 13–14 differ and
@@ -137,7 +141,7 @@ The library lowercases only the verb; the remainder is passed through untouched.
 here, because every schema path in this addon is camelCase and per-unit —
 `/at set units.target.barWidth 250` is the shipped form, and folding the whole line would address a
 row that does not exist. `/at profile` repeats the rule one level down: `runProfile`
-(`settings/Slash.lua:589`) splits through the library's `SlashLib.SplitVerb` (Slash minor 19), which
+(`settings/Slash.lua:599`) splits through the library's `SlashLib.SplitVerb` (Slash minor 19), which
 lowercases the sub-verb and leaves its argument alone, because AceDB profile names are
 case-sensitive and a folded name deletes or switches to the wrong profile. `/at debug` and
 `/at toggle` split through the same function. With the library absent the stub carries the file's
@@ -181,7 +185,7 @@ Four verbs parse a remainder of their own. `profile` and `debug` dispatch throug
 own (`PROFILE_VERBS`, `DEBUG_VERBS`), `perf` hands its remainder on, and `toggle` parses one word;
 `profile` is the one this page is really about.
 
-**`profile`** — `runProfile` (`settings/Slash.lua:589`) reads the first word of the remainder,
+**`profile`** — `runProfile` (`settings/Slash.lua:599`) reads the first word of the remainder,
 lowercased, and picks one of three routes (spec S3 of the 2026-09-29 profile-verb run):
 
 1. **Nothing**: `cli:CliProfile("")` prints the library's list (header `Profiles`, one row per
@@ -277,7 +281,7 @@ generic dispatcher knows nothing about.
 ## When the library is absent
 
 `/at` is registered unconditionally, so something has to answer it. With `LibKa0s-Slash-1.0` missing,
-`settings/Slash.lua:628` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
+`settings/Slash.lua:638` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
 a plain help index still render, a bare `/at` still runs the `config` verb exactly as the library
 does, the host verbs — which never went to the library — keep working untouched, and each schema verb
 (`list`, `get`, `set`, `reset`, `resetall`) prints the collection's library-absent line through the

@@ -1,15 +1,18 @@
 # Test Cases
 
 The full inventory of every headless test case in this repo, grouped by the suite file it
-lives in. The `## Totals` table below is the **authoritative pass count** — the README test
-badge and any count quoted in the docs must agree with it.
+lives in. The `## Totals` table below counts the cases that run: its **Total** is the
+authoritative pass count, and the README test badge and any count quoted in the docs must equal
+it. A declared skip is listed by name in its group and counted on the `Skipped` row, never in
+Total.
 
 **Generated — do not hand-edit.** Regenerate with `lua tests/run.lua --list > docs/test-cases.md`.
 
-### test_loadorder.lua (14)
+### test_loadorder.lua (15)
 
 - loadorder: tocFiles returns every addon lua file, in TOC order
 - loadorder: core/MediaSetup.lua loads before core/Constants.lua
+- loadorder: the settings seams load before every file-load reader, annotated
 - loadorder: tocFiles skips libs, directives and comments
 - loadorder: tocFiles converts backslashes to forward slashes
 - loadorder: every derived path exists on disk
@@ -157,7 +160,7 @@ badge and any count quoted in the docs must agree with it.
 - EnvSetup degraded: a legacy-only surface yields nil, and the dead global is never called
 - EnvSetup: the deleted shim is gone, and so is the file that was only ever the shim
 
-### test_coresetup.lua (7)
+### test_coresetup.lua (8)
 
 - core: the secret seam is the library's, not a private copy
 - core: NS.SECRET is the library's sentinel, live and degraded
@@ -165,6 +168,7 @@ badge and any count quoted in the docs must agree with it.
 - core: NS.Print carries the [AT] tag and survives a secret arg
 - core: NS.Print and NS.Util.print are the same object after the AceConsole reclaim
 - core: the addon still prints, tagged, with LibKa0s absent
+- core: NS.Format formats its parts into one tagged line, live and degraded
 - core: the degraded SafeRegisterEvent isolates a raise and lists the name once
 
 ### test_mediasetup.lua (10)
@@ -416,7 +420,7 @@ badge and any count quoted in the docs must agree with it.
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_draghandle.lua (38)
+### test_draghandle.lua (39)
 
 - every bar body is registered for a left-button drag
 - dropping a bar body saves the position to that bar's own unit
@@ -455,6 +459,7 @@ badge and any count quoted in the docs must agree with it.
 - a strip whose geometry cannot be read falls back to the cursor tooltip
 - degraded: with LibKa0s absent the bars load with no handle and keep their own drag
 - degraded: with no widget the default stack reserves no strip room
+- degraded: NS.Widgets is the stub, whose DragHandle draws nothing and whose strip takes no room
 - an appearance pass over a bar with no handle raises nothing
 
 ### test_helpers.lua (40)
@@ -749,7 +754,7 @@ badge and any count quoted in the docs must agree with it.
 - /at perf report opens the debug console when it is hidden
 - /at perf report marks itself reviewed exactly once
 
-### test_debughold.lua (15)
+### test_debughold.lua (16)
 
 - the `test` verb is gone: it prints unknown command
 - COMMANDS carries no `test` row, and the debug row names `hold <value> [secs]`
@@ -766,6 +771,7 @@ badge and any count quoted in the docs must agree with it.
 - /at debug hold schedules the expiry it just announced
 - re-locking the bars clears a live /at debug hold preview
 - /at debug hold refuses while the addon is disabled: one line, no paint, no hold
+- /at debug hold refuses while stood down for a perf capture, arms no timer
 
 ### test_widgets.lua (57)
 
@@ -865,7 +871,7 @@ badge and any count quoted in the docs must agree with it.
 - vendored Slash resolves a fallback-only override to its own strings
 - vendored Perf resolves a fallback-only override to its own strings
 
-### test_surface_parity.lua (10)
+### test_surface_parity.lua (11)
 
 - parity: the Core stub publishes everything core/CoreSetup.lua publishes live
 - parity: the DebugLog stub carries the whole live surface
@@ -877,6 +883,7 @@ badge and any count quoted in the docs must agree with it.
 - parity: the Schema stub's instance carries every member of a live instance
 - parity: the Perf stub carries every Perf member the addon reaches
 - parity: the Lifecycle stub carries the whole live surface
+- parity: the Widgets stub carries every Widgets member the addon reaches
 
 ### test_vendor_sync.lua (3)
 
@@ -891,15 +898,16 @@ badge and any count quoted in the docs must agree with it.
 - lintconfig: every files[...] ignore is narrowed to a file or a name
 - lintconfig: no source file carries a bare inline luacheck ignore
 
-### test_events.lua (5)
+### test_events.lua (6)
 
 - events: the session rejected list exists and starts empty
 - events: one unknown lifecycle name costs only itself, and is listed once
 - events: one unknown unit event on the per-unit frame costs only itself
 - events: a name IsEventValid refuses never reaches the target
 - events: /at debug events lists the rejected names, and 'none' once they are gone
+- events: OnEnable while in combat on an unlocked profile re-locks
 
-### test_disabled.lua (18)
+### test_disabled.lua (19)
 
 - disabled 1: the enabled addon registers something to stand down from
 - disabled 3: writing the enable path leaves NOTHING registered
@@ -913,6 +921,7 @@ badge and any count quoted in the docs must agree with it.
 - disabled 8: the left click opens the panel; the menu grays Locked and still re-enables
 - disabled 9: re-enabling restores the registration set, from the settings as they are NOW
 - disabled 9: the bus subscriptions come back as the same five pairs, and each still reaches its consumer once
+- disabled 9: /at enable mid-combat on an unlocked profile re-locks and prints once
 - disabled 10: releasing one hold does not stand up an addon the other still holds down
 - disabled 10: the perf hold is session-only and the disabled hold is the stored path
 - bus: a registration made while stood down is recorded, and not live until the stand-up
@@ -935,7 +944,7 @@ badge and any count quoted in the docs must agree with it.
 - diagnostics: the chat line is ours to localize and names the line count
 - diagnostics: with the library absent both forms print the one absent line
 
-### test_debugcoverage.lua (21)
+### test_debugcoverage.lua (23)
 
 - coverage: a stand-down and a stand-up are the library's one [Lifecycle] line each, naming the holds
 - coverage: a hold that fires no edge writes no [Lifecycle] line
@@ -943,6 +952,8 @@ badge and any count quoted in the docs must agree with it.
 - coverage: [World] names the loading screen's kind: login, reload or zone change
 - coverage: entering combat unlocked says the bars were re-locked
 - quiet: the absorb read's secret edge is one line each way, however many events
+- coverage: the console's Clear re-arms the absorb read's secret edge
+- coverage: the console's Clear re-arms the bar visibility line
 - quiet: the repaint throttle, the swap and max-health events and the ladder log nothing unchanged
 - coverage: a /at debug hold logs when it holds live repaints and when it lets them go
 - coverage: an in-combat unlock refusal names the guard
@@ -1007,12 +1018,12 @@ badge and any count quoted in the docs must agree with it.
 
 | Suite | Cases |
 |-------|------:|
-| test_loadorder.lua | 14 |
+| test_loadorder.lua | 15 |
 | test_schema.lua | 60 |
 | test_database.lua | 38 |
 | test_units.lua | 17 |
 | test_envsetup.lua | 7 |
-| test_coresetup.lua | 7 |
+| test_coresetup.lua | 8 |
 | test_mediasetup.lua | 10 |
 | test_debuglog.lua | 14 |
 | test_slash.lua | 22 |
@@ -1022,7 +1033,7 @@ badge and any count quoted in the docs must agree with it.
 | test_bus.lua | 12 |
 | test_data.lua | 32 |
 | test_display.lua | 60 |
-| test_draghandle.lua | 38 |
+| test_draghandle.lua | 39 |
 | test_helpers.lua | 40 |
 | test_panelpages.lua | 24 |
 | test_panelmirror.lua | 10 |
@@ -1031,20 +1042,21 @@ badge and any count quoted in the docs must agree with it.
 | test_slashcmds.lua | 66 |
 | test_slashprofile.lua | 34 |
 | test_perfcmds.lua | 42 |
-| test_debughold.lua | 15 |
+| test_debughold.lua | 16 |
 | test_widgets.lua | 57 |
 | test_docs.lua | 6 |
 | test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
-| test_surface_parity.lua | 10 |
+| test_surface_parity.lua | 11 |
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
-| test_events.lua | 5 |
-| test_disabled.lua | 18 |
+| test_events.lua | 6 |
+| test_disabled.lua | 19 |
 | test_diagnostics.lua | 12 |
-| test_debugcoverage.lua | 21 |
-| test_diagnostics_contract.lua | 9 |
+| test_debugcoverage.lua | 23 |
+| test_diagnostics_contract.lua | 8 |
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
-| **Total** | **877** |
+| Skipped | 1 |
+| **Total** | **885** |

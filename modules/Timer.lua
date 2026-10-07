@@ -37,9 +37,12 @@ local function doRepaint()
     -- `openBucket` upvalue modules/Display.lua uses for appearance -> visibility; an upvalue
     -- cannot cross the file boundary, so the parent travels as an argument instead.
     local parent = t0 and "repaintPass" or nil
-    NS.ForEachUnit(function(unit)
+    -- A plain loop over NS.Units.LIST (the list and order the per-unit helper walks), not a
+    -- callback: a callback here would close over `painted` and `parent` and so allocate a fresh
+    -- closure on every coalesced pass, which is what the hoisting note above exists to avoid.
+    for _, unit in ipairs(NS.Units.LIST) do
         if NS.UpdateAbsorbBar(unit, parent) then painted = true end
-    end)
+    end
     if painted and NS.NoteRepaint then NS.NoteRepaint() end
     -- One `repaintPass` note per coalesced pass, painted or not: the bucket measures what the
     -- throttle actually costs when it fires, and a pass that early-outs on every bar is still a
@@ -86,3 +89,9 @@ if NS.NewBusTarget then
     -- A tracked target (core/Bus.lua), so the stand-down can unregister it.
     NS.Timer.__ev:RegisterMessage(NS.MSG.REPAINT, function() NS.RequestRepaint() end)
 end
+
+-- Test seam ONLY (tests/perf.lua), beside the __ev seam above: the file-local doRepaint itself, so the
+-- offline perf runner measures the shipped coalesced pass -- the outer repaintPass bracket, the
+-- `parent` derivation and the per-pass fan-out -- rather than a test-written copy of it. No
+-- production code calls it; a pass is armed only through RequestRepaint.
+NS.Timer.__doRepaint = doRepaint

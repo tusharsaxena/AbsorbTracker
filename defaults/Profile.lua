@@ -5,8 +5,8 @@ local _, NS = ...
 -- There are TWO schema-version stamps. The account-wide one under `global` (Ka0s standard savedvariables-§1) is
 -- the DB-wide marker NS:RunMigrations walks regardless of the active profile. The second lives
 -- per-profile, below, and gates the v3 lift — which is a per-profile mutation an account-wide flag
--- structurally cannot gate. That second stamp is a deliberate, recorded savedvariables-§1 deviation: see the
--- "Documented deviations" register in docs/ARCHITECTURE.md and docs/profiles.md.
+-- structurally cannot gate. That second stamp is the per-profile route savedvariables-§1 sanctions
+-- (re-run from the AceDB profile callbacks): see docs/profiles.md and docs/recorded-decisions.md.
 NS.defaults = NS.defaults or {}
 
 -- The per-unit appearance block. Built by a factory so each unit gets its OWN tables — sharing
@@ -52,9 +52,9 @@ local function unit(enabled, mirror)
 end
 
 NS.defaults.profile = {
-    -- PER-PROFILE schema stamp — a deliberate, documented deviation from Ka0s standard savedvariables-§1, which
-    -- puts the version stamp account-wide under `global` (see docs/ARCHITECTURE.md "Standards
-    -- Deviations" and docs/profiles.md). The account-wide stamp still exists below and remains the
+    -- PER-PROFILE schema stamp — the per-profile route Ka0s standard savedvariables-§1 sanctions beside
+    -- the account-wide stamp under `global` (see docs/profiles.md, and docs/recorded-decisions.md
+    -- "Retired register rows"). The account-wide stamp still exists below and remains the
     -- DB-wide marker; this one answers the narrower question "has THIS profile been lifted?", which
     -- an account-wide stamp structurally cannot: the v3 lift is a PER-PROFILE mutation, so one
     -- global flag flipping after the active profile migrates strands every other profile.

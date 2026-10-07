@@ -69,7 +69,7 @@ end
 -- Locked, which is the state the repaint path costs anything in: unlocked, the bars are in preview
 -- mode and NS.UpdateAbsorbBar stands down so the placeholder survives (modules/Display.lua). The
 -- stored default is `locked = false`, so leaving it would measure a pass in which every bar
--- early-outs -- zero API calls, and a paintPass figure that meant nothing.
+-- early-outs -- zero API calls, and a paintBars figure that meant nothing.
 NS.db.profile.locked = true
 mocks.__unitExists.target = true
 mocks.__unitExists.focus  = true
@@ -192,14 +192,27 @@ assert_(absorbEvent.bytesPerIter < 64,
     :format(absorbEvent.bytesPerIter))
 NS.CancelPendingRepaint()
 
--- 3. A full coalesced repaint pass over all three bars.
-local paintPass = measure("paintPass", BURST, function()
+-- 3. The bar-level work alone: NS.UpdateAbsorbBar over all three bars, driven by a test closure. It
+--    is NOT the shipped pass (3b is) -- it isolates the per-bar paint from the scheduler's own
+--    bracket and fan-out, so a change in either one shows up as a gap between the two rows.
+local paintBars = measure("paintBars", BURST, function()
   NS.ForEachUnit(function(unit) NS.UpdateAbsorbBar(unit) end)
 end)
-assert_(paintPass.apiPerIter > 0, "paintPass made no API calls — the counting layer is not attached")
-assert_(paintPass.apiPerIter == 12,
-  ("paintPass makes %.1f API calls/pass, expected 12 (4 per bar x 3 bars)")
-    :format(paintPass.apiPerIter))
+assert_(paintBars.apiPerIter > 0, "paintBars made no API calls — the counting layer is not attached")
+assert_(paintBars.apiPerIter == 12,
+  ("paintBars makes %.1f API calls/pass, expected 12 (4 per bar x 3 bars)")
+    :format(paintBars.apiPerIter))
+
+-- 3b. The SHIPPED coalesced pass: modules/Timer.lua's doRepaint, reached through its test seam
+--     NS.Timer.__doRepaint. This is what the throttle runs when it fires -- the outer repaintPass
+--     bracket, the `parent` derivation and doRepaint's own fan-out over every unit. Nothing is
+--     re-armed between iterations: doRepaint clears `pending` itself and never schedules.
+local repaintPass = measure("repaintPass", BURST, function()
+  NS.Timer.__doRepaint()
+end)
+assert_(repaintPass.apiPerIter == 12,
+  ("repaintPass makes %.1f API calls/pass, expected 12 (4 per bar x 3 bars)")
+    :format(repaintPass.apiPerIter))
 
 -- 4. A full restyle. Heaviest known path: SetBackdrop twice plus four LibSharedMedia fetches per
 --    bar. Only runs on settings changes, so its cost matters far less than its frequency does.
@@ -220,36 +233,47 @@ assert_(settingsRead.bytesPerIter < 16,
     :format(settingsRead.bytesPerIter))
 
 -- 6. Probe overhead. The instrumentation must be free when capture is off, or the measurement tool
---    is itself the regression. This compares the same pass with the brackets dormant vs. armed.
+--    is itself the regression. This compares the same pass with the brackets dormant vs. armed --
+--    and the pass is the SHIPPED one (NS.Timer.__doRepaint), so both the outer repaintPass bracket
+--    and every per-bar paintBar bracket inside it are on the measured path. Until 2026-10-07 both
+--    arms wrapped NS.UpdateAbsorbBar in a test closure, which never reached the outer bracket.
 local probeOff = measure("probeOverheadOff", BURST, function()
-  NS.ForEachUnit(function(unit) NS.UpdateAbsorbBar(unit) end)
+  NS.Timer.__doRepaint()
 end)
 NS.Perf.on = true
 local probeOn = measure("probeOverheadOn", BURST, function()
-  NS.ForEachUnit(function(unit) NS.UpdateAbsorbBar(unit) end)
+  NS.Timer.__doRepaint()
 end)
 NS.Perf.on = false
 -- The relation alone cannot go red the way it matters: if a regression adds allocation to the
 -- repaint path itself, BOTH arms rise together and `off <= on + 1` still holds. The dormant arm
 -- therefore also carries an ABSOLUTE ceiling.
 --
--- RE-BASELINED 2026-09-08. The figure this comment used to cite — 312.0 bytes/pass, "identical to
--- paintPass" — had not been true for a long time: paintPass and probeOverheadOff both measure
--- 48.0, so the 320 ceiling stood at 6.7x the thing it bounds, and bounded nothing. A ceiling that
--- cannot go red is worse than no ceiling, because the line still reads as a gate.
+-- RE-BASELINED 2026-10-07 (twice, both on the shipped doRepaint, NS.Timer.__doRepaint).
 --
---   measured   48.0 bytes/pass, three consecutive runs, identical to the decimal in all three.
---              This is allocation ACCOUNTING, not a sampled timing — it does not jitter, which is
---              why a margin here can be small.
---   ceiling    72 = 48.0 + 24, so 50% headroom over the measurement.
+-- First (AT-01): both arms moved off a test closure over NS.UpdateAbsorbBar -- 48.0 bytes/pass
+-- under a 72 ceiling, set 2026-09-08, which never reached the outer repaintPass bracket, the
+-- `parent` derivation or doRepaint's own fan-out -- and onto the seam. That gate went red at 144.0,
+-- and the ceiling was re-derived to 168 = 144.0 + 24. The whole 144.0 was doRepaint's per-pass
+-- `function(unit)` closure handed to NS.ForEachUnit, plus the two upvalues it closed over
+-- (`painted`, `parent`).
+--
+-- Second (AT-05): doRepaint now walks NS.Units.LIST with a plain loop, so a coalesced pass
+-- allocates no closure. The ceiling came down with the measurement, by the same method:
+--
+--   measured   0.0 bytes/pass (was 144.0), three consecutive runs of the dormant arm, identical
+--              to the decimal in all three. This is allocation ACCOUNTING, not a sampled timing --
+--              it does not jitter, which is why a margin here can be small. paintBars (48.0) is
+--              now the HEAVIER row: its 48 bytes are its own test closure, not the bars.
+--   ceiling    24 = 0.0 + 24.
 --   margin     DERIVED, not guessed. The cheapest regression this line exists to catch is one
---              extra table per pass, and that cost was measured rather than assumed: adding a
---              single `{}` to this scenario's body moves the figure 48.0 -> 112.0, so one empty
---              table costs 64 bytes/pass under this interpreter. 24 < 64, so the smallest
---              allocation anyone can add still trips the ceiling. The old 320 swallowed four.
+--              extra table per pass, and that cost was re-measured on this commit rather than
+--              assumed: adding a single `{}` to this scenario's body moves the figure
+--              0.0 -> 64.0, so one empty table costs 64 bytes/pass under this interpreter.
+--              24 < 64, so the smallest allocation anyone can add still trips the ceiling.
 --
--- Raise it only by filling in those three lines again — a rise IS the finding.
-local PROBE_OFF_BYTES_CEILING = 72
+-- Raise it only by filling in those three lines again -- a rise IS the finding.
+local PROBE_OFF_BYTES_CEILING = 24
 
 assert_(probeOff.bytesPerIter <= PROBE_OFF_BYTES_CEILING,
   ("a dormant pass allocated %.1f bytes/iter, over the %d-byte ceiling — the repaint path grew")

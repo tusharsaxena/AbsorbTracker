@@ -8,11 +8,10 @@ local C = NS.Constants
 local unitDefaults = NS.unitDefaults
 local L = NS.L
 
--- LibKa0s-Widgets-1.0, for its unlocked drag handle. Already vendored and loaded (libs\LibKa0s's
--- XML carries Widgets.lua and WidgetsDragHandle.lua), so there is no core/<Name>Setup.lua seam:
--- the major is read here, at the one module that draws a strip. Nil on a build with no LibKa0s,
--- and then no strip is drawn -- see NS.CreateBar.
-local Widgets = LibStub and LibStub("LibKa0s-Widgets-1.0", true)
+-- LibKa0s-Widgets-1.0, for its unlocked drag handle, through the core/WidgetsSetup.lua seam: the
+-- live major, or on a build with no LibKa0s a stub whose DragHandle answers nil, and then no strip
+-- is drawn -- see NS.CreateBar. Captured at load; the TOC loads the seam before this file.
+local Widgets = NS.Widgets
 
 --- Save where a bar was dropped. THE one save for both grab points -- the bar body's own
 --- OnDragStop and its handle's onDragStop -- so the two cannot disagree about what a drop writes.
@@ -106,8 +105,9 @@ end
 ---
 --- A BUILD WITHOUT THE WIDGET DRAWS NO STRIP, and that is the documented degradation rather than
 --- an oversight (LibKa0s Widgets docs, "Degraded"): a hand-built fallback here would be the second
---- copy the widget exists to delete. Nothing raises -- `bar.handle` stays nil and the appearance
---- pass guards on it -- and the bar body's own drag, below, still moves the bar.
+--- copy the widget exists to delete. The core/WidgetsSetup.lua stub's DragHandle answers nil, so
+--- nothing raises -- `bar.handle` stays nil and the appearance pass guards on it -- and the bar
+--- body's own drag, below, still moves the bar.
 ---
 --- Nothing here is protected: the bars are plain frames, and the lock refuses to open in combat
 --- (settings/General.lua's `locked` row) and re-locks when combat starts (core/AbsorbTracker.lua),
@@ -123,7 +123,6 @@ end
 --- off a mark), which opened the strip's over the bar stacked above it and gave the marks a second
 --- position. A read the placement cannot trust falls back to the cursor, the widget's own fallback.
 local function buildHandle(bar, unit, globalName)
-    if not (Widgets and Widgets.DragHandle) then return nil end
     local label = L[NS.Units.LABEL[unit] or unit]
     local wayBack = format(L["Re-enable it on General > Bars or with /at toggle %s."], unit)
     local handle = Widgets.DragHandle(bar, {

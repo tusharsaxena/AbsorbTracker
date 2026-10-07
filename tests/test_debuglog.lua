@@ -257,7 +257,7 @@ end)
 -- -- the `L` trap -----------------------------------------------------------------------------
 
 test("the console checkbox label the library renders is prose, not its own STRINGS key", function()
-  -- core/DebugLogSetup.lua:72's descriptor omits `L` — correct, because this addon translates
+  -- core/DebugLogSetup.lua:123's descriptor omits `L` — correct, because this addon translates
   -- nothing (locales/enUS.lua). This asserts the CONSEQUENCE rather than the omission: the string
   -- the library actually produced, read back through the live instance's own accessor. A resolved
   -- string is prose; an unresolved one is the STRINGS key itself, and no English label is

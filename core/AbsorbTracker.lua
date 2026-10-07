@@ -28,10 +28,6 @@ if NS.Util and NS.Util.print then NS.Print = NS.Util.print end
 -- debug is on. Reset at combat start, flushed as one [Combat] rollup at combat end.
 local dbgAbsorbEvents, dbgRepaints = 0, 0
 local dbgLastAbsorb   -- last NON-secret absorb value seen (nil until a non-secret read)
--- Whether the last player read was a secret (nil before the first read). Change-gated: the
--- readable/secret EDGE is one [Absorb] line, never one per event (debug-logging-§9's quiet steady
--- state), and it is what explains a restricted-content log with no shield transitions in it.
-local dbgAbsorbSecret
 
 -- Called by modules/Display.lua on each actual repaint. Gated: counts nothing when debug is off.
 function NS.NoteRepaint()
@@ -85,6 +81,10 @@ function addon:OnEnable()
         NS.bus:SendMessage(NS.MSG.POSITION)
         NS.bus:SendMessage(NS.MSG.APPEARANCE)
         NS.bus:SendMessage(NS.MSG.REPAINT)
+        -- A /reload mid-fight lands here after the one PLAYER_REGEN_DISABLED that would have
+        -- re-locked, so an unlocked profile would spend the fight on the placeholder (review C-5).
+        -- After the bars are placed, so the re-lock's own APPEARANCE/REPAINT finds them in place.
+        if UnitAffectingCombat("player") then NS.RelockForCombat("in combat") end
     end
 
     -- UNIT_ABSORB_AMOUNT_CHANGED and UNIT_MAXHEALTH fire for EVERY unit the client knows about (all
@@ -236,19 +236,17 @@ end
 -- report a number that doesn't match what it prints. Gate the debug read so it costs nothing when
 -- debug is off (debug-logging-§4).
 -- The player's absorb, traced by transition only. Called behind the debug gate. Only compares when
--- the value is NOT a combat secret (IsConcatSafe == readable); the readable/secret edge itself is
--- one line each way.
+-- the value is NOT a combat secret (IsConcatSafe == readable). The readable/secret EDGE is one
+-- [Absorb] line each way, never one per event (debug-logging-§9's quiet steady state), and it is
+-- what explains a restricted-content log with no shield transitions in it. It goes through the
+-- console's own DebugChanged gate rather than a memo of ours, so a Clear() or a fresh enable
+-- re-arms it and the state is restated on the next read; the cost is that the first readable
+-- observation of an armed gate writes one "reads readable" line too.
 local function traceAbsorb()
     local v = UnitGetTotalAbsorbs("player") or 0
     local secret = not NS.IsConcatSafe(v)
-    if secret ~= dbgAbsorbSecret then
-        if secret then
-            NS.Debug("Absorb", "reads secret: shield transitions not traced until readable")
-        elseif dbgAbsorbSecret then
-            NS.Debug("Absorb", "reads readable again")
-        end
-        dbgAbsorbSecret = secret
-    end
+    NS.DebugLog.DebugChanged("absorb:secret", "Absorb", secret
+        and "reads secret: shield transitions not traced until readable" or "reads readable")
     if secret then return end
     local prev = dbgLastAbsorb
     if prev ~= nil and prev == 0 and v ~= 0 then
@@ -303,24 +301,39 @@ end
 -- the settings panel REFUSES to open in combat (LibKa0s-Options-1.0, wired in
 -- settings/OptionsSetup.lua) rather than deferring, so there
 -- is no combat-deferred /at config for OnLeaveCombat to replay — it only handles visibility now.
+-- The chat line per reason, one literal each, so a search for either finds the path that prints it.
+local RELOCK_LINES = {
+    ["combat started"] = "Bars locked \226\128\148 combat started",
+    ["in combat"]      = "Bars locked \226\128\148 in combat",
+}
+
+--- Re-lock unlocked bars because a fight is on, and answer whether it did. Combat RE-LOCKS the bars
+--- (preview-mode) so the fight starts on live data. This used to end a separate test mode; since
+--- options-ui-§15 made the lock the only preview switch, ending preview and locking are the same
+--- act. Through the seam, so the row's onChange restores the bars exactly as the checkbox does; then
+--- one line saying why, and a panel refresh so an open Lock frame box ticks.
+---
+--- THREE CALLERS (review C-5): OnEnterCombat below at PLAYER_REGEN_DISABLED ("combat started"), and
+--- the two paths that come up AFTER that edge has passed -- core/Lifecycle.lua's StandUp (an
+--- `/at enable` mid-fight) and OnEnable's running path (a /reload mid-fight), both "in combat" and
+--- both only when UnitAffectingCombat("player") says so. A no-op on a locked profile, so a nested
+--- stand-up inside OnEnable cannot print twice.
+function NS.RelockForCombat(reason)
+    if NS.GetSetting("locked") then return false end
+    NS.SetByPath("locked", true)
+    NS.Print(RELOCK_LINES[reason] or RELOCK_LINES["in combat"])
+    if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
+    return true
+end
+
 function addon:OnEnterCombat()
-    -- Combat RE-LOCKS the bars (preview-mode), here at PLAYER_REGEN_DISABLED so the fight starts on
-    -- live data. This used to end a separate test mode; since options-ui-§15 made the lock the only
-    -- preview switch, ending preview and locking are the same act. Through the seam, so the row's
-    -- onChange restores the bars exactly as the checkbox does; then one line saying why, and a panel
-    -- refresh so an open Lock frame box ticks.
-    --
     -- EITHER/OR, not both. The re-lock goes through NS.SetByPath, whose `locked` onChange already
     -- publishes APPEARANCE and REPAINT -- and the appearance pass calls NS.ApplyVisibility itself
     -- (NS.UpdateBarAppearance), so visibility is re-evaluated on that path too. Publishing again
     -- here would run the whole ladder over all three bars a second time on every pull that started
     -- unlocked: six ApplyVisibility calls where three is the answer.
-    local relocked = not NS.GetSetting("locked")
-    if relocked then
-        NS.SetByPath("locked", true)
-        NS.Print("Bars locked \226\128\148 combat started")
-        if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
-    else
+    local relocked = NS.RelockForCombat("combat started")
+    if not relocked then
         NS.bus:SendMessage(NS.MSG.VISIBILITY)
         NS.bus:SendMessage(NS.MSG.REPAINT)
     end

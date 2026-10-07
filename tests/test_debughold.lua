@@ -247,3 +247,36 @@ test("/at debug hold refuses while the addon is disabled: one line, no paint, no
   assertEqual(NS.bars.player and NS.bars.player.valueText:GetText(), painted,
     "and it must not have painted the fake value either")
 end)
+
+-- ── the stand-down gate ────────────────────────────────────────────────────────────────────────
+
+-- A perf capture's suspend (`/at perf measure b`, which calls NS.Perf.Suspend) takes the `perf`
+-- hold on the stand-down latch and leaves the stored `enabled` alone, so the disabled gate above
+-- never sees it. The hold has to ask the latch too, or it paints a bar the capture has hidden and
+-- arms an expiry that republishes REPAINT onto a stood-down bus.
+-- red under: runHold gating on `NS.GetSetting("enabled") == false` alone, with no NS.IsStoodDown()
+-- rung -- it prints "Holding 50K on the bars for 5 s" and NS.HoldPreview arms its one-shot.
+test("/at debug hold refuses while stood down for a perf capture, arms no timer", function()
+  NS.db.profile.units.player.enabled = true
+  local savedHold = NS.testHoldUntil
+  NS.Perf.Suspend()
+  local before = #T.mocks.__timers
+  local out
+  local ok, err = pcall(function()
+    local calls = withHoldSpy(function() out = slash("debug hold 50000") end)
+    assertTrue(NS.IsStoodDown(), "precondition: the perf suspend stood the addon down")
+    assertEqual(#calls, 0, "a refused hold must not reach NS.HoldPreview")
+  end)
+  local after = #T.mocks.__timers
+  NS.Perf.Resume()
+  NS.CancelPendingRepaint()
+  for i = #T.mocks.__timers, 1, -1 do T.mocks.__timers[i] = nil end
+  if not ok then error(err) end
+
+  assertEqual(#out, 1, "one refusal line: " .. joined(out))
+  assertTrue(contains(out, "perf capture"), joined(out))
+  assertTrue(contains(out, "/at perf finish"), "it names the way out: " .. joined(out))
+  assertFalse(contains(out, "Holding"), joined(out))
+  assertEqual(after, before, "no expiry timer armed onto a stood-down bus")
+  assertEqual(NS.testHoldUntil, savedHold, "no hold window either")
+end)
