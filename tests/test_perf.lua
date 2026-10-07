@@ -575,7 +575,7 @@ end)
 -- -- the `L` trap -----------------------------------------------------------------------------
 
 test("every perf step label the library renders is prose, not its own STRINGS key", function()
-  -- core/PerfSetup.lua:33's descriptor omits `L`. P.STEPS is built once in lib:New by resolving
+  -- core/PerfSetup.lua:35's descriptor omits `L`. P.STEPS is built once in lib:New by resolving
   -- each step's STRINGS key, and PerfPanel paints step.label straight onto the row button — so
   -- this is the rendered string, on the live instance, and it is the exact surface KickCD shipped
   -- reading STEP_START / STEP_MEASURE_A / PANEL_TITLE_SUFFIX verbatim.

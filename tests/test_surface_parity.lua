@@ -70,7 +70,7 @@ end)
 -- ── DebugLog ───────────────────────────────────────────────────────────────────────────────────
 
 test("parity: the DebugLog stub carries the whole live surface", function()
-  -- The live half is the LibKa0s-DebugLog-1.0 instance core/DebugLogSetup.lua:72 builds, which
+  -- The live half is the LibKa0s-DebugLog-1.0 instance core/DebugLogSetup.lua:123 builds, which
   -- tests/run.lua registers under that name. Read off the built instance rather than the file,
   -- which is the same list as
   --   grep -nE "^function D[:.]|^  [A-Za-z_]+ *= *function" libs/LibKa0s/DebugLog.lua
