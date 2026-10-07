@@ -32,6 +32,7 @@ libs\AceGUI-3.0-SharedMediaWidgets\widget.xml
 #@end-no-lib-strip@
 
 # Locales
+# LOAD-BEARING: publishes NS.L, read at file load by core/DebugLogSetup.lua (the DebugLog descriptor), modules/Bar.lua and settings/Slash.lua (the NS.COMMANDS rows).
 locales\enUS.lua
 
 # Core (the LibKa0s-Env seam loads first)
@@ -71,9 +72,12 @@ core\WidgetsSetup.lua
 core\AbsorbTracker.lua
 
 # Defaults
+# LOAD-BEARING: publishes NS.defaults, NS.flatDefaults and NS.unitDefaults; modules/Bar.lua, settings/General.lua and settings/Appearance.lua capture them at file load, and Bar sizes its three frames from them there.
 defaults\Profile.lua
 
 # Modules
+# Conventional order, not load-bearing: Bar, Display and Timer capture only core seams at file load;
+# what they publish to each other (NS.bars, NS.ForEachUnit, NS.RequestRepaint) is resolved at call time.
 modules\Bar.lua
 modules\Display.lua
 modules\Timer.lua
@@ -82,11 +86,16 @@ modules\Timer.lua
 modules\Diagnostics.lua
 
 # Settings (last — depend on everything else being initialized)
+# LOAD-BEARING: publishes NS.SchemaRuntime (AllRows/BulkBegin/BulkEnd, read at file load by settings/OptionsSetup.lua; FindRow by settings/Slash.lua) and NS.RegisterSchemaRows (called at file load by settings/General.lua and settings/Appearance.lua).
 settings\Schema.lua
+# Conventional order, not load-bearing: NS.Slash and NS.COMMANDS are read at call time (OnInitialize, the About page render).
 settings\Slash.lua
+# LOAD-BEARING: publishes NS.Helpers, captured as a file-scope upvalue by settings/UnitPanel.lua, About.lua, General.lua and Appearance.lua and called inside NS.RegisterSchemaRows at load; and NS.RegisterOptionsPage, called at file load behind a guard (a later position fails silently) by General.lua, Appearance.lua and Profiles.lua.
 settings\OptionsSetup.lua
+# Conventional order, not load-bearing: UnitPanel and About add functions to NS.Helpers that are called at render time.
 settings\UnitPanel.lua
 settings\About.lua
 settings\General.lua
 settings\Appearance.lua
+# Conventional order, not load-bearing: last only by habit; nothing reads what it registers until the panel opens.
 settings\Profiles.lua

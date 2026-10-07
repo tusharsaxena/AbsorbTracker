@@ -8,10 +8,11 @@ Total.
 
 **Generated — do not hand-edit.** Regenerate with `lua tests/run.lua --list > docs/test-cases.md`.
 
-### test_loadorder.lua (14)
+### test_loadorder.lua (15)
 
 - loadorder: tocFiles returns every addon lua file, in TOC order
 - loadorder: core/MediaSetup.lua loads before core/Constants.lua
+- loadorder: the settings seams load before every file-load reader, annotated
 - loadorder: tocFiles skips libs, directives and comments
 - loadorder: tocFiles converts backslashes to forward slashes
 - loadorder: every derived path exists on disk
@@ -1011,7 +1012,7 @@ Total.
 
 | Suite | Cases |
 |-------|------:|
-| test_loadorder.lua | 14 |
+| test_loadorder.lua | 15 |
 | test_schema.lua | 60 |
 | test_database.lua | 38 |
 | test_units.lua | 17 |
@@ -1052,4 +1053,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **878** |
+| **Total** | **879** |

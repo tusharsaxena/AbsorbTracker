@@ -60,6 +60,45 @@ test("loadorder: core/MediaSetup.lua loads before core/Constants.lua", function(
     "the TOC line must carry the note saying its position is load-bearing")
 end)
 
+-- The settings seams (AT-03; toc-file-§5). settings/Schema.lua and settings/OptionsSetup.lua publish
+-- what the page files capture or call AT FILE LOAD, so each must precede every one of those readers,
+-- and each carries a `# LOAD-BEARING:` line directly above it in the TOC so the next person editing
+-- the listing sees why. red under: moving either seam below a reader, or dropping its annotation.
+local SETTINGS_SEAMS = {
+  { file = "settings/Schema.lua", toc = "settings\\Schema.lua",
+    readers = { "settings/Slash.lua", "settings/OptionsSetup.lua", "settings/General.lua",
+                "settings/Appearance.lua" } },
+  { file = "settings/OptionsSetup.lua", toc = "settings\\OptionsSetup.lua",
+    readers = { "settings/UnitPanel.lua", "settings/About.lua", "settings/General.lua",
+                "settings/Appearance.lua", "settings/Profiles.lua" } },
+}
+
+test("loadorder: the settings seams load before every file-load reader, annotated", function()
+  local index = {}
+  for i, p in ipairs(Loader.tocFiles("AbsorbTracker.toc")) do index[p:lower()] = i end
+  local lines = {}
+  for line in (readFile("AbsorbTracker.toc") .. "\n"):gmatch("([^\n]*)\n") do
+    lines[#lines + 1] = (line:gsub("\r$", ""))
+  end
+
+  for _, seam in ipairs(SETTINGS_SEAMS) do
+    local at = index[seam.file:lower()]
+    assertTrue(at ~= nil, seam.file .. " is not in the TOC")
+    for _, reader in ipairs(seam.readers) do
+      local r = index[reader:lower()]
+      assertTrue(r ~= nil, reader .. " is not in the TOC")
+      assertTrue(at < r, seam.file .. " must load before " .. reader .. ", which reads it at file load")
+    end
+    local above
+    for i, line in ipairs(lines) do
+      if line == seam.toc then above = lines[i - 1] end
+    end
+    assertTrue(above ~= nil, seam.toc .. " is not a line of the TOC")
+    assertTrue(above:find("^# LOAD%-BEARING:") ~= nil,
+      "the TOC line above " .. seam.toc .. " must be its `# LOAD-BEARING:` note, got: " .. tostring(above))
+  end
+end)
+
 test("loadorder: tocFiles skips libs, directives and comments", function()
   local files = Loader.tocFiles("AbsorbTracker.toc")
   for _, p in ipairs(files) do
