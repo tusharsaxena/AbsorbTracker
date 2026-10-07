@@ -88,9 +88,10 @@ they exist is not obvious from the code.
 
 - **Bootstrap spelling and file headers (`documentation-§9`).** Twenty authored files open
   `local _, NS = ...` (the ten that read the folder name bind `addonName`, see
-  [module-map.md → The `NS` bus](./module-map.md#the-ns-bus)), and luacheck keeps that spelling honest. Seven of the twenty carry a self-naming
+  [module-map.md → The `NS` bus](./module-map.md#the-ns-bus)), and luacheck keeps that spelling honest. Eight of the twenty carry a self-naming
   header comment: the five `settings/` pages (`About`, `Appearance`, `General`, `Profiles`,
-  `UnitPanel`) in the `-- AbsorbTracker: settings/General.lua` form, and `core/CoreSetup.lua` and
-  `modules/Diagnostics.lua` in the `-- core/CoreSetup.lua — …` form. The section grandfathers all
-  seven headers, so they stay where they are, and a file authored from here follows the section's
-  placement rule.
+  `UnitPanel`) in the `-- AbsorbTracker: settings/General.lua` form, and `core/CoreSetup.lua`,
+  `core/WidgetsSetup.lua` and `modules/Diagnostics.lua` in the `-- core/CoreSetup.lua — …` form. The
+  section grandfathers the seven that predate it, so they stay where they are; `core/WidgetsSetup.lua`
+  was authored after it and already follows its placement rule (the header sits immediately after the
+  bootstrap), as any file authored from here must.
