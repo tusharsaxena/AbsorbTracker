@@ -263,7 +263,7 @@ generic dispatcher knows nothing about.
 ## Help output convention
 
 ```
-[AT] v1.11.0 — slash commands (/absorbtracker is an alias for /at)
+[AT] v1.12.0 — slash commands (/absorbtracker is an alias for /at)
   /at help — List available commands
   /at config — Open the settings panel
 ```
