@@ -192,19 +192,28 @@ git clone https://github.com/tusharsaxena/LibKa0s.git ../LibKa0s
 
 ### A POSIX shell with `ls` and `find`
 
-Lua 5.1 has no directory API and this repo deliberately does not depend on LuaFileSystem, so two
-suites list directories by shelling out:
+Lua 5.1 has no directory API and this repo deliberately does not depend on LuaFileSystem, so three
+places list directories by shelling out:
 
 ```
 tests/test_docs.lua:42           io.popen("ls -1 " .. pattern .. " 2>/dev/null")
-tests/_kit/vendor_sync.lua:126   collect('cd "%s" && find . -type f 2>/dev/null')
+tests/_kit/vendor_sync.lua:126   collect(('cd "%s" 2>/dev/null && find . -type f 2>/dev/null'):format(dir))
+tests/_kit/inventory.lua:190     collect(('ls -A "%s" 2>/dev/null'):format(dir))
 ```
 
 The comparator recurses, so it lists with `find`, not `ls` — a vendored payload has subdirectories
 (`libs/LibKa0s/media/fonts/`, `media/icons/`) and a flat listing would report every file in them as
 missing. `tests/_kit/vendor_sync.lua:129` falls back to `dir /b /s /a-d` for `cmd.exe`, so that suite
-survives a Windows shell; `tests/test_docs.lua` does not, and needs a POSIX shell. Under WSL2 you
+survives a Windows shell, and the kit's suite inventory (`tests/_kit/inventory.lua:191`) likewise falls
+back to `dir /b` for `cmd.exe`; `tests/test_docs.lua` does not, and needs a POSIX shell. Under WSL2 you
 already have both and there is nothing to install.
+
+The kit's runner also bounds every run through that shell: `tests/_kit/framework.lua:131` sets
+`ulimit -v`, `:123-124` prefixes `timeout --foreground` when `command -v timeout` finds it, and
+`:126-129` wraps the outermost run in `systemd-run --user --scope` when a user systemd answers. It
+sizes `--jobs auto` with `nproc` (or `sysctl -n hw.ncpu`) at `:481`. Every one of these is optional:
+a missing tool drops only its own bound, and Ubuntu under WSL2 already has all but possibly
+`systemd-run`.
 
 **Verify:** `ls -1 docs/*.md | head -1` and `find docs -type f -name '*.md' | head -1`
 

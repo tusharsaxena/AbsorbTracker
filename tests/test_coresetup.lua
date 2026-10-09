@@ -57,7 +57,7 @@ test("core: the perf descriptor names the folder and leaves the close control to
   -- that is never built draws nothing and raises nothing.
   --
   -- THE HOOK IS GONE, AND THAT IS THE POINT. `decorate` was repaired into a copy of what
-  -- libs/LibKa0s/PerfPanel.lua:185-196 does in its else arm -- same factory, same TOPRIGHT anchor,
+  -- libs/LibKa0s/PerfPanel.lua:209-215 does in its else arm -- same factory, same TOPRIGHT anchor,
   -- same -(TITLE_H - 18) / 2 offset -- and PerfPanel minor 4 passes `d.addonName or d.name`, so the
   -- library reaches the same texture the wrapper did. A duplicate that agrees today is a duplicate
   -- that can disagree tomorrow, and the branch is EXCLUSIVE: a host supplying `decorate` never runs

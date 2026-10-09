@@ -16,7 +16,7 @@ local loadDegraded = dofile("tests/degraded_env.lua")
 
 -- Stand a TOC reader up for the duration of `fn`, recording what it was asked about.
 --
--- The mock deliberately does NOT stub `C_AddOns` (tests/_kit/mock_base.lua:183 says why: a
+-- The mock deliberately does NOT stub `C_AddOns` (tests/_kit/mock_base.lua:1114 says why: a
 -- base-level stub would shadow the swaps the metadata cases depend on). So out of game this addon
 -- has no manifest to read and every metadata call answers nil. That absence is what makes the
 -- fallback cases below honest, and it is why the two cases that need a readable TOC build one here

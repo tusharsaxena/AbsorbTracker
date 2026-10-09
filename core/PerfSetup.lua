@@ -111,7 +111,7 @@ NS.Perf = lib:New({
     end,
 
     -- NO `decorate`. The descriptor deliberately ends here: LibKa0s-Perf-1.0's panel draws its own
-    -- close control (`libs/LibKa0s/PerfPanel.lua:185-196`) out of the same LibKa0s-Core factory, at
+    -- close control (`libs/LibKa0s/PerfPanel.lua:204-215`) out of the same LibKa0s-Core factory, at
     -- the same TOPRIGHT anchor and the same -(TITLE_H - 18) / 2 offset, resolving the folder name
     -- through `d.addonName or d.name` — which the `addonName` field above answers explicitly.
     --

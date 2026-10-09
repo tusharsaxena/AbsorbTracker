@@ -59,7 +59,7 @@ globals = {
   "StaticPopupDialogs",  -- the Reset-All confirm dialog registers here
 }
 
--- The harness publishes its exposed table under a per-repo global, written at tests/run.lua:59 and
+-- The harness publishes its exposed table under a per-repo global, written at tests/run.lua:70 and
 -- read by every suite file. It is declared HERE rather than in the top-level `read_globals` on
 -- purpose: a name granted at the top level is granted to core/ and modules/ as much as to a suite,
 -- and no shipped file may ever reach for the test harness. `globals` rather than `read_globals`
@@ -109,17 +109,17 @@ files["core/AbsorbTracker.lua"] = {
 }
 
 -- `NS:InitDB` and `NS:RunMigrations`, both published on the namespace and both reached with a colon
--- -- InitDB from core/AbsorbTracker.lua:42, tests/run.lua:32, tests/perf.lua:63 and
--- tests/test_database.lua; RunMigrations from InitDB's own tail at :22. The bodies address `NS`
+-- -- InitDB from core/AbsorbTracker.lua:50, tests/run.lua:32, tests/perf.lua:63 and
+-- tests/test_database.lua; RunMigrations from InitDB's own tail at :24. The bodies address `NS`
 -- directly because the receiver and the namespace are the same table, and a dot-declared function
 -- under a colon call site is a trap left for whoever adds the first real parameter.
 files["core/Database.lua"] = {
   ignore = { "212/self" },
 }
 
--- Four receivers, and the parity gate is why they stay methods. `SlashLib:New(d)` at :603 is the
+-- Four receivers, and the parity gate is why they stay methods. `SlashLib:New(d)` at :652 is the
 -- degraded-arm stub for LibKa0s-Slash-1.0, whose real entry point is `function lib:New(d)`
--- (libs/LibKa0s/Slash.lua:484) and which is called as `SlashLib:New({...})` at :661 either way -- a
+-- (libs/LibKa0s/Slash.lua:447) and which is called as `SlashLib:New({...})` at :716 either way -- a
 -- stub that quietly narrows a signature is a stub that lets a caller pass here and fail in the
 -- client. `Sl:LandingRows`, `Sl:OnSlash` and `Sl:Register` mirror the library instance member for
 -- member, which is exactly what tests/test_surface_parity.lua asserts through `Sl.__cli`, and they
