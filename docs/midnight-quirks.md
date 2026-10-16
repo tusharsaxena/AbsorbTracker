@@ -81,7 +81,7 @@ The gate lives **inside** `OpenOptionsPanel` (not just the `/at config` slash di
 `AbsorbTracker.toc` declares a single retail build number:
 
 ```
-## Interface: 120100
+## Interface: 120105
 ```
 
 The value is `(major * 10000) + (minor * 100) + patch` for the current Live Servers (Retail) patch. AbsorbTracker targets the current Midnight build. **When a new patch ships, replace the number with the new build** so the addon reads as up-to-date in the AddOn list. The `## Interface:` line accepts a comma-separated list on retail clients 10.0+ if you ever need to declare compatibility with several builds at once, but the addon tracks a single current build.
