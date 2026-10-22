@@ -31,6 +31,22 @@ local function media()
   return lib
 end
 
+-- The `LibKa0s icons:` declaration under the provenance line in CLAUDE.md, read through the kit's
+-- own parser (tests/_kit/vendor_sync.lua, VendorSync.iconDeclaration) and never a second one here.
+-- Since LibKa0s v1.75.0 the vendored media/icons/ holds exactly what that line declares
+-- (tools/prune-icons.lua cuts it at re-vendor, and tests/test_vendor_sync.lua gates declared ==
+-- shipped against the tag), so the declaration, not lib.ICONS, is what this copy carries.
+local function declaration()
+  local f = io.open("CLAUDE.md", "rb")
+  assertTrue(f ~= nil, "cannot open CLAUDE.md (tests run from the repo root)")
+  local doc = f:read("*a")
+  f:close()
+  local decl, err = dofile("tests/_kit/vendor_sync.lua").iconDeclaration(doc)
+  assertTrue(err == nil, "CLAUDE.md's `LibKa0s icons:` line: " .. tostring(err))
+  assertTrue(decl ~= nil, "CLAUDE.md carries no `LibKa0s icons:` line under the provenance line")
+  return decl
+end
+
 -- ── the seam ───────────────────────────────────────────────────────────────────────────────────
 --
 -- WHAT THE NS.Icon CASES BELOW DO AND DO NOT PROVE. They prove the seam resolves: a path that is
@@ -106,20 +122,35 @@ test("MediaSetup: every mark this addon's windows draw is one the library ships"
       "this addon's windows draw '" .. name .. "', which LibKa0s-Media does not ship")
     assertTrue(NS.Icon(name) ~= nil, "NS.Icon answered nil for " .. name)
   end
+
+  -- And the draw set IS the declaration, in both directions. A name drawn but not declared is
+  -- pruned at re-vendor and still resolves to a path, so it draws blank and no gate can see it; a
+  -- name declared but not drawn ships art nothing uses. The day a fifth mark is drawn (an id list
+  -- without helpIcon would add `info`), it joins the CLAUDE.md line and this list together.
+  -- red under: a draw site added or dropped without the CLAUDE.md line moving with it.
+  local decl = declaration()
+  assertEqual(decl.mode, "list", "the declaration must be a list of names, not `none` or `all`")
+  assertEqual(table.concat(decl.names, ", "), "clear, close, copy, help",
+    "CLAUDE.md's `LibKa0s icons:` line must name exactly the marks this addon's windows draw")
 end)
 
-test("MediaSetup: every name the library ships has a file in the vendored copy", function()
+test("MediaSetup: every icon CLAUDE.md declares has a file in the vendored copy", function()
   -- The library's own suite checks its catalog against its own directory. This checks THE COPY: a
-  -- re-vendor that dropped a file, or a packaging step that filtered one out, leaves a catalog
-  -- naming art this build does not carry — and the catalog is what every path is built from.
+  -- re-vendor that dropped a declared file, or a packaging step that filtered one out, leaves a
+  -- mark this build draws with no art behind it. Since v1.75.0 the copy ships only the declared
+  -- names (the rest of lib.ICONS is pruned on purpose), so the declaration is what is checked.
   local lib = media()
+  local decl = declaration()
+  assertEqual(decl.mode, "list", "the declaration must be a list of names")
   local missing = {}
-  for _, name in ipairs(lib.ICONS) do
+  for _, name in ipairs(decl.names) do
     local fh = io.open("libs/LibKa0s/media/icons/" .. name .. ".tga", "rb")
-    if fh then fh:close() else missing[#missing + 1] = name end
+    local size = fh and fh:seek("end") or 0
+    if fh then fh:close() end
+    if size <= 0 then missing[#missing + 1] = name end
   end
   assertEqual(table.concat(missing, ", "), "",
-    "the vendored payload is missing art its own catalog names")
+    "the vendored payload is missing (or has empty) art for a name CLAUDE.md declares")
 
   for name, entry in pairs(lib.FONTS) do
     local fh = io.open("libs/LibKa0s/media/fonts/" .. entry.file, "rb")

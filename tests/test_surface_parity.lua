@@ -131,6 +131,11 @@ test("parity: the Options stub carries every helper the degraded build can reach
     -- and the Slash case below states the rule this follows: a stub member with no caller is a copy
     -- waiting to go stale. It joins the stub on the commit that gives it a caller.
     "RefreshPanel",
+    -- New at LibKa0s v1.73.0 (libs/LibKa0s/OptionsDrawer.lua, minor 1): O.Drawer, the drawer row,
+    -- exempt under the same rule. Its single roster consumer is QuickComms; this addon has none --
+    --   grep -rn Drawer core modules settings   returns nothing --
+    -- and the degraded build never reaches it.
+    "Drawer",
     -- New at LibKa0s v1.24.0 (OptionsWidgets 13 / OptionsCompose 1), and exempt under the rule the
     -- RefreshPanel entry above states. The five COMPOSERS this addon does call are in the stub,
     -- hollow, because they must be for the page files to finish loading; these are the members it

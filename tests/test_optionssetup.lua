@@ -535,12 +535,24 @@ test("and the Options descriptor takes that name from the first vararg, not a li
     "the folder name must come from the vararg, never a literal")
 end)
 
-test("the art that name points at is vendored on disk", function()
-  -- The one residual the library's loaded-addon check cannot catch: a correct folder name with the
-  -- payload somewhere other than libs/LibKa0s. red under: a vendor move or a pruned media/icons.
-  local f = io.open("libs/LibKa0s/media/icons/info.tga", "rb")
-  assertTrue(f ~= nil, "libs/LibKa0s/media/icons/info.tga is missing, so the help mark has no art")
-  local size = f:seek("end")
+test("the id-list help mark is latent: info is neither declared nor shipped", function()
+  -- The descriptor's addonName above is latent here: this addon builds no Options id list (the
+  -- Helpers.IdList stub is inert and `grep -rn IdList settings modules core` finds no caller), so
+  -- the library never draws its `info` help mark on our behalf. Since LibKa0s v1.75.0 the vendored
+  -- media/icons/ ships only what CLAUDE.md's `LibKa0s icons:` line declares, and `info` is not on
+  -- it. The day an id list without `helpIcon` lands, `info` joins the CLAUDE.md line, the re-vendor
+  -- prune keeps its art, and this case flips to asserting the file is there.
+  -- red under: `info` declared or its art shipped while nothing here draws it.
+  local f = io.open("CLAUDE.md", "rb")
+  assertTrue(f ~= nil, "cannot open CLAUDE.md (tests run from the repo root)")
+  local doc = f:read("*a")
   f:close()
-  assertTrue(size > 0, "libs/LibKa0s/media/icons/info.tga is empty")
+  local decl, err = dofile("tests/_kit/vendor_sync.lua").iconDeclaration(doc)
+  assertTrue(err == nil and decl ~= nil, "CLAUDE.md's `LibKa0s icons:` line: " .. tostring(err))
+  for _, name in ipairs(decl.names or {}) do
+    assertTrue(name ~= "info", "info is declared, but this addon builds no id list that draws it")
+  end
+  local art = io.open("libs/LibKa0s/media/icons/info.tga", "rb")
+  if art then art:close() end
+  assertTrue(art == nil, "libs/LibKa0s/media/icons/info.tga ships, but info is not declared")
 end)

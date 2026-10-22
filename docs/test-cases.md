@@ -179,7 +179,7 @@ Total.
 - MediaSetup: the font this addon names is the face the library registers
 - MediaSetup: FONT_MONO resolves into the payload, not into this addon's own media/
 - MediaSetup: every mark this addon's windows draw is one the library ships
-- MediaSetup: every name the library ships has a file in the vendored copy
+- MediaSetup: every icon CLAUDE.md declares has a file in the vendored copy
 - MediaSetup: the seam is handed the FOLDER name, never a frame prefix or a literal
 - MediaSetup: the LSM registration happens at file load, not at OnInitialize
 - MediaSetup: with no library there is no art, and that is not an error
@@ -601,7 +601,7 @@ Total.
 - General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
 - the Options descriptor tells the library the FOLDER name
 - and the Options descriptor takes that name from the first vararg, not a literal
-- the art that name points at is vendored on disk
+- the id-list help mark is latent: info is neither declared nor shipped
 
 ### test_slashcmds.lua (66)
 

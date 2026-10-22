@@ -142,7 +142,10 @@ was never something a player needed.
 
 **The payload is whole-folder or nothing.** `Perf` minor 12 requires the `Lifecycle` instance
 (Lifecycle arrived at LibKa0s v1.40.0), so a half-copy leaves the perf probe unregistered rather
-than half-working. Copy `libs/LibKa0s/` and `tests/_kit/` whole.
+than half-working. Copy `libs/LibKa0s/` and `tests/_kit/` whole, run the diffs below, and only then
+prune the icons: from `../LibKa0s` at the tag, `lua tools/prune-icons.lua ../AbsorbTracker` cuts
+`libs/LibKa0s/media/icons/` down to the `LibKa0s icons:` line under the provenance line in
+[`CLAUDE.md`](../CLAUDE.md) (`clear, close, copy, help`). Never hand-delete an icon.
 
 Run after any re-vendor, and before any release:
 
@@ -171,6 +174,11 @@ payloads are the tag `CLAUDE.md`'s provenance line names, and all four commands 
 empty diff is what the state *after* a re-vendor looks like — not a stronger guarantee than the
 tag comparison below, which is the one that actually gates.
 
+One difference is expected in the library diffs once the prune has run: an `Only in .../media/icons`
+line for every icon the `CLAUDE.md` declaration does not name (one line per pruned Open Iconic file, and
+one each for the whole `phosphor/` and `game-icons/` folders). That is the declaration working, not a fork; `tests/test_vendor_sync.lua` is the check that the icons shipped are
+exactly the icons declared and that everything else still matches the tag.
+
 **The authoritative comparison is against the tag `CLAUDE.md` names**, and that one must be empty at
 every commit:
 
@@ -179,7 +187,8 @@ tag=$(grep -oE 'Bundles \[LibKa0s\]\([^)]*\) v[0-9]+\.[0-9]+\.[0-9]+' CLAUDE.md 
         | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+')
 rm -rf "/tmp/libka0s-$tag" && mkdir -p "/tmp/libka0s-$tag"
 git -C ../LibKa0s archive "$tag" | tar -x -C "/tmp/libka0s-$tag"
-diff -r --strip-trailing-cr "/tmp/libka0s-$tag/LibKa0s" libs/LibKa0s   # MUST be empty
+diff -r --strip-trailing-cr "/tmp/libka0s-$tag/LibKa0s" libs/LibKa0s \
+  | grep -v '^Only in .*/media/icons'                                    # MUST be empty
 diff -r --strip-trailing-cr "/tmp/libka0s-$tag/testkit" tests/_kit     # MUST be empty
 ```
 
