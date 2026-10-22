@@ -140,6 +140,9 @@ Please file new reports there rather than in comments, so nothing gets lost.
 
 ## Credits
 
-The debug console uses [JetBrains Mono](https://www.jetbrains.com/lp/mono/), licensed under the SIL
-Open Font License 1.1, and the **?** and **X** on the bar's drag handle are drawn from [Open Iconic](https://github.com/iconic/open-iconic) (MIT). Both ship inside the bundled LibKa0s payload,
-with their license text beside them.
+- [JetBrains Mono](https://www.jetbrains.com/lp/mono/) (SIL Open Font License 1.1): the debug console's font.
+- [Open Iconic](https://github.com/iconic/open-iconic) by Waybury (MIT): the **?** and **X** on the bar's drag
+  handle, and the close, copy and clear marks on the debug console.
+
+Both ship inside the bundled LibKa0s payload with their license text beside them. The Open Iconic license
+is `libs/LibKa0s/media/icons/LICENSE-open-iconic.txt`.

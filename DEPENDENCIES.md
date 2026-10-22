@@ -157,12 +157,12 @@ The vendor-sync gate shells out to `git` to prove the vendored `libs/LibKa0s/` a
 checks, at `tests/_kit/vendor_sync.lua`:
 
 ```
-tests/_kit/vendor_sync.lua:195   io.popen(('git -C "%s" %s 2>/dev/null'):format(SIBLING, args), "r")
+tests/_kit/vendor_sync.lua:409   io.popen(('git -C "%s" %s 2>/dev/null'):format(SIBLING, args), "r")
 ```
 
 It runs `git show` and `git ls-tree` against a **sibling checkout at `../LibKa0s`**
-(`tests/_kit/vendor_sync.lua:72`, resolved at `:184`), and `git ls-files -s` against this repo
-(`:344`) to read the runner's recorded mode.
+(`tests/_kit/vendor_sync.lua:89`, resolved at `:361`), and `git ls-files -s` against this repo
+(`:617`, `:644`) to read the runner's recorded mode.
 
 ```sh
 sudo apt install -y git
@@ -174,7 +174,7 @@ sudo apt install -y git
 
 The two payload-comparison cases compare against `../LibKa0s`. When that directory is not there,
 they report a **skip carrying its reason** — deliberately, and named in the run rather than hidden
-(`tests/_kit/vendor_sync.lua:296`, `T.skip("… the vendored payload was NOT compared")`). The third
+(`tests/_kit/vendor_sync.lua:510`, `T.skip("… the vendored payload was NOT compared")`). The third
 vendor-sync case, *the automated-test runner is recorded executable (100755)* (kit revision 16),
 reads this repo's own git index and needs no sibling, so it runs either way. An
 earlier copy returned early instead, which registered as PASS for a comparison that never ran.
@@ -197,13 +197,13 @@ places list directories by shelling out:
 
 ```
 tests/test_docs.lua:42           io.popen("ls -1 " .. pattern .. " 2>/dev/null")
-tests/_kit/vendor_sync.lua:126   collect(('cd "%s" 2>/dev/null && find . -type f 2>/dev/null'):format(dir))
+tests/_kit/vendor_sync.lua:145   collect(('cd "%s" 2>/dev/null && find . -type f 2>/dev/null'):format(dir))
 tests/_kit/inventory.lua:190     collect(('ls -A "%s" 2>/dev/null'):format(dir))
 ```
 
 The comparator recurses, so it lists with `find`, not `ls` — a vendored payload has subdirectories
 (`libs/LibKa0s/media/fonts/`, `media/icons/`) and a flat listing would report every file in them as
-missing. `tests/_kit/vendor_sync.lua:129` falls back to `dir /b /s /a-d` for `cmd.exe`, so that suite
+missing. `tests/_kit/vendor_sync.lua:151` falls back to `dir /b /s /a-d` for `cmd.exe`, so that suite
 survives a Windows shell, and the kit's suite inventory (`tests/_kit/inventory.lua:191`) likewise falls
 back to `dir /b` for `cmd.exe`; `tests/test_docs.lua` does not, and needs a POSIX shell. Under WSL2 you
 already have both and there is nothing to install.
@@ -211,7 +211,7 @@ already have both and there is nothing to install.
 The kit's runner also bounds every run through that shell: `tests/_kit/framework.lua:131` sets
 `ulimit -v`, `:123-124` prefixes `timeout --foreground` when `command -v timeout` finds it, and
 `:126-129` wraps the outermost run in `systemd-run --user --scope` when a user systemd answers. It
-sizes `--jobs auto` with `nproc` (or `sysctl -n hw.ncpu`) at `:481`. Every one of these is optional:
+sizes `--jobs auto` with `nproc` (or `sysctl -n hw.ncpu`) at `:483`. Every one of these is optional:
 a missing tool drops only its own bound, and Ubuntu under WSL2 already has all but possibly
 `systemd-run`.
 
@@ -221,7 +221,9 @@ a missing tool drops only its own bound, and Ubuntu under WSL2 already has all b
 
 `docs/testing.md` documents `diff -r --strip-trailing-cr ../LibKa0s/LibKa0s libs/LibKa0s` (and three
 siblings) as the manual re-vendor check, and `diff <(lua tests/run.lua --list) docs/test-cases.md` as
-the inventory sync check. Ships in Ubuntu's base install; listed so the set is complete, not because
+the inventory sync check. Since LibKa0s v1.75.0 the library diff also prints an `Only in .../media/icons`
+line for every icon the `CLAUDE.md` declaration does not name; that is the prune working, not drift, and
+`tests/test_vendor_sync.lua` is the check that what ships equals what is declared. Ships in Ubuntu's base install; listed so the set is complete, not because
 you are likely to be missing it. The second command uses process substitution, so run it in `bash` or
 `zsh` rather than `sh`.
 
@@ -231,7 +233,7 @@ you are likely to be missing it. The second command uses process substitution, s
 
 Recorded so nobody installs them by mistake:
 
-- **LuaFileSystem** — *not* used. `tests/_kit/vendor_sync.lua:107-108` says so explicitly and shells out
+- **LuaFileSystem** — *not* used. `tests/_kit/vendor_sync.lua:126-127` says so explicitly and shells out
   instead. `luacheck` pulls LFS in as its own dependency; that is LuaRocks' business, not this
   addon's.
 - **A CI runner** — there is none. No GitHub Action, no dynamic badge; every gate is local and
