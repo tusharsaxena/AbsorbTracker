@@ -54,3 +54,14 @@ All run through `ka0s-bounded`.
 
 - `/console scriptErrors 1`, then `/reload` twice: no Lua error and no LibKa0s minor-mismatch line.
 - `/at unlock`: each bar's drag handle still shows its ? and X marks. `/at lock` afterwards.
+
+## Addendum: the tag moved (AT-RV2, LK-91)
+
+The local tag v1.76.0 moved from `9949368` to `7e81ff7` (LibKa0s LK-91: step-panel labels now stop
+8 short of the command column and truncate with an ellipsis). Both payloads were re-copied whole from
+the moved tag and pruned again by its `tools/prune-icons.lua` (same four icons kept, 5,835 removed).
+Two files changed: `PerfPanel.lua` (panel minor 7 -> 8) and `SimPanel.lua` (minor stays 5, already
+bumped inside the unpublished v1.76.0). The kit is unchanged (revision 41). The provenance line
+already read v1.76.0 and is kept. The addon consumes neither panel, so nothing changes for it and no
+contract blocker arises. Gates: `luacheck .` 0/0 in 70 files; `lua tests/run.lua` 885 passed,
+0 failed, 1 skipped (886); largest authored `.lua` 1079 lines.
