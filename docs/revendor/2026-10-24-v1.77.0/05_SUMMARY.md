@@ -97,3 +97,38 @@ and the tag's `tools/prune-icons.lua` kept the same 5 files and removed 5,835.
 
 In-game smoke (owner; not run here): `/reload` twice with `/console scriptErrors 1` shows no Lua
 error and no LibKa0s minor-mismatch line, and `/at config` still opens the settings panel as before.
+
+## Re-vendor after the tag moved again (one key button)
+
+Plan item AT-RV3, same run and branch. LK-96 moved the local annotated tag v1.77.0 again, to carry
+the owner's follow-up to item 015: one key button and Clear per row on the in-addon Keybindings tab
+(Options -> Keybindings is untouched). The tag's commit moved from
+`afae2f75cb7ff61c57156d9a3d8a6b2b9f4c5e10` (what AT-RV2 vendored) to
+`2f2b2e22b4c9219cd8a4101d7e894681c7aea16e` (`git -C ../LibKa0s rev-parse v1.77.0^{}`); the tag object
+moved from `b2b8ee2` to `e9b126d`. Both payloads were copied whole again from
+`git archive v1.77.0 LibKa0s testkit`, and the tag's `tools/prune-icons.lua` kept the same 5 files
+and removed 5,835.
+
+- **Per-file minors that moved: one.** OptionsKeybinds 3 -> 4 (one key button and Clear per row).
+  The `LibKa0s-Options-1.0` key moves to **30.2.34.3.5.9.2.11.4.2.1.4**. No other library file
+  changed.
+- **Test kit**: `bindings_xml.lua` and its README row changed (`Kit.keybindThroughTab` slot 2 on a
+  one-button row is the second key, written through `lib.__keybindSet`); the kit stays at revision
+  **42**.
+- **Provenance**: the CLAUDE.md line stays `v1.77.0` and records no sha or kit revision, so nothing
+  rolls. `LibKa0s icons: clear, close, copy, help.` is kept; the README credits are unchanged.
+- **Degradation stub**: no new public Options member, so `settings/OptionsSetup.lua` is unchanged;
+  the Options surface-parity case stays green. AbsorbTracker builds no Keybindings tab (it declares
+  no bindings), so nothing consumes the row change.
+- **Adopted here**: none.
+
+| Gate | Result |
+|---|---|
+| `luacheck .` | 0 warnings / 0 errors in 72 files |
+| `lua tests/run.lua` (Lua 5.1.5) | 905 passed, 0 failed, 1 skipped, 906 total |
+| inventory | `docs/test-cases.md` equals `lua tests/run.lua --list`; README badge 905/905, unchanged |
+| vendor parity | kit diff empty; library diff empty apart from the pruned `media/icons` |
+| line cap | largest authored `.lua` file 1079 lines (`tests/test_slashcmds.lua`) |
+
+In-game smoke (owner; not run here): `/reload` twice with `/console scriptErrors 1` shows no Lua
+error and no LibKa0s minor-mismatch line.
