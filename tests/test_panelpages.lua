@@ -122,8 +122,8 @@ end)
 
 -- ── The band's enable box (item 020, ABS-L01, L08, L13) ──────────────────────────────
 --
--- The selected unit's `units.<unit>.enabled` is drawn in the band, row 1, right half, beside the
--- Unit picker, for every unit (the player too). The row stays stamped to General (General's
+-- The selected unit's `units.<unit>.enabled` is drawn in the band's one row, quarter cell 2 (the
+-- right side of the left half), beside the Unit picker, for every unit (the player too). The row stays stamped to General (General's
 -- Defaults resets it; both Defaults tooltips say so), so this box is bespoke, like the link
 -- checkbox: it writes through NS.SetByPath, so the row's onChange fires exactly as `/at toggle`
 -- and `/at set` make it fire, and the block's refresher re-syncs it.
