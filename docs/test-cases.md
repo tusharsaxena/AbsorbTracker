@@ -89,6 +89,10 @@ Total.
 - degraded Schema stub: Get forwards the instance id to a row's own get
 - degraded Schema stub: ApplyDefault forwards the instance id to Set
 
+### test_layoutguard.lua (1)
+
+- layout guard: every stored path keeps its type, page, default and range
+
 ### test_database.lua (38)
 
 - RunMigrations migrates a fresh DB to the current version (5)
@@ -1037,6 +1041,7 @@ Total.
 |-------|------:|
 | test_loadorder.lua | 15 |
 | test_schema.lua | 60 |
+| test_layoutguard.lua | 1 |
 | test_database.lua | 38 |
 | test_units.lua | 17 |
 | test_envsetup.lua | 7 |
@@ -1077,4 +1082,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **899** |
+| **Total** | **900** |

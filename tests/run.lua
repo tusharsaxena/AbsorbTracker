@@ -108,6 +108,8 @@ Kit.run{
   suites = {
     "test_loadorder",
     "test_schema",
+    -- Item 020's guard: every stored path, default and range as they stood before the layout pass.
+    "test_layoutguard",
     "test_database",
     "test_units",
     "test_envsetup",
