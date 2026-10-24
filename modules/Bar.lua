@@ -187,7 +187,7 @@ local function buildHandle(bar, unit, globalName)
         -- it (handle:ApplyLevel) whenever the bar's own level moves.
         level = LAYERS.LEVEL.HANDLE,
         -- The move affordance must stay visible when the bar is faded to 0% (Bar opacity times
-        -- Master alpha): an invisible strip that still takes the click is anti-pattern #100.
+        -- Master alpha): an invisible strip that still takes the click is anti-pattern #101.
         ignoreParentAlpha = true,
     })
     if handle then
