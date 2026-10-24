@@ -66,20 +66,20 @@ At page granularity, before the detail below:
 
 | Page | Tabs | Covers |
 |------|------|--------|
-| General | **Master controls**, **Bars** | *Master controls*: turn the whole addon off, choose when it shows at all (always / only in combat / only out of combat / never), scale and fade every bar together, lock them (the lock is also the preview switch — unlocked shows placeholders on every enabled bar), show the debug console, show or hide the minimap button, and the two reset buttons. *Bars*: turn each bar on or off (Player / Target / Focus), and the repaint throttle — how fast the bars may redraw during a burst of changes. |
-| Appearance | **Size**, **Bar**, **Background**, **Border**, **Text** | A **Unit** picker at the top of the page chooses which bar you are styling — Player, Target or Focus — and every tab below applies to that one. *Size*: width and height. *Bar*: fill texture, opacity, color. *Background*: texture and color behind the fill. *Border*: style, thickness, color. *Text*: font, size, color, flags and shadow for the absorb amount. |
+| General | **Master controls**, **Behavior** | *Master controls*: turn the whole addon off, choose when it shows at all (always / only in combat / only out of combat / never), scale and fade every bar together, lock them (the lock is also the preview switch — unlocked shows placeholders on every enabled bar), show the debug console, show or hide the minimap button, and the two reset buttons. *Behavior*: the repaint throttle — how fast the bars may redraw during a burst of changes. The page's **Defaults** also resets which bars are shown (the per-unit enables, drawn on Appearance but stamped here). |
+| Appearance | **Bar**, **Text** | A **Unit** picker at the top of the page chooses which bar you are styling — Player, Target or Focus — with that bar's **Enable this unit** box beside it, and every tab below applies to that one. *Bar*: four subsections — *Size* (width and height), *Fill* (texture, opacity, color), *Background* (texture and color behind the fill), *Border* (style, thickness, color). *Text*: font, size, color, flags and shadow for the absorb amount. |
 | Profiles | — | Save different setups and switch between them. |
 
 ```
 ┌─ Ka0s Absorb Tracker (about page: logo + Notes + slash command list) ┐
-│   ├─ General      [ Master controls ][ Bars ]                        │
-│   ├─ Appearance   [ Unit v ]                                         │
-│   │               [ Size ][ Bar ][ Background ][ Border ][ Text ]    │
+│   ├─ General      [ Master controls ][ Behavior ]                    │
+│   ├─ Appearance   [ Unit v ]  [x] Enable this unit                   │
+│   │               [ Bar ][ Text ]                                    │
 │   └─ Profiles  (only if AceDBOptions is present)                     │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-**Bar, Border and Font used to be three pages.** They are the five tabs of one Appearance page now,
+**Bar, Border and Font used to be three pages.** They are the two tabs of one Appearance page now,
 and the reason is the Unit picker rather than the row count: each of those pages drew its **own**
 copy of it, `ctx.unit` is per-panel state, and so styling the target bar meant picking "Target"
 three separate times over three copies of one piece of session state. options-ui-§14 says that
@@ -90,7 +90,7 @@ them — a row's `page` is where it is *edited*, never where it is *stored*.
 
 The parent and every sub-page register as **canvas-layout categories**: a custom Blizzard `Frame` is registered with `Settings.RegisterCanvasLayoutCategory` (parent) / `Settings.RegisterCanvasLayoutSubcategory` (each sub-page) and Blizzard renders it in its own settings panel slot. The schema-driven sub-pages (General / Appearance) lay out their schema rows as **AceGUI widgets** (`CheckBox` / `Slider` / `Dropdown` / `ColorPicker`) inside an AceGUI `ScrollFrame` parented to the page's `body` frame, under a pinned **chrome band** holding the page's tab strip and, on Appearance, the chrome block above it.
 
-**Appearance is per-unit; General and About are not.** Appearance renders through `Helpers.RenderUnitPanel(ctx, pageKey)` (`settings/UnitPanel.lua`), which draws the **Unit** picker (Player/Target/Focus) in its chrome block and filters the rows to the selected unit. General has no Unit picker — its eight unit-agnostic rows (`enabled`, `visibility`, `scale`, `alpha`, `locked`, `state.debugConsole`, `global.minimap.shown`, `throttleWindow`) apply to the addon as a whole, and its three `units.<unit>.enabled` toggles are all rendered at once rather than filtered — and About has no settings at all.
+**Appearance is per-unit; General and About are not.** Appearance renders through `Helpers.RenderUnitPanel(ctx, pageKey)` (`settings/UnitPanel.lua`), which draws the **Unit** picker (Player/Target/Focus) in its chrome block and filters the rows to the selected unit. General has no Unit picker — its eight unit-agnostic rows (`enabled`, `visibility`, `scale`, `alpha`, `locked`, `state.debugConsole`, `global.minimap.shown`, `throttleWindow`) apply to the addon as a whole, and its three `units.<unit>.enabled` rows are stamped to it but carry `skipRender`, because the Appearance band draws the picked unit's (below) — and About has no settings at all.
 
 Profiles is the only page that still uses AceConfig — it routes `AceConfigDialog:Open("AbsorbTracker-Profiles", container)` into an AceGUI `SimpleGroup` parented to the canvas body, so the AceDBOptions UI lands inside our shell with the same header.
 
@@ -125,7 +125,8 @@ NS.RegisterOptionsPage("appearance", "Appearance", function(mainCategory)
     local ctx = H.CreatePanel("AbsorbTrackerAppearancePanel", "Appearance", {
         pageKey         = "appearance",
         defaultsButton  = true,
-        defaultsTooltip = "Restore every Appearance setting on this profile to its addon default, on every unit.",
+        defaultsTooltip = "Restore every Appearance setting on this profile to its addon default, "
+            .. "on every unit. Which bars are shown is reset by the General page's Defaults.",
     })
     -- Parked, not wired: the button does not exist until the panel's first
     -- OnShow (Helpers.EnsureDefaultsButton), which attaches this.
@@ -156,14 +157,16 @@ The per-unit page renderer, and one of the two things `settings/UnitPanel.lua` k
 
 On every call (the first `OnShow`, a re-render after `RefreshAllPanels` marked the page dirty, a unit switch, a tab click, a mirror-checkbox toggle, or a Copy click) it does a **full rebuild**: `Helpers.ClearScroll(ctx)` releases every AceGUI child and resets the section-heading tracker + `ctx.refreshers`, then draws two bands, top to bottom:
 
-1. **The chrome block** (chrome, options-ui-§14) — always, and there is exactly **one**. `Helpers.PageHeader` pins a frame in the band above the strip and the host fills it: a **Unit** dropdown listing `NS.Units.LABEL` in `NS.Units.LIST` order (parked on `ctx.__bannerWidget` so a suite can drive the selection the way a click would), and — for target and focus, never the player, which is the mirror source — a **"Use same styling as Player"** checkbox (writes `units.<unit>.mirror` via `NS.SetByPath`, re-renders on change) beside a **"Copy styling from Player"** button (`NS.Units.CopyFromPlayer(unit)` — a one-shot deep-copy of the appearance keys that also clears `mirror`, then re-renders). The button publishes **no** `NS.MSG.APPEARANCE` of its own: `CopyFromPlayer` writes all twenty values through `NS.SetByPath`, and every appearance row falls through to the schema's default `onChange`, which broadcasts it. A publish here would be a twenty-first restyle after twenty that had already run.
+1. **The chrome block** (chrome, options-ui-§14) — always, and there is exactly **one**. `Helpers.PageHeader` pins a frame in the band above the strip and the host fills it: a **Unit** dropdown listing `NS.Units.LABEL` in `NS.Units.LIST` order (parked on `ctx.__bannerWidget` so a suite can drive the selection the way a click would) in the left half of row 1, the picked unit's **"Enable this unit"** box in the right half (every unit, the player included; writes `units.<unit>.enabled` via `NS.SetByPath`, so the row's `onChange` fires as it does for `/at toggle`), and — for target and focus, never the player, which is the link source — a **"Link to Player"** checkbox on row 2 (writes `units.<unit>.mirror` via `NS.SetByPath`, re-renders on change) beside a **"Copy from Player"** button (`NS.Units.CopyFromPlayer(unit)` — a one-shot deep-copy of the appearance keys that also clears `mirror`, then re-renders). The button publishes **no** `NS.MSG.APPEARANCE` of its own: `CopyFromPlayer` writes all twenty values through `NS.SetByPath`, and every appearance row falls through to the schema's default `onChange`, which broadcasts it. A publish here would be a twenty-first restyle after twenty that had already run.
 
-   **Why one block, and why the mirror controls are in it.** §14 puts every control that applies to the whole page in this band, *"above the strip — never in the scroll below it"*, and names *copy* among the page-wide acts. Both mirror controls govern all five tabs: mirroring replaces every tab's rows with the hint, and `CopyFromPlayer` copies every appearance key on every one of them. They were drawn in the **scroll**, below the strip, which is the failure that rule describes — a page-wide control that reads as belonging to whichever tab happens to be selected and disappears on the next click. And a page draws at most one chrome block (`PageHeader` and `PageBanner` release the same ledger and write the same `ctx.__bannerHeight`, so the second call replaces the first), so the picker is built **inside** the block's frame and `PageBanner` is not called at all — §14's own instruction for a page that needs a picker *and* other page-wide controls. Neither mirror control is a schema row and neither can be — neither has a path, which is why the mirror flag's own row carries `skipRender` — and that is the case options-ui-§13 exempts from its two-controls-per-tab rule; it says nothing about which *band* they belong in.
+   **Why the enable box is here, stamped to another page.** §14 names *enable* on the edited instance among the band's acts and §15 keeps per-instance settings on the instance's own page, so turning a bar on and styling it is one page (item 020, ABS-L01). It has to be the band, not a tab: a linked unit's tabs are all replaced by the hint (`disabledReplaces`), and its enable is not part of the link. The row keeps `page = "general"`: §14 lets a row drawn on one page stay stamped to another when both Defaults tooltips say so, and they do — Appearance's ends *"Which bars are shown is reset by the General page's Defaults."*, General's *"…including which bars are shown."* — so General's Defaults and `/at list`'s `[general]` grouping are unchanged. The box's label and tooltip are the schema row's own, so the panel and `/at list` say the same words.
 
-   The block is drawn **before** the strip, because `PageHeader` records its share of the band in `ctx.__bannerHeight` and `TabStrip` adds that to the rows it reserves for itself — the other way round and the tabs would draw on top of the picker. The block declares its own height: `Helpers.BANNER_H` for the player, plus `Helpers.ROW_VSPACER` and one control row for target and focus. Its AceGUI widgets are recorded on `ctx.__chromeWidgets` and released back to AceGUI **after** the next render, not before it: the library's chrome ledger hides and unparents the *frame*, and a widget released on the way in would be back in the pool in time for the very render its own callback triggered to hand it straight out again.
-2. **The tab strip** (chrome, options-ui-§13) and the active tab's content — **always**, mirrored or not. `Helpers.RenderTabbedSchema` draws it, with three opts OptionsTabs minor 8 added for this page (LibKa0s v1.66.0, issue #32). The tabs are one per distinct `group` among the unit's rows, in registration order; a stale `ctx.activeTab` heals to the first rather than rendering a blank page under a full strip. For a **mirrored** unit the strip is drawn exactly as it is for any other and the rows are replaced by a one-line hint — *"Linked to Player — uncheck to customize."* — under it.
+   **Why one block, and why the link controls are in it.** §14 puts every control that applies to the whole page in this band, *"above the strip — never in the scroll below it"*, and names *copy* among the page-wide acts. Both link controls govern every tab: mirroring replaces every tab's rows with the hint, and `CopyFromPlayer` copies every appearance key on every one of them. They were drawn in the **scroll**, below the strip, which is the failure that rule describes — a page-wide control that reads as belonging to whichever tab happens to be selected and disappears on the next click. And a page draws at most one chrome block (`PageHeader` and `PageBanner` release the same ledger and write the same `ctx.__bannerHeight`, so the second call replaces the first), so the picker is built **inside** the block's frame and `PageBanner` is not called at all — §14's own instruction for a page that needs a picker *and* other page-wide controls. The copy button is not a schema row and cannot be — it has no path — and the link and enable boxes draw rows that carry `skipRender` for that reason: their widget is here.
 
-   That is a reversal. A mirrored unit used to get **no strip at all**, on the argument that its five tabs hold nothing to click through. options-ui-§13 answers that the other way round: the strip is a property of the **page**, not of its state, and the only pages exempt from it are ones the flow engine never renders (the Profiles sub-page and the landing page). A page that loses its chrome for one state is the page that looks broken, so the strip is drawn first and unconditionally and the mirrored state became content *inside* the page.
+   The block is drawn **before** the strip, because `PageHeader` records its share of the band in `ctx.__bannerHeight` and `TabStrip` adds that to the rows it reserves for itself — the other way round and the tabs would draw on top of the picker. The block declares its own height: `Helpers.BANNER_H` for the player, plus `Helpers.ROW_VSPACER` and one control row for target and focus. (The enable box sits on row 1, bottom-aligned with the dropdown, so it adds no height. The two-row band for target and focus is unchanged by item 020: the one-row four-cell band, ABS-L11, was not taken.) Its AceGUI widgets are recorded on `ctx.__chromeWidgets` and released back to AceGUI **after** the next render, not before it: the library's chrome ledger hides and unparents the *frame*, and a widget released on the way in would be back in the pool in time for the very render its own callback triggered to hand it straight out again.
+2. **The tab strip** (chrome, options-ui-§13) and the active tab's content — **always**, mirrored or not. `Helpers.RenderTabbedSchema` draws it, with three opts OptionsTabs minor 8 added for this page (LibKa0s v1.66.0, issue #32). The tabs are one per distinct `group` among the unit's rows, in registration order; a stale `ctx.activeTab` heals to the first rather than rendering a blank page under a full strip. For a **mirrored** unit the strip is drawn exactly as it is for any other and the rows are replaced by a one-line hint — *"Linked to Player. Untick Link to Player above to give this unit its own look."* — under it.
+
+   That is a reversal. A mirrored unit used to get **no strip at all**, on the argument that its tabs hold nothing to click through. options-ui-§13 answers that the other way round: the strip is a property of the **page**, not of its state, and the only pages exempt from it are ones the flow engine never renders (the Profiles sub-page and the landing page). A page that loses its chrome for one state is the page that looks broken, so the strip is drawn first and unconditionally and the mirrored state became content *inside* the page.
 
    The mirror row itself carries `skipRender` and a `group` of `Link`. It carries a group because options-ui-§13 wants every row attributable to a section; it draws no tab because the page passes `untabbedSkipRender = true`, which keeps a group whose rows are all `skipRender` off the strip; its widget is bespoke chrome rather than a tab's content. Naming the subject and drawing no tab for it is the honest pair — the alternative was a whole tab holding one invisible row.
 
@@ -177,11 +180,11 @@ The strip went through `Helpers.RenderTabbedSchema` only at LibKa0s v1.66.0. Unt
 
 `tests/test_widgets.lua`'s two AT-15 cases (every unit's strip and every tab's rows; a mirrored unit's every tab draws the hint) were written against the host composition and stayed green, untouched, across the adoption. `tests/test_panelmirror.lua` adds the two its gaps would have broken: a tab click keeps the block refresher, and `Link` is never a tab.
 
-It then registers one final **block refresher** on `ctx.refreshers`. **This is not decoration.** The mirror checkbox and the Copy button in band 1 are built inline, not through `Helpers.RenderField`, so neither registers a refresher of its own — without this one, `Helpers.RefreshAllPanels` structurally could not update them, and nothing re-ran the mirrored/unmirrored partition that decides whether band 2 shows rows or the hint. `Helpers.RestoreDefaults("appearance", ctx)` resets `units.focus.mirror` to its default `true` and then runs only the refreshers, so the block's checkbox would still read unchecked and the appearance rows would stay on screen over a now-mirrored unit (same after `/at set units.focus.mirror true`, and after a profile switch). It self-corrected on the next `OnShow`, which is what made it present as "the panel lied to me once".
+It then registers one final **block refresher** on `ctx.refreshers`. **This is not decoration.** The link and enable boxes and the Copy button in band 1 are built inline, not through `Helpers.RenderField`, so none registers a refresher of its own — without this one, `Helpers.RefreshAllPanels` structurally could not update them, and nothing re-ran the mirrored/unmirrored partition that decides whether band 2 shows rows or the hint. `Helpers.RestoreDefaults("appearance", ctx)` resets `units.focus.mirror` to its default `true` and then runs only the refreshers, so the block's checkbox would still read unchecked and the appearance rows would stay on screen over a now-mirrored unit (same after `/at set units.focus.mirror true`, and after a profile switch). It self-corrected on the next `OnShow`, which is what made it present as "the panel lied to me once".
 
    The refresher is **two-tier**, and the split is the whole point. `libs/LibKa0s/OptionsWidgets.lua`'s file-local `set` calls `RefreshAllPanels` after *every* schema write, so this closure runs on every checkbox click, slider drag and LSM pick on the page:
 
-   - **Always** — re-sync the block's checkbox in place via `cb:SetValue(NS.Units.IsMirrored(unit))`. Cheap; tears nothing down.
+   - **Always** — re-sync the block's two boxes in place via `cb:SetValue(NS.Units.IsMirrored(unit))` and `en:SetValue(NS.Units.IsEnabled(unit))`, so the enable box follows `/at toggle`, `/at set`, the strip's X and General's Defaults. Cheap; tears nothing down.
    - **Only when the mirror state changed** since this render (`mirrored` is captured in a local at render time) — call `RenderUnitPanel` again, because a mirror flip is the only thing that can invalidate that partition, and now also the only thing that can make the tab strip appear or disappear.
 
    An unconditional re-render would rebuild the entire page on every ordinary appearance write, and the *mechanism* is the risk rather than the waste: `ClearScroll` releases the very widget whose `OnValueChanged` / `OnMouseUp` is still on the stack — an `LSM30_*` dropdown with an open pullout, a slider mid-drag — and takes scroll position and tooltips with it. `makeColorPicker` already declines to call `RefreshAllPanels` for exactly this class of reason.
@@ -203,19 +206,22 @@ The optional `pairWith` map (fourth argument) is `{ [path] = function(ctx, rowGr
 The General page is **two tabs**, and the schema array's own order is the strip:
 
 ```
-[ Master controls ][ Bars ]
+[ Master controls ][ Behavior ]
 
 Master controls  [Enable Absorb Tracker]  [General visibility]
-                 [Master scale]           [Master alpha]
+                 [Master scale]           [Master opacity]
                  [Lock frame]             [Debug console]
                  [Minimap button]                               <- alone: this addon has no Test mode
                  [Reset position]         [Reset all settings]  <- afterGroup, the composer's tail
-Bars             -- Tracked units --                            <- subgroup heading, options-ui-§7
-                 [Enable Player Bar]      [Enable Target Bar]
-                 [Enable Focus Bar]
-                 -- Updates --
-                 [Update throttle]
+Behavior         [Update throttle (seconds)]
+                 (+ the three per-unit enables, skipRender: drawn in the Appearance band)
 ```
+
+**Lock frame's tooltip is the composer's `lockIsPreview` sentence** (compose minor 9) — unlocking shows
+placeholder content and is this addon's test mode — followed by the one host note the composer accepts,
+`notes.locked`: *"Unlocking is refused in combat, and entering combat locks the bars again."* Both
+halves of that note are true in code: the `locked` onChange refuses an unlock in combat, and
+`OnEnterCombat` re-locks.
 
 **Master controls leads, and it is not this addon's choice** (options-ui-§15). Every Ka0s addon's
 General page opens on a tab named exactly `Master controls` carrying exactly that set, in that
@@ -284,7 +290,7 @@ each row's `onChange`, attached by **path** after the fact so a change to the ca
 upstream cannot silently move a handler onto the wrong row.
 
 **Four of those rows are new and four moved.** `enabled`, `visibility`, `scale` and `alpha` did not
-exist before this adoption. `locked` came off the old Behavior tab, the two resets came off the Bars
+exist before this adoption. `locked` came off the first Behavior tab (an earlier tab of that name), the two resets came off the old Bars
 tab's `afterGroup`, and `state.debugConsole` replaced a bespoke `SessionCheckbox`. Each has exactly
 **one** declaration now — two controls over one setting is the failure the whole pass exists to
 remove.
@@ -297,23 +303,25 @@ the same change as the row, never an edit to the defaults table. That is `core/D
 one). Contrast the tab rename: adopting the name `Master controls` moves a `group`, which is not a
 stored path and needs no migration at all.
 
-**Master alpha is not `barAlpha`.** The per-unit `barAlpha` on the Appearance page dims **one** bar;
-Master alpha dims all three, and options-ui-§15 forbids conflating an addon-wide row with a
-per-instance one. `NS.GetBarAlpha` multiplies them, so all three paint sites take the product without
+**Master opacity is not `barAlpha`.** The per-unit `barAlpha` (*Bar opacity*) on the Appearance page
+dims **one** bar; Master opacity (stored leaf `alpha`) dims all three, and options-ui-§15 forbids
+conflating an addon-wide row with a per-instance one. `NS.GetBarAlpha` multiplies them, so all three paint sites take the product without
 any of them knowing there are two numbers. The three per-unit `enabled` toggles are the same shape of
-distinction against the addon-wide `Enable` row: those are *which bars exist*, and they stay on Bars.
+distinction against the addon-wide `Enable` row: those are *which bars exist*.
 
-**There is no `Behavior` tab any more**, and it was the move of `locked` that ended it rather than a
-redesign. Behavior held lock, the combat gate and the throttle; lock is canonical and belongs on
-Master controls, the combat gate became the `visibility` dropdown there, and what was left was one
-slider. A tab holding one control is a click that reveals one widget, so the throttle merged into
-the tab whose subject contains it — and the merged tab carries a **subsection heading per kind**,
-which is exactly what options-ui-§7 asks of a tab that mixes them. Neither heading repeats the tab's
-own name, which that rule forbids outright.
+**Behavior holds one slider, by the owner's ruling** (item 020, ABS-L-new1, XC-22/XC-23). The tab
+was *Bars*: the three enables under *Tracked units* and the throttle under *Updates*. With the
+enables drawn in the Appearance band, the throttle is left, and XC-23 sends an addon-wide performance
+knob to a General tab named **Behavior** — the name MultiMeters and QuickComms ship — rather than into
+Master controls' `extra` slot. options-ui-§13's two-line rule is a SHOULD and the one-line tab is
+accepted for that parity; [ARCHITECTURE.md](./ARCHITECTURE.md) → *Documented deviations* carries the
+row. With one drawn row there is no kind to separate, so there is no subsection heading, and the
+skipRender enables carry no `subgroup` either, because the flow engine opens a heading for a
+skipRender row's subgroup and would draw an empty one.
 
 **The pairing is a pure product of row order**, since `RenderRows` fills left-then-right in the order `SchemaForPage` returns. Re-numbering any one `order` re-columns the whole tab; `tests/test_widgets.lua` asserts the pairs by label, `tests/test_schema.lua` asserts each tab's full path sequence, and its page → tab → row-count partition case asserts the counts, so a stray renumber or a row drifting into the wrong tab fails the suite rather than the eye.
 
-The enable toggles are the only unit-scoped rows on General. They keep their `unit` tag but the page renders with `ctx.unit` nil, so `SchemaForPage(page, nil)` returns all three rather than filtering — which is exactly what puts all three on screen at once. They also keep `alwaysPerUnit = true`, which is what stops `/at get units.focus.enabled` from carrying the "(mirrored)" note.
+The enable toggles are the only unit-scoped rows on General. They keep their `unit` tag but the page renders with `ctx.unit` nil, so `SchemaForPage(page, nil)` returns all three rather than filtering — which is what lets General's Defaults reset all three at once, though none is drawn here. They also keep `alwaysPerUnit = true`, which is what stops `/at get units.focus.enabled` from carrying the "(mirrored)" note.
 
 The **Debug console** checkbox toggles the **visibility of the console window only** — the same as the bare `/at debug`. It deliberately does **not** change the debug logging flag (`NS.State.debug`); that stays on `/at debug on|off` and the window's own header toggle. It **is** a schema row now, at the path `state.debugConsole` and carrying `sessionOnly = true` (options-ui-§15) — where it used to be a bespoke `SessionCheckbox` injected through `pairWith`. Its value still never reaches the profile: `settings/General.lua` stamps the `{ get, set }` pair `NS.DebugLog:ConsoleCheckbox()` already answers onto the row as its own `get` / `set`, which `LibKa0s-Schema-1.0` consults before any path walk, so `NS.GetSetting` and `NS.SetByPath` route it to the window rather than to `db.profile`. What being a row buys is reach: `/at get state.debugConsole` and `/at set state.debugConsole true` work, where no CLI verb could see the bespoke checkbox. `settings/Schema.lua`'s validator exempts `sessionOnly` rows from the "path must resolve against `defaults.profile`" check for the same reason — not being in the profile is the point of them. Whenever the window's visibility changes by any route — this checkbox, bare `/at debug`, the header Close button, or Esc (`UISpecialFrames`) — the console frame's `OnShow`/`OnHide` hooks fire `LibKa0s-DebugLog-1.0`'s `onVisibilityChanged` descriptor hook, which `core/DebugLogSetup.lua` points at `NS.Helpers.RefreshAllPanels` — so an open settings panel's checkbox stays in sync. `ConsoleCheckbox()` itself returns a plain `{ label, tooltip, get, set }` table: a data contract the library hands over and this addon assembles into a widget, so neither side reaches into the other.
 
@@ -377,7 +385,7 @@ Each page now declares its body through **`Helpers.SetRenderer(ctx, fn)`** (`lib
 
 ## LSM swatch dropdowns
 
-Texture / border / font select fields use `dialogControl = "LSM30_Statusbar"`, `"LSM30_Border"` or `"LSM30_Font"` on their schema row — all three live in `settings/Appearance.lua`, on the Bar / Background, Border and Text tabs respectively. `Helpers.RenderField` → `makeDropdown` reads `dialogControl` and creates the matching AceGUI widget directly:
+Texture / border / font select fields use `dialogControl = "LSM30_Statusbar"`, `"LSM30_Border"` or `"LSM30_Font"` on their schema row — all three live in `settings/Appearance.lua`: the statusbar ones in the Bar tab's Fill and Background subsections, the border one in its Border subsection, and the font one on the Text tab. `Helpers.RenderField` → `makeDropdown` reads `dialogControl` and creates the matching AceGUI widget directly:
 
 ```lua
 local widgetType = row.dialogControl or "Dropdown"

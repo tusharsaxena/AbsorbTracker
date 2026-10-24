@@ -11,16 +11,16 @@ local _, NS = ...
 --   {
 --     path    = "barWidth",        -- key in db.profile (also /at set path)
 --     page    = "appearance",      -- which settings/<page>.lua renders it
---     group   = "Size",            -- the page's TAB this row belongs to (options-ui-§13); tabs are
+--     group   = "Bar",             -- the page's TAB this row belongs to (options-ui-§13); tabs are
 --                                  -- drawn in the order their first row was registered
 --     order   = 10,                -- render order within the group
 --     type    = "bool"|"number"|"string"|"color",
---     subgroup = "Border",         -- a heading INSIDE a tab, for a tab that mixes control kinds
---                                  -- (options-ui-§7). General's Bars tab is the one that does:
---                                  -- "Tracked units" over the three enable toggles and "Updates"
---                                  -- over the throttle (settings/General.lua). A subgroup
+--     subgroup = "Size",           -- a heading INSIDE a tab, for a tab that mixes control kinds
+--                                  -- (options-ui-§7). The Appearance page's Bar tab is the one
+--                                  -- that does: Size, Fill, Background and Border, each over its
+--                                  -- own `order` range (settings/Appearance.lua). A subgroup
 --                                  -- repeating its tab's own name is forbidden
---     label   = "Bar width",       -- widget label and /at list/get display
+--     label   = "Bar width (px)",  -- widget label and /at list/get display
 --     tooltip = "...",             -- tooltip body. `desc` is the older spelling and still read --
 --                                  -- the flow engine answers `row.tooltip or row.desc` -- so the
 --                                  -- composed rows carry `tooltip` and the hand-written ones `desc`

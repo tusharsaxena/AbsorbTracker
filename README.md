@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-885%2F885_passing-green)
+![Tests](https://img.shields.io/badge/Tests-905%2F905_passing-green)
 
 Ka0s Absorb Tracker shows your absorb shields as a movable bar. It adds every shield on the unit
 into one number, so a glance tells you how much damage you can eat before your health starts
@@ -33,22 +33,22 @@ Setting up takes four steps.
 
 - Place the Player bar. Drag the bar or its handle strip where you want it, then type `/at lock`.
   If a bar ever ends up somewhere you can't reach, `/at resetposition` puts every bar back in the
-  middle. The small X on the strip turns that bar off. Tick its box on General → Bars, or type
-  `/at toggle player`, to bring it back.
-- Turn on Target and Focus. Both ship switched off. Tick **Enable Target Bar** or **Enable Focus
-  Bar** on General → Bars. A Target or Focus bar only draws while you have that unit, but it shows
-  while unlocked even with nothing targeted, so you can drag it into place. Each bar keeps its own
-  position.
+  middle. The small X on the strip turns that bar off. Pick the unit on the Appearance page and tick
+  **Enable this unit**, or type `/at toggle player`, to bring it back.
+- Turn on Target and Focus. Both ship switched off. On the Appearance page pick Target or Focus in
+  the **Unit** picker and tick **Enable this unit** beside it. A Target or Focus bar only draws while
+  you have that unit, but it shows while unlocked even with nothing targeted, so you can drag it
+  into place. Each bar keeps its own position.
 - Style the bars. The **Unit** picker at the top of the Appearance page picks the bar you're
-  editing, and the Size, Bar, Background, Border and Text tabs sit under it. The bar fill,
-  background, border and text can each take a class color, and it's always the class of that
-  bar's own unit, so the Target bar wears your target's. Target and Focus start with **Use same
-  styling as Player** ticked and follow the Player bar live. Untick it to style one yourself, or
-  press **Copy styling from Player** for a one-time copy.
+  editing, and the Bar and Text tabs sit under it. The Bar tab holds the bar's size, fill,
+  background and border, each under its own heading. The fill, background, border and text can
+  each take a class color, and it's always the class of that bar's own unit, so the Target bar
+  wears your target's. Target and Focus start with **Link to Player** ticked and follow the Player
+  bar live. Untick it to style one yourself, or press **Copy from Player** for a one-time copy.
 - Decide when the bars show. General → Master controls covers all three at once. **General
-  visibility** picks always, only in combat, only out of combat or never, and master scale and
-  master alpha sit next to it. Master alpha multiplies with each bar's own **Bar opacity**, so 50%
-  under a master alpha of 50% draws at 25%.
+  visibility** picks always, only in combat, only out of combat or never, and **Master scale** and
+  **Master opacity** sit next to it. Master opacity multiplies with each bar's own **Bar opacity**,
+  so 50% under a master opacity of 50% draws at 25%.
 
 To see how a real number looks, `/at debug hold 50000` puts a 50K absorb on every visible bar for
 five seconds (add a second number for anywhere from half a second to a minute). The minimap button
@@ -81,14 +81,14 @@ At any moment, then, the bar shows how much a unit can take before its health st
 |----------|--------|
 | Do I need to install anything else? | No. Everything the addon needs is bundled, so it works on its own. The bundled Ka0s library also registers a shared set of bar textures and fonts, and those show up in the dropdowns without any extra addon. If you want more choices than that, install a media pack (such as one that includes SharedMedia). |
 | Does this replace the shield display on my unit frames? | No. These are separate movable bars. The addon leaves Blizzard's shield overlay on the player, target, and focus frames alone. Hide it in *Edit Mode* if you don't want to see both. |
-| How do I turn on the Target or Focus bar? | General page → **Bars** tab → tick **Enable Target Bar** or **Enable Focus Bar**. It only appears while you actually have that unit. |
-| Can the Target/Focus bar match my Player bar automatically? | Yes, tick **Use same styling as Player**. It's a live link, so anything you change on the Player bar carries over at once. Uncheck it when you want to style that bar on its own, or use **Copy styling from Player** for a one-time copy you can then take in your own direction. |
+| How do I turn on the Target or Focus bar? | Appearance page → pick **Target** or **Focus** in the **Unit** picker → tick **Enable this unit** beside it (or type `/at toggle target`). It only appears while you actually have that unit. The General page's **Defaults** button turns them back off. |
+| Can the Target/Focus bar match my Player bar automatically? | Yes, tick **Link to Player**. It's a live link, so anything you change on the Player bar carries over at once. Untick it when you want to style that bar on its own, or use **Copy from Player** for a one-time copy you can then take in your own direction. |
 | How do I move a bar? | Type `/at unlock`, drag the bar you want where you want it, then `/at lock`. Each bar remembers its own position, and `/at resetposition` snaps all of them back to their default spots. Unlocking also brings up the Target and Focus bars with nothing targeted, so you can place those too. |
 | Can I show the bars only while I'm fighting? | Yes. Set **General visibility** to *Only in combat* on **General → Master controls**. Every enabled bar then hides out of combat and comes back the moment you enter combat. |
 | Can I have different setups? | Yes. Use the Profiles page in the settings panel to save and switch between setups, or type `/at profile Name` to switch to one you have saved (`/at profile` lists them). New characters start on the shared **Default** profile, so your changes carry over until you choose a separate setup. |
 | Why is my bar empty? | The fill only shows a value when that unit has an absorb up. With no shield it sits empty, but the background and border stay where you placed them. |
 | Why won't the settings panel open in combat? | WoW doesn't let addons change settings screens while you're fighting, so `/at config` answers with a gray "cannot open settings during combat" line instead. Run it again once you're out of combat and it opens normally. |
-| What is the "Update throttle" setting for? | The bar redraws the moment a shield changes, not on a timer. The throttle only caps how fast it can repaint during a burst of rapid changes. The default suits almost everyone, so you'll rarely need to touch it. |
+| What is the "Update throttle" setting (General → Behavior) for? | The bar redraws the moment a shield changes, not on a timer. The throttle only caps how fast it can repaint during a burst of rapid changes. The default suits almost everyone, so you'll rarely need to touch it. |
 | How do I see debug logs? | `/at debug` toggles the on-screen debug window, and `/at debug on` / `off` starts and stops logging there instead of in chat. The **Debug console** checkbox on the General page toggles the window too. Logging resets to off on every reload. To send logs with a bug report, follow [Reporting a bug](#reporting-a-bug). |
 | An addon CPU profiler shows Absorb Tracker using a lot of CPU. Is that real? | Almost certainly not. Its actual cost is tiny (~0.18% of one core). WoW addon profilers blame all of a shared library's work on whichever addon loaded it first. `AbsorbTracker` sorts near the top alphabetically, so it "owns" the shared Ace event frame and gets billed for *every* Ace addon's event traffic. Disabling Absorb Tracker just moves that CPU to the next addon in line. [Read the full investigation](https://github.com/tusharsaxena/absorbtracker/blob/master/docs/investigations/2026-07-14-addon-profiler-attribution/analysis.md). |
 
@@ -96,10 +96,10 @@ At any moment, then, the bar shows how much a unit can take before its health st
 
 | Symptom | Fix |
 |---------|-----|
-| The Player bar never shows up | Check that **Enable Player Bar** is ticked on the General page (or run `/at toggle player`) and that the addon is enabled on the character-select screen. If **General visibility** is *Only in combat*, you also have to be in combat. The background and border show even with no shield, so if you see *nothing*, the bar is hidden rather than empty. |
-| The Target/Focus bar never shows up | Confirm **Enable Target Bar** / **Enable Focus Bar** is ticked on the General page. Even when enabled, it only appears while you actually have that target or focus set. No target or focus means no bar, by design. |
+| The Player bar never shows up | Check that **Enable this unit** is ticked for Player on the Appearance page (or run `/at toggle player`) and that the addon is enabled on the character-select screen. If **General visibility** is *Only in combat*, you also have to be in combat. The background and border show even with no shield, so if you see *nothing*, the bar is hidden rather than empty. |
+| The Target/Focus bar never shows up | Pick Target or Focus on the Appearance page and confirm **Enable this unit** is ticked. Even when enabled, it only appears while you actually have that target or focus set. No target or focus means no bar, by design. |
 | The bar(s) disappear when I leave combat | **General visibility** is set to *Only in combat*. Set it back to *Always* on **General → Master controls**. |
-| `/at debug hold 50000` does nothing | It needs at least one enabled bar to paint on. If every bar is off, run `/at toggle` (or tick an **Enable ... Bar** box) and try again. It also needs a number. To see the bars without one, just `/at unlock`. The old `test` command is gone, and `/at debug hold` does the same job. |
+| `/at debug hold 50000` does nothing | It needs at least one enabled bar to paint on. If every bar is off, run `/at toggle` (or tick **Enable this unit** on the Appearance page) and try again. It also needs a number. To see the bars without one, just `/at unlock`. The old `test` command is gone, and `/at debug hold` does the same job. |
 | A bar won't stay where I put it | Lock it once it's positioned: `/at lock`, or tick **Lock frame** on **General → Master controls**. Unlock again whenever you want to drag it. |
 | My class color isn't showing | The bar has to be visible and have an active shield for the color to appear. Check that the matching **Use class color** toggle is on. It follows the *bar's own unit*, so a Target bar takes your target's class, and falls back to your picked color when there is no target to read one from. |
 | Custom textures or fonts aren't in the dropdowns | Install a media pack addon (one that includes SharedMedia). Without one you still get WoW's built-in options plus the shared Ka0s textures and fonts the bundled library registers, but nothing beyond those. JetBrains Mono, the face the debug console prints in, is one of them. |

@@ -504,11 +504,10 @@ end)
 -- left-then-right in schema order — so the pairing is entirely a product of row order and a
 -- re-numbered `order` silently re-columns the page. That is what these pin.
 --
--- The enable toggles USED to be interleaved with the globals one for one ([Enable Player Bar |
--- Lock Position]). They are not any more: reading across a line is meant to compare two answers to
--- one question, and those two were answers to different ones. The three toggles run together under
--- the Bars tab's "Tracked units" heading, and the globals are on Master controls.
-test("the Bars tab pairs the enable toggles with each other, not with a global", function()
+-- The per-unit enable toggles are not drawn here at all since item 020 (ABS-L01): each is drawn in
+-- the Appearance band beside the Unit picker, for the picked unit, and stays a skipRender row
+-- stamped to General. What the General body pairs is the canonical set.
+test("General draws the canonical pairs and no per-unit enable toggle", function()
   local ctx = newCtx()
   Helpers.RenderSchema(ctx, "general")
 
@@ -522,11 +521,8 @@ test("the Bars tab pairs the enable toggles with each other, not with a global",
     end
   end
 
-  local row = rowContaining("Enable Player Bar")
-  assertTrue(row ~= nil, "no row rendered for Enable Player Bar")
-  assertEqual(#row.children, 2, "Enable Player Bar must share its row with exactly one widget")
-  assertEqual(row.children[2].labelText, "Enable Target Bar",
-    "the enable toggles pair with each other")
+  assertEqual(rowContaining("Enable this unit"), nil,
+    "the per-unit enables are the Appearance band's to draw, not the General body's")
 
   -- The canonical block pairs two per line in the order options-ui-§15 fixes, and the composer's
   -- `startsLine` on the first row is what makes that independent of how many widgets precede it.
@@ -541,7 +537,9 @@ test("the Bars tab pairs the enable toggles with each other, not with a global",
     "lock pairs with the debug console, which is a schema row now rather than a pairWith partner")
 end)
 
-test("every tracked unit gets an enable toggle on the General page", function()
+test("every tracked unit keeps an enable row stamped to General, drawn nowhere on it", function()
+  -- Stamped here so General's Defaults still resets which bars are shown (ABS-L01, L14); drawn by
+  -- the Appearance band, so the General body shows none of them.
   local ctx = newCtx()
   Helpers.RenderSchema(ctx, "general")
   local labels = {}
@@ -552,9 +550,10 @@ test("every tracked unit gets an enable toggle on the General page", function()
     end
   end
   walk(ctx.scroll)
+  assertTrue(not labels["Enable this unit"], "no enable toggle is drawn on the General page")
   for _, unit in ipairs(NS.Units.LIST) do
-    assertTrue(labels["Enable " .. NS.Units.LABEL[unit] .. " Bar"],
-      unit .. " has no enable toggle on the General page")
+    local row = NS.FindSchemaRow("units." .. unit .. ".enabled")
+    assertEqual(row.page, "general", unit .. "'s enable stays stamped to General")
   end
 end)
 
@@ -862,7 +861,7 @@ test("the General page draws its two groups as a tab strip, Master controls firs
   end
   walk(ctx.scroll)
   assertTrue(labels["Enable Absorb Tracker"], "the Master controls tab shows its own rows")
-  assertTrue(not labels["Enable Player Bar"], "and not the other tab's")
+  assertTrue(not labels["Update throttle (seconds)"], "and not the other tab's")
 
   -- No section headings: a `group` is the tab now, and RenderTabbedSchema passes `noHeadings`
   -- down. A Heading under a strip means the page silently fell back to RenderSchema.
@@ -871,12 +870,12 @@ test("the General page draws its two groups as a tab strip, Master controls firs
   end
 end)
 
-test("clicking Bars swaps the rows and leaves the button pair on Master controls", function()
+test("clicking Behavior swaps the rows and leaves the button pair on Master controls", function()
   local panel = T.mocks.__subcategories["General"]
   panel:__fire("OnShow")
   local ctx = renderedCtx("general")
   tabButtons(ctx)[2]:__fire("OnClick")
-  assertEqual(ctx.activeTab, "Bars")
+  assertEqual(ctx.activeTab, "Behavior")
 
   local labels = {}
   local function walk(w)
@@ -886,8 +885,9 @@ test("clicking Bars swaps the rows and leaves the button pair on Master controls
     end
   end
   walk(ctx.scroll)
-  assertTrue(labels["Enable Player Bar"] and labels["Update throttle (in sec)"],
-    "the Bars tab's rows are on screen")
+  assertTrue(labels["Update throttle (seconds)"], "the Behavior tab's row is on screen")
+  assertTrue(not labels["Enable this unit"],
+    "and its skipRender enables are not: the Appearance band draws those")
   assertTrue(not labels["Enable Absorb Tracker"],
     "and the tab it came from is gone, not stacked above it")
 
@@ -946,7 +946,7 @@ local function scrollLabels(ctx)
   return labels, texts
 end
 
-local MIRROR_HINT = "Linked to Player \226\128\148 uncheck to customize."
+local MIRROR_HINT = "Linked to Player. Untick Link to Player above to give this unit its own look."
 
 -- Render the Appearance page for `unit` with its mirror flag forced to `mirrored`, recording the
 -- spec every H.TabStrip call is handed. Restores the flag, the unit and the page afterwards.
@@ -976,12 +976,12 @@ end
 
 test("every unit's Appearance strip is its schema's groups, and each tab draws that group's rows", function()
   -- red under: a partition keeping an all-skipRender group as a tab (e.g. dropping
-  -- untabbedSkipRender: a sixth "Link" tab on target and focus),
+  -- untabbedSkipRender: a third "Link" tab on target and focus),
   -- or the tab click re-rendering the rows without retargeting them.
   for _, unit in ipairs(NS.Units.LIST) do
     withAppearance(unit, false, function(ctx, specs)
       local groups, rowLabels = appearanceGroups(unit)
-      assertEqual(#groups, 5, unit .. ": Size, Bar, Background, Border and Text")
+      assertEqual(#groups, 2, unit .. ": Bar and Text")
       local keys = {}
       for i, tab in ipairs(specs[#specs].tabs) do keys[i] = tab.key end
       assertEqual(table.concat(keys, ","), table.concat(groups, ","),
@@ -992,7 +992,7 @@ test("every unit's Appearance strip is its schema's groups, and each tab draws t
         assertEqual(ctx.activeTab, group, unit .. ": the click retargets the page")
         local shown = scrollLabels(ctx)
         -- This tab's rows are all on screen, and no other tab's is. Keyed by label, and a label
-        -- can recur across groups ("Use class color" is on four tabs), so a row counts as another
+        -- can recur across groups ("Use class color" is on both tabs), so a row counts as another
         -- tab's only when this tab has no row of that label.
         for g, set in pairs(rowLabels) do
           for label in pairs(set) do

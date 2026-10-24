@@ -22,8 +22,9 @@ test("SchemaForPage keeps groups in registration order, which IS the Appearance 
   -- This is the strip a player sees, left to right: RenderTabbedSchema takes one tab per distinct
   -- `group` in declaration order (the page keeps its skipRender-only Link group off the strip with
   -- `untabbedSkipRender`, OptionsTabs minor 8). The whole list, in order, not just
-  -- the first three -- a run that ends where the assertions stop is a run that can grow a fourth
-  -- tab nobody named.
+  -- the first ones -- a run that ends where the assertions stop is a run that can grow a third
+  -- tab nobody named. Since item 020 (ABS-L03, L04, L-new2) Size, Background and Border are
+  -- subsections of Bar, so the strip is [ Bar ][ Text ] and the page opens on Bar.
   local rows = NS.SchemaForPage("appearance", "player")
   local order, seen = {}, {}
   for _, r in ipairs(rows) do
@@ -32,10 +33,32 @@ test("SchemaForPage keeps groups in registration order, which IS the Appearance 
       order[#order + 1] = r.group
     end
   end
-  local want = { "Size", "Bar", "Background", "Border", "Text" }
+  local want = { "Bar", "Text" }
   assertEqual(#order, #want, "unexpected tab count on the Appearance page")
   for i, name in ipairs(want) do
     assertEqual(order[i], name, "Appearance tab " .. i)
+  end
+end)
+
+-- The Bar tab's four subsections, in reading order and each contiguous (options-ui-§7, §16; XC-19).
+-- Contiguity is the half that matters: SchemaForPage sorts a group's rows by `order`, so a
+-- subsection whose orders overlap another's interleaves with it and the flow engine prints its
+-- heading twice. Size leads (ABS-L03), the composed bar block is Fill, then Background (L04) and
+-- Border (L-new2).
+-- red under: two subsections' `order` ranges overlapping, a subgroup renamed, or one moved off Bar.
+test("the Bar tab runs Size, Fill, Background, Border, each contiguous", function()
+  for _, unit in ipairs(NS.Units.LIST) do
+    local runs = {}
+    for _, r in ipairs(NS.SchemaForPage("appearance", unit)) do
+      if r.group == "Bar" then
+        if runs[#runs] ~= r.subgroup then runs[#runs + 1] = r.subgroup end
+      end
+    end
+    local want = { "Size", "Fill", "Background", "Border" }
+    assertEqual(#runs, #want, unit .. ": Bar tab subsection runs")
+    for i, name in ipairs(want) do
+      assertEqual(runs[i], name, unit .. ": Bar subsection " .. i)
+    end
   end
 end)
 
@@ -57,10 +80,11 @@ test("the page -> tab -> row-count partition is the designed one", function()
     -- unconditional for every addon, which is why it takes the column Test mode would have paired
     -- beside. The two resets are the tab's closing BUTTON PAIR rather than rows, so they are not
     -- counted here -- tests/test_widgets.lua is what pins them onto this tab.
-    { page = "general", unit = nil, tabs = { { "Master controls", 7 }, { "Bars", 4 } } },
-    { page = "appearance", unit = "player", tabs = {
-      { "Size", 2 }, { "Bar", 4 }, { "Background", 3 }, { "Border", 4 }, { "Text", 6 },
-    } },
+    -- Behavior counts the three per-unit enables, which stay stamped here (skipRender, drawn in the
+    -- Appearance band, ABS-L01) beside the one throttle row it draws.
+    { page = "general", unit = nil, tabs = { { "Master controls", 7 }, { "Behavior", 4 } } },
+    -- Bar is Size 2 + Fill 4 + Background 3 + Border 4 (item 020).
+    { page = "appearance", unit = "player", tabs = { { "Bar", 13 }, { "Text", 6 } } },
   }
   for _, page in ipairs(want) do
     local counts, order, seen = {}, {}, {}
@@ -85,20 +109,24 @@ end)
 -- visible controls is not a subject, it is a click that reveals one checkbox. Merge it into the tab
 -- whose subject contains it.
 --
--- Nothing on either page is exempt today, and the exemption is stated here rather than left to be
--- invented later. The one thing this addon draws that HAS no path and so cannot be counted is the
--- Appearance page's bespoke chrome -- the Unit banner, and the mirror checkbox + "Copy styling from
--- Player" button in the header. Neither sits inside a tab: the banner is chrome above the strip and
--- the mirror pair is drawn above it by Helpers.RenderUnitPanel, so neither can prop up a one-row
--- tab. If a future tab ever earns the exemption, name it in EXEMPT with the bespoke controls it
--- sits beside -- never by dropping the assertion or lowering the 2.
+-- ONE TAB IS EXEMPT, by the owner's ruling rather than by a bespoke control: General > Behavior
+-- holds the one Update throttle (seconds) slider once the three per-unit enables moved into the
+-- Appearance band (item 020, ABS-L01 and ABS-L-new1, XC-22/XC-23). options-ui-§13's two-line rule
+-- is a SHOULD, and the one-line Behavior tab is accepted for parity with MultiMeters' and
+-- QuickComms' Behavior tab; docs/ARCHITECTURE.md's Documented deviations carries the row. The
+-- Appearance page's bespoke chrome -- the Unit banner, the enable box, and the link checkbox and
+-- "Copy from Player" button -- sits in the band above the strip, so none of it props up a tab. Any
+-- further exemption is named in EXEMPT with its reason -- never by dropping the assertion or
+-- lowering the 2.
 --
 -- Counted the way the strip is DRAWN, one page-and-unit at a time: NS.Schema as a whole would show
 -- every Appearance tab at three times its size (once per unit) and a genuinely one-row tab would
 -- read as three and pass.
 -- red under: a tab losing rows until one is left, or a new one-row group.
 test("no tab holds fewer than two visible controls", function()
-  local EXEMPT = {}   -- { ["<tab>"] = "<the bespoke controls it sits beside>" }
+  local EXEMPT = {    -- { ["<tab>"] = "<why>" }
+    ["Behavior"] = "owner ruling, item 020 ABS-L-new1: the addon-wide performance knob's tab",
+  }
   local views = { { "general", nil } }
   for _, unit in ipairs(NS.Units.LIST) do
     views[#views + 1] = { "appearance", unit }
@@ -664,10 +692,25 @@ test("the enable row is per-unit, lives on General, and survives mirroring", fun
     -- alwaysPerUnit is what keeps `/at get units.<unit>.enabled` free of the "(mirrored)" note:
     -- the flag is honored per-unit whatever the mirror says.
     assertEqual(row.alwaysPerUnit, true)
-    assertEqual(row.page, "general", "the enable toggles are master controls, not appearance")
-    assertEqual(row.group, "Bars")
-    assertEqual(row.label, "Enable " .. NS.Units.LABEL[unit] .. " Bar")
+    -- Drawn in the Appearance band (ABS-L01) but STAMPED to General, so General's Defaults still
+    -- resets which bars are shown and `/at list` still prints them under [general]; both Defaults
+    -- tooltips say so (ABS-L14, options-ui-§14's cross-page stamp).
+    assertEqual(row.page, "general", "the enables stay stamped to General")
+    assertEqual(row.skipRender, true, "the Appearance band draws it, not the General body")
+    assertEqual(row.group, "Behavior")
+    -- No subgroup: the flow engine opens a subgroup heading even for skipRender rows, and an
+    -- empty "Tracked units" heading would sit over nothing.
+    assertEqual(row.subgroup, nil, unit .. " enable carries no subgroup")
+    assertEqual(row.label, "Enable this unit")   -- options-ui-§21, XC-16: the picker's own noun
   end
+  -- ABS-L13: written per unit, so the Player's never says "your player" and never carries the
+  -- target/focus sentence.
+  assertEqual(NS.FindSchemaRow("units.player.enabled").desc,
+    "Show the Player bar and track absorbs on yourself.")
+  assertEqual(NS.FindSchemaRow("units.target.enabled").desc,
+    "Show the Target bar and track absorbs on your target. It appears only while you have a target.")
+  assertEqual(NS.FindSchemaRow("units.focus.enabled").desc,
+    "Show the Focus bar and track absorbs on your focus. It appears only while you have a focus.")
 end)
 
 -- The Master controls tab, and it is the one options-ui-§15 mandates rather than one this addon
@@ -741,35 +784,68 @@ test("Reset all settings returns the lock to its shipped default", function()
   assertTrue(NS.InPreview(), "and unlocked is preview, so the placeholders come back with it")
 end)
 
-test("the Bars tab is the three enable toggles then the throttle, under their own headings",
-  function()
-  -- RenderRows fills left-then-right in schema order, so the rendered layout IS the row order:
-  -- [Enable Player Bar | Enable Target Bar], [Enable Focus Bar], then the throttle under its own
-  -- heading. The globals the enables used to be interleaved with are on Master controls now --
-  -- pairing an enable toggle with "Lock Position" put two answers to two different questions on
-  -- one line.
-  --
-  -- The throttle is here rather than on a `Behavior` tab of its own because lock and the combat
-  -- gate both moved to Master controls and left it alone: a tab holding one control is a click
-  -- that reveals one widget. A merged tab that mixes kinds carries a subsection heading per kind
-  -- (options-ui-§7), and neither heading may repeat the tab's name.
-  -- red under: dropping either subgroup, or naming one of them "Bars".
+test("the Behavior tab draws the throttle alone, the enables riding along undrawn", function()
+  -- Item 020 (ABS-L01, ABS-L-new1): the three per-unit enables are drawn in the Appearance band,
+  -- one at a time for the picked unit, but stay stamped to this page, so they ride in this group
+  -- as skipRender rows. What the tab DRAWS is the one Update throttle (seconds) slider, the
+  -- addon-wide performance knob XC-23 sends to a General tab named Behavior. No subgroup on any
+  -- of the four: the old one-row "Updates" heading went (XC-22), and a subgroup on a skipRender
+  -- row still opens a heading over nothing.
+  -- red under: an enable drawn on General again, a subgroup coming back, or the tab renamed.
   local want = {
-    { "units.player.enabled", "Tracked units" },
-    { "units.target.enabled", "Tracked units" },
-    { "units.focus.enabled",  "Tracked units" },
-    { "throttleWindow",       "Updates"       },
+    { "units.player.enabled", true },
+    { "units.target.enabled", true },
+    { "units.focus.enabled",  true },
+    { "throttleWindow",       nil  },
   }
   local got = {}
   for _, r in ipairs(NS.SchemaForPage("general")) do
-    if r.group == "Bars" then got[#got + 1] = r end
+    if r.group == "Behavior" then got[#got + 1] = r end
   end
-  assertEqual(#got, #want, "unexpected Bars row count")
+  assertEqual(#got, #want, "unexpected Behavior row count")
   for i, spec in ipairs(want) do
-    assertEqual(got[i].path, spec[1], "Bars row " .. i)
-    assertEqual(got[i].subgroup, spec[2], "Bars row " .. i .. " subgroup")
-    assertTrue(got[i].subgroup ~= got[i].group, "a subgroup may not repeat its tab's name")
+    assertEqual(got[i].path, spec[1], "Behavior row " .. i)
+    assertEqual(got[i].skipRender, spec[2], "Behavior row " .. i .. " skipRender")
+    assertEqual(got[i].subgroup, nil, "Behavior row " .. i .. " subgroup")
   end
+  local throttle = NS.FindSchemaRow("throttleWindow")
+  assertEqual(throttle.label, "Update throttle (seconds)")   -- options-ui-§21 units, XC-08
+  assertEqual(throttle.desc, "Fastest the bars repaint during a burst of changes. Applies to every "
+    .. "bar. Lower = snappier but more CPU.")
+  assertEqual(throttle.fmt, "%.2f sec", "the readout is not the label and stays")
+end)
+
+-- Item 020's words (options-ui-§21): the labels and tooltips the layout pass set, row by row.
+-- Composed rows keep the composer's words except where the composer's own seam takes the host's
+-- (BarGroup `tooltips`, MasterControls `lockIsPreview` and `notes`).
+-- red under: any of these strings drifting back, or the composer seams being dropped.
+test("item 020: the Appearance and Master controls words", function()
+  local function row(path) return assert(NS.FindSchemaRow(path), "no row " .. path) end
+  for _, unit in ipairs(NS.Units.LIST) do
+    local p = "units." .. unit .. "."
+    assertEqual(row(p .. "barWidth").label, "Bar width (px)")
+    assertEqual(row(p .. "barWidth").desc,
+      "Width of this bar, in pixels. Multiplied by Master scale on General > Master controls.")
+    assertEqual(row(p .. "barHeight").label, "Bar height (px)")
+    assertEqual(row(p .. "barHeight").desc,
+      "Height of this bar, in pixels. Multiplied by Master scale on General > Master controls.")
+    assertEqual(row(p .. "barWidth").fmt, "%d px", "the readout stays")
+    assertEqual(row(p .. "bgTexture").label, "Background texture")
+    assertEqual(row(p .. "bgTexture").desc, "Texture drawn behind the fill, across the whole bar.")
+    assertEqual(row(p .. "barAlpha").label, "Bar opacity", "the composed label stays canonical")
+    assertEqual(row(p .. "barAlpha").tooltip, "Opacity of this whole bar (fill, background, border, "
+      .. "text). Multiplied by Master opacity on General > Master controls.")
+    if unit ~= "player" then
+      assertEqual(row(p .. "mirror").label, "Link to Player")
+      assertEqual(row(p .. "mirror").desc, "Use the Player bar's look for this bar (all appearance "
+        .. "settings). Position and enable stay this bar's own.")
+    end
+  end
+  -- ABS-L-new3: the canonical lockIsPreview sentence, then the combat note, which is true here:
+  -- the `locked` onChange refuses an unlock in combat and core/AbsorbTracker.lua re-locks on entry.
+  assertEqual(row("locked").tooltip, "Stop the frame being dragged. While it is unlocked the "
+    .. "display shows placeholder content, so it can be seen and placed; this is the addon's test "
+    .. "mode. Unlocking is refused in combat, and entering combat locks the bars again.")
 end)
 
 test("the mirror row exists for target and focus but not the player", function()

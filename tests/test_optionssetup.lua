@@ -291,6 +291,30 @@ test("the degraded stub publishes the five composers, hollow", function()
   assertEqual(type(tail), "function", "the afterGroup hook is a no-op, not a nil")
 end)
 
+test("the degraded stub answers LibKa0s v1.77.0's four members inert", function()
+  -- KeybindingsTab, KeybindRows, KEYBINDS_UNCHANGED and StrataTooltip are owed by every Options
+  -- stub (the library's v1.77.0 "What a consumer owes"); this addon calls none of them, so each
+  -- answers nothing: no tab, no rows, and no host copy of the library's sentences.
+  -- red under: a stub that copies the library's text, or a member missing (the parity suite too).
+  local NS2 = loadDegraded()
+  assertEqual(NS2.Helpers.KeybindingsTab({}), nil, "no Keybindings tab without the library")
+  assertEqual(NS2.Helpers.KeybindRows({}, {}), nil, "no rows without the library")
+  assertEqual(NS2.Helpers.KEYBINDS_UNCHANGED, "", "an empty sentence, not a copy of the library's")
+  assertEqual(NS2.Helpers.StrataTooltip({ "LOW", "DIALOG" }), "", "an empty tooltip, not a copy")
+end)
+
+test("the degraded stub answers OptionsCompose minor 11's ResetAllTooltip with the tail alone", function()
+  -- ResetAllTooltip(tail) is owed by every Options stub from the v1.77.0 settings-layout extension
+  -- (the library's "What a consumer owes", OptionsCompose minor 11). Without the library there is no
+  -- reset text to read, so the stub answers only what the caller passed: the tail, or nothing.
+  -- red under: a missing member, a host copy of the library's reset wording, or a non-string tail leaking.
+  local NS2 = loadDegraded()
+  assertEqual(NS2.Helpers.ResetAllTooltip(), "", "no tail, no text")
+  assertEqual(NS2.Helpers.ResetAllTooltip("Key bindings are not changed."), "Key bindings are not changed.",
+    "a string tail comes back alone")
+  assertEqual(NS2.Helpers.ResetAllTooltip(42), "", "a non-string tail adds nothing")
+end)
+
 test("the degraded stub keeps no private copy of the library's layout constants", function()
   -- Measured, not assumed: dropping each of these from the stub and re-running the degraded load
   -- leaves #NS.Schema unchanged, because every reader (settings/About.lua, settings/UnitPanel.lua)
@@ -475,6 +499,21 @@ test("General's Reset all settings tooltip says it is the same act as Profiles -
   assertTrue(ok, tostring(err))
   assertEqual(#lines, 1, "one tooltip body line")
   assertEqual(lines[1], RESET_ALL_TIP)
+end)
+
+-- ── the two Defaults tooltips name the cross-page enables (item 020, ABS-L14) ──────────────────
+--
+-- The per-unit enables are drawn in the Appearance band but stay stamped to General, so General's
+-- Defaults resets them and Appearance's does not. options-ui-§14 lets a row stay stamped to another
+-- page only when BOTH pages' Defaults tooltips say so, which these two sentences do.
+-- red under: either tooltip losing its sentence about which bars are shown.
+test("both Defaults tooltips say which page resets which bars are shown", function()
+  assertEqual(Helpers.__panelFor("appearance").panel.defaultsTooltip,
+    "Restore every Appearance setting on this profile to its addon default, on every unit. "
+    .. "Which bars are shown is reset by the General page's Defaults.")
+  assertEqual(Helpers.__panelFor("general").panel.defaultsTooltip,
+    "Restore every General setting on this profile to its addon default, including which bars "
+    .. "are shown.")
 end)
 
 -- ── the folder name, for the library's help-mark art (LibKa0s#42) ─────────────────

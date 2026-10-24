@@ -9,24 +9,29 @@
 --
 -- The page draws (settings/UnitPanel.lua does the drawing):
 --
---     [ Unit v ]                                  <- the banner (chrome), options-ui-§14
+--     [ Unit v ]                [x] Enable this unit         <- the band (chrome), options-ui-§14
+--     [x] Link to Player        [ Copy from Player ]         <- target / focus only
 --     ------------------------------------------
---     [ Size ][ Bar ][ Background ][ Border ][ Text ]   <- the tab strip (chrome), options-ui-§13
+--     [ Bar ][ Text ]                                        <- the tab strip (chrome), options-ui-§13
 --
---     Size         [Bar Width]              [Bar Height]
---     Bar          [Bar texture]            [Bar opacity]
---                  [Bar color]              [Use class color]
---     Background   [Background Texture]
---                  [Background color]       [Use class color]
---     Border       [Border style]           [Border thickness (px)]
---                  [Border color]           [Use class color]
---     Text         [Font]                   [Font size]
---                  [Font color]             [Use class color]
---                  [Font flags]             [Font shadow]
+--     Bar    -- Size --
+--            [Bar width (px)]         [Bar height (px)]
+--            -- Fill --
+--            [Bar texture]            [Bar opacity]
+--            [Bar color]              [Use class color]
+--            -- Background --
+--            [Background texture]
+--            [Background color]       [Use class color]
+--            -- Border --
+--            [Border style]           [Border thickness (px)]
+--            [Border color]           [Use class color]
+--     Text   [Font]                   [Font size]
+--            [Font color]             [Use class color]
+--            [Font flags]             [Font shadow]
 --
--- THREE OF THE FIVE TABS ARE COMPOSED, NOT TYPED OUT (options-ui-§16). H.BarGroup, H.BorderGroup and
+-- THE BLOCKS ARE COMPOSED, NOT TYPED OUT (options-ui-§16). H.BarGroup, H.BorderGroup and
 -- H.FontGroup emit the canonical block from one declaration each, and H.ColorPair emits the
--- Background tab's swatch and its companion. A hand-written copy of any of them is anti-pattern #73:
+-- Background subsection's swatch and its companion. A hand-written copy of any of them is anti-pattern #73:
 -- the composer is what makes the order, the labels, the ranges and the class-color companion
 -- identical in nine addons without nine people agreeing to be careful.
 --
@@ -45,22 +50,28 @@
 -- this file's private `fontFlagOptions` / `fontFlagSorting` tables: the flag set is H.FONT_FLAGS
 -- now, which is the whole point of having one.
 --
--- THE BACKGROUND TAB IS NOT A BAR GROUP, and options-ui-§16 says so: a group over a background takes
--- the swatch and its companion and nothing else. Its texture row survives because this addon's
+-- ONE TAB PER STYLED SURFACE (item 020, ABS-L03, L04, L-new2; XC-19). The bar is one surface, so it
+-- is one tab, Bar, with a subsection heading per part of it -- Size, Fill (the composed bar block),
+-- Background, Border -- because options-ui-§7 asks for a heading wherever a tab mixes kinds, and
+-- §16's last bullet allows composed groups to share a tab under their own headings. Size and fill
+-- are read together, and a fill color is chosen against the background and border it sits in, so
+-- one tab replaces four clicks. No heading repeats the tab's name, which §7 forbids.
+--
+-- THE BACKGROUND SUBSECTION IS NOT A BAR GROUP, and options-ui-§16 says so: a group over a background
+-- takes the swatch and its companion and nothing else. Its texture row survives because this addon's
 -- backdrop genuinely HAS a fill texture (modules/Display.lua sets `backdropInfo.bgFile` from it) --
--- it is a control wired to something, not a texture picker invented to fill a tab out. It carries no
--- `subgroup`, for the same reason none of the other four tabs does: options-ui-§7 asks for a
--- subsection heading only where a tab MIXES KINDS of control, and every row on every tab here
--- belongs to that tab's one subject. A `subgroup` repeating its tab's name is forbidden outright.
+-- it is a control wired to something, not a texture picker invented to fill a heading out.
 --
--- TAB ORDER IS DECLARATION ORDER. H.RenderTabbedSchema partitions a page's rows by `group` in the
--- order the rows were registered, so the array below IS the strip, and each group's rows must stay
--- contiguous -- a row filed under a group the page has already left prints that heading twice.
+-- TAB ORDER IS DECLARATION ORDER; SUBSECTION ORDER IS `order`. H.RenderTabbedSchema partitions a
+-- page's rows by `group` in the order the rows were registered, so the array below IS the strip.
+-- Inside a group SchemaForPage sorts by `order`, so each subsection takes its own hundred (Size
+-- 10-20, Fill 100+, Background 200+, Border 300+) and the runs cannot interleave -- an interleaved
+-- subsection prints its heading twice. tests/test_schema.lua pins the four runs.
 --
--- Size leads because dimensions are what a player opens this page for; the three surface tabs
--- (Bar / Background / Border) sit in a run because they are read together, front to back; Text is
--- last because it is set once. The three colored surfaces plus Text all run the SAME two lines --
--- `[<surface> color] [Use class color]` -- so a reader who has learned one tab has learned four.
+-- Size leads because dimensions are what a player opens this page for; Fill, Background and Border
+-- follow front to back; Text is last because it is set once. The three colored surfaces plus Text
+-- all run the SAME two lines -- `[<surface> color] [Use class color]` -- so a reader who has learned
+-- one has learned four, and the headings tell the two "Use class color" rows on Bar apart.
 --
 -- Every row is generated once per unit in NS.Units.LIST: the path is prefixed with `units.<unit>.`
 -- and tagged `unit = unit`, so Helpers.RenderUnitPanel can filter the page to the selected unit
@@ -115,51 +126,63 @@ local function addUnitRows(unit)
     local p = "units." .. unit .. "."
     local classColor = classColorFor(unit)
 
-    -- ── Size ──────────────────────────────────────────────────────────────────
+    -- ── Bar > Size ────────────────────────────────────────────────────────────
     --
     -- Hand-written, and legitimately so: options-ui-§16 names three canonical blocks and a
-    -- width/height pair is none of them, so there is no composer to reach for.
+    -- width/height pair is none of them, so there is no composer to reach for. The tooltips name
+    -- the addon-wide multiplier (options-ui-§21, XC-11).
     local rows = {
         {
-            path    = p .. "barWidth",
-            page    = PAGE,
-            unit    = unit,
-            group   = "Size",
-            order   = 10,
+            path     = p .. "barWidth",
+            page     = PAGE,
+            unit     = unit,
+            group    = "Bar",
+            subgroup = "Size",
+            order    = 10,
             type    = "number",
-            label   = "Bar Width (in px)",
-            desc    = "Width of the absorb bar in pixels.",
+            label   = "Bar width (px)",
+            desc    = "Width of this bar, in pixels. Multiplied by Master scale on General > Master controls.",
             default = unitDefaults.barWidth,
             min = 50, max = 500, step = 1, fmt = "%d px",
         },
         {
-            path    = p .. "barHeight",
-            page    = PAGE,
-            unit    = unit,
-            group   = "Size",
-            order   = 20,
+            path     = p .. "barHeight",
+            page     = PAGE,
+            unit     = unit,
+            group    = "Bar",
+            subgroup = "Size",
+            order    = 20,
             type    = "number",
-            label   = "Bar Height (in px)",
-            desc    = "Height of the absorb bar in pixels.",
+            label   = "Bar height (px)",
+            desc    = "Height of this bar, in pixels. Multiplied by Master scale on General > Master controls.",
             default = unitDefaults.barHeight,
             min = 10, max = 100, step = 1, fmt = "%d px",
         },
     }
 
-    -- ── Bar ───────────────────────────────────────────────────────────────────
+    -- ── Bar > Fill ────────────────────────────────────────────────────────────
     --
     -- The canonical bar block: [Bar texture][Bar opacity] / [Bar color][Use class color]. Every leaf
     -- name the composer derives already IS this addon's stored path, so no `keys` is needed.
     --
-    -- `barAlpha` is the PER-UNIT opacity and stays here. It is not Master alpha, which is the
+    -- `barAlpha` is the PER-UNIT opacity and stays here. It is not Master opacity, which is the
     -- addon-wide row on the General page's Master controls tab (options-ui-§15 forbids conflating
     -- the two); NS.GetBarAlpha multiplies them.
+    --
+    -- ITS TOOLTIP IS OURS (compose minor 10, `tooltips`, ABS-L12). The canonical words describe the
+    -- fill's opacity, but modules/Display.lua applies `barAlpha` through SetAlpha on the whole bar
+    -- frame -- fill, background, border and text. The label stays canonical.
     appendBlock(rows, unit, H.BarGroup({
         prefix     = p,
         page       = PAGE,
         group      = "Bar",
-        order      = 10,
+        subgroup   = "Fill",
+        order      = 100,
         classColor = classColor,
+        tooltips   = {
+            barAlpha = "Opacity of this whole bar (fill, background, border, text). "
+                .. "Multiplied by Master opacity on General > Master controls.",
+        },
         defaults   = {
             barTexture       = unitDefaults.barTexture,
             barAlpha         = unitDefaults.barAlpha,
@@ -168,21 +191,22 @@ local function addUnitRows(unit)
         },
     }))
 
-    -- ── Background ────────────────────────────────────────────────────────────
+    -- ── Bar > Background ──────────────────────────────────────────────────────
     --
     -- The texture is this addon's own row, declared ahead of the pair rather than handed over as the
     -- composer's `extra`: an extra is appended AFTER the mandated rows, and the texture reads first
-    -- here for the same reason it does on the Bar tab. The swatch carries `startsLine`, so the pair
+    -- here for the same reason it does in Fill. The swatch carries `startsLine`, so the pair
     -- lands on its own line whatever precedes it.
     rows[#rows + 1] = {
-        path    = p .. "bgTexture",
-        page    = PAGE,
-        unit    = unit,
-        group   = "Background",
-        order   = 10,
+        path     = p .. "bgTexture",
+        page     = PAGE,
+        unit     = unit,
+        group    = "Bar",
+        subgroup = "Background",
+        order    = 200,
         type    = "string",
-        label   = "Background Texture",
-        desc    = "LibSharedMedia statusbar texture drawn behind the bar fill.",
+        label   = "Background texture",
+        desc    = "Texture drawn behind the fill, across the whole bar.",
         default = unitDefaults.bgTexture,
         dialogControl = "LSM30_Statusbar",
         values = H.LSMValues("statusbar"),
@@ -190,8 +214,9 @@ local function addUnitRows(unit)
     appendBlock(rows, unit, H.ColorPair({
         prefix       = p,
         page         = PAGE,
-        group        = "Background",
-        order        = 20,
+        group        = "Bar",
+        subgroup     = "Background",
+        order        = 210,
         key          = "bgColor",
         companionKey = "useClassColorBg",
         label        = "Background color",
@@ -202,7 +227,7 @@ local function addUnitRows(unit)
         },
     }))
 
-    -- ── Border ────────────────────────────────────────────────────────────────
+    -- ── Bar > Border ──────────────────────────────────────────────────────────
     --
     -- No `show = true`: this addon has no "Show border" toggle, and §16 only permits the composer to
     -- prepend one where the addon already has it. Inventing one would be a second control over a
@@ -213,8 +238,9 @@ local function addUnitRows(unit)
     appendBlock(rows, unit, H.BorderGroup({
         prefix     = p,
         page       = PAGE,
-        group      = "Border",
-        order      = 10,
+        group      = "Bar",
+        subgroup   = "Border",
+        order      = 300,
         classColor = classColor,
         keys       = { borderStyle = "border" },
         defaults   = {
@@ -247,9 +273,11 @@ local function addUnitRows(unit)
         },
     }))
 
-    -- The mirror flag. Not rendered in the page body — Helpers.RenderUnitPanel draws it as a
-    -- header checkbox above the tab strip — but kept in the schema so
+    -- The mirror flag ("Link to Player"). Not rendered in the page body — Helpers.RenderUnitPanel
+    -- draws it as a band checkbox above the tab strip — but kept in the schema so
     -- `/at set units.focus.mirror false` works. The player is the mirror SOURCE and gets no row.
+    -- One word for the state, "link" (ABS-L10, XC-15), and the band checkbox reads this row's
+    -- label and desc, so `/at list` and the panel say the same thing.
     --
     -- IT CARRIES A GROUP AND STILL DRAWS NO TAB. options-ui-§13 wants every row attributable to a
     -- section, and a group-less row is the authoring defect the library now reports; but this row's
@@ -267,8 +295,8 @@ local function addUnitRows(unit)
             group      = "Link",
             order      = 20,
             type       = "bool",
-            label      = "Use same styling as Player",
-            desc       = "Mirror every Player bar appearance setting. Position and enable stay independent.",
+            label      = "Link to Player",
+            desc       = "Use the Player bar's look for this bar (all appearance settings). Position and enable stay this bar's own.",
             default    = true,
         }
     end
@@ -286,7 +314,10 @@ local function build(mainCategory)
     local ctx = H.CreatePanel("AbsorbTrackerAppearancePanel", "Appearance", {
         pageKey         = PAGE,
         defaultsButton  = true,
-        defaultsTooltip = "Restore every Appearance setting on this profile to its addon default, on every unit.",
+        -- The second sentence is options-ui-§14's disclosure for the per-unit enables this page's
+        -- band draws but General's Defaults resets (ABS-L14).
+        defaultsTooltip = "Restore every Appearance setting on this profile to its addon default, "
+            .. "on every unit. Which bars are shown is reset by the General page's Defaults.",
     })
     -- Parked, not wired: the Defaults button does not exist yet — it is built
     -- on first OnShow (see Helpers.EnsureDefaultsButton).

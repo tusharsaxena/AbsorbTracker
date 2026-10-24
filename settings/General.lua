@@ -1,7 +1,7 @@
 -- AbsorbTracker: settings/General.lua
 --
--- General sub-page — what `/at config` opens by default. The addon-wide controls, which bars exist,
--- and how the ones that do behave.
+-- General sub-page — what `/at config` opens by default. The addon-wide controls and how the bars
+-- behave. Which bars exist is drawn on the Appearance page (see below) but reset from here.
 
 local _, NS = ...
 
@@ -13,27 +13,30 @@ local H = NS.Helpers
 
 -- TWO TABS (options-ui-§13), and the strip is the schema array's own order:
 --
---     [ Master controls ][ Bars ]
+--     [ Master controls ][ Behavior ]
 --
 --     Master controls  [Enable Absorb Tracker]  [General visibility]
---                      [Master scale]           [Master alpha]
+--                      [Master scale]           [Master opacity]
 --                      [Lock frame]             [Debug console]
 --                      [Minimap button]                                <- alone: no Test mode row
 --                      [Reset position]         [Reset all settings]   <- button pair, afterGroup
---     Bars             -- Tracked units --                             <- subgroup, options-ui-§7
---                      [Enable Player Bar]      [Enable Target Bar]
---                      [Enable Focus Bar]
---                      -- Updates --
---                      [Update throttle]
+--     Behavior         [Update throttle (seconds)]
 --
--- THERE IS NO `Behavior` TAB ANY MORE, and it is the move of `locked` that ended it rather than a
--- redesign. Behavior held lock, the combat gate and the throttle; lock is canonical and belongs on
--- Master controls, the combat gate became the `visibility` dropdown there, and what was left was
--- one slider. A tab holding one control is not a subject, it is a click that reveals one widget, so
--- the throttle merged into the tab whose subject contains it -- which bars exist and how they
--- behave -- and the merged tab carries a subsection heading per kind, which is exactly what
--- options-ui-§7 asks of a tab that mixes them. Neither heading repeats the tab's own name, which
--- that rule forbids outright.
+-- BEHAVIOR HOLDS ONE SLIDER, AND THAT IS THE OWNER'S CALL (item 020, ABS-L-new1, XC-22/XC-23).
+-- The tab used to be "Bars": the three per-unit enables under a "Tracked units" heading and the
+-- throttle under "Updates". The enables now draw in the Appearance band beside the Unit picker
+-- (ABS-L01), where the bar they switch on is styled, which leaves the throttle. XC-23 sends an
+-- addon-wide performance knob to a General tab named Behavior -- the name MultiMeters and QuickComms
+-- ship -- rather than into Master controls' `extra` slot, and the one-line tab is accepted for that
+-- parity (options-ui-§13's two-line rule is a SHOULD; docs/ARCHITECTURE.md records it). With one
+-- drawn row there is no kind to separate, so no subsection heading (XC-22).
+--
+-- THE ENABLES STAY STAMPED HERE. They are skipRender rows in the Behavior group with `page =
+-- "general"`, so General's Defaults still resets which bars are shown and `/at list` still prints
+-- them under [general], exactly as before the move. options-ui-§14 allows a row drawn on one page to
+-- stay stamped to another when both pages' Defaults tooltips say so; both do (ABS-L14). They carry
+-- no `subgroup`: the flow engine opens a subgroup heading even for skipRender rows, and an empty
+-- "Tracked units" heading would sit over nothing.
 --
 -- MASTER CONTROLS LEADS, AND IS NOT OPTIONAL (options-ui-§15). The one thing every player looks for
 -- first -- how do I turn this off, how do I make it smaller, how do I put it back -- is in the same
@@ -51,12 +54,12 @@ local H = NS.Helpers
 -- WHAT MOVED HERE, AND IS THEREFORE GONE FROM WHERE IT WAS. Two controls over one setting is the
 -- failure this pass exists to remove, so each of these has exactly ONE declaration now:
 --
---   * `locked`             was the Behavior tab's "Lock Position"
+--   * `locked`             was the first Behavior tab's "Lock Position"
 --   * `state.debugConsole` was a bespoke SessionCheckbox hung off the throttle row through the
 --                          `pairWith` seam. The console itself is untouched -- only how the toggle
 --                          is DECLARED changed, and it is a schema row now, so `/at get` and
 --                          `/at set` can reach it where before no CLI verb could.
---   * Reset position       were the Bars tab's afterGroup button pair
+--   * Reset position       were the old Bars tab's afterGroup button pair
 --   * Reset all settings
 --
 -- WHAT IS NEW. `enabled`, `visibility`, `scale` and `alpha` did not exist. `visibility` REPLACES the
@@ -64,10 +67,11 @@ local H = NS.Helpers
 -- that is a stored-value type change and so takes a migration (core/Database.lua's v5) in the same
 -- change as the row.
 --
--- WHAT DID NOT MOVE. The per-unit `barAlpha` on the Appearance page is NOT Master alpha
--- (options-ui-§15 forbids conflating an addon-wide row with a per-instance one): one dims all three
--- bars, the other dims one, and NS.GetBarAlpha multiplies them. Nor are the three per-unit `enabled`
--- toggles the addon-wide `Enable` row -- they are which bars exist, and they stay on the Bars tab.
+-- WHAT DID NOT MOVE. The per-unit `barAlpha` on the Appearance page is NOT Master opacity (stored
+-- leaf `alpha`; options-ui-§15 forbids conflating an addon-wide row with a per-instance one): one
+-- dims all three bars, the other dims one, and NS.GetBarAlpha multiplies them. Nor are the three
+-- per-unit `enabled` toggles the addon-wide `Enable` row -- they are which bars exist, drawn in the
+-- Appearance band and stamped to this page.
 --
 -- Schema rows below double as the source for `/at list/get/set` on these paths.
 
@@ -110,6 +114,15 @@ local masterRows, masterTail = H.MasterControls({
     -- emits it wherever this key is present. This addon declares no `testModePath` (the lock is its
     -- preview), so the fourth line of the canonical set renders as [Minimap button] alone.
     minimapPath      = NS.Constants.MINIMAP_PATH,
+    -- Unlocking IS this addon's preview (no Test mode row), so Lock frame takes the composer's one
+    -- sentence for that (compose minor 9, options-ui-§15, ABS-L-new3) rather than host words. The
+    -- canonical sentence has no combat clause, and the combat behavior is real here: the `locked`
+    -- onChange below refuses an unlock in combat, and core/AbsorbTracker.lua's RelockForCombat
+    -- re-locks on PLAYER_REGEN_DISABLED. `notes.locked` is the composer's only way to add it.
+    lockIsPreview    = true,
+    notes            = {
+        locked = "Unlocking is refused in combat, and entering combat locks the bars again.",
+    },
     defaults         = {
         enabled    = flatDefaults.enabled,
         visibility = flatDefaults.visibility,
@@ -258,6 +271,19 @@ NS.RegisterSchemaRows(masterRows)
 -- SchemaForPage(page, nil) returns every unit's rows, so the tag is inert here — it is kept so the
 -- row is still identifiable as per-unit by anything walking the schema.
 --
+-- DRAWN ON THE APPEARANCE PAGE, STAMPED TO THIS ONE (item 020, ABS-L01). `skipRender` keeps each
+-- off the General body; settings/UnitPanel.lua draws the picked unit's as "Enable this unit" in
+-- the band, beside the Unit picker, reading this row's label and desc and writing through
+-- NS.SetByPath so the onChange below fires. See the head of this file for why `page` stays.
+--
+-- One tooltip per unit (ABS-L13): the player's reads "yourself", and only target and focus carry
+-- the sentence about the unit having to exist.
+local ENABLE_DESC = {
+    player = "Show the Player bar and track absorbs on yourself.",
+    target = "Show the Target bar and track absorbs on your target. It appears only while you have a target.",
+    focus  = "Show the Focus bar and track absorbs on your focus. It appears only while you have a focus.",
+}
+--
 -- These are the per-BAR visibility switch, a different setting from the Master controls tab's
 -- addon-wide `enabled`; `onChange` therefore also re-syncs the per-unit event registrations
 -- (core/AbsorbTracker.lua), so a disabled unit costs no event dispatch at all.
@@ -271,13 +297,14 @@ for i, unit in ipairs(NS.Units.LIST) do
             -- must not tag `/at get units.focus.enabled` with the "(mirrored)" note. Still load
             -- bearing after the move off the Bar page — that note is keyed off this flag.
             alwaysPerUnit = true,
-            group    = "Bars",
-            subgroup = "Tracked units",
+            skipRender = true,
+            group    = "Behavior",
             order   = i * 10,
             type    = "bool",
-            label   = "Enable " .. NS.Units.LABEL[unit] .. " Bar",
-            desc    = ("Track and display absorbs on your %s. Target and focus bars additionally "
-                .. "need that unit to exist before they appear."):format(NS.Units.LABEL[unit]:lower()),
+            -- options-ui-§21 (XC-16): a checkbox on the picked instance names the picker's noun.
+            label   = "Enable this unit",
+            desc    = ENABLE_DESC[unit]
+                or ("Show the " .. NS.Units.LABEL[unit] .. " bar and track absorbs on it."),
             default = (unit == "player"),
             onChange = function()
                 -- UNITS first: it re-syncs the event registrations, so a unit that was just
@@ -298,21 +325,22 @@ end
 
 NS.RegisterSchemaRows({
     {
-        -- The last row of the old Behavior tab, under its own subsection heading on Bars. See the
-        -- note at the head of this file for why the tab it used to share is gone.
+        -- The one row the Behavior tab draws. See the note at the head of this file for why the
+        -- tab holds it alone.
         --
         -- `solo` went with the bespoke debug-console checkbox it existed for: this row HOSTED that
         -- checkbox through the `pairWith` seam, which needs its host to be alone on its line.
-        -- Nothing pairs with it now, and a subsection heading already breaks the line before it, so
-        -- declaring the layout by hand would state a fact the flow engine produces.
+        -- Nothing pairs with it now, so declaring the layout by hand would state a fact the flow
+        -- engine produces.
         path     = "throttleWindow",
         page     = "general",
-        group    = "Bars",
-        subgroup = "Updates",
+        group    = "Behavior",
         order    = 40,
         type    = "number",
-        label   = "Update throttle (in sec)",
-        desc    = "Fastest the bar repaints during a burst of changes. Lower = snappier but more CPU.",
+        -- options-ui-§21 units: "(seconds)" in the label; the `fmt` readout is not a label.
+        label   = "Update throttle (seconds)",
+        desc    = "Fastest the bars repaint during a burst of changes. Applies to every bar. "
+            .. "Lower = snappier but more CPU.",
         default = flatDefaults.throttleWindow,
         min = 0.05, max = 1, step = 0.05, fmt = "%.2f sec",
         -- Same declared no-op, same reason, and here the cost is per SLIDER STEP: a drag from 0.05
@@ -363,7 +391,10 @@ local function build(mainCategory)
     local ctx = H.CreatePanel("AbsorbTrackerGeneralPanel", "General", {
         pageKey         = "general",
         defaultsButton  = true,
-        defaultsTooltip = "Restore every General setting on this profile to its addon default.",
+        -- Names the per-unit enables: they are drawn on the Appearance page but stamped here, so
+        -- this button is the one that resets them (options-ui-§14, ABS-L14).
+        defaultsTooltip = "Restore every General setting on this profile to its addon default, "
+            .. "including which bars are shown.",
     })
     -- Parked, not wired: the Defaults button does not exist yet — it is built
     -- on first OnShow (see Helpers.EnsureDefaultsButton).

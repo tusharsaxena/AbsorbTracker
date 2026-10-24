@@ -30,13 +30,13 @@ The schema-driven design makes a flat setting a one-row change. The widget on th
 
    NS.RegisterSchemaRows({
        -- ... existing rows ...
-       { path = "myNewKnob", page = "general", group = "Bars", order = 50,
+       { path = "myNewKnob", page = "general", group = "Behavior", order = 50,
          type = "number", label = "My New Knob", default = flatDefaults.myNewKnob,
          min = 0, max = 100, step = 1 },
    })
    ```
 
-   `group` is the **tab** the row lands on, and the strip is the order each group's first row was registered — so reuse an existing tab name (`Bars` here) unless the setting really is a new subject, and keep a group's rows contiguous. `Master controls` is not available: options-ui-§15 fixes that set. Use `flatDefaults.myNewKnob` for the `default` field — `defaults/Profile.lua` is the single source of truth for default values.
+   `group` is the **tab** the row lands on, and the strip is the order each group's first row was registered — so reuse an existing tab name (`Behavior` here) unless the setting really is a new subject, and keep a group's rows contiguous. `Master controls` is not available: options-ui-§15 fixes that set. Use `flatDefaults.myNewKnob` for the `default` field — `defaults/Profile.lua` is the single source of truth for default values.
 
 3. **Override `onChange` if the side effect isn't the default appearance refresh.** Most settings just need to re-apply appearance — the default `onChange` publishes the `APPEARANCE` message (→ `UpdateBarAppearance`). For settings that need a different reaction:
 
@@ -80,7 +80,7 @@ Appearance settings are per-unit (player/target/focus) rather than a single flat
    }
    ```
 
-3. **Add the row inside `addUnitRows(unit)`** (`settings/Appearance.lua`) — the loop that already calls it once per `NS.Units.LIST` entry picks the new row up automatically. Put it with its tab's other rows: `group` is the tab, tabs are drawn in the order each group's first row was registered, and a group's rows must stay **contiguous**.
+3. **Add the row inside `addUnitRows(unit)`** (`settings/Appearance.lua`) — the loop that already calls it once per `NS.Units.LIST` entry picks the new row up automatically. Put it with its tab's other rows: `group` is the tab, `subgroup` the heading inside it, tabs are drawn in the order each group's first row was registered, and a group's rows must stay **contiguous**. Inside the Bar tab each subsection owns an `order` range (Size 10-20, Fill 100+, Background 200+, Border 300+), so give a new row an `order` inside its subsection's range or its heading prints twice.
 
    ```lua
    -- settings/Appearance.lua, inside addUnitRows(unit)
@@ -88,8 +88,9 @@ Appearance settings are per-unit (player/target/focus) rather than a single flat
        path    = p .. "myNewKnob",   -- p = "units." .. unit .. "."
        page    = "appearance",
        unit    = unit,
-       group   = "Size",
-       order   = 50,
+       group    = "Bar",
+       subgroup = "Size",
+       order    = 30,
        type    = "number",
        label   = "My New Knob",
        default = unitDefaults.myNewKnob,
@@ -234,6 +235,7 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 |-------|--------|
 | `tests/test_loadorder.lua` | The four load lists cannot drift from the TOC — `tocFiles()`'s derivation, the runner's list, `tests/perf.lua` still deriving, and (because the TOC reaches the library through an XML the loader cannot read) that both runners load every file `libs/LibKa0s/LibKa0s.xml` lists, in its order. Plus the strict LibStub mock. |
 | `tests/test_schema.lua` | schema shape, `ValidateSchema` (errors / resolved / missing), `SetByPath`, `ApplyDefault`, formatters/parsers |
+| `tests/test_layoutguard.lua` | The settings-layout guard (item 020): every stored path's type, page, default and range, written out literally as they stood before the layout pass, so a key, default or range drift, or an added or lost setting, fails by name |
 | `tests/test_database.lua` | `InitDB`, `RunMigrations` idempotency, flat + per-unit backfill, schemaVersion v1→v2→v3 migration (v3 lifts pre-v3 flat keys onto `profile.units.player`), the per-profile lift across **every** saved profile, and the `OnProfileChanged` lift for a profile restored after the upgrade |
 | `tests/test_envsetup.lua` | The `LibKa0s-Env-1.0` seam: `NS.Meta` / `NS.Version`, the folder name it passes, and its no-library fallback |
 | `tests/test_coresetup.lua` | `core/CoreSetup.lua`: `NS.IsConcatSafe` / `NS.SafeToString` really are `LibKa0s-Core-1.0`'s own functions, `NS.Print` carries the `[AT]` tag and survives a secret arg, `NS.Format` formats its parts into one tagged line live and degraded, `NS.Print` is `NS.Util.print` (one object), and the degraded load with `libs/LibKa0s/` absent |
@@ -259,7 +261,7 @@ luac -p <changed.lua>  # bytecode-parse each file you touched
 | `tests/test_widgets.lua` | Schema-row → AceGUI widget translation as this addon's rows exercise it: the widget makers reached by `RenderField` dispatch, `SessionCheckbox`, `RenderRows`/`RenderSchema` layout (`skipRender` rows omitted), and the real pages driven through their deferred `OnShow`. The flow engine itself belongs to `LibKa0s-Options-1.0`; what this asserts is that our rows drive it into the layout we expect |
 | `tests/test_perf.lua` | This addon's side of the `LibKa0s-Perf-1.0` harness (issue #17): `core/PerfSetup.lua`'s descriptor is well-formed, the bracket call sites (silent when off), and suspend/resume through the `perf` hold on the lifecycle latch (the `ShouldShowBar` step-0 latch rung, event teardown/restore, `RequestRepaint` no-op, `CancelPendingRepaint`). The probe's own bucket accounting, `EncodeJSON`, `BuildRecord`, the capture ring, and `FormatReport` are tested in the LibKa0s repo, not here |
 | `tests/test_units.lua` | `core/Units.lua`: `LIST`/`LABEL`, `IsEnabled`/`IsMirrored`/`SourceUnit` (player never mirrored), the mirror-resolved `Get`, `Position`/`SetPosition` (never mirrored), `CopyFromPlayer` (deep-copy + mirror clear, `position`/`enabled` untouched, and all twenty writes through `NS.SetByPath` — and the only place `DeepCopy` is exercised). `Set` has no case and no production caller; see `docs/module-map.md` |
-| `tests/test_optionssetup.lua` | `settings/OptionsSetup.lua` as a **file** — the descriptor's half of the reset contract and the degradation stub, the panel toolkit itself being `LibKa0s-Options-1.0`'s to test: the live and degraded builds veto the same rows from Reset All, the stub publishes all six members reached at *file load* (`LSMValues` plus the five composers, each hollow), the degraded `enable`/`disable`/`unlock` verbs still reach the store and the host's reactions through the `writeThrough` list, the stub keeps no private copy of the library's layout constants, and `PARENT_TITLE` reaches the library through `descriptor.parentTitle`, and the descriptor passes the folder name as `addonName` with its `info` art on disk (LibKa0s#42) |
+| `tests/test_optionssetup.lua` | `settings/OptionsSetup.lua` as a **file** — the descriptor's half of the reset contract and the degradation stub, the panel toolkit itself being `LibKa0s-Options-1.0`'s to test: the live and degraded builds veto the same rows from Reset All, the stub publishes all six members reached at *file load* (`LSMValues` plus the five composers, each hollow), LibKa0s v1.77.0's five members (`KeybindingsTab`, `KeybindRows`, `KEYBINDS_UNCHANGED`, `StrataTooltip`, and `ResetAllTooltip` answering only the caller's tail) answer inert, the degraded `enable`/`disable`/`unlock` verbs still reach the store and the host's reactions through the `writeThrough` list, the stub keeps no private copy of the library's layout constants, and `PARENT_TITLE` reaches the library through `descriptor.parentTitle`, and the descriptor passes the folder name as `addonName` with its `info` art on disk (LibKa0s#42) |
 | `tests/test_docs.lua` | The shipped prose, where it is checkable: `README.md` carries no angle-bracket argument placeholders (CurseForge strips them, backticks included), `## Reporting a bug` is the standard's text with `/at` and sits where the standard puts it, and US English across every authored string and comment in the addon's own files. `libs/`, `tests/_kit/` and the frozen dated bundles under `docs/` are out of scope by design |
 | `tests/test_ltrap.lua` | The `L` trap across all five LibKa0s seams: a source check that fails on any `L =` whose value can evaluate to `NS.L` (which answers every key, so it would render raw SCREAMING_SNAKE in game only), a non-vacuity case on `locales/enUS.lua`, three library-regression cases handing DebugLog / Slash / Perf the fallback-table shape and requiring the built-in English back, and two tripwires (Core, Options) for the majors that cannot express the trap today |
 | `tests/test_surface_parity.lua` | Every degradation stub carries the whole live surface, asserted as a **set** per seam (Core / DebugLog / Options / Slash) via the kit's `assertSurfaceParity`. The degraded arm is a real load with `libs/` absent (`tests/degraded_env.lua`), never a hand-stub; live-only members are named in an `ignore` set with their reason (testing-§8) |

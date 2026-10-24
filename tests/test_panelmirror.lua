@@ -46,7 +46,7 @@ end
 
 -- ── The chrome block registers a refresher ────────────────────────────────────
 
--- The mirror checkbox and the "Copy styling from Player" button are built inline by
+-- The mirror checkbox and the "Copy from Player" button are built inline by
 -- RenderUnitPanel, not through RenderField, so neither used to append anything to ctx.refreshers:
 -- RefreshAllPanels structurally could not update them, and nothing re-ran the mirrored/unmirrored
 -- row partition. The panel then lied exactly once (it self-corrects on the next OnShow).
@@ -54,11 +54,11 @@ end
 -- The checkbox is read out of the chrome block and the rows out of the scroll, which is the split
 -- options-ui-§14 draws: page-wide controls in the band, the tab's own rows below it.
 local function mirrorHeaderState(ctx)
-  local cb = chromeLabel(ctx, "Use same styling as Player")
+  local cb = chromeLabel(ctx, "Link to Player")
   local hasAppearanceRows = false
   local function walk(w)
     for _, child in ipairs(w.children or {}) do
-      if child.labelText == "Bar Width (in px)" then hasAppearanceRows = true end
+      if child.labelText == "Bar width (px)" then hasAppearanceRows = true end
       walk(child)
     end
   end
@@ -300,16 +300,16 @@ test("after a tab click the two-tier refresher is still registered", function()
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
   tabButtons(ctx)[2]:__fire("OnClick")
-  assertEqual(ctx.activeTab, "Bar", "the click retargets the page to the second tab")
-  assertTrue((scrollContent(ctx))["Use class color"], "precondition: the Bar tab's rows are drawn")
+  assertEqual(ctx.activeTab, "Text", "the click retargets the page to the second tab")
+  assertTrue((scrollContent(ctx))["Font size"], "precondition: the Text tab's rows are drawn")
 
   NS.Helpers.RestoreDefaults("appearance", ctx)
   assertEqual(NS.db.profile.units.focus.mirror, true, "the reset re-mirrored the unit")
   local labels, texts = scrollContent(ctx)
-  assertTrue(chromeLabel(ctx, "Use same styling as Player").value,
+  assertTrue(chromeLabel(ctx, "Link to Player").value,
     "the block's checkbox follows the reset after a tab click")
-  assertFalse(labels["Use class color"], "the now-mirrored unit's rows are gone")
-  assertTrue(texts["Linked to Player \226\128\148 uncheck to customize."], "and the hint replaces them")
+  assertFalse(labels["Font size"], "the now-mirrored unit's rows are gone")
+  assertTrue(texts["Linked to Player. Untick Link to Player above to give this unit its own look."], "and the hint replaces them")
 
   ctx.unit, ctx.activeTab = "player", nil
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
@@ -317,7 +317,7 @@ end)
 
 test("the Link group never becomes a tab, mirrored or not", function()
   -- The mirror row is the Link group's only row and carries skipRender: its widget is the bespoke
-  -- checkbox in the chrome block. A partition that kept skipRender rows would grow a sixth tab,
+  -- checkbox in the chrome block. A partition that kept skipRender rows would grow a third tab,
   -- "Link", holding nothing, on target and focus.
   local panel = barPanel()
   panel:__fire("OnShow")
@@ -336,8 +336,8 @@ test("the Link group never becomes a tab, mirrored or not", function()
         NS.Helpers.RenderUnitPanel(ctx, "appearance")
         local where = unit .. (mirrored and " (mirrored)" or "")
         assertTrue(keys ~= nil, where .. ": the strip was drawn")
-        assertEqual(table.concat(keys, ","), "Size,Bar,Background,Border,Text",
-          where .. ": five tabs, and Link is none of them")
+        assertEqual(table.concat(keys, ","), "Bar,Text",
+          where .. ": two tabs, and Link is none of them")
       end
     end
   end)
@@ -360,9 +360,9 @@ test("a hidden Appearance page is not rebuilt by a mirror flip; its next OnShow 
   local ctx = NS.Helpers.__lastUnitCtx
   NS.db.profile.units.focus.mirror = false
   ctx.unit = "focus"
-  -- The Size tab, which holds the "Bar Width (in px)" row mirrorHeaderState looks for, rather than
-  -- whichever tab an earlier case left active.
-  ctx.activeTab = "Size"
+  -- The Bar tab, whose Size subsection holds the "Bar width (px)" row mirrorHeaderState looks
+  -- for, rather than whichever tab an earlier case left active.
+  ctx.activeTab = "Bar"
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
   assertTrue(select(2, mirrorHeaderState(ctx)), "precondition: the unlinked unit's rows are drawn")
 
