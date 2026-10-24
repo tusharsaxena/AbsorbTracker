@@ -26,10 +26,11 @@ Total.
 - loadorder: LibStub returns nil for a missing major with the silent flag
 - loadorder: LibStub keeps the higher minor when a major registers twice
 
-### test_schema.lua (60)
+### test_schema.lua (62)
 
 - FormatSchemaValue formats by type
 - SchemaForPage keeps groups in registration order, which IS the Appearance tab strip
+- the Bar tab runs Size, Fill, Background, Border, each contiguous
 - the page -> tab -> row-count partition is the designed one
 - no tab holds fewer than two visible controls
 - ValidateSchema resolves every real path against defaults (0 errors, 0 missing)
@@ -73,7 +74,8 @@ Total.
 - the Master controls tab is the canonical set, in order, and leads the General page
 - there is no Test mode row beside Lock frame
 - Reset all settings returns the lock to its shipped default
-- the Bars tab is the three enable toggles then the throttle, under their own headings
+- the Behavior tab draws the throttle alone, the enables riding along undrawn
+- item 020: the Appearance and Master controls words
 - the mirror row exists for target and focus but not the player
 - the mirror row is kept out of the auto-rendered body
 - General's rows are the flat globals plus one enable toggle per unit
@@ -524,12 +526,14 @@ Total.
 - the cross-slice layout constants are published for the widget/about slices
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_panelpages.lua (24)
+### test_panelpages.lua (26)
 
 - a page renders nothing until its first OnShow
 - the Appearance page opens on the player unit with no mirror controls
 - the Unit picker is in the page's chrome block, and is the page's only picker
 - switching the picker to focus re-renders the page for that unit
+- the band draws Enable this unit beside the picker, for every unit
+- the band's enable box writes through SetByPath, and the refresher re-syncs it
 - the Appearance page draws one tab per schema group, in declaration order
 - clicking a tab switches the page to that tab's rows and nothing else's
 - a tab click keeps the chrome block, and never grows a second copy of it
@@ -601,7 +605,7 @@ Total.
 - launcher: with LibDataBroker but no LibDBIcon, the plugin exists and the button does not
 - launcher: with LibKa0s absent the seam still answers, and still remembers the choice
 
-### test_optionssetup.lua (20)
+### test_optionssetup.lua (21)
 
 - the live and degraded builds veto exactly the same rows from Reset All
 - Reset All resets a sessionOnly row and fires its onChange once, on both builds
@@ -620,6 +624,7 @@ Total.
 - the live arm patches LSM30_Border through the library, not through a private copy
 - the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
 - General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
+- both Defaults tooltips say which page resets which bars are shown
 - the Options descriptor tells the library the FOLDER name
 - and the Options descriptor takes that name from the first vararg, not a literal
 - the id-list help mark is latent: info is neither declared nor shipped
@@ -833,8 +838,8 @@ Total.
 - `startsLine` flushes the pending line, so a declared pair can never be split
 - RenderSchema emits a Heading for each schema group
 - an afterGroup callback fires exactly once, after its group's last row
-- the Bars tab pairs the enable toggles with each other, not with a global
-- every tracked unit gets an enable toggle on the General page
+- General draws the canonical pairs and no per-unit enable toggle
+- every tracked unit keeps an enable row stamped to General, drawn nowhere on it
 - visibility repaints for a target-only setup, not just for the player
 - the Reset All popup does not claim success when the settings helpers are absent
 - a pairWith partner is attached to the named row and is one-shot
@@ -847,7 +852,7 @@ Total.
 - the Defaults button restores just its own page
 - a second OnShow rebuilds the panel body without stacking duplicate widgets
 - the General page draws its two groups as a tab strip, Master controls first
-- clicking Bars swaps the rows and leaves the button pair on Master controls
+- clicking Behavior swaps the rows and leaves the button pair on Master controls
 - every unit's Appearance strip is its schema's groups, and each tab draws that group's rows
 - a mirrored unit's every tab draws the hint and none of the appearance rows
 - showing every page builds it without error
@@ -1040,7 +1045,7 @@ Total.
 | Suite | Cases |
 |-------|------:|
 | test_loadorder.lua | 15 |
-| test_schema.lua | 60 |
+| test_schema.lua | 62 |
 | test_layoutguard.lua | 1 |
 | test_database.lua | 38 |
 | test_units.lua | 17 |
@@ -1058,10 +1063,10 @@ Total.
 | test_draghandle.lua | 39 |
 | test_layers.lua | 12 |
 | test_helpers.lua | 40 |
-| test_panelpages.lua | 24 |
+| test_panelpages.lua | 26 |
 | test_panelmirror.lua | 10 |
 | test_launcher.lua | 34 |
-| test_optionssetup.lua | 20 |
+| test_optionssetup.lua | 21 |
 | test_slashcmds.lua | 66 |
 | test_slashprofile.lua | 34 |
 | test_perfcmds.lua | 42 |
@@ -1082,4 +1087,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **900** |
+| **Total** | **905** |

@@ -30,13 +30,13 @@ The schema-driven design makes a flat setting a one-row change. The widget on th
 
    NS.RegisterSchemaRows({
        -- ... existing rows ...
-       { path = "myNewKnob", page = "general", group = "Bars", order = 50,
+       { path = "myNewKnob", page = "general", group = "Behavior", order = 50,
          type = "number", label = "My New Knob", default = flatDefaults.myNewKnob,
          min = 0, max = 100, step = 1 },
    })
    ```
 
-   `group` is the **tab** the row lands on, and the strip is the order each group's first row was registered — so reuse an existing tab name (`Bars` here) unless the setting really is a new subject, and keep a group's rows contiguous. `Master controls` is not available: options-ui-§15 fixes that set. Use `flatDefaults.myNewKnob` for the `default` field — `defaults/Profile.lua` is the single source of truth for default values.
+   `group` is the **tab** the row lands on, and the strip is the order each group's first row was registered — so reuse an existing tab name (`Behavior` here) unless the setting really is a new subject, and keep a group's rows contiguous. `Master controls` is not available: options-ui-§15 fixes that set. Use `flatDefaults.myNewKnob` for the `default` field — `defaults/Profile.lua` is the single source of truth for default values.
 
 3. **Override `onChange` if the side effect isn't the default appearance refresh.** Most settings just need to re-apply appearance — the default `onChange` publishes the `APPEARANCE` message (→ `UpdateBarAppearance`). For settings that need a different reaction:
 
@@ -80,7 +80,7 @@ Appearance settings are per-unit (player/target/focus) rather than a single flat
    }
    ```
 
-3. **Add the row inside `addUnitRows(unit)`** (`settings/Appearance.lua`) — the loop that already calls it once per `NS.Units.LIST` entry picks the new row up automatically. Put it with its tab's other rows: `group` is the tab, tabs are drawn in the order each group's first row was registered, and a group's rows must stay **contiguous**.
+3. **Add the row inside `addUnitRows(unit)`** (`settings/Appearance.lua`) — the loop that already calls it once per `NS.Units.LIST` entry picks the new row up automatically. Put it with its tab's other rows: `group` is the tab, `subgroup` the heading inside it, tabs are drawn in the order each group's first row was registered, and a group's rows must stay **contiguous**. Inside the Bar tab each subsection owns an `order` range (Size 10-20, Fill 100+, Background 200+, Border 300+), so give a new row an `order` inside its subsection's range or its heading prints twice.
 
    ```lua
    -- settings/Appearance.lua, inside addUnitRows(unit)
@@ -88,8 +88,9 @@ Appearance settings are per-unit (player/target/focus) rather than a single flat
        path    = p .. "myNewKnob",   -- p = "units." .. unit .. "."
        page    = "appearance",
        unit    = unit,
-       group   = "Size",
-       order   = 50,
+       group    = "Bar",
+       subgroup = "Size",
+       order    = 30,
        type    = "number",
        label   = "My New Knob",
        default = unitDefaults.myNewKnob,

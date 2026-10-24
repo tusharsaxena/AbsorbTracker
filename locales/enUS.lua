@@ -9,7 +9,7 @@ NS.L = setmetatable(NS.L or {}, { __index = function(_, k) return k end })
 -- Documented deviations register (localization-§1), with the re-check trigger the standard asks for:
 -- the first non-English locale file added to this folder. Almost every user-facing string -- labels,
 -- tooltips, slash output, the reset-confirm popup -- is therefore still hardcoded English, and the
--- seam is here so a future pass can wrap them (`NS.L["Bar Width (in px)"]`) without touching call
+-- seam is here so a future pass can wrap them (`NS.L["Bar width (px)"]`) without touching call
 -- sites.
 --
 -- The disabled-verb refusal that settings/Slash.lua used to route through here left the addon at
@@ -55,10 +55,10 @@ L["Lock the bars to hide this handle \226\128\148 /at lock."] =
 -- token `/at toggle` takes (player, target, focus), not its label.
 L["Hide the %s bar"] = "Hide the %s bar"
 L["Click to hide this bar."] = "Click to hide this bar."
-L["Re-enable it on General > Bars or with /at toggle %s."] =
-    "Re-enable it on General > Bars or with /at toggle %s."
-L["%s bar hidden. Re-enable it on General > Bars or with /at toggle %s."] =
-    "%s bar hidden. Re-enable it on General > Bars or with /at toggle %s."
+L["Re-enable it on the Appearance page or with /at toggle %s."] =
+    "Re-enable it on the Appearance page or with /at toggle %s."
+L["%s bar hidden. Re-enable it on the Appearance page or with /at toggle %s."] =
+    "%s bar hidden. Re-enable it on the Appearance page or with /at toggle %s."
 
 -- The diagnostics report (debug-logging-§14): the `diagnostics` row in `/at help` and on the About
 -- page (settings/Slash.lua), and the one chat line the report prints, handed to LibKa0s-DebugLog

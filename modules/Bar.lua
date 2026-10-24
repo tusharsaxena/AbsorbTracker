@@ -28,7 +28,8 @@ local function savePosition(bar)
 end
 
 --- The close mark's click: turn off this ONE bar. It writes the existing per-unit enable row --
---- `units.<unit>.enabled`, the row General > Bars draws and `/at toggle <unit>` flips -- through
+--- `units.<unit>.enabled`, the row the Appearance band draws as "Enable this unit" and `/at toggle
+--- <unit>` flips -- through
 --- NS.SetByPath, the one schema write seam, so the [Set] trace, the row's onChange (which re-syncs
 --- the unit's event registrations and repaints), the refresh bus and an open panel all fire exactly
 --- as they do from the checkbox. Never the addon-wide `enabled` and never the shared `locked`: the
@@ -38,7 +39,7 @@ end
 --- No combat rule of its own: the strip is only shown unlocked, and the lock closes in combat.
 local function closeBar(unit, label)
     NS.SetByPath("units." .. unit .. ".enabled", false)
-    NS.Print(format(L["%s bar hidden. Re-enable it on General > Bars or with /at toggle %s."],
+    NS.Print(format(L["%s bar hidden. Re-enable it on the Appearance page or with /at toggle %s."],
         label, unit))
 end
 
@@ -130,7 +131,7 @@ end
 --- position. A read the placement cannot trust falls back to the cursor, the widget's own fallback.
 local function buildHandle(bar, unit, globalName)
     local label = L[NS.Units.LABEL[unit] or unit]
-    local wayBack = format(L["Re-enable it on General > Bars or with /at toggle %s."], unit)
+    local wayBack = format(L["Re-enable it on the Appearance page or with /at toggle %s."], unit)
     local handle = Widgets.DragHandle(bar, {
         name      = globalName .. "Handle",
         label     = label,

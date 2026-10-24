@@ -494,8 +494,9 @@ end)
 -- So this pins three figures rather than one equality (options-ui-§1: both counts and the delta,
 -- as a named figure attributed to the composers). FULL is the live count, DEGRADED the library-
 -- absent count, and the GAP is the live path set minus the degraded one, attributed per composed
--- tab: Master controls (H.MasterControls) and the four Appearance tabs whose blocks are composed
--- (H.BarGroup, H.ColorPair, H.BorderGroup, H.FontGroup, once per tracked unit). Measured at the
+-- tab: Master controls (H.MasterControls) and the two Appearance tabs whose blocks are composed
+-- (H.BarGroup, H.ColorPair and H.BorderGroup on Bar since item 020, H.FontGroup on Text, once per
+-- tracked unit). Measured at the
 -- commit that made the composers hollow; a page that grows a row moves FULL and DEGRADED together,
 -- and a composer that grows a leaf moves FULL and one GAP entry together.
 -- red under: a stub composer emitting rows (the degraded set stops being a subset, or the gap
@@ -503,7 +504,8 @@ end)
 test("perf: the schema with LibKa0s absent is the full one minus the composed rows, by tab", function()
   local NS2 = loadDegraded()
   local FULL, DEGRADED = 70, 15
-  local GAP = { ["Master controls"] = 7, Bar = 12, Background = 6, Border = 12, Text = 18 }
+  -- Bar: BarGroup 12 + ColorPair 6 + BorderGroup 12, the Fill, Background and Border subsections.
+  local GAP = { ["Master controls"] = 7, Bar = 30, Text = 18 }
   assertEqual(#NS.Schema, FULL, "the full schema's row count")
   assertEqual(#NS2.Schema, DEGRADED,
     "the degraded schema's row count: a page file that aborts at load takes its rows with it")

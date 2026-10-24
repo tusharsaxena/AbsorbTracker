@@ -1,7 +1,8 @@
 -- AbsorbTracker: settings/UnitPanel.lua
 --
 -- The two pieces of the old settings/Helpers.lua that are genuinely this addon's and did not go
--- upstream: the Appearance page (the chrome block holding the Unit picker and the mirror controls,
+-- upstream: the Appearance page (the chrome block holding the Unit picker, the unit's enable box
+-- and the link controls,
 -- the tab strip over the unit's own groups, and the two-tier refresher that keeps them honest) and
 -- the single reset-position implementation.
 --
@@ -48,13 +49,21 @@ end
 --- TWO BANDS, top to bottom, and both are drawn on EVERY render:
 ---
 ---   1. THE CHROME BLOCK (chrome, options-ui-§14) -- always, and there is exactly ONE of it. It
----      holds everything that applies to the page AS A WHOLE: the Unit picker, plus -- for target
----      and focus -- the "Use same styling as Player" checkbox and the "Copy styling from Player"
----      button.
+---      holds everything that applies to the page AS A WHOLE: the Unit picker with the picked
+---      unit's "Enable this unit" box beside it, plus -- for target and focus -- the "Link to
+---      Player" checkbox and the "Copy from Player" button on the row below.
+---
+---      THE ENABLE BOX IS A ROW STAMPED TO ANOTHER PAGE (item 020, ABS-L01). `units.<unit>.enabled`
+---      keeps `page = "general"` and `skipRender`, so General's Defaults still resets it and both
+---      Defaults tooltips say so (options-ui-§14). It is drawn here because §14 makes *enable* on
+---      the edited instance a band act and §15 keeps per-instance settings on the instance's page,
+---      and it has to be the band rather than a tab: a linked unit's tabs are replaced by the hint
+---      (disabledReplaces), and its enable is not part of the link. Its label and tooltip are the
+---      row's own; it writes through NS.SetByPath so the row's onChange fires.
 ---
 ---      H.PageHeader, not H.PageBanner, and that is the RULE rather than a preference. §14 puts
 ---      page-wide controls in this band, "above the strip -- never in the scroll below it", and
----      names copy among the acts it covers. Both mirror controls govern all five tabs: mirroring
+---      names copy among the acts it covers. Both link controls govern every tab: linking
 ---      replaces every tab's rows with the hint below, and CopyFromPlayer copies every appearance
 ---      key on every one of them. Drawn in the SCROLL they read as belonging to whichever tab
 ---      happens to be selected and vanish on the next click -- which is the exact failure §14
@@ -65,8 +74,8 @@ end
 ---      a second band. So the picker is built INSIDE this frame and PageBanner is not called at all
 ---      -- §14's own instruction for a page that needs a picker and other page-wide controls.
 ---
----      Neither mirror control is a schema row and neither can be: neither has a path, which is why
----      the mirror flag's own row carries `skipRender`. That is the case options-ui-§13 exempts from
+---      The copy button is not a schema row and cannot be: it has no path. The link and enable boxes
+---      draw rows that carry `skipRender` for exactly this reason: their widget is here. That is the case options-ui-§13 exempts from
 ---      its two-controls-per-tab rule -- and it says nothing about which BAND they are drawn in,
 ---      which is §14's question and was answered wrongly here once already.
 ---
@@ -86,7 +95,7 @@ end
 ---      Drawn by H.RenderTabbedSchema with three opts OptionsTabs minor 8 added for this page
 ---      (LibKa0s v1.66.0, issue #32). Each replaces a piece the page used to compose itself:
 ---
----        untabbedSkipRender -- the mirror row is the Link group's only row and carries skipRender
+---        untabbedSkipRender -- the link row is the Link group's only row and carries skipRender
 ---                              (its widget is the checkbox in the block above), so Link is no tab.
 ---                              The strip is one tab per remaining group, in declaration order.
 ---        disabledReplaces   -- a mirrored unit draws the hint INSTEAD of its rows, never the rows
@@ -150,10 +159,11 @@ local function place(widget, frame, y, height, half)
 end
 
 --- Build the page's one chrome block into the frame H.PageHeader pinned in the band: the Unit
---- picker, and for target/focus the two mirror controls beside each other under it.
+--- picker in the left half of row 1 and the unit's enable box in the right half, and for
+--- target/focus the two link controls beside each other on row 2.
 ---
---- Returns the mirror checkbox (nil for the player) so the refresher at the bottom of the render
---- can re-sync it. Every widget it creates is recorded on ctx.__chromeWidgets, which is both the
+--- Returns the link checkbox (nil for the player) and the enable box, so the refresher at the
+--- bottom of the render can re-sync both. Every widget it creates is recorded on ctx.__chromeWidgets, which is both the
 --- release ledger (see releaseStaleChromeWidgets) and the test seam — the library keeps its own
 --- chrome private, and a suite otherwise has no handle on a widget a click would reach.
 ---
@@ -181,29 +191,46 @@ local function buildChromeBlock(ctx, pageKey, frame, mirrored)
     end)
     Helpers.AttachTooltip(dd, "Unit",
         "Which bar the settings on this page apply to. Each unit is styled independently unless it is linked to the Player.")
-    place(dd, frame, 0, Helpers.BANNER_H)
+    place(dd, frame, 0, Helpers.BANNER_H, "LEFT")
     ctx.__bannerWidget = dd
 
-    -- The player IS the mirror source, so it gets the picker and nothing else.
-    if ctx.unit == "player" then return nil end
+    -- The picked unit's enable box, row 1's right half, bottom-aligned with the dropdown (whose
+    -- label sits above it). Every unit has one, the player included. Its words are the schema row's,
+    -- so the panel and `/at list` cannot disagree.
+    local enablePath = "units." .. ctx.unit .. ".enabled"
+    local enableRow  = NS.FindSchemaRow and NS.FindSchemaRow(enablePath)
+    local enableLabel = enableRow and enableRow.label or "Enable this unit"
+    local en = AceGUI:Create("CheckBox")
+    kids[#kids + 1] = en
+    en:SetLabel(enableLabel)
+    en:SetValue(NS.Units.IsEnabled(ctx.unit) and true or false)
+    en:SetCallback("OnValueChanged", function(_, _, value)
+        NS.SetByPath(enablePath, value and true or false)
+    end)
+    Helpers.AttachTooltip(en, enableLabel, enableRow and enableRow.desc)
+    place(en, frame, Helpers.BANNER_H - CONTROL_H, CONTROL_H, "RIGHT")
+
+    -- The player IS the link source, so it gets the picker and its enable box and nothing else.
+    if ctx.unit == "player" then return nil, en end
 
     local y = Helpers.BANNER_H + Helpers.ROW_VSPACER
 
+    local linkRow   = NS.FindSchemaRow and NS.FindSchemaRow("units." .. ctx.unit .. ".mirror")
+    local linkLabel = linkRow and linkRow.label or "Link to Player"
     local cb = AceGUI:Create("CheckBox")
     kids[#kids + 1] = cb
-    cb:SetLabel("Use same styling as Player")
+    cb:SetLabel(linkLabel)
     cb:SetValue(mirrored)
     cb:SetCallback("OnValueChanged", function(_, _, value)
         NS.SetByPath("units." .. ctx.unit .. ".mirror", value and true or false)
         Helpers.RenderUnitPanel(ctx, pageKey)
     end)
-    Helpers.AttachTooltip(cb, "Use same styling as Player",
-        "Mirror every Player bar appearance setting. Position and enable stay independent.")
+    Helpers.AttachTooltip(cb, linkLabel, linkRow and linkRow.desc)
     place(cb, frame, y, CONTROL_H, "LEFT")
 
     local btn = AceGUI:Create("Button")
     kids[#kids + 1] = btn
-    btn:SetText("Copy styling from Player")
+    btn:SetText("Copy from Player")
     btn:SetCallback("OnClick", function()
         -- No APPEARANCE publish of our own any more. CopyFromPlayer writes through NS.SetByPath,
         -- and the schema's default onChange broadcasts APPEARANCE per row, so a publish here was a
@@ -211,11 +238,11 @@ local function buildChromeBlock(ctx, pageKey, frame, mirrored)
         NS.Units.CopyFromPlayer(ctx.unit)
         Helpers.RenderUnitPanel(ctx, pageKey)
     end)
-    Helpers.AttachTooltip(btn, "Copy styling from Player",
-        "Take a one-time snapshot of the Player bar's appearance. Unlinks this unit so you can then edit it freely.")
+    Helpers.AttachTooltip(btn, "Copy from Player",
+        "Copy the Player bar's look once, then unlink so you can edit it.")
     place(btn, frame, y, CONTROL_H, "RIGHT")
 
-    return cb
+    return cb, en
 end
 
 --- Return the PREVIOUS render's chrome widgets to AceGUI's pool.
@@ -250,7 +277,7 @@ local function renderUnitPanelBody(ctx, pageKey)
     Helpers.__lastUnitCtx = ctx   -- test seam: the harness has no other handle on a live ctx
 
     local mirrored = NS.Units.IsMirrored(ctx.unit)
-    local cb                                   -- hoisted: the refresher at the bottom re-syncs it
+    local cb, en                               -- hoisted: the refresher at the bottom re-syncs them
 
     -- 1. The block, always, and BEFORE the strip: PageHeader records its own share of the chrome
     --    band in ctx.__bannerHeight, which the strip then adds to the rows it reserves for itself.
@@ -269,7 +296,7 @@ local function renderUnitPanelBody(ctx, pageKey)
     Helpers.PageHeader(ctx, {
         height = chromeBlockHeight(ctx.unit),
         build  = function(_, frame)
-            cb = buildChromeBlock(ctx, pageKey, frame, mirrored)
+            cb, en = buildChromeBlock(ctx, pageKey, frame, mirrored)
         end,
     })
 
@@ -281,16 +308,15 @@ local function renderUnitPanelBody(ctx, pageKey)
         untabbedSkipRender = true,
         disabledReplaces   = true,
         disabledFor        = function() return mirrored end,
-        -- An em dash (\226\128\148), never a figure dash: the figure dash is missing from the
-        -- settings-panel font and renders as an empty box.
-        disabledNotice     = "Linked to Player \226\128\148 uncheck to customize.",
+        -- Says which control undoes it and where it is (ABS-L10, XC-15).
+        disabledNotice     = "Linked to Player. Untick Link to Player above to give this unit its own look.",
         rerender           = function(c) Helpers.RenderUnitPanel(c, pageKey) end,
     })
 
     if scroll and scroll.DoLayout then scroll:DoLayout() end
 
-    -- Register the BLOCK's refresher. The mirror checkbox and the "Copy styling from Player"
-    -- button above are built inline here, not through RenderField, so neither appends a refresher
+    -- Register the BLOCK's refresher. The link and enable boxes and the "Copy from Player"
+    -- button above are built inline here, not through RenderField, so none appends a refresher
     -- of its own — RefreshAllPanels structurally could not update them, and nothing re-ran the
     -- mirrored/unmirrored row partition. Concretely: RestoreDefaults("appearance", ctx) resets
     -- units.focus.mirror to its default `true`, then runs only the refreshers, so the checkbox
@@ -300,7 +326,8 @@ local function renderUnitPanelBody(ctx, pageKey)
     -- TWO-TIER, and the split matters. Every schema widget's write calls RefreshAllPanels, so this
     -- closure runs on EVERY checkbox click, slider drag and LSM pick on this page:
     --
-    --   * Always — re-sync the checkbox in place. Cheap, tears nothing down.
+    --   * Always — re-sync the link and enable boxes in place. Cheap, tears nothing down; the
+    --     enable box follows `/at toggle`, `/at set` and General's Defaults this way.
     --   * Only when the mirror state actually CHANGED since this render — re-render, because that
     --     is the only thing that can invalidate the mirrored/unmirrored partition.
     --
@@ -321,6 +348,7 @@ local function renderUnitPanelBody(ctx, pageKey)
     ctx.refreshers[#ctx.refreshers + 1] = function()
         local nowMirrored = NS.Units.IsMirrored(renderedUnit)
         if cb then cb:SetValue(nowMirrored) end
+        if en then en:SetValue(NS.Units.IsEnabled(renderedUnit) and true or false) end
         if nowMirrored ~= renderedMirrored then
             Helpers.RenderUnitPanel(ctx, pageKey)
         end

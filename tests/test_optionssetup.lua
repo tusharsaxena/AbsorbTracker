@@ -501,6 +501,21 @@ test("General's Reset all settings tooltip says it is the same act as Profiles -
   assertEqual(lines[1], RESET_ALL_TIP)
 end)
 
+-- ── the two Defaults tooltips name the cross-page enables (item 020, ABS-L14) ──────────────────
+--
+-- The per-unit enables are drawn in the Appearance band but stay stamped to General, so General's
+-- Defaults resets them and Appearance's does not. options-ui-§14 lets a row stay stamped to another
+-- page only when BOTH pages' Defaults tooltips say so, which these two sentences do.
+-- red under: either tooltip losing its sentence about which bars are shown.
+test("both Defaults tooltips say which page resets which bars are shown", function()
+  assertEqual(Helpers.__panelFor("appearance").panel.defaultsTooltip,
+    "Restore every Appearance setting on this profile to its addon default, on every unit. "
+    .. "Which bars are shown is reset by the General page's Defaults.")
+  assertEqual(Helpers.__panelFor("general").panel.defaultsTooltip,
+    "Restore every General setting on this profile to its addon default, including which bars "
+    .. "are shown.")
+end)
+
 -- ── the folder name, for the library's help-mark art (LibKa0s#42) ─────────────────
 --
 -- LibKa0s-Options-1.0 builds the IdList help mark from `descriptor.addonName`: the vendored

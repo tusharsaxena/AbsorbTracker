@@ -106,7 +106,7 @@ test("switching the picker to focus re-renders the page for that unit", function
   -- get rebuilt for the new unit" — asserting only ctx.unit would pass even if the OnValueChanged
   -- callback dropped its RenderUnitPanel call and merely reassigned the field.
   local function hasMirrorCheckbox()
-    return chromeLabel(ctx, "Use same styling as Player") ~= nil
+    return chromeLabel(ctx, "Link to Player") ~= nil
   end
   assertTrue(not hasMirrorCheckbox(), "the player page has no mirror controls before the switch")
 
@@ -116,6 +116,79 @@ test("switching the picker to focus re-renders the page for that unit", function
     "switching to focus must actually re-render the page, not just flip ctx.unit")
 
   NS.Helpers.RenderUnitPanel(ctx, "appearance")   -- restore to a known state for later tests
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+end)
+
+-- ── The band's enable box (item 020, ABS-L01, L08, L13) ──────────────────────────────
+--
+-- The selected unit's `units.<unit>.enabled` is drawn in the band, row 1, right half, beside the
+-- Unit picker, for every unit (the player too). The row stays stamped to General (General's
+-- Defaults resets it; both Defaults tooltips say so), so this box is bespoke, like the link
+-- checkbox: it writes through NS.SetByPath, so the row's onChange fires exactly as `/at toggle`
+-- and `/at set` make it fire, and the block's refresher re-syncs it.
+
+-- The body line(s) a widget's tooltip shows, read the way AttachTooltip shows them.
+local function tooltipLines(widget)
+  local tip, lines = T.mocks.GameTooltip, {}
+  local saved = rawget(tip, "AddLine")
+  rawset(tip, "AddLine", function(_, text) lines[#lines + 1] = text end)
+  local ok, err = pcall(widget.callbacks.OnEnter)
+  rawset(tip, "AddLine", saved)
+  assertTrue(ok, tostring(err))
+  return lines
+end
+
+test("the band draws Enable this unit beside the picker, for every unit", function()
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  for _, unit in ipairs(NS.Units.LIST) do
+    ctx.unit = unit
+    NS.Helpers.RenderUnitPanel(ctx, "appearance")
+    local cb = chromeLabel(ctx, "Enable this unit")
+    assertTrue(cb ~= nil, unit .. ": no enable box in the band")
+    assertEqual(ctx.__chromeWidgets[2], cb, unit .. ": the box is the band's second widget, after the picker")
+    assertEqual(cb.value, NS.Units.IsEnabled(unit), unit .. ": the box shows the stored state")
+    local lines = tooltipLines(cb)
+    assertEqual(lines[1], NS.FindSchemaRow("units." .. unit .. ".enabled").desc,
+      unit .. ": the box's tooltip is the row's own per-unit words")
+    assertEqual(findWidget(ctx.scroll, function(w) return w.labelText == "Enable this unit" end),
+      nil, unit .. ": and no copy of it in the scroll")
+  end
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+end)
+
+test("the band's enable box writes through SetByPath, and the refresher re-syncs it", function()
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  ctx.unit = "target"
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+  local was = NS.Units.IsEnabled("target")
+
+  local realSet, writes = NS.SetByPath, {}
+  NS.SetByPath = function(path, value, ...)
+    writes[#writes + 1] = path
+    return realSet(path, value, ...)
+  end
+  local ok, err = pcall(function()
+    chromeLabel(ctx, "Enable this unit"):__fire("OnValueChanged", not was)
+  end)
+  NS.SetByPath = realSet
+  assertTrue(ok, tostring(err))
+  assertEqual(writes[1], "units.target.enabled", "the box writes its one path through the seam")
+  assertEqual(NS.Units.IsEnabled("target"), not was, "and the stored state follows")
+
+  -- A write from elsewhere (`/at toggle target`) while the page is on screen: the block's refresher
+  -- re-syncs the box in place.
+  panel:Show()
+  NS.SetByPath("units.target.enabled", was)
+  NS.Helpers.RefreshAllPanels()
+  assertEqual(chromeLabel(ctx, "Enable this unit").value, was, "the refresher re-syncs the box")
+
+  panel:Hide()
   ctx.unit = "player"
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
@@ -183,12 +256,12 @@ test("clicking a tab switches the page to that tab's rows and nothing else's", f
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
   local names = tabNames(ctx)
-  local borderIndex
-  for i, n in ipairs(names) do if n == "Border" then borderIndex = i end end
-  assertTrue(borderIndex ~= nil, "the Appearance page has a Border tab")
+  local textIndex
+  for i, n in ipairs(names) do if n == "Text" then textIndex = i end end
+  assertTrue(textIndex ~= nil, "the Appearance page has a Text tab")
 
-  tabButtons(ctx)[borderIndex]:__fire("OnClick")
-  assertEqual(ctx.activeTab, "Border", "the click must retarget the page, not just repaint it")
+  tabButtons(ctx)[textIndex]:__fire("OnClick")
+  assertEqual(ctx.activeTab, "Text", "the click must retarget the page, not just repaint it")
 
   local labels = {}
   local function walk(w)
@@ -198,8 +271,8 @@ test("clicking a tab switches the page to that tab's rows and nothing else's", f
     end
   end
   walk(ctx.scroll)
-  assertTrue(labels["Border style"], "the Border tab's own rows must be on screen")
-  assertTrue(not labels["Bar Width (in px)"],
+  assertTrue(labels["Font size"], "the Text tab's own rows must be on screen")
+  assertTrue(not labels["Bar width (px)"],
     "and the tab it came from must be gone, not stacked above it")
 
   ctx.activeTab = nil
@@ -253,7 +326,7 @@ test("a mirrored unit STILL gets its tab strip, with the mirrored state as conte
     end
   end
   walk(ctx.scroll)
-  assertTrue(texts["Linked to Player \226\128\148 uncheck to customize."],
+  assertTrue(texts["Linked to Player. Untick Link to Player above to give this unit its own look."],
     "the mirrored state is explained in the page body, under the strip")
 
   ctx.unit = "player"
@@ -277,12 +350,13 @@ test("a mirrored unit shows only its chrome block, no appearance rows", function
   end
   walk(ctx.scroll)
 
-  assertTrue(chromeLabel(ctx, "Use same styling as Player") ~= nil,
+  assertTrue(chromeLabel(ctx, "Link to Player") ~= nil,
     "the mirror checkbox is in the chrome block")
-  assertTrue(not labels["Bar Width (in px)"], "mirrored appearance rows must be hidden")
-  -- The enable toggle moved to General's Bars tab; the mirror flag is the only per-unit
-  -- row left on this page and it renders in the header, not the body.
-  assertTrue(not labels["Enable this bar"], "the enable toggle no longer lives on the Bar page")
+  assertTrue(not labels["Bar width (px)"], "mirrored appearance rows must be hidden")
+  -- The enable box is in the chrome block beside the picker (item 020, ABS-L01), never in the
+  -- body, so a linked unit keeps it while its tabs show the hint.
+  assertTrue(not labels["Enable this unit"], "the enable box is never drawn in the scroll")
+  assertTrue(chromeLabel(ctx, "Enable this unit") ~= nil, "a linked unit keeps its enable box")
 
   ctx.unit = "player"
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
@@ -304,7 +378,7 @@ test("unchecking the mirror reveals the appearance rows", function()
     end
   end
   walk(ctx.scroll)
-  assertTrue(labels["Bar Width (in px)"], "an unlinked unit must expose its own appearance rows")
+  assertTrue(labels["Bar width (px)"], "an unlinked unit must expose its own appearance rows")
 
   NS.db.profile.units.focus.mirror = true
   ctx.unit = "player"
@@ -320,7 +394,7 @@ test("the copy button snapshots the player's styling and clears the mirror", fun
   ctx.unit = "target"
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
-  local btn = chromeButton(ctx, "Copy styling from Player")
+  local btn = chromeButton(ctx, "Copy from Player")
   assertTrue(btn ~= nil, "no copy button was rendered")
   btn:__fire("OnClick")
 
@@ -366,13 +440,13 @@ test("the mirror checkbox renders exactly once — the block owns it, RenderRows
   local count = 0
   local function walk(w)
     for _, child in ipairs(w.children or {}) do
-      if child.labelText == "Use same styling as Player" then count = count + 1 end
+      if child.labelText == "Link to Player" then count = count + 1 end
       walk(child)
     end
   end
   walk(ctx.scroll)
   for _, w in ipairs(ctx.__chromeWidgets or {}) do
-    if w.labelText == "Use same styling as Player" then count = count + 1 end
+    if w.labelText == "Link to Player" then count = count + 1 end
   end
   assertEqual(count, 1,
     "the mirror checkbox must appear exactly once (the chrome block), never again from the body")
@@ -403,13 +477,13 @@ test("the page-wide mirror controls sit in the chrome block, never in the scroll
   ctx.unit = "focus"
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
-  assertTrue(chromeLabel(ctx, "Use same styling as Player") ~= nil,
+  assertTrue(chromeLabel(ctx, "Link to Player") ~= nil,
     "the mirror checkbox belongs to the chrome block")
-  assertTrue(chromeButton(ctx, "Copy styling from Player") ~= nil,
+  assertTrue(chromeButton(ctx, "Copy from Player") ~= nil,
     "and so does the copy button")
   assertEqual(findWidget(ctx.scroll, function(w)
-    return w.labelText == "Use same styling as Player"
-        or w.text == "Copy styling from Player"
+    return w.labelText == "Link to Player"
+        or w.text == "Copy from Player"
   end), nil, "neither may be drawn into the scroll under the strip")
 
   -- ONE block, and the picker is inside it. PageHeader and PageBanner release the same ledger and
@@ -469,7 +543,7 @@ test("a raise inside the chrome block costs the block, not the page", function()
 
   local saved = Helpers.AttachTooltip
   Helpers.AttachTooltip = function(w, label, desc)
-    if label == "Use same styling as Player" then error("simulated widget failure") end
+    if label == "Link to Player" then error("simulated widget failure") end
     return saved(w, label, desc)
   end
   local ok = pcall(NS.Helpers.RenderUnitPanel, ctx, "appearance")
@@ -478,7 +552,7 @@ test("a raise inside the chrome block costs the block, not the page", function()
 
   assertTrue(ok, "RenderUnitPanel must not raise")
   assertTrue(#tabButtons(ctx) > 0, "the strip must still be drawn")
-  assertTrue(findWidget(ctx.scroll, function(w) return w.labelText == "Bar Width (in px)" end) ~= nil,
+  assertTrue(findWidget(ctx.scroll, function(w) return w.labelText == "Bar width (px)" end) ~= nil,
     "and the schema rows below the block must still render")
   local joined = table.concat(out, "\n")
   assertTrue(joined:find("simulated widget failure", 1, true) ~= nil,
@@ -537,7 +611,8 @@ test("the chrome block's widgets go back to AceGUI's pool, after the render and 
 
   local before = {}
   for i, w in ipairs(ctx.__chromeWidgets) do before[i] = w end
-  assertEqual(#before, 3, "the block holds the picker, the mirror checkbox and the copy button")
+  assertEqual(#before, 4,
+    "the block holds the picker, the enable box, the link checkbox and the copy button")
   for _, w in ipairs(before) do
     assertFalse(w.__released, "the live block's widgets are not released")
   end
@@ -570,7 +645,7 @@ test("the mirrored hint is a full-width line followed by a ROW_VSPACER", functio
 
   local kids = ctx.scroll.children
   assertEqual(kids[1].type, "Label", "the hint is a line of its own")
-  assertEqual(kids[1].text, "Linked to Player \226\128\148 uncheck to customize.")
+  assertEqual(kids[1].text, "Linked to Player. Untick Link to Player above to give this unit its own look.")
   assertEqual(kids[2].type, "SimpleGroup")
   assertEqual(kids[2].height, Helpers.ROW_VSPACER, "and it is followed by a ROW_VSPACER")
   assertEqual(kids[3], nil, "and nothing under it: the hint replaces the rows")
