@@ -330,6 +330,10 @@ if not lib then
     Helpers.KeybindRows        = function() return nil end
     Helpers.KEYBINDS_UNCHANGED = ""
     Helpers.StrataTooltip      = function() return "" end
+    -- ResetAllTooltip(tail), OptionsCompose minor 11 (the v1.77.0 settings-layout extension), owed
+    -- by every Options stub the same way. With no library there is no reset wording to read, so the
+    -- stub answers the caller's own tail, or nothing (the library's suggested stub).
+    Helpers.ResetAllTooltip    = function(tail) return type(tail) == "string" and tail or "" end
     Helpers.__panels   = function() return {} end
     Helpers.__panelFor = function() return nil end
 

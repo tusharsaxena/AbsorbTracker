@@ -62,3 +62,38 @@ All run through `ka0s-bounded`.
 - `/at debug` opens the console; clicking the Settings panel and then the console raises each in
   turn.
 - `/at unlock`: each bar's drag handle still shows its ? and X marks. `/at lock` afterwards.
+
+## Re-vendor after the tag moved (M3)
+
+Plan item AT-RV2, same run and branch. LK-95 moved the local annotated tag v1.77.0 to carry the
+settings-layout surfaces of the run's item 020. The tag's commit moved from
+`78240f7b2d69df27b74fc9280cbfbf7b95dd4f1f` (what AT-RV vendored) to
+`afae2f75cb7ff61c57156d9a3d8a6b2b9f4c5e10` (`git -C ../LibKa0s rev-parse v1.77.0^{}`); the tag object
+is now `b2b8ee2`. Both payloads were copied whole again from `git archive v1.77.0 LibKa0s testkit`,
+and the tag's `tools/prune-icons.lua` kept the same 5 files and removed 5,835.
+
+- **Per-file minors that moved: one.** OptionsCompose 8 -> 11 (`MasterControls` `notes`,
+  `resetPositionTooltip` and `lockIsPreview`, the frameless packing, `tooltips` on the group
+  composers, and `O.ResetAllTooltip`). The `LibKa0s-Options-1.0` key moves to
+  **30.2.34.3.5.9.2.11.4.2.1.3**. No other library file changed, and the test kit is byte-identical
+  (still revision **42**).
+- **Provenance**: the CLAUDE.md line stays `v1.77.0` and records no sha or kit revision, so nothing
+  rolls. `LibKa0s icons: clear, close, copy, help.` is kept; the README credits are unchanged.
+- **Contract blocker, fixed in the same commit.** The tag `CHANGELOG.md` entry *OptionsCompose minor
+  11* says every Options degradation stub gains `ResetAllTooltip`. The copy turned the Options
+  surface-parity case red (`ResetAllTooltip is missing (live: function)`). The stub in
+  `settings/OptionsSetup.lua` now answers the library's suggested inert form, the caller's string
+  tail or `""`, and a new case in `tests/test_optionssetup.lua` pins it.
+- **Adopted here**: none. The settings-layout adoption is AT-LY's.
+- **Standard**: no drift at the local v2.88.0 (WS-95 closed it). The notation sweep finds 0 hits, and
+  every `<file>-§N` reference resolves to a section of the v2.88.0 files.
+
+| Gate | Result |
+|---|---|
+| `luacheck .` | 0 warnings / 0 errors in 71 files |
+| `lua tests/run.lua` (Lua 5.1.5) | 899 passed, 0 failed, 1 skipped, 900 total |
+| vendor parity | kit diff empty; library diff empty apart from the pruned `media/icons` |
+| line cap | largest authored `.lua` file 1079 lines (`tests/test_slashcmds.lua`) |
+
+In-game smoke (owner; not run here): `/reload` twice with `/console scriptErrors 1` shows no Lua
+error and no LibKa0s minor-mismatch line, and `/at config` still opens the settings panel as before.

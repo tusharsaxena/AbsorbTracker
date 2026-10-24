@@ -303,6 +303,18 @@ test("the degraded stub answers LibKa0s v1.77.0's four members inert", function(
   assertEqual(NS2.Helpers.StrataTooltip({ "LOW", "DIALOG" }), "", "an empty tooltip, not a copy")
 end)
 
+test("the degraded stub answers OptionsCompose minor 11's ResetAllTooltip with the tail alone", function()
+  -- ResetAllTooltip(tail) is owed by every Options stub from the v1.77.0 settings-layout extension
+  -- (the library's "What a consumer owes", OptionsCompose minor 11). Without the library there is no
+  -- reset text to read, so the stub answers only what the caller passed: the tail, or nothing.
+  -- red under: a missing member, a host copy of the library's reset wording, or a non-string tail leaking.
+  local NS2 = loadDegraded()
+  assertEqual(NS2.Helpers.ResetAllTooltip(), "", "no tail, no text")
+  assertEqual(NS2.Helpers.ResetAllTooltip("Key bindings are not changed."), "Key bindings are not changed.",
+    "a string tail comes back alone")
+  assertEqual(NS2.Helpers.ResetAllTooltip(42), "", "a non-string tail adds nothing")
+end)
+
 test("the degraded stub keeps no private copy of the library's layout constants", function()
   -- Measured, not assumed: dropping each of these from the stub and re-running the degraded load
   -- leaves #NS.Schema unchanged, because every reader (settings/About.lua, settings/UnitPanel.lua)
