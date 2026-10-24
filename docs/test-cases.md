@@ -597,7 +597,7 @@ Total.
 - launcher: with LibDataBroker but no LibDBIcon, the plugin exists and the button does not
 - launcher: with LibKa0s absent the seam still answers, and still remembers the choice
 
-### test_optionssetup.lua (19)
+### test_optionssetup.lua (20)
 
 - the live and degraded builds veto exactly the same rows from Reset All
 - Reset All resets a sessionOnly row and fires its onChange once, on both builds
@@ -610,6 +610,7 @@ Total.
 - the degraded stub publishes LSMValues, the one member reached at file load
 - the degraded stub publishes the five composers, hollow
 - the degraded stub answers LibKa0s v1.77.0's four members inert
+- the degraded stub answers OptionsCompose minor 11's ResetAllTooltip with the tail alone
 - the degraded stub keeps no private copy of the library's layout constants
 - PARENT_TITLE reaches the library through the descriptor, not the namespace
 - the live arm patches LSM30_Border through the library, not through a private copy
@@ -1055,7 +1056,7 @@ Total.
 | test_panelpages.lua | 24 |
 | test_panelmirror.lua | 10 |
 | test_launcher.lua | 34 |
-| test_optionssetup.lua | 19 |
+| test_optionssetup.lua | 20 |
 | test_slashcmds.lua | 66 |
 | test_slashprofile.lua | 34 |
 | test_perfcmds.lua | 42 |
@@ -1076,4 +1077,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **898** |
+| **Total** | **899** |
