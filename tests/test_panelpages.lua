@@ -499,25 +499,125 @@ test("the page-wide mirror controls sit in the chrome block, never in the scroll
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
 end)
 
-test("the chrome block reserves the band its second row needs", function()
-  -- The library does the band arithmetic over a height the HOST declares, so a block that drew a
-  -- row it had not asked for would have the tab strip placed on top of it.
-  -- red under: returning Helpers.BANNER_H from chromeBlockHeight for every unit.
+-- ── One band row for every unit (item 020, ABS-L11) ─────────────────────────────────
+--
+-- options-ui-§14: the band is ONE ROW, and its height MUST NOT depend on the selected instance.
+-- Four quarter cells, [Unit][Enable this unit][Link to Player][Copy from Player], the last two
+-- empty for the player, so switching the picker never moves the strip or any control.
+
+-- Render `unit` with every chrome widget's frame recording the anchors it is given. The widgets
+-- are inert data recorders whose frames answer SetPoint through the catch-all, so the recorder is
+-- installed on each frame as the widget is created, and the real Create is put back afterwards.
+local function renderRecordingAnchors(ctx, unit)
+  local AceGUI = NS.AceGUI
+  local realCreate = rawget(AceGUI, "Create")
+  rawset(AceGUI, "Create", function(self, wtype)
+    local w = realCreate(self, wtype)
+    if w.frame then
+      w.frame.__anchors = {}
+      rawset(w.frame, "ClearAllPoints", function(f) f.__anchors = {} end)
+      rawset(w.frame, "SetPoint", function(f, point, rel, relPoint, x, y)
+        f.__anchors[point] = { rel = rel, relPoint = relPoint, x = x or 0, y = y or 0 }
+      end)
+    end
+    return w
+  end)
+  ctx.unit = unit
+  local ok, err = pcall(NS.Helpers.RenderUnitPanel, ctx, "appearance")
+  rawset(AceGUI, "Create", realCreate)
+  assertTrue(ok, tostring(err))
+end
+
+-- Where a widget sits: the frame and point each top corner hangs off, and the offsets.
+local function anchorOf(w)
+  local a = w and w.frame and w.frame.__anchors
+  assertTrue(a and a.TOPLEFT and a.TOPRIGHT, "the widget is anchored by both top corners")
+  return a.TOPLEFT, a.TOPRIGHT
+end
+
+test("the chrome band is the same height for every unit", function()
+  -- red under: chromeBlockHeight adding a second row for target and focus.
+  local panel = barPanel()
+  panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  local band = {}
+  for _, unit in ipairs(NS.Units.LIST) do
+    ctx.unit = unit
+    NS.Helpers.RenderUnitPanel(ctx, "appearance")
+    band[unit] = ctx.__bannerHeight
+  end
+  assertTrue(type(band.player) == "number" and band.player > 0, "the player's block reserves a band")
+  assertEqual(band.target, band.player, "Target's band is the Player's height")
+  assertEqual(band.focus, band.player, "Focus's band is the Player's height")
+
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+end)
+
+test("the four band controls sit on one row, at the same x for every unit", function()
   local panel = barPanel()
   panel:__fire("OnShow")
   local ctx = NS.Helpers.__lastUnitCtx
 
-  ctx.unit = "player"
-  NS.Helpers.RenderUnitPanel(ctx, "appearance")
-  local playerBand = ctx.__bannerHeight
-  ctx.unit = "focus"
-  NS.Helpers.RenderUnitPanel(ctx, "appearance")
-  local focusBand = ctx.__bannerHeight
+  local CONTROL_H = 24   -- AceGUI's own CheckBox and Button frame height
+  local where = {}
+  for _, unit in ipairs(NS.Units.LIST) do
+    renderRecordingAnchors(ctx, unit)
+    local cells = {
+      picker = chromeLabel(ctx, "Unit"),
+      enable = chromeLabel(ctx, "Enable this unit"),
+      link   = chromeLabel(ctx, "Link to Player"),
+      copy   = chromeButton(ctx, "Copy from Player"),
+    }
+    where[unit] = {}
+    for name, w in pairs(cells) do
+      if w then
+        local tl, tr = anchorOf(w)
+        where[unit][name] = { tl = tl, tr = tr }
+        if name ~= "picker" then
+          -- Bottom-aligned with the dropdown, whose label sits above its control.
+          assertEqual(-tl.y, Helpers.BANNER_H - CONTROL_H, unit .. ": " .. name .. " sits on row 1's bottom")
+          assertEqual(-tr.y, Helpers.BANNER_H - CONTROL_H, unit .. ": " .. name .. " sits on row 1's bottom")
+        else
+          assertEqual(tl.y, 0, unit .. ": the picker tops the band")
+        end
+      end
+    end
+  end
 
-  assertTrue(type(playerBand) == "number" and playerBand > 0, "the player's block reserves a band")
-  assertEqual(focusBand - playerBand, Helpers.ROW_VSPACER + 24,
-    "target and focus reserve exactly one more row than the player, who gets the picker alone: " ..
-    "ROW_VSPACER plus CONTROL_H (24, AceGUI's own CheckBox and Button height)")
+  assertEqual(where.player.link, nil, "the player has no link cell: it is the link source")
+  assertEqual(where.player.copy, nil, "and no copy cell")
+  for _, unit in ipairs({ "target", "focus" }) do
+    assertTrue(where[unit].link and where[unit].copy, unit .. " draws the link and copy cells")
+  end
+
+  -- Same frame, same point, same offset: the same x, whichever unit is picked.
+  local function same(a, b, msg)
+    assertTrue(a.rel == b.rel, msg .. " (anchored to the same frame)")
+    assertEqual(a.relPoint, b.relPoint, msg .. " (same relative point)")
+    assertEqual(a.x, b.x, msg .. " (same x offset)")
+  end
+  for _, name in ipairs({ "picker", "enable" }) do
+    for _, unit in ipairs({ "target", "focus" }) do
+      same(where[unit][name].tl, where.player[name].tl, name .. ": " .. unit .. " left edge matches the player's")
+      same(where[unit][name].tr, where.player[name].tr, name .. ": " .. unit .. " right edge matches the player's")
+    end
+  end
+  for _, name in ipairs({ "link", "copy" }) do
+    same(where.focus[name].tl, where.target[name].tl, name .. ": focus left edge matches target's")
+    same(where.focus[name].tr, where.target[name].tr, name .. ": focus right edge matches target's")
+  end
+
+  -- Four distinct cells: no two controls share a left edge.
+  local seen = {}
+  for _, name in ipairs({ "picker", "enable", "link", "copy" }) do
+    local tl = where.target[name].tl
+    for _, other in ipairs(seen) do
+      assertFalse(other.rel == tl.rel and other.relPoint == tl.relPoint and other.x == tl.x,
+        name .. " does not share a cell with an earlier control")
+    end
+    seen[#seen + 1] = tl
+  end
 
   ctx.unit = "player"
   NS.Helpers.RenderUnitPanel(ctx, "appearance")

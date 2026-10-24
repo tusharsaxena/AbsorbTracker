@@ -9,8 +9,9 @@
 --
 -- The page draws (settings/UnitPanel.lua does the drawing):
 --
---     [ Unit v ]                [x] Enable this unit         <- the band (chrome), options-ui-§14
---     [x] Link to Player        [ Copy from Player ]         <- target / focus only
+--     [ Unit v ] [x] Enable this unit [x] Link to Player [ Copy from Player ]
+--                                     ^ the band (chrome), options-ui-§14: ONE row, four cells;
+--                                       the last two are target / focus only, empty for player
 --     ------------------------------------------
 --     [ Bar ][ Text ]                                        <- the tab strip (chrome), options-ui-§13
 --
