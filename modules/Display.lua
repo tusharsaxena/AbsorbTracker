@@ -188,9 +188,10 @@ function NS.UpdateBarAppearance(unit)
 
     local borderSize = NS.Units.Get(unit, "borderSize")
     local inset = max(1, floor(borderSize / 4))
+    -- The background stays on the bar's root; the edge is bar.border's, a frame above the fill
+    -- (modules/Bar.lua, frame-layering-§3). The inset is still derived from the border's size, so
+    -- the background sits inside the edge exactly as it did when both were one backdrop.
     backdropInfo.bgFile = NS.GetBgTexture(unit)
-    backdropInfo.edgeFile = NS.GetBorder(unit)
-    backdropInfo.edgeSize = borderSize
     backdropInfo.insets.left = inset
     backdropInfo.insets.right = inset
     backdropInfo.insets.top = inset
@@ -200,7 +201,13 @@ function NS.UpdateBarAppearance(unit)
     bar:SetBackdrop(nil)
     bar:SetBackdrop(backdropInfo)
     bar:SetBackdropColor(NS.GetBgColor(unit))
-    bar:SetBackdropBorderColor(NS.GetBorderColor(unit))
+    local border, borderInfo = bar.border, bar.borderInfo
+    borderInfo.edgeFile = NS.GetBorder(unit)
+    borderInfo.edgeSize = borderSize
+    -- The same clear-then-set, for the same reason, on the border's own table.
+    border:SetBackdrop(nil)
+    border:SetBackdrop(borderInfo)
+    border:SetBackdropBorderColor(NS.GetBorderColor(unit))
 
     valueText:SetFont(NS.GetFont(unit), NS.Units.Get(unit, "fontSize"),
         NS.Units.Get(unit, "fontFlags") or "")
@@ -232,6 +239,10 @@ function NS.UpdateBarAppearance(unit)
     -- because it IS a setting: a restyle has to re-apply it, or a change would not land until the
     -- next /reload. It scales the whole frame, so the drag handle and the value text ride with it.
     bar:SetScale(NS.GetMasterScale())
+
+    -- Re-assert every child's level over the bar's current one: the bar is toplevel, so a click
+    -- raises it and moves its level (frame-layering-§3, re-assert what moves).
+    NS.ApplyBarLayers(bar)
 
     -- `locked` is global: all three bars lock together.
     local locked = NS.GetSetting("locked")

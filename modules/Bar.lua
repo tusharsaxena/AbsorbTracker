@@ -3,8 +3,14 @@ local _, NS = ...
 -- The absorb bar frames — one per unit (player / target / focus). Built at file-load time from
 -- the per-unit defaults (no DB yet — appearance is re-applied from the active profile on enable).
 -- Exports NS.bars keyed by unit; every caller, tests included, indexes NS.bars[unit].
+--
+-- LAYERING: every strata and level written here reads NS.Constants.LAYERS (core/Constants.lua),
+-- whose header comment is the addon's whole stack. Inside one bar, from its own level: the
+-- backdrop background on the root, the fill, the border frame, the text overlay frame, and the
+-- drag strip on top (frame-layering-§2, §3). NS.ApplyBarLayers is the one place a level is set.
 
 local C = NS.Constants
+local LAYERS = C.LAYERS
 local unitDefaults = NS.unitDefaults
 local L = NS.L
 
@@ -174,6 +180,15 @@ local function buildHandle(bar, unit, globalName)
             title  = format(L["Hide the %s bar"], label),
             body   = { L["Click to hide this bar."], wayBack },
         },
+        -- Edit chrome sits at the top of its display (frame-layering-§2): an offset over the bar,
+        -- applied by the widget before it builds the marks, so the `?` and X are born at
+        -- handle + 1. HANDLE clears every content level of a neighboring bar at the same base, so
+        -- an overlapping bar's fill or text cannot cover this strip. NS.ApplyBarLayers re-applies
+        -- it (handle:ApplyLevel) whenever the bar's own level moves.
+        level = LAYERS.LEVEL.HANDLE,
+        -- The move affordance must stay visible when the bar is faded to 0% (Bar opacity times
+        -- Master alpha): an invisible strip that still takes the click is anti-pattern #100.
+        ignoreParentAlpha = true,
     })
     if handle then
         handle:SetPoint("BOTTOM", bar, "TOP", 0, Widgets.DRAG_HANDLE.GAP)
@@ -181,17 +196,48 @@ local function buildHandle(bar, unit, globalName)
     return handle
 end
 
---- Build one bar. Each frame owns its OWN backdropInfo table: one shared table cannot hold three
---- different border sizes, and WoW's SetBackdrop keys off table identity.
+--- A frame level read as a plain number. The bars are our own plain frames and a real client
+--- always answers a number here; anything else (a headless stand-in) reads 0 rather than being
+--- computed on, so a layering pass can never raise inside the appearance pass.
+local function levelOf(frame)
+    local v = frame:GetFrameLevel()
+    if type(v) ~= "number" then return 0 end
+    return v
+end
+
+--- Put every child of one bar at its LAYERS offset over the bar's CURRENT level: the fill, the
+--- border frame, the text overlay frame and the drag strip (whose marks follow at handle + 1).
+--- Called once at creation and again by every appearance pass (modules/Display.lua), because the
+--- bar is toplevel and a raise moves its level; an explicit level is re-asserted wherever its base
+--- can move, never set once and trusted (frame-layering-§3). Plain frames, so safe in combat.
+function NS.ApplyBarLayers(bar)
+    local base = levelOf(bar)
+    bar.statusBar:SetFrameLevel(base + LAYERS.LEVEL.FILL)
+    bar.border:SetFrameLevel(base + LAYERS.LEVEL.BORDER)
+    bar.overlay:SetFrameLevel(base + LAYERS.LEVEL.OVERLAY)
+    if bar.handle and bar.handle.ApplyLevel then bar.handle:ApplyLevel() end
+end
+
+--- Build one bar. Each frame owns its OWN backdropInfo and borderInfo tables: one shared table
+--- cannot hold three different border sizes, and WoW's SetBackdrop keys off table identity.
 function NS.CreateBar(unit, globalName)
     local bar = CreateFrame("Frame", globalName, UIParent, "BackdropTemplate")
     bar.unit = unit
+    -- The HUD tier, stated on the root even though UIParent's is the same (frame-layering-§1):
+    -- a decision with a name, not a side effect of the parent. Children inherit it.
+    bar:SetFrameStrata(LAYERS.STRATA.HUD)
+    -- The three bars are peers that can overlap. Toplevel, so the one the player grabs comes to
+    -- the front WHOLE instead of the two interleaving level by level (frame-layering-§3, peers
+    -- stack whole). A locked bar takes no mouse (UpdateBarAppearance), so locked bars never move.
+    bar:SetToplevel(true)
 
+    -- The root's backdrop is the BACKGROUND only. Its edge lives on bar.border, a frame above the
+    -- fill: drawn here on the root, a border thicker than the fill's 3 px inset was painted over
+    -- by the fill along the filled fraction only, so its inner edge changed width where the fill
+    -- ended (frame-layering-§3: a border is a frame above the fill).
     bar.backdropInfo = {
         bgFile = C.FALLBACK_TEXTURE,
-        edgeFile = NS.GetBorder(unit),
         tile = false,
-        edgeSize = 12,
         insets = { left = 3, right = 3, top = 3, bottom = 3 },
     }
 
@@ -199,8 +245,6 @@ function NS.CreateBar(unit, globalName)
     bar:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     bar:SetBackdrop(bar.backdropInfo)
     bar:SetBackdropColor(0.2, 0.2, 0.2, 0.8)
-    bar:SetBackdropBorderColor(unitDefaults.borderColor.r, unitDefaults.borderColor.g,
-        unitDefaults.borderColor.b, unitDefaults.borderColor.a)
     bar:SetMovable(true)
     bar:EnableMouse(true)
     bar:RegisterForDrag("LeftButton")
@@ -220,8 +264,30 @@ function NS.CreateBar(unit, globalName)
     statusBar:SetStatusBarColor(0.4, 0.7, 1, 0.8)
     bar.statusBar = statusBar
 
-    -- Absorb value text (on statusBar so it's above the bar texture).
-    local valueText = statusBar:CreateFontString(nil, "OVERLAY", nil)
+    -- The border: the backdrop EDGE alone, on its own frame over the whole bar, above the fill.
+    -- Mouse-off, so a drag on the bar's body still reaches the bar.
+    local border = CreateFrame("Frame", nil, bar, "BackdropTemplate")
+    border:SetAllPoints(bar)
+    border:EnableMouse(false)
+    bar.borderInfo = {
+        edgeFile = NS.GetBorder(unit),
+        tile = false,
+        edgeSize = 12,
+    }
+    border:SetBackdrop(bar.borderInfo)
+    border:SetBackdropBorderColor(unitDefaults.borderColor.r, unitDefaults.borderColor.g,
+        unitDefaults.borderColor.b, unitDefaults.borderColor.a)
+    bar.border = border
+
+    -- The text overlay: a mouse-off frame over the whole bar, above the border, that hosts the
+    -- absorb value text, so neither the fill nor a thick border can draw over the number.
+    local overlay = CreateFrame("Frame", nil, bar)
+    overlay:SetAllPoints(bar)
+    overlay:EnableMouse(false)
+    bar.overlay = overlay
+
+    -- Absorb value text, on the overlay (the top of the bar's content).
+    local valueText = overlay:CreateFontString(nil, "OVERLAY", nil)
     valueText:SetFont(NS.GetFont(unit), unitDefaults.fontSize, unitDefaults.fontFlags or "")
     valueText:SetPoint("CENTER", bar, "CENTER", 0, 0)
     bar.valueText = valueText
@@ -229,6 +295,9 @@ function NS.CreateBar(unit, globalName)
     -- The unlocked drag handle above the bar, naming its unit. Nil on a build without
     -- LibKa0s-Widgets-1.0; see buildHandle.
     bar.handle = buildHandle(bar, unit, globalName)
+
+    -- Every child at its LAYERS offset; the appearance pass re-asserts it.
+    NS.ApplyBarLayers(bar)
 
     -- CREATED HIDDEN, for the same reason the handle above it is. CreateFrame returns a SHOWN
     -- frame, and these three are built at file scope -- before a profile is read, before

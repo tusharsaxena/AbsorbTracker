@@ -78,3 +78,52 @@ C.BRAND = "Ka0s Absorb Tracker"
 -- never moved, a player who hid the button under the old `hide` spelling of this path keeps it
 -- hidden with no SavedVariables migration.
 C.MINIMAP_PATH = "global.minimap.shown"
+
+-- ---------------------------------------------------------------------------
+-- Frame layering (frame-layering-§1..§6, standard v2.88.0)
+-- ---------------------------------------------------------------------------
+--
+-- THE ONE LAYERS TABLE (frame-layering-§5). Every SetFrameStrata and SetFrameLevel this addon
+-- makes reads it, and every level is an OFFSET over the frame that owns the band, never an absolute
+-- number: `base:GetFrameLevel() + LAYERS.LEVEL.<NAME>`. So no call site in core/, modules/ or
+-- settings/ hands SetFrameStrata a string literal or SetFrameLevel a bare number, and
+-- tests/test_layers.lua pins both.
+--
+-- THE ADDON'S WHOLE STACK, lowest first. Only the first two rows are this addon's own writes; the
+-- rest are the library's, Blizzard's or a third party's, listed so a new frame is placed around
+-- known neighbors rather than on top of whatever its parent happened to have.
+--
+--   HUD      MEDIUM, explicit on each bar root, toplevel, clamped. The three bars
+--            (modules/Bar.lua) are peers that can overlap, so each is toplevel: the one grabbed
+--            comes to the front whole (frame-layering-§3, peers stack whole). Inside one bar,
+--            from its own level L (the element ladder, §3):
+--              L + 0        the bar root: the backdrop BACKGROUND only (bgFile, insets)
+--              L + FILL     the StatusBar fill
+--              L + BORDER   `bar.border`, the backdrop EDGE, a mouse-off frame ABOVE the fill so
+--                           the fill can never paint over the inner part of a thick border
+--              L + OVERLAY  `bar.overlay`, the mouse-off frame that hosts the value text
+--              L + HANDLE   the unlocked drag strip (LibKa0s-Widgets-1.0 DragHandle `level`),
+--                           its `?` and X at handle + 1 (the widget's). Edit chrome sits at the
+--                           top of its display (§2) and clears every content level of a
+--                           neighboring bar at the same base; it ignores the bar's alpha.
+--   Launcher MEDIUM, level 8, both fixed: the LibDBIcon minimap button (LibDBIcon's choice).
+--   Settings HIGH, toplevel: Blizzard's Settings panel. Inside our pages the library's bands:
+--            tab strip + 1, the combat cover computed over the deepest descendant (OptionsCombat).
+--   MODAL    DIALOG, toplevel, clamped: the LibKa0s debug console and perf panel; Blizzard's
+--            StaticPopups (the Reset-all confirmation) share it, and a library tool window
+--            re-raises a shown StaticPopup when it shows.
+--   CHILD    FULLSCREEN: the LibKa0s copy window, one strata above the console that opens it.
+--   POPUP    FULLSCREEN_DIALOG: AceGUI dropdown pullouts and the color picker.
+--   CURSOR   TOOLTIP: GameTooltip (strip and row tooltips); AceGUI-3.0-SharedMediaWidgets'
+--            media pullouts also sit here (third party, not ours to move).
+C.LAYERS = {
+    STRATA = {
+        HUD = "MEDIUM",
+    },
+    LEVEL = {
+        FILL    = 1,
+        BORDER  = 2,
+        OVERLAY = 4,
+        HANDLE  = 50,
+    },
+}

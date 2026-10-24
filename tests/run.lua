@@ -122,6 +122,8 @@ Kit.run{
     "test_data",
     "test_display",
     "test_draghandle",
+    -- frame-layering: where each bar frame sits, read through the kit's opt-in layer recorder.
+    "test_layers",
     "test_helpers",
     -- Peeled out of test_helpers near the layout-§1 cap (R-14). Straight after it: its first case
     -- asserts the Appearance page has not rendered yet, so nothing earlier may fire that OnShow.

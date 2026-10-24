@@ -462,6 +462,21 @@ Total.
 - degraded: NS.Widgets is the stub, whose DragHandle draws nothing and whose strip takes no room
 - an appearance pass over a bar with no handle raises nothing
 
+### test_layers.lua (12)
+
+- LAYERS names the HUD strata and an ordered level ladder
+- a bar root states its HUD strata, is toplevel and is clamped
+- inside a bar: fill, border, text overlay and drag strip sit at their LAYERS offsets
+- the strip's marks sit above the strip
+- the value text is drawn on the overlay frame, not on the fill
+- the border and text overlay frames take no mouse, so a drag still reaches the bar
+- the drag strip ignores the bar's alpha
+- NS.ApplyBarLayers re-bases every child over the bar's current level
+- the appearance pass re-asserts the bar's layers
+- ApplyBarLayers survives a level that is not a plain number
+- no strata literal and no absolute level at any call site
+- the appearance pass draws the edge on the border frame and the background on the bar
+
 ### test_helpers.lua (40)
 
 - CreatePanel returns a ctx wired to a panel, a body and an empty refresher list
@@ -582,7 +597,7 @@ Total.
 - launcher: with LibDataBroker but no LibDBIcon, the plugin exists and the button does not
 - launcher: with LibKa0s absent the seam still answers, and still remembers the choice
 
-### test_optionssetup.lua (18)
+### test_optionssetup.lua (19)
 
 - the live and degraded builds veto exactly the same rows from Reset All
 - Reset All resets a sessionOnly row and fires its onChange once, on both builds
@@ -594,6 +609,7 @@ Total.
 - with LibKa0s absent, entering combat still re-locks unlocked bars in the store
 - the degraded stub publishes LSMValues, the one member reached at file load
 - the degraded stub publishes the five composers, hollow
+- the degraded stub answers LibKa0s v1.77.0's four members inert
 - the degraded stub keeps no private copy of the library's layout constants
 - PARENT_TITLE reaches the library through the descriptor, not the namespace
 - the live arm patches LSM30_Border through the library, not through a private copy
@@ -1034,11 +1050,12 @@ Total.
 | test_data.lua | 32 |
 | test_display.lua | 60 |
 | test_draghandle.lua | 39 |
+| test_layers.lua | 12 |
 | test_helpers.lua | 40 |
 | test_panelpages.lua | 24 |
 | test_panelmirror.lua | 10 |
 | test_launcher.lua | 34 |
-| test_optionssetup.lua | 18 |
+| test_optionssetup.lua | 19 |
 | test_slashcmds.lua | 66 |
 | test_slashprofile.lua | 34 |
 | test_perfcmds.lua | 42 |
@@ -1059,4 +1076,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **885** |
+| **Total** | **898** |

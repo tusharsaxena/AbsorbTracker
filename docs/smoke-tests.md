@@ -12,11 +12,11 @@ These are the checks only a live client can make: real frames, the live absorb e
 | PROFILE-1–16 | Profiles | The Profiles page, the `profile <name>` verb and the `/at profile` sub-verbs |
 | STATE-1–5 | State | The addon-wide enable switch and the stand-down latch |
 | COMBAT-1–6 | Combat | Secret values, the settings combat gate, the sidebar lock, lock and unlock in combat |
-| BAR-1–18 | Bars | Absorb tracking on three units, visibility, scale, toggle, preview, drag strips and where their tooltips open, positions, and whether Master scale moves a dragged bar |
+| BAR-1–22 | Bars | Absorb tracking on three units, visibility, scale, toggle, preview, drag strips and where their tooltips open, positions, whether Master scale moves a dragged bar, and frame layering (border over fill, overlapping bars, a faded bar's strip) |
 | LOOK-1–17 | Appearance | The Appearance page, media dropdowns, opacity, font color, class colors, mirror and copy, tab clicks through the library's strip |
 | MIGRATE-1–6 | Upgrades | SavedVariables backfill, the schema stamp, the visibility and v3 migrations |
 | LAUNCH-1–10 | Launcher | Minimap button, options menu, broker display |
-| DIAG-1–52 | Diagnostics | Debug console and its Diagnostics link, value hold, bulk log lines, the library's refusal and stand-down lines, diagnostics report (which turns logging on), perf run (and the hold's refusal during one), resizing the console, its Copy window and the perf panel |
+| DIAG-1–53 | Diagnostics | Debug console and its Diagnostics link, value hold, bulk log lines, the library's refusal and stand-down lines, diagnostics report (which turns logging on), perf run (and the hold's refusal during one), resizing the console, its Copy window and the perf panel |
 | DEGRADED-1–5 | Degraded | LibKa0s absent, and the partial breaks that show a failure's signature |
 | LOC-1–3 | Non-English client | What a deDE or frFR client renders |
 
@@ -137,6 +137,10 @@ Setup for the verb checks: run PROFILE-9 first, so a `SmokeTest` profile exists 
 - **BAR-16. A disabled bar gets no events.** `/at debug on`, untick **Enable Target Bar** and **Enable Focus Bar**, target something with a shield and let it take damage → no `[Bar] target:` line and no repaint caused by the target. Tick **Enable Target Bar** → target activity resumes at once, no `/reload`. `/at debug off`. Result: pass (owner-marked 2026-10-10)
 - **BAR-17. Strip tooltips open beside the strip.** `/at unlock` with the bars near the middle of the screen. Hover the Player strip → its tooltip opens to the strip's **right**, top edges level, a small gap from the strip, and does not cover the bar stacked above. Hover its `?`, then its X → each tooltip opens in that same place, beside the strip and not beside the mark. Drag the Player bar to the right edge of the screen and hover the strip, the `?` and the X again → all three open to the strip's **left** instead, fully on screen. Set **Master scale** high (or the bar's scale) and repeat near the right edge → the flip still happens before the tooltip would leave the screen. A tooltip that follows the pointer, sits above the strip, or runs off the right edge is the finding. Result: pass (owner-marked 2026-10-10)
 - **BAR-18. Master scale keeps a dragged bar in place.** Confirm or refute only. `/at unlock`, drag the Player bar well away from its default spot, `/at lock`. Note where it sits on screen, then General → Master controls → set **Master scale** from `1.0` to `1.5` → does the bar's on-screen position move (not just grow about its spot)? Set it back to `1.0` → does it return? Record `moved` or `stayed` for each change. Result: pass (owner-marked 2026-10-10)
+- **BAR-19. The border draws over the fill.** `/at unlock` so the bar shows its partial placeholder fill, then Appearance → Player → *Border* → set **Border thickness (px)** to 1, 3, 8 and 16 in turn, with a bright **Border color** against the fill. **Pass**: at every thickness the border is one even width all the way round, and where the fill ends the border's inner edge does not step in or out; at 8 and 16 the border covers the outer edge of the fill rather than the fill covering the border. The fill's own size does not change. **Fail**: the border looks thinner along the filled part than along the empty part. Result:
+- **BAR-20. The value text stays on top.** With **Border thickness (px)** at 16 and **Bar Height (in px)** at its minimum, take an absorb (or `/at debug hold 50000`) → the number draws over the fill and over the border, never cut by either. Set them back. Result:
+- **BAR-21. Overlapping bars stack whole.** Enable Target and Focus with both units present, `/at unlock`, and drag the Target bar so it half covers the Player bar. Click the Player bar → it comes to the front whole: its fill, border, number and strip all draw over the Target bar, and none of the Target bar's fill shows through the Player bar's border or strip. Click the Target bar → the reverse. Drag one strip so it sits over the other bar's fill → the strip stays visible and a drag on it moves its own bar. With `/fstack` over a bar after clicking it, its border, text overlay and strip still read above its fill (the re-base after a raise). `/at resetposition` when done. Result:
+- **BAR-22. A faded bar keeps its strip.** `/at unlock`, then Appearance → Player → *Bar* → **Bar opacity** to 0 (or **Master alpha** to 0) → the bar disappears but its strip, its `?` and its X stay fully visible and still drag the bar and hide it. Set the opacity back → the bar returns at full strength under the same strip. `/at lock` → the strip goes as before. Result:
 
 ## Appearance
 
@@ -246,6 +250,7 @@ Setup for the verb checks: run PROFILE-9 first, so a `SmokeTest` profile exists 
 - **DIAG-42. Idle costs nothing.** With no run, stand out of combat with a shield up → no `[Perf]` lines and no repaint activity. Result: pass (owner-marked 2026-10-10)
 - **DIAG-43. The report names the nesting it observed.** A full capture (`start`, `measure a`, a pull, `measure b`, a pull, `finish`), then **Report** → the nesting sentence for `paintBar` names `repaintPass` as an observed parent, and both show non-zero `calls`. **Copy** the JSON line the same Report printed → its `paintBar` bucket carries `"observedWithin":"repaintPass"` beside `"within"`. `paintBar` with calls and `repaintPass` with none, or a `paintBar` still reported as declared-only, is the finding. Result: pass (owner-marked 2026-10-10)
 - **DIAG-52. The value hold refuses while a capture has the bars suspended.** `/at perf start`, then `/at perf measure b` → the bars disappear. `/at debug hold 50000` → one line, `Bars are suspended for a perf capture; run /at perf finish (or /at perf measure a) first`, no `Holding` line, and the bars stay hidden; with `/at debug on`, the console logs `[Cmd] debug hold refused: stood down`. `/at perf finish` → the bars return; `/at debug hold 50000 5` → `Holding 50K on the bars for 5 s` and it clears after 5 s as before. Result: pass (owner-marked 2026-10-10)
+- **DIAG-53. The console and the perf panel raise on click, and a confirmation stays answerable.** `/at debug`, then `/at perf` so the two windows overlap. Click the one underneath → it comes to the front; click the other → it does. Then General → Master controls → **Reset all settings** so the confirmation is up, and `/at debug` (or close and reopen the console) → the confirmation stays on top of the console and its buttons answer. Cancel it. Result:
 - **DIAG-44. A code move does not move the figures.** After a release that moves code between files (a LibKa0s extraction, say), run a guided capture against the same target as the newest capture under `docs/perf-analysis/` and compare bucket call counts and presence; record the capture there. A moved figure is a bug in the move, not noise. Result: pass (owner-marked 2026-10-10)
 
 ### Resizing
@@ -283,7 +288,9 @@ The headless suite cannot see this: `tests/wow_mock.lua` answers enUS for every 
 
 ## Pending sign-off
 
-None. On 2026-10-10 the owner marked every check in this file as passed, recorded on its
+On 2026-10-10 the owner marked every check in this file as passed, recorded on its
 `Result:` line as `pass (owner-marked 2026-10-10)`; a check that already carried a dated owner pass
 keeps it. A check added or rewritten after that date is listed here until its `Result:` line records
 a pass.
+
+- BAR-19, BAR-20, BAR-21, BAR-22 and DIAG-53 (frame layering, added 2026-10-24).
