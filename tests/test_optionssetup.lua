@@ -291,6 +291,18 @@ test("the degraded stub publishes the five composers, hollow", function()
   assertEqual(type(tail), "function", "the afterGroup hook is a no-op, not a nil")
 end)
 
+test("the degraded stub answers LibKa0s v1.77.0's four members inert", function()
+  -- KeybindingsTab, KeybindRows, KEYBINDS_UNCHANGED and StrataTooltip are owed by every Options
+  -- stub (the library's v1.77.0 "What a consumer owes"); this addon calls none of them, so each
+  -- answers nothing: no tab, no rows, and no host copy of the library's sentences.
+  -- red under: a stub that copies the library's text, or a member missing (the parity suite too).
+  local NS2 = loadDegraded()
+  assertEqual(NS2.Helpers.KeybindingsTab({}), nil, "no Keybindings tab without the library")
+  assertEqual(NS2.Helpers.KeybindRows({}, {}), nil, "no rows without the library")
+  assertEqual(NS2.Helpers.KEYBINDS_UNCHANGED, "", "an empty sentence, not a copy of the library's")
+  assertEqual(NS2.Helpers.StrataTooltip({ "LOW", "DIALOG" }), "", "an empty tooltip, not a copy")
+end)
+
 test("the degraded stub keeps no private copy of the library's layout constants", function()
   -- Measured, not assumed: dropping each of these from the stub and re-running the degraded load
   -- leaves #NS.Schema unchanged, because every reader (settings/About.lua, settings/UnitPanel.lua)

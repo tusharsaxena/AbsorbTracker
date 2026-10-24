@@ -320,6 +320,16 @@ if not lib then
     -- NavRail, new at LibKa0s v1.61.0 (OptionsNav minor 1): drawn only by a page render, and no
     -- page here draws a rail, so the same inert no-op answers.
     Helpers.NavRail = function() end
+    -- LibKa0s v1.77.0's four instance members (OptionsKeybinds minor 2's KeybindingsTab, KeybindRows
+    -- and KEYBINDS_UNCHANGED; OptionsCompose minor 8's StrataTooltip). The library's "What a
+    -- consumer owes" puts all four on every Options stub, windowed or not. This addon ships no key
+    -- binding and draws no strata row, so nothing reaches them; each answers inert: no tab, no
+    -- rows (the library's own degraded answer), and an empty sentence rather than a host copy of
+    -- the library's text.
+    Helpers.KeybindingsTab     = function() return nil end
+    Helpers.KeybindRows        = function() return nil end
+    Helpers.KEYBINDS_UNCHANGED = ""
+    Helpers.StrataTooltip      = function() return "" end
     Helpers.__panels   = function() return {} end
     Helpers.__panelFor = function() return nil end
 
