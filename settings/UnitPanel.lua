@@ -49,9 +49,10 @@ end
 --- TWO BANDS, top to bottom, and both are drawn on EVERY render:
 ---
 ---   1. THE CHROME BLOCK (chrome, options-ui-§14) -- always, and there is exactly ONE of it. It
----      holds everything that applies to the page AS A WHOLE: the Unit picker with the picked
----      unit's "Enable this unit" box beside it, plus -- for target and focus -- the "Link to
----      Player" checkbox and the "Copy from Player" button on the row below.
+---      holds everything that applies to the page AS A WHOLE, on ONE row of four quarter cells
+---      (ABS-L11): the Unit picker, the picked unit's "Enable this unit" box, and -- for target
+---      and focus -- the "Link to Player" checkbox and the "Copy from Player" button. The player
+---      leaves the last two cells empty, so the band is the same height for every unit.
 ---
 ---      THE ENABLE BOX IS A ROW STAMPED TO ANOTHER PAGE (item 020, ABS-L01). `units.<unit>.enabled`
 ---      keeps `page = "general"` and `skipRender`, so General's Defaults still resets it and both
@@ -117,7 +118,7 @@ end
 
 -- The chrome block's own arithmetic.
 --
--- BANNER_H and ROW_VSPACER are the LIBRARY's numbers, read off the instance rather than restated
+-- BANNER_H is the LIBRARY's number, read off the instance rather than restated
 -- here (a host copy of a library constant is the copy that goes stale). CONTROL_H and PAIR_GAP are
 -- not the library's to publish: its flow engine sizes a row through AceGUI's own layout and never
 -- has to know either number, while a raw frame anchored by its two top corners does.
@@ -130,37 +131,63 @@ local CONTROL_H = 24
 local PAIR_GAP  = 4
 
 --- How tall the page's one chrome block is, before the library widens it by the divider band.
+--- ONE ROW for every unit (options-ui-§14, ABS-L11): the band's height must not depend on which
+--- unit the picker shows, or the strip and everything under it jumps when the player picks another.
 --- @return number
-local function chromeBlockHeight(unit)
-    if unit == "player" then return Helpers.BANNER_H end
-    return Helpers.BANNER_H + Helpers.ROW_VSPACER + CONTROL_H
+local function chromeBlockHeight()
+    return Helpers.BANNER_H
 end
 
---- Anchor one AceGUI widget's frame inside the block. `half` is "LEFT", "RIGHT", or nil for the
---- full width. This is the same reparent-and-anchor the library's own PageBanner does with its
---- dropdown; what a host draws INSIDE the frame PageHeader hands it is the host's to place.
-local function place(widget, frame, y, height, half)
+--- The block's two halves, as frames the quarter cells hang off. A quarter boundary is the middle
+--- of a half, which no point of the block frame names, so each half is a frame of its own anchored
+--- to the block's TOPLEFT/TOP or TOP/TOPRIGHT, and a cell takes its half's left or right side.
+---
+--- Made ONCE per block frame and kept on it: PageHeader hands the same pooled frame back on every
+--- render, and a frame created on each build would stack (the client never destroys one).
+local function blockHalves(frame)
+    local halves = frame.__absHalves
+    if not halves then
+        halves = { CreateFrame("Frame", nil, frame), CreateFrame("Frame", nil, frame) }
+        frame.__absHalves = halves
+    end
+    local left, right = halves[1], halves[2]
+    left:ClearAllPoints()
+    left:SetPoint("TOPLEFT",  frame, "TOPLEFT", 0, 0)
+    left:SetPoint("TOPRIGHT", frame, "TOP",     -PAIR_GAP, 0)
+    right:ClearAllPoints()
+    right:SetPoint("TOPLEFT",  frame, "TOP",      PAIR_GAP, 0)
+    right:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
+    for _, h in ipairs(halves) do
+        h:SetHeight(Helpers.BANNER_H)
+        h:Show()
+    end
+    return halves
+end
+
+--- Anchor one AceGUI widget's frame into quarter cell `cell` (1-4, left to right) of the block,
+--- `y` below its top. This is the same reparent-and-anchor the library's own PageBanner does with
+--- its dropdown; what a host draws INSIDE the frame PageHeader hands it is the host's to place.
+local function place(widget, frame, halves, cell, y, height)
     local f = widget and widget.frame
     if not f then return end
+    local half = halves[cell <= 2 and 1 or 2]
     f:SetParent(frame)
     f:ClearAllPoints()
-    if half == "LEFT" then
-        f:SetPoint("TOPLEFT",  frame, "TOPLEFT", 0, -y)
-        f:SetPoint("TOPRIGHT", frame, "TOP",     -PAIR_GAP, -y)
-    elseif half == "RIGHT" then
-        f:SetPoint("TOPLEFT",  frame, "TOP",      PAIR_GAP, -y)
-        f:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, -y)
+    if cell % 2 == 1 then
+        f:SetPoint("TOPLEFT",  half, "TOPLEFT", 0, -y)
+        f:SetPoint("TOPRIGHT", half, "TOP",     -PAIR_GAP, -y)
     else
-        f:SetPoint("TOPLEFT",  frame, "TOPLEFT",  0, -y)
-        f:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, -y)
+        f:SetPoint("TOPLEFT",  half, "TOP",      PAIR_GAP, -y)
+        f:SetPoint("TOPRIGHT", half, "TOPRIGHT", 0, -y)
     end
     f:SetHeight(height)
     f:Show()
 end
 
---- Build the page's one chrome block into the frame H.PageHeader pinned in the band: the Unit
---- picker in the left half of row 1 and the unit's enable box in the right half, and for
---- target/focus the two link controls beside each other on row 2.
+--- Build the page's one chrome block into the frame H.PageHeader pinned in the band: one row of
+--- four quarter cells, [Unit picker][enable box][Link to Player][Copy from Player]. The player
+--- leaves the last two empty, so every control sits at the same x whichever unit is picked. The
+--- checkboxes and the button are bottom-aligned with the dropdown, whose label sits above it.
 ---
 --- Returns the link checkbox (nil for the player) and the enable box, so the refresher at the
 --- bottom of the render can re-sync both. Every widget it creates is recorded on ctx.__chromeWidgets, which is both the
@@ -172,6 +199,8 @@ end
 local function buildChromeBlock(ctx, pageKey, frame, mirrored)
     local AceGUI = NS.AceGUI
     local kids = ctx.__chromeWidgets
+    local halves = blockHalves(frame)
+    local rowY = Helpers.BANNER_H - CONTROL_H
 
     local list, order = {}, {}
     for i, u in ipairs(NS.Units.LIST) do
@@ -191,10 +220,10 @@ local function buildChromeBlock(ctx, pageKey, frame, mirrored)
     end)
     Helpers.AttachTooltip(dd, "Unit",
         "Which bar the settings on this page apply to. Each unit is styled independently unless it is linked to the Player.")
-    place(dd, frame, 0, Helpers.BANNER_H, "LEFT")
+    place(dd, frame, halves, 1, 0, Helpers.BANNER_H)
     ctx.__bannerWidget = dd
 
-    -- The picked unit's enable box, row 1's right half, bottom-aligned with the dropdown (whose
+    -- The picked unit's enable box, cell 2, bottom-aligned with the dropdown (whose
     -- label sits above it). Every unit has one, the player included. Its words are the schema row's,
     -- so the panel and `/at list` cannot disagree.
     local enablePath = "units." .. ctx.unit .. ".enabled"
@@ -208,12 +237,11 @@ local function buildChromeBlock(ctx, pageKey, frame, mirrored)
         NS.SetByPath(enablePath, value and true or false)
     end)
     Helpers.AttachTooltip(en, enableLabel, enableRow and enableRow.desc)
-    place(en, frame, Helpers.BANNER_H - CONTROL_H, CONTROL_H, "RIGHT")
+    place(en, frame, halves, 2, rowY, CONTROL_H)
 
-    -- The player IS the link source, so it gets the picker and its enable box and nothing else.
+    -- The player IS the link source, so it gets the picker and its enable box and nothing else:
+    -- cells 3 and 4 stay empty, and the band keeps the height it has for target and focus.
     if ctx.unit == "player" then return nil, en end
-
-    local y = Helpers.BANNER_H + Helpers.ROW_VSPACER
 
     local linkRow   = NS.FindSchemaRow and NS.FindSchemaRow("units." .. ctx.unit .. ".mirror")
     local linkLabel = linkRow and linkRow.label or "Link to Player"
@@ -226,7 +254,7 @@ local function buildChromeBlock(ctx, pageKey, frame, mirrored)
         Helpers.RenderUnitPanel(ctx, pageKey)
     end)
     Helpers.AttachTooltip(cb, linkLabel, linkRow and linkRow.desc)
-    place(cb, frame, y, CONTROL_H, "LEFT")
+    place(cb, frame, halves, 3, rowY, CONTROL_H)
 
     local btn = AceGUI:Create("Button")
     kids[#kids + 1] = btn
@@ -240,7 +268,7 @@ local function buildChromeBlock(ctx, pageKey, frame, mirrored)
     end)
     Helpers.AttachTooltip(btn, "Copy from Player",
         "Copy the Player bar's look once, then unlink so you can edit it.")
-    place(btn, frame, y, CONTROL_H, "RIGHT")
+    place(btn, frame, halves, 4, rowY, CONTROL_H)
 
     return cb, en
 end
@@ -294,7 +322,7 @@ local function renderUnitPanelBody(ctx, pageKey)
     -- last render's picker would be a handle on a released widget.
     ctx.__bannerWidget = nil
     Helpers.PageHeader(ctx, {
-        height = chromeBlockHeight(ctx.unit),
+        height = chromeBlockHeight(),
         build  = function(_, frame)
             cb, en = buildChromeBlock(ctx, pageKey, frame, mirrored)
         end,

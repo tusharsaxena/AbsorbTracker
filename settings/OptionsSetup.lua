@@ -204,8 +204,8 @@ local descriptor = {
 -- and a user whose panel will not open is exactly the user who needs it.
 --
 -- What used to sit here and no longer does: SECTION_HEADING_H, ROW_VSPACER and BUTTON_PAIR_REL.
--- They are copies of lib.LAYOUT's values, and their only readers (settings/About.lua's
--- BuildMainContent, settings/UnitPanel.lua's render body) both sit behind an AceGUI a degraded build
+-- They are copies of lib.LAYOUT's values, and their readers, while they had any (settings/About.lua's
+-- BuildMainContent, settings/UnitPanel.lua's render body), sat behind an AceGUI a degraded build
 -- never gets, so nothing in that build ever read them. A host copy of a library constant is the copy
 -- that goes stale.
 --

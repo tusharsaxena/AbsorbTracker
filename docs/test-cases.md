@@ -526,7 +526,7 @@ Total.
 - the cross-slice layout constants are published for the widget/about slices
 - the Defaults button the library renders is prose, not its own STRINGS key
 
-### test_panelpages.lua (26)
+### test_panelpages.lua (27)
 
 - a page renders nothing until its first OnShow
 - the Appearance page opens on the player unit with no mirror controls
@@ -545,7 +545,8 @@ Total.
 - RestoreAllDefaults clears all three saved positions
 - the mirror checkbox renders exactly once — the block owns it, RenderRows must skip it
 - the page-wide mirror controls sit in the chrome block, never in the scroll
-- the chrome block reserves the band its second row needs
+- the chrome band is the same height for every unit
+- the four band controls sit on one row, at the same x for every unit
 - a raise inside the chrome block costs the block, not the page
 - a raise in the unit panel body is reported as one space-joined chat line
 - the chrome block's widgets go back to AceGUI's pool, after the render and not before
@@ -1063,7 +1064,7 @@ Total.
 | test_draghandle.lua | 39 |
 | test_layers.lua | 12 |
 | test_helpers.lua | 40 |
-| test_panelpages.lua | 26 |
+| test_panelpages.lua | 27 |
 | test_panelmirror.lua | 10 |
 | test_launcher.lua | 34 |
 | test_optionssetup.lua | 21 |
@@ -1087,4 +1088,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **905** |
+| **Total** | **906** |
