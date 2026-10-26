@@ -37,8 +37,11 @@ Start here, then read the docs:
   `data-flow.md`, `common-tasks.md`, …) — `docs/ARCHITECTURE.md` → `## Documentation map` lists
   every page.
 
-Green gate before every commit: `lua tests/run.lua` and `luacheck .` (0/0). Never auto-stage/commit/
-push and never bump the version without an explicit instruction — see `docs/testing.md`.
+Green gate before every commit: `lua tests/run.lua` and
+`~/.claude/dev-copilot/bin/ka0s-bounded luacheck .` (0/0; the kit bounds the suite on load, and
+`luacheck` loads no kit, so it runs through the bounded runner, testing-§15). Never
+auto-stage/commit/push and never bump the version without an explicit instruction — see
+`docs/testing.md`.
 
 Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.77.0 (MIT).
 LibKa0s icons: clear, close, copy, help.
