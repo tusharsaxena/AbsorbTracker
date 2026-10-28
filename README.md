@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-906%2F906_passing-green)
+![Tests](https://img.shields.io/badge/Tests-907%2F907_passing-green)
 
 Ka0s Absorb Tracker shows your absorb shields as a movable bar. It adds every shield on the unit
 into one number, so a glance tells you how much damage you can eat before your health starts
@@ -141,8 +141,19 @@ Please file new reports there rather than in comments, so nothing gets lost.
 ## Credits
 
 - [JetBrains Mono](https://www.jetbrains.com/lp/mono/) (SIL Open Font License 1.1): the debug console's font.
+- [Oxanium](https://github.com/sevmeyer/oxanium) by The Oxanium Project Authors (SIL Open Font License 1.1):
+  the face of Ka0s Default, the skin every profile starts on.
+- Seven more SIL Open Font License 1.1 faces, one family per skin:
+  [Inter](https://github.com/rsms/inter) by The Inter Project Authors,
+  [Nunito](https://github.com/googlefonts/nunito) by The Nunito Project Authors,
+  [Vollkorn](https://github.com/FAlthausen/Vollkorn-Typeface) by The Vollkorn Project Authors,
+  [Bitter](https://github.com/solmatas/BitterPro) by The Bitter Project Authors,
+  [Philosopher](https://github.com/alexeiva/philosopher) by The Philosopher Project Authors,
+  [Fira Sans](https://github.com/mozilla/Fira) by The Mozilla Foundation and Telefonica S.A., and
+  [Atkinson Hyperlegible](https://www.brailleinstitute.org/freefont/) by the Braille Institute of America.
+  Inter, Nunito, Vollkorn, Bitter and Oxanium are static weights cut from upstream's variable fonts.
 - [Open Iconic](https://github.com/iconic/open-iconic) by Waybury (MIT): the **?** and **X** on the bar's drag
-  handle, and the close, copy and clear marks on the debug console.
+  handle, the close, copy and clear marks on the debug console, and the skin picker's settings gear.
 
-Both ship inside the bundled LibKa0s payload with their license text beside them. The Open Iconic license
-is `libs/LibKa0s/media/icons/LICENSE-open-iconic.txt`.
+All of them ship inside the bundled LibKa0s payload with their license text beside them. The Open Iconic
+license is `libs/LibKa0s/media/icons/LICENSE-open-iconic.txt`.

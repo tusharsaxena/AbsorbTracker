@@ -111,13 +111,15 @@ test("MediaSetup: every mark this addon's windows draw is one the library ships"
   -- handle's help mark (modules/Bar.lua asks NS.Icon for "help") and the ones the DebugLog library
   -- builds on our behalf once core/DebugLogSetup.lua hands it `addonName`: the console's close,
   -- copy and clear, the Copy window's close, and the perf panel's close, which the library builds
-  -- from its own else arm. Their names are strings inside another repo; a rename there answers nil
-  -- here -- which for "help" is not an error, only the widget's Blizzard fallback art.
+  -- from its own else arm, and the first-run skin picker's gear (`settings`, LibKa0s
+  -- OptionsSkinPicker, drawn for this owner; the eye is not declared, skinning rollout X6/D6). Their
+  -- names are strings inside another repo; a rename there answers nil here -- which for "help" is
+  -- not an error, only the widget's Blizzard fallback art.
   local lib = media()
   local known = {}
   for _, name in ipairs(lib.ICONS) do known[name] = true end
 
-  for _, name in ipairs({ "close", "copy", "clear", "help" }) do
+  for _, name in ipairs({ "close", "copy", "clear", "help", "settings" }) do
     assertTrue(known[name] == true,
       "this addon's windows draw '" .. name .. "', which LibKa0s-Media does not ship")
     assertTrue(NS.Icon(name) ~= nil, "NS.Icon answered nil for " .. name)
@@ -130,7 +132,7 @@ test("MediaSetup: every mark this addon's windows draw is one the library ships"
   -- red under: a draw site added or dropped without the CLAUDE.md line moving with it.
   local decl = declaration()
   assertEqual(decl.mode, "list", "the declaration must be a list of names, not `none` or `all`")
-  assertEqual(table.concat(decl.names, ", "), "clear, close, copy, help",
+  assertEqual(table.concat(decl.names, ", "), "clear, close, copy, help, settings",
     "CLAUDE.md's `LibKa0s icons:` line must name exactly the marks this addon's windows draw")
 end)
 

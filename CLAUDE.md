@@ -43,5 +43,5 @@ Green gate before every commit: `lua tests/run.lua` and
 auto-stage/commit/push and never bump the version without an explicit instruction — see
 `docs/testing.md`.
 
-Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.77.0 (MIT).
-LibKa0s icons: clear, close, copy, help.
+Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.80.0 (MIT).
+LibKa0s icons: clear, close, copy, help, settings.
