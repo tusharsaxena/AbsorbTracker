@@ -57,6 +57,16 @@ local function bringUp()
     ctx.panel:Hide()
     ctx.panel:__fire("OnHide")
   end
+  -- AND LET THE SKIN LIBRARY'S LOGIN RETRY SETTLE. Since LibKa0s v1.78.0 the first RegisterOwner
+  -- (core/SkinSetup.lua) makes LibKa0s-Skin-1.0's EllesmereUI retry frame, registered for
+  -- ADDON_LOADED and PLAYER_LOGIN; in the client PLAYER_LOGIN fires once, long before a player can
+  -- switch the addon off, and the frame unregisters both. The headless run never fires it, so the
+  -- frame would stand in the baseline as two game events that are the library's, not this addon's,
+  -- and not a survivor of the stand-down. Delivering the one login event the client delivers puts
+  -- the frame where every real session has it (LootHistory's suite does the same).
+  local skinLib = M.LibStub("LibKa0s-Skin-1.0", true)
+  local retry = skinLib and skinLib.__euiEventFrame
+  if retry then retry:__fire("OnEvent", "PLAYER_LOGIN") end
   NS.SetByPath("enabled", true)
   NS.addon:OnEnable()
   -- DRAIN the pending queue without firing it. `__fireTimers` would run every entry left behind by

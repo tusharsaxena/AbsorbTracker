@@ -30,6 +30,8 @@ Loader.loadAll(LIB_FILES, NS, mocks)
 Loader.loadAll(ADDON_FILES, NS, mocks)
 
 NS:InitDB()
+-- The profile's skin (core/SkinSetup.lua), right after the store exists, as in the client.
+NS.ApplySkinChoice()
 
 -- Mirror the in-game lifecycle: OnInitialize inits the DB (above), OnEnable builds the settings
 -- panel. Building it here is what stashes NS.AceGUI and runs every settings/<page>.lua builder for
@@ -146,6 +148,18 @@ Kit.run{
     -- was the `test` verb). Straight after the other two halves of the slash surface.
     "test_debughold",
     "test_widgets",
+    -- The LibKa0s-Skin-1.0 seam (AT-01). After test_widgets, which leaves General built and parked
+    -- on its first tab; it parks the page there again and puts the skin back on Ka0s Default.
+    "test_skinsetup",
+    -- The HUD bars follow the skin (AT-03): companions, getters, repaint, the v6 reset. After
+    -- test_skinsetup, on the Ka0s Default it leaves applied.
+    "test_skin_hud",
+    -- The first-run skin picker (AT-04): when it shows, its spec, the real window. After
+    -- test_skin_hud; it leaves the skin on Ka0s Default and the picker down, unseen.
+    "test_skin_picker",
+    -- The AceGUI rows this addon acquires and the tool surfaces on the skin (AT-04). After
+    -- test_skin_picker; it leaves the Scope on its defaults.
+    "test_skin_tools",
     "test_docs",
     { name = "test_prose", dir = "tests/_kit/" },
     "test_ltrap",

@@ -132,7 +132,7 @@ end)
 test("CopyFromPlayer writes every key through the settings seam", function()
   -- ABSORBTRACKER-R-02. The cases above assert the VALUES land, and they passed while
   -- CopyFromPlayer assigned `dst[key]` directly, round the seam that fires each row's onChange.
-  -- Twenty writes: the nineteen appearance keys and the mirror clear, which goes last.
+  -- Twenty-three writes: the twenty-two appearance keys and the mirror clear, which goes last.
   -- red under: putting the direct `dst[key] = deepcopy(src[key])` writes back in core/Units.lua.
   withUnits(function()
     NS.db.profile.units.focus.mirror = true

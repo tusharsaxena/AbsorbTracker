@@ -26,8 +26,8 @@ only (Interface 120105), English only.
 
 The addon is an **AceAddon** (`core/AbsorbTracker.lua`) mixing in AceEvent / AceTimer / AceConsole.
 `NS`, the second of the two varargs the client hands every TOC-loaded file, is the shared private
-namespace bus in every file; there is no `_G[addonName]` table. The ten files that hand the folder
-name (the first vararg) to a vendored library bind it as `addonName`; the other twenty open
+namespace bus in every file; there is no `_G[addonName]` table. The twelve files that hand the folder
+name (the first vararg) to a vendored library bind it as `addonName`; the other nineteen open
 `local _, NS = ...` so luacheck can report a bound name nothing reads. Which ten, and why:
 [module-map.md → The `NS` bus](./module-map.md#the-ns-bus).
 
@@ -46,8 +46,11 @@ for `-Slash-1.0` without a separate setup file. `core/MediaSetup.lua` and `core/
 eighth and ninth seams, and the two odd ones: `LibKa0s-Media-1.0` and `LibKa0s-Env-1.0` take no
 descriptor, only this addon's FOLDER name — a texture path is absolute from `Interface\AddOns\` and a
 TOC manifest is keyed by folder, and a vendored copy cannot know which folder it was copied into.
-**Twelve majors bound by name** of the fifteen `libs/LibKa0s/` vendors (the files `libs/LibKa0s/LibKa0s.xml` lists); Compat,
-Pool and Item are registered and unread. `LibKa0s-Widgets-1.0` has its own seam,
+`core/SkinSetup.lua` is the tenth: `LibKa0s-Skin-1.0` takes an **owner** registration (the folder
+name, a label and this addon's read and write seams) rather than a descriptor, and hands back the
+owner's facade, `NS.Skin` (see [Skins](#skins)).
+**Thirteen majors bound by name** of the nineteen `libs/LibKa0s/` vendors (the files `libs/LibKa0s/LibKa0s.xml` lists); Compat,
+Pool, Item, Glow, Toast and Sim are registered and unread. `LibKa0s-Widgets-1.0` has its own seam,
 `core/WidgetsSetup.lua`, which resolves the major once and publishes `NS.Widgets`: the live major, or a
 stub carrying exactly the two members the addon reaches (`DragHandle` answering nil, so no strip is
 drawn, and `DRAG_HANDLE` with `HEIGHT` and `GAP` of 0, so the default stack keeps no strip room).
@@ -69,17 +72,18 @@ time, guarded with `if NS.X then … end` where the load-order coupling is soft.
 | `core/State.lua` | `NS.State` — session-only runtime state (the debug flag and `rejectedEvents`, the event names the client refused this session; never persisted). |
 | `core/Bus.lua` | The closed cross-module message bus, and the `LibKa0s-Bus-1.0` seam: `NS.bus` (shared publish target, host code), `NS.busRecord` (the library's stand-down record), `NS.NewBusTarget()` (one tracked target per receiver), `NS.BusStandDown()` / `NS.BusStandUp()` (the latch's two calls), and the `NS.MSG` catalog (`REPAINT`/`APPEARANCE`/`VISIBILITY`/`POSITION`/`UNITS`), declared through `Bus.Catalog`. With the library absent, the untracked-target stub. |
 | `core/CoreSetup.lua` | Wires the addon into `LibKa0s-Core-1.0` — the guard, the stringifier and the printer are vendored library code, not addon code. Publishes `NS.Print` (prefixed chat, built via `lib:New{...}` with the `[AT]` prefix passed as a function), `NS.Util.print` (the same function object), `NS.Format` (the printer's format seam: a format string and its parts, so a chat line hands its values to the printer rather than joining them first), `NS.IsConcatSafe`, `NS.SafeToString`, `NS.ResolveColor` and the pcalled event registration helper `NS.SafeRegisterEvent` / `NS.SafeRegisterUnitEvent` / `NS.SafeRegisterEvents`, with working fallbacks when the library is absent. The secret-safe debug sink is `NS.Debug` (published by `core/DebugLogSetup.lua`); every debug arg routes through `NS.SafeToString`. |
+| `core/SkinSetup.lua` | The `LibKa0s-Skin-1.0` seam (skinning-§1): registers the owner `"AbsorbTracker"` at file load with its read and write seams (`NS.SkinChoice`, `NS.WriteSkinChoice`, both through the settings seam) and publishes `NS.Skin`, the owner's facade, plus `NS.SkinOverride`, `NS.ApplySkinChoice` / `NS.ApplySkinIgnore` / `NS.ApplySkinOverride`, the AceGUI paint helpers `NS.SkinPaintAce` / `NS.SkinPaintAceTree`, the first-run picker (`NS.MaybeShowSkinPicker` / `NS.HideSkinPicker` / `NS.SkinPickerSpec`) and the two Skin rows' values (`NS.SKIN_SOURCE_OPTIONS`, `NS.SKIN_OPTIONS`). Registers the one `OnLooksChanged` listener, which republishes `APPEARANCE` so the bars repaint on a switch. Load-bearing: after `core/CoreSetup.lua`, above every module (the drag strips are built with this owner at file load) and every page. Degrades to a facade whose every primitive is a no-op and every token nil. See [Skins](#skins). |
 | `core/PerfSetup.lua` | Wires the addon into `LibKa0s-Perf-1.0` (issue #17) — the probe itself is a vendored library, not addon code. Builds `NS.Perf` via `lib:New{...}`: the addon's name/version/SavedVariables global, the bucket declarations (order + nesting), and the stand-down latch (`lifecycle = NS.lifecycle`) — it carries no `suspend`/`resume` pair; the addon goes inert without a `/reload` through `NS.StandDown` / `NS.StandUp` in `core/Lifecycle.lua`. The TOC order is `core/CoreSetup.lua` → `core/Lifecycle.lua` → `core/PerfSetup.lua`: it loads after `core/Lifecycle.lua`, whose latch the descriptor carries, and before any module takes `local Perf = NS.Perf` as an upvalue. See [Performance & Profiler Attribution](#performance--profiler-attribution) below. |
-| `core/Data.lua` | The settings read seam (`GetSetting`: the `LibKa0s-Schema-1.0` runtime's read with the shipped defaults behind it, dotted-path aware, so `units.target.barWidth` and flat `locked` both work; every write is `NS.SetByPath`), the minimap row's own inverted `get`/`set` (`NS.MinimapShown` / `NS.SetMinimapShown`), LSM fetchers with fallbacks (each takes a `unit`, resolved through `NS.Units.Get`), and the class-color-aware color resolvers (each takes a `unit`; the class color is that unit's own, per options-ui-§17, and the background keeps its own darkened per-class palette — the one surface §17 exempts from the shared `NS.ResolveColor`). |
+| `core/Data.lua` | The settings read seam (`GetSetting`: the `LibKa0s-Schema-1.0` runtime's read with the shipped defaults behind it, dotted-path aware, so `units.target.barWidth` and flat `locked` both work; every write is `NS.SetByPath`), the minimap row's own inverted `get`/`set` (`NS.MinimapShown` / `NS.SetMinimapShown`), LSM fetchers with fallbacks (each takes a `unit`, resolved through `NS.Units.Get`, and through the skin's token while that unit's *Use the skin's ...* companion is on: `NS.MediaKey`, `NS.GetBorderSize`; see [Skins](#skins)), and the class-color-aware color resolvers (each takes a `unit`; the class color is that unit's own, per options-ui-§17, and the background keeps its own darkened per-class palette — the one surface §17 exempts from the shared `NS.ResolveColor`). |
 | `core/Database.lua` | `NS:InitDB` (AceDB + profile callbacks) and `NS:RunMigrations` (schema-version seam). |
 | `core/Units.lua` | `NS.Units` — unit identity (`LIST`/`LABEL`), mirror resolution (`IsMirrored`/`SourceUnit`/`Get`), per-unit position read/write, and `CopyFromPlayer`. The only file that reads `db.profile.units` for appearance. |
 | `core/LauncherSetup.lua` | The `LibKa0s-Launcher-1.0` seam — see [Launcher](#launcher) below. Builds the one LDB object at file load and publishes `NS.Launcher`; `Register()` waits for `OnInitialize`, because the table it hands LibDBIcon is `db.global.minimap` and there is none until `NS:InitDB` has run. Degrades to a stub answering the same five members off the store, so the Master-controls checkbox is still honest with the library absent. |
 | `core/WidgetsSetup.lua` | The `LibKa0s-Widgets-1.0` seam: resolves the major once and publishes `NS.Widgets`, which `modules/Bar.lua` and `modules/Display.lua` capture at load (a load-bearing TOC line, before the modules). Degrades to a stub carrying only what the addon reaches: `DragHandle` answering nil (no strip) and `DRAG_HANDLE = { HEIGHT = 0, GAP = 0 }` (no strip room). |
 | `core/DebugLogSetup.lua` | Wires the addon into `LibKa0s-DebugLog-1.0` — the on-screen console (`debug-logging`) is a vendored library, not addon code. Builds `NS.DebugLog` via `lib:New{...}` and binds `NS.Debug` bare off it. What this file supplies: the frame-name prefix, the title, the monospace font, the `/at` slash name, the call-time `print`/`safeToString` hooks, the `onVisibilityChanged` panel refresh, the diagnostics report's `brandName` and call-time `diagnostics` sections hook (debug-logging-§14), the `[Init]` session summary, and — the part that must not move — `isEnabled`/`setEnabled` over `NS.State.debug`, so the logging flag stays this addon's single truth. Degrades to a stub that still flips the flag when the library is absent, and whose `RunDiagnostics` prints the library-absent line and writes nothing. The library's surface is unchanged: `FormatPlain`/`FormatColored`, `SetEnabled`, `Show`/`Hide`/`Toggle`/`IsShown`, the `debug-logging-§11` always-shown scrollbar (`UpdateScrollBar`) + bottom line counter (`UpdateStatus`, `lib.MAX_BUFFER = 3000`), `ConsoleCheckbox()` — the General page's checkbox spec that shows/hides the window (not the logging flag) — and the harness-facing `CopyText`/`FindLine`/`BufferSize`/`LastLine` plus the raw `buffer` array. The copy window itself is no longer DebugLog's own: as of minor 12 it is `LibKa0s-Widgets-1.0`'s `CopyWindow`, which the module hard-floors on (`NEEDS_WIDGETS = 7`) — the one place this addon reaches an eighth major, and it reaches it indirectly. |
-| `core/AbsorbTracker.lua` | AceAddon promotion; `OnInitialize` (InitDB, slash register, launcher register — in that order, because the launcher needs the DB), `OnEnable` (the login sequence), event handlers, `OnProfileChanged`. |
-| `defaults/Profile.lua` | Six flat globals (`enabled`/`visibility`/`scale`/`alpha`/`locked`/`throttleWindow` — the first four are options-ui-§15's Master controls set; there is no `hidden` master toggle) + `NS.defaults.profile.units.{player,target,focus}` (each unit's own appearance table, built by a factory so no table is shared across units) + `NS.defaults.global.schemaVersion = 0` (savedvariables-§1: the pre-migration floor, never the current version. The runner's target is `NS.SCHEMA_VERSION` = **5**, derived in `core/Database.lua` from the ladder's last step — v2 retired `updateInterval`, v3 introduced `profile.units`, v4 dropped the dead `hidden` toggle, v5 mapped `showOnlyInCombat` onto `visibility`. A default equal to the current version would be stripped by AceDB's `removeDefaults` at every logout and backfilled onto a legacy account that stored no stamp, making both read as already migrated); `NS.flatDefaults` alias, `NS.unitDefaults` (= `defaults.profile.units.player`, the canonical per-row default source for `settings/Appearance.lua`). |
+| `core/AbsorbTracker.lua` | AceAddon promotion; `OnInitialize` (InitDB, the profile's skin through `NS.ApplySkinChoice`, slash register, launcher register — in that order, because the launcher needs the DB), `OnEnable` (the login sequence, ending with the first-run skin picker), event handlers, `OnProfileChanged` (which also re-applies the new profile's skin). |
+| `defaults/Profile.lua` | Six flat globals (`enabled`/`visibility`/`scale`/`alpha`/`locked`/`throttleWindow` — the first four are options-ui-§15's Master controls set; there is no `hidden` master toggle) + `NS.defaults.profile.units.{player,target,focus}` (each unit's own appearance table, built by a factory so no table is shared across units; the three *Use the skin's ...* companions among its keys, default on) + `NS.defaults.profile.skin` (the skin this profile wears, seven keys; see [Skins](#skins)) + `NS.defaults.global.schemaVersion = 0` (savedvariables-§1: the pre-migration floor, never the current version. The runner's target is `NS.SCHEMA_VERSION` = **6**, derived in `core/Database.lua` from the ladder's last step — v2 retired `updateInterval`, v3 introduced `profile.units`, v4 dropped the dead `hidden` toggle, v5 mapped `showOnlyInCombat` onto `visibility`, v6 put every bar's media back on the skin. A default equal to the current version would be stripped by AceDB's `removeDefaults` at every logout and backfilled onto a legacy account that stored no stamp, making both read as already migrated); `NS.flatDefaults` alias, `NS.unitDefaults` (= `defaults.profile.units.player`, the canonical per-row default source for `settings/Appearance.lua`). |
 | `locales/enUS.lua` | `NS.L` metatable-fallback locale (English source keys). English-only (the `localization-§1` row in [Documented deviations](#documented-deviations)); the only strings routed through it are the drag handle's, the library-absent line, the diagnostics report's two and the `profile` row's help text. |
-| `modules/Bar.lua` | `NS.CreateBar(unit, globalName)` builds one bar frame; `NS.bars` (keyed `player`/`target`/`focus`, frames `AbsorbTrackerFrame`/`AbsorbTrackerTargetFrame`/`AbsorbTrackerFocusFrame`) at file load; there are no player aliases, every caller indexes `NS.bars[unit]`. Each bar owns its own `backdropInfo` (background) and `borderInfo` (edge, drawn by `bar.border`, a frame above the fill) tables (border size differs per unit; `SetBackdrop` keys off table identity), `bar.overlay` (the mouse-off frame hosting the value text) and `bar.handle`, the unlocked **drag handle**: `LibKa0s-Widgets-1.0`'s `DragHandle` (a dark strip with a gold 1px edge, the unit's name centered in gold, a `?` help mark at its right end and an X close mark beside it), named `<frame>Handle`, anchored `BOTTOM` to the bar's `TOP` at the widget's `DRAG_HANDLE.GAP`. The addon supplies only its strings (routed through `NS.L`), the `help` and `close` icons from `NS.Icon`, `canDrag` (asks the lock), `onClose` (the X turns off that one bar: `units.<unit>.enabled = false` through `NS.SetByPath`, every bar including the player's, then one chat line naming the way back) and `onDragStop`, which saves through the same local `savePosition` the bar body's own `OnDragStop` uses, and `tooltipPlace` (`NS.Util.PlaceTooltipBeside`, defined in this file), which opens the strip's, the `?`'s and the X's tooltips beside the strip: to its right, or to its left near the screen's right edge, falling back to the cursor on any read it cannot trust. The bar body stays draggable. With the widget absent `bar.handle` is nil and no strip is drawn — the library's documented degradation. |
+| `modules/Bar.lua` | `NS.CreateBar(unit, globalName)` builds one bar frame; `NS.bars` (keyed `player`/`target`/`focus`, frames `AbsorbTrackerFrame`/`AbsorbTrackerTargetFrame`/`AbsorbTrackerFocusFrame`) at file load; there are no player aliases, every caller indexes `NS.bars[unit]`. Each bar owns its own `backdropInfo` (background) and `borderInfo` (edge, drawn by `bar.border`, a frame above the fill) tables (border size differs per unit; `SetBackdrop` keys off table identity), `bar.overlay` (the mouse-off frame hosting the value text) and `bar.handle`, the unlocked **drag handle**: `LibKa0s-Widgets-1.0`'s `DragHandle` (a dark strip with a gold 1px edge, the unit's name centered in gold, a `?` help mark at its right end and an X close mark beside it), named `<frame>Handle`, anchored `BOTTOM` to the bar's `TOP` at the widget's `DRAG_HANDLE.GAP`. The addon supplies only its strings (routed through `NS.L`), its skin `owner` (the folder name: the strip's colors above are Ka0s Default's, and every other skin paints its own), the `help` and `close` icons from `NS.Icon`, `canDrag` (asks the lock), `onClose` (the X turns off that one bar: `units.<unit>.enabled = false` through `NS.SetByPath`, every bar including the player's, then one chat line naming the way back) and `onDragStop`, which saves through the same local `savePosition` the bar body's own `OnDragStop` uses, and `tooltipPlace` (`NS.Util.PlaceTooltipBeside`, defined in this file), which opens the strip's, the `?`'s and the X's tooltips beside the strip: to its right, or to its left near the screen's right edge, falling back to the cursor on any read it cannot trust. The bar body stays draggable. With the widget absent `bar.handle` is nil and no strip is drawn — the library's documented degradation. |
 | `modules/Display.lua` | Every function takes a `unit` (defaulting to `"player"`): `RestoreBarPosition`, `UpdateBarAppearance`, `ShouldShowBar`/`ApplyVisibility` (the four-step visibility ladder), `UpdateAbsorbBar` (the paint path). `UpdateBarAppearance` shows each bar's drag handle while unlocked, sized with `ApplyWidth(barWidth)` (as wide as the bar, or its own natural width over a narrower bar), and hides it while locked. `NS.ForEachUnit(fn)` and `NS.DefaultPosition(unit)` (stacks target/focus above the player bar, one bar height plus the handle's `HEIGHT + GAP` plus 8px apart, so an unlocked strip never sits over the bar above it) also live here. Subscribes to `APPEARANCE`/`VISIBILITY`/`POSITION` on its own `NS.Display.__ev` bus target, fanning each handler out over `NS.ForEachUnit` so the bus messages stay payload-free. |
 | `modules/Timer.lua` | Coalescing repaint scheduler (`NS.RequestRepaint`) — a trailing-edge one-shot AceTimer throttle. |
 | `modules/Diagnostics.lua` | The diagnostics report's sections (debug-logging-§14, DX-AT), `NS.Diagnostics.Sections()`. Read-only; the markers, header, cap and chat line are `LibKa0s-DebugLog-1.0`'s helper. `/at diagnostics` and `/at debug diagnostics` run it. |
@@ -88,7 +92,7 @@ time, guarded with `if NS.X then … end` where the load-order coupling is soft.
 | `settings/OptionsSetup.lua` | Wires the addon into `LibKa0s-Options-1.0` — the canvas shell, the schema-row → AceGUI translation, the schema composers, the two-column flow engine and the always-visible scrollbar patch are vendored library code (`libs/LibKa0s/{Options,OptionsWidgets,OptionsCompose,OptionsScroll}.lua`), not addon code. It replaces four files that used to be this addon's own toolkit (`Panel.lua`, `Helpers.lua`, `ScrollPatch.lua`, `Widgets.lua`). Holds the brand string as a **file-scope local** (`PARENT_TITLE = NS.Constants.BRAND`, the one brand constant, never a second literal), handed to the library as `descriptor.parentTitle` rather than published on the namespace — the two files that used to read it off `NS` are inside the library now. Then assigns `NS.Helpers = lib:New(descriptor)` — the library instance **itself**, not a decorated copy, so every existing `NS.Helpers.*` call site keeps working — plus thin `NS.RegisterOptionsPage` / `NS.CreateOptionsPanel` / `NS.OpenOptionsPanel` / `NS.RefreshOptionsPanel`. What this file supplies is the part that is ours: `get`/`set` (through `NS.GetSetting`/`NS.SetByPath`, so a panel change takes exactly the path `/at set` takes), `applyDefault`, `allRows`, `rowsForPage`, `skipRestoreAll` (excludes the Profiles page — its rows are AceDBOptions-supplied and resetting them is data loss — and every profile-backed row), `resetProfile` (→ `db:ResetProfile()`, because Reset All Settings **is** a profile reset per options-ui-§12), `scheduleTimer`, `getLSM`, `validate`, `onAceGUI`, `buildMain`, `colorDecode`/`colorEncode`, `print` and `debug`, and `addonName`, the folder name from the first vararg, which the library's IdList help-mark art is built from (LibKa0s#42; latent here, no id list). Its stub is **load-completing, not member-answering** — the one setup file that breaks the addon's honest-line-per-member pattern, because `settings/Appearance.lua` calls `NS.Helpers.LSMValues` inside schema-row literals at *file load* and a nil there would abort the file, taking most of `NS.Schema` with it. Its five composers are hollow (each answers `{}`, options-ui-§1); the composed `enabled` and `locked` paths reach the store through `settings/Schema.lua`'s `writeThrough` list. |
 | `settings/UnitPanel.lua` | The two pieces of the old toolkit that did not generalize. **Decorates** `NS.Helpers` — which *is* the library instance — rather than sitting beside it, so page files call `H.RenderUnitPanel` and `H.RenderSchema` interchangeably. `Helpers.RenderUnitPanel(ctx, pageKey)` draws the page's ONE **chrome block** (`PageHeader`, in the chrome band: the Unit picker — the panel's one and only — with the picked unit's "Enable this unit" box beside it, a `units.<unit>.enabled` row stamped to General and written through `NS.SetByPath` (item 020); plus, for target and focus, the "Link to Player" checkbox and the "Copy from Player" button; one row of four quarter cells for every unit, the player's last two empty, so the band height never depends on the unit, ABS-L11) and then the **tab strip** (one tab per `group`, drawn for every unit including a mirrored one, whose rows are replaced by a one-line hint), as a full rebuild via the library's `ClearScroll` + `RenderTabbedSchema` with OptionsTabs minor 8's `untabbedSkipRender`, `disabledReplaces` and `rerender` (LibKa0s v1.66.0, issue #32). The two link controls govern every tab, so options-ui-§14 puts them in the band above the strip and not in the scroll below it, and a page draws at most one block — so the picker goes inside `PageHeader`'s frame and `PageBanner` is never called. `PageHeader` pcalls the builder, so a raise inside the block costs the block rather than the strip and the rows under it; the block's AceGUI widgets are recorded on `ctx.__chromeWidgets` and released back to the pool after the following render. There is a re-entrancy guard and a two-tier refresher: always re-sync the link and enable boxes in place, re-render only when mirror state actually changed (an unconditional re-render would `ClearScroll` the very widget whose `OnValueChanged` is still on the stack). `Helpers.ResetAllPositions()` is the single reset-position implementation, shared by `/at resetposition` and the General page's Reset Position button (Reset All Settings is a profile reset now, and the saved positions come back with the profile, so it is no longer on that path). Loads after `settings/OptionsSetup.lua` (it takes `local Helpers = NS.Helpers` at load). |
 | `settings/About.lua` | The parent page (logo + Notes + slash-command list), declared as a spec and drawn by the library's `BuildLandingPage`. |
-| `settings/{General,Appearance,Profiles}.lua` | The three sub-pages; each registers schema rows + a deferred page builder — except Profiles, which registers no rows and renders AceDBOptions directly. Appearance generates its rows once per unit in `NS.Units.LIST` (path prefixed `units.<unit>.`, tagged `unit = unit`) and defers its page render to `Helpers.RenderUnitPanel` instead of `Helpers.RenderTabbedSchema` — the two reach the same `NS.Helpers` table from opposite sides, one addon code (`settings/UnitPanel.lua`), the other library code (`libs/LibKa0s/OptionsWidgets.lua`); General has no Unit picker, but does carry the three `units.<unit>.enabled` toggles — the one place a per-unit path is edited outside that picker. Both pages draw their groups as a **tab strip** (options-ui-§13), so a `group` is a tab and no section headings are drawn. |
+| `settings/{General,Appearance,Profiles}.lua` | The three sub-pages; each registers schema rows + a deferred page builder — except Profiles, which registers no rows and renders AceDBOptions directly. Appearance generates its rows once per unit in `NS.Units.LIST` (path prefixed `units.<unit>.`, tagged `unit = unit`) and defers its page render to `Helpers.RenderUnitPanel` instead of `Helpers.RenderTabbedSchema` — the two reach the same `NS.Helpers` table from opposite sides, one addon code (`settings/UnitPanel.lua`), the other library code (`libs/LibKa0s/OptionsWidgets.lua`); General has no Unit picker, but does carry the three `units.<unit>.enabled` toggles — the one place a per-unit path is edited outside that picker. Both pages draw their groups as a **tab strip** (options-ui-§13), so a `group` is a tab and no section headings are drawn. General's strip ends with the library's **Skin** tab (`H.AppearanceTab`, keyed `Appearance`), which draws the seven `skin.*` rows as its own controls. |
 
 ## Invariants
 
@@ -107,7 +111,7 @@ Rules the code depends on that reading one file will not reveal. The visual/tain
   only metadata accessors; never call `C_AddOns.GetAddOnMetadata` inline. The seam's own fallback,
   for an install with no LibKa0s, is `C_AddOns` then nil; the pre-11.0 bare-global rung was deleted
   as dead code (compat: no client the TOC admits provides it), so no file spells it.
-- **Every LibKa0s seam publishes the same `NS` names whether the library loaded or not.** The nine
+- **Every LibKa0s seam publishes the same `NS` names whether the library loaded or not.** The ten
   seams listed under [Module Map](#module-map) each answer with the library's instance or with a
   degradation stub under one name, and the rest of the addon codes against that symmetry rather than
   checking for the library. `settings/OptionsSetup.lua`'s stub is the one deliberate exception to
@@ -118,16 +122,17 @@ Rules the code depends on that reading one file will not reveal. The visual/tain
 
 ## Settings Schema
 
-`NS.Schema` is a flat array of **70 rows**; each `settings/<page>.lua` calls
+`NS.Schema` is a flat array of **86 rows**; each `settings/<page>.lua` calls
 `NS.RegisterSchemaRows({...})` at file load, and the same array drives the panel widgets
 (`LibKa0s-Options-1.0`) and the `/at list|get|set|reset|resetall` CLI, so adding an option is one
-schema row. **Eight** rows carry an absolute path: the six flat globals (`enabled`, `visibility`,
-`scale`, `alpha`, `locked`, `throttleWindow`), the session-only `state.debugConsole` and the
-global-store `global.minimap.shown`, all on General. The other **62** are unit-relative
-(`units.<unit>.<key>`): the three `units.<unit>.enabled` toggles on General, plus the Appearance
-page's 59 (nineteen keys × three units, and a `mirror` row for target and focus). A row's `group` is
-its **tab** (options-ui-§13), in declaration order, and 55 of the rows are emitted by
-`LibKa0s-Options-1.0`'s composers rather than typed out.
+schema row. **Fifteen** rows carry an absolute path, all on General: the six flat globals
+(`enabled`, `visibility`, `scale`, `alpha`, `locked`, `throttleWindow`), the session-only
+`state.debugConsole`, the global-store `global.minimap.shown` and the seven `skin.*` rows the Skin
+tab draws. The other **71** are unit-relative (`units.<unit>.<key>`): the three
+`units.<unit>.enabled` toggles on General, plus the Appearance page's 68 (twenty-two keys × three
+units, and a `mirror` row for target and focus). A row's `group` is its **tab** (options-ui-§13), in
+declaration order, and 64 of the rows are emitted by `LibKa0s-Options-1.0`'s composers rather than
+typed out.
 
 The runtime is **`LibKa0s-Schema-1.0`**, instanced in `settings/Schema.lua` as `NS.SchemaRuntime`.
 Every write goes through the one seam **`NS.SetByPath`** (store, `[Set]` line, `onChange`,
@@ -185,7 +190,7 @@ A bare `/at`, empty or whitespace-only, runs the
 
 **Schema paths are fully qualified.** `/at set units.target.barWidth 250` works; the pre-1.9
 `/at set barWidth 250` is rejected, because `FindSchemaRow` has no bare-key row for a per-unit
-setting. Only the eight absolute rows under [Settings Schema](#settings-schema) take a bare path.
+setting. Only the fifteen absolute rows under [Settings Schema](#settings-schema) take a bare path.
 
 **`/at enable` and `/at disable` are ALIASES, not a second switch** (slash-commands-§2). Both write
 the `enabled` path the Master controls tab's Enable checkbox writes, through the same `NS.SetByPath`
@@ -231,11 +236,13 @@ the helper `OnEnterCombat` re-locks through, so unlocked bars show live data for
 AceAddon lifecycle in `core/AbsorbTracker.lua`:
 
 - **`OnInitialize`** (ADDON_LOADED): `NS:InitDB()` (AceDB + `RunMigrations` + profile callbacks),
-  `NS.Slash:Register()`, then `NS.Launcher:Register()`.
+  `NS.ApplySkinChoice()` (the profile's skin, before any page or bar paints), `NS.Slash:Register()`,
+  then `NS.Launcher:Register()`.
 - **`OnEnable`** (PLAYER_LOGIN timing): `ClearLSMCache` → `GetLSM` → **`NS.SyncEnabledHold()`**,
   then, **only while the latch is up**, publish `POSITION` → `APPEARANCE` → `REPAINT` and register
   the events. An addon that comes up disabled registers nothing at all. `CreateOptionsPanel` sits
-  outside that gate, because the settings registration is setup.
+  outside that gate, because the settings registration is setup, and `NS.MaybeShowSkinPicker` follows
+  it: the first-run skin picker, which shows nothing while the latch is down.
 - **`UNIT_ABSORB_AMOUNT_CHANGED` / `UNIT_MAXHEALTH`** ride one private `RegisterUnitEvent` frame per
   unit (`addon:SyncUnitEventFrames`, re-run on `UNITS`), registered only while that unit's bar is
   enabled. `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` (AceEvent → `OnUnitSwap`) are gated the
@@ -303,12 +310,87 @@ copies its numbers. The tiers, lowest first:
   alpha. `NS.ApplyBarLayers` (`modules/Bar.lua`) sets those offsets and the appearance pass
   re-asserts them.
 - **Library and Blizzard tiers the addon relies on** — the minimap button (LibDBIcon), the Settings
-  panel (`HIGH`), the debug console and perf panel (`DIALOG`, toplevel, beside the Reset-all
-  StaticPopup), the console's copy window (`FULLSCREEN`), AceGUI pullouts and the color picker
+  panel (`HIGH`), the debug console, the perf panel and the first-run skin picker (`DIALOG`,
+  toplevel, beside the Reset-all StaticPopup), the console's copy window (`FULLSCREEN`), AceGUI pullouts and the color picker
   (`FULLSCREEN_DIALOG`), and tooltips (`TOOLTIP`). None of these is the addon's own write.
 
 `tests/test_layers.lua` pins the bar's ladder through the kit's frame-layer recorder, and pins that
 no call site in `core/`, `modules/` or `settings/` passes a strata literal or an absolute level.
+
+## Skins
+
+Absorb Tracker wears a skin from `LibKa0s-Skin-1.0` (skinning-§1, chosen per profile under §2; the rollout is Ka0sAddonsCommonTasks
+`docs/2026-10-29-SKINNING_ROLLOUT/`, after LootHistory's lead). It draws no window of its own, so the
+skin reaches the HUD bars, their drag strips and the library's own surfaces.
+
+- **The seam.** `core/SkinSetup.lua` registers the owner `"AbsorbTracker"` (the folder name) at file
+  load with its read and write seams, `NS.SkinChoice` and `NS.WriteSkinChoice`, both through the
+  settings seam (`NS.GetSetting`, `NS.SetByPath`), and publishes `NS.Skin`, the owner's facade. The
+  choice is the profile's `skin` block: `source` and `skin`, the Scope's `ignorePanel` (on for a new
+  profile, so the settings pages keep the client's look) and `ignoreFonts`, the Font and texture
+  overrides `font` and `texture` (an LSM key each, `""` for the skin's own) and `pickerSeen`. All
+  seven are skip-render rows on General, drawn by the library's **Skin** tab (key `Appearance`), the
+  strip's last tab (skinning-§3; [schema.md](schema.md), [settings-panel.md](settings-panel.md)).
+- **Repaint flow.** `NS.ApplySkinChoice` runs right after `NS:InitDB` and on every profile switch,
+  copy and reset (`adoptProfile`, `core/AbsorbTracker.lua`), applying the stored pair with the stored
+  exceptions and overrides; each Skin row's `onChange` applies only its own half, so a tab pick is one
+  effective change. `Skin:SetChoice` repaints every frame recorded for this owner and then fires
+  `OnLooksChanged`, whose one listener republishes `APPEARANCE`: the bars are not recorded frames, so
+  they repaint through the appearance pass every other restyle takes.
+- **The HUD bars** (skinning-§6). Only texture, border and font follow the skin. Each unit carries
+  three *Use the skin's ...* companions, the composers' `fromSkin` rows, default on (rollout X3):
+  `barTextureFromSkin` governs the fill and the background texture (`bar.texture`; the skin has no
+  background-texture token), `borderFromSkin` the border style and its thickness (`bar.borderStyle`,
+  `bar.borderSize`, so a skin's thin edge is never drawn at the stored 12 px) and `fontFromSkin` the
+  face only (`hud.font`). While a companion is on, the picker it governs is disabled and shows the
+  skin's value; the stored pick is kept for when the player turns it off. `NS.MediaKey`
+  (`core/Data.lua`) resolves through `NS.Skin.Resolve`, which honors the Skin tab's Font and texture
+  overrides, and never through `S.BarTexture`, which would replay the skin's texture over an unticked
+  pick at the next switch. It runs in the appearance pass only, never on the absorb hot path. Font
+  size, outline and shadow, and every HUD color (fill, background, border, text and the class
+  colors), stay the player's (rollout X4). **Ignore fonts** wins for the face: while it is on,
+  `NS.MediaKey` answers the stored `font`, over the skin's `hud.font` and a font override, as the
+  drag-strip label keeps its face. The library's `Resolve`/`Token` never read the exception (only
+  `P.font` does), so `NS.MediaKey` asks `NS.SkinFontsIgnored()` (`core/SkinSetup.lua`) itself.
+  The value text's drop shadow (black, offset 1, -1, while *Font shadow* is on) is the font row's
+  own rendering, not a skin color, and stays a named constant in `modules/Display.lua` (rollout
+  DECISIONS D7; not an anti-pattern #107 literal).
+- **The one-time reset** (the owner's O2). Schema v6 (`core/Database.lua`) sets every stored companion
+  back on, once, on every stored profile, through `Skin.ResetToSkin`; the picks and the colors are
+  kept, and a companion the player unticks afterwards stays off. On a real upgrade the visible
+  reset comes from the defaults (rollout X3: the companions are new in this release and default
+  on, so no pre-v6 profile stores one); v6 is the explicit, idempotent record of O2, a no-op unless
+  a companion is stored. Under Ka0s Default that is a visible
+  change on the bars (rollout X5): the Ka0s Default bar texture, no border (the skin's `None` style)
+  and Oxanium SemiBold, in place of Blizzard Raid Bar, Blizzard Tooltip at 12 px and Friz Quadrata.
+- **The drag strips** are built with `owner = addonName` (WidgetsDragHandle minor 6): their fill,
+  edge, label and marks are the skin's and repaint on a switch. Ka0s Default draws them as before.
+- **The library's surfaces.** The settings pages, the debug console and its copy window, and the perf
+  panel are painted by the library for this owner, the settings pages only while **Ignore settings
+  panel** is off. The Appearance chrome block's four AceGUI widgets go through `NS.SkinPaintAce` after
+  each `Create`, and the Profiles page's AceConfigDialog tree through `NS.SkinPaintAceTree` after each
+  `Open`.
+- **The first-run skin picker** (the owner's O3). `NS.MaybeShowSkinPicker` shows the library's picker
+  (`O.SkinPicker`, OptionsSkinPicker 1) at the end of `OnEnable` and after every profile event while
+  the profile's `skin.pickerSeen` is false and the addon stands up; in combat it waits for
+  `PLAYER_REGEN_ENABLED`. A pick only previews; **Apply** and the gear save it through
+  `NS.WriteSkinChoice`, the gear opening General on its Skin tab, and the close control and Escape
+  put the stored skin back. Every close the player makes sets `pickerSeen`. It has no eye (rollout
+  X6): this addon has no window or test mode to preview a skin in. `NS.HideSkinPicker` (the
+  stand-down, and first on every profile event) takes it down without marking it seen.
+- **EllesmereUI** (skinning-§5). The provider is the library's (`SkinEUI.lua`), and the TOC lists EllesmereUI under
+  `## OptionalDeps`. With source `eui` and its gate holding, EllesmereUI's facade answers the tokens,
+  the HUD's included; otherwise the addon wears its Ka0s skin and the Skin tab names the failing
+  condition. Ka0s to EllesmereUI applies live; EllesmereUI back to Ka0s asks for a reload.
+- **Not skinned** (skinning-§7): the Blizzard Settings window around the pages, the Reset-all
+  `StaticPopup`, `GameTooltip`'s frame (the strip's tooltip lines are the widget's), the LibDBIcon
+  minimap button and its tooltip, `ColorPickerFrame` and the LSM30 pull-outs, the About page logo,
+  the class colors (game meaning) and the chat output (the cyan `[AT]` tag and the gold and gray
+  lines slash-commands mandates).
+- **Degraded.** Without the library `NS.Skin` answers every primitive as a no-op and every token as
+  nil, so every media value resolves to the stored pick, the look this addon drew before skins;
+  `tests/test_surface_parity.lua` holds the stub to the live facade. `tests/test_skinsetup.lua`,
+  `test_skin_hud.lua`, `test_skin_picker.lua` and `test_skin_tools.lua` pin the rest.
 
 ## Known Limitations
 
@@ -421,8 +503,8 @@ an open issue naming the seam a peel would follow, or a ratified row in the regi
 a re-check trigger. The census records which one, one row per over-cap file; the 1000-1500 band is
 observed and dispositioned in the automated-tests watch list alone (`automated-tests-§4`).
 
-Nothing is over the cap today. The largest authored file is `tests/test_slashcmds.lua` at 1079 lines,
-measured on 2026-10-03 with `git ls-files '*.lua' | grep -v '^libs/' | grep -v '^tests/_kit/' |
+Nothing is over the cap today. The largest authored file is `tests/test_schema.lua` at 1084 lines
+(then `tests/test_slashcmds.lua` at 1079), measured on 2026-10-29 with `git ls-files '*.lua' | grep -v '^libs/' | grep -v '^tests/_kit/' |
 xargs wc -l | sort -rn`. `tests/test_slashcmds.lua` was peeled into `tests/test_perfcmds.lua` when it
 crossed the cap, its value-hold cases later moved to `tests/test_debughold.lua` with the verb, and its `/at profile` cases moved to `tests/test_slashprofile.lua` when it reached 1472 lines. `tests/test_helpers.lua` (1447) had its rendered-page cases peeled into `tests/test_panelpages.lua` before it reached the cap (R-14), and that file's mirror half later moved to `tests/test_panelmirror.lua` when it entered the 1000–1500 band. The vendored `tests/_kit/test_layout_cap.lua` gates this census against the tree.
 

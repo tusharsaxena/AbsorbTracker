@@ -97,9 +97,9 @@ Total.
 
 ### test_database.lua (38)
 
-- RunMigrations migrates a fresh DB to the current version (5)
+- RunMigrations migrates a fresh DB to the current version (6)
 - a freshly-materialized global runs the ladder, because its default is pre-ladder
-- RunMigrations leaves an already-current (v5) DB unchanged
+- RunMigrations leaves an already-current (v6) DB unchanged
 - RunMigrations is idempotent across repeated runs
 - RunMigrations v2 retires the legacy updateInterval profile key
 - the account-wide schemaVersion default is 0 (savedvariables-§1)
@@ -112,7 +112,7 @@ Total.
 - RunMigrations does not overwrite an existing user value
 - RunMigrations is a safe no-op when the DB is absent
 - RunMigrations logs [Migrate] only when a version bump happens
-- RunMigrations emits the [Migrate] lines for a v1->v5 upgrade in order
+- RunMigrations emits the [Migrate] lines for a v1->v6 upgrade in order
 - InitDB produced a profile carrying every default key
 - v3 migration lifts flat appearance keys onto the player unit
 - v3 migration seeds target and focus disabled and mirrored
@@ -123,9 +123,9 @@ Total.
 - v4 does not resurrect `hidden` via the defaults backfill
 - v3 migration is idempotent
 - v3 migration does not share nested tables between units
-- the schema version lands on 5
+- the schema version lands on 6
 - real AceDB init: a legacy flat profile is lifted onto the player unit, not overwritten by fresh defaults
-- real AceDB init: a fresh install (no saved data) converges on factory defaults at v5
+- real AceDB init: a fresh install (no saved data) converges on factory defaults at v6
 - InitDB lifts EVERY saved profile, not only the active one
 - a profile that appears AFTER the upgrade is lifted when it becomes active
 - the InitDB sweep and the profile-change lift compose without double-applying
@@ -606,7 +606,7 @@ Total.
 - launcher: with LibDataBroker but no LibDBIcon, the plugin exists and the button does not
 - launcher: with LibKa0s absent the seam still answers, and still remembers the choice
 
-### test_optionssetup.lua (21)
+### test_optionssetup.lua (22)
 
 - the live and degraded builds veto exactly the same rows from Reset All
 - Reset All resets a sessionOnly row and fires its onChange once, on both builds
@@ -619,6 +619,7 @@ Total.
 - the degraded stub publishes LSMValues, the one member reached at file load
 - the degraded stub publishes the five composers, hollow
 - the degraded stub answers LibKa0s v1.77.0's four members inert
+- the degraded stub answers LibKa0s v1.78.0's and v1.79.0's skin members inert
 - the degraded stub answers OptionsCompose minor 11's ResetAllTooltip with the tail alone
 - the degraded stub keeps no private copy of the library's layout constants
 - PARENT_TITLE reaches the library through the descriptor, not the namespace
@@ -852,13 +853,70 @@ Total.
 - first OnShow builds the Defaults button and renders the page
 - the Defaults button restores just its own page
 - a second OnShow rebuilds the panel body without stacking duplicate widgets
-- the General page draws its two groups as a tab strip, Master controls first
+- the General page draws its groups as a tab strip, Master controls first, Skin last
 - clicking Behavior swaps the rows and leaves the button pair on Master controls
 - every unit's Appearance strip is its schema's groups, and each tab draws that group's rows
 - a mirrored unit's every tab draws the hint and none of the appearance rows
 - showing every page builds it without error
 - the main page's About content renders on its first OnShow
 - re-rendering the About page replaces its body rather than stacking a second copy
+
+### test_skinsetup.lua (13)
+
+- Skin seam: the owner is the folder name, and NS.Skin is its facade
+- Skin seam: the read answers Ka0s Default before the profile store exists
+- Skin seam: the seven skin keys default to Ka0s Default, as skip-render rows on General
+- Skin seam: the skin row's values are every registered skin, in the library's order
+- Skin seam: /at set refuses a skin that is not registered and applies one that is
+- Skin seam: the Skin tab is General's last, and opens
+- Skin seam: one tab pick is one effective SetChoice and one repaint
+- Skin seam: the tab's Ignore fonts reaches the library and the profile, one repaint
+- Skin seam: another addon's copy to every Ka0s addon repaints AbsorbTracker once
+- Skin seam: a whole apply carries the stored exceptions and overrides with the skin
+- Skin seam: /at set reaches an exception and an override, each only its own half
+- Skin seam: a profile switch applies the new profile's skin, and back
+- Skin seam: every bar's drag strip is built with this owner, so a switch repaints it
+
+### test_skin_hud.lua (12)
+
+- every unit's three skin companions default on (X3)
+- the companions are composed schema rows, bools defaulting on, on the tab of the pick
+- the background texture and the border thickness follow the companions too (D3, D4)
+- a companion on draws the skin's token; off, the stored pick
+- Ignore fonts keeps the value text on the stored face, over the skin and a font override
+- the getters fetch the skin's media through LibSharedMedia
+- a mirrored bar follows the player's companion, an unlinked one its own
+- Copy from Player copies the companions
+- the appearance pass draws the skin's border thickness and inset
+- a skin switch repaints every bar, and leaves the player's colors alone
+- v6 puts every stored companion back on, keeps the picks and the colors
+- v6 runs once: a pick made after it is kept
+
+### test_skin_picker.lua (14)
+
+- Skin picker: the spec names this owner, its seams, General's Skin tab, and no eye
+- Skin picker: an unseen profile shows it; a seen one does not
+- Skin picker: it shows at login, from addon:OnEnable
+- Skin picker: in combat a start waits for PLAYER_REGEN_ENABLED, once
+- Skin picker: a held start is dropped by HideSkinPicker
+- Skin picker: never while the addon is switched off
+- Skin picker: a new profile and a reset profile show it again
+- Skin picker: the title names this addon, and the eye is hidden
+- Skin picker: the player's close marks it seen; this addon's own hide does not
+- Skin picker: a profile that has seen it takes a shown picker down, unmarked
+- Skin picker: the stand-down takes the picker down, unseen
+- Skin picker: a pick previews, unsaved; Apply saves it and marks the picker seen
+- Skin picker: the close control puts the old skin back, saves nothing, and marks it seen
+- Skin picker: the gear saves the pick and opens General on its Skin tab
+
+### test_skin_tools.lua (6)
+
+- the chrome block's four widgets are painted for this owner, even off the raw AceGUI
+- under the default Scope (Ignore settings panel) the chrome block stays stock
+- NS.SkinPaintAceTree paints every widget under a container
+- the Profiles page paints AceConfigDialog's tree after each Open
+- the debug console and its copy window are painted for this owner
+- the perf panel is painted for this owner
 
 ### test_docs.lua (6)
 
@@ -898,7 +956,7 @@ Total.
 - vendored Slash resolves a fallback-only override to its own strings
 - vendored Perf resolves a fallback-only override to its own strings
 
-### test_surface_parity.lua (11)
+### test_surface_parity.lua (13)
 
 - parity: the Core stub publishes everything core/CoreSetup.lua publishes live
 - parity: the DebugLog stub carries the whole live surface
@@ -911,6 +969,8 @@ Total.
 - parity: the Perf stub carries every Perf member the addon reaches
 - parity: the Lifecycle stub carries the whole live surface
 - parity: the Widgets stub carries every Widgets member the addon reaches
+- parity: the degraded Skin facade answers every name the live facade carries
+- parity: the Skin seam publishes the same NS members on both paths
 
 ### test_vendor_sync.lua (3)
 
@@ -1067,16 +1127,20 @@ Total.
 | test_panelpages.lua | 27 |
 | test_panelmirror.lua | 10 |
 | test_launcher.lua | 34 |
-| test_optionssetup.lua | 21 |
+| test_optionssetup.lua | 22 |
 | test_slashcmds.lua | 66 |
 | test_slashprofile.lua | 34 |
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 16 |
 | test_widgets.lua | 57 |
+| test_skinsetup.lua | 13 |
+| test_skin_hud.lua | 12 |
+| test_skin_picker.lua | 14 |
+| test_skin_tools.lua | 6 |
 | test_docs.lua | 6 |
 | test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
-| test_surface_parity.lua | 11 |
+| test_surface_parity.lua | 13 |
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_events.lua | 6 |
@@ -1088,4 +1152,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **906** |
+| **Total** | **954** |

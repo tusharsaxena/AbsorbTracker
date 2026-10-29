@@ -27,6 +27,12 @@ local STACK_GAP = 8
 local DRAG = NS.Widgets.DRAG_HANDLE
 local HANDLE_ROOM = DRAG.HEIGHT + DRAG.GAP
 
+-- The value text's drop shadow while the Text tab's Font shadow row is on: the font block's own
+-- rendering (options-ui-§16), a legibility constant and not a skin color, so no skin moves it
+-- (skinning rollout DECISIONS, AbsorbTracker D7; recorded under docs/ARCHITECTURE.md's Skins).
+local SHADOW_R, SHADOW_G, SHADOW_B, SHADOW_A = 0, 0, 0, 1
+local SHADOW_X, SHADOW_Y = 1, -1
+
 -- ── preview mode (preview-mode) ─────────────────────────────────────────────────────────────
 --
 -- Two things count as a preview here: the timed `/at debug hold <value>` fill, and the UNLOCKED state in
@@ -186,7 +192,9 @@ function NS.UpdateBarAppearance(unit)
     statusBar:SetStatusBarTexture(NS.GetBarTexture(unit))
     statusBar:SetStatusBarColor(NS.GetBarColor(unit))
 
-    local borderSize = NS.Units.Get(unit, "borderSize")
+    -- The skin's thickness while the border follows the skin, the stored one otherwise
+    -- (core/Data.lua); the inset below follows whichever is drawn.
+    local borderSize = NS.GetBorderSize(unit)
     local inset = max(1, floor(borderSize / 4))
     -- The background stays on the bar's root; the edge is bar.border's, a frame above the fill
     -- (modules/Bar.lua, frame-layering-§3). The inset is still derived from the border's size, so
@@ -222,8 +230,8 @@ function NS.UpdateBarAppearance(unit)
     -- OFF arm that merely skipped the call would leave whatever the last pass set, so turning the
     -- shadow back off would do nothing until a /reload.
     if NS.Units.Get(unit, "fontShadow") then
-        valueText:SetShadowColor(0, 0, 0, 1)
-        valueText:SetShadowOffset(1, -1)
+        valueText:SetShadowColor(SHADOW_R, SHADOW_G, SHADOW_B, SHADOW_A)
+        valueText:SetShadowOffset(SHADOW_X, SHADOW_Y)
     else
         valueText:SetShadowColor(0, 0, 0, 0)
         valueText:SetShadowOffset(0, 0)

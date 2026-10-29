@@ -831,7 +831,7 @@ local function tabButtons(ctx)
   return out
 end
 
-test("the General page draws its two groups as a tab strip, Master controls first", function()
+test("the General page draws its groups as a tab strip, Master controls first, Skin last", function()
   -- options-ui-§13 adoption, on the page a player opens first. The mock records nothing about a
   -- Button's text, so the tabs are identified by POSITION and by which one is disabled -- makeTab
   -- disables exactly the active tab, which is how Blizzard's own tab groups mark selection.
@@ -841,11 +841,14 @@ test("the General page draws its two groups as a tab strip, Master controls firs
   assertTrue(ctx ~= nil, "the General page rendered")
 
   local tabs = tabButtons(ctx)
-  assertEqual(#tabs, 2, "two groups, two tabs")
+  -- Master controls, Behavior and the library's Skin tab (AT-01), which takes the "Appearance"
+  -- group's place and lands last on a page with no Keybindings tab (skinning-§3).
+  assertEqual(#tabs, 3, "two groups and the Skin tab, three tabs")
   assertEqual(ctx.activeTab, "Master controls",
     "options-ui-§15: the General page opens on Master controls, and it is the FIRST tab")
   assertFalse(tabs[1].__enabled, "the first tab is the selected one")
   assertTrue(tabs[2].__enabled, "and the second is clickable")
+  assertTrue(tabs[3].__enabled, "and the third, the Skin tab")
   -- Only that the band is reserved. The strip is library-drawn (O.TabStrip, reached here through
   -- O.RenderTabbedSchema), so the wrap-invariance pin -- the reserved band and every row's y offset
   -- identical for every tab selection of a wrapped strip -- is LibKa0s's own suite's and is not

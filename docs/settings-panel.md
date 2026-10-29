@@ -12,6 +12,7 @@ How the addon registers its multi-page Blizzard Settings UI. The schema-driven c
 | `libs/LibKa0s/OptionsWidgets.lua` | `RenderField` (dispatches by `row.type`) + `RenderRows` (two-column layout over an explicit row list, skipping `skipRender` rows) + the thin `RenderSchema(ctx, pageKey, ...)` wrapper + `RenderTabbedSchema` and its parts, `TabStrip` / `PageBanner` / `PageHeader` / `SetChromeHeight` (the chrome band, options-ui-§13/§14) + the five widget makers (CheckBox / Slider / Dropdown / EditBox / ColorPicker) + `Section` / `AddSpacer` / `AttachTooltip` / `InlineButtonPair` / `SessionCheckbox`. |
 | `libs/LibKa0s/OptionsCompose.lua` | The schema composers (options-ui-§15/§16/§17): `MasterControls` / `BarGroup` / `BorderGroup` / `FontGroup` / `ColorPair`, plus `FONT_FLAGS` / `FONT_FLAGS_SORT`, `VISIBILITY_SORT`, `MASTER_GROUP` and `CLASS_COLOR_NOTE`. Pure functions returning arrays of ordinary schema rows — they create no widget and read no state. |
 | `libs/LibKa0s/OptionsScroll.lua` | `PatchAlwaysShowScrollbar` — the always-visible scrollbar override. |
+| `libs/LibKa0s/OptionsAppearance.lua` / `OptionsSkinPicker.lua` | The **Skin** tab (`AppearanceTab`, keyed `Appearance`, labeled *Skin*) and the first-run skin picker (`SkinPicker` / `HideSkinPicker`), both drawn for an owner the `LibKa0s-Skin-1.0` seam registered (`core/SkinSetup.lua`). See [The Skin tab and the first-run picker](#the-skin-tab-and-the-first-run-picker). |
 | `settings/OptionsSetup.lua` | The descriptor, and the degradation stub. Holds the brand string as a file-scope `PARENT_TITLE` local (read from `NS.Constants.BRAND`, not a second literal) passed in as `descriptor.parentTitle` (there is no `NS.PARENT_TITLE`), builds `NS.Helpers = lib:New(descriptor)`, and publishes the four thin wrappers `NS.RegisterOptionsPage` / `NS.CreateOptionsPanel` / `NS.OpenOptionsPanel` / `NS.RefreshOptionsPanel`. |
 | `settings/UnitPanel.lua` | The two pieces that did not generalize: `Helpers.RenderUnitPanel(ctx, pageKey)` (the Appearance page's one chrome block — Unit picker + the two mirror controls — and its tab strip, full rebuild per call) and `Helpers.ResetAllPositions()`. |
 | `settings/About.lua` | `Helpers.BuildMainContent` — the top-level "Ka0s Absorb Tracker" page as a spec, drawn by the library's `BuildLandingPage` (logo + Notes + slash command list). |
@@ -66,13 +67,13 @@ At page granularity, before the detail below:
 
 | Page | Tabs | Covers |
 |------|------|--------|
-| General | **Master controls**, **Behavior** | *Master controls*: turn the whole addon off, choose when it shows at all (always / only in combat / only out of combat / never), scale and fade every bar together, lock them (the lock is also the preview switch — unlocked shows placeholders on every enabled bar), show the debug console, show or hide the minimap button, and the two reset buttons. *Behavior*: the repaint throttle — how fast the bars may redraw during a burst of changes. The page's **Defaults** also resets which bars are shown (the per-unit enables, drawn on Appearance but stamped here). |
-| Appearance | **Bar**, **Text** | A **Unit** picker at the top of the page chooses which bar you are styling — Player, Target or Focus — with that bar's **Enable this unit** box beside it, and every tab below applies to that one. *Bar*: four subsections — *Size* (width and height), *Fill* (texture, opacity, color), *Background* (texture and color behind the fill), *Border* (style, thickness, color). *Text*: font, size, color, flags and shadow for the absorb amount. |
+| General | **Master controls**, **Behavior**, **Skin** | *Master controls*: turn the whole addon off, choose when it shows at all (always / only in combat / only out of combat / never), scale and fade every bar together, lock them (the lock is also the preview switch — unlocked shows placeholders on every enabled bar), show the debug console, show or hide the minimap button, and the two reset buttons. *Behavior*: the repaint throttle — how fast the bars may redraw during a burst of changes. *Skin*: the skin this addon wears (a Ka0s skin or EllesmereUI's), its font and texture overrides, the Scope (keep the settings pages and the fonts as they are) and the copy to every Ka0s addon. The page's **Defaults** also resets which bars are shown (the per-unit enables, drawn on Appearance but stamped here). |
+| Appearance | **Bar**, **Text** | A **Unit** picker at the top of the page chooses which bar you are styling — Player, Target or Focus — with that bar's **Enable this unit** box beside it, and every tab below applies to that one. *Bar*: four subsections — *Size* (width and height), *Fill* (texture, opacity, color, *Use the skin's texture*), *Background* (texture and color behind the fill), *Border* (style, thickness, color, *Use the skin's border*). *Text*: font, size, color, flags and shadow for the absorb amount, and *Use the skin's font*. Each *Use the skin's ...* box is on by default and grays the pickers it governs, which then show the skin's choice. |
 | Profiles | — | Save different setups and switch between them. |
 
 ```
 ┌─ Ka0s Absorb Tracker (about page: logo + Notes + slash command list) ┐
-│   ├─ General      [ Master controls ][ Behavior ]                    │
+│   ├─ General      [ Master controls ][ Behavior ][ Skin ]            │
 │   ├─ Appearance   [ Unit v ]  [x] Enable this unit                   │
 │   │               [ Bar ][ Text ]                                    │
 │   └─ Profiles  (only if AceDBOptions is present)                     │
@@ -90,7 +91,7 @@ them — a row's `page` is where it is *edited*, never where it is *stored*.
 
 The parent and every sub-page register as **canvas-layout categories**: a custom Blizzard `Frame` is registered with `Settings.RegisterCanvasLayoutCategory` (parent) / `Settings.RegisterCanvasLayoutSubcategory` (each sub-page) and Blizzard renders it in its own settings panel slot. The schema-driven sub-pages (General / Appearance) lay out their schema rows as **AceGUI widgets** (`CheckBox` / `Slider` / `Dropdown` / `ColorPicker`) inside an AceGUI `ScrollFrame` parented to the page's `body` frame, under a pinned **chrome band** holding the page's tab strip and, on Appearance, the chrome block above it.
 
-**Appearance is per-unit; General and About are not.** Appearance renders through `Helpers.RenderUnitPanel(ctx, pageKey)` (`settings/UnitPanel.lua`), which draws the **Unit** picker (Player/Target/Focus) in its chrome block and filters the rows to the selected unit. General has no Unit picker — its eight unit-agnostic rows (`enabled`, `visibility`, `scale`, `alpha`, `locked`, `state.debugConsole`, `global.minimap.shown`, `throttleWindow`) apply to the addon as a whole, and its three `units.<unit>.enabled` rows are stamped to it but carry `skipRender`, because the Appearance band draws the picked unit's (below) — and About has no settings at all.
+**Appearance is per-unit; General and About are not.** Appearance renders through `Helpers.RenderUnitPanel(ctx, pageKey)` (`settings/UnitPanel.lua`), which draws the **Unit** picker (Player/Target/Focus) in its chrome block and filters the rows to the selected unit. General has no Unit picker — its eight drawn unit-agnostic rows (`enabled`, `visibility`, `scale`, `alpha`, `locked`, `state.debugConsole`, `global.minimap.shown`, `throttleWindow`) and the seven `skin.*` rows its Skin tab draws apply to the addon as a whole, and its three `units.<unit>.enabled` rows are stamped to it but carry `skipRender`, because the Appearance band draws the picked unit's (below) — and About has no settings at all.
 
 Profiles is the only page that still uses AceConfig — it routes `AceConfigDialog:Open("AbsorbTracker-Profiles", container)` into an AceGUI `SimpleGroup` parented to the canvas body, so the AceDBOptions UI lands inside our shell with the same header.
 
@@ -203,10 +204,11 @@ The optional `afterGroup` map is `{ [groupName] = function(ctx) ... end }`. Each
 
 The optional `pairWith` map (fourth argument) is `{ [path] = function(ctx, rowGroup) ... end }`. It attaches a **non-schema** widget as the right partner of a named schema path's row, fired one-shot and only when that path is the lone widget on its current row (so the pair stays 50/50 and never overflows to three-wide). **This addon no longer uses it.** Its one site was the bespoke Debug console checkbox riding beside `throttleWindow`; options-ui-§15 moved that toggle onto the Master controls tab as an ordinary schema row, which is also what let `/at get` and `/at set` reach it. The seam is still the library's and is still pinned, against a synthetic row.
 
-The General page is **two tabs**, and the schema array's own order is the strip:
+The General page is **three tabs**: the schema array's own order is the strip, and the library's Skin tab
+(`opts.tabs`) takes the place of its group, `Appearance`, which is last:
 
 ```
-[ Master controls ][ Behavior ]
+[ Master controls ][ Behavior ][ Skin ]
 
 Master controls  [Enable Absorb Tracker]  [General visibility]
                  [Master scale]           [Master opacity]
@@ -215,6 +217,7 @@ Master controls  [Enable Absorb Tracker]  [General visibility]
                  [Reset position]         [Reset all settings]  <- afterGroup, the composer's tail
 Behavior         [Update throttle (seconds)]
                  (+ the three per-unit enables, skipRender: drawn in the Appearance band)
+Skin             the library's tab (O.AppearanceTab), drawing the seven skin.* rows itself
 ```
 
 **Lock frame's tooltip is the composer's `lockIsPreview` sentence** (compose minor 9) — unlocking shows
@@ -327,6 +330,38 @@ The **Debug console** checkbox toggles the **visibility of the console window on
 
 **There is no Test mode checkbox, and that is the rule rather than an omission.** options-ui-§15 exempts an addon whose unlocked view already is its preview, and unlocking here does the whole job: every enabled bar paints the placeholder fill, live repaints stand down, and **rungs 3 and 4 of `NS.ShouldShowBar` are skipped**, so a target or focus bar shows with nothing targeted and under any **General visibility** (`NS.InPreview` and the lock rung, in `modules/Display.lua`). That last part is what the removed row used to contribute; moving the rung onto the lock is what made removing it free. Entering combat re-locks — `OnEnterCombat` writes `locked` true through `NS.SetByPath`, prints `Bars locked — combat started` and calls `NS.RefreshOptionsPanel` so an open box ticks — which is where the old "combat ends test mode" guarantee went. Unlocking in combat is refused with a chat line, in the `locked` onChange, the single seam every writer goes through; re-locking in combat is always allowed, so the refusal cannot strand a player unlocked mid-fight. There is no `test` verb either, for the same reason. The one-shot value hold survives as a pure diagnostic under `/at debug hold <value> [secs]`: a fake value held for 0.5 to 60 seconds, which toggles nothing.
 
+## The Skin tab and the first-run picker
+
+**The Skin tab** is `LibKa0s-Options-1.0`'s (`H.AppearanceTab`, OptionsAppearance minor 3, keyed
+`Appearance` and labeled *Skin*), built once in `settings/General.lua` with
+`{ get = NS.SkinChoice, set = NS.WriteSkinChoice }` and handed to `RenderTabbedSchema` as
+`opts.tabs`. With no Keybindings tab on this page it is last (skinning-§3). It draws **Skin source**
+(Ka0s skins or EllesmereUI, with the failing condition named when EllesmereUI cannot be used), the
+skins under a **Look** heading, **Font and texture** (*Skin's own* in a new profile), the Scope
+(**Ignore settings panel**, on in a new profile, and **Ignore fonts**, off) and **Copy to every Ka0s
+addon…**. A pick calls `Skin:SetChoice` first and writes through `NS.WriteSkinChoice` after, so the
+row's `onChange` finds nothing left to apply and the pick is one repaint. The seven rows behind it
+are ordinary `skipRender` schema rows ([schema.md](./schema.md)), so the defaults, both resets and
+`/at get|set skin.*` reach them. **Ignore settings panel** is on for a new profile (the owner's
+2026-10-27 call, as in LootHistory), so under any skin these pages keep the client's look until the
+player turns it off; the bars, the strips, the console and the perf panel wear the skin either way.
+
+**The pages paint for the owner.** The Options instance's AceGUI handle is the owner's proxy, which
+paints every widget it creates; the Appearance chrome block's four widgets also go through
+`NS.SkinPaintAce` after each `Create`, and the Profiles page paints AceConfigDialog's tree with
+`NS.SkinPaintAceTree` after each `Open`, because AceConfigDialog acquires its widgets past the proxy.
+Each widget goes back to the shared AceGUI pool stock when it is released, so another addon's pages
+never inherit this addon's skin.
+
+**The first-run picker** is `O.SkinPicker`, a small `DIALOG` window titled *Choose a skin for Ka0s
+Absorb Tracker*, shown by `NS.MaybeShowSkinPicker` (`core/SkinSetup.lua`) at the end of `OnEnable`
+and after every profile event while the profile's `skin.pickerSeen` is false and the addon stands
+up, held to `PLAYER_REGEN_ENABLED` in combat. A pick previews; **Apply** and the gear save it, the
+gear opening this page on its Skin tab (`page = "general"`, `tab = "Appearance"`); the close control
+and Escape put the stored skin back. It has **no eye**: the spec passes no `onPreview`, because this
+addon has no window or test mode to preview in (rollout X6). One picker is up at a time across Ka0s
+addons; a queued one answers `nil, "queued"`.
+
 ## Widget makers and refresher closures
 
 Each row dispatches to a maker by `row.type`:
@@ -338,7 +373,7 @@ Each row dispatches to a maker by `row.type`:
 | `string` | `Dropdown` (or `LSM30_Statusbar` / `_Border` / `_Font` when `dialogControl` is set and the LSM widget is loaded) | Falls back to plain `Dropdown` if the LSM widget didn't load. |
 | `color` | `ColorPicker` | Honors `hasAlpha`. It *can* gray out when `disabledIf`'s sibling toggle is on — **no row in this addon asks it to** any more; see [schema.md](./schema.md) for why the four class-color swatches stay live under both modes. |
 
-The library has a fifth maker — `EditBox`, selected by `dialogControl = "EditBox"` on a string row, committing on `OnEnterPressed` only. No schema row in this addon uses it.
+The library has a fifth maker — `EditBox`, selected by `dialogControl = "EditBox"` on a string row, committing on `OnEnterPressed` only. Two rows declare it, `skin.font` and `skin.texture`, and both are `skipRender`: the Skin tab draws them as its own LSM dropdowns, so the maker draws nothing in this addon.
 
 Each maker reads via `NS.GetSetting(row.path)` and writes via `NS.SetByPath(row.path, value)` — the documented single-write seam (store, `[Set]` line, `onChange` and announce in one call, `LibKa0s-Schema-1.0`'s `Set`; see [schema.md](./schema.md)). Every maker also registers a **refresher closure** in `ctx.refreshers`. The closure re-reads the value and pushes it back into the widget (via `widget:SetValue` / `SetColor`, which AceGUI does NOT fire `OnValueChanged` for — so no recursion). After every widget write, `Helpers.RefreshAllPanels()` runs every refresher on every panel ctx, so paired controls re-sync immediately (e.g. `/at set units.player.barWidth 300` moves the open panel's slider on the same frame).
 
@@ -356,7 +391,7 @@ The throttle is a single re-armed **AceTimer** one-shot — `timer = NS.addon:Sc
 
 ## Profile change refresh
 
-When AceDB fires `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset` (registered in `NS:InitDB`, `core/Database.lua`, one handler per event so each logs its own debug line), the active profile flips and the handler runs the bar repaint chain, then calls `NS.RefreshOptionsPanel()`. That routes to `Helpers.RefreshAllPanels()`, which walks every panel ctx in the library's registry. It is the **structural** tier of a two-tier refresh, and since every page here declares a renderer through `SetRenderer` it means: a page that is on screen re-renders now, and a hidden one is flagged dirty and re-renders on its next `OnShow`. (A ctx with no renderer — none of this addon's — falls back to running its `ctx.refreshers` ungated, which is the migration seam the library keeps for hosts that have not adopted the helper.)
+When AceDB fires `OnProfileChanged` / `OnProfileCopied` / `OnProfileReset` (registered in `NS:InitDB`, `core/Database.lua`, one handler per event so each logs its own debug line), the active profile flips and the handler takes the first-run skin picker down quietly, applies the new profile's skin (`NS.ApplySkinChoice`), offers the picker again on a profile that has not seen it, runs the bar repaint chain, then calls `NS.RefreshOptionsPanel()`. That routes to `Helpers.RefreshAllPanels()`, which walks every panel ctx in the library's registry. It is the **structural** tier of a two-tier refresh, and since every page here declares a renderer through `SetRenderer` it means: a page that is on screen re-renders now, and a hidden one is flagged dirty and re-renders on its next `OnShow`. (A ctx with no renderer — none of this addon's — falls back to running its `ctx.refreshers` ungated, which is the migration seam the library keeps for hosts that have not adopted the helper.)
 
 The same `RefreshAllPanels` runs after every `/at set` and `/at reset` write (via the `set` / `applyDefault` closures in `settings/Slash.lua` → `NS.SetByPath`, directly or through `NS.ApplyDefault`, then `RefreshOptionsPanel`), and after `/at resetall`, which takes a different route: `runResetAll` calls `NS.Helpers.RestoreAllDefaults`. On the live path that is the library's `RestoreAllDefaults` (`libs/LibKa0s/Options.lua`), which resets the `sessionOnly` rows through the options descriptor's `applyDefault` (`settings/OptionsSetup.lua`, a bare `NS.ApplyDefault` with no refresh of its own), calls the descriptor's `resetProfile`, and ends with its own `RefreshAllPanels`. On the degraded path it is the stub in `settings/OptionsSetup.lua`, which makes the same two moves itself. On both paths the profile reset also refreshes through `NS.OnProfileReset`, and both are bracketed (the descriptor's `bulkBegin`/`bulkEnd` live, `NS.Bulk.Run` degraded), so the whole act logs one line, the handler's `[Set] reset profile '<name>' to defaults (N rows)`. A page's **Defaults** button is bracketed the same way and logs `[Set] reset <page>: N rows`, N being the rows it changed. A panel widget's own `set()` takes the **scalar** tier instead — the file-local `set()` in `libs/LibKa0s/OptionsWidgets.lua` calls `RefreshScalars`, which re-runs `ctx.refreshers` in place on a page that is on screen and never rebuilds it. That distinction is what keeps a checkbox click from releasing, under its own `OnValueChanged`, the widget that fired it. Each refresher re-reads its row's value via `NS.GetSetting` and pushes it into the widget — values that did not survive the write update, values that did are no-ops. Panel-driven and slash-driven mutations both keep open panels in sync; they differ only in how much of the page they are entitled to redraw.
 
@@ -398,6 +433,8 @@ local dd = AceGUI:Create(widgetType)
 The LSM30_* widgets are the canonical upstream `AceGUI-3.0-SharedMediaWidgets` r65 lib, vendored folder-per-lib at `libs/AceGUI-3.0-SharedMediaWidgets/` and loaded via `widget.xml`. `LSM30_Statusbar` / `LSM30_Font` use upstream's `GetBaseFrame` (no preview tile); `LSM30_Border` uses `GetBaseFrameWithWindow`, which adds a 42×42 `displayButton` border-preview tile pinned to the widget's TOPLEFT. That tile clashes with our canvas-layout panel — `lib.__PatchLSM30Border()` (`LibKa0s-Options-1.0`, minor 15) is called from the live arm of `settings/OptionsSetup.lua`, at file load, by which point the TOC has already pulled `widget.xml` in with the other libraries and the `LSM30_Border` registry slot holds AGSMW's own constructor. It wraps whatever constructor AceGUI currently holds, re-registers the wrapper one version above it to win the race, and per-instance hides `displayButton` and re-anchors `frame.label` / `frame.DLeft` to the frame's left edge so the empty 42px slot collapses. It is **the library's** and not this addon's for a reason worth keeping in view: AceGUI's widget registry is process-global, and this addon plus four siblings each used to carry a private copy of the wrapper in `core/LSMPatch.lua`, so the wrapper a Border dropdown got belonged to whichever addon loaded last. One lib-level member behind `lib.__lsmBorderPatched` means one registration however many copies of LibKa0s are vendored. The fixup still extends the widget rather than editing the vendored lib (Ka0s standard library-stack-§5), so a future r66+ refresh is a clean drop-in.
 
 The dropdown's `values` table is supplied by `Helpers.LSMValues(mediaType)`, which returns a deferred closure that pulls the live `NS.GetLSM():HashTable(mediaType)` at dropdown-render time. Schema rows in `settings/Appearance.lua` set `values = NS.Helpers.LSMValues("statusbar")` (etc.) at file-load — the closure is then invoked by `makeDropdown`'s `valuesHash()` every time the dropdown re-renders, so newly-registered LSM media show up without an addon reload.
+
+While a unit's *Use the skin's ...* companion is on, the pickers it governs (*Bar texture* and *Background texture* under the texture's, *Border style* and *Border thickness (px)* under the border's, *Font* under the font's) are disabled and show the skin's value; the stored pick stays in the profile and comes back when the box is unticked ([schema.md](./schema.md)).
 
 ## About page (top-level "Ka0s Absorb Tracker")
 

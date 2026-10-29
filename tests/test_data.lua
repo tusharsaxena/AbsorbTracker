@@ -148,12 +148,22 @@ test("media fetchers return the hardcoded fallbacks when LSM is absent", functio
   assertEqual(NS.GetFont(),       C.FALLBACK_FONT)
 end)
 
+-- The stored pick is read only while its "Use the skin's ..." companion is off (AT-03); the skin's
+-- side of each getter is tests/test_skin_hud.lua's.
+local function withOwnMedia(body)
+  withSetting("units.player.barTextureFromSkin", false, function()
+    withSetting("units.player.borderFromSkin", false, function()
+      withSetting("units.player.fontFromSkin", false, body)
+    end)
+  end)
+end
+
 test("media fetchers return the LSM path when LSM resolves the configured key", function()
   withLSM({
     statusbar = { ["Blizzard Raid Bar"] = "path/to/bar" },
     border    = { ["Blizzard Tooltip"]  = "path/to/border" },
     font      = { ["Friz Quadrata TT"]  = "path/to/font" },
-  }, function()
+  }, function() withOwnMedia(function()
     withSetting("units.player.barTexture", "Blizzard Raid Bar", function()
       assertEqual(NS.GetBarTexture(), "path/to/bar")
     end)
@@ -166,13 +176,13 @@ test("media fetchers return the LSM path when LSM resolves the configured key", 
     withSetting("units.player.font", "Friz Quadrata TT", function()
       assertEqual(NS.GetFont(), "path/to/font")
     end)
-  end)
+  end) end)
 end)
 
 test("media fetchers fall back when LSM is present but the key does not resolve", function()
   -- The user's saved media key can outlive the addon that supplied it (uninstall a media pack and
   -- LSM stops knowing the name). Fetch returns nil and the bar must still get a valid path.
-  withLSM({ statusbar = {}, border = {}, font = {} }, function()
+  withLSM({ statusbar = {}, border = {}, font = {} }, function() withOwnMedia(function()
     withSetting("units.player.barTexture", "Some Uninstalled Pack", function()
       assertEqual(NS.GetBarTexture(), C.FALLBACK_TEXTURE)
     end)
@@ -182,7 +192,7 @@ test("media fetchers fall back when LSM is present but the key does not resolve"
     withSetting("units.player.font", "Some Uninstalled Pack", function()
       assertEqual(NS.GetFont(), C.FALLBACK_FONT)
     end)
-  end)
+  end) end)
 end)
 
 test("ClearLSMCache lets a late-loading LSM be picked up", function()
@@ -425,13 +435,21 @@ test("with LSM present, the media getter resolves the REQUESTED unit's own key, 
         NS.db.profile.units.player.barTexture = "Player Texture"
         NS.db.profile.units.target.mirror = false
         NS.db.profile.units.target.barTexture = "Target Texture"
+        -- Each unit's own pick, not the skin's (AT-03).
+        NS.db.profile.units.player.barTextureFromSkin = false
+        NS.db.profile.units.target.barTextureFromSkin = false
 
-        assertEqual(NS.GetBarTexture("player"), "PATH_PLAYER")
-        assertEqual(NS.GetBarTexture("target"), "PATH_TARGET")
+        local okP, gotP = pcall(NS.GetBarTexture, "player")
+        local okT, gotT = pcall(NS.GetBarTexture, "target")
 
+        NS.db.profile.units.player.barTextureFromSkin = true
+        NS.db.profile.units.target.barTextureFromSkin = true
         NS.db.profile.units.player.barTexture = savedPlayer
         NS.db.profile.units.target.barTexture = savedTarget
         NS.db.profile.units.target.mirror = savedMirror
+        assertTrue(okP and okT, tostring(gotP) .. " / " .. tostring(gotT))
+        assertEqual(gotP, "PATH_PLAYER")
+        assertEqual(gotT, "PATH_TARGET")
       end)
   end)
 

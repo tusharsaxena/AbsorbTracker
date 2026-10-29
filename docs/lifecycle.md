@@ -68,6 +68,10 @@ one was written.
   ([ARCHITECTURE.md → Known Limitations](./ARCHITECTURE.md#known-limitations)).
 - **Every timer**: the coalescing repaint (`NS.CancelPendingRepaint`) and the `/at debug hold` preview
   hold (`NS.ClearPreview`).
+- **The first-run skin picker.** `NS.HideSkinPicker` takes a shown picker down (its pending preview
+  put back to the stored skin), takes a queued one out of the library's queue and drops a held
+  combat start, all without marking it seen, so it comes back on the next login the addon stands up
+  for (`core/SkinSetup.lua`).
 - **The bars, at the source.** `StandDown` publishes `VISIBILITY` *before* it takes the bus down, and
   `NS.ShouldShowBar`'s rung 0 asks `NS.IsStoodDown()` — the latch, never the stored `enabled` — so it
   already answers no, so nothing — a combat transition, a target swap, a settings

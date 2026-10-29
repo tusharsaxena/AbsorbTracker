@@ -213,6 +213,48 @@ local SCHEMA_STEPS = {
                 mapped)
         end
     end },
+    { to = 6, apply = function()
+        -- v6: the one-time reset onto the skin (skinning-§6, the owner's ruling O2). Every bar's
+        -- texture, border and font follow the skin again, once, for every player: each stored
+        -- "Use the skin's ..." companion is set back on, through LibKa0s-Skin-1.0's ResetToSkin.
+        -- The stored picks are kept (a companion off brings them back) and the colors are never
+        -- touched (X4). The account-wide stamp is what makes it once: a player who unticks a
+        -- companion afterwards keeps that pick, because this step never runs again.
+        --
+        -- WHAT ACTUALLY MOVES THE BARS ON AN UPGRADE is the defaults (rollout X3: the companions
+        -- default on). The companions first exist in this release, so no pre-v6 profile stores
+        -- one and this step changes nothing on a real upgrade; it is the explicit, idempotent
+        -- record of O2, a no-op unless a companion is stored.
+        --
+        -- ONLY A STORED COMPANION IS NAMED. A raw profile out of db.sv.profiles holds only what
+        -- differs from the defaults, and an absent companion already reads its default, true; and
+        -- ResetToSkin, handed a bool key that is absent, cannot tell it is a bool and writes its
+        -- "@skin" sentinel into it. Without the library the companions are set directly: they
+        -- mean nothing until it loads, and then they must already say "follow".
+        local Skin = LibStub and LibStub("LibKa0s-Skin-1.0", true)
+        local resetToSkin = Skin and type(Skin.ResetToSkin) == "function" and Skin.ResetToSkin
+        local reset = forEachProfile(function(p)
+            if type(p) ~= "table" or type(p.units) ~= "table" then return false end
+            local keys, moved = {}, false
+            for _, unit in ipairs(NS.Units.LIST) do
+                local u = p.units[unit]
+                if type(u) == "table" then
+                    for _, key in ipairs(NS.Units.FROM_SKIN_KEYS) do
+                        if type(u[key]) == "boolean" then
+                            if u[key] ~= true then moved = true end
+                            keys[#keys + 1] = "units." .. unit .. "." .. key
+                            if not resetToSkin then u[key] = true end
+                        end
+                    end
+                end
+            end
+            if resetToSkin and #keys > 0 then resetToSkin(p, keys) end
+            return moved
+        end)
+        if reset > 0 then
+            NS.Debug("Migrate", "put the bars back on the skin on %s profile(s)", reset)
+        end
+    end },
 }
 
 -- The runner's target, derived from the ladder and never a second literal (savedvariables-§1).

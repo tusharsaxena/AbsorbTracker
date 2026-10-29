@@ -22,7 +22,9 @@ local function build(mainCategory)
     local AceDBOptions    = LibStub("AceDBOptions-3.0",    true)
     local AceConfig       = LibStub("AceConfig-3.0",       true)
     local AceConfigDialog = LibStub("AceConfigDialog-3.0", true)
-    local AceGUI          = LibStub("AceGUI-3.0",          true)
+    -- The Options instance's AceGUI handle (its owner proxy) when it was handed over, else the
+    -- raw library: the container is painted below either way.
+    local AceGUI          = NS.AceGUI or LibStub("AceGUI-3.0", true)
     if not (AceDBOptions and AceConfig and AceConfigDialog and AceGUI) then
         return nil
     end
@@ -78,6 +80,12 @@ local function build(mainCategory)
         -- blank page under the header.
         container.frame:Show()
         AceConfigDialog:Open(APPNAME, container)
+        -- AceConfigDialog acquires the profile manager's widgets from AceGUI itself, past the
+        -- Options instance's owner proxy, so the tree is painted for this addon's skin right after
+        -- it is drawn (skinning-§3; nothing while Ignore settings panel is on). Each widget goes
+        -- back to the shared pool stock when the next Open releases it, and a skin switch
+        -- re-renders the page, which paints the fresh rows.
+        if NS.SkinPaintAceTree then NS.SkinPaintAceTree(container) end
     end)
 
     return Settings.RegisterCanvasLayoutSubcategory(

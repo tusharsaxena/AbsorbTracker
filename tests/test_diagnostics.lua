@@ -236,12 +236,19 @@ test("diagnostics: the media rung is read off LSM, never off the path the getter
   end }
   local realGetLSM = NS.GetLSM
   NS.GetLSM = function() return fake end
-  local bg = NS.Units.Config("player").bgTexture
-  NS.Units.Config("player").bgTexture = "An Uninstalled Pack Texture"
+  -- The player's own picks (AT-03): every companion off, so the rows name the stored keys.
+  local cfg = NS.Units.Config("player")
+  local bg = cfg.bgTexture
+  cfg.bgTexture = "An Uninstalled Pack Texture"
+  for _, k in ipairs(NS.Units.FROM_SKIN_KEYS) do cfg[k] = false end
   local ok, lines = pcall(report)
-  NS.Units.Config("player").bgTexture = bg
+  local second = ok and report() or nil
+  for _, k in ipairs(NS.Units.FROM_SKIN_KEYS) do cfg[k] = true end
+  cfg.bgTexture = bg
   NS.GetLSM = realGetLSM
   assertTrue(ok, tostring(lines))
+  assertTrue(find(second, "[Media] player: font=Friz Quadrata TT -> " .. C.FALLBACK_FONT
+    .. " rung=lsm skin=no") ~= nil, "a stored pick says so: " .. joined(second))
   assertTrue(find(lines, "[Media] player: border=Blizzard Tooltip -> "
     .. C.FALLBACK_BORDER .. " rung=lsm") ~= nil, joined(lines))
   assertTrue(find(lines, "[Media] player: font=Friz Quadrata TT -> "
@@ -249,8 +256,9 @@ test("diagnostics: the media rung is read off LSM, never off the path the getter
   assertTrue(find(lines, "[Media] player: bgTexture=An Uninstalled Pack Texture -> "
     .. "Interface\\LSM\\Default rung=lsm default") ~= nil, joined(lines))
   lines = report()
-  assertTrue(find(lines, "[Media] player: border=Blizzard Tooltip -> "
-    .. C.FALLBACK_BORDER .. " rung=fallback") ~= nil, "no LSM headlessly: " .. joined(lines))
+  assertTrue(find(lines, "[Media] player: border=" .. tostring(NS.Skin.Token("bar.borderStyle"))
+    .. " -> " .. C.FALLBACK_BORDER .. " rung=fallback skin=yes") ~= nil,
+    "no LSM headlessly, and the companion on draws the skin's name: " .. joined(lines))
 end)
 
 test("diagnostics: the session's rejected events are folded into the report", function()

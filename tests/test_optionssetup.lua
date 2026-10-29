@@ -303,6 +303,25 @@ test("the degraded stub answers LibKa0s v1.77.0's four members inert", function(
   assertEqual(NS2.Helpers.StrataTooltip({ "LOW", "DIALOG" }), "", "an empty tooltip, not a copy")
 end)
 
+test("the degraded stub answers LibKa0s v1.78.0's and v1.79.0's skin members inert", function()
+  -- AppearanceTab and AppearanceRows (v1.78.0, OptionsAppearance minor 1) and SkinPicker and
+  -- HideSkinPicker (v1.79.0, OptionsSkinPicker minor 1) are owed by every Options stub (the
+  -- library's "What a consumer owes"). Without the library there is no skin to pick: the tab entry
+  -- keeps the library's key and draws nothing, the rows and the picker answer nil, the hide is a
+  -- no-op.
+  -- red under: a member missing (the parity suite too), or a picker that answers a frame.
+  local NS2 = loadDegraded()
+  local tab = NS2.Helpers.AppearanceTab({})
+  assertEqual(type(tab), "table", "an inert tab entry")
+  assertEqual(tab.key, "Appearance", "the library's tab key")
+  assertEqual(tab.label, "Skin", "the library's tab label")
+  assertEqual(type(tab.render), "function", "a render that draws nothing")
+  tab.render()
+  assertEqual(NS2.Helpers.AppearanceRows({}, {}), nil, "no rows without the library")
+  assertEqual(NS2.Helpers.SkinPicker({}), nil, "no picker without the library")
+  NS2.Helpers.HideSkinPicker()
+end)
+
 test("the degraded stub answers OptionsCompose minor 11's ResetAllTooltip with the tail alone", function()
   -- ResetAllTooltip(tail) is owed by every Options stub from the v1.77.0 settings-layout extension
   -- (the library's "What a consumer owes", OptionsCompose minor 11). Without the library there is no

@@ -145,7 +145,7 @@ was never something a player needed.
 than half-working. Copy `libs/LibKa0s/` and `tests/_kit/` whole, run the diffs below, and only then
 prune the icons: from `../LibKa0s` at the tag, `lua tools/prune-icons.lua ../AbsorbTracker` cuts
 `libs/LibKa0s/media/icons/` down to the `LibKa0s icons:` line under the provenance line in
-[`CLAUDE.md`](../CLAUDE.md) (`clear, close, copy, help`). Never hand-delete an icon.
+[`CLAUDE.md`](../CLAUDE.md) (`clear, close, copy, help, settings`). Never hand-delete an icon.
 
 Run after any re-vendor, and before any release:
 

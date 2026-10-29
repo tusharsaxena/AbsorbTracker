@@ -17,6 +17,16 @@ local function appearance()
         bgTexture = "Blizzard Raid Bar",
         border = "Blizzard Tooltip",
         borderSize = 12,
+        -- The three "Use the skin's ..." companions (the composers' `fromSkin`, LibKa0s
+        -- OptionsCompose minor 12), default ON so a new or reset profile follows the skin the way
+        -- an adopted one does after the v6 reset (core/Database.lua). Each governs a media pick:
+        -- barTextureFromSkin the fill AND the background texture (`bar.texture`),
+        -- borderFromSkin the border style AND its thickness (`bar.borderStyle`,
+        -- `bar.borderSize`), fontFromSkin the face only (`hud.font`). The stored picks above are
+        -- kept for when the player turns a companion off. The colors never follow the skin.
+        barTextureFromSkin = true,
+        borderFromSkin = true,
+        fontFromSkin = true,
         borderColor = { r = 0.5, g = 0.5, b = 0.5, a = 1.0 },
         font = "Friz Quadrata TT",
         fontSize = 12,
@@ -90,6 +100,21 @@ NS.defaults.profile = {
     locked = false,
     throttleWindow = 0.1,
 
+    -- The skin this addon wears (skinning-§2: per addon, per profile), applied through
+    -- core/SkinSetup.lua and drawn by the library's Skin tab on General. `source` is "ka0s" (a Ka0s
+    -- skin) or "eui" (EllesmereUI's look), `skin` the Ka0s skin's key; "ka0s"/"ka0s" is Ka0s
+    -- Default. The Scope's two exceptions: `ignorePanel` keeps this addon's settings pages the
+    -- client's (on for a new profile, the owner's 2026-10-27 call that LootHistory ships too, so the
+    -- pages look as they did before skins), `ignoreFonts` keeps every font as the addon set it. The
+    -- Font and texture overrides are an LSM key each, "" for the skin's own. `pickerSeen`: the
+    -- first-run skin picker was closed on this profile; false on every profile, old and new, so
+    -- every player sees it once (the rollout's O3). New keys with defaults, so AceDB merges them
+    -- into every existing profile and no migration is owed.
+    skin = {
+        source = "ka0s", skin = "ka0s", ignorePanel = true, ignoreFonts = false,
+        font = "", texture = "", pickerSeen = false,
+    },
+
     -- Per-unit. Player has no `mirror` key — it is the mirror SOURCE, so a player mirror row
     -- would be circular. Target and Focus ship disabled (an upgrade changes nothing on screen)
     -- but mirrored (a first enable looks like the player bar, not raw factory defaults).
@@ -104,8 +129,8 @@ NS.defaults.global = {
     -- Persisted-DB schema version. NS:RunMigrations (core/Database.lua) reads it once at init and
     -- is the only writer: it advances the stamp to a step's `to` only after that step returned, and
     -- its target is NS.SCHEMA_VERSION, derived from the ladder's last step. v2 retired the
-    -- poll-interval key, v3 introduced profile.units, v4 dropped the dead `hidden` global and v5
-    -- mapped `showOnlyInCombat` onto `visibility`.
+    -- poll-interval key, v3 introduced profile.units, v4 dropped the dead `hidden` global, v5
+    -- mapped `showOnlyInCombat` onto `visibility` and v6 put every bar's media back on the skin.
     --
     -- The default is 0, the pre-migration floor, and never the current version (savedvariables-§1).
     -- AceDB's removeDefaults strips every stored value equal to its default at logout, so a stamp
@@ -115,7 +140,7 @@ NS.defaults.global = {
     -- stamp, so a default above 0 makes such an account read as already past those steps. 0 has
     -- neither problem: a stamp the runner advanced differs from it and persists, and an account
     -- with no stamp reads 0 and runs every step. Every step is idempotent, so a genuinely new
-    -- install costs five no-ops and is stamped 5.
+    -- install costs six no-ops and is stamped 6.
     schemaVersion = 0,
 
     -- LibDBIcon's OWN table, handed to it whole by core/LauncherSetup.lua (launcher-§3). Declaring

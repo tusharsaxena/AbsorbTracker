@@ -1,4 +1,4 @@
-local _, NS = ...
+local addonName, NS = ...
 
 -- The absorb bar frames — one per unit (player / target / focus). Built at file-load time from
 -- the per-unit defaults (no DB yet — appearance is re-applied from the active profile on enable).
@@ -136,6 +136,10 @@ local function buildHandle(bar, unit, globalName)
         name      = globalName .. "Handle",
         label     = label,
         moveFrame = bar,
+        -- The skin owner (core/SkinSetup.lua registered it at file load, above this file): the
+        -- strip's fill, edge, label and mark tints come from this addon's skin (WidgetsDragHandle
+        -- minor 6), and a skin switch repaints them. Ka0s Default draws the strip as before.
+        owner     = addonName,
         -- nil falls back to the widget's own last rung, a Blizzard texture, not to nothing.
         helpIcon  = NS.Icon and NS.Icon("help") or nil,
         -- Dragging is the LOCK's business. A locked bar is not movable (UpdateBarAppearance), and
@@ -245,7 +249,10 @@ function NS.CreateBar(unit, globalName)
     bar:SetSize(unitDefaults.barWidth, unitDefaults.barHeight)
     bar:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     bar:SetBackdrop(bar.backdropInfo)
-    bar:SetBackdropColor(0.2, 0.2, 0.2, 0.8)
+    -- Every build-time look is the profile's own getter, never a literal (anti-pattern #107): at
+    -- file load there is no profile yet and each answers the defaults; the first appearance pass
+    -- (modules/Display.lua) paints the real values before the bar is shown.
+    bar:SetBackdropColor(NS.GetBgColor(unit))
     bar:SetMovable(true)
     bar:EnableMouse(true)
     bar:RegisterForDrag("LeftButton")
@@ -262,7 +269,7 @@ function NS.CreateBar(unit, globalName)
     statusBar:SetStatusBarTexture(NS.GetBarTexture(unit))
     statusBar:SetMinMaxValues(0, 100)
     statusBar:SetValue(100)
-    statusBar:SetStatusBarColor(0.4, 0.7, 1, 0.8)
+    statusBar:SetStatusBarColor(NS.GetBarColor(unit))
     bar.statusBar = statusBar
 
     -- The border: the backdrop EDGE alone, on its own frame over the whole bar, above the fill.
@@ -273,11 +280,10 @@ function NS.CreateBar(unit, globalName)
     bar.borderInfo = {
         edgeFile = NS.GetBorder(unit),
         tile = false,
-        edgeSize = 12,
+        edgeSize = NS.GetBorderSize(unit),
     }
     border:SetBackdrop(bar.borderInfo)
-    border:SetBackdropBorderColor(unitDefaults.borderColor.r, unitDefaults.borderColor.g,
-        unitDefaults.borderColor.b, unitDefaults.borderColor.a)
+    border:SetBackdropBorderColor(NS.GetBorderColor(unit))
     bar.border = border
 
     -- The text overlay: a mouse-off frame over the whole bar, above the border, that hosts the

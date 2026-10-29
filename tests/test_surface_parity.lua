@@ -345,3 +345,36 @@ test("parity: the Widgets stub carries every Widgets member the addon reaches", 
   assertTrue(#problems == 0, "LibKa0s-Widgets-1.0: the stub diverges from what the addon reaches in "
     .. #problems .. " place(s) — " .. table.concat(problems, "; "))
 end)
+
+-- ── Skin (the owner's facade, and the seam's NS members) ─────────────────────────────────────────
+
+test("parity: the degraded Skin facade answers every name the live facade carries", function()
+  -- core/SkinSetup.lua: live, NS.Skin is LibKa0s-Skin-1.0's `Skin:For("AbsorbTracker")`; without
+  -- the library it is the host's table, whose painting names are no-ops and whose Token / Color
+  -- answer nil ("leave the host's"). A facade is per owner and built by `For`, not a major's
+  -- lib-level surface, so this is the two-table form, key for key, with nothing ignored: a
+  -- vocabulary name the library adds fails here until the stub answers it (LootHistory's case).
+  local NS2 = loadDegraded()
+  T.assertSurfaceParity(NS.Skin, NS2.Skin, "Skin facade vs host stub", {})
+end)
+
+test("parity: the Skin seam publishes the same NS members on both paths", function()
+  -- Members from: grep -nE '^\s*function NS\.[A-Za-z_]+|^\s*NS\.[A-Za-z_]+\s*=' core/SkinSetup.lua
+  local f = io.open("core/SkinSetup.lua", "r")
+  assertTrue(f ~= nil, "cannot open core/SkinSetup.lua (tests run from the repo root)")
+  local src = f:read("*a")
+  f:close()
+  local found, n = {}, 0
+  for line in src:gmatch("[^\r\n]+") do
+    local key = line:match("^%s*function NS%.([A-Za-z_][A-Za-z0-9_]*)")
+      or line:match("^%s*NS%.([A-Za-z_][A-Za-z0-9_]*)%s*=")
+    if key and not found[key] then found[key] = true; n = n + 1 end
+  end
+  assertTrue(found.ApplySkinChoice and n >= 5, "the derivation found " .. n .. " NS members in "
+    .. "core/SkinSetup.lua and no NS.ApplySkinChoice -- the file changed shape and this case is now "
+    .. "asserting nothing")
+  local NS2 = loadDegraded()
+  local live, degraded = {}, {}
+  for key in pairs(found) do live[key], degraded[key] = NS[key], NS2[key] end
+  T.assertSurfaceParity(live, degraded, "Skin seam (NS members)")
+end)

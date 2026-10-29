@@ -334,6 +334,19 @@ if not lib then
     -- by every Options stub the same way. With no library there is no reset wording to read, so the
     -- stub answers the caller's own tail, or nothing (the library's suggested stub).
     Helpers.ResetAllTooltip    = function(tail) return type(tail) == "string" and tail or "" end
+    -- The Skin tab (LibKa0s v1.78.0, OptionsAppearance minor 1; skinning-§3), owed by every Options
+    -- stub. On this path RenderTabbedSchema is the no-op above, so the entry is inert, and
+    -- AppearanceRows answers nil, as the live one does when it cannot draw. Labeled "Skin" since
+    -- OptionsAppearance minor 3 (LibKa0s v1.79.0); the key stays "Appearance".
+    Helpers.AppearanceTab      = function()
+        return { key = "Appearance", label = "Skin", render = function() end }
+    end
+    Helpers.AppearanceRows     = function() return nil end
+    -- The first-run skin picker (LibKa0s v1.79.0, OptionsSkinPicker minor 1). Without the library
+    -- there is no skin to pick: SkinPicker draws nothing and answers nil (never the live one's
+    -- second value, "queued": there is no queue), and HideSkinPicker is a no-op.
+    Helpers.SkinPicker         = function() return nil end
+    Helpers.HideSkinPicker     = function() end
     Helpers.__panels   = function() return {} end
     Helpers.__panelFor = function() return nil end
 
