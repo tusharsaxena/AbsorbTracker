@@ -21,7 +21,11 @@ OnInitialize (ADDON_LOADED)
     │                                    --   keys onto profile.units.player,
     │                                    --   backfills missing keys (flat +
     │                                    --   per-unit), v2 drops updateInterval
-    │                                    --   from every stored profile
+    │                                    --   from every stored profile ... v6 puts
+    │                                    --   every bar's media back on the skin
+    │
+    ├─▶ NS.ApplySkinChoice()            -- core/SkinSetup.lua: the profile's skin
+    │                                    --   (Skin:SetChoice), before anything paints
     │
     └─▶ NS.Slash:Register()             -- settings/Slash.lua registers the
                                         --   /at + /absorbtracker chat commands
@@ -36,6 +40,7 @@ The flat→profile migration lives in `NS:RunMigrations` (`core/Database.lua`), 
    - **v3**: stamp-only. This is the DB-wide marker; the *per-profile* stamps were already written in step 1, so there is nothing account-wide left to do.
    - **v4**: drops the dead `hidden` master toggle from **every** profile in the store via `dropKeyEverywhere` (same all-profiles reasoning as the v3 lift — a key left on an inactive profile returns the moment the user switches to it). The per-unit `enabled` flags replaced it, so a surviving `hidden = true` would suppress every bar with no UI left to clear it.
    - **v5**: maps the `showOnlyInCombat` **boolean** onto the four-value `visibility` **dropdown** (`true` → `"inCombat"`, `false` → `"always"`), on every profile in the store, then deletes the boolean. A stored-value *type* change takes a ladder step in the same change as the row (options-ui-§15); changing the row's type alone would meet a stored `true` where the panel expects one of four strings and lose a setting the player already made, silently. It runs **after** the backfill above, and the old value deliberately wins over the `"always"` the backfill just seeded.
+   - **v6**: the one-time reset onto the skin (skinning-§6, the owner's ruling O2). On every profile in the store, each stored *Use the skin's ...* companion (`barTextureFromSkin`, `borderFromSkin`, `fontFromSkin`, under every stored `units.<unit>`) is set back on through `LibKa0s-Skin-1.0`'s `ResetToSkin`, or directly when the library is absent. Only a companion that is stored is named: an absent one already reads its default, `true`, and `ResetToSkin` handed an absent key writes its `"@skin"` sentinel into it. The stored picks and every color are left alone, and the account-wide stamp is what makes it once, so a companion the player unticks afterwards stays off. It logs `[Migrate] put the bars back on the skin on N profile(s)` only when a companion actually moved.
 
 **Adding a schema version is one new row appended to `SCHEMA_STEPS`**, not another `if g.schemaVersion < N` arm — the loop already owns the ordering, the logging and the stamp.
 
@@ -74,9 +79,12 @@ OnEnable (PLAYER_LOGIN timing)
     │     (rejected = NS.State.rejectedEvents; a refused name returns false, is appended
     │      to it once and logged under the Events debug tag — the calls after it still run)
     │
-    └─▶ if NS.CreateOptionsPanel then
-            NS.CreateOptionsPanel()    -- registers parent + sub-pages
-        end
+    ├─▶ if NS.CreateOptionsPanel then
+    │       NS.CreateOptionsPanel()    -- registers parent + sub-pages
+    │   end
+    │
+    └─▶ NS.MaybeShowSkinPicker()       -- the first-run skin picker, while this profile's
+                                       --   skin.pickerSeen is false and the latch is up
 ```
 
 The two `UNIT_*` events go through **one private `CreateFrame` frame per unit** with `RegisterUnitEvent`, not AceEvent — the events-frames-taint-§1 unit-filter carve-out ([ARCHITECTURE.md → Event Subscriptions](./ARCHITECTURE.md#the-per-unit-frames-are-the-unit-filter-carve-out)). These events fire for *every* unit the client knows about; AceEvent-3.0 shares one frame and cannot `RegisterUnitEvent`, so a plain `RegisterEvent` would pay a C→Lua dispatch per unit only to discard all but ours. The private frames filter at the C layer instead. **A frame each, rather than packing tokens:** `RegisterUnitEvent` filters at most two unit tokens per registration, so three units could never share one frame anyway — and with a frame each, enabling or disabling a bar is a registration change on that unit's own frame, leaving a **disabled unit registered for nothing at all**. `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` stay on AceEvent but are gated on the same flag by the same function, which is where the saving actually lands (they fire on every swap in ordinary play). `PLAYER_ENTERING_WORLD` and the combat pair are unconditional AceEvent subscriptions. **Every one of those seven registrations is pcalled** (events-frames-taint-§1): the file-local `safeRegister` / `safeRegisterUnit` in `core/AbsorbTracker.lua` call `NS.SafeRegisterEvent` / `NS.SafeRegisterUnitEvent` (`LibKa0s-Core-1.0` minor 8, bound by `core/CoreSetup.lua`), which front-gate on `C_EventUtils.IsEventValid` where present and `pcall` the registration. The client raises on an unknown event name, so without the helper one name a patch retires would take every registration after it down; through it, the refused name costs only itself and lands once in `NS.State.rejectedEvents`, which `/at debug events` prints and the `[Init]` summary counts. The `if NS.CreateOptionsPanel then ... end` guard is the [forward-reference pattern](./module-map.md#forward-references) — in practice the call always succeeds because all files load synchronously before `OnEnable` fires, but the nil-check keeps the load-order coupling soft.
@@ -199,7 +207,11 @@ OnProfileReset   → NS.OnProfileReset     [Set] reset profile '<name>' to defau
 adoptProfile()   -- the shared body
     │
     ├─▶ NS.MigrateProfileToV3(db.profile)
+    ├─▶ NS.HideSkinPicker()                    -- the picker down quietly, its preview put back
+    ├─▶ NS.ApplySkinChoice()                   -- the new profile's skin, Scope and overrides
+    ├─▶ NS.SyncEnabledHold()                   -- the latch re-reads the new profile's `enabled`
     ├─▶ NS.bus:SendMessage(NS.MSG.UNITS)       -- ▶ the unit event registrations follow the profile
+    ├─▶ NS.MaybeShowSkinPicker()               -- a new or reset profile shows the picker again
     ├─▶ NS.bus:SendMessage(NS.MSG.POSITION)    -- ▶ Display: new profile's saved position
     ├─▶ NS.bus:SendMessage(NS.MSG.APPEARANCE)  -- ▶ Display: size, textures, colors, border, font
     ├─▶ NS.bus:SendMessage(NS.MSG.REPAINT)     -- ▶ Timer: repaint absorb value against new profile
