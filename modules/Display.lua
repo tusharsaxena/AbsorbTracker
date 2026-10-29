@@ -186,7 +186,9 @@ function NS.UpdateBarAppearance(unit)
     statusBar:SetStatusBarTexture(NS.GetBarTexture(unit))
     statusBar:SetStatusBarColor(NS.GetBarColor(unit))
 
-    local borderSize = NS.Units.Get(unit, "borderSize")
+    -- The skin's thickness while the border follows the skin, the stored one otherwise
+    -- (core/Data.lua); the inset below follows whichever is drawn.
+    local borderSize = NS.GetBorderSize(unit)
     local inset = max(1, floor(borderSize / 4))
     -- The background stays on the bar's root; the edge is bar.border's, a frame above the fill
     -- (modules/Bar.lua, frame-layering-§3). The inset is still derived from the border's size, so

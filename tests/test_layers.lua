@@ -201,6 +201,6 @@ test("the appearance pass draws the edge on the border frame and the background 
   assertEqual(bar.backdropInfo.edgeFile, nil, "the bar's own backdrop carries no edge")
   assertEqual(bar.backdropInfo.bgFile, NS.GetBgTexture())
   assertEqual(bar.borderInfo.edgeFile, NS.GetBorder())
-  assertEqual(bar.borderInfo.edgeSize, NS.Units.Get("player", "borderSize"))
+  assertEqual(bar.borderInfo.edgeSize, NS.GetBorderSize("player"))
   assertEqual(bar.borderInfo.bgFile, nil, "the border frame draws no background over the fill")
 end)

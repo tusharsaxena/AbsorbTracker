@@ -33,6 +33,16 @@ local PINNED = {
   ["skin.texture"] = { type = "string", page = "general", default = "" },
   ["state.debugConsole"] = { type = "bool", page = "general", default = nil },
   ["throttleWindow"] = { type = "number", page = "general", default = 0.1, min = 0.05, max = 1, step = 0.05 },
+  -- The three "Use the skin's ..." companions per unit (the skinning rollout's AT-03), default on.
+  ["units.focus.barTextureFromSkin"] = { type = "bool", page = "appearance", default = true },
+  ["units.focus.borderFromSkin"] = { type = "bool", page = "appearance", default = true },
+  ["units.focus.fontFromSkin"] = { type = "bool", page = "appearance", default = true },
+  ["units.player.barTextureFromSkin"] = { type = "bool", page = "appearance", default = true },
+  ["units.player.borderFromSkin"] = { type = "bool", page = "appearance", default = true },
+  ["units.player.fontFromSkin"] = { type = "bool", page = "appearance", default = true },
+  ["units.target.barTextureFromSkin"] = { type = "bool", page = "appearance", default = true },
+  ["units.target.borderFromSkin"] = { type = "bool", page = "appearance", default = true },
+  ["units.target.fontFromSkin"] = { type = "bool", page = "appearance", default = true },
   ["units.focus.barAlpha"] = { type = "number", page = "appearance", default = 1, min = 0, max = 1, step = 0.05 },
   ["units.focus.barColor"] = { type = "color", page = "appearance", default = { a = 0.8, b = 1, g = 0.7, r = 0.4 } },
   ["units.focus.barHeight"] = { type = "number", page = "appearance", default = 20, min = 10, max = 100, step = 1 },
@@ -135,6 +145,6 @@ test("layout guard: every stored path keeps its type, page, default and range", 
   for path in pairs(PINNED) do
     assertTrue(seen[path], "a setting the layout pass lost: " .. path)
   end
-  -- 70 from the layout pass, plus the Skin tab's seven (AT-01).
-  assertEqual(n, 77, "the schema row count")
+  -- 70 from the layout pass, plus the Skin tab's seven (AT-01) and the nine skin companions (AT-03).
+  assertEqual(n, 86, "the schema row count")
 end)

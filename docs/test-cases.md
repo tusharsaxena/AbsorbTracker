@@ -97,9 +97,9 @@ Total.
 
 ### test_database.lua (38)
 
-- RunMigrations migrates a fresh DB to the current version (5)
+- RunMigrations migrates a fresh DB to the current version (6)
 - a freshly-materialized global runs the ladder, because its default is pre-ladder
-- RunMigrations leaves an already-current (v5) DB unchanged
+- RunMigrations leaves an already-current (v6) DB unchanged
 - RunMigrations is idempotent across repeated runs
 - RunMigrations v2 retires the legacy updateInterval profile key
 - the account-wide schemaVersion default is 0 (savedvariables-§1)
@@ -112,7 +112,7 @@ Total.
 - RunMigrations does not overwrite an existing user value
 - RunMigrations is a safe no-op when the DB is absent
 - RunMigrations logs [Migrate] only when a version bump happens
-- RunMigrations emits the [Migrate] lines for a v1->v5 upgrade in order
+- RunMigrations emits the [Migrate] lines for a v1->v6 upgrade in order
 - InitDB produced a profile carrying every default key
 - v3 migration lifts flat appearance keys onto the player unit
 - v3 migration seeds target and focus disabled and mirrored
@@ -123,9 +123,9 @@ Total.
 - v4 does not resurrect `hidden` via the defaults backfill
 - v3 migration is idempotent
 - v3 migration does not share nested tables between units
-- the schema version lands on 5
+- the schema version lands on 6
 - real AceDB init: a legacy flat profile is lifted onto the player unit, not overwritten by fresh defaults
-- real AceDB init: a fresh install (no saved data) converges on factory defaults at v5
+- real AceDB init: a fresh install (no saved data) converges on factory defaults at v6
 - InitDB lifts EVERY saved profile, not only the active one
 - a profile that appears AFTER the upgrade is lifted when it becomes active
 - the InitDB sweep and the profile-change lift compose without double-applying
@@ -877,6 +877,20 @@ Total.
 - Skin seam: a profile switch applies the new profile's skin, and back
 - Skin seam: every bar's drag strip is built with this owner, so a switch repaints it
 
+### test_skin_hud.lua (11)
+
+- every unit's three skin companions default on (X3)
+- the companions are composed schema rows, bools defaulting on, on the tab of the pick
+- the background texture and the border thickness follow the companions too (D3, D4)
+- a companion on draws the skin's token; off, the stored pick
+- the getters fetch the skin's media through LibSharedMedia
+- a mirrored bar follows the player's companion, an unlinked one its own
+- Copy from Player copies the companions
+- the appearance pass draws the skin's border thickness and inset
+- a skin switch repaints every bar, and leaves the player's colors alone
+- v6 puts every stored companion back on, keeps the picks and the colors
+- v6 runs once: a pick made after it is kept
+
 ### test_docs.lua (6)
 
 - README.md carries no angle-bracket argument placeholders
@@ -1093,6 +1107,7 @@ Total.
 | test_debughold.lua | 16 |
 | test_widgets.lua | 57 |
 | test_skinsetup.lua | 13 |
+| test_skin_hud.lua | 11 |
 | test_docs.lua | 6 |
 | test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
@@ -1108,4 +1123,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **922** |
+| **Total** | **933** |

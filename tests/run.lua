@@ -151,6 +151,9 @@ Kit.run{
     -- The LibKa0s-Skin-1.0 seam (AT-01). After test_widgets, which leaves General built and parked
     -- on its first tab; it parks the page there again and puts the skin back on Ka0s Default.
     "test_skinsetup",
+    -- The HUD bars follow the skin (AT-03): companions, getters, repaint, the v6 reset. After
+    -- test_skinsetup, on the Ka0s Default it leaves applied.
+    "test_skin_hud",
     "test_docs",
     { name = "test_prose", dir = "tests/_kit/" },
     "test_ltrap",

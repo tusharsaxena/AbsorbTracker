@@ -25,6 +25,8 @@ local addonName, NS = ...
 --                           argument applies the stored pair (addon:OnInitialize, the profile
 --                           events), and with it the stored exceptions and overrides; a nil half
 --                           keeps that half (each Skin tab row's onChange).
+--   OnLooksChanged          one listener, registered here: it republishes APPEARANCE, so the HUD
+--                           bars repaint with the skin's media on every switch (core/Data.lua).
 --   NS.SKIN_SOURCE_OPTIONS  the source row's values, and NS.SKIN_OPTIONS the skin row's (every
 --   NS.SKIN_OPTIONS         registered skin, in the library's order). settings/General.lua reads
 --                           both at file load.
@@ -171,6 +173,14 @@ Skin:RegisterOwner(addonName, {
     get = NS.SkinChoice,
     set = NS.WriteSkinChoice,
 })
+
+-- The HUD follows a skin switch, an override and an exception change: the library fires
+-- OnLooksChanged after each, and the bars repaint through the one appearance path every other
+-- restyle takes (modules/Display.lua resolves the media again, core/Data.lua). The bars are not
+-- recorded frames, so nothing else would repaint them. A stood-down addon's bus reaches nobody.
+NS.Skin.OnLooksChanged(function()
+    if NS.bus and NS.MSG then NS.bus:SendMessage(NS.MSG.APPEARANCE) end
+end)
 
 -- The one line a reload request earns on the path that has no popup of its own (a profile event
 -- or a `/at set` leaving an EllesmereUI that painted this session). The Skin tab raises the

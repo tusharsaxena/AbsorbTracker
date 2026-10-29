@@ -187,10 +187,13 @@ local function mediaRung(kind, name)
     return "fallback"
 end
 
---- One media row: the stored LSM name, what it resolved to, and the rung that resolved it.
+--- One media row: the LSM name the bar draws (the skin's while its "Use the skin's ..." companion
+--- is on, else the stored pick), what it resolved to, the rung that resolved it, and whose name
+--- it is (`skin=yes` the skin's, `skin=no` the stored pick).
 local function mediaRow(out, unit, key, kind, resolved)
-    local name = NS.Units.Get(unit, key)
-    out:add("Media", "%s: %s=%s -> %s rung=%s", unit, key, name, resolved, mediaRung(kind, name))
+    local name, fromSkin = NS.MediaKey(unit, key)
+    out:add("Media", "%s: %s=%s -> %s rung=%s skin=%s", unit, key, tostring(name), resolved,
+        mediaRung(kind, name), fromSkin and "yes" or "no")
 end
 
 --- Per unit: the four media paths the bar draws with, through the mirror.

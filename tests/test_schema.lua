@@ -86,8 +86,9 @@ test("the page -> tab -> row-count partition is the designed one", function()
     -- O.AppearanceTab draws as its own controls, the host tab keyed by this group's name.
     { page = "general", unit = nil,
       tabs = { { "Master controls", 7 }, { "Behavior", 4 }, { "Appearance", 7 } } },
-    -- Bar is Size 2 + Fill 4 + Background 3 + Border 4 (item 020).
-    { page = "appearance", unit = "player", tabs = { { "Bar", 13 }, { "Text", 6 } } },
+    -- Bar is Size 2 + Fill 5 + Background 3 + Border 5 (item 020), and Text the font block's six
+    -- plus one: Fill, Border and Text each end on their "Use the skin's ..." companion (AT-03).
+    { page = "appearance", unit = "player", tabs = { { "Bar", 15 }, { "Text", 7 } } },
   }
   for _, page in ipairs(want) do
     local counts, order, seen = {}, {}, {}
@@ -844,7 +845,8 @@ test("item 020: the Appearance and Master controls words", function()
       "Height of this bar, in pixels. Multiplied by Master scale on General > Master controls.")
     assertEqual(row(p .. "barWidth").fmt, "%d px", "the readout stays")
     assertEqual(row(p .. "bgTexture").label, "Background texture")
-    assertEqual(row(p .. "bgTexture").desc, "Texture drawn behind the fill, across the whole bar.")
+    assertEqual(row(p .. "bgTexture").desc, "Texture drawn behind the fill, across the whole bar. "
+      .. "Not read while Use the skin's texture (Fill) is on.")
     assertEqual(row(p .. "barAlpha").label, "Bar opacity", "the composed label stays canonical")
     assertEqual(row(p .. "barAlpha").tooltip, "Opacity of this whole bar (fill, background, border, "
       .. "text). Multiplied by Master opacity on General > Master controls.")

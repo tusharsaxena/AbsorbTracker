@@ -123,8 +123,14 @@ test("UpdateBarAppearance sizes the bar from the profile", function()
   assertEqual(calls[1][2], 24)
 end)
 
+-- The three cases below set the player's own thickness, so each turns the border's "Use the skin's
+-- border" off first: while it is on the skin's `bar.borderSize` is drawn (tests/test_skin_hud.lua).
+local function withOwnBorder(body)
+  return withUnitSetting("player", "borderFromSkin", false, body)
+end
+
 test("UpdateBarAppearance derives the backdrop inset from borderSize (floor of a quarter)", function()
-  withUnitSetting("player", "borderSize", 12, function()
+  withOwnBorder(function() withUnitSetting("player", "borderSize", 12, function()
     NS.UpdateBarAppearance()
     -- The edge is the border frame's own table since frame-layering moved it above the fill.
     assertEqual(NS.bars.player.borderInfo.edgeSize, 12)
@@ -132,25 +138,25 @@ test("UpdateBarAppearance derives the backdrop inset from borderSize (floor of a
     assertEqual(NS.bars.player.backdropInfo.insets.right, 3)
     assertEqual(NS.bars.player.backdropInfo.insets.top, 3)
     assertEqual(NS.bars.player.backdropInfo.insets.bottom, 3)
-  end)
+  end) end)
 end)
 
 test("UpdateBarAppearance floors the inset to 1 for a hairline border", function()
   -- borderSize 2 would give an inset of 0 on a bare floor(), which collapses the statusbar onto
   -- the backdrop edge; the max(1, ...) guard is what keeps a visible gutter.
-  withUnitSetting("player", "borderSize", 2, function()
+  withOwnBorder(function() withUnitSetting("player", "borderSize", 2, function()
     NS.UpdateBarAppearance()
     assertEqual(NS.bars.player.backdropInfo.insets.left, 1)
     assertEqual(NS.bars.player.backdropInfo.insets.bottom, 1)
-  end)
+  end) end)
 end)
 
 test("UpdateBarAppearance scales the inset up with a thick border", function()
-  withUnitSetting("player", "borderSize", 32, function()
+  withOwnBorder(function() withUnitSetting("player", "borderSize", 32, function()
     NS.UpdateBarAppearance()
     assertEqual(NS.bars.player.borderInfo.edgeSize, 32)
     assertEqual(NS.bars.player.backdropInfo.insets.left, 8)
-  end)
+  end) end)
 end)
 
 test("UpdateBarAppearance clears the backdrop before re-applying it", function()

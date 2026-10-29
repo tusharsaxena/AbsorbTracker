@@ -504,9 +504,10 @@ end)
 test("perf: the schema with LibKa0s absent is the full one minus the composed rows, by tab", function()
   local NS2 = loadDegraded()
   -- The seven Skin rows (settings/General.lua, AT-01) are hand-written, so they move both counts.
-  local FULL, DEGRADED = 77, 22
-  -- Bar: BarGroup 12 + ColorPair 6 + BorderGroup 12, the Fill, Background and Border subsections.
-  local GAP = { ["Master controls"] = 7, Bar = 30, Text = 18 }
+  local FULL, DEGRADED = 86, 22
+  -- Bar: BarGroup 15 + ColorPair 6 + BorderGroup 15, the Fill, Background and Border subsections;
+  -- each composer's fromSkin companion (AT-03) is one composed row per unit.
+  local GAP = { ["Master controls"] = 7, Bar = 36, Text = 21 }
   assertEqual(#NS.Schema, FULL, "the full schema's row count")
   assertEqual(#NS2.Schema, DEGRADED,
     "the degraded schema's row count: a page file that aborts at load takes its rows with it")

@@ -111,40 +111,85 @@ local function unitSetting(unit, key)
     return NS.Units.Get(unit or "player", key)
 end
 
-function NS.GetBarTexture(unit)
-    local lsm = NS.GetLSM()
-    if lsm then
-        local texture = lsm:Fetch("statusbar", unitSetting(unit, "barTexture"))
-        if texture then return texture end
+-- ── following the skin (skinning-§6) ──────────────────────────────────────────────────────
+--
+-- Each media pick has a "Use the skin's ..." companion beside it (defaults/Profile.lua). While it
+-- is on, the owner's facade answers the skin's token in place of the stored pick, through
+-- S.Resolve, which is override-aware: the Skin tab's own font or texture wins over the skin's. The
+-- stored pick is never rewritten, so turning the companion off brings the player's pick back.
+--
+-- The companion is read through unitSetting like the pick it governs, so a mirrored bar follows
+-- the player's. Without the library, or for a token a skin leaves unset, the facade answers the
+-- stored pick: the look this addon drew before skins.
+--
+-- NOT S.BarTexture: that primitive always paints the skin's texture and replays it on every skin
+-- switch, so a player who unticked the companion would lose the pick at the next switch. A skin
+-- switch reaches the bars through OnLooksChanged instead (core/SkinSetup.lua), which republishes
+-- APPEARANCE, and the appearance pass reads these getters again. Never on the absorb hot path.
+--
+-- Each stored media key, the skin token it follows and the companion that says so. The fill and
+-- the background share `bar.texture` and one companion (DECISIONS D3): the skin has no
+-- background-texture token, and the player's background color still tints it.
+local FOLLOWS = {
+    barTexture = { "bar.texture", "barTextureFromSkin" },
+    bgTexture  = { "bar.texture", "barTextureFromSkin" },
+    border     = { "bar.borderStyle", "borderFromSkin" },
+    borderSize = { "bar.borderSize", "borderFromSkin" },
+    font       = { "hud.font", "fontFromSkin" },
+}
+
+--- The value `unit`'s bar draws for media key `key`, and true when it is the skin's (the companion
+--- is on and the skin answered). Also the diagnostics report's source (modules/Diagnostics.lua).
+function NS.MediaKey(unit, key)
+    local stored = unitSetting(unit, key)
+    local f, S = FOLLOWS[key], NS.Skin
+    if f and S and type(S.Resolve) == "function" then
+        local on = unitSetting(unit, f[2]) == true
+        local v = S.Resolve(f[1], stored, on)
+        if v ~= nil then return v, on end
     end
-    return C.FALLBACK_TEXTURE
+    return stored, false
+end
+
+local function resolved(unit, key)
+    return (NS.MediaKey(unit, key))
+end
+
+--- One media path out of LibSharedMedia, or the fallback when LSM is absent or the key resolves
+--- to nothing (a media pack uninstalled since the pick).
+local function fetch(mediaType, key, fallback)
+    local lsm = NS.GetLSM()
+    if lsm and key ~= nil then
+        local path = lsm:Fetch(mediaType, key)
+        if path then return path end
+    end
+    return fallback
+end
+
+function NS.GetBarTexture(unit)
+    return fetch("statusbar", resolved(unit, "barTexture"), C.FALLBACK_TEXTURE)
 end
 
 function NS.GetBgTexture(unit)
-    local lsm = NS.GetLSM()
-    if lsm then
-        local texture = lsm:Fetch("statusbar", unitSetting(unit, "bgTexture"))
-        if texture then return texture end
-    end
-    return C.FALLBACK_TEXTURE
+    return fetch("statusbar", resolved(unit, "bgTexture"), C.FALLBACK_TEXTURE)
 end
 
 function NS.GetBorder(unit)
-    local lsm = NS.GetLSM()
-    if lsm then
-        local border = lsm:Fetch("border", unitSetting(unit, "border"))
-        if border then return border end
-    end
-    return C.FALLBACK_BORDER
+    return fetch("border", resolved(unit, "border"), C.FALLBACK_BORDER)
 end
 
+--- The border's thickness: the skin's `bar.borderSize` while borderFromSkin is on (DECISIONS
+--- D4), so a skin's thin or absent edge is never drawn at the stored 12 px; the stored size
+--- otherwise. Also the backdrop inset's source (modules/Display.lua).
+function NS.GetBorderSize(unit)
+    local size = tonumber(resolved(unit, "borderSize"))
+    return size or unitSetting(unit, "borderSize")
+end
+
+--- The face only: size and outline stay the player's (`hud.fontSize` and `hud.outline` are this
+--- addon's defaults in Ka0s Default).
 function NS.GetFont(unit)
-    local lsm = NS.GetLSM()
-    if lsm then
-        local font = lsm:Fetch("font", unitSetting(unit, "font"))
-        if font then return font end
-    end
-    return C.FALLBACK_FONT
+    return fetch("font", resolved(unit, "font"), C.FALLBACK_FONT)
 end
 
 -- ── colors ─────────────────────────────────────────────────────────────────────────────────
