@@ -357,7 +357,10 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
   DECISIONS D7; not an anti-pattern #107 literal).
 - **The one-time reset** (the owner's O2). Schema v6 (`core/Database.lua`) sets every stored companion
   back on, once, on every stored profile, through `Skin.ResetToSkin`; the picks and the colors are
-  kept, and a companion the player unticks afterwards stays off. Under Ka0s Default that is a visible
+  kept, and a companion the player unticks afterwards stays off. On a real upgrade the visible
+  reset comes from the defaults (rollout X3: the companions are new in this release and default
+  on, so no pre-v6 profile stores one); v6 is the explicit, idempotent record of O2, a no-op unless
+  a companion is stored. Under Ka0s Default that is a visible
   change on the bars (rollout X5): the Ka0s Default bar texture, no border (the skin's `None` style)
   and Oxanium SemiBold, in place of Blizzard Raid Bar, Blizzard Tooltip at 12 px and Friz Quadrata.
 - **The drag strips** are built with `owner = addonName` (WidgetsDragHandle minor 6): their fill,

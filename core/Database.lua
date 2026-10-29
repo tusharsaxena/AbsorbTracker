@@ -221,6 +221,11 @@ local SCHEMA_STEPS = {
         -- touched (X4). The account-wide stamp is what makes it once: a player who unticks a
         -- companion afterwards keeps that pick, because this step never runs again.
         --
+        -- WHAT ACTUALLY MOVES THE BARS ON AN UPGRADE is the defaults (rollout X3: the companions
+        -- default on). The companions first exist in this release, so no pre-v6 profile stores
+        -- one and this step changes nothing on a real upgrade; it is the explicit, idempotent
+        -- record of O2, a no-op unless a companion is stored.
+        --
         -- ONLY A STORED COMPANION IS NAMED. A raw profile out of db.sv.profiles holds only what
         -- differs from the defaults, and an absent companion already reads its default, true; and
         -- ResetToSkin, handed a bool key that is absent, cannot tell it is a bool and writes its
