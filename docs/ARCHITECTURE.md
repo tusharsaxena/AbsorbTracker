@@ -352,6 +352,9 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
   `NS.MediaKey` answers the stored `font`, over the skin's `hud.font` and a font override, as the
   drag-strip label keeps its face. The library's `Resolve`/`Token` never read the exception (only
   `P.font` does), so `NS.MediaKey` asks `NS.SkinFontsIgnored()` (`core/SkinSetup.lua`) itself.
+  The value text's drop shadow (black, offset 1, -1, while *Font shadow* is on) is the font row's
+  own rendering, not a skin color, and stays a named constant in `modules/Display.lua` (rollout
+  DECISIONS D7; not an anti-pattern #107 literal).
 - **The one-time reset** (the owner's O2). Schema v6 (`core/Database.lua`) sets every stored companion
   back on, once, on every stored profile, through `Skin.ResetToSkin`; the picks and the colors are
   kept, and a companion the player unticks afterwards stays off. Under Ka0s Default that is a visible
