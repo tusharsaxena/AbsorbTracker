@@ -127,6 +127,10 @@ function addon:OnEnable()
     -- closed it. After the panel is registered, so its gear has the General page to open; the
     -- stored skin was applied in OnInitialize. It shows nothing while the latch is down (a
     -- disabled addon brings up no window), and in combat it holds for PLAYER_REGEN_ENABLED.
+    -- Shown here and not two seconds later, as LootHistory does with NS.After: this addon has no
+    -- cancelable deferral seam (no NS.After / NS.CancelDeferrals for the stand-down to sweep), and
+    -- a bare timer would outlive a stand-down, which must leave nothing armed. The picker is one
+    -- small window, so the login spike is not worth inventing that seam for it.
     if NS.MaybeShowSkinPicker then NS.MaybeShowSkinPicker() end
     -- No [Init] boot summary here: the debug flag is session-only and off at login, so a
     -- login-time NS.Debug line would always be gated off. Per debug-logging-§5 the session summary

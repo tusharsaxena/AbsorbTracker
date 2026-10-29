@@ -184,18 +184,6 @@ local function place(widget, frame, halves, cell, y, height)
     f:Show()
 end
 
---- Build the page's one chrome block into the frame H.PageHeader pinned in the band: one row of
---- four quarter cells, [Unit picker][enable box][Link to Player][Copy from Player]. The player
---- leaves the last two empty, so every control sits at the same x whichever unit is picked. The
---- checkboxes and the button are bottom-aligned with the dropdown, whose label sits above it.
----
---- Returns the link checkbox (nil for the player) and the enable box, so the refresher at the
---- bottom of the render can re-sync both. Every widget it creates is recorded on ctx.__chromeWidgets, which is both the
---- release ledger (see releaseStaleChromeWidgets) and the test seam — the library keeps its own
---- chrome private, and a suite otherwise has no handle on a widget a click would reach.
----
---- PageHeader pcalls this and reports a raise, so a failure here costs the block rather than the
---- strip and every row under it.
 --- One chrome-block widget, painted for this addon's skin (skinning-§3). NS.AceGUI is normally the
 --- Options instance's owner proxy, which paints on Create already; the explicit NS.SkinPaintAce
 --- repaints in place for the same owner, so the block does not depend on which handle it was
@@ -208,6 +196,18 @@ local function acquire(AceGUI, wtype)
     return w
 end
 
+--- Build the page's one chrome block into the frame H.PageHeader pinned in the band: one row of
+--- four quarter cells, [Unit picker][enable box][Link to Player][Copy from Player]. The player
+--- leaves the last two empty, so every control sits at the same x whichever unit is picked. The
+--- checkboxes and the button are bottom-aligned with the dropdown, whose label sits above it.
+---
+--- Returns the link checkbox (nil for the player) and the enable box, so the refresher at the
+--- bottom of the render can re-sync both. Every widget it creates is recorded on ctx.__chromeWidgets, which is both the
+--- release ledger (see releaseStaleChromeWidgets) and the test seam — the library keeps its own
+--- chrome private, and a suite otherwise has no handle on a widget a click would reach.
+---
+--- PageHeader pcalls this and reports a raise, so a failure here costs the block rather than the
+--- strip and every row under it.
 local function buildChromeBlock(ctx, pageKey, frame, mirrored)
     local AceGUI = NS.AceGUI
     local kids = ctx.__chromeWidgets
