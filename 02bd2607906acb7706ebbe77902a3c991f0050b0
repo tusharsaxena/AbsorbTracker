@@ -1,0 +1,12 @@
+ka0s-review: AbsorbTracker skinning adoption (M2), independent review. Verdict: APPROVE WITH ONE MAJOR FIX.
+Reviewer gate: 953 passed / 0 failed / 1 skipped; luacheck 0/0 in 77 files; libs/LibKa0s byte-identical to v1.80.0 (icons pruned per declaration), tests/_kit identical.
+
+Findings and outcome:
+1. MAJOR core/Data.lua: HUD value text ignored "Ignore fonts" (S.Resolve/Token never read ignoreFonts). FIXED 01d68a4 (AT-03): NS.MediaKey answers the stored face for `font` while NS.SkinFontsIgnored() (new, core/SkinSetup.lua, Skin:GetIgnore) is true; test first (test_skin_hud: red, then green), SKIN-26 smoke check, docs. Reported as library_gap.
+2. minor AT-02 has no commit. NOT A CODE CHANGE: returned as an exception with proof command `! grep -rnE 'CreateFrame\("Frame"[^)]*BackdropTemplate|SetColorTexture|SetBackdropColor\([0-9]' core settings | grep -vE '^[^:]+:[0-9]+:\s*--'` (exit 0); lead adds the exceptions.tsv row.
+3. minor modules/Display.lua D7 shadow literals inline. FIXED 8e44a5c (AT-03): SHADOW_R/G/B/A and SHADOW_X/Y named locals citing D7; ARCHITECTURE Skins note.
+4. minor settings/UnitPanel.lua acquire split buildChromeBlock's docblock. FIXED c4b91f7 (AT-04): moved above the docblock.
+5. minor core/AbsorbTracker.lua picker not deferred like LootHistory. DECLINED (comment added, c4b91f7): AT has no cancelable deferral seam (no NS.After/NS.CancelDeferrals); a bare timer would outlive a stand-down, and inventing the seam contradicts "copy, do not invent". The reviewer allowed this case.
+6. minor core/Database.lua v6 wording. FIXED 02bd260 (AT-03): v6 comment and ARCHITECTURE say the defaults (X3) cause the visible reset; v6 is the idempotent record. Code unchanged.
+
+Gate after fixes: ka0s-bounded lua tests/run.lua 954 passed / 0 failed / 1 skipped (955), exit 0; ka0s-bounded luacheck . 0 warnings / 0 errors in 77 files.
