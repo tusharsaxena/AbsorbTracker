@@ -140,8 +140,12 @@ local FOLLOWS = {
 
 --- The value `unit`'s bar draws for media key `key`, and true when it is the skin's (the companion
 --- is on and the skin answered). Also the diagnostics report's source (modules/Diagnostics.lua).
+--- "Ignore fonts" (the Skin tab's Scope) wins for the face: the stored pick draws, over the skin's
+--- `hud.font` and over a font override. The library's Resolve/Token do not check it (only P.font
+--- does), so it is checked here; SetIgnore fires OnLooksChanged, which repaints the bars.
 function NS.MediaKey(unit, key)
     local stored = unitSetting(unit, key)
+    if key == "font" and NS.SkinFontsIgnored and NS.SkinFontsIgnored() then return stored, false end
     local f, S = FOLLOWS[key], NS.Skin
     if f and S and type(S.Resolve) == "function" then
         local on = unitSetting(unit, f[2]) == true

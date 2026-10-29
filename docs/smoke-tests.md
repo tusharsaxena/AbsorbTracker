@@ -14,7 +14,7 @@ These are the checks only a live client can make: real frames, the live absorb e
 | COMBAT-1–6 | Combat | Secret values, the settings combat gate, the sidebar lock, lock and unlock in combat |
 | BAR-1–22 | Bars | Absorb tracking on three units, visibility, scale, toggle, preview, drag strips and where their tooltips open, positions, whether Master scale moves a dragged bar, and frame layering (border over fill, overlapping bars, a faded bar's strip) |
 | LOOK-1–19 | Appearance | The Appearance page, the band's enable box, media dropdowns, opacity, font color, class colors, link and copy, tab clicks through the library's strip, the item 020 Appearance pass, the one-row band |
-| SKIN-1–25 | Skins | The skinning rollout: the one-time reset's visible change under Ka0s Default, new and reset profiles, Ka0s Default elsewhere unchanged, the Skin tab, every skin on the bars, the *Use the skin's ...* boxes, the font and texture overrides, the settings pages, the tool windows, the drag strips, what stays stock, EllesmereUI on and off, profiles, combat, the first-run picker, the degraded look and the CLI |
+| SKIN-1–26 | Skins | The skinning rollout: the one-time reset's visible change under Ka0s Default, new and reset profiles, Ka0s Default elsewhere unchanged, the Skin tab, every skin on the bars, the *Use the skin's ...* boxes, the font and texture overrides, the settings pages, the tool windows, the drag strips, what stays stock, EllesmereUI on and off, profiles, combat, the first-run picker, the degraded look, the CLI and Ignore fonts on the bars |
 | MIGRATE-1–6 | Upgrades | SavedVariables backfill, the schema stamp, the visibility and v3 migrations |
 | LAUNCH-1–10 | Launcher | Minimap button, options menu, broker display |
 | DIAG-1–53 | Diagnostics | Debug console and its Diagnostics link, value hold, bulk log lines, the library's refusal and stand-down lines, diagnostics report (which turns logging on), perf run (and the hold's refusal during one), resizing the console, its Copy window and the perf panel |
@@ -198,6 +198,7 @@ Setup for the verb checks: run PROFILE-9 first, so a `SmokeTest` profile exists 
 - **SKIN-23. One picker at a time across Ka0s addons.** With a second Ka0s addon that uses skins, both on fresh profiles, `/reload` → only one picker opens; close it → the other addon's opens at once. Reset both and `/reload` → on the first picker, **Apply to all Ka0s addons** is shown; press it after previewing **Azeroth** → both addons wear Azeroth, no second picker opens, and `/reload` brings neither back. Result:
 - **SKIN-24. The degraded look.** Rename `libs/LibKa0s/` aside, `/reload` → no Lua error, no picker, and the bars draw your stored picks (on an untouched profile, Blizzard Raid Bar, Blizzard Tooltip and Friz Quadrata TT, the look before skins). Rename the folder back and `/reload`. Result:
 - **SKIN-25. The CLI reaches the skin.** `/at get units.player.barTextureFromSkin` → `true`; `/at set skin.skin obsidian` → the bars and strips repaint at once; `/at set skin.skin nope` → refused with the allowed values; `/at set skin.skin ka0s` → back. `/at diagnostics` → each `[Media]` line ends `skin=yes` and names the skin's texture, border or font, and after unticking a box that unit's line for it reads `skin=no` and your pick. Result:
+- **SKIN-26. Ignore fonts reaches the bars.** On Ka0s Default with *Use the skin's font* ticked, Skin → tick **Ignore fonts** → the number on every bar goes back to your stored face (Friz Quadrata on an untouched profile) live, as the drag-strip labels keep theirs; pick a **Font** override → the number does not change; untick **Ignore fonts** → the override's face; set **Font** back to *Skin's own* → Oxanium again. Result:
 
 ## Upgrades
 
@@ -334,7 +335,7 @@ layout and frame layering run passed, recorded on its `Result:` line as `pass (o
 **Owed: the skinning rollout (AT-05, 2026-10-29).** Each check below was added or rewritten for the
 skinning rollout and carries an empty `Result:` line until the owner runs it:
 
-- New: SKIN-1 to SKIN-25 (the Skins theme).
+- New: SKIN-1 to SKIN-26 (the Skins theme).
 - Rewritten: INSTALL-2 (the shipped look is Ka0s Default's), PANEL-3 (the Skin tab ends General's
   strip), PANEL-5 (the grayed pickers), LOOK-1 (the three *Use the skin's ...* rows) and MIGRATE-2
   (the stamp is 6).

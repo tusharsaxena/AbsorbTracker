@@ -134,6 +134,37 @@ test("a companion on draws the skin's token; off, the stored pick", function()
   end)
 end)
 
+test("Ignore fonts keeps the value text on the stored face, over the skin and a font override", function()
+  -- The library's Resolve/Token never read ignoreFonts (only P.font does), so the addon checks it
+  -- itself (core/Data.lua). red under: a MediaKey that resolves `font` through the skin while
+  -- Ignore fonts is ticked.
+  local panel, fonts = Skin:GetIgnore(OWNER)
+  local savedFont, savedTexture = Skin:GetOverride(OWNER)
+  local own = NS.db.profile.units.player.font
+  local ok, err = pcall(function()
+    assertEqual(NS.db.profile.units.player.fontFromSkin, true, "the companion is on")
+    assertTrue(S.Token("hud.font") ~= own, "the skin's face differs from the stored one")
+    Skin:SetIgnore(OWNER, nil, true)
+    local name, fromSkin = NS.MediaKey("player", "font")
+    assertEqual(name, own, "ignored fonts draw the stored face")
+    assertEqual(fromSkin, false, "and the face is not the skin's")
+    Skin:SetOverride(OWNER, "Override Face", nil)
+    assertEqual((NS.MediaKey("player", "font")), own,
+      "a font override is not drawn while fonts are ignored")
+    withLSM({ font = { [own] = "path/own/font", ["Override Face"] = "path/override/font" } }, function()
+      assertEqual(NS.GetFont("player"), "path/own/font")
+    end)
+    assertEqual((NS.MediaKey("player", "barTexture")), S.Token("bar.texture"),
+      "Ignore fonts leaves the textures alone")
+    Skin:SetOverride(OWNER, false, nil)
+    Skin:SetIgnore(OWNER, nil, false)
+    assertEqual((NS.MediaKey("player", "font")), S.Token("hud.font"), "unticked, the skin's face again")
+  end)
+  Skin:SetOverride(OWNER, savedFont or false, savedTexture or false)
+  Skin:SetIgnore(OWNER, panel, fonts)
+  if not ok then error(err, 0) end
+end)
+
 test("the getters fetch the skin's media through LibSharedMedia", function()
   withLSM({
     statusbar = { [S.Token("bar.texture")] = "path/skin/bar" },

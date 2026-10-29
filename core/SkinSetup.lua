@@ -16,6 +16,9 @@ local addonName, NS = ...
 --                           overrides, "" for false (the skin's own). A nil half is not written.
 --   NS.ApplySkinIgnore(p,f) moves the applied exceptions: `Skin:SetIgnore`, live; no argument
 --                           applies the stored pair, a nil half keeps that half.
+--   NS.SkinFontsIgnored()   true while the applied "Ignore fonts" is on (`Skin:GetIgnore`, live;
+--                           false without the library). core/Data.lua reads it for the HUD face:
+--                           the library's Resolve/Token never check it, only P.font does.
 --   NS.SkinOverride()       the stored overrides: font, texture, each an LSM key or false for the
 --                           skin's own; false, false before NS:InitDB.
 --   NS.ApplySkinOverride(f,t) moves the applied overrides: `Skin:SetOverride`, live; no argument
@@ -274,6 +277,7 @@ if not Skin then
     NS.Skin = S
     function NS.ApplySkinChoice() return false, false end
     function NS.ApplySkinIgnore() return false, false end
+    function NS.SkinFontsIgnored() return false end
     function NS.ApplySkinOverride() return false end
     -- Nothing to paint an AceGUI row with: stock AceGUI, as the client draws it.
     function NS.SkinPaintAce() return false end
@@ -317,6 +321,14 @@ end
 -- or a `/at set` leaving an EllesmereUI that painted this session). The Skin tab raises the
 -- library's popup for its own picks.
 local RELOAD_LINE = "Reload your interface (/reload) to finish changing the skin."
+
+--- The applied "Ignore fonts". The library's Resolve and Token never read it (only P.font, the
+--- primitives' path, does), so the HUD's own font getter asks here (core/Data.lua).
+function NS.SkinFontsIgnored()
+    if type(Skin.GetIgnore) ~= "function" then return false end
+    local _, fonts = Skin:GetIgnore(addonName)
+    return fonts == true
+end
 
 function NS.ApplySkinIgnore(panel, fonts)
     if type(Skin.SetIgnore) ~= "function" then return false, false end

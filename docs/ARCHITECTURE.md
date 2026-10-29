@@ -348,7 +348,10 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
   overrides, and never through `S.BarTexture`, which would replay the skin's texture over an unticked
   pick at the next switch. It runs in the appearance pass only, never on the absorb hot path. Font
   size, outline and shadow, and every HUD color (fill, background, border, text and the class
-  colors), stay the player's (rollout X4).
+  colors), stay the player's (rollout X4). **Ignore fonts** wins for the face: while it is on,
+  `NS.MediaKey` answers the stored `font`, over the skin's `hud.font` and a font override, as the
+  drag-strip label keeps its face. The library's `Resolve`/`Token` never read the exception (only
+  `P.font` does), so `NS.MediaKey` asks `NS.SkinFontsIgnored()` (`core/SkinSetup.lua`) itself.
 - **The one-time reset** (the owner's O2). Schema v6 (`core/Database.lua`) sets every stored companion
   back on, once, on every stored profile, through `Skin.ResetToSkin`; the picks and the colors are
   kept, and a companion the player unticks afterwards stays off. Under Ka0s Default that is a visible
