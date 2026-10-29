@@ -123,6 +123,11 @@ function addon:OnEnable()
     -- of the two routes a player has back, the other being `/at enable`.
     -- Create the options panel (defined in settings/OptionsSetup.lua).
     if NS.CreateOptionsPanel then NS.CreateOptionsPanel() end
+    -- The first-run skin picker (core/SkinSetup.lua), once per session, on a profile that has not
+    -- closed it. After the panel is registered, so its gear has the General page to open; the
+    -- stored skin was applied in OnInitialize. It shows nothing while the latch is down (a
+    -- disabled addon brings up no window), and in combat it holds for PLAYER_REGEN_ENABLED.
+    if NS.MaybeShowSkinPicker then NS.MaybeShowSkinPicker() end
     -- No [Init] boot summary here: the debug flag is session-only and off at login, so a
     -- login-time NS.Debug line would always be gated off. Per debug-logging-§5 the session summary
     -- is emitted from DebugLog:SetEnabled on enable, the only point where it is current and visible.
@@ -386,6 +391,12 @@ local function adoptProfile(tag, fmt, ...)
         NS.MigrateProfileToV3(NS.db.profile)
     end
     NS.Debug(tag, fmt, ...)
+    -- FIRST, the first-run skin picker down, quietly (core/SkinSetup.lua): a showing belongs to the
+    -- profile it opened on, and taking it down puts back a pending preview (the stored skin, through
+    -- the library's revert), so it lands before NS.ApplySkinChoice below and the new profile's whole
+    -- pair, exceptions and overrides with it, is the last skin written. A new or reset profile still
+    -- shows it, fresh, further down.
+    if NS.HideSkinPicker then NS.HideSkinPicker() end
     -- The new profile's skin (core/SkinSetup.lua), before anything repaints from it: a switch, a
     -- copy and a reset each hand over a profile with its own `skin` block, and AceDB replaced it
     -- with no row's onChange firing. Skin:SetChoice repaints every frame recorded for this owner
@@ -404,6 +415,11 @@ local function adoptProfile(tag, fmt, ...)
     NS.SyncEnabledHold()
     -- The new profile carries its own enable flags, so the event registrations have to follow it.
     NS.bus:SendMessage(NS.MSG.UNITS)
+    -- The first-run skin picker (core/SkinSetup.lua): a new or reset profile starts from the
+    -- defaults, `pickerSeen` false, so it shows, a fresh showing over the new profile's skin; one
+    -- that has seen it stays down. After the latch re-read the new profile's switch, so a profile
+    -- with the addon switched off shows nothing.
+    if NS.MaybeShowSkinPicker then NS.MaybeShowSkinPicker() end
     -- The bar passes, unless the latch just stood up: StandUp (core/Lifecycle.lua) has already
     -- published POSITION, APPEARANCE and REPAINT from the new profile, and a second round would run
     -- every three-bar appearance pass twice.

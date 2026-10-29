@@ -154,6 +154,12 @@ Kit.run{
     -- The HUD bars follow the skin (AT-03): companions, getters, repaint, the v6 reset. After
     -- test_skinsetup, on the Ka0s Default it leaves applied.
     "test_skin_hud",
+    -- The first-run skin picker (AT-04): when it shows, its spec, the real window. After
+    -- test_skin_hud; it leaves the skin on Ka0s Default and the picker down, unseen.
+    "test_skin_picker",
+    -- The AceGUI rows this addon acquires and the tool surfaces on the skin (AT-04). After
+    -- test_skin_picker; it leaves the Scope on its defaults.
+    "test_skin_tools",
     "test_docs",
     { name = "test_prose", dir = "tests/_kit/" },
     "test_ltrap",

@@ -891,6 +891,32 @@ Total.
 - v6 puts every stored companion back on, keeps the picks and the colors
 - v6 runs once: a pick made after it is kept
 
+### test_skin_picker.lua (14)
+
+- Skin picker: the spec names this owner, its seams, General's Skin tab, and no eye
+- Skin picker: an unseen profile shows it; a seen one does not
+- Skin picker: it shows at login, from addon:OnEnable
+- Skin picker: in combat a start waits for PLAYER_REGEN_ENABLED, once
+- Skin picker: a held start is dropped by HideSkinPicker
+- Skin picker: never while the addon is switched off
+- Skin picker: a new profile and a reset profile show it again
+- Skin picker: the title names this addon, and the eye is hidden
+- Skin picker: the player's close marks it seen; this addon's own hide does not
+- Skin picker: a profile that has seen it takes a shown picker down, unmarked
+- Skin picker: the stand-down takes the picker down, unseen
+- Skin picker: a pick previews, unsaved; Apply saves it and marks the picker seen
+- Skin picker: the close control puts the old skin back, saves nothing, and marks it seen
+- Skin picker: the gear saves the pick and opens General on its Skin tab
+
+### test_skin_tools.lua (6)
+
+- the chrome block's four widgets are painted for this owner, even off the raw AceGUI
+- under the default Scope (Ignore settings panel) the chrome block stays stock
+- NS.SkinPaintAceTree paints every widget under a container
+- the Profiles page paints AceConfigDialog's tree after each Open
+- the debug console and its copy window are painted for this owner
+- the perf panel is painted for this owner
+
 ### test_docs.lua (6)
 
 - README.md carries no angle-bracket argument placeholders
@@ -1108,6 +1134,8 @@ Total.
 | test_widgets.lua | 57 |
 | test_skinsetup.lua | 13 |
 | test_skin_hud.lua | 11 |
+| test_skin_picker.lua | 14 |
+| test_skin_tools.lua | 6 |
 | test_docs.lua | 6 |
 | test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
@@ -1123,4 +1151,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **933** |
+| **Total** | **953** |

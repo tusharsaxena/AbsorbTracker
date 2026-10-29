@@ -90,6 +90,10 @@ local function StandDown()
     -- gone.
     local dropped = NS.CancelPendingRepaint and NS.CancelPendingRepaint()
     if NS.ClearPreview then NS.ClearPreview() end
+    -- The first-run skin picker is a window this addon shows; it goes down unmarked (its pending
+    -- preview put back, a held combat start dropped), so it comes back on the next login the addon
+    -- stands up for (core/SkinSetup.lua).
+    if NS.HideSkinPicker then NS.HideSkinPicker() end
     NS.Debug("Life", "teardown: pending repaint dropped=%s", dropped and "yes" or "no")
 
     -- At the SOURCE, never imperatively. NS.ShouldShowBar's rung 0 asks NS.IsStoodDown, and the

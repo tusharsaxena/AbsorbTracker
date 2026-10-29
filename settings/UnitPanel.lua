@@ -196,6 +196,18 @@ end
 ---
 --- PageHeader pcalls this and reports a raise, so a failure here costs the block rather than the
 --- strip and every row under it.
+--- One chrome-block widget, painted for this addon's skin (skinning-§3). NS.AceGUI is normally the
+--- Options instance's owner proxy, which paints on Create already; the explicit NS.SkinPaintAce
+--- repaints in place for the same owner, so the block does not depend on which handle it was
+--- given. Nothing is painted while the Scope's Ignore settings panel is on, and
+--- releaseStaleChromeWidgets' AceGUI:Release puts the widget back in the shared pool stock (the
+--- library chains its restore onto the widget's own OnRelease; this file sets none).
+local function acquire(AceGUI, wtype)
+    local w = AceGUI:Create(wtype)
+    if NS.SkinPaintAce then NS.SkinPaintAce(w) end
+    return w
+end
+
 local function buildChromeBlock(ctx, pageKey, frame, mirrored)
     local AceGUI = NS.AceGUI
     local kids = ctx.__chromeWidgets
@@ -208,7 +220,7 @@ local function buildChromeBlock(ctx, pageKey, frame, mirrored)
         order[i] = u
     end
 
-    local dd = AceGUI:Create("Dropdown")
+    local dd = acquire(AceGUI, "Dropdown")
     kids[#kids + 1] = dd
     dd:SetLabel("Unit")
     dd:SetList(list, order)
@@ -229,7 +241,7 @@ local function buildChromeBlock(ctx, pageKey, frame, mirrored)
     local enablePath = "units." .. ctx.unit .. ".enabled"
     local enableRow  = NS.FindSchemaRow and NS.FindSchemaRow(enablePath)
     local enableLabel = enableRow and enableRow.label or "Enable this unit"
-    local en = AceGUI:Create("CheckBox")
+    local en = acquire(AceGUI, "CheckBox")
     kids[#kids + 1] = en
     en:SetLabel(enableLabel)
     en:SetValue(NS.Units.IsEnabled(ctx.unit) and true or false)
@@ -245,7 +257,7 @@ local function buildChromeBlock(ctx, pageKey, frame, mirrored)
 
     local linkRow   = NS.FindSchemaRow and NS.FindSchemaRow("units." .. ctx.unit .. ".mirror")
     local linkLabel = linkRow and linkRow.label or "Link to Player"
-    local cb = AceGUI:Create("CheckBox")
+    local cb = acquire(AceGUI, "CheckBox")
     kids[#kids + 1] = cb
     cb:SetLabel(linkLabel)
     cb:SetValue(mirrored)
@@ -256,7 +268,7 @@ local function buildChromeBlock(ctx, pageKey, frame, mirrored)
     Helpers.AttachTooltip(cb, linkLabel, linkRow and linkRow.desc)
     place(cb, frame, halves, 3, rowY, CONTROL_H)
 
-    local btn = AceGUI:Create("Button")
+    local btn = acquire(AceGUI, "Button")
     kids[#kids + 1] = btn
     btn:SetText("Copy from Player")
     btn:SetCallback("OnClick", function()
