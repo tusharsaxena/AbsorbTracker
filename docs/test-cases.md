@@ -853,13 +853,29 @@ Total.
 - first OnShow builds the Defaults button and renders the page
 - the Defaults button restores just its own page
 - a second OnShow rebuilds the panel body without stacking duplicate widgets
-- the General page draws its two groups as a tab strip, Master controls first
+- the General page draws its groups as a tab strip, Master controls first, Skin last
 - clicking Behavior swaps the rows and leaves the button pair on Master controls
 - every unit's Appearance strip is its schema's groups, and each tab draws that group's rows
 - a mirrored unit's every tab draws the hint and none of the appearance rows
 - showing every page builds it without error
 - the main page's About content renders on its first OnShow
 - re-rendering the About page replaces its body rather than stacking a second copy
+
+### test_skinsetup.lua (13)
+
+- Skin seam: the owner is the folder name, and NS.Skin is its facade
+- Skin seam: the read answers Ka0s Default before the profile store exists
+- Skin seam: the seven skin keys default to Ka0s Default, as skip-render rows on General
+- Skin seam: the skin row's values are every registered skin, in the library's order
+- Skin seam: /at set refuses a skin that is not registered and applies one that is
+- Skin seam: the Skin tab is General's last, and opens
+- Skin seam: one tab pick is one effective SetChoice and one repaint
+- Skin seam: the tab's Ignore fonts reaches the library and the profile, one repaint
+- Skin seam: another addon's copy to every Ka0s addon repaints AbsorbTracker once
+- Skin seam: a whole apply carries the stored exceptions and overrides with the skin
+- Skin seam: /at set reaches an exception and an override, each only its own half
+- Skin seam: a profile switch applies the new profile's skin, and back
+- Skin seam: every bar's drag strip is built with this owner, so a switch repaints it
 
 ### test_docs.lua (6)
 
@@ -899,7 +915,7 @@ Total.
 - vendored Slash resolves a fallback-only override to its own strings
 - vendored Perf resolves a fallback-only override to its own strings
 
-### test_surface_parity.lua (11)
+### test_surface_parity.lua (13)
 
 - parity: the Core stub publishes everything core/CoreSetup.lua publishes live
 - parity: the DebugLog stub carries the whole live surface
@@ -912,6 +928,8 @@ Total.
 - parity: the Perf stub carries every Perf member the addon reaches
 - parity: the Lifecycle stub carries the whole live surface
 - parity: the Widgets stub carries every Widgets member the addon reaches
+- parity: the degraded Skin facade answers every name the live facade carries
+- parity: the Skin seam publishes the same NS members on both paths
 
 ### test_vendor_sync.lua (3)
 
@@ -1074,10 +1092,11 @@ Total.
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 16 |
 | test_widgets.lua | 57 |
+| test_skinsetup.lua | 13 |
 | test_docs.lua | 6 |
 | test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
-| test_surface_parity.lua | 11 |
+| test_surface_parity.lua | 13 |
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_events.lua | 6 |
@@ -1089,4 +1108,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **907** |
+| **Total** | **922** |

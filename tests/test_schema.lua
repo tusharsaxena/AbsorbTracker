@@ -82,7 +82,10 @@ test("the page -> tab -> row-count partition is the designed one", function()
     -- counted here -- tests/test_widgets.lua is what pins them onto this tab.
     -- Behavior counts the three per-unit enables, which stay stamped here (skipRender, drawn in the
     -- Appearance band, ABS-L01) beside the one throttle row it draws.
-    { page = "general", unit = nil, tabs = { { "Master controls", 7 }, { "Behavior", 4 } } },
+    -- Appearance is the Skin tab's group (AT-01): seven skip-render rows the library's
+    -- O.AppearanceTab draws as its own controls, the host tab keyed by this group's name.
+    { page = "general", unit = nil,
+      tabs = { { "Master controls", 7 }, { "Behavior", 4 }, { "Appearance", 7 } } },
     -- Bar is Size 2 + Fill 4 + Background 3 + Border 4 (item 020).
     { page = "appearance", unit = "player", tabs = { { "Bar", 13 }, { "Text", 6 } } },
   }
@@ -306,6 +309,12 @@ test("every persisted profile default is reachable from a schema row", function(
           assertTrue(paths[path], "profile default '" .. path .. "' has no schema row")
         end
       end
+    elseif key == "skin" then
+      -- The skin choice (AT-01), one level deep: profile.skin.<field>.
+      for field in pairs(val) do
+        local path = "skin." .. field
+        assertTrue(paths[path], "profile default '" .. path .. "' has no schema row")
+      end
     else
       assertTrue(paths[key], "profile default '" .. key .. "' has no schema row")
     end
@@ -325,10 +334,12 @@ test("every number row declares a usable min/max range", function()
 end)
 
 test("every string row supplies a values source", function()
-  -- parseString validates against allowedValues(row); with no `values` the allowed list is empty
-  -- and /at set can never satisfy it, making the setting CLI-unreachable.
+  -- parseString validates against allowedValues(row). A free-text row (dialogControl = "EditBox")
+  -- is the one exception: LibKa0s-Slash's parser leaves it unconstrained (SlashParse minor 10), so
+  -- `/at set` takes any value; the Skin tab's Font and Texture overrides are two (AT-01), because a
+  -- media pack may register its keys after the schema loads.
   for _, row in ipairs(NS.Schema) do
-    if row.type == "string" then
+    if row.type == "string" and row.dialogControl ~= "EditBox" then
       local t = type(row.values)
       assertTrue(t == "function" or t == "table", row.path .. " needs values for its dropdown")
     end
@@ -436,7 +447,9 @@ test("every media-backed row answers a populated option list", function()
   -- red under: an upstream `values` shape that answers a non-table, or an empty one.
   local seen = 0
   for _, row in ipairs(NS.Schema) do
-    if row.dialogControl then
+    -- A free-text EditBox row is not media-backed: it names a key and offers no list (the Skin
+    -- tab's Font and Texture overrides, AT-01, which the library's tab draws as its own dropdowns).
+    if row.dialogControl and row.dialogControl ~= "EditBox" then
       seen = seen + 1
       local v = type(row.values) == "function" and row.values() or row.values
       assertEqual(type(v), "table",

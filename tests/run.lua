@@ -30,6 +30,8 @@ Loader.loadAll(LIB_FILES, NS, mocks)
 Loader.loadAll(ADDON_FILES, NS, mocks)
 
 NS:InitDB()
+-- The profile's skin (core/SkinSetup.lua), right after the store exists, as in the client.
+NS.ApplySkinChoice()
 
 -- Mirror the in-game lifecycle: OnInitialize inits the DB (above), OnEnable builds the settings
 -- panel. Building it here is what stashes NS.AceGUI and runs every settings/<page>.lua builder for
@@ -146,6 +148,9 @@ Kit.run{
     -- was the `test` verb). Straight after the other two halves of the slash surface.
     "test_debughold",
     "test_widgets",
+    -- The LibKa0s-Skin-1.0 seam (AT-01). After test_widgets, which leaves General built and parked
+    -- on its first tab; it parks the page there again and puts the skin back on Ka0s Default.
+    "test_skinsetup",
     "test_docs",
     { name = "test_prose", dir = "tests/_kit/" },
     "test_ltrap",

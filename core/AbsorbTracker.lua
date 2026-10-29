@@ -48,6 +48,11 @@ function addon:OnInitialize()
     -- registers it at FILE LOAD through Media.RegisterLSM — earlier than this, which is the point, and
     -- under one key pointing at one set of bytes for the whole collection rather than one per addon.
     NS:InitDB()
+    -- The skin the active profile names (core/SkinSetup.lua), right after the store exists: the
+    -- owner registered at file load, before AceDB, and has worn Ka0s Default since. Before any
+    -- page is built and before OnEnable's first appearance pass, so the first paint is already the
+    -- profile's skin.
+    NS.ApplySkinChoice()
 
     if NS.Slash and NS.Slash.Register then NS.Slash:Register() end
 
@@ -381,6 +386,12 @@ local function adoptProfile(tag, fmt, ...)
         NS.MigrateProfileToV3(NS.db.profile)
     end
     NS.Debug(tag, fmt, ...)
+    -- The new profile's skin (core/SkinSetup.lua), before anything repaints from it: a switch, a
+    -- copy and a reset each hand over a profile with its own `skin` block, and AceDB replaced it
+    -- with no row's onChange firing. Skin:SetChoice repaints every frame recorded for this owner
+    -- (the drag strips, the tool windows, the settings chrome) and is idempotent, so a profile
+    -- that agrees with the old one repaints nothing.
+    NS.ApplySkinChoice()
     -- THE NEW PROFILE CARRIES ITS OWN `enabled`, and AceDB replaced the whole table without any
     -- verb or checkbox being touched -- so the row's onChange never fired and the latch has not
     -- heard about it. Re-read the store into the `disabled` hold: a player switching to a profile

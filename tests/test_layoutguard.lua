@@ -23,6 +23,14 @@ local PINNED = {
   ["global.minimap.shown"] = { type = "bool", page = "general", default = true },
   ["locked"] = { type = "bool", page = "general", default = false },
   ["scale"] = { type = "number", page = "general", default = 1, min = 0.5, max = 2, step = 0.05 },
+  -- The Skin tab's seven rows (the skinning rollout's AT-01), added after the layout pass.
+  ["skin.font"] = { type = "string", page = "general", default = "" },
+  ["skin.ignoreFonts"] = { type = "bool", page = "general", default = false },
+  ["skin.ignorePanel"] = { type = "bool", page = "general", default = true },
+  ["skin.pickerSeen"] = { type = "bool", page = "general", default = false },
+  ["skin.skin"] = { type = "string", page = "general", default = "ka0s" },
+  ["skin.source"] = { type = "string", page = "general", default = "ka0s" },
+  ["skin.texture"] = { type = "string", page = "general", default = "" },
   ["state.debugConsole"] = { type = "bool", page = "general", default = nil },
   ["throttleWindow"] = { type = "number", page = "general", default = 0.1, min = 0.05, max = 1, step = 0.05 },
   ["units.focus.barAlpha"] = { type = "number", page = "appearance", default = 1, min = 0, max = 1, step = 0.05 },
@@ -127,5 +135,6 @@ test("layout guard: every stored path keeps its type, page, default and range", 
   for path in pairs(PINNED) do
     assertTrue(seen[path], "a setting the layout pass lost: " .. path)
   end
-  assertEqual(n, 70, "the schema row count")
+  -- 70 from the layout pass, plus the Skin tab's seven (AT-01).
+  assertEqual(n, 77, "the schema row count")
 end)

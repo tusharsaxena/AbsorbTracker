@@ -90,6 +90,21 @@ NS.defaults.profile = {
     locked = false,
     throttleWindow = 0.1,
 
+    -- The skin this addon wears (skinning-§2: per addon, per profile), applied through
+    -- core/SkinSetup.lua and drawn by the library's Skin tab on General. `source` is "ka0s" (a Ka0s
+    -- skin) or "eui" (EllesmereUI's look), `skin` the Ka0s skin's key; "ka0s"/"ka0s" is Ka0s
+    -- Default. The Scope's two exceptions: `ignorePanel` keeps this addon's settings pages the
+    -- client's (on for a new profile, the owner's 2026-10-27 call that LootHistory ships too, so the
+    -- pages look as they did before skins), `ignoreFonts` keeps every font as the addon set it. The
+    -- Font and texture overrides are an LSM key each, "" for the skin's own. `pickerSeen`: the
+    -- first-run skin picker was closed on this profile; false on every profile, old and new, so
+    -- every player sees it once (the rollout's O3). New keys with defaults, so AceDB merges them
+    -- into every existing profile and no migration is owed.
+    skin = {
+        source = "ka0s", skin = "ka0s", ignorePanel = true, ignoreFonts = false,
+        font = "", texture = "", pickerSeen = false,
+    },
+
     -- Per-unit. Player has no `mirror` key — it is the mirror SOURCE, so a player mirror row
     -- would be circular. Target and Focus ship disabled (an upgrade changes nothing on screen)
     -- but mirrored (a first enable looks like the player bar, not raw factory defaults).

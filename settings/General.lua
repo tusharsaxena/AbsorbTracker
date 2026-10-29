@@ -352,6 +352,73 @@ NS.RegisterSchemaRows({
     },
 })
 
+-- ── General > Skin ──────────────────────────────────────────────────────────────────────────
+--
+-- The skin this addon wears (skinning-§2: per addon, per profile). The tab is the library's
+-- O.AppearanceTab (below, in build()), keyed "Appearance" and labeled "Skin", which draws every
+-- one of these as its own controls, so all seven carry `skipRender`; they stay schema rows so the
+-- defaults resolve, every reset reaches them, and `/at get|set skin.skin` validates against
+-- `values`. The group is the tab's key, so the host tab takes this group's place in the strip:
+-- Master controls, Behavior, then Skin, last on a page with no Keybindings tab (skinning-§3).
+--
+-- Each onChange applies ONLY its own half (core/SkinSetup.lua says why): the tab and another
+-- addon's "Copy to every Ka0s addon" call Skin:SetChoice before they write, so the write is a
+-- no-op, and a bare `/at set` still repaints. None of them sends APPEARANCE: a skin change
+-- reaches what it repaints through the library.
+local SKIN_GROUP = "Appearance"
+local skinDefaults = NS.defaults.profile.skin
+NS.RegisterSchemaRows({
+    { path = "skin.source", page = "general", group = SKIN_GROUP, order = 10, skipRender = true,
+      type = "string", widget = "Dropdown", values = NS.SKIN_SOURCE_OPTIONS,
+      default = skinDefaults.source, label = "Skin source",
+      desc = "Where this addon's look comes from: the Ka0s skin chosen below, or EllesmereUI.",
+      onChange = function(v) NS.ApplySkinChoice(v, nil) end },
+    { path = "skin.skin", page = "general", group = SKIN_GROUP, order = 20, skipRender = true,
+      type = "string", widget = "Dropdown", values = NS.SKIN_OPTIONS,
+      default = skinDefaults.skin, label = "Skin",
+      desc = "The Ka0s skin this addon wears. Changes the bars' strips, the tool windows and the "
+          .. "settings pages right away.",
+      onChange = function(v) NS.ApplySkinChoice(nil, v) end },
+    -- The Scope's two exceptions (LibKa0s-Skin-1.0 minor 5), drawn by the same tab as check boxes.
+    { path = "skin.ignorePanel", page = "general", group = SKIN_GROUP, order = 30, skipRender = true,
+      type = "bool", default = skinDefaults.ignorePanel, label = "Ignore settings panel",
+      desc = "Keep this addon's settings panel in the game's own look. Its other surfaces still "
+          .. "wear the skin.",
+      onChange = function(v) NS.ApplySkinIgnore(v, nil) end },
+    { path = "skin.ignoreFonts", page = "general", group = SKIN_GROUP, order = 40, skipRender = true,
+      type = "bool", default = skinDefaults.ignoreFonts, label = "Ignore fonts",
+      desc = "Keep every font in this addon as the game draws it. The skin still colors the text.",
+      onChange = function(v) NS.ApplySkinIgnore(nil, v) end },
+    -- The Font and texture section's two overrides (LibKa0s-Skin-1.0 minor 6), drawn by the same
+    -- tab as dropdowns of LibSharedMedia keys; "" is the skin's own. Free text, not a Dropdown with
+    -- `values`: a media pack may register its keys after this file loads, and `/at set` takes any
+    -- key (LibKa0s-Slash's parser leaves a free-text EditBox row unconstrained).
+    { path = "skin.font", page = "general", group = SKIN_GROUP, order = 50, skipRender = true,
+      type = "string", widget = "EditBox", dialogControl = "EditBox",
+      default = skinDefaults.font, label = "Font",
+      desc = "The font this addon's text uses, over the skin's own. Empty keeps the skin's.",
+      onChange = function(v) NS.ApplySkinOverride(v, nil) end },
+    { path = "skin.texture", page = "general", group = SKIN_GROUP, order = 60, skipRender = true,
+      type = "string", widget = "EditBox", dialogControl = "EditBox",
+      default = skinDefaults.texture, label = "Texture",
+      desc = "The texture this addon's bars use, over the skin's own. Empty keeps the skin's.",
+      onChange = function(v) NS.ApplySkinOverride(nil, v) end },
+    -- The first-run skin picker's memory: set when the picker closes, so it shows once per
+    -- profile. Drawn by nothing; a reset puts it back to false. A declared no-op, so a write does
+    -- not fall through to the APPEARANCE broadcast a row with no onChange earns.
+    { path = "skin.pickerSeen", page = "general", group = SKIN_GROUP, order = 70, skipRender = true,
+      type = "bool", default = skinDefaults.pickerSeen, label = "Skin picker seen",
+      desc = "Whether the first-run skin picker was closed on this profile.",
+      onChange = function() end },
+})
+
+-- skinning-§3: the Skin tab, the library's own entry. `get` and `set` are core/SkinSetup.lua's
+-- read and write seams, so a pick lands through NS.SetByPath like every other setting; the tab
+-- calls Skin:SetChoice first, so the live repaint is the library's and the rows' onChange finds
+-- nothing left to apply. Built once: the entry's render reads the store on every draw. On the
+-- degraded path the stub's entry draws nothing.
+local SKIN_TAB = H.AppearanceTab({ get = NS.SkinChoice, set = NS.WriteSkinChoice })
+
 -- StaticPopup for "Reset all settings" — irreversible, so confirm
 -- before wiping. The OnAccept body calls NS.Helpers.RestoreAllDefaults,
 -- the same helper /at resetall calls, so the popup and the slash never
@@ -429,7 +496,7 @@ local function build(mainCategory)
         --
         -- No `pairWith` any more: its one user was the bespoke debug-console checkbox, which is a
         -- schema row on the Master controls tab now.
-        H.RenderTabbedSchema(c, "general", { [H.MASTER_GROUP] = masterTail })
+        H.RenderTabbedSchema(c, "general", { [H.MASTER_GROUP] = masterTail }, nil, { tabs = { SKIN_TAB } })
     end)
 
     return Settings.RegisterCanvasLayoutSubcategory(

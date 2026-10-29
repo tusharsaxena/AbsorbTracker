@@ -1,4 +1,4 @@
-local _, NS = ...
+local addonName, NS = ...
 
 -- The absorb bar frames — one per unit (player / target / focus). Built at file-load time from
 -- the per-unit defaults (no DB yet — appearance is re-applied from the active profile on enable).
@@ -136,6 +136,10 @@ local function buildHandle(bar, unit, globalName)
         name      = globalName .. "Handle",
         label     = label,
         moveFrame = bar,
+        -- The skin owner (core/SkinSetup.lua registered it at file load, above this file): the
+        -- strip's fill, edge, label and mark tints come from this addon's skin (WidgetsDragHandle
+        -- minor 6), and a skin switch repaints them. Ka0s Default draws the strip as before.
+        owner     = addonName,
         -- nil falls back to the widget's own last rung, a Blizzard texture, not to nothing.
         helpIcon  = NS.Icon and NS.Icon("help") or nil,
         -- Dragging is the LOCK's business. A locked bar is not movable (UpdateBarAppearance), and

@@ -5,7 +5,7 @@
 ## Version: 1.12.0
 ## IconTexture: Interface\AddOns\AbsorbTracker\media\logos\absorbtracker.logo.128.tga
 ## SavedVariables: AbsorbTrackerDB, AbsorbTrackerPerfDB
-## OptionalDeps: Ace3, LibStub, CallbackHandler-1.0, LibSharedMedia-3.0, LibDataBroker-1.1, LibDBIcon-1.0
+## OptionalDeps: Ace3, LibStub, CallbackHandler-1.0, LibSharedMedia-3.0, LibDataBroker-1.1, LibDBIcon-1.0, EllesmereUI
 ## DefaultState: enabled
 ## Category-enUS: Combat
 ## X-License: MIT
@@ -52,6 +52,8 @@ core\State.lua
 core\Bus.lua
 # LOAD-BEARING: publishes NS.Print / NS.Util.print and NS.LIBKA0S_MISSING, captured at file load by LauncherSetup, AbsorbTracker and the stub branches of DebugLogSetup and PerfSetup.
 core\CoreSetup.lua
+# LOAD-BEARING: the LibKa0s-Skin-1.0 seam (skinning-§1). Registers the owner and publishes NS.Skin, NS.SKIN_OPTIONS and NS.SKIN_SOURCE_OPTIONS at file load; modules/Bar.lua builds the drag strips with this owner at file load and settings/General.lua reads the two option lists at file load, so it must be above both. Below core/CoreSetup.lua, whose NS.Print the reload line uses.
+core\SkinSetup.lua
 # The stand-down latch. BEFORE PerfSetup, and that is load-bearing rather than tidy: Perf 12
 # requires `descriptor.lifecycle` and refuses at New without it, so a PerfSetup that loaded first
 # would raise. It is also where `enabled` and the perf arm stop being two mechanisms.
