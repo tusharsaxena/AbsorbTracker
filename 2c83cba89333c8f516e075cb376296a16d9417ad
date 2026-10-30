@@ -1,0 +1,37 @@
+Independent review (skin-library-followups M2, AbsorbTracker): I found no blocking issues in AbsorbTracker feat/2026-10-30-skin-library-followups (2c83cba). There are only three documentation wording nits.
+
+**Vendored payload:** `libs/LibKa0s` and `tests/_kit` match `git archive v1.81.0` of LibKa0s/ and testkit/, compared with `diff -r --strip-trailing-cr`. The only differences are the media/icons entries pruned to the five declared icons plus the license, the same set master had.
+
+**Gate:** green, re-run by me. The bounded `lua tests/run.lua` gives 954 passed, 0 failed, 1 skipped, 955 total. The bounded `luacheck .` gives 0 warnings / 0 errors in 77 files.
+
+**Commit subjects:** they start with AT-RV:, AT-01: and AT-02:. They are not pushed, merged or tagged, and the version is not bumped.
+
+**Workarounds from the inventory:**
+- Section 1a (`Data.lua:148` and both arms of `NS.SkinFontsIgnored`) is removed. I checked the library at the tag: `Skin.lua` `hudFontIgnored` makes `Token` answer nil for hud.font/hud.outline while fonts are ignored, and `Resolve` answer the stored value. So the library now covers what was removed.
+- MediaKey now reports skin=yes only as `on and S.Token(f[1]) ~= nil`. This uses only the public `Token`, keeps `/at diagnostics` honest, and is equivalent to the old behaviour whenever fonts are not ignored. A `false` token value is still not nil.
+- Section 1e: the v6 stored-companion filter is kept, as D-19 requires. Its new rationale is accurate: at the tag, `ResetToSkin` sets a `...FromSkin` leaf true whether it is stored or not. AT names companions directly, so the `opts.companions` opt-in rule does not apply.
+- Sections 1b/c/d/f/g/h have nothing to change. I re-checked by grep: no `stockDefault`, `S.Text`, Reorder, `__DrawsKey`, `CloseButton` tint or `gtip` use.
+
+**Ignore fonts reaches the HUD:** Display and Bar draw through `NS.GetFont`, which goes to MediaKey and then the library's `Resolve`.
+
+**Scope, D-01 to D-03:** the drag strips get no `panel` flag, and AT has no paints of its own on the settings page.
+
+**Ka0s Default look:** no stock-look callers remain. The look changes D-13 brings (Oxanium on the strip label, the console's title-bar labels and the perf panel's columns) are disclosed in SKIN-3.
+
+**Tests fail without each change (mutation runs in scratch copies):**
+- Reverting the reported value to `on` turns "Ignore fonts keeps the value text…" red.
+- Running the branch code against master's v1.80.0 payload turns both that test and the picker test red. The only other failures are git-dependent tests, because the copy is not a git repo.
+
+**Smoke checks:**
+- I traced each amended claim to the tag:
+  - DragHandle minor 7: its built-in tooltip colors equal Ka0s Default's `gtip.title`, `gtip.value` and `gtip.footer`.
+  - `icon.grip` is false under Ka0s Default.
+  - The console and perf strings come from GameFontNormalSmall, which is Friz, so SKIN-26's "back to Friz Quadrata" claim holds.
+  - The composer's `skinValue` goes through `Resolve(token, nil, true)`, which is nil while fonts are ignored, so the grayed Font picker shows the stored face.
+  - The picker title and `ownerLabel` are set in the order the test reads them.
+  - The SKIN-5 faces match D-11.
+- All amended checks have an empty Result. None is marked passed.
+
+**Docs:** line counts in module-map are correct, and no stale `SkinFontsIgnored`, "Choose a skin for" or v1.80.0 pins remain outside the frozen bundles. The one v1.80.0 left is in a test comment, where it is meant to be.
+Findings: [nit] AT-02 /mnt/d/Profile/Users/Tushar/Documents/GIT/AbsorbTracker/docs/schema.md:472 (fontFromSkin row): The row now says the stored Font draws while Ignore fonts is on, but still ends "While on, *Font* is disabled and shows the skin's." In v1.81.0 the composer's skinValue calls Resolve(hud.font, nil, true), which is nil while fonts are ignored, so the grayed picker shows the stored face. SKIN-26 already says this. | [nit] AT-02 /mnt/d/Profile/Users/Tushar/Documents/GIT/AbsorbTracker/docs/ARCHITECTURE.md:353 and docs/smoke-tests.md SKIN-26: "as the drag-strip label keeps its face" (ARCHITECTURE) and "as the drag-strip labels keep theirs" (SKIN-26) are wording from v1.80.0, when the label was never fonted. Since WidgetsDragHandle minor 7 the label wears the skin's body face (Oxanium) and returns to its template (Friz) under Ignore fonts. The same SKIN-26 text later says the label goes back to Friz Quadrata, so the two phrasings read as contradictory. | [nit] AT-02 /mnt/d/Profile/Users/Tushar/Documents/GIT/AbsorbTracker/docs/smoke-tests.md SKIN-3: The check's title is still "Ka0s Default elsewhere looks as before", but under D-13 its body now lists a visible change (Oxanium on the strip labels and the console and perf strings). The check itself is correct; only the title undersells the change the owner is asked to look for.
+Fix round: none needed
