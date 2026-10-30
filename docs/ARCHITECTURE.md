@@ -348,8 +348,13 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
   (`core/Data.lua`) resolves through `NS.Skin.Resolve`, which honors the Skin tab's Font and texture
   overrides, and never through `S.BarTexture`, which would replay the skin's texture over an unticked
   pick at the next switch. It runs in the appearance pass only, never on the absorb hot path. Font
-  size, outline and shadow, and every HUD color (fill, background, border, text and the class
-  colors), stay the player's (rollout X4). **Ignore fonts** wins for the face: while it is on,
+  shadow and every HUD color (fill, background, border, text and the class colors) stay the
+  player's (rollout X4). Since LibKa0s v1.82.0 the size and the flags meet the skin too: while
+  `fontFromSkin` is on, the value text draws `S.HudFontSize(stored)` (`NS.GetFontSize`, ruling
+  D-09), the stored size scaled by the skin's HUD size so the number is as wide in every skin (the
+  stored value is never rewritten); and the Font flags default to **From skin** (`"@skin"`, D-07),
+  drawn through `S.FontFlags` (`NS.GetFontFlags`), so the Skin tab's **Font outline**
+  (`skin.outline`: All text, HUD text only, Off) decides the outline while a picked flag wins. **Ignore fonts** wins for the face: while it is on,
   `NS.MediaKey` answers the stored `font`, over the skin's `hud.font` and a font override, as the
   drag-strip label keeps its face. The library enforces it (LibKa0s v1.81.0, Skin minor 8): while
   the owner ignores fonts, `Resolve` answers the stored value for `hud.font` and `Token` answers
@@ -365,10 +370,11 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
   on, so no pre-v6 profile stores one); v6 is the explicit, idempotent record of O2, a no-op unless
   a companion is stored. Under Ka0s Default that is a visible
   change on the bars (rollout X5): the Ka0s Default bar texture, no border (the skin's `None` style)
-  and Oxanium SemiBold, in place of Blizzard Raid Bar, Blizzard Tooltip at 12 px and Friz Quadrata.
+  and the skin's HUD face (Oxanium SemiBold through v1.81.0, Prototype since LibKa0s v1.82.0), in
+  place of Blizzard Raid Bar, Blizzard Tooltip at 12 px and Friz Quadrata.
 - **The drag strips** are built with `owner = addonName` (WidgetsDragHandle minor 6): their fill,
   edge, label and marks are the skin's and repaint on a switch. Since LibKa0s v1.81.0
-  (WidgetsDragHandle minor 7) the label is drawn in the skin's body face (Oxanium under Ka0s
+  (WidgetsDragHandle minor 7) the label is drawn in the skin's body face (Prototype under Ka0s
   Default, where the template drew Friz Quadrata; *Ignore fonts* gives it the template back), and
   the tooltips' title, body and footer take the skin's `gtip.title` / `gtip.value` / `gtip.footer`
   (Ka0s Default's are the old literals). They sit on the HUD, a window, so they pass no `panel`

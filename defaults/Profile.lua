@@ -30,7 +30,9 @@ local function appearance()
         borderColor = { r = 0.5, g = 0.5, b = 0.5, a = 1.0 },
         font = "Friz Quadrata TT",
         fontSize = 12,
-        fontFlags = "OUTLINE",
+        -- "From skin" (LibKa0s v1.82.0, ruling D-07): the Skin tab's Font outline decides, OUTLINE
+        -- under its default All text. It was "OUTLINE"; the v7 step moves a stored OUTLINE here.
+        fontFlags = "@skin",
         -- The sixth row of the canonical font block (options-ui-§16), new with the composer.
         -- Default OFF, so an install that never opens the Text tab is drawn exactly as it was;
         -- modules/Display.lua applies it beside SetFont on every appearance pass.

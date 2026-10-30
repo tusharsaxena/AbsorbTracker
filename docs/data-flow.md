@@ -22,7 +22,9 @@ OnInitialize (ADDON_LOADED)
     │                                    --   backfills missing keys (flat +
     │                                    --   per-unit), v2 drops updateInterval
     │                                    --   from every stored profile ... v6 puts
-    │                                    --   every bar's media back on the skin
+    │                                    --   every bar's media back on the skin,
+    │                                    --   v7 moves a stored OUTLINE flag to
+    │                                    --   From skin
     │
     ├─▶ NS.ApplySkinChoice()            -- core/SkinSetup.lua: the profile's skin
     │                                    --   (Skin:SetChoice), before anything paints
@@ -41,6 +43,7 @@ The flat→profile migration lives in `NS:RunMigrations` (`core/Database.lua`), 
    - **v4**: drops the dead `hidden` master toggle from **every** profile in the store via `dropKeyEverywhere` (same all-profiles reasoning as the v3 lift — a key left on an inactive profile returns the moment the user switches to it). The per-unit `enabled` flags replaced it, so a surviving `hidden = true` would suppress every bar with no UI left to clear it.
    - **v5**: maps the `showOnlyInCombat` **boolean** onto the four-value `visibility` **dropdown** (`true` → `"inCombat"`, `false` → `"always"`), on every profile in the store, then deletes the boolean. A stored-value *type* change takes a ladder step in the same change as the row (options-ui-§15); changing the row's type alone would meet a stored `true` where the panel expects one of four strings and lose a setting the player already made, silently. It runs **after** the backfill above, and the old value deliberately wins over the `"always"` the backfill just seeded.
    - **v6**: the one-time reset onto the skin (skinning-§6, the owner's ruling O2). On every profile in the store, each stored *Use the skin's ...* companion (`barTextureFromSkin`, `borderFromSkin`, `fontFromSkin`, under every stored `units.<unit>`) is set back on through `LibKa0s-Skin-1.0`'s `ResetToSkin`, or directly when the library is absent. Only a companion that is stored is named: an absent one already reads its default, `true`, so naming it would only store a redundant value (the filter predates LibKa0s v1.81.0, whose `ResetToSkin` sets a named companion true stored or not, and stays because the step has shipped). The stored picks and every color are left alone, and the account-wide stamp is what makes it once, so a companion the player unticks afterwards stays off. It logs `[Migrate] put the bars back on the skin on N profile(s)` only when a companion actually moved.
+   - **v7**: Font flags From skin (LibKa0s v1.82.0, ruling D-07). On every profile in the store, a stored `units.<unit>.fontFlags` equal to the old default, `OUTLINE`, becomes `"@skin"` (From skin, the new default, resolved through the Skin tab's Font outline); any other stored flag is the player's and stays, and an absent one already reads the new default. The account-wide stamp makes it once. It logs `[Migrate] moved the bars' Font flags to From skin on N profile(s)` only when a flag moved.
 
 **Adding a schema version is one new row appended to `SCHEMA_STEPS`**, not another `if g.schemaVersion < N` arm — the loop already owns the ordering, the logging and the stamp.
 

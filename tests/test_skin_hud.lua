@@ -263,8 +263,8 @@ test("v6 puts every stored companion back on, keeps the picks and the colors", f
     focus  = { border = "My Border" },
   } }
   local stamp = migrate({ Default = default, Raid = raid }, "Default", 5)
-  assertEqual(stamp, 6)
-  assertEqual(NS.SCHEMA_VERSION, 6)
+  assertEqual(stamp, 7)
+  assertEqual(NS.SCHEMA_VERSION, 7)
   local p = default.units.player
   assertEqual(p.fontFromSkin, true, "the active profile's font follows the skin")
   assertEqual(p.borderFromSkin, true, "and its border")
@@ -284,7 +284,141 @@ test("v6 runs once: a pick made after it is kept", function()
   migrate({ Default = p }, "Default", 5)
   assertEqual(p.units.player.fontFromSkin, true, "the reset ran")
   p.units.player.fontFromSkin = false   -- the player unticks "Use the skin's font" afterwards
-  local stamp = migrate({ Default = p }, "Default", 6)
-  assertEqual(stamp, 6)
+  local stamp = migrate({ Default = p }, "Default", 7)
+  assertEqual(stamp, 7)
   assertEqual(p.units.player.fontFromSkin, false, "a later pick survives the next login")
 end)
+
+-- ── Font flags From skin and the HUD size scale (LibKa0s v1.82.0, rulings D-07 and D-09) ──────
+--
+-- Every bar's Font flags row offers "From skin" ("@skin") first and defaults to it; the value text
+-- draws S.FontFlags(stored), which resolves From skin through the Skin tab's Font outline and
+-- answers a picked flag as stored. The v7 step moves a stored flag equal to the old default
+-- (OUTLINE) onto From skin, once, on every profile; a flag the player changed stays. While the bar
+-- uses the skin's face (Use the skin's font) its size is S.HudFontSize(stored): the stored size
+-- times the skin's HUD size over Ka0s Default's, the stored value never rewritten.
+
+--- The value text's last SetFont arguments after one appearance pass of `unit`.
+local function drawnFont(unit)
+  local fs = NS.bars[unit].valueText
+  local real, got = fs.SetFont, nil
+  fs.SetFont = function(self, ...) got = { ... }; return real(self, ...) end
+  local ok, err = pcall(NS.UpdateBarAppearance, unit)
+  fs.SetFont = real
+  if not ok then error(err, 0) end
+  return got
+end
+
+--- Back on Ka0s Default with the Font outline on All text, whatever `fn` raised.
+local function onDefaultOutline(fn)
+  return onDefault(function()
+    local ok, err = pcall(fn)
+    Skin:SetOutline(OWNER, "all")
+    Skin:SetIgnore(OWNER, true, false)
+    if not ok then error(err, 0) end
+  end)
+end
+
+test("every bar's Font flags default to From skin, offered first", function()
+  for _, unit in ipairs(NS.Units.LIST) do
+    assertEqual(NS.defaults.profile.units[unit].fontFlags, "@skin", unit .. ": the default")
+    local row = NS.FindSchemaRow("units." .. unit .. ".fontFlags")
+    assertEqual(row.default, "@skin", unit .. ": the row's default")
+    assertEqual(row.sorting[1], "@skin", unit .. ": From skin leads the list")
+    assertEqual(row.values["@skin"], "From skin")
+    assertEqual(row.values[""], "None", "None is still offered")
+  end
+end)
+
+test("From skin draws the Font outline's flags; a picked flag draws as picked", onDefaultOutline(function()
+  -- red under: SetFont handed the stored "@skin" (the client draws no outline, or refuses it), or a
+  -- picked flag rewritten by the skin.
+  withUnit("player", "fontFlags", "@skin", function()
+    assertEqual(drawnFont("player")[3], "OUTLINE", "All text: outlined")
+    Skin:SetOutline(OWNER, "hud")
+    assertEqual(drawnFont("player")[3], "OUTLINE", "HUD text only: the bar is HUD text")
+    Skin:SetOutline(OWNER, "off")
+    assertEqual(drawnFont("player")[3], "", "Off: no outline")
+  end)
+  withUnit("player", "fontFlags", "THICKOUTLINE", function()
+    assertEqual(drawnFont("player")[3], "THICKOUTLINE", "a picked flag wins over Off")
+  end)
+  withUnit("player", "fontFlags", "", function()
+    Skin:SetOutline(OWNER, "all")
+    assertEqual(drawnFont("player")[3], "", "a picked None wins over All text")
+  end)
+end))
+
+test("the Font outline's change repaints the bars' flags live", onDefaultOutline(function()
+  withUnit("player", "fontFlags", "@skin", function()
+    NS.UpdateBarAppearance("player")
+    local fs = NS.bars.player.valueText
+    local real, got = fs.SetFont, nil
+    fs.SetFont = function(self, ...) got = { ... }; return real(self, ...) end
+    local ok, err = pcall(function()
+      Skin:SetOutline(OWNER, "off")
+      mocks.__fireTimers()
+    end)
+    fs.SetFont = real
+    if not ok then error(err, 0) end
+    assertTrue(got ~= nil, "SetOutline's OnLooksChanged reached the appearance pass")
+    assertEqual(got[3], "")
+  end)
+end))
+
+test("v7 moves a stored OUTLINE onto From skin and keeps a flag the player changed", function()
+  local default = { schemaVersion = 3, units = {
+    player = { fontFlags = "OUTLINE" }, target = { fontFlags = "THICKOUTLINE" }, focus = { fontFlags = "" },
+  } }
+  local raid = { schemaVersion = 3, units = { player = { fontFlags = "OUTLINE" }, target = {} } }
+  local stamp = migrate({ Default = default, Raid = raid }, "Default", 6)
+  assertEqual(stamp, 7)
+  assertEqual(NS.SCHEMA_VERSION, 7)
+  assertEqual(default.units.player.fontFlags, "@skin", "the old default moves to From skin")
+  assertEqual(default.units.target.fontFlags, "THICKOUTLINE", "a changed flag stays")
+  assertEqual(default.units.focus.fontFlags, "", "a picked None stays")
+  assertEqual(raid.units.player.fontFlags, "@skin", "an inactive profile moves too")
+  assertEqual(raid.units.target.fontFlags, nil, "an absent flag stays absent: it reads From skin")
+  assertEqual(raid.units.focus, nil, "no unit table invented")
+end)
+
+test("v7 runs once: an OUTLINE picked after it is kept", function()
+  local p = { schemaVersion = 3, units = { player = { fontFlags = "OUTLINE" } } }
+  migrate({ Default = p }, "Default", 6)
+  assertEqual(p.units.player.fontFlags, "@skin", "the move ran")
+  p.units.player.fontFlags = "OUTLINE"   -- the player picks Outline afterwards
+  assertEqual(migrate({ Default = p }, "Default", 7), 7)
+  assertEqual(p.units.player.fontFlags, "OUTLINE", "a later pick survives the next login")
+end)
+
+test("the skin's face draws at the skin's HUD size; the stored size never moves", onDefaultOutline(function()
+  -- red under: SetFont handed the stored size under a skin whose HUD size is not Ka0s Default's
+  -- (Obsidian's text would be narrower than Ka0s Default's), or the stored size rewritten.
+  withUnit("player", "fontSize", 12, function()
+    assertEqual(drawnFont("player")[2], 12, "Ka0s Default: as stored")
+    Skin:SetChoice(OWNER, "ka0s", "obsidian")
+    assertEqual(drawnFont("player")[2], 13, "Obsidian: 12 * 13 / 12")
+    assertEqual(NS.db.profile.units.player.fontSize, 12, "the stored size is untouched")
+    withUnit("player", "fontFromSkin", false, function()
+      assertEqual(drawnFont("player")[2], 12, "its own face: as stored")
+    end)
+    Skin:SetIgnore(OWNER, true, true)
+    assertEqual(drawnFont("player")[2], 12, "Ignore fonts: as stored")
+  end)
+  withUnit("player", "fontSize", 24, function()
+    Skin:SetIgnore(OWNER, true, false)
+    assertEqual(drawnFont("player")[2], 26, "Obsidian scales any stored size: 24 * 13 / 12")
+  end)
+end))
+
+test("a mirrored bar follows the player's Use the skin's font for its size", onDefaultOutline(function()
+  Skin:SetChoice(OWNER, "ka0s", "obsidian")
+  withUnit("target", "mirror", true, function()
+    withUnit("target", "fontFromSkin", false, function()
+      withUnit("player", "fontSize", 12, function()
+        assertTrue(NS.bars.target ~= nil, "the target bar exists")
+        assertEqual(drawnFont("target")[2], 13, "the player's companion (on) governs the mirror")
+      end)
+    end)
+  end)
+end))

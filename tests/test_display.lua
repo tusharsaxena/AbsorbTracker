@@ -656,7 +656,7 @@ test("UpdateBarAppearance re-applies the font from the profile", function()
   assertEqual(calls[1][3], "THICKOUTLINE")
 end)
 
-test("UpdateBarAppearance tolerates a nil fontFlags by passing an empty flag string", function()
+test("UpdateBarAppearance reads a nil fontFlags as From skin, never handing SetFont nil", function()
   local savedDB = NS.db.profile.units.player.fontFlags
   local savedDefault = NS.unitDefaults.fontFlags
   NS.db.profile.units.player.fontFlags = nil
@@ -664,7 +664,8 @@ test("UpdateBarAppearance tolerates a nil fontFlags by passing an empty flag str
   local calls = record(NS.bars.player.valueText, "SetFont", NS.UpdateBarAppearance)
   NS.db.profile.units.player.fontFlags = savedDB
   NS.unitDefaults.fontFlags = savedDefault
-  assertEqual(calls[1][3], "", "SetFont rejects a nil flags argument")
+  -- Nothing stored is From skin (LibKa0s v1.82.0's S.FontFlags): the Font outline's All text.
+  assertEqual(calls[1][3], "OUTLINE", "SetFont rejects a nil flags argument")
 end)
 
 test("UpdateBarAppearance ends by applying visibility", function()

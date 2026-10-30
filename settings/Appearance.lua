@@ -315,6 +315,9 @@ local function addUnitRows(unit)
         order      = 10,
         classColor = classColor,
         fromSkin   = true,
+        -- "From skin" leads Font flags and is its default (OptionsCompose minor 14, ruling D-07):
+        -- with fromSkin, the minimum font setting every element carries.
+        flagsFromSkin = true,
         keys       = { useClassColorFont = "useClassColorText" },
         defaults   = {
             font              = unitDefaults.font,
