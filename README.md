@@ -57,7 +57,9 @@ off (the same as `/at enable` and `/at disable`) and lock or unlock the bars. Yo
 **Minimap button** on General → Master controls.
 
 Everything else is on the addon's page under Settings → AddOns, and `/at` (or `/absorbtracker`) on
-its own opens it. `/at help` prints the full command list.
+its own opens it. `/at skin` opens the skin picker again whenever you want another look, and General →
+**Skin** → **Font outline** sets whether the skin outlines all text, only the bars' numbers, or none.
+`/at help` prints the full command list.
 
 ## How the bar works
 
@@ -83,7 +85,7 @@ At any moment, then, the bar shows how much a unit can take before its health st
 | Does this replace the shield display on my unit frames? | No. These are separate movable bars. The addon leaves Blizzard's shield overlay on the player, target, and focus frames alone. Hide it in *Edit Mode* if you don't want to see both. |
 | How do I turn on the Target or Focus bar? | Appearance page → pick **Target** or **Focus** in the **Unit** picker → tick **Enable this unit** beside it (or type `/at toggle target`). It only appears while you actually have that unit. The General page's **Defaults** button turns them back off. |
 | Can the Target/Focus bar match my Player bar automatically? | Yes, tick **Link to Player**. It's a live link, so anything you change on the Player bar carries over at once. Untick it when you want to style that bar on its own, or use **Copy from Player** for a one-time copy you can then take in your own direction. |
-| Why do my bars look different after updating? | Absorb Tracker now wears a skin, like the other Ka0s addons. The update puts every bar's texture, border and font back on the skin once, so on the default skin, Ka0s Default, the bars draw its own bar texture with no border and the number in the Oxanium font. Your colors and sizes stay as you set them. To get your own pick back, untick **Use the skin's texture**, **Use the skin's border** or **Use the skin's font** on the Appearance page. To try another skin, use General → **Skin**, or the small picker that opens the first time you log in. |
+| Why do my bars look different after updating? | Absorb Tracker now wears a skin, like the other Ka0s addons. The update puts every bar's texture, border and font back on the skin once, so on the default skin, Ka0s Default, the bars draw its own bar texture with no border and the number in the Prototype font, outlined by default (General → **Skin** → **Font outline**). Your colors and sizes stay as you set them; on a skin whose face runs narrower or wider, the number is drawn a little larger or smaller so it is as wide as on Ka0s Default, while *Use the skin's font* is ticked. To get your own pick back, untick **Use the skin's texture**, **Use the skin's border** or **Use the skin's font** on the Appearance page. To try another skin, use General → **Skin**, or the small picker that opens the first time you log in. |
 | How do I move a bar? | Type `/at unlock`, drag the bar you want where you want it, then `/at lock`. Each bar remembers its own position, and `/at resetposition` snaps all of them back to their default spots. Unlocking also brings up the Target and Focus bars with nothing targeted, so you can place those too. |
 | Can I show the bars only while I'm fighting? | Yes. Set **General visibility** to *Only in combat* on **General → Master controls**. Every enabled bar then hides out of combat and comes back the moment you enter combat. |
 | Can I have different setups? | Yes. Use the Profiles page in the settings panel to save and switch between setups, or type `/at profile Name` to switch to one you have saved (`/at profile` lists them). New characters start on the shared **Default** profile, so your changes carry over until you choose a separate setup. |
@@ -142,19 +144,27 @@ Please file new reports there rather than in comments, so nothing gets lost.
 ## Credits
 
 - [JetBrains Mono](https://www.jetbrains.com/lp/mono/) (SIL Open Font License 1.1): the debug console's font.
-- [Oxanium](https://github.com/sevmeyer/oxanium) by The Oxanium Project Authors (SIL Open Font License 1.1):
-  the face of Ka0s Default, the skin every profile starts on.
-- Seven more SIL Open Font License 1.1 faces, one family per skin:
-  [Inter](https://github.com/rsms/inter) by The Inter Project Authors,
+- [Prototype](https://www.dafont.com/prototype.font) v2.0 (2001): the face of Ka0s Default, the skin every
+  profile starts on. **Not under the SIL Open Font License**: "free for personal use, freely distributed with
+  Prototype.txt", so the author's `Prototype.txt` ships beside it unchanged. Shipped on the owner's ruling of
+  2026-10-30.
+- [Expressway](https://www.dafont.com/expressway.font) Rg Bold 2.100 (2005) by Ray Larabie, Typodermic: the
+  face of Obsidian. **Not under the SIL Open Font License, and shipped against its terms**: its name table
+  reads "Do not distribute", and the Typodermic Desktop EULA 2026 puts embedding in software outside the free
+  license. Shipped on the owner's ruling of 2026-10-30, "Ship it anyways.", with the EULA
+  (`Expressway-EULA.pdf`) and its quick guide (`Expressway-EULA-Guide.html`) beside it as the record of the
+  terms that ruling overrode. Expressway is a trademark of Typodermic.
+- Six more SIL Open Font License 1.1 families, for the other skins:
   [Nunito](https://github.com/googlefonts/nunito) by The Nunito Project Authors,
   [Vollkorn](https://github.com/FAlthausen/Vollkorn-Typeface) by The Vollkorn Project Authors,
   [Bitter](https://github.com/solmatas/BitterPro) by The Bitter Project Authors,
   [Philosopher](https://github.com/alexeiva/philosopher) by The Philosopher Project Authors,
-  [Fira Sans](https://github.com/mozilla/Fira) by The Mozilla Foundation and Telefonica S.A., and
+  [Fira Sans](https://github.com/mozilla/Fira) by The Mozilla Foundation and Telefonica S.A. (Medium and
+  SemiBold), and
   [Atkinson Hyperlegible](https://www.brailleinstitute.org/freefont/) by the Braille Institute of America.
-  Inter, Nunito, Vollkorn, Bitter and Oxanium are static weights cut from upstream's variable fonts.
+  Nunito, Vollkorn and Bitter are static weights cut from upstream's variable fonts.
 - [Open Iconic](https://github.com/iconic/open-iconic) by Waybury (MIT): the **?** and **X** on the bar's drag
   handle, the close, copy and clear marks on the debug console, and the skin picker's settings gear.
 
-All of them ship inside the bundled LibKa0s payload with their license text beside them. The Open Iconic
+All of them ship inside the bundled LibKa0s payload. Each font's license or terms sit beside it in `libs/LibKa0s/media/fonts/`. The Open Iconic
 license is `libs/LibKa0s/media/icons/LICENSE-open-iconic.txt`.
