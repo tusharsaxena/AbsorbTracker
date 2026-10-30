@@ -139,18 +139,19 @@ local FOLLOWS = {
 }
 
 --- The value `unit`'s bar draws for media key `key`, and true when it is the skin's (the companion
---- is on and the skin answered). Also the diagnostics report's source (modules/Diagnostics.lua).
---- "Ignore fonts" (the Skin tab's Scope) wins for the face: the stored pick draws, over the skin's
---- `hud.font` and over a font override. The library's Resolve/Token do not check it (only P.font
---- does), so it is checked here; SetIgnore fires OnLooksChanged, which repaints the bars.
+--- is on and the skin answers the token). Also the diagnostics report's source
+--- (modules/Diagnostics.lua). "Ignore fonts" (the Skin tab's Scope) wins for the face: the stored
+--- pick draws, over the skin's `hud.font` and over a font override. The library enforces it
+--- (LibKa0s v1.81.0, Skin minor 8): while the owner ignores fonts, Resolve answers the stored value
+--- for `hud.font` and Token answers nil, so the face is the stored pick and is reported as not the
+--- skin's. SetIgnore fires OnLooksChanged, which repaints the bars.
 function NS.MediaKey(unit, key)
     local stored = unitSetting(unit, key)
-    if key == "font" and NS.SkinFontsIgnored and NS.SkinFontsIgnored() then return stored, false end
     local f, S = FOLLOWS[key], NS.Skin
     if f and S and type(S.Resolve) == "function" then
         local on = unitSetting(unit, f[2]) == true
         local v = S.Resolve(f[1], stored, on)
-        if v ~= nil then return v, on end
+        if v ~= nil then return v, on and S.Token(f[1]) ~= nil end
     end
     return stored, false
 end

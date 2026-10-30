@@ -227,10 +227,13 @@ local SCHEMA_STEPS = {
         -- record of O2, a no-op unless a companion is stored.
         --
         -- ONLY A STORED COMPANION IS NAMED. A raw profile out of db.sv.profiles holds only what
-        -- differs from the defaults, and an absent companion already reads its default, true; and
-        -- ResetToSkin, handed a bool key that is absent, cannot tell it is a bool and writes its
-        -- "@skin" sentinel into it. Without the library the companions are set directly: they
-        -- mean nothing until it loads, and then they must already say "follow".
+        -- differs from the defaults, and an absent companion already reads its default, true, so
+        -- naming it would only store a redundant value. (LibKa0s v1.81.0's ResetToSkin sets a
+        -- named `...FromSkin` key true whether stored or not; the filter predates that and stays,
+        -- because this step has shipped and must give a late-migrating profile the same result,
+        -- and because it drives `moved` and the debug line.) Without the library the companions
+        -- are set directly: they mean nothing until it loads, and then they must already say
+        -- "follow".
         local Skin = LibStub and LibStub("LibKa0s-Skin-1.0", true)
         local resetToSkin = Skin and type(Skin.ResetToSkin) == "function" and Skin.ResetToSkin
         local reset = forEachProfile(function(p)

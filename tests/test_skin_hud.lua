@@ -135,9 +135,11 @@ test("a companion on draws the skin's token; off, the stored pick", function()
 end)
 
 test("Ignore fonts keeps the value text on the stored face, over the skin and a font override", function()
-  -- The library's Resolve/Token never read ignoreFonts (only P.font does), so the addon checks it
-  -- itself (core/Data.lua). red under: a MediaKey that resolves `font` through the skin while
-  -- Ignore fonts is ticked.
+  -- The library enforces it (LibKa0s v1.81.0, Skin minor 8, R-1): while the owner ignores fonts,
+  -- Resolve answers the stored `hud.font` and Token nil, and the addon keeps no check of its own
+  -- (core/Data.lua). red under: a library that resolves `hud.font` through the skin while Ignore
+  -- fonts is ticked (v1.80.0's payload), or a MediaKey that reports the stored face as the skin's
+  -- (the companion alone, not the skin's Token answer).
   local panel, fonts = Skin:GetIgnore(OWNER)
   local savedFont, savedTexture = Skin:GetOverride(OWNER)
   local own = NS.db.profile.units.player.font
