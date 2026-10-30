@@ -211,7 +211,7 @@ Setup for the verb checks: run PROFILE-9 first, so a `SmokeTest` profile exists 
 **Code:** `core/Database.lua` (`RunMigrations`, `SCHEMA_STEPS`, `MigrateProfileToV3`); see [profiles.md](./profiles.md#migrations-and-the-flatprofile-backfill).
 
 - **MIGRATE-1. Customizations survive a reload.** Customize a profile (for example `units.player.barWidth = 260` and a custom texture), `/reload` → every value survives; the backfill only fills missing keys. Result: pass (owner-marked 2026-10-10)
-- **MIGRATE-2. The schema stamp.** Log out and open the SavedVariables file → `global.schemaVersion = 6`; no `hidden` or `updateInterval` key anywhere, including inactive profile blocks. Log in, `/at debug on` → the `[Init]` line reads `schema v6`; `/reload` → still `6`, values unchanged. (Amended by AT-05, 2026-10-29: v6 is the one-time reset onto the skin, SKIN-1.) Result: pass (owner-marked 2026-10-30)
+- **MIGRATE-2. The schema stamp.** Log out and open the SavedVariables file → `global.schemaVersion = 7`; no `hidden` or `updateInterval` key anywhere, including inactive profile blocks. Log in, `/at debug on` → the `[Init]` line reads `schema v7`; `/reload` → still `7`, values unchanged. (Amended by AT-05, 2026-10-29: v6 is the one-time reset onto the skin, SKIN-1. Amended by AT-01, 2026-10-30: v7 moves a stored Font flags OUTLINE to From skin, SKIN-28.) Result:
 - **MIGRATE-3. A missing key is restored.** Log out, delete one key from a profile block, log in → that key is back at its default, the others untouched, no error. Result: pass (owner-marked 2026-10-10)
 - **MIGRATE-4. Old setting paths still resolve.** On a profile saved by an older version, `/at get units.player.barWidth`, `units.player.borderSize` and `units.player.fontSize` all answer with the saved values; nothing reverted to a default. Result: pass (owner-marked 2026-10-10)
 - **MIGRATE-5. The visibility migration covers every profile.** Upgrade only: on profiles saved by 1.9.0 or earlier, one with *Show only in combat* ticked and a second, inactive one likewise → after logging in on this build, **General visibility** reads **Only in combat** and `/at get visibility` echoes `inCombat`; switch to the second profile → it came across too. A profile with the box unticked reads **Always**. Result: pass (owner-marked 2026-10-10)
@@ -317,8 +317,8 @@ The headless suite cannot see this: `tests/wow_mock.lua` answers enUS for every 
 
 **What this addon reads in the player's language.** Two seams, and they are the whole list:
 
-- **`AbbreviateNumbers`**: the bar's value text (`modules/Display.lua:455`), the `/at debug hold` line (`settings/Slash.lua:317`, `:355`) and three debug lines (`core/AbsorbTracker.lua:253`, `:255`, `:356`). Blizzard localizes both the suffix and the grouping.
-- **`UnitClass`**: `core/Data.lua:205` and `core/CoreSetup.lua:65` both `pcall` it and take the third return, the English class token (`PRIEST`), never the first, the localized class name. `bgClassColors` is keyed on the token, so class colors should be locale-independent. LOC-2 checks that rather than assuming it.
+- **`AbbreviateNumbers`**: the bar's value text (`modules/Display.lua:475`), the `/at debug hold` line (`settings/Slash.lua:317`, `:360`) and three debug lines (`core/AbsorbTracker.lua:267`, `:269`, `:370`). Blizzard localizes both the suffix and the grouping.
+- **`UnitClass`**: `core/Data.lua:276` and `core/CoreSetup.lua:65` both `pcall` it and take the third return, the English class token (`PRIEST`), never the first, the localized class name. `bgClassColors` is keyed on the token, so class colors should be locale-independent. LOC-2 checks that rather than assuming it.
 
 **What it does not read.** No chat or tooltip `_G` constant, no parsed tooltip line, no `subType` where a `classID` exists, and nothing another tool parses. `grep -rn '_G\[' core modules settings defaults` finds only `core/Constants.lua`'s texture paths; rerun it rather than trusting this line. Every label, tooltip and chat line is an English literal and stays English on a German client. That is the addon's scope, not a failure.
 
@@ -341,4 +341,9 @@ layout and frame layering run passed, recorded on its `Result:` line as `pass (o
 On 2026-10-30 the owner reported that every check of the skinning rollout (AT-05, 2026-10-29), skin
 overrides and skin library follow-ups passed: SKIN-1 to SKIN-26 (the Skins theme) and the rewritten
 INSTALL-2, PANEL-3, PANEL-5, LOOK-1 and MIGRATE-2, each recorded on its `Result:` line as
-`pass (owner-marked 2026-10-30)`.
+`pass (owner-marked 2026-10-30)`. The skin fonts and feedback run (AT-01) later rewrote some of
+those checks, and their passes no longer stand; they are listed below.
+
+Still owed from the skin fonts and feedback run (AT-01, 2026-10-30), each with an empty `Result:`
+line: the rewritten INSTALL-2, SLASH-3, SKIN-1 to SKIN-5, SKIN-9, SKIN-26 and MIGRATE-2 (schema v7),
+and the new SKIN-27 to SKIN-32.
