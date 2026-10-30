@@ -1,0 +1,1 @@
+AT-02 review (de86a9b): no findings. Behaviour unchanged; three glyph: mono markers (core/AbsorbTracker.lua:440, :459, core/Units.lua:125) verified debug-only (NS.Debug / BulkRun debug line). Gate: 972 passed, 0 failed, 1 skipped; luacheck 0/0 in 78 files; test list matches docs/test-cases.md; complexity max CCN 14. Fixed: none. Declined: none.
