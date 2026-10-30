@@ -935,6 +935,10 @@ Total.
 - the debug console and its copy window are painted for this owner
 - the perf panel is painted for this owner
 
+### test_glyphs.lua (1)
+
+- glyphs: display strings use only characters every shipped skin face draws
+
 ### test_docs.lua (6)
 
 - README.md carries no angle-bracket argument placeholders
@@ -1154,6 +1158,7 @@ Total.
 | test_skin_hud.lua | 19 |
 | test_skin_picker.lua | 19 |
 | test_skin_tools.lua | 6 |
+| test_glyphs.lua | 1 |
 | test_docs.lua | 6 |
 | test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
@@ -1169,4 +1174,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **971** |
+| **Total** | **972** |
