@@ -211,14 +211,30 @@ local function pickRow(f, key)
   error("no row for " .. key, 0)
 end
 
-test("Skin picker: the title names this addon, and the eye is hidden", onWindow(function(f)
-  -- The shared mock's FontString keeps no text, so the title is read off its SetText: a repeat
-  -- call while the window is up re-reads the spec and sets it again.
-  local text, own = nil, rawget(f.title, "SetText")
-  f.title.SetText = function(_, v) text = v end
+test("Skin picker: the title is Choose a skin, the name line names this addon, and the eye is hidden", onWindow(function(f)
+  -- Since LibKa0s v1.81.0 (OptionsSkinPicker minor 2, R-11) the title no longer names the addon,
+  -- which the client cut off; the name has its own line, frame.ownerLabel, above the dropdown, and
+  -- the window widens to the name's unbounded width so it is never cut off. The shared mock's
+  -- CreateFontString answers the frame itself, so the title and the name line are one table here:
+  -- the texts are read off its SetText, in the order a repeat call while the window is up re-reads
+  -- the spec and sets them (the title, then the name line), the name's width off its
+  -- GetUnboundedStringWidth, and the window's off a SetWidth recorder (the base mock defines no
+  -- setter, so the recorder is rawset and rawset nil after).
+  assertTrue(f.ownerLabel ~= nil, "the picker has a name line of its own")
+  local texts, fs = {}, f.ownerLabel
+  local width
+  local ownT, ownW = rawget(f.title, "SetText"), rawget(fs, "GetUnboundedStringWidth")
+  local ownS = rawget(f, "SetWidth")
+  f.title.SetText = function(_, v) texts[#texts + 1] = v end
+  fs.GetUnboundedStringWidth = function() return 600 end
+  rawset(f, "SetWidth", function(_, w) width = w end)
   assertTrue(rawequal(NS.MaybeShowSkinPicker(), f), "a repeat call answers the same window")
-  rawset(f.title, "SetText", own)
-  assertEqual(text, "Choose a skin for " .. NS.Constants.BRAND)
+  rawset(f.title, "SetText", ownT)
+  rawset(fs, "GetUnboundedStringWidth", ownW)
+  rawset(f, "SetWidth", ownS)
+  assertEqual(texts[1], "Choose a skin")
+  assertEqual(texts[2], NS.Constants.BRAND)
+  assertTrue((width or 0) >= 600, "the window widens to the whole name, so it is never cut off")
   assertTrue(f.preview == nil or not f.preview:IsShown(), "no onPreview: the eye is hidden")
 end))
 
