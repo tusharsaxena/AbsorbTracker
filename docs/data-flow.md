@@ -208,7 +208,7 @@ adoptProfile()   -- the shared body
     │
     ├─▶ NS.MigrateProfileToV3(db.profile)
     ├─▶ NS.HideSkinPicker()                    -- the picker down quietly, its preview put back
-    ├─▶ NS.ApplySkinChoice()                   -- the new profile's skin, Scope and overrides
+    ├─▶ NS.ApplySkinChoice()                   -- the new profile's skin, Scope, overrides, outline
     ├─▶ NS.SyncEnabledHold()                   -- the latch re-reads the new profile's `enabled`
     ├─▶ NS.bus:SendMessage(NS.MSG.UNITS)       -- ▶ the unit event registrations follow the profile
     ├─▶ NS.MaybeShowSkinPicker()               -- a new or reset profile shows the picker again

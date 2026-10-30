@@ -122,12 +122,12 @@ Rules the code depends on that reading one file will not reveal. The visual/tain
 
 ## Settings Schema
 
-`NS.Schema` is a flat array of **86 rows**; each `settings/<page>.lua` calls
+`NS.Schema` is a flat array of **87 rows**; each `settings/<page>.lua` calls
 `NS.RegisterSchemaRows({...})` at file load, and the same array drives the panel widgets
 (`LibKa0s-Options-1.0`) and the `/at list|get|set|reset|resetall` CLI, so adding an option is one
-schema row. **Fifteen** rows carry an absolute path, all on General: the six flat globals
+schema row. **Sixteen** rows carry an absolute path, all on General: the six flat globals
 (`enabled`, `visibility`, `scale`, `alpha`, `locked`, `throttleWindow`), the session-only
-`state.debugConsole`, the global-store `global.minimap.shown` and the seven `skin.*` rows the Skin
+`state.debugConsole`, the global-store `global.minimap.shown` and the eight `skin.*` rows the Skin
 tab draws. The other **71** are unit-relative (`units.<unit>.<key>`): the three
 `units.<unit>.enabled` toggles on General, plus the Appearance page's 68 (twenty-two keys × three
 units, and a `mirror` row for target and focus). A row's `group` is its **tab** (options-ui-§13), in

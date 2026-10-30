@@ -106,13 +106,15 @@ NS.defaults.profile = {
     -- Default. The Scope's two exceptions: `ignorePanel` keeps this addon's settings pages the
     -- client's (on for a new profile, the owner's 2026-10-27 call that LootHistory ships too, so the
     -- pages look as they did before skins), `ignoreFonts` keeps every font as the addon set it. The
-    -- Font and texture overrides are an LSM key each, "" for the skin's own. `pickerSeen`: the
+    -- Font and texture overrides are an LSM key each, "" for the skin's own. `outline`, the Font
+    -- outline (LibKa0s v1.82.0, Skin minor 9): "all" text (the default), "hud" text only, or "off";
+    -- the default every element's "From skin" flags resolve through. `pickerSeen`: the
     -- first-run skin picker was closed on this profile; false on every profile, old and new, so
     -- every player sees it once (the rollout's O3). New keys with defaults, so AceDB merges them
     -- into every existing profile and no migration is owed.
     skin = {
         source = "ka0s", skin = "ka0s", ignorePanel = true, ignoreFonts = false,
-        font = "", texture = "", pickerSeen = false,
+        font = "", texture = "", outline = "all", pickerSeen = false,
     },
 
     -- Per-unit. Player has no `mirror` key — it is the mirror SOURCE, so a player mirror row

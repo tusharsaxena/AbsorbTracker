@@ -27,6 +27,8 @@ local PINNED = {
   ["skin.font"] = { type = "string", page = "general", default = "" },
   ["skin.ignoreFonts"] = { type = "bool", page = "general", default = false },
   ["skin.ignorePanel"] = { type = "bool", page = "general", default = true },
+  -- The Font outline (LibKa0s v1.82.0, the 2026-10-30 skin fonts run's AT-01).
+  ["skin.outline"] = { type = "string", page = "general", default = "all" },
   ["skin.pickerSeen"] = { type = "bool", page = "general", default = false },
   ["skin.skin"] = { type = "string", page = "general", default = "ka0s" },
   ["skin.source"] = { type = "string", page = "general", default = "ka0s" },
@@ -145,6 +147,7 @@ test("layout guard: every stored path keeps its type, page, default and range", 
   for path in pairs(PINNED) do
     assertTrue(seen[path], "a setting the layout pass lost: " .. path)
   end
-  -- 70 from the layout pass, plus the Skin tab's seven (AT-01) and the nine skin companions (AT-03).
-  assertEqual(n, 86, "the schema row count")
+  -- 70 from the layout pass, plus the Skin tab's eight (AT-01, skin.outline with LibKa0s v1.82.0)
+  -- and the nine skin companions (AT-03).
+  assertEqual(n, 87, "the schema row count")
 end)

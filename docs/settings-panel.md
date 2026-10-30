@@ -217,7 +217,7 @@ Master controls  [Enable Absorb Tracker]  [General visibility]
                  [Reset position]         [Reset all settings]  <- afterGroup, the composer's tail
 Behavior         [Update throttle (seconds)]
                  (+ the three per-unit enables, skipRender: drawn in the Appearance band)
-Skin             the library's tab (O.AppearanceTab), drawing the seven skin.* rows itself
+Skin             the library's tab (O.AppearanceTab), drawing the eight skin.* rows itself
 ```
 
 **Lock frame's tooltip is the composer's `lockIsPreview` sentence** (compose minor 9) — unlocking shows

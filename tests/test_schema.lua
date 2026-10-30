@@ -85,7 +85,7 @@ test("the page -> tab -> row-count partition is the designed one", function()
     -- Appearance is the Skin tab's group (AT-01): seven skip-render rows the library's
     -- O.AppearanceTab draws as its own controls, the host tab keyed by this group's name.
     { page = "general", unit = nil,
-      tabs = { { "Master controls", 7 }, { "Behavior", 4 }, { "Appearance", 7 } } },
+      tabs = { { "Master controls", 7 }, { "Behavior", 4 }, { "Appearance", 8 } } },
     -- Bar is Size 2 + Fill 5 + Background 3 + Border 5 (item 020), and Text the font block's six
     -- plus one: Fill, Border and Text each end on their "Use the skin's ..." companion (AT-03).
     { page = "appearance", unit = "player", tabs = { { "Bar", 15 }, { "Text", 7 } } },

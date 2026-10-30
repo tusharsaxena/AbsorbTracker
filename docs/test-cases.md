@@ -861,11 +861,11 @@ Total.
 - the main page's About content renders on its first OnShow
 - re-rendering the About page replaces its body rather than stacking a second copy
 
-### test_skinsetup.lua (13)
+### test_skinsetup.lua (17)
 
 - Skin seam: the owner is the folder name, and NS.Skin is its facade
 - Skin seam: the read answers Ka0s Default before the profile store exists
-- Skin seam: the seven skin keys default to Ka0s Default, as skip-render rows on General
+- Skin seam: the eight skin keys default to Ka0s Default, as skip-render rows on General
 - Skin seam: the skin row's values are every registered skin, in the library's order
 - Skin seam: /at set refuses a skin that is not registered and applies one that is
 - Skin seam: the Skin tab is General's last, and opens
@@ -873,8 +873,12 @@ Total.
 - Skin seam: the tab's Ignore fonts reaches the library and the profile, one repaint
 - Skin seam: another addon's copy to every Ka0s addon repaints AbsorbTracker once
 - Skin seam: a whole apply carries the stored exceptions and overrides with the skin
+- Skin seam: the outline row offers the library's three modes, in its order
+- Skin seam: the write seam stores media.outline, and leaves it alone when it is nil
+- Skin seam: /at set skin.outline applies the mode live and refuses an unknown one
 - Skin seam: /at set reaches an exception and an override, each only its own half
 - Skin seam: a profile switch applies the new profile's skin, and back
+- Skin seam: a profile switch applies the new profile's Font outline, and back
 - Skin seam: every bar's drag strip is built with this owner, so a switch repaints it
 
 ### test_skin_hud.lua (12)
@@ -1133,7 +1137,7 @@ Total.
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 16 |
 | test_widgets.lua | 57 |
-| test_skinsetup.lua | 13 |
+| test_skinsetup.lua | 17 |
 | test_skin_hud.lua | 12 |
 | test_skin_picker.lua | 14 |
 | test_skin_tools.lua | 6 |
@@ -1152,4 +1156,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **954** |
+| **Total** | **958** |
