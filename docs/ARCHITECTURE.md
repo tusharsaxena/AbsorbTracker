@@ -350,8 +350,10 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
   size, outline and shadow, and every HUD color (fill, background, border, text and the class
   colors), stay the player's (rollout X4). **Ignore fonts** wins for the face: while it is on,
   `NS.MediaKey` answers the stored `font`, over the skin's `hud.font` and a font override, as the
-  drag-strip label keeps its face. The library's `Resolve`/`Token` never read the exception (only
-  `P.font` does), so `NS.MediaKey` asks `NS.SkinFontsIgnored()` (`core/SkinSetup.lua`) itself.
+  drag-strip label keeps its face. The library enforces it (LibKa0s v1.81.0, Skin minor 8): while
+  the owner ignores fonts, `Resolve` answers the stored value for `hud.font` and `Token` answers
+  nil, so `NS.MediaKey` keeps no check of its own, and it reports the face as the skin's only while
+  the companion is on **and** the skin answers the token (the `skin=` column of `/at diagnostics`).
   The value text's drop shadow (black, offset 1, -1, while *Font shadow* is on) is the font row's
   own rendering, not a skin color, and stays a named constant in `modules/Display.lua` (rollout
   DECISIONS D7; not an anti-pattern #107 literal).
@@ -364,10 +366,18 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
   change on the bars (rollout X5): the Ka0s Default bar texture, no border (the skin's `None` style)
   and Oxanium SemiBold, in place of Blizzard Raid Bar, Blizzard Tooltip at 12 px and Friz Quadrata.
 - **The drag strips** are built with `owner = addonName` (WidgetsDragHandle minor 6): their fill,
-  edge, label and marks are the skin's and repaint on a switch. Ka0s Default draws them as before.
+  edge, label and marks are the skin's and repaint on a switch. Since LibKa0s v1.81.0
+  (WidgetsDragHandle minor 7) the label is drawn in the skin's body face (Oxanium under Ka0s
+  Default, where the template drew Friz Quadrata; *Ignore fonts* gives it the template back), and
+  the tooltips' title, body and footer take the skin's `gtip.title` / `gtip.value` / `gtip.footer`
+  (Ka0s Default's are the old literals). They sit on the HUD, a window, so they pass no `panel`
+  flag and *Ignore settings panel* leaves them skinned (Ka0sAddonsCommonTasks D-01).
 - **The library's surfaces.** The settings pages, the debug console and its copy window, and the perf
   panel are painted by the library for this owner, the settings pages only while **Ignore settings
-  panel** is off. The Appearance chrome block's four AceGUI widgets go through `NS.SkinPaintAce` after
+  panel** is off; the windows wear the skin whatever that switch says. Since LibKa0s v1.81.0 every
+  string the console and the perf panel draw (the console's title-bar labels and Diagnostics link,
+  the panel's step and command columns) is in the skin's face and obeys **Ignore fonts**, and their
+  resize grips take the skin's `icon.grip` (the client's art under Ka0s Default and WoW Default). The Appearance chrome block's four AceGUI widgets go through `NS.SkinPaintAce` after
   each `Create`, and the Profiles page's AceConfigDialog tree through `NS.SkinPaintAceTree` after each
   `Open`.
 - **The first-run skin picker** (the owner's O3). `NS.MaybeShowSkinPicker` shows the library's picker

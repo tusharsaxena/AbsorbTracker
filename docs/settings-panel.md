@@ -353,8 +353,9 @@ paints every widget it creates; the Appearance chrome block's four widgets also 
 Each widget goes back to the shared AceGUI pool stock when it is released, so another addon's pages
 never inherit this addon's skin.
 
-**The first-run picker** is `O.SkinPicker`, a small `DIALOG` window titled *Choose a skin for Ka0s
-Absorb Tracker*, shown by `NS.MaybeShowSkinPicker` (`core/SkinSetup.lua`) at the end of `OnEnable`
+**The first-run picker** is `O.SkinPicker`, a small `DIALOG` window titled *Choose a skin*, with
+*Ka0s Absorb Tracker* on its own line above the dropdown (`frame.ownerLabel`; the window widens so
+the name is never cut off, LibKa0s v1.81.0), shown by `NS.MaybeShowSkinPicker` (`core/SkinSetup.lua`) at the end of `OnEnable`
 and after every profile event while the profile's `skin.pickerSeen` is false and the addon stands
 up, held to `PLAYER_REGEN_ENABLED` in combat. A pick previews; **Apply** and the gear save it, the
 gear opening this page on its Skin tab (`page = "general"`, `tab = "Appearance"`); the close control
