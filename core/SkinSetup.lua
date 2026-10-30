@@ -267,6 +267,17 @@ if not Skin then
         if value == S.FROM_SKIN then return nil end
         return value
     end
+    -- The two LibKa0s v1.82.0 sizers (SkinPaintExtras minor 7) answer a real value, never nil,
+    -- which SetFont would refuse: a picked flag as stored, else the HUD's old default OUTLINE
+    -- ("From skin" with no skin to read); a stored size above 0 as is, else 12.
+    S.FontFlags = function(value)
+        if type(value) == "string" and value ~= S.FROM_SKIN then return value end
+        return "OUTLINE"
+    end
+    S.HudFontSize = function(size)
+        local n = tonumber(size)
+        return (n and n > 0) and n or 12
+    end
     S.OnLooksChanged = function(fn) return fn end   -- the skin never changes without the library
     S.IsEnabled = function() return false end
     S.GetStyle = function() return "ka0s:" .. DEFAULT end

@@ -347,6 +347,9 @@ if not lib then
     -- second value, "queued": there is no queue), and HideSkinPicker is a no-op.
     Helpers.SkinPicker         = function() return nil end
     Helpers.HideSkinPicker     = function() end
+    -- The reserved `/at skin` verb's act (LibKa0s v1.82.0, OptionsSkinPicker minor 3): no picker
+    -- without the library, so it answers nil and "absent", which NS.RunSkinVerb words for the player.
+    Helpers.SkinVerb           = function() return nil, "absent" end
     Helpers.__panels   = function() return {} end
     Helpers.__panelFor = function() return nil end
 
