@@ -659,8 +659,8 @@ NS.ValidateSchema()                -> errors, resolved, missing
 The AceConsole-registered `/at` surface. The dispatcher itself, the help renderer, the `cmd — desc` row formatter, the `key = value` formatter, the value renderer, the `/at list` builder and the type-aware value parser are `LibKa0s-Slash-1.0` (`libs/LibKa0s/Slash.lua`, vendored); this file supplies the descriptor. `/at list` / `get` / `set` walk `NS.Schema` through that descriptor's `allRows` / `findRow` / `get` / `set` seams, using **fully-qualified** dotted paths only — `/at set units.target.barWidth 250` works, the pre-1.9 unqualified `/at set barWidth 250` does not (a deliberate breaking change; see [scope.md](./scope.md)).
 
 ```lua
-NS.COMMANDS         -- ordered { name, desc, fn } array of 19 verbs: help, config, enable,
-                    -- disable, list, get, set, reset, resetall, resetposition, lock, unlock,
+NS.COMMANDS         -- ordered { name, desc, fn } array of 20 verbs: help, config, skin,
+                    -- enable, disable, list, get, set, reset, resetall, resetposition, lock, unlock,
                     -- toggle, debug, diagnostics, perf, update, version, profile. `enable`/`disable`
                     -- are the reserved pair (slash-commands-§2) and are ALIASES for the
                     -- `enabled` row -- same path, same NS.SetByPath seam, no state of their

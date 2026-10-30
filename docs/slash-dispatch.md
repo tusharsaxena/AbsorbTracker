@@ -6,14 +6,14 @@ row and key/value formatters, the `/at list` builder and the type-aware value pa
 the table it builds has to see every page's handlers — supplies the descriptor, owns the
 `NS.COMMANDS` table, and implements the verbs that are genuinely this addon's.
 
-This page exists because the verb set is no longer flat. Nineteen verbs is over
+This page exists because the verb set is no longer flat. Twenty verbs is over
 `documentation-§3`'s eight, and four of them take a sub-verb or a token: `profile` dispatches through
 a table of its own, `perf` hands its remainder to the perf library, `toggle` parses one word, and
 `debug` parses one word and, under `hold`, a value and a duration. The trigger fires on either half.
 
 ## Registration
 
-`Sl:Register` (`settings/Slash.lua:828`) registers both names through AceConsole-3.0, called once
+`Sl:Register` (`settings/Slash.lua:833`) registers both names through AceConsole-3.0, called once
 from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:52`, guarded so a load where
 `settings/Slash.lua` never ran degrades rather than errors):
 
@@ -141,7 +141,7 @@ The library lowercases only the verb; the remainder is passed through untouched.
 here, because every schema path in this addon is camelCase and per-unit —
 `/at set units.target.barWidth 250` is the shipped form, and folding the whole line would address a
 row that does not exist. `/at profile` repeats the rule one level down: `runProfile`
-(`settings/Slash.lua:599`) splits through the library's `SlashLib.SplitVerb` (Slash minor 19), which
+(`settings/Slash.lua:604`) splits through the library's `SlashLib.SplitVerb` (Slash minor 19), which
 lowercases the sub-verb and leaves its argument alone, because AceDB profile names are
 case-sensitive and a folded name deletes or switches to the wrong profile. `/at debug` and
 `/at toggle` split through the same function. With the library absent the stub carries the file's
@@ -161,6 +161,7 @@ word that is not a sub-verb is not lowercased at all: the whole remainder goes t
 | `/at` (no args) | the `config` handler (library) | Runs `config` with an empty rest, so a bare `/at` opens the settings panel on its landing page (slash-commands-§4). Whitespace-only input counts as bare. The library prints help instead only for a host with no `config` verb, which is not this one. |
 | `/at help` | `cli:PrintHelp` (library) | Version header, then one row per `NS.COMMANDS` entry. |
 | `/at config` (alias `/at options`) | `NS.OpenOptionsPanel` (library) | Open the settings category. Combat-gated inside `OpenOptionsPanel`, so every caller is refused, not just this verb. The alias is declared on the descriptor's `aliases` map, not as a second row. |
+| `/at skin` | `NS.RunSkinVerb` → `O.SkinVerb` (library) | The reserved `skin` verb (LibKa0s v1.82.0, OptionsSkinPicker minor 3, ruling D-16), right after `config`: the skin picker a new profile shows, on demand, whatever `skin.pickerSeen` says, with the same spec the first-run start hands the library (`NS.SkinPickerSpec`, core/SkinSetup.lua). Not a live verb, so the dispatcher refuses it while the addon is disabled. In combat the library prints its gray line on every call and shows nothing; behind another Ka0s addon's picker it queues. With LibKa0s absent the Options stub answers nil, `"absent"` and the verb prints the library-absent line. Its help is the library's `VERB_HELP`. |
 | `/at enable` / `/at disable` | `setEnabled` | The reserved pair (slash-commands-§2), and **aliases rather than a second switch**: each writes the `enabled` path the Master controls tab's Enable checkbox writes, through the same `NS.SetByPath` seam, so the row's `onChange` runs whichever surface was used and neither surface can hold a different answer. No second key, no session flag. The echo is slash-commands-§5's single-line `path = value` form, read back from the store. **The pair is not one-way:** the write moves the `disabled` hold on the stand-down latch (`core/Lifecycle.lua`) so the addon goes genuinely inert, but the dispatcher, the `COMMANDS` table, the settings registration, the AceDB handle and the launcher registration are **setup, not features** and stay up — so a bare `/at`, `/at help`, `/at version`, the whole schema CLI and `/at enable` itself all still answer with the addon off. The launcher menu's **Enabled** entry runs these same two handlers, out of `NS.COMMANDS` (`core/LauncherSetup.lua`). |
 | `/at list` | `cli:CliList` | Every schema row and its current value, grouped by `groupKey` — `[appearance / player]` for a per-unit page, a bare `[general]` otherwise. |
 | `/at get <path>` | `cli:CliGet` | One row's stored value, in the same `key = value` shape `/at list` prints. |
@@ -185,7 +186,7 @@ Four verbs parse a remainder of their own. `profile` and `debug` dispatch throug
 own (`PROFILE_VERBS`, `DEBUG_VERBS`), `perf` hands its remainder on, and `toggle` parses one word;
 `profile` is the one this page is really about.
 
-**`profile`** — `runProfile` (`settings/Slash.lua:599`) reads the first word of the remainder,
+**`profile`** — `runProfile` (`settings/Slash.lua:604`) reads the first word of the remainder,
 lowercased, and picks one of three routes (spec S3 of the 2026-09-29 profile-verb run):
 
 1. **Nothing**: `cli:CliProfile("")` prints the library's list (header `Profiles`, one row per
@@ -281,7 +282,7 @@ generic dispatcher knows nothing about.
 ## When the library is absent
 
 `/at` is registered unconditionally, so something has to answer it. With `LibKa0s-Slash-1.0` missing,
-`settings/Slash.lua:638` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
+`settings/Slash.lua:643` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
 a plain help index still render, a bare `/at` still runs the `config` verb exactly as the library
 does, the host verbs — which never went to the library — keep working untouched, and each schema verb
 (`list`, `get`, `set`, `reset`, `resetall`) prints the collection's library-absent line through the

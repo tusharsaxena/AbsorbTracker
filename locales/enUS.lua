@@ -74,6 +74,11 @@ L["Diagnostic report written to the debug console: %d lines. Use Copy to share i
 L["List profiles, or switch to one: profile <name>"] =
     "List profiles, or switch to one: profile <name>"
 
+-- The reserved `skin` row's help in `/at help` and on the About page (settings/Slash.lua): LibKa0s's
+-- SKIN_PICKER_STRINGS.VERB_HELP, one wording for every host (LibKa0s v1.82.0).
+L["Choose a skin: open the skin picker"] =
+    "Choose a skin: open the skin picker"
+
 -- The library-absent line: `%s` is the full verb, e.g. `/at list` (settings/Slash.lua's stub).
 L["%s is unavailable: the LibKa0s library did not load."] =
     "%s is unavailable: the LibKa0s library did not load."

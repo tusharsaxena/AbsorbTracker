@@ -631,7 +631,7 @@ Total.
 - and the Options descriptor takes that name from the first vararg, not a literal
 - the id-list help mark is latent: info is neither declared nor shipped
 
-### test_slashcmds.lua (66)
+### test_slashcmds.lua (67)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -684,6 +684,7 @@ Total.
 - parity: a bare /at reaches the config handler with an empty rest in both
 - degraded: the stub's disabled-line format is the library's, byte for byte
 - degraded: a schema verb prints the library-absent line
+- degraded: /at skin prints the library-absent line, through the Options stub's SkinVerb
 - degraded: the library-absent line is keyed by its English text (localization-§2)
 - degraded: /at help rows are plain, with no color escape
 - degraded: DisabledLine is the live build's line, color escapes intact
@@ -896,7 +897,7 @@ Total.
 - v6 puts every stored companion back on, keeps the picks and the colors
 - v6 runs once: a pick made after it is kept
 
-### test_skin_picker.lua (14)
+### test_skin_picker.lua (19)
 
 - Skin picker: the spec names this owner, its seams, General's Skin tab, and no eye
 - Skin picker: an unseen profile shows it; a seen one does not
@@ -912,6 +913,11 @@ Total.
 - Skin picker: a pick previews, unsaved; Apply saves it and marks the picker seen
 - Skin picker: the close control puts the old skin back, saves nothing, and marks it seen
 - Skin picker: the gear saves the pick and opens General on its Skin tab
+- Skin verb: the row sits right after config, with the library's help words
+- Skin verb: /at skin shows the picker on a profile that has closed it
+- Skin verb: in combat every call prints the library's gray line and shows nothing
+- Skin verb: refused while the addon is disabled, and no picker shows
+- Skin verb: without the library's picker the verb prints the library-absent line
 
 ### test_skin_tools.lua (6)
 
@@ -1132,14 +1138,14 @@ Total.
 | test_panelmirror.lua | 10 |
 | test_launcher.lua | 34 |
 | test_optionssetup.lua | 22 |
-| test_slashcmds.lua | 66 |
+| test_slashcmds.lua | 67 |
 | test_slashprofile.lua | 34 |
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 16 |
 | test_widgets.lua | 57 |
 | test_skinsetup.lua | 17 |
 | test_skin_hud.lua | 12 |
-| test_skin_picker.lua | 14 |
+| test_skin_picker.lua | 19 |
 | test_skin_tools.lua | 6 |
 | test_docs.lua | 6 |
 | test_prose.lua | 15 |
@@ -1156,4 +1162,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **958** |
+| **Total** | **964** |
