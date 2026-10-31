@@ -312,8 +312,8 @@ copies its numbers. The tiers, lowest first:
   re-asserts them.
 - **Library and Blizzard tiers the addon relies on** — the minimap button (LibDBIcon), the Settings
   panel (`HIGH`), the debug console, the perf panel and the first-run skin picker (`DIALOG`,
-  toplevel, beside the Reset-all StaticPopup), the console's copy window (`FULLSCREEN`), AceGUI pullouts and the color picker
-  (`FULLSCREEN_DIALOG`), and tooltips (`TOOLTIP`). None of these is the addon's own write.
+  toplevel, beside the Reset-all StaticPopup), the console's copy window (`FULLSCREEN`), the color picker
+  (`FULLSCREEN_DIALOG`), and tooltips and AceGUI dropdown pull-outs (`TOOLTIP`). None of these is the addon's own write.
 
 `tests/test_layers.lua` pins the bar's ladder through the kit's frame-layer recorder, and pins that
 no call site in `core/`, `modules/` or `settings/` passes a strata literal or an absolute level.
