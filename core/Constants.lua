@@ -113,9 +113,9 @@ C.MINIMAP_PATH = "global.minimap.shown"
 --            StaticPopups (the Reset-all confirmation) share it, and a library tool window
 --            re-raises a shown StaticPopup when it shows.
 --   CHILD    FULLSCREEN: the LibKa0s copy window, one strata above the console that opens it.
---   POPUP    FULLSCREEN_DIALOG: AceGUI dropdown pullouts and the color picker.
---   CURSOR   TOOLTIP: GameTooltip (strip and row tooltips); AceGUI-3.0-SharedMediaWidgets'
---            media pullouts also sit here (third party, not ours to move).
+--   POPUP    FULLSCREEN_DIALOG: the color picker.
+--   CURSOR   TOOLTIP: GameTooltip (strip and row tooltips); the library's Ka0sMedia_* pickers
+--            open their pullouts here (Dropdown-Pullout's Open, not ours to move).
 C.LAYERS = {
     STRATA = {
         HUD = "MEDIUM",

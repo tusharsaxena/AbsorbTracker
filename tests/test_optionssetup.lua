@@ -334,6 +334,16 @@ test("the degraded stub answers OptionsCompose minor 11's ResetAllTooltip with t
   assertEqual(NS2.Helpers.ResetAllTooltip(42), "", "a non-string tail adds nothing")
 end)
 
+test("the degraded stub answers OptionsCompose minor 15's PositionBlock with no rows and an inert hook", function()
+  -- O.PositionBlock is owed by every Options stub from LibKa0s v1.84.0 (the library's Options
+  -- document, LibKa0s#59). The live one answers `rows, afterSubgroup`, so the stub keeps both shapes.
+  -- red under: a missing member, or a stub that hands back rows with no library to draw them.
+  local NS2 = loadDegraded()
+  local rows, hook = NS2.Helpers.PositionBlock({})
+  assertEqual(#rows, 0, "no rows without the library")
+  hook()
+end)
+
 test("the degraded stub keeps no private copy of the library's layout constants", function()
   -- Measured, not assumed: dropping each of these from the stub and re-running the degraded load
   -- leaves #NS.Schema unchanged, because every reader (settings/About.lua, settings/UnitPanel.lua)
@@ -373,54 +383,6 @@ test("PARENT_TITLE reaches the library through the descriptor, not the namespace
     "PARENT_TITLE reads the one brand constant")
 end)
 
--- ── the LSM30_Border patch, promoted to the library ────────────────────────────────
-
-test("the live arm patches LSM30_Border through the library, not through a private copy", function()
-  -- `lib.__PatchLSM30Border()` is LibKa0s-Options-1.0's since minor 15, and the reason it is the
-  -- library's is that AceGUI's widget registry is PROCESS-GLOBAL. Five Ka0s addons each carrying
-  -- their own registration means five wrappers stacked in one client, whose outermost belongs to
-  -- whichever addon loaded last; one lib-level member behind lib.__lsmBorderPatched means one
-  -- registration no matter how many copies of the library are vendored.
-  --
-  -- WHY A WHOLE SECOND LOAD, and why the registry is seeded first. The call happens once, at
-  -- settings/OptionsSetup.lua's file load, and the shared environment in tests/run.lua made it long
-  -- before any case runs -- with an EMPTY WidgetRegistry, which models AGSMW being absent, so it
-  -- registered nothing and returned false. The wrap only exists to be seen when there is a
-  -- constructor to wrap. So this builds a second full environment the way tests/test_debuglog.lua
-  -- does, puts a stand-in LSM30_Border in the registry before the addon loads, and then asks the
-  -- registry what came out.
-  --
-  -- core/LSMPatch.lua is gone, last of the five private copies. This case never saw it in the
-  -- first place: it only published NS.ApplyLSMBorderPatch, which OnEnable called, and nothing here
-  -- fires OnEnable. So what the registry held below was always the library's doing alone, which is
-  -- what made it safe to delete the private copy on the strength of a green suite.
-  -- red under: dropping the lib.__PatchLSM30Border() call from the live arm.
-  local Loader     = dofile("tests/_kit/loader.lua")
-  local buildMocks = dofile("tests/wow_mock.lua")
-  Loader.addonName = "AbsorbTracker"
-  local mocks2, NS2 = buildMocks(), {}
-
-  -- The stand-in for AceGUI-3.0-SharedMediaWidgets' own constructor, at its own version. Identity
-  -- is what the assertion reads, so it needs no behavior beyond being a distinguishable function.
-  local upstream = function() return { frame = {} } end
-  local AceGUI = mocks2.LibStub("AceGUI-3.0")
-  AceGUI:RegisterWidgetType("LSM30_Border", upstream, 20)
-
-  Loader.loadAll(Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml"), NS2, mocks2)
-  Loader.loadAll(Loader.tocFiles("AbsorbTracker.toc"), NS2, mocks2)
-
-  assertFalse(AceGUI.WidgetRegistry["LSM30_Border"] == upstream,
-    "settings/OptionsSetup.lua's live arm never called lib.__PatchLSM30Border()")
-  assertEqual(AceGUI:GetWidgetVersion("LSM30_Border"), 21,
-    "the wrapper must register one version above what it wrapped, to win the race")
-
-  -- The sentinel is set, so a second caller in the same session -- a sibling addon's copy of the
-  -- library, which LibStub hands the same instance -- registers nothing.
-  local lib = mocks2.LibStub("LibKa0s-Options-1.0")
-  assertFalse(lib.__PatchLSM30Border(), "the second call must be a no-op")
-  assertEqual(AceGUI:GetWidgetVersion("LSM30_Border"), 21, "and must leave the registration alone")
-end)
-
 -- ── the Profiles page draws ──────────────────────────────────────────────────────
 
 test("the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one", function()
@@ -431,7 +393,7 @@ test("the Profiles page SHOWS the container AceConfigDialog fills, even a pooled
   -- hidden, which is exactly the pooled case.
   --
   -- A second full environment, because the shared one has no AceDBOptions and its Profiles page
-  -- self-skips (tests/test_widgets.lua pins that). The fakes go into the kit's library table
+  -- self-skips (tests/test_realpages.lua pins that). The fakes go into the kit's library table
   -- before the addon loads. AbsorbTrackerDB is process-global, so it is parked around InitDB and
   -- the shared suite's database is never touched.
   -- red under: the renderer not calling container.frame:Show().

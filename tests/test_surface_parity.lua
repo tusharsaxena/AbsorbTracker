@@ -214,7 +214,7 @@ test("parity: the Bus stub carries the library's whole surface", function()
   -- The one stub in this file that mirrors the LIBRARY TABLE, not an instance: core/Bus.lua
   -- stands the untracked-target stub in for LibStub("LibKa0s-Bus-1.0") and builds its record
   -- from it either way. tests/run.lua registers the library table under the name. The members it
-  -- owes are `New` and `Catalog` (the major's members-1.json). No ignore list: the surface is two
+  -- owes are `New` and `Catalog` (LibKa0s docs/api/Bus/members-1.json). No ignore list: the surface is two
   -- members and core/Bus.lua calls both on the degraded path.
   local NS2 = loadDegraded()
   assertTrue(type(NS2.__busLib) == "table", "core/Bus.lua publishes its stub for this case")
@@ -234,7 +234,7 @@ test("parity: the Schema stub carries the library's lib-level surface", function
 end)
 
 test("parity: the Schema stub's instance carries every member of a live instance", function()
-  -- The instance surface is not in the major's members-1.json, so the two-table form pins it: the
+  -- The instance surface is not in LibKa0s docs/api/Schema/members-1.json, so the two-table form pins it: the
   -- live NS.SchemaRuntime against the degraded one, member for member. No ignore list: every member
   -- the library's instance answers, the stub answers too (the host trims nothing it could reach).
   local NS2 = loadDegraded()

@@ -49,8 +49,8 @@ TOC manifest is keyed by folder, and a vendored copy cannot know which folder it
 `core/SkinSetup.lua` is the tenth: `LibKa0s-Skin-1.0` takes an **owner** registration (the folder
 name, a label and this addon's read and write seams) rather than a descriptor, and hands back the
 owner's facade, `NS.Skin` (see [Skins](#skins)).
-**Thirteen majors bound by name** of the nineteen `libs/LibKa0s/` vendors (the files `libs/LibKa0s/LibKa0s.xml` lists); Compat,
-Pool, Item, Glow, Toast and Sim are registered and unread. `LibKa0s-Widgets-1.0` has its own seam,
+**Thirteen majors bound by name** of the twenty `libs/LibKa0s/` vendors (the files `libs/LibKa0s/LibKa0s.xml` lists); Compat,
+Pool, Item, Glow, Toast, Sim and Charts are registered and unread. `LibKa0s-Widgets-1.0` has its own seam,
 `core/WidgetsSetup.lua`, which resolves the major once and publishes `NS.Widgets`: the live major, or a
 stub carrying exactly the two members the addon reaches (`DragHandle` answering nil, so no strip is
 drawn, and `DRAG_HANDLE` with `HEIGHT` and `GAP` of 0, so the default stack keeps no strip room).
@@ -312,8 +312,8 @@ copies its numbers. The tiers, lowest first:
   re-asserts them.
 - **Library and Blizzard tiers the addon relies on** — the minimap button (LibDBIcon), the Settings
   panel (`HIGH`), the debug console, the perf panel and the first-run skin picker (`DIALOG`,
-  toplevel, beside the Reset-all StaticPopup), the console's copy window (`FULLSCREEN`), AceGUI pullouts and the color picker
-  (`FULLSCREEN_DIALOG`), and tooltips (`TOOLTIP`). None of these is the addon's own write.
+  toplevel, beside the Reset-all StaticPopup), the console's copy window (`FULLSCREEN`), the color picker
+  (`FULLSCREEN_DIALOG`), and tooltips and AceGUI dropdown pull-outs (`TOOLTIP`). None of these is the addon's own write.
 
 `tests/test_layers.lua` pins the bar's ladder through the kit's frame-layer recorder, and pins that
 no call site in `core/`, `modules/` or `settings/` passes a strata literal or an absolute level.
@@ -404,7 +404,7 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
   condition. Ka0s to EllesmereUI applies live; EllesmereUI back to Ka0s asks for a reload.
 - **Not skinned** (skinning-§7): the Blizzard Settings window around the pages, the Reset-all
   `StaticPopup`, `GameTooltip`'s frame (the strip's tooltip lines are the widget's), the LibDBIcon
-  minimap button and its tooltip, `ColorPickerFrame` and the LSM30 pull-outs, the About page logo,
+  minimap button and its tooltip, `ColorPickerFrame`, the About page logo,
   the class colors (game meaning) and the chat output (the cyan `[AT]` tag and the gold and gray
   lines slash-commands mandates).
 - **Degraded.** Without the library `NS.Skin` answers every primitive as a no-op and every token as
@@ -524,9 +524,9 @@ a re-check trigger. The census records which one, one row per over-cap file; the
 observed and dispositioned in the automated-tests watch list alone (`automated-tests-§4`).
 
 Nothing is over the cap today. The largest authored file is `tests/test_schema.lua` at 1084 lines
-(then `tests/test_slashcmds.lua` at 1079), measured on 2026-10-29 with `git ls-files '*.lua' | grep -v '^libs/' | grep -v '^tests/_kit/' |
+(then `tests/test_display.lua` at 970), measured on 2026-10-31 with `git ls-files '*.lua' | grep -v '^libs/' | grep -v '^tests/_kit/' |
 xargs wc -l | sort -rn`. `tests/test_slashcmds.lua` was peeled into `tests/test_perfcmds.lua` when it
-crossed the cap, its value-hold cases later moved to `tests/test_debughold.lua` with the verb, and its `/at profile` cases moved to `tests/test_slashprofile.lua` when it reached 1472 lines. `tests/test_helpers.lua` (1447) had its rendered-page cases peeled into `tests/test_panelpages.lua` before it reached the cap (R-14), and that file's mirror half later moved to `tests/test_panelmirror.lua` when it entered the 1000–1500 band. The vendored `tests/_kit/test_layout_cap.lua` gates this census against the tree.
+crossed the cap, its value-hold cases later moved to `tests/test_debughold.lua` with the verb, and its `/at profile` cases moved to `tests/test_slashprofile.lua` when it reached 1472 lines. In the 1000–1500 band, on 2026-10-31, its `enable`/`disable` and disabled-gate cases moved to `tests/test_slashgate.lua` and `tests/test_widgets.lua`'s real-page cases to `tests/test_realpages.lua`, both ahead of anti-pattern #53's third release run. `tests/test_helpers.lua` (1447) had its rendered-page cases peeled into `tests/test_panelpages.lua` before it reached the cap (R-14), and that file's mirror half later moved to `tests/test_panelmirror.lua` when it entered the 1000–1500 band. The vendored `tests/_kit/test_layout_cap.lua` gates this census against the tree.
 
 ## Performance & Profiler Attribution
 

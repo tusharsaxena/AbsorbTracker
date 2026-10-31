@@ -25,7 +25,7 @@ local addonName, NS = ...
 -- every addon, in either state; RIGHT-click opens the client's own context menu, which the library
 -- builds out of the pairs passed below. Neither button is ours to route (anti-pattern #81).
 --
--- This addon's menu is Enabled and Locked, the row ADDONS.md records. There is no Test mode entry:
+-- This addon's menu is Enabled and Locked, the row WowAddonStandards' ADDONS.md records. There is no Test mode entry:
 -- options-ui-§15 exempts an addon whose unlocked view already IS its preview, and this one takes the
 -- exemption (settings/General.lua, `locked`), so the lock is the preview switch. There is no Show
 -- window entry: nothing here is a primary window.

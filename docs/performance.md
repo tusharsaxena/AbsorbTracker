@@ -73,7 +73,7 @@ CPU never does. Exit code is non-zero on an assertion failure.
 | `absorbEvent` | What does one absorb event cost with the throttle already armed? |
 | `paintBars` | What does the bar-level paint cost — `NS.UpdateAbsorbBar` over three bars from a test closure, without the scheduler? |
 | `repaintPass` | What does the **shipped** coalesced pass cost — `modules/Timer.lua`'s `doRepaint`, reached through the test seam `NS.Timer.__doRepaint`? |
-| `appearancePass` | What does a full restyle cost (`SetBackdrop` ×2 + four LSM fetches per bar)? |
+| `appearancePass` | What does a full restyle cost (`SetBackdrop` ×4, the LSM fetches, and the border, overlay and drag-strip re-level per bar)? |
 | `settingsRead` | Does the `Units.Get` hot read path allocate? |
 | `probeOverheadOff` / `On` | Is the instrumentation itself free when capture is off? Both arms run the shipped `doRepaint`, so the outer `repaintPass` bracket and every `paintBar` bracket are on the measured path. |
 
@@ -85,6 +85,13 @@ allocated 144.0, all of it the per-pass `function(unit)` closure `doRepaint` han
 test closure, not the bars. The dormant arm is held under `PROBE_OFF_BYTES_CEILING` (24: the 0.0
 measurement plus 24 bytes of headroom, less than the 64 bytes one empty table costs).
 `tests/perf.lua` records how that ceiling was derived.
+
+`appearancePass` asserts 81 API calls per pass and is held under `APPEARANCE_BYTES_CEILING` (442: the
+418.0 measurement plus 24). It read 2552.1 bytes from `59147e7` until 2026-10-31, and that was the
+runner, not the addon. The frame-layering commit added `bar.border`, `bar.overlay` and the strip's
+`ApplyLevel`, the counting layer did not wrap them, and the mock answers an undefined method with a
+fresh closure on each lookup. Now that they are wrapped, 288 of the 418 bytes are the library's
+`ApplyLevel`, one small table per bar on a settings path.
 
 ### Reading the output
 
@@ -398,9 +405,9 @@ shared-frame problem above, the addon ships its own harnesses:
 
 The instrumentation harness was the first thing to leave this addon for a shared library; it is now
 one of five. `LibKa0s` is a Ka0s-owned library, vendored into `libs/LibKa0s/` the same way Ace3 is —
-copied in, not depended on at runtime. The payload now ships **nineteen majors**, across the files
+copied in, not depended on at runtime. The payload now ships **twenty majors**, across the files
 load-ordered by `libs/LibKa0s/LibKa0s.xml`; the five that take a descriptor are carried by
-`Core.lua`, `DebugLog.lua`, `Slash.lua`, `Options.lua` (+ fifteen attach files, `OptionsRegistry.lua`
+`Core.lua`, `DebugLog.lua`, `Slash.lua`, `Options.lua` (+ nineteen attach files, `OptionsRegistry.lua`
 through `OptionsMedia.lua`) and `Perf.lua` (+ `PerfSampler.lua`, `PerfCommands.lua` and `PerfPanel.lua`); `Lifecycle.lua`
 and `Launcher.lua` take a descriptor too, and arrived after the five extractions this section is named for.
 `LibKa0s-Core-1.0` is the root; every other major declares a `NEEDS_CORE` guard and, if Core is absent or too old, `return`

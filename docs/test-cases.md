@@ -621,9 +621,9 @@ Total.
 - the degraded stub answers LibKa0s v1.77.0's four members inert
 - the degraded stub answers LibKa0s v1.78.0's and v1.79.0's skin members inert
 - the degraded stub answers OptionsCompose minor 11's ResetAllTooltip with the tail alone
+- the degraded stub answers OptionsCompose minor 15's PositionBlock with no rows and an inert hook
 - the degraded stub keeps no private copy of the library's layout constants
 - PARENT_TITLE reaches the library through the descriptor, not the namespace
-- the live arm patches LSM30_Border through the library, not through a private copy
 - the Profiles page SHOWS the container AceConfigDialog fills, even a pooled (hidden) one
 - General's Reset all settings tooltip says it is the same act as Profiles -> Reset Profile
 - both Defaults tooltips say which page resets which bars are shown
@@ -631,7 +631,7 @@ Total.
 - and the Options descriptor takes that name from the first vararg, not a literal
 - the id-list help mark is latent: info is neither declared nor shipped
 
-### test_slashcmds.lua (67)
+### test_slashcmds.lua (57)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -689,6 +689,10 @@ Total.
 - degraded: /at help rows are plain, with no color escape
 - degraded: DisabledLine is the live build's line, color escapes intact
 - /at set stores a multi-word string value whole
+- degraded: /at profile prints the library-absent line and switches nothing
+
+### test_slashgate.lua (10)
+
 - /at enable and /at disable write the Enable row's OWN path, through the one seam
 - /at disable echoes the stored value in the set shape, and /at enable undoes it
 - the pair is never one-way: the dispatcher still answers while the addon is disabled
@@ -699,7 +703,6 @@ Total.
 - a refused `unlock` leaves the lock exactly where it was
 - a refused `update` publishes nothing on the bus
 - /at profile <name> switches while the addon is disabled
-- degraded: /at profile prints the library-absent line and switches nothing
 
 ### test_slashprofile.lua (34)
 
@@ -802,7 +805,7 @@ Total.
 - /at debug hold refuses while the addon is disabled: one line, no paint, no hold
 - /at debug hold refuses while stood down for a perf capture, arms no timer
 
-### test_widgets.lua (57)
+### test_widgets.lua (46)
 
 - NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
 - a bool row renders a CheckBox labeled from the schema
@@ -818,8 +821,10 @@ Total.
 - a slider falls back to the row default when the stored value is not a number
 - releasing a slider snaps the value to the row's step
 - slider snapping is relative to the row's min, not to zero
-- a string row falls back to a plain Dropdown when the LSM widget is absent
-- a string row uses its dialogControl widget when that IS registered
+- a media row falls back to a plain Dropdown when no picker can be built
+- a media row draws the library's picker when that IS registered
+- every media row asks for a Ka0sMedia_* picker, none for an LSM30_* widget
+- the addon vendors and loads no AceGUI-3.0-SharedMediaWidgets
 - a dropdown's list is alphabetically ordered by default
 - a row with explicit `sorting` keeps that order instead of sorting
 - a dropdown shows the current value and writes the chosen one
@@ -848,6 +853,9 @@ Total.
 - a pairWith partner is attached to the named row and is one-shot
 - RenderSchema runs a layout pass at the end
 - EnsureScroll is lazy, created once, and patched for an always-visible scrollbar
+
+### test_realpages.lua (13)
+
 - every schema page registered a real Blizzard subcategory at build time
 - the Profiles page self-skips when AceDBOptions is unavailable
 - the sidebar path is covered in combat, draws nothing and leaves the window open (options-ui-§2)
@@ -1149,11 +1157,13 @@ Total.
 | test_panelmirror.lua | 10 |
 | test_launcher.lua | 34 |
 | test_optionssetup.lua | 22 |
-| test_slashcmds.lua | 67 |
+| test_slashcmds.lua | 57 |
+| test_slashgate.lua | 10 |
 | test_slashprofile.lua | 34 |
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 16 |
-| test_widgets.lua | 57 |
+| test_widgets.lua | 46 |
+| test_realpages.lua | 13 |
 | test_skinsetup.lua | 17 |
 | test_skin_hud.lua | 19 |
 | test_skin_picker.lua | 19 |
@@ -1174,4 +1184,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **972** |
+| **Total** | **974** |

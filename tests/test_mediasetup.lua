@@ -34,7 +34,7 @@ end
 -- The `LibKa0s icons:` declaration under the provenance line in CLAUDE.md, read through the kit's
 -- own parser (tests/_kit/vendor_sync.lua, VendorSync.iconDeclaration) and never a second one here.
 -- Since LibKa0s v1.75.0 the vendored media/icons/ holds exactly what that line declares
--- (tools/prune-icons.lua cuts it at re-vendor, and tests/test_vendor_sync.lua gates declared ==
+-- (LibKa0s tools/prune-icons.lua cuts it at re-vendor, and tests/test_vendor_sync.lua gates declared ==
 -- shipped against the tag), so the declaration, not lib.ICONS, is what this copy carries.
 local function declaration()
   local f = io.open("CLAUDE.md", "rb")

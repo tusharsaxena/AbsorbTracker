@@ -10,7 +10,7 @@ section.
 | Check | Command | Expected |
 |-------|---------|----------|
 | Unit tests | `lua tests/run.lua` | all suites green (exits non-zero on any failure) |
-| Lint | `luacheck .` | `0 warnings / 0 errors` |
+| Lint | `~/.claude/dev-copilot/bin/ka0s-bounded luacheck .` | `0 warnings / 0 errors` |
 | Syntax-check one file | `luac -p <path/to/file.lua>` | no output (clean parse) |
 | In-game smoke tests | manual | see [smoke-tests.md](./smoke-tests.md) |
 
@@ -44,13 +44,13 @@ conformance test.
 
 ### What the lint gate is a statement about (lint)
 
-`luacheck .` reading `0 warnings / 0 errors` is only worth something if the configuration is not the
+The lint gate reading `0 warnings / 0 errors` is only worth something if the configuration is not the
 reason it reads that way. `.luacheckrc` therefore sets **no top-level `ignore`**, and
 `tests/test_lintconfig.lua` is the four-case gate that keeps it that way:
 
 | Case | What it refuses |
 |------|-----------------|
-| no top-level `ignore` | any `ignore` at the top of `.luacheckrc` — it reaches all 70 files whatever it names, so naming the variable does not rescue it |
+| no top-level `ignore` | any `ignore` at the top of `.luacheckrc` — it reaches every file whatever it names, so naming the variable does not rescue it |
 | no wholesale class switch | `unused_args = false` and eight relatives, which is the same blanket spelled as a switch |
 | every `files[...]` ignore is narrow | a stanza keyed to a directory whose entries name no variable |
 | no bare inline directive | `-- luacheck: ignore` with no code after it, which silences every code on the line rather than the one that was meant |
@@ -93,7 +93,7 @@ There are **two checkpoints**, and a suite's answer differs between them, so bot
 
 | Suite | Command | Run + commit | Release tag |
 |---|---|---|---|
-| `lint` | `luacheck .` | **gates** | **gates** |
+| `lint` | `~/.claude/dev-copilot/bin/ka0s-bounded luacheck .` | **gates** | **gates** |
 | `tests` | `lua tests/run.lua` | **gates** | **gates** |
 | `perf` | `lua tests/perf.lua` | no — recorded | **gates** — `pass` required |
 | `complexity` | `bash tests/_kit/run-automated-tests.sh --suite complexity` (lizard over the kit's sighted shadow, with function-count parity; kit revision 35) | no — recorded | **gates** — `pass`, zero functions above CCN 15 |

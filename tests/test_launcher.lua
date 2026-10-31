@@ -239,7 +239,7 @@ test("launcher: LEFT-click opens the settings panel, and writes nothing", functi
 end)
 
 test("launcher: RIGHT-click opens the options menu: the brand title, Enabled, Locked, nothing else", function()
-  -- The menu entries are exactly ADDONS.md's row for this addon. A Test mode entry would name a
+  -- The menu entries are exactly WowAddonStandards' ADDONS.md row for this addon. A Test mode entry would name a
   -- state with no settings row; a Show window entry, a window this addon does not have.
   --
   -- red under: a missing `setEnabled` or `toggleLock` (half a pair draws nothing); a
@@ -603,10 +603,19 @@ test("launcher: Reset all settings cannot un-hide the button", function()
   fakes()
   NS.Launcher:Register()
 
+  -- A reset that resets nothing, so only the count moves. Taken inside it, where OnProfileReset
+  -- takes it: the count is cleared when the reset returns.
+  local counted = function()
+    local n
+    NS.ResetProfileCounted({ ResetProfile = function() n = NS.ConsumeResetCount() end })
+    return n
+  end
+
   NS.SetByPath(NS.Constants.MINIMAP_PATH, true)
-  local base = NS.ProfileRowsOffDefault()
+  local base = counted()
   NS.SetByPath(NS.Constants.MINIMAP_PATH, false)
-  assertEqual(NS.ProfileRowsOffDefault(), base,
+  assertEqual(type(base), "number", "the count reached the reset")
+  assertEqual(counted(), base,
     "the walk that counts what a reset WOULD change must not count this row -- it would promise a "
       .. "number the reset cannot deliver (debug-logging-\194\16710)")
 

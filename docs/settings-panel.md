@@ -9,7 +9,8 @@ How the addon registers its multi-page Blizzard Settings UI. The schema-driven c
 | File | Role |
 |------|------|
 | `libs/LibKa0s/Options.lua` | The shell. `CreatePanel` / `EnsureDefaultsButton` / `EnsureScroll` / `ClearScroll` / `RestoreDefaults` / `RestoreAllDefaults` / `RefreshAllPanels` / `LSMValues` / `RegisterOptionsPage` / `CreateOptionsPanel` / `OpenOptionsPanel`, the private page queue and panel registry, and `lib.LAYOUT` (every metric from `PADDING_X` to `BUTTON_PAIR_REL`). |
-| `libs/LibKa0s/OptionsWidgets.lua` | `RenderField` (dispatches by `row.type`) + `RenderRows` (two-column layout over an explicit row list, skipping `skipRender` rows) + the thin `RenderSchema(ctx, pageKey, ...)` wrapper + `RenderTabbedSchema` and its parts, `TabStrip` / `PageBanner` / `PageHeader` / `SetChromeHeight` (the chrome band, options-ui-§13/§14) + the five widget makers (CheckBox / Slider / Dropdown / EditBox / ColorPicker) + `Section` / `AddSpacer` / `AttachTooltip` / `InlineButtonPair` / `SessionCheckbox`. |
+| `libs/LibKa0s/OptionsWidgets.lua` | `RenderField` (dispatches by `row.type`) + the five widget makers (CheckBox / Slider / Dropdown / EditBox / ColorPicker) + `Section` / `AddSpacer` / `AttachTooltip` / `InlineButtonPair` / `SessionCheckbox`. |
+| `libs/LibKa0s/OptionsFlow.lua` / `OptionsTabbed.lua` | The two-column flow engine and the tabbed page, peeled from `OptionsWidgets.lua` and `OptionsTabs.lua` at LibKa0s v1.84.0. Same members on the same instance. `OptionsFlow.lua` holds `RenderRows` (two-column layout over an explicit row list, skipping `skipRender` rows) and the thin `RenderSchema(ctx, pageKey, ...)` wrapper; the live `RenderTabbedSchema` is in `OptionsTabbed.lua`, which replaces the untabbed fallback `OptionsFlow.lua` keeps. Its parts, `TabStrip` / `PageBanner` / `PageHeader` (the chrome band, options-ui-§13/§14), stay in `OptionsTabs.lua`, and `SetChromeHeight` is in `Options.lua`. |
 | `libs/LibKa0s/OptionsCompose.lua` | The schema composers (options-ui-§15/§16/§17): `MasterControls` / `BarGroup` / `BorderGroup` / `FontGroup` / `ColorPair`, plus `FONT_FLAGS` / `FONT_FLAGS_SORT`, `VISIBILITY_SORT`, `MASTER_GROUP` and `CLASS_COLOR_NOTE`. Pure functions returning arrays of ordinary schema rows — they create no widget and read no state. |
 | `libs/LibKa0s/OptionsScroll.lua` | `PatchAlwaysShowScrollbar` — the always-visible scrollbar override. |
 | `libs/LibKa0s/OptionsAppearance.lua` / `OptionsSkinPicker.lua` | The **Skin** tab (`AppearanceTab`, keyed `Appearance`, labeled *Skin*) and the skin picker (`SkinPicker` / `SkinVerb` / `HideSkinPicker`), both drawn for an owner the `LibKa0s-Skin-1.0` seam registered (`core/SkinSetup.lua`). See [The Skin tab and the first-run picker](#the-skin-tab-and-the-first-run-picker). |
@@ -180,7 +181,7 @@ The strip went through `Helpers.RenderTabbedSchema` only at LibKa0s v1.66.0. Unt
 | `disabledFor` + `disabledNotice`, `disabledReplaces = true` | a mirrored unit draws the hint *instead of* its rows (`disabledFor` answers the mirror state the render captured, the same value the block refresher compares against). The hint is the library's notice in its default font, `GameFontHighlightSmall`, which is also AceGUI's own `Label` font, so it reads as the `Label` the page drew itself before; it is followed by a `ROW_VSPACER` |
 | `rerender = function(c) Helpers.RenderUnitPanel(c, pageKey) end` | a tab click sets `ctx.activeTab` and re-runs the whole page render, the same path the picker and the mirror checkbox take, so the chrome block and the block refresher survive it |
 
-`tests/test_widgets.lua`'s two AT-15 cases (every unit's strip and every tab's rows; a mirrored unit's every tab draws the hint) were written against the host composition and stayed green, untouched, across the adoption. `tests/test_panelmirror.lua` adds the two its gaps would have broken: a tab click keeps the block refresher, and `Link` is never a tab.
+`tests/test_realpages.lua`'s two AT-15 cases (every unit's strip and every tab's rows; a mirrored unit's every tab draws the hint) were written against the host composition and stayed green, untouched, across the adoption. `tests/test_panelmirror.lua` adds the two its gaps would have broken: a tab click keeps the block refresher, and `Link` is never a tab.
 
 It then registers one final **block refresher** on `ctx.refreshers`. **This is not decoration.** The link and enable boxes and the Copy button in band 1 are built inline, not through `Helpers.RenderField`, so none registers a refresher of its own — without this one, `Helpers.RefreshAllPanels` structurally could not update them, and nothing re-ran the mirrored/unmirrored partition that decides whether band 2 shows rows or the hint. `Helpers.RestoreDefaults("appearance", ctx)` resets `units.focus.mirror` to its default `true` and then runs only the refreshers, so the block's checkbox would still read unchecked and the appearance rows would stay on screen over a now-mirrored unit (same after `/at set units.focus.mirror true`, and after a profile switch). It self-corrected on the next `OnShow`, which is what made it present as "the panel lied to me once".
 
@@ -189,7 +190,7 @@ It then registers one final **block refresher** on `ctx.refreshers`. **This is n
    - **Always** — re-sync the block's two boxes in place via `cb:SetValue(NS.Units.IsMirrored(unit))` and `en:SetValue(NS.Units.IsEnabled(unit))`, so the enable box follows `/at toggle`, `/at set`, the strip's X and General's Defaults. Cheap; tears nothing down.
    - **Only when the mirror state changed** since this render (`mirrored` is captured in a local at render time) — call `RenderUnitPanel` again, because a mirror flip is the only thing that can invalidate that partition, and now also the only thing that can make the tab strip appear or disappear.
 
-   An unconditional re-render would rebuild the entire page on every ordinary appearance write, and the *mechanism* is the risk rather than the waste: `ClearScroll` releases the very widget whose `OnValueChanged` / `OnMouseUp` is still on the stack — an `LSM30_*` dropdown with an open pullout, a slider mid-drag — and takes scroll position and tooltips with it. `makeColorPicker` already declines to call `RefreshAllPanels` for exactly this class of reason.
+   An unconditional re-render would rebuild the entire page on every ordinary appearance write, and the *mechanism* is the risk rather than the waste: `ClearScroll` releases the very widget whose `OnValueChanged` / `OnMouseUp` is still on the stack — a `Ka0sMedia_*` dropdown with an open pullout, a slider mid-drag — and takes scroll position and tooltips with it. `makeColorPicker` already declines to call `RefreshAllPanels` for exactly this class of reason.
 
    Registered **last**, so the row refreshers ahead of it have already run; `RefreshAllPanels` iterates the pre-render table, so a closure registered by a re-render is never re-invoked in the same pass. `RenderUnitPanel` additionally sets `ctx.__rendering` for the duration of a render and returns immediately if it is already set, so a refresh fired from *inside* a render cannot recurse.
 
@@ -379,7 +380,7 @@ Each row dispatches to a maker by `row.type`:
 |------|--------|-------|
 | `bool` | `CheckBox` | Reads and writes the stored value directly. |
 | `number` | `Slider` | Snaps to `step` on `OnMouseUp`. |
-| `string` | `Dropdown` (or `LSM30_Statusbar` / `_Border` / `_Font` when `dialogControl` is set and the LSM widget is loaded) | Falls back to the matching `Ka0sMedia_*` picker if the LSM widget didn't load, then to plain `Dropdown`. |
+| `string` | `Dropdown` (or `Ka0sMedia_Statusbar` / `_Border` / `_Font` when `dialogControl` names one) | Falls back to a plain `Dropdown` when no picker can be built. |
 | `color` | `ColorPicker` | Honors `hasAlpha`. It *can* gray out when `disabledIf`'s sibling toggle is on — **no row in this addon asks it to** any more; see [schema.md](./schema.md) for why the four class-color swatches stay live under both modes. |
 
 The library has a fifth maker — `EditBox`, selected by `dialogControl = "EditBox"` on a string row, committing on `OnEnterPressed` only. Two rows declare it, `skin.font` and `skin.texture`, and both are `skipRender`: the Skin tab draws them as its own LSM dropdowns, so the maker draws nothing in this addon.
@@ -425,22 +426,24 @@ Each page now declares its body through **`Helpers.SetRenderer(ctx, fn)`** (`lib
 
 `SetRenderer` also owns **when** a page draws — first show, and again on the next show after `Helpers.RefreshAllPanels` marked it dirty while it was hidden (an on-screen page re-renders immediately). That replaced the per-page `rendered` one-shot flags, and it is why every renderer either opens with `Helpers.ClearScroll` or, like `RenderUnitPanel`, does its own.
 
-`tests/test_widgets.lua` drives the General and Appearance panels' `OnShow` under a mocked `InCombatLockdown` and asserts both are covered, neither drew, the Settings window was **not** closed (no `SettingsPanel:Close`, no `HideUIPanel`), and exactly one `COMBAT_LOCKED_NOTICE` line was printed across both shows. The Profiles page is on the same helper but cannot be driven headless — AceDBOptions is absent in the harness, so the page self-skips — and `docs/smoke-tests.md` COMBAT-4 walks all three in the client.
+`tests/test_realpages.lua` drives the General and Appearance panels' `OnShow` under a mocked `InCombatLockdown` and asserts both are covered, neither drew, the Settings window was **not** closed (no `SettingsPanel:Close`, no `HideUIPanel`), and exactly one `COMBAT_LOCKED_NOTICE` line was printed across both shows. The Profiles page is on the same helper but cannot be driven headless — AceDBOptions is absent in the harness, so the page self-skips — and `docs/smoke-tests.md` COMBAT-4 walks all three in the client.
 
 ## LSM swatch dropdowns
 
-Texture / border / font select fields use `dialogControl = "LSM30_Statusbar"`, `"LSM30_Border"` or `"LSM30_Font"` on their schema row — all three live in `settings/Appearance.lua`: the statusbar ones in the Bar tab's Fill and Background subsections, the border one in its Border subsection, and the font one on the Text tab. `Helpers.RenderField` → `makeDropdown` reads `dialogControl` and creates the matching AceGUI widget directly:
+Texture / border / font select fields use `dialogControl = "Ka0sMedia_Statusbar"`, `"Ka0sMedia_Border"` or `"Ka0sMedia_Font"` on their schema row — all three live in `settings/Appearance.lua`: the statusbar ones in the Bar tab's Fill and Background subsections, the border one in its Border subsection, and the font one on the Text tab. `Helpers.RenderField` → `makeDropdown` asks the library which type the row draws, in `dropdownType` (`libs/LibKa0s/OptionsWidgets.lua`):
 
 ```lua
-local widgetType = row.dialogControl or "Dropdown"
-if widgetType ~= "Dropdown" and not O.AceGUI:GetWidgetVersion(widgetType) then
+local function dropdownType(row)
+    local asked = row.dialogControl
+    if not asked or asked == "Dropdown" then return "Dropdown" end
     local mediaType = lib.__MediaWidgetType
-    widgetType = mediaType and mediaType(widgetType) or "Dropdown"   -- the Ka0sMedia_* picker first
+    local picker = mediaType and mediaType(asked)
+    if picker then return picker end
+    return O.AceGUI:GetWidgetVersion(asked) and asked or "Dropdown"
 end
-local dd = O.AceGUI:Create(widgetType)
 ```
 
-The LSM30_* widgets are the canonical upstream `AceGUI-3.0-SharedMediaWidgets` r65 lib, vendored folder-per-lib at `libs/AceGUI-3.0-SharedMediaWidgets/` and loaded via `widget.xml`. `LSM30_Statusbar` / `LSM30_Font` use upstream's `GetBaseFrame` (no preview tile); `LSM30_Border` uses `GetBaseFrameWithWindow`, which adds a 42×42 `displayButton` border-preview tile pinned to the widget's TOPLEFT. That tile clashes with our canvas-layout panel — `lib.__PatchLSM30Border()` (`LibKa0s-Options-1.0`, minor 15) is called from the live arm of `settings/OptionsSetup.lua`, at file load, by which point the TOC has already pulled `widget.xml` in with the other libraries and the `LSM30_Border` registry slot holds AGSMW's own constructor. It wraps whatever constructor AceGUI currently holds, re-registers the wrapper one version above it to win the race, and per-instance hides `displayButton` and re-anchors `frame.label` / `frame.DLeft` to the frame's left edge so the empty 42px slot collapses. It is **the library's** and not this addon's for a reason worth keeping in view: AceGUI's widget registry is process-global, and this addon plus four siblings each used to carry a private copy of the wrapper in `core/LSMPatch.lua`, so the wrapper a Border dropdown got belonged to whichever addon loaded last. One lib-level member behind `lib.__lsmBorderPatched` means one registration however many copies of LibKa0s are vendored. The fixup still extends the widget rather than editing the vendored lib (Ka0s standard library-stack-§5), so a future r66+ refresh is a clean drop-in.
+The `Ka0sMedia_*` pickers are the library's (`libs/LibKa0s/OptionsMedia.lua`) and the only media pickers in the collection, by the owner's ruling of 2026-11-01. Each is AceGUI's stock `Dropdown` under a type name of its own: the closed row and every pull-out row draw the entry in its own face or beside its swatch, and the skin paints the row and its pull-out as a Dropdown, which is the reason for the ruling. LibSharedMedia-3.0 stays vendored because the pickers read their lists from it. AceGUI-3.0-SharedMediaWidgets is gone from this addon.
 
 The dropdown's `values` table is supplied by `Helpers.LSMValues(mediaType)`, which returns a deferred closure that pulls the live `NS.GetLSM():HashTable(mediaType)` at dropdown-render time. Schema rows in `settings/Appearance.lua` set `values = NS.Helpers.LSMValues("statusbar")` (etc.) at file-load — the closure is then invoked by `makeDropdown`'s `valuesHash()` every time the dropdown re-renders, so newly-registered LSM media show up without an addon reload.
 
@@ -473,15 +476,15 @@ each composed media row at `H.LSMValues(kind)`, and **not** in `libs/` — a dow
 vendored file is overwritten by the next re-vendor and takes the fix with it, so a defect there is
 reported upstream and fixed there. That is what happened: minor 3 reads `O.LSMValues(kind)` once at
 row-declaration time and assigns the deferred reader straight into `values`
-(`libs/LibKa0s/OptionsCompose.lua:324`, `:368`, `:397`), so `enumList`'s single unwrap now lands on a
+(`libs/LibKa0s/OptionsCompose.lua:712`, `:760`, `:790`), so `enumList`'s single unwrap now lands on a
 table. The workaround and its three call sites were deleted in the v1.26.0 re-vendor.
 
 The **contract** that replaced it is worth knowing, because breaking it fails silently rather than
 loudly: a host supplying its own `O.LSMValues` must return **a function**
-(`libs/LibKa0s/OptionsCompose.lua:248-255`). Hand back a table instead and nothing errors — the row
+(`libs/LibKa0s/OptionsCompose.lua:382-389`). Hand back a table instead and nothing errors — the row
 simply freezes its media list at whatever was registered when the file loaded, so media registered
 later never appears. This addon's `Helpers.LSMValues` returns a deferred closure and
-`tests/test_data.lua:200` pins that. `tests/test_schema.lua` still asserts that every row carrying a
+`tests/test_data.lua:208` pins that. `tests/test_schema.lua` still asserts that every row carrying a
 `dialogControl` answers a **populated** list; it is now the acceptance test for the upstream fix
 rather than the guard on a local patch.
 

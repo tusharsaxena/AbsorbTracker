@@ -7,7 +7,7 @@
 -- one pick, from this addon's tab or another addon's copy, is ONE effective SetChoice (one
 -- OnLooksChanged), however many store writes follow it; and the drag strips carry the owner.
 --
--- Modeled on LootHistory's tests/test_skinsetup.lua, the reference adopter. After test_widgets,
+-- Modeled on LootHistory's tests/test_skinsetup.lua, the reference adopter. After test_realpages,
 -- which leaves the General page built and parked on its first tab; every case here parks it there
 -- again and puts the skin back on Ka0s Default.
 

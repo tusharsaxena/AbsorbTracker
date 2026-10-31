@@ -27,7 +27,7 @@ local _, NS = ...
 --     default = 200,               -- used by /at reset and /at resetall
 --     min, max, step,                                 -- number
 --     values        = function() return {...} end,    -- string (select); k=v map
---     dialogControl = "LSM30_Statusbar",              -- string (LSM swatch dropdown)
+--     dialogControl = "Ka0sMedia_Statusbar",          -- string (LSM swatch dropdown)
 --     hasAlpha      = true,                           -- color
 --     classColorSource = "unit"|"player",             -- color pair: WHOSE class this surface means
 --     classColorUnit   = "target",                    -- ... and which unit, when it is "unit"
@@ -441,10 +441,6 @@ NS.Bulk = { Begin = S.BulkBegin, End = S.BulkEnd, Run = S.BulkRun }
 local function reachedByProfileReset(row)
     return row.path ~= MINIMAP_PATH and row.page ~= "profiles"
 end
-
--- A test seam: published for the headless suite (tests/test_launcher.lua), which uses it to prove the
--- minimap row stays out of the count. No addon code calls it.
-function NS.ProfileRowsOffDefault() return S.CountOffDefault(reachedByProfileReset) end
 
 function NS.ResetProfileCounted(db)
     S.ResetCounted(function() db:ResetProfile() end, reachedByProfileReset)

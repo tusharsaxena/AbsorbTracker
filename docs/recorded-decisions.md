@@ -90,7 +90,7 @@ they exist is not obvious from the code.
 - **Non-Blizzard media that is intentionally fixed (no LSM selector).** The bar-appearance media —
   `barTexture`, `bgTexture` (both default `"Blizzard Raid Bar"`), `border` (`"Blizzard Tooltip"`) and
   `font` (`"Friz Quadrata TT"`) — is 100% Blizzard-stock by default and fully user-configurable
-  through LSM (`LSM30_Statusbar`/`LSM30_Border`/`LSM30_Font` dropdowns in `settings/Appearance.lua`,
+  through LSM (`Ka0sMedia_Statusbar`/`Ka0sMedia_Border`/`Ka0sMedia_Font` dropdowns in `settings/Appearance.lua`,
   resolved via `lsm:Fetch` in `core/Data.lua` with Blizzard-stock fallbacks in `core/Constants.lua`).
   Two assets sit outside that model — non-Blizzard *and* deliberately not exposed as a user setting.
   Both are standard-sanctioned; they are recorded here only so a font/texture audit (or a fresh

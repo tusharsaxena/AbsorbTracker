@@ -112,15 +112,45 @@ local function countCalls(frame)
   return proxy
 end
 
+-- The drag strip and its marks are reached as `self` inside the library's handle:ApplyLevel, so a
+-- proxy never sees them. The kit's frame answers a method it does not define with a FRESH closure on
+-- every lookup (mock_base.lua's __index), which is 40-odd bytes of garbage a client's method lookup
+-- never makes. So this memoizes and counts at that __index instead: the counted calls are real, and
+-- the mock's own closures stop being booked as the addon's allocation.
+local function countLookups(frame)
+  local mt = frame and getmetatable(frame)
+  if not (mt and mt.__index) then return end
+  local fallback, methods = mt.__index, {}
+  mt.__index = function(t, k)
+    if methods[k] ~= nil then return methods[k] end
+    local v = fallback(t, k)
+    if type(v) == "function" then
+      local wrapped = function(...) apiCalls = apiCalls + 1; return v(...) end
+      methods[k] = wrapped
+      return wrapped
+    end
+    return v
+  end
+end
+
 -- Wrap the children first, then re-point them through the proxy, then wrap the bar itself — so
--- every frame the repaint path touches (bar:SetAlpha plus the three StatusBar/FontString calls) is
--- counted. NS.bars is what modules/Display.lua reads, so the proxy has to be installed there.
+-- every frame the repaint and appearance paths touch (bar:SetAlpha, the StatusBar and FontString
+-- calls, and the border and overlay frames frame-layering added) is counted. NS.bars is what
+-- modules/Display.lua reads, so the proxy has to be installed there.
 for _, unit in ipairs(NS.Units.LIST) do
   local bar = NS.bars[unit]
   if bar then
     local statusBar = countCalls(bar.statusBar)
     bar.statusBar = statusBar
     bar.valueText = countCalls(bar.valueText)
+    bar.border = countCalls(bar.border)
+    bar.overlay = countCalls(bar.overlay)
+    local handle = bar.handle
+    if handle then
+      countLookups(handle)
+      countLookups(handle.help)
+      countLookups(handle.close)
+    end
     NS.bars[unit] = countCalls(bar)
   end
 end
@@ -214,14 +244,35 @@ assert_(repaintPass.apiPerIter == 12,
   ("repaintPass makes %.1f API calls/pass, expected 12 (4 per bar x 3 bars)")
     :format(repaintPass.apiPerIter))
 
--- 4. A full restyle. Heaviest known path: SetBackdrop twice plus four LibSharedMedia fetches per
---    bar. Only runs on settings changes, so its cost matters far less than its frequency does.
---    Measured and REPORTED but deliberately unasserted: it is the one scenario here with no ceiling
---    derived from repeated runs, and a number guessed to give the line an assertion would gate on
---    nothing. `measure` files it into `results`, so the row still prints.
-measure("appearancePass", 200, function()
+-- 4. A full restyle. Heaviest known path: four SetBackdrop calls and the LibSharedMedia fetches per
+--    bar, the border and overlay frames, and the drag strip's re-level. It only runs on settings
+--    changes, so its cost matters far less than its frequency does.
+--
+--    PINNED 2026-10-31 (FX-AT-PERF). It carried no ceiling, and it went from 97.8 to 2552.1
+--    bytes/iter unasserted. Bisected to 59147e7 (the frame-layering commit), not the skin getters:
+--    that commit added bar.border, bar.overlay and handle:ApplyLevel, which this runner's counting
+--    layer did not wrap, so every call on them was a fresh mock closure and no api/iter at all
+--    (51 calls were counted of 81). Wrapping them is the fix above. The same method as the dormant
+--    ceiling further down:
+--
+--   measured   81 calls and 418.0 bytes/pass, three consecutive runs, identical to the decimal.
+--   real rise  288 of the 418 bytes are the library's handle:ApplyLevel, a two-mark table per bar
+--              (96 x 3) in LibKa0s WidgetsDragHandle. Justified: it is the re-assertion
+--              frame-layering-§3 requires, on a settings path, and the payload is not ours to edit.
+--   ceiling    442 = 418.0 + 24.
+--   margin     Derived, not guessed: one empty table per pass adds 64 bytes here too, and 24 < 64.
+--
+-- Raise it only by filling in those lines again -- a rise IS the finding.
+local APPEARANCE_API_CALLS, APPEARANCE_BYTES_CEILING = 81, 442
+local appearancePass = measure("appearancePass", 200, function()
   NS.ForEachUnit(function(unit) NS.UpdateBarAppearance(unit) end)
 end)
+assert_(appearancePass.apiPerIter == APPEARANCE_API_CALLS,
+  ("appearancePass makes %.1f API calls/pass, expected %d")
+    :format(appearancePass.apiPerIter, APPEARANCE_API_CALLS))
+assert_(appearancePass.bytesPerIter <= APPEARANCE_BYTES_CEILING,
+  ("appearancePass allocated %.1f bytes/pass, over the %d-byte ceiling")
+    :format(appearancePass.bytesPerIter, APPEARANCE_BYTES_CEILING))
 
 -- 5. The settings read path. Every appearance read routes through Units.Get, so a regression here
 --    multiplies across every other scenario.
