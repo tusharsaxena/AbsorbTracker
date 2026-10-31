@@ -404,7 +404,7 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
   condition. Ka0s to EllesmereUI applies live; EllesmereUI back to Ka0s asks for a reload.
 - **Not skinned** (skinning-§7): the Blizzard Settings window around the pages, the Reset-all
   `StaticPopup`, `GameTooltip`'s frame (the strip's tooltip lines are the widget's), the LibDBIcon
-  minimap button and its tooltip, `ColorPickerFrame` and the LSM30 pull-outs, the About page logo,
+  minimap button and its tooltip, `ColorPickerFrame`, the About page logo,
   the class colors (game meaning) and the chat output (the cyan `[AT]` tag and the gold and gray
   lines slash-commands mandates).
 - **Degraded.** Without the library `NS.Skin` answers every primitive as a no-op and every token as

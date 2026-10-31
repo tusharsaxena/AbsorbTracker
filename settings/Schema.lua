@@ -27,7 +27,7 @@ local _, NS = ...
 --     default = 200,               -- used by /at reset and /at resetall
 --     min, max, step,                                 -- number
 --     values        = function() return {...} end,    -- string (select); k=v map
---     dialogControl = "Ka0sMedia_Statusbar",         -- string (LSM swatch dropdown)
+--     dialogControl = "Ka0sMedia_Statusbar",          -- string (LSM swatch dropdown)
 --     hasAlpha      = true,                           -- color
 --     classColorSource = "unit"|"player",             -- color pair: WHOSE class this surface means
 --     classColorUnit   = "target",                    -- ... and which unit, when it is "unit"
