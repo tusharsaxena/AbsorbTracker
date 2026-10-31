@@ -179,22 +179,23 @@ end)
 
 -- ── Dropdown ───────────────────────────────────────────────────────────────────────
 
-test("a string row falls back to a plain Dropdown when the LSM widget is absent", function()
-  -- AceGUI-3.0-SharedMediaWidgets is an optional dependency; without it the option must still
-  -- render (no media swatch, but usable) rather than erroring on an unknown widget type.
+test("a media row falls back to a plain Dropdown when no picker can be built", function()
+  -- The kit's AceGUI fake has no stock Dropdown in its registry, so OptionsMedia registers nothing
+  -- here, which models the one case the library's fallback exists for: the option must still
+  -- render rather than erroring on an unknown widget type.
   local dd, row = render("units.player.barTexture")
-  assertEqual(row.dialogControl, "LSM30_Statusbar", "the row does ask for the LSM widget")
-  assertEqual(dd.type, "Dropdown", "but falls back when it is not registered")
+  assertEqual(row.dialogControl, "Ka0sMedia_Statusbar", "the row asks for the library's picker")
+  assertEqual(dd.type, "Dropdown", "and falls back when it is not registered")
 end)
 
-test("a string row uses its dialogControl widget when that IS registered", function()
-  AceGUI:RegisterWidgetType("LSM30_Statusbar",
-    function() return T.mocks.__makeAceGUIWidget("LSM30_Statusbar") end, 1)
+test("a media row draws the library's picker when that IS registered", function()
+  AceGUI:RegisterWidgetType("Ka0sMedia_Statusbar",
+    function() return T.mocks.__makeAceGUIWidget("Ka0sMedia_Statusbar") end, 1)
   local ok, err = pcall(function()
-    assertEqual(render("units.player.barTexture").type, "LSM30_Statusbar")
+    assertEqual(render("units.player.barTexture").type, "Ka0sMedia_Statusbar")
   end)
-  AceGUI.WidgetRegistry["LSM30_Statusbar"]   = nil
-  AceGUI.__widgetVersions["LSM30_Statusbar"] = nil
+  AceGUI.WidgetRegistry["Ka0sMedia_Statusbar"]   = nil
+  AceGUI.__widgetVersions["Ka0sMedia_Statusbar"] = nil
   if not ok then error(err) end
 end)
 
