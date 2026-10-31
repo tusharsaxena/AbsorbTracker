@@ -70,7 +70,7 @@ if not lib then
     end
 
     -- The event registration helper (LibKa0s-Core minor 8, events-frames-taint-§1), with the
-    -- ONE-RUNG bodies docs/api/Core/version-8-docs.md 'Degradation' prescribes: the pcall and the
+    -- ONE-RUNG bodies LibKa0s docs/api/Core/version-8-docs.md 'Degradation' prescribes: the pcall and the
     -- rejected-list append, no front gate and no probe frame. A stub is the path for a missing
     -- library, not a second implementation; the pcall alone is what keeps one retired name from
     -- taking the rest of a registration block down with it.

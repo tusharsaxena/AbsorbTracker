@@ -239,7 +239,7 @@ test("launcher: LEFT-click opens the settings panel, and writes nothing", functi
 end)
 
 test("launcher: RIGHT-click opens the options menu: the brand title, Enabled, Locked, nothing else", function()
-  -- The menu entries are exactly ADDONS.md's row for this addon. A Test mode entry would name a
+  -- The menu entries are exactly WowAddonStandards' ADDONS.md row for this addon. A Test mode entry would name a
   -- state with no settings row; a Show window entry, a window this addon does not have.
   --
   -- red under: a missing `setEnabled` or `toggleLock` (half a pair draws nothing); a
