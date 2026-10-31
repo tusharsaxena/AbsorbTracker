@@ -12,7 +12,8 @@ How the addon registers its multi-page Blizzard Settings UI. The schema-driven c
 | `libs/LibKa0s/OptionsWidgets.lua` | `RenderField` (dispatches by `row.type`) + `RenderRows` (two-column layout over an explicit row list, skipping `skipRender` rows) + the thin `RenderSchema(ctx, pageKey, ...)` wrapper + `RenderTabbedSchema` and its parts, `TabStrip` / `PageBanner` / `PageHeader` / `SetChromeHeight` (the chrome band, options-ui-§13/§14) + the five widget makers (CheckBox / Slider / Dropdown / EditBox / ColorPicker) + `Section` / `AddSpacer` / `AttachTooltip` / `InlineButtonPair` / `SessionCheckbox`. |
 | `libs/LibKa0s/OptionsCompose.lua` | The schema composers (options-ui-§15/§16/§17): `MasterControls` / `BarGroup` / `BorderGroup` / `FontGroup` / `ColorPair`, plus `FONT_FLAGS` / `FONT_FLAGS_SORT`, `VISIBILITY_SORT`, `MASTER_GROUP` and `CLASS_COLOR_NOTE`. Pure functions returning arrays of ordinary schema rows — they create no widget and read no state. |
 | `libs/LibKa0s/OptionsScroll.lua` | `PatchAlwaysShowScrollbar` — the always-visible scrollbar override. |
-| `libs/LibKa0s/OptionsAppearance.lua` / `OptionsSkinPicker.lua` | The **Skin** tab (`AppearanceTab`, keyed `Appearance`, labeled *Skin*) and the first-run skin picker (`SkinPicker` / `HideSkinPicker`), both drawn for an owner the `LibKa0s-Skin-1.0` seam registered (`core/SkinSetup.lua`). See [The Skin tab and the first-run picker](#the-skin-tab-and-the-first-run-picker). |
+| `libs/LibKa0s/OptionsAppearance.lua` / `OptionsSkinPicker.lua` | The **Skin** tab (`AppearanceTab`, keyed `Appearance`, labeled *Skin*) and the skin picker (`SkinPicker` / `SkinVerb` / `HideSkinPicker`), both drawn for an owner the `LibKa0s-Skin-1.0` seam registered (`core/SkinSetup.lua`). See [The Skin tab and the first-run picker](#the-skin-tab-and-the-first-run-picker). |
+| `libs/LibKa0s/OptionsMedia.lua` | The media pickers (LibKa0s v1.83.0): AceGUI types `Ka0sMedia_Font`, `_Statusbar`, `_Border`, `_Background` and `_Sound`, drawing each entry in its face or beside its swatch or play button. See [LSM swatch dropdowns](#lsm-swatch-dropdowns). |
 | `settings/OptionsSetup.lua` | The descriptor, and the degradation stub. Holds the brand string as a file-scope `PARENT_TITLE` local (read from `NS.Constants.BRAND`, not a second literal) passed in as `descriptor.parentTitle` (there is no `NS.PARENT_TITLE`), builds `NS.Helpers = lib:New(descriptor)`, and publishes the four thin wrappers `NS.RegisterOptionsPage` / `NS.CreateOptionsPanel` / `NS.OpenOptionsPanel` / `NS.RefreshOptionsPanel`. |
 | `settings/UnitPanel.lua` | The two pieces that did not generalize: `Helpers.RenderUnitPanel(ctx, pageKey)` (the Appearance page's one chrome block — Unit picker + the two mirror controls — and its tab strip, full rebuild per call) and `Helpers.ResetAllPositions()`. |
 | `settings/About.lua` | `Helpers.BuildMainContent` — the top-level "Ka0s Absorb Tracker" page as a spec, drawn by the library's `BuildLandingPage` (logo + Notes + slash command list). |
@@ -332,15 +333,17 @@ The **Debug console** checkbox toggles the **visibility of the console window on
 
 ## The Skin tab and the first-run picker
 
-**The Skin tab** is `LibKa0s-Options-1.0`'s (`H.AppearanceTab`, OptionsAppearance minor 3, keyed
+**The Skin tab** is `LibKa0s-Options-1.0`'s (`H.AppearanceTab`, OptionsAppearance minor 5, keyed
 `Appearance` and labeled *Skin*), built once in `settings/General.lua` with
 `{ get = NS.SkinChoice, set = NS.WriteSkinChoice }` and handed to `RenderTabbedSchema` as
 `opts.tabs`. With no Keybindings tab on this page it is last (skinning-§3). It draws **Skin source**
 (Ka0s skins or EllesmereUI, with the failing condition named when EllesmereUI cannot be used), the
-skins under a **Look** heading, **Font and texture** (*Skin's default* in a new profile), the Scope
+skins under a **Look** heading, **Font and texture** (`Ka0sMedia_*` pickers, *Skin's default* in a
+new profile, whose leading row previews the face or bar it stands for), **Font outline** (*HUD text
+only* in a new profile), the Scope
 (**Ignore settings panel**, on in a new profile, and **Ignore fonts**, off) and **Copy to every Ka0s
 addon…**. A pick calls `Skin:SetChoice` first and writes through `NS.WriteSkinChoice` after, so the
-row's `onChange` finds nothing left to apply and the pick is one repaint. The seven rows behind it
+row's `onChange` finds nothing left to apply and the pick is one repaint. The eight rows behind it
 are ordinary `skipRender` schema rows ([schema.md](./schema.md)), so the defaults, both resets and
 `/at get|set skin.*` reach them. **Ignore settings panel** is on for a new profile (the owner's
 2026-10-27 call, as in LootHistory), so under any skin these pages keep the client's look until the
@@ -353,11 +356,16 @@ paints every widget it creates; the Appearance chrome block's four widgets also 
 Each widget goes back to the shared AceGUI pool stock when it is released, so another addon's pages
 never inherit this addon's skin.
 
-**The first-run picker** is `O.SkinPicker`, a small `DIALOG` window titled *Choose a skin*, with
+**The first-run picker** is `O.SkinPicker`, a `DIALOG` window titled *Choose a skin*, 308 wide and as
+tall as its rows, with
 *Ka0s Absorb Tracker* on its own line above the dropdown (`frame.ownerLabel`; the window widens so
 the name is never cut off, LibKa0s v1.81.0), shown by `NS.MaybeShowSkinPicker` (`core/SkinSetup.lua`) at the end of `OnEnable`
 and after every profile event while the profile's `skin.pickerSeen` is false and the addon stands
-up, held to `PLAYER_REGEN_ENABLED` in combat. A pick previews; **Apply** and the gear save it, the
+up, held to `PLAYER_REGEN_ENABLED` in combat. `/at skin` (`NS.RunSkinVerb`, `O.SkinVerb`) shows it on
+demand, whatever `skin.pickerSeen` says. Since LibKa0s v1.83.0 it draws the Skin tab's rows under the
+skin list: *Font* and *Texture* (`Ka0sMedia_*` pickers, each with a reset icon), *Font outline* and
+the Scope, and choosing another skin clears the override in the preview. A change previews; **Apply**
+and the gear save it through `NS.WriteSkinChoice`, the
 gear opening this page on its Skin tab (`page = "general"`, `tab = "Appearance"`); the close control
 and Escape put the stored skin back. It has **no eye**: the spec passes no `onPreview`, because this
 addon has no window or test mode to preview in (rollout X6). One picker is up at a time across Ka0s
@@ -371,7 +379,7 @@ Each row dispatches to a maker by `row.type`:
 |------|--------|-------|
 | `bool` | `CheckBox` | Reads and writes the stored value directly. |
 | `number` | `Slider` | Snaps to `step` on `OnMouseUp`. |
-| `string` | `Dropdown` (or `LSM30_Statusbar` / `_Border` / `_Font` when `dialogControl` is set and the LSM widget is loaded) | Falls back to plain `Dropdown` if the LSM widget didn't load. |
+| `string` | `Dropdown` (or `LSM30_Statusbar` / `_Border` / `_Font` when `dialogControl` is set and the LSM widget is loaded) | Falls back to the matching `Ka0sMedia_*` picker if the LSM widget didn't load, then to plain `Dropdown`. |
 | `color` | `ColorPicker` | Honors `hasAlpha`. It *can* gray out when `disabledIf`'s sibling toggle is on — **no row in this addon asks it to** any more; see [schema.md](./schema.md) for why the four class-color swatches stay live under both modes. |
 
 The library has a fifth maker — `EditBox`, selected by `dialogControl = "EditBox"` on a string row, committing on `OnEnterPressed` only. Two rows declare it, `skin.font` and `skin.texture`, and both are `skipRender`: the Skin tab draws them as its own LSM dropdowns, so the maker draws nothing in this addon.
@@ -425,10 +433,11 @@ Texture / border / font select fields use `dialogControl = "LSM30_Statusbar"`, `
 
 ```lua
 local widgetType = row.dialogControl or "Dropdown"
-if widgetType ~= "Dropdown" and not AceGUI:GetWidgetVersion(widgetType) then
-    widgetType = "Dropdown"   -- LSM widget didn't load; fall back to plain dropdown
+if widgetType ~= "Dropdown" and not O.AceGUI:GetWidgetVersion(widgetType) then
+    local mediaType = lib.__MediaWidgetType
+    widgetType = mediaType and mediaType(widgetType) or "Dropdown"   -- the Ka0sMedia_* picker first
 end
-local dd = AceGUI:Create(widgetType)
+local dd = O.AceGUI:Create(widgetType)
 ```
 
 The LSM30_* widgets are the canonical upstream `AceGUI-3.0-SharedMediaWidgets` r65 lib, vendored folder-per-lib at `libs/AceGUI-3.0-SharedMediaWidgets/` and loaded via `widget.xml`. `LSM30_Statusbar` / `LSM30_Font` use upstream's `GetBaseFrame` (no preview tile); `LSM30_Border` uses `GetBaseFrameWithWindow`, which adds a 42×42 `displayButton` border-preview tile pinned to the widget's TOPLEFT. That tile clashes with our canvas-layout panel — `lib.__PatchLSM30Border()` (`LibKa0s-Options-1.0`, minor 15) is called from the live arm of `settings/OptionsSetup.lua`, at file load, by which point the TOC has already pulled `widget.xml` in with the other libraries and the `LSM30_Border` registry slot holds AGSMW's own constructor. It wraps whatever constructor AceGUI currently holds, re-registers the wrapper one version above it to win the race, and per-instance hides `displayButton` and re-anchors `frame.label` / `frame.DLeft` to the frame's left edge so the empty 42px slot collapses. It is **the library's** and not this addon's for a reason worth keeping in view: AceGUI's widget registry is process-global, and this addon plus four siblings each used to carry a private copy of the wrapper in `core/LSMPatch.lua`, so the wrapper a Border dropdown got belonged to whichever addon loaded last. One lib-level member behind `lib.__lsmBorderPatched` means one registration however many copies of LibKa0s are vendored. The fixup still extends the widget rather than editing the vendored lib (Ka0s standard library-stack-§5), so a future r66+ refresh is a clean drop-in.
