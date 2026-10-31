@@ -373,7 +373,7 @@ local function renderUnitPanelBody(ctx, pageKey)
     --
     -- An unconditional re-render here would rebuild the whole page on every ordinary appearance
     -- write, and the mechanism (not the waste) is the problem: ClearScroll releases the very
-    -- widget whose OnValueChanged is still on the stack — an LSM30_* dropdown with an open pullout,
+    -- widget whose OnValueChanged is still on the stack — a Ka0sMedia_* dropdown with an open pullout,
     -- a slider mid-drag — and destroys scroll position and tooltips with it. The library's color
     -- picker already declines to call RefreshAllPanels for exactly this class of reason.
     --

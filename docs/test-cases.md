@@ -805,7 +805,7 @@ Total.
 - /at debug hold refuses while the addon is disabled: one line, no paint, no hold
 - /at debug hold refuses while stood down for a perf capture, arms no timer
 
-### test_widgets.lua (44)
+### test_widgets.lua (46)
 
 - NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
 - a bool row renders a CheckBox labeled from the schema
@@ -823,6 +823,8 @@ Total.
 - slider snapping is relative to the row's min, not to zero
 - a media row falls back to a plain Dropdown when no picker can be built
 - a media row draws the library's picker when that IS registered
+- every media row asks for a Ka0sMedia_* picker, none for an LSM30_* widget
+- the addon vendors and loads no AceGUI-3.0-SharedMediaWidgets
 - a dropdown's list is alphabetically ordered by default
 - a row with explicit `sorting` keeps that order instead of sorting
 - a dropdown shows the current value and writes the chosen one
@@ -1160,7 +1162,7 @@ Total.
 | test_slashprofile.lua | 34 |
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 16 |
-| test_widgets.lua | 44 |
+| test_widgets.lua | 46 |
 | test_realpages.lua | 13 |
 | test_skinsetup.lua | 17 |
 | test_skin_hud.lua | 19 |
@@ -1182,4 +1184,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **972** |
+| **Total** | **974** |

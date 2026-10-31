@@ -246,7 +246,7 @@ local function addUnitRows(unit)
         desc    = "Texture drawn behind the fill, across the whole bar. Not read while "
             .. "Use the skin's texture (Fill) is on.",
         default = unitDefaults.bgTexture,
-        dialogControl = "LSM30_Statusbar",
+        dialogControl = "Ka0sMedia_Statusbar",
         values = H.LSMValues("statusbar"),
     }, p .. "barTextureFromSkin", "bar.texture")
     appendBlock(rows, unit, H.ColorPair({

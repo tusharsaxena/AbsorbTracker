@@ -96,7 +96,7 @@ WoW retail (10.0+) split backdrop functionality off the base Frame and into the 
 CreateFrame("Frame", "AbsorbTrackerFrame", UIParent, "BackdropTemplate")
 ```
 
-`modules/Bar.lua` does this for the bar; the canonical upstream `AceGUI-3.0-SharedMediaWidgets` lib at `libs/AceGUI-3.0-SharedMediaWidgets/` does the same for the LSM dropdown widgets. The vendored `LibKa0s` windows carry it too — `libs/LibKa0s/DebugLog.lua` (the console and its Copy window) and `libs/LibKa0s/PerfPanel.lua` (the step panel) all pass `"BackdropTemplate"` at `CreateFrame`, because `LibKa0s-Core-1.0`'s `ApplySkin` calls `SetBackdrop` on them. (`libs/LibKa0s/Options.lua`'s settings canvases do **not** — they never set a backdrop; Blizzard draws that panel.) If a future custom widget needs a backdrop and forgets the template, the addon will error on `SetBackdrop`.
+`modules/Bar.lua` does this for the bar. The vendored `LibKa0s` windows carry it too — `libs/LibKa0s/DebugLog.lua` (the console and its Copy window) and `libs/LibKa0s/PerfPanel.lua` (the step panel) all pass `"BackdropTemplate"` at `CreateFrame`, because `LibKa0s-Core-1.0`'s `ApplySkin` calls `SetBackdrop` on them. (`libs/LibKa0s/Options.lua`'s settings canvases do **not** — they never set a backdrop; Blizzard draws that panel.) If a future custom widget needs a backdrop and forgets the template, the addon will error on `SetBackdrop`.
 
 ## Class color sources
 

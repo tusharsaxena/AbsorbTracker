@@ -190,7 +190,7 @@ It then registers one final **block refresher** on `ctx.refreshers`. **This is n
    - **Always** — re-sync the block's two boxes in place via `cb:SetValue(NS.Units.IsMirrored(unit))` and `en:SetValue(NS.Units.IsEnabled(unit))`, so the enable box follows `/at toggle`, `/at set`, the strip's X and General's Defaults. Cheap; tears nothing down.
    - **Only when the mirror state changed** since this render (`mirrored` is captured in a local at render time) — call `RenderUnitPanel` again, because a mirror flip is the only thing that can invalidate that partition, and now also the only thing that can make the tab strip appear or disappear.
 
-   An unconditional re-render would rebuild the entire page on every ordinary appearance write, and the *mechanism* is the risk rather than the waste: `ClearScroll` releases the very widget whose `OnValueChanged` / `OnMouseUp` is still on the stack — an `LSM30_*` dropdown with an open pullout, a slider mid-drag — and takes scroll position and tooltips with it. `makeColorPicker` already declines to call `RefreshAllPanels` for exactly this class of reason.
+   An unconditional re-render would rebuild the entire page on every ordinary appearance write, and the *mechanism* is the risk rather than the waste: `ClearScroll` releases the very widget whose `OnValueChanged` / `OnMouseUp` is still on the stack — a `Ka0sMedia_*` dropdown with an open pullout, a slider mid-drag — and takes scroll position and tooltips with it. `makeColorPicker` already declines to call `RefreshAllPanels` for exactly this class of reason.
 
    Registered **last**, so the row refreshers ahead of it have already run; `RefreshAllPanels` iterates the pre-render table, so a closure registered by a re-render is never re-invoked in the same pass. `RenderUnitPanel` additionally sets `ctx.__rendering` for the duration of a render and returns immediately if it is already set, so a refresh fired from *inside* a render cannot recurse.
 
@@ -380,7 +380,7 @@ Each row dispatches to a maker by `row.type`:
 |------|--------|-------|
 | `bool` | `CheckBox` | Reads and writes the stored value directly. |
 | `number` | `Slider` | Snaps to `step` on `OnMouseUp`. |
-| `string` | `Dropdown` (or `LSM30_Statusbar` / `_Border` / `_Font` when `dialogControl` is set and the LSM widget is loaded) | Falls back to the matching `Ka0sMedia_*` picker if the LSM widget didn't load, then to plain `Dropdown`. |
+| `string` | `Dropdown` (or `Ka0sMedia_Statusbar` / `_Border` / `_Font` when `dialogControl` names one) | Falls back to a plain `Dropdown` when no picker can be built. |
 | `color` | `ColorPicker` | Honors `hasAlpha`. It *can* gray out when `disabledIf`'s sibling toggle is on — **no row in this addon asks it to** any more; see [schema.md](./schema.md) for why the four class-color swatches stay live under both modes. |
 
 The library has a fifth maker — `EditBox`, selected by `dialogControl = "EditBox"` on a string row, committing on `OnEnterPressed` only. Two rows declare it, `skin.font` and `skin.texture`, and both are `skipRender`: the Skin tab draws them as its own LSM dropdowns, so the maker draws nothing in this addon.
@@ -430,18 +430,20 @@ Each page now declares its body through **`Helpers.SetRenderer(ctx, fn)`** (`lib
 
 ## LSM swatch dropdowns
 
-Texture / border / font select fields use `dialogControl = "LSM30_Statusbar"`, `"LSM30_Border"` or `"LSM30_Font"` on their schema row — all three live in `settings/Appearance.lua`: the statusbar ones in the Bar tab's Fill and Background subsections, the border one in its Border subsection, and the font one on the Text tab. `Helpers.RenderField` → `makeDropdown` reads `dialogControl` and creates the matching AceGUI widget directly:
+Texture / border / font select fields use `dialogControl = "Ka0sMedia_Statusbar"`, `"Ka0sMedia_Border"` or `"Ka0sMedia_Font"` on their schema row — all three live in `settings/Appearance.lua`: the statusbar ones in the Bar tab's Fill and Background subsections, the border one in its Border subsection, and the font one on the Text tab. `Helpers.RenderField` → `makeDropdown` asks the library which type the row draws, in `dropdownType` (`libs/LibKa0s/OptionsWidgets.lua`):
 
 ```lua
-local widgetType = row.dialogControl or "Dropdown"
-if widgetType ~= "Dropdown" and not O.AceGUI:GetWidgetVersion(widgetType) then
+local function dropdownType(row)
+    local asked = row.dialogControl
+    if not asked or asked == "Dropdown" then return "Dropdown" end
     local mediaType = lib.__MediaWidgetType
-    widgetType = mediaType and mediaType(widgetType) or "Dropdown"   -- the Ka0sMedia_* picker first
+    local picker = mediaType and mediaType(asked)
+    if picker then return picker end
+    return O.AceGUI:GetWidgetVersion(asked) and asked or "Dropdown"
 end
-local dd = O.AceGUI:Create(widgetType)
 ```
 
-The LSM30_* widgets are the canonical upstream `AceGUI-3.0-SharedMediaWidgets` r65 lib, vendored folder-per-lib at `libs/AceGUI-3.0-SharedMediaWidgets/` and loaded via `widget.xml`. `LSM30_Statusbar` / `LSM30_Font` use upstream's `GetBaseFrame` (no preview tile); `LSM30_Border` uses `GetBaseFrameWithWindow`, which adds a 42×42 `displayButton` border-preview tile pinned to the widget's TOPLEFT. That tile clashes with our canvas-layout panel — `lib.__PatchLSM30Border()` (`LibKa0s-Options-1.0`, minor 15) is called from the live arm of `settings/OptionsSetup.lua`, at file load, by which point the TOC has already pulled `widget.xml` in with the other libraries and the `LSM30_Border` registry slot holds AGSMW's own constructor. It wraps whatever constructor AceGUI currently holds, re-registers the wrapper one version above it to win the race, and per-instance hides `displayButton` and re-anchors `frame.label` / `frame.DLeft` to the frame's left edge so the empty 42px slot collapses. It is **the library's** and not this addon's for a reason worth keeping in view: AceGUI's widget registry is process-global, and this addon plus four siblings each used to carry a private copy of the wrapper in `core/LSMPatch.lua`, so the wrapper a Border dropdown got belonged to whichever addon loaded last. One lib-level member behind `lib.__lsmBorderPatched` means one registration however many copies of LibKa0s are vendored. The fixup still extends the widget rather than editing the vendored lib (Ka0s standard library-stack-§5), so a future r66+ refresh is a clean drop-in.
+The `Ka0sMedia_*` pickers are the library's (`libs/LibKa0s/OptionsMedia.lua`) and the only media pickers in the collection, by the owner's ruling of 2026-11-01. Each is AceGUI's stock `Dropdown` under a type name of its own: the closed row and every pull-out row draw the entry in its own face or beside its swatch, and the skin paints the row and its pull-out as a Dropdown, which is the reason for the ruling. LibSharedMedia-3.0 stays vendored because the pickers read their lists from it. AceGUI-3.0-SharedMediaWidgets is gone from this addon.
 
 The dropdown's `values` table is supplied by `Helpers.LSMValues(mediaType)`, which returns a deferred closure that pulls the live `NS.GetLSM():HashTable(mediaType)` at dropdown-render time. Schema rows in `settings/Appearance.lua` set `values = NS.Helpers.LSMValues("statusbar")` (etc.) at file-load — the closure is then invoked by `makeDropdown`'s `valuesHash()` every time the dropdown re-renders, so newly-registered LSM media show up without an addon reload.
 

@@ -199,6 +199,29 @@ test("a media row draws the library's picker when that IS registered", function(
   if not ok then error(err) end
 end)
 
+test("every media row asks for a Ka0sMedia_* picker, none for an LSM30_* widget", function()
+  -- The owner's ruling of 2026-11-01. A row naming LSM30_* would still draw the picker, so nothing
+  -- on screen would catch this; the row itself is the record.
+  local media = 0
+  for _, row in ipairs(NS.Schema) do
+    local asked = row.dialogControl
+    if asked then
+      assertFalse(asked:find("^LSM30_") ~= nil, tostring(row.path) .. " asks for " .. asked)
+      if asked:find("^Ka0sMedia_") then media = media + 1 end
+    end
+  end
+  assertTrue(media > 0, "the walk reached the media rows")
+end)
+
+test("the addon vendors and loads no AceGUI-3.0-SharedMediaWidgets", function()
+  local toc = assert(io.open("AbsorbTracker.toc", "r"))
+  local body = toc:read("*a")
+  toc:close()
+  assertFalse(body:find("SharedMediaWidgets", 1, true) ~= nil, "the TOC still loads it")
+  assertFalse(io.open("libs/AceGUI-3.0-SharedMediaWidgets/widget.xml", "r") ~= nil,
+    "the folder is still vendored")
+end)
+
 test("a dropdown's list is alphabetically ordered by default", function()
   local dd = render("units.player.font")
   assertTrue(type(dd.list) == "table", "the values hash was applied")
