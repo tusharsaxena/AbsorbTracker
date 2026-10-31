@@ -32,6 +32,7 @@ archaeology, for the same reason a skip is never a pass (`automated-tests-§4`).
 
 | Run | Commit | Tree | Version | Lint w/e | Files | Tests | Perf | NLOC | Funcs | Avg NLOC | Avg CCN | Max CCN | CCN warn | Verdict |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| [`20261031-202021`](20261031-202021/) | `c873518` | clean | 1.12.0 | 0/0 | 78 | 972/1/973 | pass | 16866 | 2575 | 6.4 | 1.8 | 14 | 0 | **green** |
 | [`20261009-191726`](20261009-191726/) | `7c83d8c` | clean | 1.11.0 → 1.12.0 | 0/0 | 70 | 885/1/886 | pass | 14702 | 2249 | 6.4 | 1.8 | 14 | 0 | **green** |
 | [`20260927-030336`](20260927-030336/) | `9b5a369` | clean | 1.10.0 → 1.11.0 | 0/0 | 67 | 810/0/810 | pass | 13377 | 1919 | 6.4 | 1.7 | 14 | 0 | **green** |
 | [`20260926-193105`](20260926-193105/) | `fb55f44` | clean | 1.10.0 | 0/0 | 67 | 810/0/810 | pass | 13377 | 1919 | 6.4 | 1.7 | 14 | 0 | **green** |
@@ -51,18 +52,18 @@ archaeology, for the same reason a skip is never a pass (`automated-tests-§4`).
 
 ## Test suite
 
-**886 cases** — 885 passed, 0 failed, 1 skipped. The generated inventory
-[`20261009-191726/test-cases.md`](20261009-191726/test-cases.md) is the authority on which cases existed at this run;
+**973 cases** — 972 passed, 0 failed, 1 skipped. The generated inventory
+[`20261031-202021/test-cases.md`](20261031-202021/test-cases.md) is the authority on which cases existed at this run;
 `docs/test-cases.md` is that same list at HEAD.
 
-Moved **810 → 886** since the previous run.
+Moved **886 → 973** since the previous run.
 
 **1 case(s) reported a `skip`.** A skip is counted in the total and never in `passed`, and at
 the release gate it is NOT EVALUATED rather than passed (`automated-tests-§3`).
 
 ## Lint
 
-**0 warnings / 0 errors over 70 files** (`luacheck .`).
+**0 warnings / 0 errors over 78 files** (`luacheck .`).
 
 Read that figure with its scope attached: `.luacheckrc` excludes 5 path(s) from it — `libs/`, `docs/audits/`, `docs/reviews/`, `_dev/`, `tests/_kit/` —
 so nothing under them is in the count above. A `0/0` that never moves is partly a statement about
@@ -72,25 +73,25 @@ to whoever thinks to open `.luacheckrc`.
 ## Perf
 
 **7 scenarios** from `tests/perf.lua`; the measurements are in
-[`20261009-191726/perf.json`](20261009-191726/perf.json).
+[`20261031-202021/perf.json`](20261031-202021/perf.json).
 
 | `scenario` | `iters` | `ms/iter` | `api/iter` | `bytes/iter` |
 |---|---|---|---|---|
-| `absorbEvent` | 1000 | 0.00048 | 0.0 | 0.0 |
-| `paintBars` | 1000 | 0.01496 | 12.0 | 48.0 |
-| `repaintPass` | 1000 | 0.01735 | 12.0 | 0.0 |
-| `appearancePass` | 200 | 0.05147 | 48.0 | 97.8 |
-| `settingsRead` | 10000 | 0.00044 | 0.0 | 0.0 |
-| `probeOverheadOff` | 1000 | 0.01786 | 12.0 | 0.0 |
-| `probeOverheadOn` | 1000 | 0.01942 | 12.0 | 0.5 |
+| `absorbEvent` | 1000 | 0.00054 | 0.0 | 0.0 |
+| `paintBars` | 1000 | 0.01651 | 12.0 | 48.0 |
+| `repaintPass` | 1000 | 0.01523 | 12.0 | 0.0 |
+| `appearancePass` | 200 | 0.16370 | 51.0 | 2560.9 |
+| `settingsRead` | 10000 | 0.00028 | 0.0 | 0.0 |
+| `probeOverheadOff` | 1000 | 0.01417 | 12.0 | 0.0 |
+| `probeOverheadOn` | 1000 | 0.01682 | 12.0 | 0.5 |
 
 `perf` never fails a run and never blocks a commit — it is recorded, read and compared, not
 thresholded (`performance-§9`). It does gate the **tag** (`automated-tests-§3`).
 
 ## Complexity watch list
 
-Current as of [`20261009-191726`](20261009-191726/) — **this run's measurement, not its diff.** Max CCN **14** across 2249
-functions, **0** of them warned on; 2 file(s) in the 1000–1500 band and 0 over the 1500 cap
+Current as of [`20261031-202021`](20261031-202021/) — **this run's measurement, not its diff.** Max CCN **14** across 2575
+functions, **0** of them warned on; 3 file(s) in the 1000–1500 band and 0 over the 1500 cap
 (`layout-§1`).
 
 Every row below is generated from this run's own `lizard` output. **The `Disposition` column is
@@ -109,8 +110,9 @@ None.
 
 | Band | File | LOC | Disposition |
 |---|---|---|---|
-| 1000–1500 (on notice) | `tests/test_slashcmds.lua` | 1079 | **Back under the cap — watch (second release run in the band).** It was 1745 and over the cap at [`20260916-184524`](20260916-184524/); the `/at perf` and `/at debug hold` peels brought it to 1304, the remediation's slash items left it at 1318 at [`20260924-112145`](20260924-112145/), and it was 1321 at the 1.11.0 release run [`20260927-030336`](20260927-030336/). Cases added after that release, the `/at profile <name>` verb's (SP-AT-02) among them, grew it to 1472, and SD-FIN-01 (`05f1f8c`) took the peel the last disposition named: the `/at profile` cases moved to `tests/test_slashprofile.lua` (456), leaving 1079 at the 1.12.0 release run [`20261009-191726`](20261009-191726/). That is its second release run in the band, two of three toward the anti-pattern #53 limit. Sighted, it measures 110 functions, avg CCN 1.4, max 5: a flat case list. A further peel would split by verb group again, the way `perf`, `hold` and `profile` went. Re-check at 1300. |
-| 1000–1500 (on notice) | `tests/test_widgets.lua` | 1073 | **Accepted — watch (second release run carried as Accepted).** It was 904 at [`20260916-184524`](20260916-184524/). AT-15 (`19761b8`) took it over 1000 with the Appearance strip pins; 1073 at [`20260926-160433`](20260926-160433/), at the 1.11.0 release run [`20260927-030336`](20260927-030336/), and still 1073 at the 1.12.0 release run [`20261009-191726`](20261009-191726/) (GI-AT-02 rewrote about ten lines for the RenderTabbedSchema strip, net zero). Two of three release runs carried as Accepted: the next release owes anti-pattern #53 a fix or a tracked deviation ID, so the peel should land before 1.13.0. Sighted, it measures 105 functions (100 unsighted at 1.11.0, so five newly measured, not new), avg CCN 2.0, max 9; the length is case count. The seam is unchanged: the four real-page `OnShow` cases and the strip block belong beside `tests/test_panelpages.lua` (676). Re-check at 1300. |
+| 1000–1500 (on notice) | `tests/test_schema.lua` | 1084 | **Accepted — watch (first run in the band).** Newly crossed at [`20261031-202021`](20261031-202021/): the skin seam's cases and the layout partition pins took it over 1000. It measures 83 functions, avg CCN 2.3, max 12, and it is one subject, schema integrity, so the length is case count, not tangle. Re-check at 1300. |
+| 1000–1500 (on notice) | `tests/test_slashcmds.lua` | 1088 | **Back under the cap — watch (second release run in the band).** It was 1745 and over the cap at [`20260916-184524`](20260916-184524/); the `/at perf` and `/at debug hold` peels brought it to 1304, the remediation's slash items left it at 1318 at [`20260924-112145`](20260924-112145/), and it was 1321 at the 1.11.0 release run [`20260927-030336`](20260927-030336/). Cases added after that release, the `/at profile <name>` verb's (SP-AT-02) among them, grew it to 1472, and SD-FIN-01 (`05f1f8c`) took the peel the last disposition named: the `/at profile` cases moved to `tests/test_slashprofile.lua` (456), leaving 1079 at the 1.12.0 release run [`20261009-191726`](20261009-191726/). That is its second release run in the band, two of three toward the anti-pattern #53 limit. Sighted, it measures 110 functions, avg CCN 1.4, max 5: a flat case list. A further peel would split by verb group again, the way `perf`, `hold` and `profile` went. Re-check at 1300. |
+| 1000–1500 (on notice) | `tests/test_widgets.lua` | 1076 | **Accepted — watch (second release run carried as Accepted).** It was 904 at [`20260916-184524`](20260916-184524/). AT-15 (`19761b8`) took it over 1000 with the Appearance strip pins; 1073 at [`20260926-160433`](20260926-160433/), at the 1.11.0 release run [`20260927-030336`](20260927-030336/), and still 1073 at the 1.12.0 release run [`20261009-191726`](20261009-191726/) (GI-AT-02 rewrote about ten lines for the RenderTabbedSchema strip, net zero). Two of three release runs carried as Accepted: the next release owes anti-pattern #53 a fix or a tracked deviation ID, so the peel should land before 1.13.0. Sighted, it measures 105 functions (100 unsighted at 1.11.0, so five newly measured, not new), avg CCN 2.0, max 9; the length is case count. The seam is unchanged: the four real-page `OnShow` cases and the strip block belong beside `tests/test_panelpages.lua` (676). Re-check at 1300. |
 
 `lizard` counts every `and`/`or` short-circuit as a decision, so in Lua a run of
 `t.k = rec.k or D.k` defaulting lines scores high with no visible branching at all: a large CCN
