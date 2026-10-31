@@ -79,7 +79,7 @@ test("the page -> tab -> row-count partition is the designed one", function()
     -- names. The minimap row is the one that ARRIVED (launcher-§3, compose minor 7) -- it is
     -- unconditional for every addon, which is why it takes the column Test mode would have paired
     -- beside. The two resets are the tab's closing BUTTON PAIR rather than rows, so they are not
-    -- counted here -- tests/test_widgets.lua is what pins them onto this tab.
+    -- counted here -- tests/test_realpages.lua is what pins them onto this tab.
     -- Behavior counts the three per-unit enables, which stay stamped here (skipRender, drawn in the
     -- Appearance band, ABS-L01) beside the one throttle row it draws.
     -- Appearance is the Skin tab's group (AT-01): seven skip-render rows the library's
@@ -738,7 +738,7 @@ end)
 -- short-circuits the visibility and unit-exists rungs of NS.ShouldShowBar. Seven rows, not eight --
 -- the seventh is the Minimap button (launcher-§3), which is unconditional for every addon in the
 -- collection and so sits in the column Test mode would otherwise have paired beside.
--- The two resets are the tab's closing BUTTON PAIR rather than rows; tests/test_widgets.lua pins
+-- The two resets are the tab's closing BUTTON PAIR rather than rows; tests/test_realpages.lua pins
 -- those onto this group's afterGroup hook.
 -- red under: a reordered composer, a `frameless = true` this addon is not entitled to, a row moved
 -- back to the tab it came from, or a Test mode row creeping back in beside the lock.

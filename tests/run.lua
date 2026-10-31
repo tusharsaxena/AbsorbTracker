@@ -138,6 +138,9 @@ Kit.run{
     "test_launcher",
     "test_optionssetup",
     "test_slashcmds",
+    -- /at enable, /at disable and the disabled gate, peeled out of test_slashcmds in the layout-§1
+    -- band. Straight after it, so its cases keep their place in the run.
+    "test_slashgate",
     -- The /at profile sub-dispatcher, peeled out of test_slashcmds near the layout-§1 cap. Straight
     -- after it, where those cases ran before the split.
     "test_slashprofile",
@@ -148,7 +151,10 @@ Kit.run{
     -- was the `test` verb). Straight after the other two halves of the slash surface.
     "test_debughold",
     "test_widgets",
-    -- The LibKa0s-Skin-1.0 seam (AT-01). After test_widgets, which leaves General built and parked
+    -- The real pages' OnShow cases, peeled out of test_widgets in the layout-§1 band. Straight after
+    -- it, so its cases keep their place in the run.
+    "test_realpages",
+    -- The LibKa0s-Skin-1.0 seam (AT-01). After test_realpages, which leaves General built and parked
     -- on its first tab; it parks the page there again and puts the skin back on Ka0s Default.
     "test_skinsetup",
     -- The HUD bars follow the skin (AT-03): companions, getters, repaint, the v6 reset. After

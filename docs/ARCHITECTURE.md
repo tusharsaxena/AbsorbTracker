@@ -524,9 +524,9 @@ a re-check trigger. The census records which one, one row per over-cap file; the
 observed and dispositioned in the automated-tests watch list alone (`automated-tests-§4`).
 
 Nothing is over the cap today. The largest authored file is `tests/test_schema.lua` at 1084 lines
-(then `tests/test_slashcmds.lua` at 1079), measured on 2026-10-29 with `git ls-files '*.lua' | grep -v '^libs/' | grep -v '^tests/_kit/' |
+(then `tests/test_display.lua` at 970), measured on 2026-10-31 with `git ls-files '*.lua' | grep -v '^libs/' | grep -v '^tests/_kit/' |
 xargs wc -l | sort -rn`. `tests/test_slashcmds.lua` was peeled into `tests/test_perfcmds.lua` when it
-crossed the cap, its value-hold cases later moved to `tests/test_debughold.lua` with the verb, and its `/at profile` cases moved to `tests/test_slashprofile.lua` when it reached 1472 lines. `tests/test_helpers.lua` (1447) had its rendered-page cases peeled into `tests/test_panelpages.lua` before it reached the cap (R-14), and that file's mirror half later moved to `tests/test_panelmirror.lua` when it entered the 1000–1500 band. The vendored `tests/_kit/test_layout_cap.lua` gates this census against the tree.
+crossed the cap, its value-hold cases later moved to `tests/test_debughold.lua` with the verb, and its `/at profile` cases moved to `tests/test_slashprofile.lua` when it reached 1472 lines. In the 1000–1500 band, on 2026-10-31, its `enable`/`disable` and disabled-gate cases moved to `tests/test_slashgate.lua` and `tests/test_widgets.lua`'s real-page cases to `tests/test_realpages.lua`, both ahead of anti-pattern #53's third release run. `tests/test_helpers.lua` (1447) had its rendered-page cases peeled into `tests/test_panelpages.lua` before it reached the cap (R-14), and that file's mirror half later moved to `tests/test_panelmirror.lua` when it entered the 1000–1500 band. The vendored `tests/_kit/test_layout_cap.lua` gates this census against the tree.
 
 ## Performance & Profiler Attribution
 

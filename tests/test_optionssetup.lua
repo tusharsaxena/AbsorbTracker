@@ -431,7 +431,7 @@ test("the Profiles page SHOWS the container AceConfigDialog fills, even a pooled
   -- hidden, which is exactly the pooled case.
   --
   -- A second full environment, because the shared one has no AceDBOptions and its Profiles page
-  -- self-skips (tests/test_widgets.lua pins that). The fakes go into the kit's library table
+  -- self-skips (tests/test_realpages.lua pins that). The fakes go into the kit's library table
   -- before the addon loads. AbsorbTrackerDB is process-global, so it is parked around InitDB and
   -- the shared suite's database is never touched.
   -- red under: the renderer not calling container.frame:Show().

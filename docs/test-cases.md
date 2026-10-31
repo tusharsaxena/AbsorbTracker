@@ -631,7 +631,7 @@ Total.
 - and the Options descriptor takes that name from the first vararg, not a literal
 - the id-list help mark is latent: info is neither declared nor shipped
 
-### test_slashcmds.lua (67)
+### test_slashcmds.lua (57)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -689,6 +689,10 @@ Total.
 - degraded: /at help rows are plain, with no color escape
 - degraded: DisabledLine is the live build's line, color escapes intact
 - /at set stores a multi-word string value whole
+- degraded: /at profile prints the library-absent line and switches nothing
+
+### test_slashgate.lua (10)
+
 - /at enable and /at disable write the Enable row's OWN path, through the one seam
 - /at disable echoes the stored value in the set shape, and /at enable undoes it
 - the pair is never one-way: the dispatcher still answers while the addon is disabled
@@ -699,7 +703,6 @@ Total.
 - a refused `unlock` leaves the lock exactly where it was
 - a refused `update` publishes nothing on the bus
 - /at profile <name> switches while the addon is disabled
-- degraded: /at profile prints the library-absent line and switches nothing
 
 ### test_slashprofile.lua (34)
 
@@ -802,7 +805,7 @@ Total.
 - /at debug hold refuses while the addon is disabled: one line, no paint, no hold
 - /at debug hold refuses while stood down for a perf capture, arms no timer
 
-### test_widgets.lua (57)
+### test_widgets.lua (44)
 
 - NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
 - a bool row renders a CheckBox labeled from the schema
@@ -848,6 +851,9 @@ Total.
 - a pairWith partner is attached to the named row and is one-shot
 - RenderSchema runs a layout pass at the end
 - EnsureScroll is lazy, created once, and patched for an always-visible scrollbar
+
+### test_realpages.lua (13)
+
 - every schema page registered a real Blizzard subcategory at build time
 - the Profiles page self-skips when AceDBOptions is unavailable
 - the sidebar path is covered in combat, draws nothing and leaves the window open (options-ui-§2)
@@ -1149,11 +1155,13 @@ Total.
 | test_panelmirror.lua | 10 |
 | test_launcher.lua | 34 |
 | test_optionssetup.lua | 22 |
-| test_slashcmds.lua | 67 |
+| test_slashcmds.lua | 57 |
+| test_slashgate.lua | 10 |
 | test_slashprofile.lua | 34 |
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 16 |
-| test_widgets.lua | 57 |
+| test_widgets.lua | 44 |
+| test_realpages.lua | 13 |
 | test_skinsetup.lua | 17 |
 | test_skin_hud.lua | 19 |
 | test_skin_picker.lua | 19 |
