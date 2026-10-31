@@ -73,7 +73,7 @@ CPU never does. Exit code is non-zero on an assertion failure.
 | `absorbEvent` | What does one absorb event cost with the throttle already armed? |
 | `paintBars` | What does the bar-level paint cost — `NS.UpdateAbsorbBar` over three bars from a test closure, without the scheduler? |
 | `repaintPass` | What does the **shipped** coalesced pass cost — `modules/Timer.lua`'s `doRepaint`, reached through the test seam `NS.Timer.__doRepaint`? |
-| `appearancePass` | What does a full restyle cost (`SetBackdrop` ×2 + four LSM fetches per bar)? |
+| `appearancePass` | What does a full restyle cost (`SetBackdrop` ×4, the LSM fetches, and the border, overlay and drag-strip re-level per bar)? |
 | `settingsRead` | Does the `Units.Get` hot read path allocate? |
 | `probeOverheadOff` / `On` | Is the instrumentation itself free when capture is off? Both arms run the shipped `doRepaint`, so the outer `repaintPass` bracket and every `paintBar` bracket are on the measured path. |
 
@@ -85,6 +85,13 @@ allocated 144.0, all of it the per-pass `function(unit)` closure `doRepaint` han
 test closure, not the bars. The dormant arm is held under `PROBE_OFF_BYTES_CEILING` (24: the 0.0
 measurement plus 24 bytes of headroom, less than the 64 bytes one empty table costs).
 `tests/perf.lua` records how that ceiling was derived.
+
+`appearancePass` asserts 81 API calls per pass and is held under `APPEARANCE_BYTES_CEILING` (442: the
+418.0 measurement plus 24). It read 2552.1 bytes from `59147e7` until 2026-10-31, and that was the
+runner, not the addon. The frame-layering commit added `bar.border`, `bar.overlay` and the strip's
+`ApplyLevel`, the counting layer did not wrap them, and the mock answers an undefined method with a
+fresh closure on each lookup. Now that they are wrapped, 288 of the 418 bytes are the library's
+`ApplyLevel`, one small table per bar on a settings path.
 
 ### Reading the output
 
