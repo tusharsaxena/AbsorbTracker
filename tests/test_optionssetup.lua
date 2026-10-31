@@ -334,6 +334,16 @@ test("the degraded stub answers OptionsCompose minor 11's ResetAllTooltip with t
   assertEqual(NS2.Helpers.ResetAllTooltip(42), "", "a non-string tail adds nothing")
 end)
 
+test("the degraded stub answers OptionsCompose minor 15's PositionBlock with no rows and an inert hook", function()
+  -- O.PositionBlock is owed by every Options stub from LibKa0s v1.84.0 (the library's Options
+  -- document, LibKa0s#59). The live one answers `rows, afterSubgroup`, so the stub keeps both shapes.
+  -- red under: a missing member, or a stub that hands back rows with no library to draw them.
+  local NS2 = loadDegraded()
+  local rows, hook = NS2.Helpers.PositionBlock({})
+  assertEqual(#rows, 0, "no rows without the library")
+  hook()
+end)
+
 test("the degraded stub keeps no private copy of the library's layout constants", function()
   -- Measured, not assumed: dropping each of these from the stub and re-running the degraded load
   -- leaves #NS.Schema unchanged, because every reader (settings/About.lua, settings/UnitPanel.lua)

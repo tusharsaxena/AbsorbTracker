@@ -350,6 +350,9 @@ if not lib then
     -- The reserved `/at skin` verb's act (LibKa0s v1.82.0, OptionsSkinPicker minor 3): no picker
     -- without the library, so it answers nil and "absent", which NS.RunSkinVerb words for the player.
     Helpers.SkinVerb           = function() return nil, "absent" end
+    -- The Position block (LibKa0s v1.84.0, OptionsCompose minor 15), owed by every Options stub. No
+    -- library, no rows and an inert hook: the shape the live one answers, with nothing to draw.
+    Helpers.PositionBlock      = function() return {}, function() end end
     Helpers.__panels   = function() return {} end
     Helpers.__panelFor = function() return nil end
 
