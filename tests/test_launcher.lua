@@ -603,10 +603,19 @@ test("launcher: Reset all settings cannot un-hide the button", function()
   fakes()
   NS.Launcher:Register()
 
+  -- A reset that resets nothing, so only the count moves. Taken inside it, where OnProfileReset
+  -- takes it: the count is cleared when the reset returns.
+  local counted = function()
+    local n
+    NS.ResetProfileCounted({ ResetProfile = function() n = NS.ConsumeResetCount() end })
+    return n
+  end
+
   NS.SetByPath(NS.Constants.MINIMAP_PATH, true)
-  local base = NS.ProfileRowsOffDefault()
+  local base = counted()
   NS.SetByPath(NS.Constants.MINIMAP_PATH, false)
-  assertEqual(NS.ProfileRowsOffDefault(), base,
+  assertEqual(type(base), "number", "the count reached the reset")
+  assertEqual(counted(), base,
     "the walk that counts what a reset WOULD change must not count this row -- it would promise a "
       .. "number the reset cannot deliver (debug-logging-\194\16710)")
 
