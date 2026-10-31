@@ -13,7 +13,7 @@ Three groups, and most readers need exactly one:
 | Group | Who needs it | Short answer |
 |---|---|---|
 | [Runtime (in-game)](#runtime-in-game) | Players | World of Warcraft (Retail). Nothing else. |
-| [Development](#development) | Contributors | Lua **5.1**, `luacheck`, `lizard`, `git`, a POSIX shell. |
+| [Development](#development) | Contributors | Lua **5.1**, `luacheck`, `lizard`, `ka0s-bounded`, `git`, a POSIX shell. |
 | [Release / assets](#release--assets) | Nobody, locally | No local packaging or asset toolchain exists in this repo. |
 
 ---
@@ -84,6 +84,20 @@ luacheck --version    # -> Luacheck: 1.x
 
 **Version: any recent.** Nothing in `.luacheckrc` uses a version-gated option, and pinning a number
 here would be false precision.
+
+### ka0s-bounded — the memory and time bound on lint
+
+`~/.claude/dev-copilot/bin/ka0s-bounded`, installed with the dev-copilot Claude Code plugin. The green
+gate runs lint through it, `~/.claude/dev-copilot/bin/ka0s-bounded luacheck .` (`CLAUDE.md`,
+`docs/testing.md`), because `luacheck` loads no test kit and so nothing else bounds it (`testing-§15`).
+`lua tests/run.lua` needs no wrapper: the kit bounds the suite on load. Exit 124 means the time limit
+ended the run, and 137 means it was killed.
+
+**Verify:**
+
+```sh
+~/.claude/dev-copilot/bin/ka0s-bounded luacheck --version    # -> Luacheck: 1.x
+```
 
 ### lizard — the complexity report
 
@@ -279,7 +293,7 @@ do when one is red — this file only tells you what to install.
 
 ```sh
 lua tests/run.lua                                       # the headless suite — all green
-luacheck .                                              # 0 warnings / 0 errors
+~/.claude/dev-copilot/bin/ka0s-bounded luacheck .       # 0 warnings / 0 errors
 bash tests/_kit/run-automated-tests.sh --suite complexity   # the `complexity` suite (sighted, kit 35)
 lizard --version                                        # tool install check only; raw lizard is blind in Lua
 ```

@@ -221,9 +221,8 @@ See also: the `/dev-copilot:wow-bump-interface` skill for the automated version 
 This addon has a headless test harness under `tests/` — any doc claiming "no automated tests" is stale. Run the green gate before you consider a change done:
 
 ```sh
-lua tests/run.lua      # suites: loadorder / schema / database / units / envsetup / coresetup /
-                       #   mediasetup / debuglog / slash / timer / perf / visibility / bus / data / display / helpers / optionssetup / slashcmds / widgets / docs / ltrap / surface_parity / vendor_sync (count: docs/test-cases.md)
-luacheck .             # must be 0 warnings / 0 errors
+lua tests/run.lua      # every suite (the list and the count: docs/test-cases.md)
+~/.claude/dev-copilot/bin/ka0s-bounded luacheck .   # must be 0 warnings / 0 errors
 luac -p <changed.lua>  # bytecode-parse each file you touched
 ```
 
