@@ -309,11 +309,11 @@ local function drawnFont(unit)
   return got
 end
 
---- Back on Ka0s Default with the Font outline on All text, whatever `fn` raised.
+--- Back on Ka0s Default with the Font outline on its default, whatever `fn` raised.
 local function onDefaultOutline(fn)
   return onDefault(function()
     local ok, err = pcall(fn)
-    Skin:SetOutline(OWNER, "all")
+    Skin:SetOutline(OWNER, Skin.OUTLINE_DEFAULT)
     Skin:SetIgnore(OWNER, true, false)
     if not ok then error(err, 0) end
   end)
@@ -334,9 +334,9 @@ test("From skin draws the Font outline's flags; a picked flag draws as picked", 
   -- red under: SetFont handed the stored "@skin" (the client draws no outline, or refuses it), or a
   -- picked flag rewritten by the skin.
   withUnit("player", "fontFlags", "@skin", function()
+    assertEqual(drawnFont("player")[3], "OUTLINE", "the default, HUD text only: the bar is HUD text")
+    Skin:SetOutline(OWNER, "all")
     assertEqual(drawnFont("player")[3], "OUTLINE", "All text: outlined")
-    Skin:SetOutline(OWNER, "hud")
-    assertEqual(drawnFont("player")[3], "OUTLINE", "HUD text only: the bar is HUD text")
     Skin:SetOutline(OWNER, "off")
     assertEqual(drawnFont("player")[3], "", "Off: no outline")
   end)

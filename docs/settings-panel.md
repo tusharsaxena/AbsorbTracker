@@ -337,7 +337,7 @@ The **Debug console** checkbox toggles the **visibility of the console window on
 `{ get = NS.SkinChoice, set = NS.WriteSkinChoice }` and handed to `RenderTabbedSchema` as
 `opts.tabs`. With no Keybindings tab on this page it is last (skinning-§3). It draws **Skin source**
 (Ka0s skins or EllesmereUI, with the failing condition named when EllesmereUI cannot be used), the
-skins under a **Look** heading, **Font and texture** (*Skin's own* in a new profile), the Scope
+skins under a **Look** heading, **Font and texture** (*Skin's default* in a new profile), the Scope
 (**Ignore settings panel**, on in a new profile, and **Ignore fonts**, off) and **Copy to every Ka0s
 addon…**. A pick calls `Skin:SetChoice` first and writes through `NS.WriteSkinChoice` after, so the
 row's `onChange` finds nothing left to apply and the pick is one repaint. The seven rows behind it

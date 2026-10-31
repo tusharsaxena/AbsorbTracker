@@ -27,7 +27,7 @@ NS.Skin.OnLooksChanged(function() looks = looks + 1 end)
 --- library's deferred page re-render run, and the counter cleared.
 local function reset()
   NS.WriteSkinChoice("ka0s", "ka0s", { panel = true, fonts = false },
-    { font = false, texture = false, outline = "all" })
+    { font = false, texture = false, outline = "hud" })
   Skin:SetChoice(OWNER, "ka0s", "ka0s")
   Skin:SetIgnore(OWNER, true, false)
   if Skin.SetOverride then Skin:SetOverride(OWNER, false, false) end
@@ -132,7 +132,7 @@ test("Skin seam: the eight skin keys default to Ka0s Default, as skip-render row
   assertEqual(d.font, "")
   assertEqual(d.texture, "")
   assertEqual(d.pickerSeen, false, "every profile sees the first-run picker once (O3)")
-  assertEqual(d.outline, "all", "the Font outline is All text, the library's default (D-06)")
+  assertEqual(d.outline, "hud", "the Font outline is HUD text only, the library's default (D-10)")
   assertEqual(d.outline, Skin.OUTLINE_DEFAULT)
   local count = 0
   for _ in pairs(d) do count = count + 1 end
@@ -247,18 +247,18 @@ end)
 test("Skin seam: the write seam stores media.outline, and leaves it alone when it is nil", clean(function()
   -- red under: WriteSkinChoice dropping media.outline (the Skin tab's Font outline and another
   -- addon's copy would move the look and never store it).
-  NS.WriteSkinChoice(nil, nil, nil, { font = false, texture = false, outline = "hud" })
-  assertEqual(NS.db.profile.skin.outline, "hud")
+  NS.WriteSkinChoice(nil, nil, nil, { font = false, texture = false, outline = "all" })
+  assertEqual(NS.db.profile.skin.outline, "all")
   NS.WriteSkinChoice(nil, nil, nil, { font = false, texture = false })
-  assertEqual(NS.db.profile.skin.outline, "hud", "a media table without outline leaves it")
+  assertEqual(NS.db.profile.skin.outline, "all", "a media table without outline leaves it")
   Skin:WriteChoice(OWNER, "ka0s", "ka0s", nil, { font = false, texture = false, outline = "off" })
   assertEqual(NS.db.profile.skin.outline, "off", "another addon's copy reaches the store")
 end))
 
 test("Skin seam: /at set skin.outline applies the mode live and refuses an unknown one", clean(function()
-  quietly("set skin.outline hud")
-  assertEqual(NS.db.profile.skin.outline, "hud")
-  assertEqual(Skin:GetOutline(OWNER), "hud", "the row's onChange applied it")
+  quietly("set skin.outline all")
+  assertEqual(NS.db.profile.skin.outline, "all")
+  assertEqual(Skin:GetOutline(OWNER), "all", "the row's onChange applied it")
   assertEqual(NS.Skin.Token("hud.outline"), "OUTLINE", "the HUD keeps its outline")
   quietly("set skin.outline off")
   assertEqual(NS.Skin.Token("hud.outline"), "", "Off takes it")
@@ -304,11 +304,12 @@ test("Skin seam: a profile switch applies the new profile's Font outline, and ba
   local db = NS.db
   local ok, err = pcall(function()
     db:SetProfile("OutlineProbe")
-    T.rawSet("skin.outline", "hud")
+    -- A stored All text stays All text (D-10: the default moved, a stored value never does).
+    T.rawSet("skin.outline", "all")
     db:SetProfile("Default")
-    assertEqual(Skin:GetOutline(OWNER), "all", "back on Default, Default's Font outline")
+    assertEqual(Skin:GetOutline(OWNER), "hud", "back on Default, Default's Font outline")
     db:SetProfile("OutlineProbe")
-    assertEqual(Skin:GetOutline(OWNER), "hud", "the switch did not apply the profile's Font outline")
+    assertEqual(Skin:GetOutline(OWNER), "all", "the switch did not apply the profile's Font outline")
   end)
   if db:GetCurrentProfile() ~= "Default" then db:SetProfile("Default") end
   if db.DeleteProfile then pcall(db.DeleteProfile, db, "OutlineProbe", true) end

@@ -28,7 +28,7 @@ local PINNED = {
   ["skin.ignoreFonts"] = { type = "bool", page = "general", default = false },
   ["skin.ignorePanel"] = { type = "bool", page = "general", default = true },
   -- The Font outline (LibKa0s v1.82.0, the 2026-10-30 skin fonts run's AT-01).
-  ["skin.outline"] = { type = "string", page = "general", default = "all" },
+  ["skin.outline"] = { type = "string", page = "general", default = "hud" },
   ["skin.pickerSeen"] = { type = "bool", page = "general", default = false },
   ["skin.skin"] = { type = "string", page = "general", default = "ka0s" },
   ["skin.source"] = { type = "string", page = "general", default = "ka0s" },

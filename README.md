@@ -58,7 +58,7 @@ off (the same as `/at enable` and `/at disable`) and lock or unlock the bars. Yo
 
 Everything else is on the addon's page under Settings → AddOns, and `/at` (or `/absorbtracker`) on
 its own opens it. `/at skin` opens the skin picker again whenever you want another look, and General →
-**Skin** → **Font outline** sets whether the skin outlines all text, only the bars' numbers, or none.
+**Skin** → **Font outline** sets whether the skin outlines all text, only the bars' numbers (the default), or none.
 `/at help` prints the full command list.
 
 ## How the bar works
@@ -143,28 +143,8 @@ Please file new reports there rather than in comments, so nothing gets lost.
 
 ## Credits
 
-- [JetBrains Mono](https://www.jetbrains.com/lp/mono/) (SIL Open Font License 1.1): the debug console's font.
-- [Prototype](https://www.dafont.com/prototype.font) v2.0 (2001): the face of Ka0s Default, the skin every
-  profile starts on. **Not under the SIL Open Font License**: "free for personal use, freely distributed with
-  Prototype.txt", so the author's `Prototype.txt` ships beside it unchanged. Shipped on the owner's ruling of
-  2026-10-30.
-- [Expressway](https://www.dafont.com/expressway.font) Rg Bold 2.100 (2005) by Ray Larabie, Typodermic: the
-  face of Obsidian. **Not under the SIL Open Font License, and shipped against its terms**: its name table
-  reads "Do not distribute", and the Typodermic Desktop EULA 2026 puts embedding in software outside the free
-  license. Shipped on the owner's ruling of 2026-10-30, "Ship it anyways.", with the EULA
-  (`Expressway-EULA.pdf`) and its quick guide (`Expressway-EULA-Guide.html`) beside it as the record of the
-  terms that ruling overrode. Expressway is a trademark of Typodermic.
-- Six more SIL Open Font License 1.1 families, for the other skins:
-  [Nunito](https://github.com/googlefonts/nunito) by The Nunito Project Authors,
-  [Vollkorn](https://github.com/FAlthausen/Vollkorn-Typeface) by The Vollkorn Project Authors,
-  [Bitter](https://github.com/solmatas/BitterPro) by The Bitter Project Authors,
-  [Philosopher](https://github.com/alexeiva/philosopher) by The Philosopher Project Authors,
-  [Fira Sans](https://github.com/mozilla/Fira) by The Mozilla Foundation and Telefonica S.A. (Medium and
-  SemiBold), and
-  [Atkinson Hyperlegible](https://www.brailleinstitute.org/freefont/) by the Braille Institute of America.
-  Nunito, Vollkorn and Bitter are static weights cut from upstream's variable fonts.
 - [Open Iconic](https://github.com/iconic/open-iconic) by Waybury (MIT): the **?** and **X** on the bar's drag
   handle, the close, copy and clear marks on the debug console, and the skin picker's settings gear.
 
-All of them ship inside the bundled LibKa0s payload. Each font's license or terms sit beside it in `libs/LibKa0s/media/fonts/`. The Open Iconic
-license is `libs/LibKa0s/media/icons/LICENSE-open-iconic.txt`.
+It ships inside the bundled LibKa0s payload, with its license at
+`libs/LibKa0s/media/icons/LICENSE-open-iconic.txt`.

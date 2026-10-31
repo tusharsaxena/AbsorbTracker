@@ -31,7 +31,8 @@ local function appearance()
         font = "Friz Quadrata TT",
         fontSize = 12,
         -- "From skin" (LibKa0s v1.82.0, ruling D-07): the Skin tab's Font outline decides, OUTLINE
-        -- under its default All text. It was "OUTLINE"; the v7 step moves a stored OUTLINE here.
+        -- under its default HUD text only, the bars being HUD text. It was "OUTLINE"; the v7 step
+        -- moves a stored OUTLINE here.
         fontFlags = "@skin",
         -- The sixth row of the canonical font block (options-ui-§16), new with the composer.
         -- Default OFF, so an install that never opens the Text tab is drawn exactly as it was;
@@ -109,14 +110,14 @@ NS.defaults.profile = {
     -- client's (on for a new profile, the owner's 2026-10-27 call that LootHistory ships too, so the
     -- pages look as they did before skins), `ignoreFonts` keeps every font as the addon set it. The
     -- Font and texture overrides are an LSM key each, "" for the skin's own. `outline`, the Font
-    -- outline (LibKa0s v1.82.0, Skin minor 9): "all" text (the default), "hud" text only, or "off";
-    -- the default every element's "From skin" flags resolve through. `pickerSeen`: the
-    -- first-run skin picker was closed on this profile; false on every profile, old and new, so
-    -- every player sees it once (the rollout's O3). New keys with defaults, so AceDB merges them
+    -- outline (LibKa0s v1.82.0, Skin minor 9): "all" text, "hud" text only (the default
+    -- since LibKa0s v1.83.0, D-10; a stored choice stays), or "off"; what every element's "From skin"
+    -- flags resolve through. `pickerSeen`: the first-run skin picker was closed on this profile;
+    -- false on every profile, old and new, so every player sees it once (the rollout's O3). New keys with defaults, so AceDB merges them
     -- into every existing profile and no migration is owed.
     skin = {
         source = "ka0s", skin = "ka0s", ignorePanel = true, ignoreFonts = false,
-        font = "", texture = "", outline = "all", pickerSeen = false,
+        font = "", texture = "", outline = "hud", pickerSeen = false,
     },
 
     -- Per-unit. Player has no `mirror` key — it is the mirror SOURCE, so a player mirror row
