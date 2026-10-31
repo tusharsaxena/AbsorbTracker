@@ -9,8 +9,8 @@ How the addon registers its multi-page Blizzard Settings UI. The schema-driven c
 | File | Role |
 |------|------|
 | `libs/LibKa0s/Options.lua` | The shell. `CreatePanel` / `EnsureDefaultsButton` / `EnsureScroll` / `ClearScroll` / `RestoreDefaults` / `RestoreAllDefaults` / `RefreshAllPanels` / `LSMValues` / `RegisterOptionsPage` / `CreateOptionsPanel` / `OpenOptionsPanel`, the private page queue and panel registry, and `lib.LAYOUT` (every metric from `PADDING_X` to `BUTTON_PAIR_REL`). |
-| `libs/LibKa0s/OptionsWidgets.lua` | `RenderField` (dispatches by `row.type`) + `RenderRows` (two-column layout over an explicit row list, skipping `skipRender` rows) + the thin `RenderSchema(ctx, pageKey, ...)` wrapper + `RenderTabbedSchema` and its parts, `TabStrip` / `PageBanner` / `PageHeader` / `SetChromeHeight` (the chrome band, options-ui-§13/§14) + the five widget makers (CheckBox / Slider / Dropdown / EditBox / ColorPicker) + `Section` / `AddSpacer` / `AttachTooltip` / `InlineButtonPair` / `SessionCheckbox`. |
-| `libs/LibKa0s/OptionsFlow.lua` / `OptionsTabbed.lua` | The two-column flow engine and the tabbed page, peeled from `OptionsWidgets.lua` and `OptionsTabs.lua` at LibKa0s v1.84.0. Same members on the same instance. |
+| `libs/LibKa0s/OptionsWidgets.lua` | `RenderField` (dispatches by `row.type`) + the five widget makers (CheckBox / Slider / Dropdown / EditBox / ColorPicker) + `Section` / `AddSpacer` / `AttachTooltip` / `InlineButtonPair` / `SessionCheckbox`. |
+| `libs/LibKa0s/OptionsFlow.lua` / `OptionsTabbed.lua` | The two-column flow engine and the tabbed page, peeled from `OptionsWidgets.lua` and `OptionsTabs.lua` at LibKa0s v1.84.0. Same members on the same instance. `OptionsFlow.lua` holds `RenderRows` (two-column layout over an explicit row list, skipping `skipRender` rows) and the thin `RenderSchema(ctx, pageKey, ...)` wrapper; the live `RenderTabbedSchema` is in `OptionsTabbed.lua`, which replaces the untabbed fallback `OptionsFlow.lua` keeps. Its parts, `TabStrip` / `PageBanner` / `PageHeader` (the chrome band, options-ui-§13/§14), stay in `OptionsTabs.lua`, and `SetChromeHeight` is in `Options.lua`. |
 | `libs/LibKa0s/OptionsCompose.lua` | The schema composers (options-ui-§15/§16/§17): `MasterControls` / `BarGroup` / `BorderGroup` / `FontGroup` / `ColorPair`, plus `FONT_FLAGS` / `FONT_FLAGS_SORT`, `VISIBILITY_SORT`, `MASTER_GROUP` and `CLASS_COLOR_NOTE`. Pure functions returning arrays of ordinary schema rows — they create no widget and read no state. |
 | `libs/LibKa0s/OptionsScroll.lua` | `PatchAlwaysShowScrollbar` — the always-visible scrollbar override. |
 | `libs/LibKa0s/OptionsAppearance.lua` / `OptionsSkinPicker.lua` | The **Skin** tab (`AppearanceTab`, keyed `Appearance`, labeled *Skin*) and the skin picker (`SkinPicker` / `SkinVerb` / `HideSkinPicker`), both drawn for an owner the `LibKa0s-Skin-1.0` seam registered (`core/SkinSetup.lua`). See [The Skin tab and the first-run picker](#the-skin-tab-and-the-first-run-picker). |
@@ -474,15 +474,15 @@ each composed media row at `H.LSMValues(kind)`, and **not** in `libs/` — a dow
 vendored file is overwritten by the next re-vendor and takes the fix with it, so a defect there is
 reported upstream and fixed there. That is what happened: minor 3 reads `O.LSMValues(kind)` once at
 row-declaration time and assigns the deferred reader straight into `values`
-(`libs/LibKa0s/OptionsCompose.lua:324`, `:368`, `:397`), so `enumList`'s single unwrap now lands on a
+(`libs/LibKa0s/OptionsCompose.lua:712`, `:760`, `:790`), so `enumList`'s single unwrap now lands on a
 table. The workaround and its three call sites were deleted in the v1.26.0 re-vendor.
 
 The **contract** that replaced it is worth knowing, because breaking it fails silently rather than
 loudly: a host supplying its own `O.LSMValues` must return **a function**
-(`libs/LibKa0s/OptionsCompose.lua:248-255`). Hand back a table instead and nothing errors — the row
+(`libs/LibKa0s/OptionsCompose.lua:382-389`). Hand back a table instead and nothing errors — the row
 simply freezes its media list at whatever was registered when the file loaded, so media registered
 later never appears. This addon's `Helpers.LSMValues` returns a deferred closure and
-`tests/test_data.lua:200` pins that. `tests/test_schema.lua` still asserts that every row carrying a
+`tests/test_data.lua:208` pins that. `tests/test_schema.lua` still asserts that every row carrying a
 `dialogControl` answers a **populated** list; it is now the acceptance test for the upstream fix
 rather than the guard on a local patch.
 

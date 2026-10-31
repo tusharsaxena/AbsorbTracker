@@ -437,9 +437,9 @@ test("every media-backed row answers a populated option list", function()
   -- `fixMediaValues` that re-pointed each media row on the way past; LibKa0s v1.26.0 fixes it at
   -- source and the workaround is deleted. Minor 3 reads `O.LSMValues(kind)` ONCE, at
   -- row-declaration time, and assigns the deferred reader it hands back straight into `values`
-  -- (libs/LibKa0s/OptionsCompose.lua:324, :368, :397), so enumList's single unwrap lands on a
-  -- table. The contract at :248-255 is that a host's own `O.LSMValues` MUST RETURN A FUNCTION;
-  -- this addon's does, and tests/test_data.lua:198 is what pins that.
+  -- (libs/LibKa0s/OptionsCompose.lua:712, :760, :790), so enumList's single unwrap lands on a
+  -- table. The contract at :382-389 is that a host's own `O.LSMValues` MUST RETURN A FUNCTION;
+  -- this addon's does, and tests/test_data.lua:208 is what pins that.
   --
   -- What survives is the assertion, which was never about the workaround: a media-backed row must
   -- answer a list a player can open. It is now the ACCEPTANCE test for the upstream fix rather than

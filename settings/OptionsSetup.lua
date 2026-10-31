@@ -351,7 +351,7 @@ if not lib then
     -- without the library, so it answers nil and "absent", which NS.RunSkinVerb words for the player.
     Helpers.SkinVerb           = function() return nil, "absent" end
     -- The Position block (LibKa0s v1.84.0, OptionsCompose minor 15), owed by every Options stub. No
-    -- library, no rows and an inert hook: the shape the live one answers, with nothing to draw.
+    -- library, no rows. The hook is inert for any spec; the live one answers nil without onReset.
     Helpers.PositionBlock      = function() return {}, function() end end
     Helpers.__panels   = function() return {} end
     Helpers.__panelFor = function() return nil end
