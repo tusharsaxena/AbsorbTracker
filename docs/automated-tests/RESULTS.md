@@ -32,6 +32,7 @@ archaeology, for the same reason a skip is never a pass (`automated-tests-§4`).
 
 | Run | Commit | Tree | Version | Lint w/e | Files | Tests | Perf | NLOC | Funcs | Avg NLOC | Avg CCN | Max CCN | CCN warn | Verdict |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| [`20261031-212003`](20261031-212003/) | `e8ba948` | clean | 1.12.0 | 0/0 | 80 | 972/1/973 | pass | 16935 | 2586 | 6.4 | 1.8 | 14 | 0 | **green** |
 | [`20261031-202021`](20261031-202021/) | `c873518` | clean | 1.12.0 | 0/0 | 78 | 972/1/973 | pass | 16866 | 2575 | 6.4 | 1.8 | 14 | 0 | **green** |
 | [`20261009-191726`](20261009-191726/) | `7c83d8c` | clean | 1.11.0 → 1.12.0 | 0/0 | 70 | 885/1/886 | pass | 14702 | 2249 | 6.4 | 1.8 | 14 | 0 | **green** |
 | [`20260927-030336`](20260927-030336/) | `9b5a369` | clean | 1.10.0 → 1.11.0 | 0/0 | 67 | 810/0/810 | pass | 13377 | 1919 | 6.4 | 1.7 | 14 | 0 | **green** |
@@ -53,17 +54,17 @@ archaeology, for the same reason a skip is never a pass (`automated-tests-§4`).
 ## Test suite
 
 **973 cases** — 972 passed, 0 failed, 1 skipped. The generated inventory
-[`20261031-202021/test-cases.md`](20261031-202021/test-cases.md) is the authority on which cases existed at this run;
+[`20261031-212003/test-cases.md`](20261031-212003/test-cases.md) is the authority on which cases existed at this run;
 `docs/test-cases.md` is that same list at HEAD.
 
-Moved **886 → 973** since the previous run.
+Unchanged from the previous run at 973 cases.
 
 **1 case(s) reported a `skip`.** A skip is counted in the total and never in `passed`, and at
 the release gate it is NOT EVALUATED rather than passed (`automated-tests-§3`).
 
 ## Lint
 
-**0 warnings / 0 errors over 78 files** (`luacheck .`).
+**0 warnings / 0 errors over 80 files** (`luacheck .`).
 
 Read that figure with its scope attached: `.luacheckrc` excludes 5 path(s) from it — `libs/`, `docs/audits/`, `docs/reviews/`, `_dev/`, `tests/_kit/` —
 so nothing under them is in the count above. A `0/0` that never moves is partly a statement about
@@ -73,25 +74,25 @@ to whoever thinks to open `.luacheckrc`.
 ## Perf
 
 **7 scenarios** from `tests/perf.lua`; the measurements are in
-[`20261031-202021/perf.json`](20261031-202021/perf.json).
+[`20261031-212003/perf.json`](20261031-212003/perf.json).
 
 | `scenario` | `iters` | `ms/iter` | `api/iter` | `bytes/iter` |
 |---|---|---|---|---|
-| `absorbEvent` | 1000 | 0.00054 | 0.0 | 0.0 |
-| `paintBars` | 1000 | 0.01651 | 12.0 | 48.0 |
-| `repaintPass` | 1000 | 0.01523 | 12.0 | 0.0 |
-| `appearancePass` | 200 | 0.16370 | 51.0 | 2560.9 |
-| `settingsRead` | 10000 | 0.00028 | 0.0 | 0.0 |
-| `probeOverheadOff` | 1000 | 0.01417 | 12.0 | 0.0 |
-| `probeOverheadOn` | 1000 | 0.01682 | 12.0 | 0.5 |
+| `absorbEvent` | 1000 | 0.00036 | 0.0 | 0.0 |
+| `paintBars` | 1000 | 0.01225 | 12.0 | 48.0 |
+| `repaintPass` | 1000 | 0.01306 | 12.0 | 0.0 |
+| `appearancePass` | 200 | 0.14334 | 81.0 | 418.0 |
+| `settingsRead` | 10000 | 0.00023 | 0.0 | 0.0 |
+| `probeOverheadOff` | 1000 | 0.01245 | 12.0 | 0.0 |
+| `probeOverheadOn` | 1000 | 0.01375 | 12.0 | 0.5 |
 
 `perf` never fails a run and never blocks a commit — it is recorded, read and compared, not
 thresholded (`performance-§9`). It does gate the **tag** (`automated-tests-§3`).
 
 ## Complexity watch list
 
-Current as of [`20261031-202021`](20261031-202021/) — **this run's measurement, not its diff.** Max CCN **14** across 2575
-functions, **0** of them warned on; 3 file(s) in the 1000–1500 band and 0 over the 1500 cap
+Current as of [`20261031-212003`](20261031-212003/) — **this run's measurement, not its diff.** Max CCN **14** across 2586
+functions, **0** of them warned on; 1 file(s) in the 1000–1500 band and 0 over the 1500 cap
 (`layout-§1`).
 
 Every row below is generated from this run's own `lizard` output. **The `Disposition` column is
@@ -111,8 +112,6 @@ None.
 | Band | File | LOC | Disposition |
 |---|---|---|---|
 | 1000–1500 (on notice) | `tests/test_schema.lua` | 1084 | **Accepted — watch (first run in the band).** Newly crossed at [`20261031-202021`](20261031-202021/): the skin seam's cases and the layout partition pins took it over 1000. It measures 83 functions, avg CCN 2.3, max 12, and it is one subject, schema integrity, so the length is case count, not tangle. Re-check at 1300. |
-| 1000–1500 (on notice) | `tests/test_slashcmds.lua` | 1088 | **Peeled to 782 (FX-AT-SIZE, 2026-10-31).** `enable`, `disable` and the disabled gate moved to `tests/test_slashgate.lua` (344) as a pure move, before a third release run in the band. This row leaves the band at the next run. Earlier history: over the cap at 1745 at [`20260916-184524`](20260916-184524/), then the `/at perf`, `/at debug hold` and `/at profile` peels. |
-| 1000–1500 (on notice) | `tests/test_widgets.lua` | 1076 | **Peeled to 675 (FX-AT-SIZE, 2026-10-31).** The real-page `OnShow` cases and the strip block moved to `tests/test_realpages.lua` (417) as a pure move, before the third release run anti-pattern #53 allows. This row leaves the band at the next run. |
 
 `lizard` counts every `and`/`or` short-circuit as a decision, so in Lua a run of
 `t.k = rec.k or D.k` defaulting lines scores high with no visible branching at all: a large CCN
