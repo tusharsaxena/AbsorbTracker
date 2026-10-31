@@ -97,9 +97,9 @@ Total.
 
 ### test_database.lua (38)
 
-- RunMigrations migrates a fresh DB to the current version (6)
+- RunMigrations migrates a fresh DB to the current version (7)
 - a freshly-materialized global runs the ladder, because its default is pre-ladder
-- RunMigrations leaves an already-current (v6) DB unchanged
+- RunMigrations leaves an already-current (v7) DB unchanged
 - RunMigrations is idempotent across repeated runs
 - RunMigrations v2 retires the legacy updateInterval profile key
 - the account-wide schemaVersion default is 0 (savedvariables-§1)
@@ -112,7 +112,7 @@ Total.
 - RunMigrations does not overwrite an existing user value
 - RunMigrations is a safe no-op when the DB is absent
 - RunMigrations logs [Migrate] only when a version bump happens
-- RunMigrations emits the [Migrate] lines for a v1->v6 upgrade in order
+- RunMigrations emits the [Migrate] lines for a v1->v7 upgrade in order
 - InitDB produced a profile carrying every default key
 - v3 migration lifts flat appearance keys onto the player unit
 - v3 migration seeds target and focus disabled and mirrored
@@ -123,9 +123,9 @@ Total.
 - v4 does not resurrect `hidden` via the defaults backfill
 - v3 migration is idempotent
 - v3 migration does not share nested tables between units
-- the schema version lands on 6
+- the schema version lands on 7
 - real AceDB init: a legacy flat profile is lifted onto the player unit, not overwritten by fresh defaults
-- real AceDB init: a fresh install (no saved data) converges on factory defaults at v6
+- real AceDB init: a fresh install (no saved data) converges on factory defaults at v7
 - InitDB lifts EVERY saved profile, not only the active one
 - a profile that appears AFTER the upgrade is lifted when it becomes active
 - the InitDB sweep and the profile-change lift compose without double-applying
@@ -402,7 +402,7 @@ Total.
 - unlocking will not happen in combat, and says why
 - re-locking in combat is always allowed
 - UpdateBarAppearance re-applies the font from the profile
-- UpdateBarAppearance tolerates a nil fontFlags by passing an empty flag string
+- UpdateBarAppearance reads a nil fontFlags as From skin, never handing SetFont nil
 - UpdateBarAppearance ends by applying visibility
 - ApplyVisibility shows the bar when the gate passes and hides it when it does not
 - UpdateAbsorbBar is a no-op while the bar is hidden
@@ -631,7 +631,7 @@ Total.
 - and the Options descriptor takes that name from the first vararg, not a literal
 - the id-list help mark is latent: info is neither declared nor shipped
 
-### test_slashcmds.lua (66)
+### test_slashcmds.lua (67)
 
 - every COMMANDS entry is a {name, description, handler} triple
 - COMMANDS verbs are unique and already lower-case
@@ -684,6 +684,7 @@ Total.
 - parity: a bare /at reaches the config handler with an empty rest in both
 - degraded: the stub's disabled-line format is the library's, byte for byte
 - degraded: a schema verb prints the library-absent line
+- degraded: /at skin prints the library-absent line, through the Options stub's SkinVerb
 - degraded: the library-absent line is keyed by its English text (localization-§2)
 - degraded: /at help rows are plain, with no color escape
 - degraded: DisabledLine is the live build's line, color escapes intact
@@ -861,11 +862,11 @@ Total.
 - the main page's About content renders on its first OnShow
 - re-rendering the About page replaces its body rather than stacking a second copy
 
-### test_skinsetup.lua (13)
+### test_skinsetup.lua (17)
 
 - Skin seam: the owner is the folder name, and NS.Skin is its facade
 - Skin seam: the read answers Ka0s Default before the profile store exists
-- Skin seam: the seven skin keys default to Ka0s Default, as skip-render rows on General
+- Skin seam: the eight skin keys default to Ka0s Default, as skip-render rows on General
 - Skin seam: the skin row's values are every registered skin, in the library's order
 - Skin seam: /at set refuses a skin that is not registered and applies one that is
 - Skin seam: the Skin tab is General's last, and opens
@@ -873,11 +874,15 @@ Total.
 - Skin seam: the tab's Ignore fonts reaches the library and the profile, one repaint
 - Skin seam: another addon's copy to every Ka0s addon repaints AbsorbTracker once
 - Skin seam: a whole apply carries the stored exceptions and overrides with the skin
+- Skin seam: the outline row offers the library's three modes, in its order
+- Skin seam: the write seam stores media.outline, and leaves it alone when it is nil
+- Skin seam: /at set skin.outline applies the mode live and refuses an unknown one
 - Skin seam: /at set reaches an exception and an override, each only its own half
 - Skin seam: a profile switch applies the new profile's skin, and back
+- Skin seam: a profile switch applies the new profile's Font outline, and back
 - Skin seam: every bar's drag strip is built with this owner, so a switch repaints it
 
-### test_skin_hud.lua (12)
+### test_skin_hud.lua (19)
 
 - every unit's three skin companions default on (X3)
 - the companions are composed schema rows, bools defaulting on, on the tab of the pick
@@ -891,8 +896,15 @@ Total.
 - a skin switch repaints every bar, and leaves the player's colors alone
 - v6 puts every stored companion back on, keeps the picks and the colors
 - v6 runs once: a pick made after it is kept
+- every bar's Font flags default to From skin, offered first
+- From skin draws the Font outline's flags; a picked flag draws as picked
+- the Font outline's change repaints the bars' flags live
+- v7 moves a stored OUTLINE onto From skin and keeps a flag the player changed
+- v7 runs once: an OUTLINE picked after it is kept
+- the skin's face draws at the skin's HUD size; the stored size never moves
+- a mirrored bar follows the player's Use the skin's font for its size
 
-### test_skin_picker.lua (14)
+### test_skin_picker.lua (19)
 
 - Skin picker: the spec names this owner, its seams, General's Skin tab, and no eye
 - Skin picker: an unseen profile shows it; a seen one does not
@@ -908,6 +920,11 @@ Total.
 - Skin picker: a pick previews, unsaved; Apply saves it and marks the picker seen
 - Skin picker: the close control puts the old skin back, saves nothing, and marks it seen
 - Skin picker: the gear saves the pick and opens General on its Skin tab
+- Skin verb: the row sits right after config, with the library's help words
+- Skin verb: /at skin shows the picker on a profile that has closed it
+- Skin verb: in combat every call prints the library's gray line and shows nothing
+- Skin verb: refused while the addon is disabled, and no picker shows
+- Skin verb: without the library's picker the verb prints the library-absent line
 
 ### test_skin_tools.lua (6)
 
@@ -917,6 +934,10 @@ Total.
 - the Profiles page paints AceConfigDialog's tree after each Open
 - the debug console and its copy window are painted for this owner
 - the perf panel is painted for this owner
+
+### test_glyphs.lua (1)
+
+- glyphs: display strings use only characters every shipped skin face draws
 
 ### test_docs.lua (6)
 
@@ -1128,15 +1149,16 @@ Total.
 | test_panelmirror.lua | 10 |
 | test_launcher.lua | 34 |
 | test_optionssetup.lua | 22 |
-| test_slashcmds.lua | 66 |
+| test_slashcmds.lua | 67 |
 | test_slashprofile.lua | 34 |
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 16 |
 | test_widgets.lua | 57 |
-| test_skinsetup.lua | 13 |
-| test_skin_hud.lua | 12 |
-| test_skin_picker.lua | 14 |
+| test_skinsetup.lua | 17 |
+| test_skin_hud.lua | 19 |
+| test_skin_picker.lua | 19 |
 | test_skin_tools.lua | 6 |
+| test_glyphs.lua | 1 |
 | test_docs.lua | 6 |
 | test_prose.lua | 15 |
 | test_ltrap.lua | 8 |
@@ -1152,4 +1174,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **954** |
+| **Total** | **972** |

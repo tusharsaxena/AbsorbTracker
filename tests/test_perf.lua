@@ -503,8 +503,9 @@ end)
 -- shrinks), or a page file that aborts at load (the degraded count falls).
 test("perf: the schema with LibKa0s absent is the full one minus the composed rows, by tab", function()
   local NS2 = loadDegraded()
-  -- The seven Skin rows (settings/General.lua, AT-01) are hand-written, so they move both counts.
-  local FULL, DEGRADED = 86, 22
+  -- The eight Skin rows (settings/General.lua, AT-01; skin.outline with LibKa0s v1.82.0) are
+  -- hand-written, so they move both counts.
+  local FULL, DEGRADED = 87, 23
   -- Bar: BarGroup 15 + ColorPair 6 + BorderGroup 15, the Fill, Background and Border subsections;
   -- each composer's fromSkin companion (AT-03) is one composed row per unit.
   local GAP = { ["Master controls"] = 7, Bar = 36, Text = 21 }

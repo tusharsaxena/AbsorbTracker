@@ -73,6 +73,11 @@ NS.COMMANDS = {
         function() printHelp() end},
     {"config",        "Open the settings panel",
         function() NS.OpenOptionsPanel() end},
+    -- The reserved `skin` verb (LibKa0s v1.82.0's O.SkinVerb, ruling D-16), right after `config`:
+    -- the skin picker on demand (core/SkinSetup.lua's NS.RunSkinVerb). Not a live verb, so the
+    -- dispatcher refuses it while the addon is disabled. Its help is the library's VERB_HELP.
+    {"skin",          NS.L["Choose a skin: open the skin picker"],
+        function() NS.RunSkinVerb() end},
     -- THE RESERVED PAIR (slash-commands-§2), and ALIASES rather than a second switch: both write
     -- the `enabled` path the Master controls tab's `Enable Absorb Tracker` checkbox writes, through
     -- the same NS.SetByPath seam, so the checkbox and the verbs can never show two answers.

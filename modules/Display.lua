@@ -217,8 +217,9 @@ function NS.UpdateBarAppearance(unit)
     border:SetBackdrop(borderInfo)
     border:SetBackdropBorderColor(NS.GetBorderColor(unit))
 
-    valueText:SetFont(NS.GetFont(unit), NS.Units.Get(unit, "fontSize"),
-        NS.Units.Get(unit, "fontFlags") or "")
+    -- The size scales with the skin while the bar uses the skin's face, and From skin flags follow
+    -- the Skin tab's Font outline (core/Data.lua, LibKa0s v1.82.0).
+    valueText:SetFont(NS.GetFont(unit), NS.GetFontSize(unit), NS.GetFontFlags(unit))
     -- The absorb amount had no color of its own until the Text tab gained one; it drew at a bare
     -- FontString's default, opaque white, which is exactly what NS.GetFontColor answers for an
     -- untouched profile. Set on every appearance pass, like every other styled property here, so a

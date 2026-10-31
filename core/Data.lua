@@ -191,10 +191,31 @@ function NS.GetBorderSize(unit)
     return size or unitSetting(unit, "borderSize")
 end
 
---- The face only: size and outline stay the player's (`hud.fontSize` and `hud.outline` are this
---- addon's defaults in Ka0s Default).
+--- The face only; the size and the flags are the two getters below.
 function NS.GetFont(unit)
     return fetch("font", resolved(unit, "font"), C.FALLBACK_FONT)
+end
+
+--- The value text's size (LibKa0s v1.82.0, S.HudFontSize, ruling D-09): while the unit's *Use the
+--- skin's font* is on, the stored size times the skin's HUD size over Ka0s Default's, so the number
+--- is as wide in every skin; with it off, or under Ignore fonts, the stored size. The stored value
+--- is never rewritten. Never nil, never a height SetFont refuses.
+function NS.GetFontSize(unit)
+    local size, S = unitSetting(unit, "fontSize"), NS.Skin
+    if S and type(S.HudFontSize) == "function" then
+        return S.HudFontSize(size, unitSetting(unit, "fontFromSkin") == true)
+    end
+    return tonumber(size) or 12
+end
+
+--- The value text's flags (LibKa0s v1.82.0, S.FontFlags, ruling D-07): a picked flag as stored;
+--- From skin ("@skin", the default) resolved through the Skin tab's Font outline (the bars are HUD
+--- text: OUTLINE under All text and HUD text only, none under Off). Never nil.
+function NS.GetFontFlags(unit)
+    local flags, S = unitSetting(unit, "fontFlags"), NS.Skin
+    if S and type(S.FontFlags) == "function" then return S.FontFlags(flags) end
+    if type(flags) == "string" and flags ~= "@skin" then return flags end
+    return "OUTLINE"
 end
 
 -- ── colors ─────────────────────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 -- tests/test_skinsetup.lua — the LibKa0s-Skin-1.0 seam (core/SkinSetup.lua, skinning-§3).
 --
 -- What this addon owes the skin engine, and nothing the library pins itself: the owner is
--- registered under the folder name with this addon's read and write seams; the seven `skin.*` keys
+-- registered under the folder name with this addon's read and write seams; the eight `skin.*` keys
 -- default to Ka0s Default and are skip-render schema rows on General's Skin tab; the tab lands last
 -- on General; the profile's skin is applied right after AceDB exists and on every profile event;
 -- one pick, from this addon's tab or another addon's copy, is ONE effective SetChoice (one
@@ -26,10 +26,12 @@ NS.Skin.OnLooksChanged(function() looks = looks + 1 end)
 --- Back on Ka0s Default, stored and applied, with the Scope's defaults and no overrides, the
 --- library's deferred page re-render run, and the counter cleared.
 local function reset()
-  NS.WriteSkinChoice("ka0s", "ka0s", { panel = true, fonts = false }, { font = false, texture = false })
+  NS.WriteSkinChoice("ka0s", "ka0s", { panel = true, fonts = false },
+    { font = false, texture = false, outline = "hud" })
   Skin:SetChoice(OWNER, "ka0s", "ka0s")
   Skin:SetIgnore(OWNER, true, false)
   if Skin.SetOverride then Skin:SetOverride(OWNER, false, false) end
+  if Skin.SetOutline then Skin:SetOutline(OWNER, "all") end
   mocks.__fireTimers()
   looks = 0
 end
@@ -119,7 +121,7 @@ end)
 
 -- ── the keys and the rows ────────────────────────────────────────────────────────────────────
 
-test("Skin seam: the seven skin keys default to Ka0s Default, as skip-render rows on General", function()
+test("Skin seam: the eight skin keys default to Ka0s Default, as skip-render rows on General", function()
   -- red under: a default other than today's look, or a row that renders itself on top of the
   -- library's tab. pickerSeen false on every profile is the rollout's O3.
   local d = NS.defaults.profile.skin
@@ -130,6 +132,11 @@ test("Skin seam: the seven skin keys default to Ka0s Default, as skip-render row
   assertEqual(d.font, "")
   assertEqual(d.texture, "")
   assertEqual(d.pickerSeen, false, "every profile sees the first-run picker once (O3)")
+  assertEqual(d.outline, "hud", "the Font outline is HUD text only, the library's default (D-10)")
+  assertEqual(d.outline, Skin.OUTLINE_DEFAULT)
+  local count = 0
+  for _ in pairs(d) do count = count + 1 end
+  assertEqual(count, 8, "eight skin keys")
   for field in pairs(d) do
     local path = "skin." .. field
     local row = NS.FindSchemaRow(path)
@@ -217,12 +224,46 @@ test("Skin seam: a whole apply carries the stored exceptions and overrides with 
   T.rawSet("skin.ignorePanel", false)
   T.rawSet("skin.ignoreFonts", true)
   T.rawSet("skin.texture", "Solid")
+  T.rawSet("skin.outline", "off")
   NS.ApplySkinChoice()
   local panel, fonts = Skin:GetIgnore(OWNER)
   assertEqual(panel, false, "the stored panel exception")
   assertEqual(fonts, true, "the stored fonts exception")
   local _, texture = Skin:GetOverride(OWNER)
   assertEqual(texture, "Solid", "the stored texture override")
+  assertEqual(Skin:GetOutline(OWNER), "off", "the stored Font outline (LibKa0s v1.82.0)")
+end))
+
+-- ── the Font outline (LibKa0s v1.82.0, Skin minor 9, ruling D-06) ───────────────────────────
+
+test("Skin seam: the outline row offers the library's three modes, in its order", function()
+  local row = NS.FindSchemaRow("skin.outline")
+  assertTrue(row ~= nil, "a skin.outline row")
+  local got = {}
+  for _, opt in ipairs(row.values) do got[#got + 1] = opt.value end
+  assertEqual(table.concat(got, ","), table.concat(Skin.OUTLINE_MODES, ","))
+end)
+
+test("Skin seam: the write seam stores media.outline, and leaves it alone when it is nil", clean(function()
+  -- red under: WriteSkinChoice dropping media.outline (the Skin tab's Font outline and another
+  -- addon's copy would move the look and never store it).
+  NS.WriteSkinChoice(nil, nil, nil, { font = false, texture = false, outline = "all" })
+  assertEqual(NS.db.profile.skin.outline, "all")
+  NS.WriteSkinChoice(nil, nil, nil, { font = false, texture = false })
+  assertEqual(NS.db.profile.skin.outline, "all", "a media table without outline leaves it")
+  Skin:WriteChoice(OWNER, "ka0s", "ka0s", nil, { font = false, texture = false, outline = "off" })
+  assertEqual(NS.db.profile.skin.outline, "off", "another addon's copy reaches the store")
+end))
+
+test("Skin seam: /at set skin.outline applies the mode live and refuses an unknown one", clean(function()
+  quietly("set skin.outline all")
+  assertEqual(NS.db.profile.skin.outline, "all")
+  assertEqual(Skin:GetOutline(OWNER), "all", "the row's onChange applied it")
+  assertEqual(NS.Skin.Token("hud.outline"), "OUTLINE", "the HUD keeps its outline")
+  quietly("set skin.outline off")
+  assertEqual(NS.Skin.Token("hud.outline"), "", "Off takes it")
+  quietly("set skin.outline thick")
+  assertEqual(NS.db.profile.skin.outline, "off", "an unknown mode is refused")
 end))
 
 test("Skin seam: /at set reaches an exception and an override, each only its own half", clean(function()
@@ -255,6 +296,23 @@ test("Skin seam: a profile switch applies the new profile's skin, and back", cle
   end)
   if db:GetCurrentProfile() ~= "Default" then db:SetProfile("Default") end
   if db.DeleteProfile then pcall(db.DeleteProfile, db, "SkinProbe", true) end
+  if not ok then error(err, 0) end
+end))
+
+test("Skin seam: a profile switch applies the new profile's Font outline, and back", clean(function()
+  -- red under: adoptProfile's whole apply leaving the outline the old profile's.
+  local db = NS.db
+  local ok, err = pcall(function()
+    db:SetProfile("OutlineProbe")
+    -- A stored All text stays All text (D-10: the default moved, a stored value never does).
+    T.rawSet("skin.outline", "all")
+    db:SetProfile("Default")
+    assertEqual(Skin:GetOutline(OWNER), "hud", "back on Default, Default's Font outline")
+    db:SetProfile("OutlineProbe")
+    assertEqual(Skin:GetOutline(OWNER), "all", "the switch did not apply the profile's Font outline")
+  end)
+  if db:GetCurrentProfile() ~= "Default" then db:SetProfile("Default") end
+  if db.DeleteProfile then pcall(db.DeleteProfile, db, "OutlineProbe", true) end
   if not ok then error(err, 0) end
 end))
 

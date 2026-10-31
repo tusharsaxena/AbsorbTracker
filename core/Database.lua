@@ -258,6 +258,30 @@ local SCHEMA_STEPS = {
             NS.Debug("Migrate", "put the bars back on the skin on %s profile(s)", reset)
         end
     end },
+    { to = 7, apply = function()
+        -- v7: Font flags From skin (LibKa0s v1.82.0, ruling D-07, the run's Addendum 01). Every
+        -- bar's flags default to "@skin", which the Skin tab's Font outline resolves. A stored flag
+        -- equal to the old default, OUTLINE, was never the player's choice, so it moves to From
+        -- skin on every profile, once (the account-wide stamp); any other stored flag ("" None,
+        -- THICKOUTLINE, ...) is the player's and stays. An absent flag already reads the new
+        -- default. AceDB strips a stored OUTLINE equal to the old default at logout, so on a real
+        -- upgrade this is mostly a no-op; it is the explicit record of the move.
+        local moved = forEachProfile(function(p)
+            if type(p) ~= "table" or type(p.units) ~= "table" then return false end
+            local any = false
+            for _, unit in ipairs(NS.Units.LIST) do
+                local u = p.units[unit]
+                if type(u) == "table" and u.fontFlags == "OUTLINE" then
+                    u.fontFlags = "@skin"
+                    any = true
+                end
+            end
+            return any
+        end)
+        if moved > 0 then
+            NS.Debug("Migrate", "moved the bars' Font flags to From skin on %s profile(s)", moved)
+        end
+    end },
 }
 
 -- The runner's target, derived from the ladder and never a second literal (savedvariables-§1).

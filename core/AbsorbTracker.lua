@@ -437,7 +437,7 @@ end
 
 -- A switch rewrites no rows, so it keeps this addon's `[Profile]` trace.
 function NS.OnProfileChanged()
-    adoptProfile("Profile", "changed \226\134\146 %s", currentProfile())
+    adoptProfile("Profile", "changed \226\134\146 %s", currentProfile()) -- glyph: mono (a debug-console line: adoptProfile hands fmt to NS.Debug only)
 end
 
 -- `db:ResetProfile()` — the Profiles page, `/at profile reset` / `new`, and Reset All Settings on
@@ -456,7 +456,7 @@ end
 
 -- AceDB hands a copy's callback the SOURCE profile's name as its third argument.
 function NS.OnProfileCopied(_, _, source)
-    adoptProfile("Set", "copied profile '%s' \226\134\146 '%s'", tostring(source or "?"),
+    adoptProfile("Set", "copied profile '%s' \226\134\146 '%s'", tostring(source or "?"), -- glyph: mono (a debug-console line: adoptProfile hands fmt to NS.Debug only)
         currentProfile())
 end
 

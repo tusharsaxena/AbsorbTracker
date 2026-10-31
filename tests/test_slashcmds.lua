@@ -728,6 +728,15 @@ test("degraded: a schema verb prints the library-absent line", function()
   assertEqual(out[1], "/at list is unavailable: the LibKa0s library did not load.")
 end)
 
+test("degraded: /at skin prints the library-absent line, through the Options stub's SkinVerb", function()
+  -- LibKa0s v1.82.0's reserved verb. Without the library the Options stub answers nil, "absent"
+  -- and NS.RunSkinVerb words it. red under: a stub with no SkinVerb (the verb would raise), or
+  -- a silent verb.
+  local out = degradedLines("skin")
+  assertEqual(#out, 1, "exactly one line: " .. joined(out))
+  assertEqual(out[1], "/at skin is unavailable: the LibKa0s library did not load.")
+end)
+
 test("degraded: the library-absent line is keyed by its English text (localization-§2)", function()
   -- red under: a symbolic key such as L["LIBRARY_ABSENT"], whose metatable fallback is the bare
   -- token rather than English.

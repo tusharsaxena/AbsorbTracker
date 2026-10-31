@@ -27,6 +27,8 @@ local PINNED = {
   ["skin.font"] = { type = "string", page = "general", default = "" },
   ["skin.ignoreFonts"] = { type = "bool", page = "general", default = false },
   ["skin.ignorePanel"] = { type = "bool", page = "general", default = true },
+  -- The Font outline (LibKa0s v1.82.0, the 2026-10-30 skin fonts run's AT-01).
+  ["skin.outline"] = { type = "string", page = "general", default = "hud" },
   ["skin.pickerSeen"] = { type = "bool", page = "general", default = false },
   ["skin.skin"] = { type = "string", page = "general", default = "ka0s" },
   ["skin.source"] = { type = "string", page = "general", default = "ka0s" },
@@ -56,7 +58,7 @@ local PINNED = {
   ["units.focus.enabled"] = { type = "bool", page = "general", default = false },
   ["units.focus.font"] = { type = "string", page = "appearance", default = "Friz Quadrata TT" },
   ["units.focus.fontColor"] = { type = "color", page = "appearance", default = { a = 1, b = 1, g = 1, r = 1 } },
-  ["units.focus.fontFlags"] = { type = "string", page = "appearance", default = "OUTLINE" },
+  ["units.focus.fontFlags"] = { type = "string", page = "appearance", default = "@skin" },
   ["units.focus.fontShadow"] = { type = "bool", page = "appearance", default = false },
   ["units.focus.fontSize"] = { type = "number", page = "appearance", default = 12, min = 6, max = 32, step = 1 },
   ["units.focus.mirror"] = { type = "bool", page = "appearance", default = true },
@@ -77,7 +79,7 @@ local PINNED = {
   ["units.player.enabled"] = { type = "bool", page = "general", default = true },
   ["units.player.font"] = { type = "string", page = "appearance", default = "Friz Quadrata TT" },
   ["units.player.fontColor"] = { type = "color", page = "appearance", default = { a = 1, b = 1, g = 1, r = 1 } },
-  ["units.player.fontFlags"] = { type = "string", page = "appearance", default = "OUTLINE" },
+  ["units.player.fontFlags"] = { type = "string", page = "appearance", default = "@skin" },
   ["units.player.fontShadow"] = { type = "bool", page = "appearance", default = false },
   ["units.player.fontSize"] = { type = "number", page = "appearance", default = 12, min = 6, max = 32, step = 1 },
   ["units.player.useClassColorBar"] = { type = "bool", page = "appearance", default = false },
@@ -97,7 +99,7 @@ local PINNED = {
   ["units.target.enabled"] = { type = "bool", page = "general", default = false },
   ["units.target.font"] = { type = "string", page = "appearance", default = "Friz Quadrata TT" },
   ["units.target.fontColor"] = { type = "color", page = "appearance", default = { a = 1, b = 1, g = 1, r = 1 } },
-  ["units.target.fontFlags"] = { type = "string", page = "appearance", default = "OUTLINE" },
+  ["units.target.fontFlags"] = { type = "string", page = "appearance", default = "@skin" },
   ["units.target.fontShadow"] = { type = "bool", page = "appearance", default = false },
   ["units.target.fontSize"] = { type = "number", page = "appearance", default = 12, min = 6, max = 32, step = 1 },
   ["units.target.mirror"] = { type = "bool", page = "appearance", default = true },
@@ -145,6 +147,7 @@ test("layout guard: every stored path keeps its type, page, default and range", 
   for path in pairs(PINNED) do
     assertTrue(seen[path], "a setting the layout pass lost: " .. path)
   end
-  -- 70 from the layout pass, plus the Skin tab's seven (AT-01) and the nine skin companions (AT-03).
-  assertEqual(n, 86, "the schema row count")
+  -- 70 from the layout pass, plus the Skin tab's eight (AT-01, skin.outline with LibKa0s v1.82.0)
+  -- and the nine skin companions (AT-03).
+  assertEqual(n, 87, "the schema row count")
 end)

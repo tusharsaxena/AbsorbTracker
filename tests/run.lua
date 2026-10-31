@@ -160,6 +160,8 @@ Kit.run{
     -- The AceGUI rows this addon acquires and the tool surfaces on the skin (AT-04). After
     -- test_skin_picker; it leaves the Scope on its defaults.
     "test_skin_tools",
+    -- The display-glyph guard (AT-02, kit revision 45): reads source only, so it can sit anywhere.
+    "test_glyphs",
     "test_docs",
     { name = "test_prose", dir = "tests/_kit/" },
     "test_ltrap",

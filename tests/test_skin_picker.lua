@@ -14,7 +14,7 @@
 
 local T = _G.AT_TEST
 local NS, mocks = T.NS, T.mocks
-local test, assertEqual, assertTrue = T.test, T.assertEqual, T.assertTrue
+local test, assertEqual, assertTrue, assertFalse = T.test, T.assertEqual, T.assertTrue, T.assertFalse
 
 local O = NS.Helpers
 local Skin = mocks.LibStub("LibKa0s-Skin-1.0")
@@ -307,5 +307,110 @@ test("Skin picker: the gear saves the pick and opens General on its Skin tab", o
     assertEqual(seen(), true, "and marks the picker seen")
   end)
   O.OpenOptionsPanel, O.SelectTab = realOpen, realSelect
+  if not ok then error(err, 0) end
+end))
+
+-- ── the reserved `skin` verb (LibKa0s v1.82.0, OptionsSkinPicker minor 3's O.SkinVerb, D-16) ──
+--
+-- A `skin` row after `config` runs NS.RunSkinVerb, which hands O.SkinVerb the first-run spec, so
+-- `/at skin` shows the picker a new profile shows whatever skin.pickerSeen says. Refused while the
+-- addon is disabled (the dispatcher's gate: `skin` is not a live verb), a gray line on every call
+-- in combat (the library's), and the library-absent line without LibKa0s.
+
+local function strings() return mocks.LibStub("LibKa0s-Options-1.0").SKIN_PICKER_STRINGS end
+
+--- `/at <line>`, answering what it printed.
+local function said(line)
+  mocks.__resetPrinted()
+  NS.Slash:OnSlash(line)
+  return mocks.__printed()
+end
+
+local function anyLine(lines, fragment)
+  for _, l in ipairs(lines) do if l:find(fragment, 1, true) then return true end end
+  return false
+end
+
+--- Run `fn(calls)` with O.SkinVerb wrapped: each call's spec and the frame it answered.
+local function verbSpy(fn)
+  local real = O.SkinVerb
+  local calls = {}
+  O.SkinVerb = function(spec)
+    local win, why = real(spec)
+    calls[#calls + 1] = { spec = spec, win = win, why = why }
+    return win, why
+  end
+  local ok, err = pcall(fn, calls)
+  O.SkinVerb = real
+  if not ok then error(err, 0) end
+end
+
+test("Skin verb: the row sits right after config, with the library's help words", function()
+  local at
+  for i, c in ipairs(NS.COMMANDS) do
+    if c[1] == "skin" then at = i end
+  end
+  assertTrue(at ~= nil, "a skin row")
+  assertEqual(NS.COMMANDS[at - 1][1], "config", "after config")
+  assertEqual(NS.COMMANDS[at][2], strings().VERB_HELP, "one wording for every host")
+end)
+
+test("Skin verb: /at skin shows the picker on a profile that has closed it", clean(function()
+  -- red under: no skin row (the dispatcher answers "unknown command"), or a verb that honors
+  -- pickerSeen the way the first-run start does.
+  quietly(function() NS.SetByPath(PATH, true) end)
+  verbSpy(function(calls)
+    local out = said("skin")
+    assertFalse(anyLine(out, "unknown command"), "a known verb")
+    assertEqual(#calls, 1, "one call through O.SkinVerb")
+    local f = calls[1].win
+    assertTrue(f ~= nil and f:IsShown(), "the picker is up on a seen profile")
+    assertEqual(calls[1].spec.owner, OWNER, "this addon's first-run spec")
+    assertTrue(rawequal(calls[1].spec.set, NS.WriteSkinChoice), "its write seam")
+    assertEqual(calls[1].spec.tab, "Appearance")
+  end)
+end))
+
+test("Skin verb: in combat every call prints the library's gray line and shows nothing", clean(function()
+  quietly(function() NS.SetByPath(PATH, true) end)
+  local real = mocks.InCombatLockdown
+  mocks.InCombatLockdown = function() return true end
+  local ok, err = pcall(function()
+    verbSpy(function(calls)
+      local first, second = said("skin"), said("skin")
+      assertTrue(anyLine(first, strings().VERB_COMBAT), "the first call says why")
+      assertTrue(anyLine(second, strings().VERB_COMBAT), "and so does every later one")
+      assertEqual(calls[1].win, nil, "no picker mid-combat")
+      assertEqual(calls[2].why, "combat")
+    end)
+  end)
+  mocks.InCombatLockdown = real
+  if not ok then error(err, 0) end
+end))
+
+test("Skin verb: refused while the addon is disabled, and no picker shows", clean(function()
+  quietly(function() NS.SetByPath(PATH, true) end)
+  quietly(function() NS.SetByPath("enabled", false) end)
+  local ok, err = pcall(function()
+    verbSpy(function(calls)
+      local out = said("skin")
+      assertEqual(#out, 1, "one refusal line")
+      assertTrue(out[1]:find(NS.Slash:DisabledLine(), 1, true) ~= nil, "the disabled line")
+      assertEqual(#calls, 0, "the gate reaches no picker")
+    end)
+  end)
+  quietly(function() NS.SetByPath("enabled", true) end)
+  if not ok then error(err, 0) end
+end))
+
+test("Skin verb: without the library's picker the verb prints the library-absent line", clean(function()
+  -- The Options stub's SkinVerb (settings/OptionsSetup.lua) answers nil, "absent".
+  local real = O.SkinVerb
+  O.SkinVerb = function() return nil, "absent" end
+  local ok, err = pcall(function()
+    local out = said("skin")
+    assertTrue(anyLine(out, "/at skin is unavailable: the LibKa0s library did not load."), "names the verb")
+  end)
+  O.SkinVerb = real
   if not ok then error(err, 0) end
 end))

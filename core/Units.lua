@@ -122,7 +122,7 @@ function Units.CopyFromPlayer(unit)
     local src = Units.Config("player")
     if not (src and Units.Config(unit)) then return end
     local base = "units." .. unit .. "."
-    NS.Bulk.Run("copy", "player\226\134\146" .. unit, function()
+    NS.Bulk.Run("copy", "player\226\134\146" .. unit, function() -- glyph: mono (the bracket's scope, drawn only in the debug console's [Set] line)
         for _, key in ipairs(Units.APPEARANCE_KEYS) do
             NS.SetByPath(base .. key, deepcopy(src[key]))
         end

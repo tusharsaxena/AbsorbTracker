@@ -295,7 +295,11 @@ function NS.CreateBar(unit, globalName)
 
     -- Absorb value text, on the overlay (the top of the bar's content).
     local valueText = overlay:CreateFontString(nil, "OVERLAY", nil)
-    valueText:SetFont(NS.GetFont(unit), unitDefaults.fontSize, unitDefaults.fontFlags or "")
+    -- The defaults through the skin's two sizers (LibKa0s v1.82.0): "@skin" is never handed to
+    -- SetFont. The appearance pass right after creation draws the unit's own (modules/Display.lua).
+    local S = NS.Skin
+    valueText:SetFont(NS.GetFont(unit), S.HudFontSize(unitDefaults.fontSize, unitDefaults.fontFromSkin),
+        S.FontFlags(unitDefaults.fontFlags))
     valueText:SetPoint("CENTER", bar, "CENTER", 0, 0)
     bar.valueText = valueText
 
