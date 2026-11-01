@@ -197,6 +197,8 @@ Kit.run{
     -- The value hold, `/at debug hold`, moved out of test_slashcmds with the verb it drives (it
     -- was the `test` verb). Straight after the other two halves of the slash surface.
     "test_debughold",
+    -- `/at sim` (SF-AT-2), beside the other slash halves.
+    "test_sim",
     "test_widgets",
     -- The real pages' OnShow cases, peeled out of test_widgets in the layout-§1 band. Straight after
     -- it, so its cases keep their place in the run.

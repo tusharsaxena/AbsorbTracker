@@ -66,7 +66,7 @@ end
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
 local runDebug, runDiagnostics, runUpdate, runProfile, runToggle, runPerf
-local setEnabled, echoStored, runHold
+local setEnabled, echoStored, runHold, runSim
 
 NS.COMMANDS = {
     {"help",          "List available commands",
@@ -123,6 +123,8 @@ NS.COMMANDS = {
     -- `debug diagnostics` word; there is no `diag`, `dump` or `dx` alias anywhere (STD-04).
     {"diagnostics",   NS.L["Write a diagnostics report to the debug console"],
         function() runDiagnostics() end},
+    {"sim",           NS.L["Play a made-up absorb fight on the bars \226\128\148 `/at sim [stop]`"],
+        function(rest) runSim(rest) end},
     {"perf",          "Measure performance \226\128\148 try `/at perf` for the workflow",
         function(rest) runPerf(rest) end},
     {"update",        "Force a bar refresh",
@@ -362,6 +364,76 @@ function runHold(rest)
     -- Honors the duration just announced: NS.HoldPreview arms a one-shot that clears the hold and
     -- republishes REPAINT at expiry (modules/Display.lua).
     NS.HoldPreview(secs)
+end
+
+-- ── /at sim ──────────────────────────────────────────────────────────────────────────────────
+--
+-- Modeled on DpsRace's `/dr sim`: a scripted, made-up fight played through the addon's own bars, so
+-- the player sees how a shield lands, drains, refreshes and breaks without a group. Nothing is stored
+-- and no real absorb is read. The script is SIM_STEPS, [seconds after the start] = shield value; each
+-- step is its own one-shot timer, chained, so a cancel is one CancelTimer. The bars are held
+-- (NS.HoldPreview) for the whole fight, which is what keeps live repaints off them, and the hold's
+-- own expiry repaints live data, so a finished sim leaves no state behind.
+local SIM_STEPS = {
+    { 0, 120000 }, { 1.5, 96000 }, { 3, 71000 }, { 4.5, 44000 }, { 6, 20000 },
+    { 7, 200000 }, { 9, 158000 }, { 11, 90000 }, { 13, 31000 }, { 14.5, 0 },
+}
+local SIM_TAIL = 1.5
+local simTimer
+
+local function simStop()
+    local had = simTimer ~= nil
+    if simTimer then
+        if NS.addon and NS.addon.CancelTimer then NS.addon:CancelTimer(simTimer) end
+        simTimer = nil
+    end
+    return had
+end
+
+local function simStep(i)
+    local step = SIM_STEPS[i]
+    paintHold(step[2])
+    local nextStep = SIM_STEPS[i + 1]
+    if not nextStep then simTimer = nil return end
+    simTimer = NS.addon:ScheduleTimer(function() simStep(i + 1) end, nextStep[1] - step[1])
+end
+
+function runSim(rest)
+    if NS.GetSetting("enabled") == false then
+        NS.Debug("Cmd", "sim refused: addon disabled")
+        return print(Sl:DisabledLine())
+    end
+    if NS.IsStoodDown() then
+        NS.Debug("Cmd", "sim refused: stood down")
+        return print("Bars are suspended for a perf capture; run /at perf finish "
+            .. "(or /at perf measure a) first")
+    end
+    local word = (rest or ""):match("^%s*(%S*)"):lower()
+    if word == "stop" then
+        if simStop() then
+            NS.ClearPreview()
+            if NS.bus then NS.bus:SendMessage(NS.MSG.REPAINT) end
+            return print("Sim stopped")
+        end
+        return print("No sim is running")
+    end
+    if word ~= "" then
+        NS.Debug("Cmd", "sim refused: bad arguments '%s'", rest or "")
+        return print("Usage: /at sim [stop]")
+    end
+    local anyEnabled = false
+    for _, unit in ipairs(NS.Units.LIST) do
+        if NS.Units.IsEnabled(unit) then anyEnabled = true break end
+    end
+    if not anyEnabled then
+        NS.Debug("Cmd", "sim refused: every bar disabled")
+        return print("Every bar is disabled; run /at toggle to turn them on before the sim")
+    end
+    simStop()
+    local total = SIM_STEPS[#SIM_STEPS][1] + SIM_TAIL
+    print(("Playing a made-up absorb fight on the bars for %s s; /at sim stop ends it"):format(("%g"):format(total)))
+    NS.HoldPreview(total)
+    simStep(1)
 end
 
 -- The sub-verbs `/at debug` takes; anything else (including nothing) toggles the console window.
