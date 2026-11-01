@@ -353,6 +353,9 @@ if not lib then
     -- The Position block (LibKa0s v1.84.0, OptionsCompose minor 15), owed by every Options stub. No
     -- library, no rows. The hook is inert for any spec; the live one answers nil without onReset.
     Helpers.PositionBlock      = function() return {}, function() end end
+    -- A label's font (LibKa0s v1.85.0, OptionsWidgets minor 43), owed by every Options stub. No
+    -- library, no widget to set it on.
+    Helpers.LabelFont          = function() end
     Helpers.__panels   = function() return {} end
     Helpers.__panelFor = function() return nil end
 

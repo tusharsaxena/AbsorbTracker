@@ -144,4 +144,5 @@ Please file new reports there rather than in comments, so nothing gets lost.
 ## Credits
 
 - [Open Iconic](https://github.com/iconic/open-iconic) by Waybury (MIT): the **?** and **X** on the bar's drag
-  handle, the close, copy and clear marks on the debug console, and the skin picker's settings gear.
+  handle, the close, copy and clear marks on the debug console, the skin picker's settings gear, and the
+  small marks LibKa0s draws beside skinned controls.

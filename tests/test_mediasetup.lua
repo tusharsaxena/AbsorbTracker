@@ -119,7 +119,8 @@ test("MediaSetup: every mark this addon's windows draw is one the library ships"
   local known = {}
   for _, name in ipairs(lib.ICONS) do known[name] = true end
 
-  for _, name in ipairs({ "close", "copy", "clear", "help", "settings" }) do
+  for _, name in ipairs({ "chevron-down", "chevron-up", "clear", "close", "confirm", "copy", "help",
+    "info", "move", "reset", "settings", "volume-high" }) do
     assertTrue(known[name] == true,
       "this addon's windows draw '" .. name .. "', which LibKa0s-Media does not ship")
     assertTrue(NS.Icon(name) ~= nil, "NS.Icon answered nil for " .. name)
@@ -127,12 +128,13 @@ test("MediaSetup: every mark this addon's windows draw is one the library ships"
 
   -- And the draw set IS the declaration, in both directions. A name drawn but not declared is
   -- pruned at re-vendor and still resolves to a path, so it draws blank and no gate can see it; a
-  -- name declared but not drawn ships art nothing uses. The day a fifth mark is drawn (an id list
-  -- without helpIcon would add `info`), it joins the CLAUDE.md line and this list together.
+  -- name declared but not drawn ships art nothing uses. Five are this addon's own draws; the other
+  -- seven are what LibKa0s v1.85.0's library-drawn marks owe every consumer (kit revision 49). A
+  -- new mark joins the CLAUDE.md line and this list together.
   -- red under: a draw site added or dropped without the CLAUDE.md line moving with it.
   local decl = declaration()
   assertEqual(decl.mode, "list", "the declaration must be a list of names, not `none` or `all`")
-  assertEqual(table.concat(decl.names, ", "), "clear, close, copy, help, settings",
+  assertEqual(table.concat(decl.names, ", "), "chevron-down, chevron-up, clear, close, confirm, copy, help, info, move, reset, settings, volume-high",
     "CLAUDE.md's `LibKa0s icons:` line must name exactly the marks this addon's windows draw")
 end)
 

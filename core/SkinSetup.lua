@@ -292,7 +292,10 @@ if not Skin then
         "GetAccentColor", "GetPanelColor", "GetFont",
         "TitleBar", "Divider", "Footer", "Card", "Slider", "NavItem", "Drawer", "ListRow", "MenuFrame",
         "Tooltip", "Strip", "Cover", "Text", "ChartStyle", "BarStyle", "IconBorder", "GlowColor",
-        "BarTexture",
+        "BarTexture", "Mark",
+        -- LibKa0s v1.85.0: nil is each getter's degraded answer. The three colors answer nothing,
+        -- so the stored color draws; HudShadow's nil is "the stored fontShadow stands".
+        "HudTextColor", "HudLabelColor", "BarFillColor", "HudShadow",
     }) do S[name] = noop end
 
     -- No skin to read: every token answers nil ("leave the host's"), so a value resolved against
@@ -313,6 +316,12 @@ if not Skin then
     S.HudFontSize = function(size)
         local n = tonumber(size)
         return (n and n > 0) and n or 12
+    end
+    -- LibKa0s v1.85.0 (SkinPaintExtras minor 9): a string a caller concatenates, so never nil. The
+    -- same markup in the art's own color, there being no tint to read.
+    S.MarkText = function(path, size)
+        size = size or 14
+        return ("|T%s:%d:%d|t"):format(path, size, size)
     end
     S.OnLooksChanged = function(fn) return fn end   -- the skin never changes without the library
     S.IsEnabled = function() return false end
