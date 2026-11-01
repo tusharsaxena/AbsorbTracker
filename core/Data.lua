@@ -127,6 +127,8 @@ end
 -- switch reaches the bars through OnLooksChanged instead (core/SkinSetup.lua), which republishes
 -- APPEARANCE, and the appearance pass reads these getters again. Never on the absorb hot path.
 --
+-- The colors and the shadow have their own companions and getters, further down.
+--
 -- Each stored media key, the skin token it follows and the companion that says so. The fill and
 -- the background share `bar.texture` and one companion (DECISIONS D3): the skin has no
 -- background-texture token, and the player's background color still tints it.
@@ -302,20 +304,37 @@ local function resolveBgColor(c, on, unit)
     return c.r or 1, c.g or 1, c.b or 1, a
 end
 
+--- The skin's color for one surface, or nil when the stored swatch decides. A class color comes
+--- first and is left alone: its toggle set means the resolver below answers, whatever the companion
+--- says. `read` is a facade member, `token` its argument where it takes one; a degraded facade
+--- answers nothing, so the stored color is the fallback (LibKa0s Options doc, Moving to this version).
+local function skinColor(unit, companion, classToggle, read, token)
+    if unitSetting(unit, companion) ~= true or unitSetting(unit, classToggle) == true then return nil end
+    local S = NS.Skin
+    if not (S and type(S[read]) == "function") then return nil end
+    return S[read](token)
+end
+
 function NS.GetBarColor(unit)
     unit = unit or "player"
+    local r, g, b, a = skinColor(unit, "barColorFromSkin", "useClassColorBar", "Color", "at.barFill")
+    if r then return r, g, b, a end
     return NS.ResolveColor(unitSetting(unit, "barColor"),
         unitSetting(unit, "useClassColorBar"), unit)
 end
 
 function NS.GetBgColor(unit)
     unit = unit or "player"
+    local r, g, b, a = skinColor(unit, "bgColorFromSkin", "useClassColorBg", "Color", "at.barBg")
+    if r then return r, g, b, a end
     return resolveBgColor(unitSetting(unit, "bgColor"),
         unitSetting(unit, "useClassColorBg"), unit)
 end
 
 function NS.GetBorderColor(unit)
     unit = unit or "player"
+    local r, g, b, a = skinColor(unit, "borderColorFromSkin", "useClassColorBorder", "Color", "at.barBorder")
+    if r then return r, g, b, a end
     return NS.ResolveColor(unitSetting(unit, "borderColor"),
         unitSetting(unit, "useClassColorBorder"), unit)
 end
@@ -323,8 +342,25 @@ end
 --- The absorb amount's color. Same resolver, same scope, as the two above it.
 function NS.GetFontColor(unit)
     unit = unit or "player"
+    local r, g, b, a = skinColor(unit, "fontColorFromSkin", "useClassColorText", "HudTextColor")
+    if r then return r, g, b, a end
     return NS.ResolveColor(unitSetting(unit, "fontColor"),
         unitSetting(unit, "useClassColorText"), unit)
+end
+
+--- The value text's shadow: `x, y, r, g, b, a`, or false for none. With fontShadowFromSkin on the
+--- skin's (`hud.shadow`): its `false` draws none, and its nil, the owner ignoring fonts, leaves the
+--- stored fontShadow standing, as does the companion off. The stored row draws the font block's own
+--- black at 1, -1 (options-ui-§16).
+function NS.GetFontShadow(unit)
+    local S = NS.Skin
+    if unitSetting(unit, "fontShadowFromSkin") == true and S and type(S.HudShadow) == "function" then
+        local x, y, r, g, b, a = S.HudShadow()
+        if x == false then return false end
+        if x ~= nil then return x, y, r, g, b, a end
+    end
+    if unitSetting(unit, "fontShadow") then return 1, -1, 0, 0, 0, 1 end
+    return false
 end
 
 -- ── the master multipliers ─────────────────────────────────────────────────────────────────

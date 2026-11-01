@@ -13,8 +13,10 @@ NS.defaults = NS.defaults or {}
 -- one literal across three units would make a color picker on the target bar repaint the player's.
 local function appearance()
     return {
-        barTexture = "Blizzard Raid Bar",
-        bgTexture = "Blizzard Raid Bar",
+        -- The Ka0s picks (LibKa0s v1.85.0, FS-D1), so a player who turns a companion off lands on
+        -- Ka0s Default's texture and face and not on a client one. A stored pick is never rewritten.
+        barTexture = "Ka0s Default",
+        bgTexture = "Ka0s Default",
         border = "Blizzard Tooltip",
         borderSize = 12,
         -- The three "Use the skin's ..." companions (the composers' `fromSkin`, LibKa0s
@@ -23,12 +25,21 @@ local function appearance()
         -- barTextureFromSkin the fill AND the background texture (`bar.texture`),
         -- borderFromSkin the border style AND its thickness (`bar.borderStyle`,
         -- `bar.borderSize`), fontFromSkin the face only (`hud.font`). The stored picks above are
-        -- kept for when the player turns a companion off. The colors never follow the skin.
+        -- kept for when the player turns a companion off.
         barTextureFromSkin = true,
         borderFromSkin = true,
         fontFromSkin = true,
+        -- The colors and the shadow follow the skin too (FS-AT-FLIP, the owner's ruling of
+        -- 2026-11-01, causes D2, D3, D4 and D6), each with a companion of its own: fill `at.barFill`,
+        -- background `at.barBg`, border `at.barBorder`, text `hud.text`, shadow `hud.shadow`. The
+        -- swatches below are kept the same way. A class color comes first and has no companion.
+        barColorFromSkin = true,
+        bgColorFromSkin = true,
+        borderColorFromSkin = true,
+        fontColorFromSkin = true,
+        fontShadowFromSkin = true,
         borderColor = { r = 0.5, g = 0.5, b = 0.5, a = 1.0 },
-        font = "Friz Quadrata TT",
+        font = "Ka0s Prototype",
         fontSize = 12,
         -- "From skin" (LibKa0s v1.82.0, ruling D-07): the Skin tab's Font outline decides, OUTLINE
         -- under its default HUD text only, the bars being HUD text. It was "OUTLINE"; the v7 step
@@ -118,6 +129,9 @@ NS.defaults.profile = {
     skin = {
         source = "ka0s", skin = "ka0s", ignorePanel = true, ignoreFonts = false,
         font = "", texture = "", outline = "hud", pickerSeen = false,
+        -- This profile has been through the one step onto the skin (core/Database.lua,
+        -- NS.ResetProfileToSkin). False on every profile until it has; the step sets it.
+        fullSkinReset = false,
     },
 
     -- Per-unit. Player has no `mirror` key — it is the mirror SOURCE, so a player mirror row
@@ -135,7 +149,8 @@ NS.defaults.global = {
     -- is the only writer: it advances the stamp to a step's `to` only after that step returned, and
     -- its target is NS.SCHEMA_VERSION, derived from the ladder's last step. v2 retired the
     -- poll-interval key, v3 introduced profile.units, v4 dropped the dead `hidden` global, v5
-    -- mapped `showOnlyInCombat` onto `visibility` and v6 put every bar's media back on the skin.
+    -- mapped `showOnlyInCombat` onto `visibility`, v6 put every bar's media back on the skin, v7
+    -- moved the old default flags to From skin and v8 put every bar's colors and shadow on the skin.
     --
     -- The default is 0, the pre-migration floor, and never the current version (savedvariables-§1).
     -- AceDB's removeDefaults strips every stored value equal to its default at logout, so a stamp
@@ -145,7 +160,7 @@ NS.defaults.global = {
     -- stamp, so a default above 0 makes such an account read as already past those steps. 0 has
     -- neither problem: a stamp the runner advanced differs from it and persists, and an account
     -- with no stamp reads 0 and runs every step. Every step is idempotent, so a genuinely new
-    -- install costs six no-ops and is stamped 6.
+    -- install costs its no-ops and is stamped at the ladder's top.
     schemaVersion = 0,
 
     -- LibDBIcon's OWN table, handed to it whole by core/LauncherSetup.lua (launcher-§3). Declaring

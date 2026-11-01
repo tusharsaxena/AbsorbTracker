@@ -160,6 +160,8 @@ Kit.run{
     -- The HUD bars follow the skin (AT-03): companions, getters, repaint, the v6 reset. After
     -- test_skinsetup, on the Ka0s Default it leaves applied.
     "test_skin_hud",
+    -- The colors and shadow, and the one per-profile step (FS-AT-FLIP).
+    "test_skin_flip",
     -- The first-run skin picker (AT-04): when it shows, its spec, the real window. After
     -- test_skin_hud; it leaves the skin on Ka0s Default and the picker down, unseen.
     "test_skin_picker",

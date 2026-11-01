@@ -157,6 +157,39 @@ local function backfillUnitKeys(profile, defaults)
     end
 end
 
+--- The one step onto the skin (FS-AT-FLIP; the owner's rulings of 2026-11-01): existing profiles
+--- follow the skin, colors and shadow included. Per profile, recorded per profile in
+--- `skin.fullSkinReset`, because the account-wide stamp cannot say which profiles have been through
+--- it and following the skin leaves no shape to read: run from the ladder's v8, at every init and on
+--- every profile event (core/AbsorbTracker.lua), so a companion a player turns off afterwards stays
+--- off. A reset profile runs it again against defaults, which changes nothing a player sees.
+---
+--- It names companions and the From skin flags (NS.Units.SKIN_RESET_KEYS), never a stored color or
+--- pick, so turning a companion off brings the player's own back; a class color and its toggle are
+--- not named. Without the library the same write by hand. A path through a missing table is skipped,
+--- and the record's own table is the one table it may create. Answers true when it ran.
+function NS.ResetProfileToSkin(p)
+    if type(p) ~= "table" then return false end
+    if type(p.skin) == "table" and p.skin.fullSkinReset == true then return false end
+    local units = type(p.units) == "table" and p.units or {}
+    local Skin = LibStub and LibStub("LibKa0s-Skin-1.0", true)
+    local reset = Skin and type(Skin.ResetToSkin) == "function" and Skin.ResetToSkin
+    for _, unit in ipairs(NS.Units.LIST) do
+        local c = units[unit]
+        if type(c) == "table" then
+            if reset then
+                reset(c, NS.Units.SKIN_RESET_KEYS)
+            else
+                for _, key in ipairs(NS.Units.SKIN_COMPANION_KEYS) do c[key] = true end
+                c.fontFlags = "@skin"
+            end
+        end
+    end
+    if type(p.skin) ~= "table" then p.skin = {} end
+    p.skin.fullSkinReset = true
+    return true
+end
+
 -- The account-wide schema ladder, in order. `apply` runs BEFORE the version line is logged, so a
 -- step's own [Migrate] output still precedes its "vX -> vY" stamp. Built once at file load — the
 -- ladder has grown three times now, and a new version should be one row here, not another arm.
@@ -282,6 +315,13 @@ local SCHEMA_STEPS = {
             NS.Debug("Migrate", "moved the bars' Font flags to From skin on %s profile(s)", moved)
         end
     end },
+    { to = 8, apply = function()
+        -- v8: the bars' colors and shadow follow the skin, on every stored profile.
+        local moved = forEachProfile(NS.ResetProfileToSkin)
+        if moved > 0 then
+            NS.Debug("Migrate", "put the bars' colors on the skin on %s profile(s)", moved)
+        end
+    end },
 }
 
 -- The runner's target, derived from the ladder and never a second literal (savedvariables-§1).
@@ -302,12 +342,13 @@ local function runLadder(g, profile)
                 NS.Debug("Migrate", "v%s \226\134\146 v%s failed: %s", from, step.to, tostring(err))
                 NS.Format("Settings upgrade stopped at v%s -> v%s; saved settings were left as they were",
                     from, step.to)
-                break
+                return false
             end
             NS.Debug("Migrate", "v%s \226\134\146 v%s", from, step.to)
             g.schemaVersion = step.to
         end
     end
+    return true
 end
 
 function NS:RunMigrations()
@@ -334,5 +375,7 @@ function NS:RunMigrations()
         backfillUnitKeys(profile, defaults)
     end
 
-    runLadder(g, profile)
+    -- Past the ladder the v8 step's own gate still answers for the active profile, one that arrived
+    -- with no record: restored from a backup, or new since the stamp moved.
+    if runLadder(g, profile) then NS.ResetProfileToSkin(profile) end
 end

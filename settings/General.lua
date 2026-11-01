@@ -418,6 +418,12 @@ NS.RegisterSchemaRows({
       type = "bool", default = skinDefaults.pickerSeen, label = "Skin picker seen",
       desc = "Whether the first-run skin picker was closed on this profile.",
       onChange = function() end },
+    -- The one step onto the skin's record (core/Database.lua): set by the step, per profile. Drawn
+    -- by nothing, and a declared no-op for the same reason as the row above.
+    { path = "skin.fullSkinReset", page = "general", group = SKIN_GROUP, order = 75, skipRender = true,
+      type = "bool", default = skinDefaults.fullSkinReset, label = "Moved onto the skin",
+      desc = "Whether this profile's bars have been moved onto the skin once.",
+      onChange = function() end },
 })
 
 -- skinning-§3: the Skin tab, the library's own entry. `get` and `set` are core/SkinSetup.lua's

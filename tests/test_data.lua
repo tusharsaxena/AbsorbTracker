@@ -68,6 +68,25 @@ local function withLSM(media, body)
   if not ok then error(err) end
 end
 
+
+-- The stored-swatch path these cases pin: every bar's color companions off, whatever `fn` raised.
+local function storedColors(fn)
+  return function()
+    local saved = {}
+    for _, unit in ipairs(NS.Units.LIST) do
+      local c = NS.db.profile.units[unit]
+      saved[unit] = { c.barColorFromSkin, c.bgColorFromSkin, c.borderColorFromSkin, c.fontColorFromSkin }
+      c.barColorFromSkin, c.bgColorFromSkin, c.borderColorFromSkin, c.fontColorFromSkin = false, false, false, false
+    end
+    local ok, err = pcall(fn)
+    for _, unit in ipairs(NS.Units.LIST) do
+      local c, s = NS.db.profile.units[unit], saved[unit]
+      c.barColorFromSkin, c.bgColorFromSkin, c.borderColorFromSkin, c.fontColorFromSkin = s[1], s[2], s[3], s[4]
+    end
+    if not ok then error(err, 0) end
+  end
+end
+
 -- Run `body` with a setting forced to `value`, then restore whatever was there.
 local function withSetting(key, value, body)
   local saved = NS.GetSetting(key)
@@ -223,14 +242,14 @@ end)
 
 -- ── Color resolvers ───────────────────────────────────────────────────────────────
 
-test("GetBarColor returns the stored color when useClassColorBar is off", function()
+test("GetBarColor returns the stored color when useClassColorBar is off", storedColors(function()
   withSetting("units.player.useClassColorBar", false, function()
     withSetting("units.player.barColor", { r = 0.1, g = 0.2, b = 0.3, a = 0.4 }, function()
       local r, g, b, a = NS.GetBarColor()
       approx(r, 0.1); approx(g, 0.2); approx(b, 0.3); approx(a, 0.4)
     end)
   end)
-end)
+end))
 
 test("GetBarColor substitutes the class color but KEEPS the stored alpha", function()
   -- The class-color toggles only override RGB; alpha stays user-controlled (the panel leaves the
@@ -256,14 +275,14 @@ test("GetBorderColor honors useClassColorBorder and keeps its own alpha", functi
   end)
 end)
 
-test("GetBorderColor returns the stored color when the toggle is off", function()
+test("GetBorderColor returns the stored color when the toggle is off", storedColors(function()
   withSetting("units.player.useClassColorBorder", false, function()
     withSetting("units.player.borderColor", { r = 0.9, g = 0.8, b = 0.7, a = 0.6 }, function()
       local r, g, b, a = NS.GetBorderColor()
       approx(r, 0.9); approx(g, 0.8); approx(b, 0.7); approx(a, 0.6)
     end)
   end)
-end)
+end))
 
 test("GetBgColor uses the DIMMED class color, not the raw one", function()
   -- The background palette is its own table scaled by 0.2 so a class-colored backdrop reads as a
@@ -277,16 +296,16 @@ test("GetBgColor uses the DIMMED class color, not the raw one", function()
   end)
 end)
 
-test("GetBgColor returns the stored color when the toggle is off", function()
+test("GetBgColor returns the stored color when the toggle is off", storedColors(function()
   withSetting("units.player.useClassColorBg", false, function()
     withSetting("units.player.bgColor", { r = 0.2, g = 0.2, b = 0.2, a = 0.8 }, function()
       local r, g, b, a = NS.GetBgColor()
       approx(r, 0.2); approx(g, 0.2); approx(b, 0.2); approx(a, 0.8)
     end)
   end)
-end)
+end))
 
-test("GetFontColor honors useClassColorText and keeps its own alpha", function()
+test("GetFontColor honors useClassColorText and keeps its own alpha", storedColors(function()
   withSetting("units.player.useClassColorText", true, function()
     withSetting("units.player.fontColor", { r = 0.1, g = 0.2, b = 0.3, a = 0.42 }, function()
       local r, g, b, a = NS.GetFontColor()
@@ -301,7 +320,7 @@ test("GetFontColor honors useClassColorText and keeps its own alpha", function()
       approx(r, 0.7); approx(g, 0.6); approx(b, 0.5); approx(a, 0.4)
     end)
   end)
-end)
+end))
 
 test("an unknown class keeps the CONFIGURED color, never a hue invented for the occasion",
   function()
@@ -384,7 +403,7 @@ test("GetThrottleWindow clamps a hand-edited SavedVariable to the row's own rang
   end
 end)
 
-test("the four class-color toggles are independent of each other", function()
+test("the four class-color toggles are independent of each other", storedColors(function()
   withSetting("units.player.useClassColorBar", true, function()
     withSetting("units.player.useClassColorBg", false, function()
       withSetting("units.player.useClassColorBorder", false, function()
@@ -401,7 +420,7 @@ test("the four class-color toggles are independent of each other", function()
       end)
     end)
   end)
-end)
+end))
 
 -- ── Multi-unit media/color getters ────────────────────────────────────────────────
 
@@ -453,7 +472,7 @@ test("with LSM present, the media getter resolves the REQUESTED unit's own key, 
       end)
   end)
 
-test("GetBarColor reads the requested unit's color", function()
+test("GetBarColor reads the requested unit's color", storedColors(function()
   local saved = NS.db.profile.units.target.mirror
   NS.db.profile.units.target.mirror = false
   NS.db.profile.units.target.barColor = { r = 0.1, g = 0.2, b = 0.3, a = 0.4 }
@@ -461,7 +480,7 @@ test("GetBarColor reads the requested unit's color", function()
   local r, g, b, a = NS.GetBarColor("target")
   NS.db.profile.units.target.mirror = saved
   assertEqual(r, 0.1); assertEqual(g, 0.2); assertEqual(b, 0.3); assertEqual(a, 0.4)
-end)
+end))
 
 -- CHARACTERIZATION OF THE REVERSAL. Every bar used to take the PLAYER's class color, on the
 -- argument that resolving the tracked unit's class would cost a recolor on every retarget for a
@@ -499,7 +518,7 @@ end)
 -- class, not a color to copy.
 -- red under: resolving against NS.Units.SourceUnit(unit), which reads correctly for an unmirrored
 -- unit and silently reverts a mirrored one to the player.
-test("a MIRRORED focus bar reads the player's swatch but takes the focus's class", function()
+test("a MIRRORED focus bar reads the player's swatch but takes the focus's class", storedColors(function()
   local savedMirror = NS.db.profile.units.focus.mirror
   local savedToggle = NS.db.profile.units.player.useClassColorBar
   NS.db.profile.units.focus.mirror = true          -- appearance comes from the player
@@ -519,7 +538,7 @@ test("a MIRRORED focus bar reads the player's swatch but takes the focus's class
 
   NS.db.profile.units.player.useClassColorBar = savedToggle
   NS.db.profile.units.focus.mirror = savedMirror
-end)
+end))
 
 -- The background is the ONE surface options-ui-§17 exempts from the shared resolver: a darkened
 -- per-class set is a different set of hues, not the class color times a constant. It keeps this

@@ -27,11 +27,43 @@ local STACK_GAP = 8
 local DRAG = NS.Widgets.DRAG_HANDLE
 local HANDLE_ROOM = DRAG.HEIGHT + DRAG.GAP
 
--- The value text's drop shadow while the Text tab's Font shadow row is on: the font block's own
--- rendering (options-ui-§16), a legibility constant and not a skin color, so no skin moves it
--- (skinning rollout DECISIONS, AbsorbTracker D7; recorded under docs/ARCHITECTURE.md's Skins).
-local SHADOW_R, SHADOW_G, SHADOW_B, SHADOW_A = 0, 0, 0, 1
-local SHADOW_X, SHADOW_Y = 1, -1
+-- The value text's font object, one per unit, or nil where the client has no CreateFont. A 12.0.7
+-- client draws only a font object's shadow, so that is where the face, the flags and the shadow go
+-- (LibKa0s Skin doc, FS-T1, and SkinPaint.lua's rule); the FontString calls remain for a client
+-- without one.
+local valueFonts = {}
+
+local function valueFont(unit)
+    if type(CreateFont) ~= "function" then return nil end
+    local obj = valueFonts[unit]
+    if not obj then
+        obj = CreateFont("AbsorbTrackerValueFont_" .. unit)
+        valueFonts[unit] = obj
+    end
+    return obj
+end
+
+--- Forget the font objects. Suite seam only: a live client keeps its named fonts for the session.
+function NS.__ResetValueFonts() valueFonts = {} end
+
+--- The value text's face, flags and shadow (NS.GetFontShadow, core/Data.lua). BOTH shadow arms are
+--- written: an OFF arm that merely skipped the call would leave whatever the last pass set.
+local function applyValueFont(unit, valueText)
+    local path, size, flags = NS.GetFont(unit), NS.GetFontSize(unit), NS.GetFontFlags(unit)
+    local x, y, r, g, b, a = NS.GetFontShadow(unit)
+    if x == false then x, y, r, g, b, a = 0, 0, 0, 0, 0, 0 end
+    local obj = valueFont(unit)
+    if obj then
+        obj:SetFont(path, size, flags)
+        obj:SetShadowColor(r, g, b, a)
+        obj:SetShadowOffset(x, y)
+        valueText:SetFontObject(obj)
+    else
+        valueText:SetFont(path, size, flags)
+        valueText:SetShadowColor(r, g, b, a)
+        valueText:SetShadowOffset(x, y)
+    end
+end
 
 -- ── preview mode (preview-mode) ─────────────────────────────────────────────────────────────
 --
@@ -217,26 +249,15 @@ function NS.UpdateBarAppearance(unit)
     border:SetBackdrop(borderInfo)
     border:SetBackdropBorderColor(NS.GetBorderColor(unit))
 
-    -- The size scales with the skin while the bar uses the skin's face, and From skin flags follow
-    -- the Skin tab's Font outline (core/Data.lua, LibKa0s v1.82.0).
-    valueText:SetFont(NS.GetFont(unit), NS.GetFontSize(unit), NS.GetFontFlags(unit))
+    -- The size scales with the skin while the bar uses the skin's face, From skin flags follow the
+    -- Skin tab's Font outline (core/Data.lua, LibKa0s v1.82.0), and the shadow is the sixth row of
+    -- the canonical font block (options-ui-§16), which follows the skin since FS-AT-FLIP.
+    applyValueFont(unit, valueText)
     -- The absorb amount had no color of its own until the Text tab gained one; it drew at a bare
     -- FontString's default, opaque white, which is exactly what NS.GetFontColor answers for an
     -- untouched profile. Set on every appearance pass, like every other styled property here, so a
     -- profile switch and a `/at set` land the same way.
     valueText:SetTextColor(NS.GetFontColor(unit))
-
-    -- Font shadow, the sixth row of the canonical font block (options-ui-§16). BOTH arms are
-    -- written: a setting that is declared and not honored is worse than one that is absent, and an
-    -- OFF arm that merely skipped the call would leave whatever the last pass set, so turning the
-    -- shadow back off would do nothing until a /reload.
-    if NS.Units.Get(unit, "fontShadow") then
-        valueText:SetShadowColor(SHADOW_R, SHADOW_G, SHADOW_B, SHADOW_A)
-        valueText:SetShadowOffset(SHADOW_X, SHADOW_Y)
-    else
-        valueText:SetShadowColor(0, 0, 0, 0)
-        valueText:SetShadowOffset(0, 0)
-    end
 
     -- The frame's overall opacity -- the unit's own value times the addon-wide Master alpha
     -- (options-ui-§15), both resolved by NS.GetBarAlpha. Applied in the appearance pass as well as

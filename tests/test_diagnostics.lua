@@ -226,8 +226,8 @@ test("diagnostics: the media rung is read off LSM, never off the path the getter
   -- red under: a rung computed as `resolved == C.FALLBACK_*`.
   local C = NS.Constants
   local byName = {
-    ["Blizzard Tooltip"] = C.FALLBACK_BORDER, ["Friz Quadrata TT"] = C.FALLBACK_FONT,
-    ["Blizzard Raid Bar"] = "Interface\\RaidFrame\\Raid-Bar-Hp-Fill",
+    ["Blizzard Tooltip"] = C.FALLBACK_BORDER, ["Ka0s Prototype"] = C.FALLBACK_FONT,
+    ["Ka0s Default"] = "Interface\\RaidFrame\\Raid-Bar-Hp-Fill",
   }
   local fake = { Fetch = function(_, _, key, noDefault)
     if byName[key] then return byName[key] end
@@ -247,11 +247,11 @@ test("diagnostics: the media rung is read off LSM, never off the path the getter
   cfg.bgTexture = bg
   NS.GetLSM = realGetLSM
   assertTrue(ok, tostring(lines))
-  assertTrue(find(second, "[Media] player: font=Friz Quadrata TT -> " .. C.FALLBACK_FONT
+  assertTrue(find(second, "[Media] player: font=Ka0s Prototype -> " .. C.FALLBACK_FONT
     .. " rung=lsm skin=no") ~= nil, "a stored pick says so: " .. joined(second))
   assertTrue(find(lines, "[Media] player: border=Blizzard Tooltip -> "
     .. C.FALLBACK_BORDER .. " rung=lsm") ~= nil, joined(lines))
-  assertTrue(find(lines, "[Media] player: font=Friz Quadrata TT -> "
+  assertTrue(find(lines, "[Media] player: font=Ka0s Prototype -> "
     .. C.FALLBACK_FONT .. " rung=lsm") ~= nil, joined(lines))
   assertTrue(find(lines, "[Media] player: bgTexture=An Uninstalled Pack Texture -> "
     .. "Interface\\LSM\\Default rung=lsm default") ~= nil, joined(lines))

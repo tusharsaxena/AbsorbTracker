@@ -121,7 +121,7 @@ end)
 
 -- ── the keys and the rows ────────────────────────────────────────────────────────────────────
 
-test("Skin seam: the eight skin keys default to Ka0s Default, as skip-render rows on General", function()
+test("Skin seam: the nine skin keys default to Ka0s Default, as skip-render rows on General", function()
   -- red under: a default other than today's look, or a row that renders itself on top of the
   -- library's tab. pickerSeen false on every profile is the rollout's O3.
   local d = NS.defaults.profile.skin
@@ -136,7 +136,7 @@ test("Skin seam: the eight skin keys default to Ka0s Default, as skip-render row
   assertEqual(d.outline, Skin.OUTLINE_DEFAULT)
   local count = 0
   for _ in pairs(d) do count = count + 1 end
-  assertEqual(count, 8, "eight skin keys")
+  assertEqual(count, 9, "nine skin keys")
   for field in pairs(d) do
     local path = "skin." .. field
     local row = NS.FindSchemaRow(path)

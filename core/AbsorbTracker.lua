@@ -394,6 +394,8 @@ local function adoptProfile(tag, fmt, ...)
     if NS.MigrateProfileToV3 and NS.db then
         NS.MigrateProfileToV3(NS.db.profile)
     end
+    -- The same belt for the one step onto the skin: its own per-profile record gates it.
+    if NS.ResetProfileToSkin and NS.db then NS.ResetProfileToSkin(NS.db.profile) end
     NS.Debug(tag, fmt, ...)
     -- FIRST, the first-run skin picker down, quietly (core/SkinSetup.lua): a showing belongs to the
     -- profile it opened on, and taking it down puts back a pending preview (the stored skin, through

@@ -345,6 +345,13 @@ Skin:RegisterOwner(addonName, {
     label = NS.Constants and NS.Constants.BRAND or addonName,
     get = NS.SkinChoice,
     set = NS.WriteSkinChoice,
+    -- This addon's bars under Ka0s Default, which are not that skin's `bar.fill`, `bar.bg` or
+    -- `bar.border`; every other skin answers the library token (FS-T1, core/Data.lua).
+    tokens = {
+        ["at.barFill"]   = { default = { 0.4, 0.7, 1.0, 0.8 }, follow = "bar.fill" },
+        ["at.barBg"]     = { default = { 0.2, 0.2, 0.2, 0.8 }, follow = "bar.bg" },
+        ["at.barBorder"] = { default = { 0.5, 0.5, 0.5, 1.0 }, follow = "bar.border" },
+    },
 })
 
 -- The HUD follows a skin switch, an override and an exception change: the library fires

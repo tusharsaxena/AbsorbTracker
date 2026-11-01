@@ -39,7 +39,7 @@ exclude_files = { "libs/", "docs/audits/", "docs/reviews/", "_dev/", "tests/_kit
 -- line in tests/test_schema.lua that needs it. tests/test_lintconfig.lua is what keeps the blanket
 -- from re-entering.
 read_globals = {
-  "_G", "LibStub", "CreateFrame", "UIParent", "GetTime", "format", "time",
+  "_G", "LibStub", "CreateFrame", "CreateFont", "UIParent", "GetTime", "format", "time",
   "UnitClass", "UnitHealthMax", "UnitGetTotalAbsorbs", "UnitExists", "AbbreviateNumbers",
   -- The class-color table, read by core/CoreSetup.lua's library-absent fallback resolver. It is
   -- RAID_CLASS_COLORS rather than C_ClassColor because that is what LibKa0s-Core-1.0 reads, and it
