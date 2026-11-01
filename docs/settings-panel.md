@@ -219,7 +219,7 @@ Master controls  [Enable Absorb Tracker]  [General visibility]
                  [Reset position]         [Reset all settings]  <- afterGroup, the composer's tail
 Behavior         [Update throttle (seconds)]
                  (+ the three per-unit enables, skipRender: drawn in the Appearance band)
-Skin             the library's tab (O.AppearanceTab), drawing the eight skin.* rows itself
+Skin             the library's tab (O.AppearanceTab), drawing the nine skin.* rows itself
 ```
 
 **Lock frame's tooltip is the composer's `lockIsPreview` sentence** (compose minor 9) — unlocking shows
@@ -344,7 +344,7 @@ new profile, whose leading row previews the face or bar it stands for), **Font o
 only* in a new profile), the Scope
 (**Ignore settings panel**, on in a new profile, and **Ignore fonts**, off) and **Copy to every Ka0s
 addon…**. A pick calls `Skin:SetChoice` first and writes through `NS.WriteSkinChoice` after, so the
-row's `onChange` finds nothing left to apply and the pick is one repaint. The eight rows behind it
+row's `onChange` finds nothing left to apply and the pick is one repaint. The nine rows behind it
 are ordinary `skipRender` schema rows ([schema.md](./schema.md)), so the defaults, both resets and
 `/at get|set skin.*` reach them. **Ignore settings panel** is on for a new profile (the owner's
 2026-10-27 call, as in LootHistory), so under any skin these pages keep the client's look until the
@@ -447,7 +447,7 @@ The `Ka0sMedia_*` pickers are the library's (`libs/LibKa0s/OptionsMedia.lua`) an
 
 The dropdown's `values` table is supplied by `Helpers.LSMValues(mediaType)`, which returns a deferred closure that pulls the live `NS.GetLSM():HashTable(mediaType)` at dropdown-render time. Schema rows in `settings/Appearance.lua` set `values = NS.Helpers.LSMValues("statusbar")` (etc.) at file-load — the closure is then invoked by `makeDropdown`'s `valuesHash()` every time the dropdown re-renders, so newly-registered LSM media show up without an addon reload.
 
-While a unit's *Use the skin's ...* companion is on, the pickers it governs (*Bar texture* and *Background texture* under the texture's, *Border style* and *Border thickness (px)* under the border's, *Font* under the font's) are disabled and show the skin's value; the stored pick stays in the profile and comes back when the box is unticked ([schema.md](./schema.md)).
+While a unit's *Use the skin's ...* companion is on, the pickers it governs (*Bar texture* and *Background texture* under the texture's, *Border style* and *Border thickness (px)* under the border's, *Font* under the font's) are disabled and show the skin's value; the stored pick stays in the profile and comes back when the box is unticked ([schema.md](./schema.md)). The color and shadow companions (*Use the skin's color*, *Use the skin's shadow*) gray nothing: a swatch stays live under options-ui-§17, and its tooltip says it is not read.
 
 ## About page (top-level "Ka0s Absorb Tracker")
 

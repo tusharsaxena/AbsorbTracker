@@ -122,16 +122,16 @@ Rules the code depends on that reading one file will not reveal. The visual/tain
 
 ## Settings Schema
 
-`NS.Schema` is a flat array of **87 rows**; each `settings/<page>.lua` calls
+`NS.Schema` is a flat array of **103 rows**; each `settings/<page>.lua` calls
 `NS.RegisterSchemaRows({...})` at file load, and the same array drives the panel widgets
 (`LibKa0s-Options-1.0`) and the `/at list|get|set|reset|resetall` CLI, so adding an option is one
-schema row. **Sixteen** rows carry an absolute path, all on General: the six flat globals
+schema row. **Seventeen** rows carry an absolute path, all on General: the six flat globals
 (`enabled`, `visibility`, `scale`, `alpha`, `locked`, `throttleWindow`), the session-only
-`state.debugConsole`, the global-store `global.minimap.shown` and the eight `skin.*` rows the Skin
-tab draws. The other **71** are unit-relative (`units.<unit>.<key>`): the three
-`units.<unit>.enabled` toggles on General, plus the Appearance page's 68 (twenty-two keys × three
+`state.debugConsole`, the global-store `global.minimap.shown` and the nine `skin.*` rows the Skin
+tab draws. The other **86** are unit-relative (`units.<unit>.<key>`): the three
+`units.<unit>.enabled` toggles on General, plus the Appearance page's 83 (twenty-seven keys × three
 units, and a `mirror` row for target and focus). A row's `group` is its **tab** (options-ui-§13), in
-declaration order, and 64 of the rows are emitted by `LibKa0s-Options-1.0`'s composers rather than
+declaration order, and 79 of the rows are emitted by `LibKa0s-Options-1.0`'s composers rather than
 typed out.
 
 The runtime is **`LibKa0s-Schema-1.0`**, instanced in `settings/Schema.lua` as `NS.SchemaRuntime`.
@@ -347,9 +347,16 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
   skin's value; the stored pick is kept for when the player turns it off. `NS.MediaKey`
   (`core/Data.lua`) resolves through `NS.Skin.Resolve`, which honors the Skin tab's Font and texture
   overrides, and never through `S.BarTexture`, which would replay the skin's texture over an unticked
-  pick at the next switch. It runs in the appearance pass only, never on the absorb hot path. Font
-  shadow and every HUD color (fill, background, border, text and the class colors) stay the
-  player's (rollout X4). Since LibKa0s v1.82.0 the size and the flags meet the skin too: while
+  pick at the next switch. It runs in the appearance pass only, never on the absorb hot path. Since
+  FS-AT-FLIP (LibKa0s v1.85.0, the owner's ruling of 2026-11-01, which reverses rollout X4 and D7)
+  the fill, background, border and text colors and the Font shadow follow the skin too, each by a
+  companion of its own (`barColorFromSkin`, `bgColorFromSkin`, `borderColorFromSkin`,
+  `fontColorFromSkin`, `fontShadowFromSkin`), default on. The three owner tokens `at.barFill`,
+  `at.barBg` and `at.barBorder` (`core/SkinSetup.lua`) keep this addon's pixels under Ka0s Default
+  and follow `bar.fill`, `bar.bg` and `bar.border` elsewhere; the text reads `hud.text`
+  (`S.HudTextColor`) and the shadow `S.HudShadow`. A class color comes first and has no companion.
+  The stored swatch waits for the companion to go off and is what a degraded facade draws. Since
+  LibKa0s v1.82.0 the size and the flags meet the skin too: while
   `fontFromSkin` is on, the value text draws `S.HudFontSize(stored)` (`NS.GetFontSize`, ruling
   D-09), the stored size scaled by the skin's HUD size so the number is as wide in every skin (the
   stored value is never rewritten); and the Font flags default to **From skin** (`"@skin"`, D-07),
@@ -360,9 +367,17 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
   the owner ignores fonts, `Resolve` answers the stored value for `hud.font` and `Token` answers
   nil, so `NS.MediaKey` keeps no check of its own, and it reports the face as the skin's only while
   the companion is on **and** the skin answers the token (the `skin=` column of `/at diagnostics`).
-  The value text's drop shadow (black, offset 1, -1, while *Font shadow* is on) is the font row's
-  own rendering, not a skin color, and stays a named constant in `modules/Display.lua` (rollout
-  DECISIONS D7; not an anti-pattern #107 literal).
+  `NS.GetFontShadow` answers the shadow; the value text wears one font object per unit
+  (`modules/Display.lua`), because a 12.0.7 client draws only a font object's shadow. The stored
+  *Font shadow* row draws black at 1, -1.
+- **Gloss** (cause A3). `NS.GetBarGloss` shows `bar.gloss`, a white shine over the fill's top half
+  (`modules/Bar.lua`), while the skin sets `bar.gloss` and the bar follows the skin's texture. Glass
+  is the one shipped skin that does; Ka0s Default draws none.
+- **The v8 step** (`NS.ResetProfileToSkin`, `core/Database.lua`). Existing profiles follow the skin,
+  once per profile, recorded in `skin.fullSkinReset`, from the ladder, every init and every profile
+  event. It sets the eight companions and writes `"@skin"` to `fontFlags`; every stored color and
+  pick is kept, and a companion turned off afterwards stays off. It never names a class toggle, a
+  size or a `skin.ignore*` key.
 - **The one-time reset** (the owner's O2). Schema v6 (`core/Database.lua`) sets every stored companion
   back on, once, on every stored profile, through `Skin.ResetToSkin`; the picks and the colors are
   kept, and a companion the player unticks afterwards stays off. On a real upgrade the visible
@@ -410,7 +425,7 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
 - **Degraded.** Without the library `NS.Skin` answers every primitive as a no-op and every token as
   nil, so every media value resolves to the stored pick, the look this addon drew before skins;
   `tests/test_surface_parity.lua` holds the stub to the live facade. `tests/test_skinsetup.lua`,
-  `test_skin_hud.lua`, `test_skin_picker.lua` and `test_skin_tools.lua` pin the rest.
+  `test_skin_hud.lua`, `test_skin_flip.lua`, `test_skin_picker.lua` and `test_skin_tools.lua` pin the rest.
 
 ## Known Limitations
 

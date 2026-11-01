@@ -112,7 +112,7 @@ Total.
 - RunMigrations does not overwrite an existing user value
 - RunMigrations is a safe no-op when the DB is absent
 - RunMigrations logs [Migrate] only when a version bump happens
-- RunMigrations emits the [Migrate] lines for a v1->v7 upgrade in order
+- RunMigrations emits the [Migrate] lines for a v1->v8 upgrade in order
 - InitDB produced a profile carrying every default key
 - v3 migration lifts flat appearance keys onto the player unit
 - v3 migration seeds target and focus disabled and mirrored
@@ -123,9 +123,9 @@ Total.
 - v4 does not resurrect `hidden` via the defaults backfill
 - v3 migration is idempotent
 - v3 migration does not share nested tables between units
-- the schema version lands on 7
+- the schema version lands on 8
 - real AceDB init: a legacy flat profile is lifted onto the player unit, not overwritten by fresh defaults
-- real AceDB init: a fresh install (no saved data) converges on factory defaults at v7
+- real AceDB init: a fresh install (no saved data) converges on factory defaults at v8
 - InitDB lifts EVERY saved profile, not only the active one
 - a profile that appears AFTER the upgrade is lifted when it becomes active
 - the InitDB sweep and the profile-change lift compose without double-applying
@@ -629,7 +629,7 @@ Total.
 - both Defaults tooltips say which page resets which bars are shown
 - the Options descriptor tells the library the FOLDER name
 - and the Options descriptor takes that name from the first vararg, not a literal
-- the id-list help mark is latent: info is neither declared nor shipped
+- the id-list help mark ships: v1.85.0 owes info on every consumer's line
 
 ### test_slashcmds.lua (57)
 
@@ -874,7 +874,7 @@ Total.
 
 - Skin seam: the owner is the folder name, and NS.Skin is its facade
 - Skin seam: the read answers Ka0s Default before the profile store exists
-- Skin seam: the eight skin keys default to Ka0s Default, as skip-render rows on General
+- Skin seam: the nine skin keys default to Ka0s Default, as skip-render rows on General
 - Skin seam: the skin row's values are every registered skin, in the library's order
 - Skin seam: /at set refuses a skin that is not registered and applies one that is
 - Skin seam: the Skin tab is General's last, and opens
@@ -901,7 +901,7 @@ Total.
 - a mirrored bar follows the player's companion, an unlinked one its own
 - Copy from Player copies the companions
 - the appearance pass draws the skin's border thickness and inset
-- a skin switch repaints every bar, and leaves the player's colors alone
+- a skin switch repaints every bar
 - v6 puts every stored companion back on, keeps the picks and the colors
 - v6 runs once: a pick made after it is kept
 - every bar's Font flags default to From skin, offered first
@@ -911,6 +911,26 @@ Total.
 - v7 runs once: an OUTLINE picked after it is kept
 - the skin's face draws at the skin's HUD size; the stored size never moves
 - a mirrored bar follows the player's Use the skin's font for its size
+
+### test_skin_flip.lua (17)
+
+- every unit's color and shadow companions are bool rows defaulting on, in both places
+- no swatch carries disabledIf, and a class color has no companion
+- the picks' defaults moved to the Ka0s picks, in both places
+- the border family puts the thickness on the skin through the composer
+- Ka0s Default keeps this addon's pixels: fill, background, border, text, no shadow
+- a skin switch changes every flipped surface
+- a companion off draws the stored color and shadow
+- a class color comes first, whatever the companion says
+- Ignore fonts: the stored fontShadow stands
+- the shadow lands on a font object where the client has CreateFont
+- a glossy skin glosses the fill; Ka0s Default and the player's own texture do not
+- the gloss layer is built on the fill, white, and the facade's degraded answer is no gloss
+- the step: every listed key follows, every stored pick and color is byte-identical
+- the step names no size, class toggle, Scope key or color
+- a second run writes nothing, and a companion turned off afterwards stays off
+- the step is the same write with the library absent
+- the ladder walks every stored profile, and a profile change runs the step
 
 ### test_skin_picker.lua (19)
 
@@ -1166,6 +1186,7 @@ Total.
 | test_realpages.lua | 13 |
 | test_skinsetup.lua | 17 |
 | test_skin_hud.lua | 19 |
+| test_skin_flip.lua | 17 |
 | test_skin_picker.lua | 19 |
 | test_skin_tools.lua | 6 |
 | test_glyphs.lua | 1 |
@@ -1184,4 +1205,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **974** |
+| **Total** | **991** |

@@ -76,6 +76,9 @@ Appearance settings are per-unit (player/target/focus) rather than a single flat
        "barWidth", "barHeight", "barAlpha",
        "barColor", "bgColor",
        "useClassColorBar", "useClassColorBg", "useClassColorBorder", "useClassColorText",
+       "barTextureFromSkin", "borderFromSkin", "fontFromSkin",
+       "barColorFromSkin", "bgColorFromSkin", "borderColorFromSkin", "fontColorFromSkin",
+       "fontShadowFromSkin",
        "myNewKnob",
    }
    ```

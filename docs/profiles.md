@@ -67,6 +67,8 @@ adoptProfile()
 
 The three messages are payload-free; `modules/Display.lua` owns the sole subscription to each and fans it out over all three units via `NS.ForEachUnit`, and `modules/Timer.lua` owns the sole `REPAINT` subscription. Nothing here calls a Display function across the module boundary — see [data-flow.md](./data-flow.md).
 
+`adoptProfile` then runs `NS.ResetProfileToSkin`, gated on the profile's own `skin.fullSkinReset`, so a profile that appears after v8 moves onto the skin the same way.
+
 The **migration call leads the chain on purpose.** A profile that only appears *after* the upgrade — copied in from another character, restored from a backup SavedVariables file, or reset back to the shipped defaults — never passed through `InitDB`'s sweep, so its own `schemaVersion` still reads pre-v3. Lifting it here, before anything reads its appearance, is what stops it rendering with factory defaults. It cannot double-apply: `MigrateProfileToV3` returns immediately once the profile carries the stamp.
 
 `RefreshOptionsPanel` re-runs each rendered panel's refreshers, which re-read every row's value from the newly active `db.profile` and push it into its AceGUI widget. On the per-unit pages (Appearance) the last refresher is two-tier: it **always** re-syncs the chrome block's mirror checkbox in place, and re-renders the page outright **only when the new profile actually changed that unit's mirror state** — which is the only thing that can invalidate the mirrored/unmirrored row partition. An unconditional re-render would tear down a widget whose callback is still on the stack, so it was deliberately removed. The Profiles sub-page re-`Open()`s its AceConfigDialog tree on next show. See [settings-panel.md](./settings-panel.md).
