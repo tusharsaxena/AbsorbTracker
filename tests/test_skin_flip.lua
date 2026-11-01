@@ -122,16 +122,44 @@ test("a skin switch changes every flipped surface", function()
   local before = { rgba(NS.GetBarColor("player")), rgba(NS.GetBgColor("player")),
     rgba(NS.GetBorderColor("player")), rgba(NS.GetFontColor("player")),
     NS.GetBarTexture("player"), NS.GetFont("player") }
-  onSkin("obsidian", function()
+  local bar = NS.bars.player
+  local drawn = {}
+  local function spy(frame, method)
+    frame[method] = function(_, ...) drawn[method] = rgba(...) end
+  end
+  spy(bar.statusBar, "SetStatusBarColor")
+  spy(bar, "SetBackdropColor")
+  spy(bar.border, "SetBackdropBorderColor")
+  local ok, err = pcall(onSkin("obsidian", function()
     assertEqual(rgba(NS.GetBarColor("player")), rgba(S.BarFillColor()), "fill: the skin's bar.fill")
     assertEqual(rgba(NS.GetBgColor("player")), rgba(S.Color("bar.bg")), "background: bar.bg")
     assertEqual(rgba(NS.GetBorderColor("player")), rgba(S.Color("bar.border")), "border: bar.border")
     assertEqual(rgba(NS.GetFontColor("player")), rgba(S.HudTextColor()), "text: hud.text")
     assertTrue(rgba(NS.GetBarColor("player")) ~= before[1], "the fill moved")
+    assertTrue(rgba(NS.GetBgColor("player")) ~= before[2], "the background moved")
+    assertTrue(rgba(NS.GetBorderColor("player")) ~= before[3], "the border moved")
     assertTrue(rgba(NS.GetFontColor("player")) ~= before[4], "the text moved")
     local x, y, r, g, b, a = S.HudShadow()
     assertEqual(rgba(NS.GetFontShadow("player")), rgba(x, y, r, g, b, a), "shadow: hud.shadow")
-  end)()
+    -- The bar itself, not only its getters: red under a surface that keeps its old value.
+    NS.UpdateBarAppearance("player")
+    assertEqual(drawn.SetStatusBarColor, rgba(S.BarFillColor()), "the fill as drawn")
+    assertEqual(drawn.SetBackdropColor, rgba(S.Color("bar.bg")), "the background as drawn")
+    assertEqual(drawn.SetBackdropBorderColor, rgba(S.Color("bar.border")), "the border as drawn")
+  end))
+  bar.statusBar.SetStatusBarColor, bar.SetBackdropColor, bar.border.SetBackdropBorderColor = nil, nil, nil
+  NS.UpdateBarAppearance("player")
+  if not ok then error(err, 0) end
+end)
+
+test("a skin that says no shadow draws none, whatever the stored row says", function()
+  -- red under: hud.shadow's `false` falling through to the stored fontShadow.
+  withUnit("player", "fontShadowFromSkin", true, function()
+    withUnit("player", "fontShadow", true, function()
+      assertEqual(S.HudShadow(), false, "Ka0s Default's hud.shadow")
+      assertEqual(NS.GetFontShadow("player"), false, "no shadow drawn")
+    end)
+  end)
 end)
 
 test("a companion off draws the stored color and shadow", onSkin("obsidian", function()
@@ -253,6 +281,26 @@ end)
 
 test("the gloss layer is built on the fill, white, and the facade's degraded answer is no gloss", function()
   assertTrue(NS.bars.player.gloss ~= nil, "every bar builds the layer")
+  -- A bar fresh from the build: red under an anchor on the bar's corner (a shine past the fill's end,
+  -- SKIN-40's fail case), a tinted layer, or a layer that starts shown.
+  -- On the kit's paint recorder, for a texture of its own: the base mock hands back the frame.
+  local restorePaint = dofile("tests/_kit/mock_paint.lua")(mocks)
+  local savedCreate = rawget(_G, "CreateFrame")
+  rawset(_G, "CreateFrame", mocks.CreateFrame)
+  local made, built = pcall(NS.CreateBar, "player", "AbsorbTrackerGlossProbe")
+  rawset(_G, "CreateFrame", savedCreate)
+  restorePaint()
+  if not made then error(built, 0) end
+  local gloss, fill = built.gloss, built.statusBar:GetStatusBarTexture()
+  assertEqual(gloss:GetNumPoints(), 2, "two anchors")
+  local topPoint, topRegion, topRelative = gloss:GetPoint(1)
+  local bottomPoint, bottomRegion, bottomRelative = gloss:GetPoint(2)
+  assertEqual(topPoint .. ">" .. topRelative, "TOPLEFT>TOPLEFT", "its top")
+  assertEqual(bottomPoint .. ">" .. bottomRelative, "BOTTOMRIGHT>RIGHT", "its half-way line")
+  assertTrue(topRegion == fill, "the top anchors to the fill")
+  assertTrue(bottomRegion == fill, "the bottom anchors to the fill")
+  assertEqual(rgba(unpack(gloss.__color)), rgba(1, 1, 1, 1), "white")
+  assertEqual(gloss:IsShown(), false, "hidden until the appearance pass says otherwise")
   local real = NS.Skin
   NS.Skin = { Token = function() return nil end }
   local ok, err = pcall(function() assertEqual(NS.GetBarGloss("player"), false) end)
@@ -261,6 +309,15 @@ test("the gloss layer is built on the fill, white, and the facade's degraded ans
 end)
 
 -- ── the one step ─────────────────────────────────────────────────────────────────────────────
+
+--- `body` with the store swapped for `profile`, the account stamp at `stamp`.
+local function withStore(profile, stamp, body)
+  local saved = NS.db
+  NS.db = { profile = profile, global = { schemaVersion = stamp } }
+  local ok, err = pcall(body)
+  NS.db = saved
+  if not ok then error(err, 0) end
+end
 
 local function partial()
   return {
@@ -331,6 +388,59 @@ test("a second run writes nothing, and a companion turned off afterwards stays o
   assertEqual(NS.ResetProfileToSkin(p), false)
   assertEqual(p.units.player.barColorFromSkin, false, "the player's later choice stays")
   assertEqual(p.units.player.fontFlags, "OUTLINE", "and a flag picked later")
+end)
+
+test("General's Defaults keeps the record, so the next migration leaves a turned-off companion off", function()
+  -- red under: the record out of resetExempt (settings/Schema.lua). The press put it back to false,
+  -- and the next RunMigrations or profile event forced every companion on and the flags to "@skin".
+  local p = NS.db.profile
+  local saved = deep(p)
+  local ok, err = pcall(function()
+    p.skin.fullSkinReset = true
+    p.units.player.barColorFromSkin = false
+    p.units.target.fontFlags = "OUTLINE"
+    NS.Helpers.RestoreDefaults("general", {})
+    assertEqual(p.skin.fullSkinReset, true, "the record survives the press")
+    NS:RunMigrations()
+    assertEqual(p.units.player.barColorFromSkin, false, "the migration")
+    assertEqual(p.units.target.fontFlags, "OUTLINE", "the flag the player picked")
+    NS.OnProfileChanged()
+    assertEqual(p.units.player.barColorFromSkin, false, "a profile event")
+  end)
+  for key, value in pairs(saved) do p[key] = value end
+  NS.OnProfileChanged()
+  if not ok then error(err, 0) end
+end)
+
+test("past the stamp the runner still moves an active profile with no record", function()
+  -- red under: a bare runLadder call at the end of RunMigrations.
+  local p = partial()
+  withStore(p, NS.SCHEMA_VERSION, function() NS:RunMigrations() end)
+  assertEqual(p.skin.fullSkinReset, true, "recorded")
+  assertEqual(p.units.player.barColorFromSkin, true, "a companion it had off")
+  assertEqual(p.units.player.fontFlags, "@skin", "and the flags")
+end)
+
+test("a failed ladder step stops the run before the step onto the skin", function()
+  -- red under: runLadder's failure answering `break` and so reporting success.
+  local p = partial()
+  local steps = NS.__migrationSteps
+  steps[#steps + 1] = { to = NS.SCHEMA_VERSION + 1, apply = function() error("boom") end }
+  local ok, err = pcall(withStore, p, NS.SCHEMA_VERSION, function() NS:RunMigrations() end)
+  steps[#steps] = nil
+  if not ok then error(err, 0) end
+  assertEqual(p.skin.fullSkinReset, nil, "no record")
+  assertEqual(p.units.player.fontShadowFromSkin, false, "a companion it did not touch")
+  assertEqual(p.units.player.fontFlags, "THICKOUTLINE", "and the flags")
+end)
+
+test("the step creates the record's table on a raw profile with none", function()
+  -- red under: ResetProfileToSkin no longer creating p.skin.
+  local p = { units = { player = { barColorFromSkin = false } } }
+  assertEqual(NS.ResetProfileToSkin(p), true, "it ran")
+  assertEqual(p.skin.fullSkinReset, true, "recorded")
+  assertEqual(p.units.player.barColorFromSkin, true)
+  assertEqual(NS.ResetProfileToSkin(p), false, "and the record stops the next one")
 end)
 
 test("the step is the same write with the library absent", function()

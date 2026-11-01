@@ -419,7 +419,8 @@ NS.RegisterSchemaRows({
       desc = "Whether the first-run skin picker was closed on this profile.",
       onChange = function() end },
     -- The one step onto the skin's record (core/Database.lua): set by the step, per profile. Drawn
-    -- by nothing, and a declared no-op for the same reason as the row above.
+    -- by nothing, and a declared no-op for the same reason as the row above. A General Defaults
+    -- press leaves it alone (`resetExempt`, settings/Schema.lua), or the step would run again.
     { path = "skin.fullSkinReset", page = "general", group = SKIN_GROUP, order = 75, skipRender = true,
       type = "bool", default = skinDefaults.fullSkinReset, label = "Moved onto the skin",
       desc = "Whether this profile's bars have been moved onto the skin once.",

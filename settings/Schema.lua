@@ -395,7 +395,9 @@ local S = SchemaLib:New({
     -- The same renderer `/at get` echoes with (LibKa0s-Slash-1.0), so the two never disagree.
     format = function(row, v) return NS.FormatSchemaValue(row, v) end,
     print = chatPrint,
-    resetExempt = { [MINIMAP_PATH] = true },
+    -- The minimap row, and the v8 step's record: General's Defaults walks every row on its page, and
+    -- a record put back to false would run the step again over companions the player turned off.
+    resetExempt = { [MINIMAP_PATH] = true, ["skin.fullSkinReset"] = true },
 })
 NS.SchemaRuntime = S
 

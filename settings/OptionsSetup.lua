@@ -58,8 +58,13 @@ local PARENT_TITLE = NS.Constants.BRAND
 -- runtime's own ApplyDefault calls its own Set, so a wrapper here would be bypassed by a reset
 -- driven through the instance. `/at reset global.minimap.shown` is deliberately NOT covered: a
 -- single named reset opens no bracket, and a player who names this row is asking for exactly it.
+--
+-- `skin.fullSkinReset` sits beside it for the same button: it is on the General page, and a Defaults
+-- press putting it back to false would run the v8 step again over companions the player turned off
+-- (core/Database.lua). A profile reset does clear it, which is harmless: the step then runs against
+-- defaults.
 local function survivesEveryReset(row)
-    return row.path == NS.Constants.MINIMAP_PATH
+    return row.path == NS.Constants.MINIMAP_PATH or row.path == "skin.fullSkinReset"
 end
 
 local function vetoedFromResetAll(row)
@@ -92,7 +97,7 @@ local descriptor = {
     -- carries a gate (a refusal would belong in the row's `validate`, which a reset also reaches).
     get          = function(path) return NS.GetSetting(path) end,
     set          = function(path, value) return NS.SetByPath(path, value) end,
-    -- The minimap exemption above is the runtime's `resetExempt`, honored inside every sweep this
+    -- The exemptions above are the runtime's `resetExempt`, honored inside every sweep this
     -- library drives (RestoreDefaults and RestoreAllDefaults both open a bracket around their walk).
     applyDefault = function(row) return NS.ApplyDefault(row) end,
     allRows      = NS.SchemaRuntime.AllRows,
