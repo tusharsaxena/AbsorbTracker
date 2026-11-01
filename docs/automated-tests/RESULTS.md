@@ -32,6 +32,7 @@ archaeology, for the same reason a skip is never a pass (`automated-tests-§4`).
 
 | Run | Commit | Tree | Version | Lint w/e | Files | Tests | Perf | NLOC | Funcs | Avg NLOC | Avg CCN | Max CCN | CCN warn | Verdict |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| [`20261101-201807`](20261101-201807/) | `9e7cf8c` | clean | 1.12.0 | 0/0 | 81 | 1016/1/1017 | pass | 17661 | 2698 | 6.4 | 1.8 | 14 | 0 | **green** |
 | [`20261101-141517`](20261101-141517/) | `ab4def2` | clean | 1.12.0 | 0/0 | 81 | 997/1/998 | pass | 17511 | 2669 | 6.4 | 1.8 | 14 | 0 | **green** |
 | [`20261101-141345`](20261101-141345/) | `3460805` | clean | 1.12.0 | 0/0 | 81 | 996/1/998 | pass | 17511 | 2669 | 6.4 | 1.8 | 14 | 0 | **red** |
 | [`20261101-135534`](20261101-135534/) | `88c47ea` | clean | 1.12.0 | 0/0 | 81 | 997/1/998 | pass | 17511 | 2669 | 6.4 | 1.8 | 14 | 0 | **green** |
@@ -60,12 +61,11 @@ archaeology, for the same reason a skip is never a pass (`automated-tests-§4`).
 
 ## Test suite
 
-**998 cases** — 997 passed, 0 failed, 1 skipped. The generated inventory
-[`20261101-141517/test-cases.md`](20261101-141517/test-cases.md) is the authority on which cases existed at this run;
+**1017 cases** — 1016 passed, 0 failed, 1 skipped. The generated inventory
+[`20261101-201807/test-cases.md`](20261101-201807/test-cases.md) is the authority on which cases existed at this run;
 `docs/test-cases.md` is that same list at HEAD.
 
-The count has been **flat at 998 across the last 4 runs**. A suite that stopped growing while
-the addon did is a coverage gap, and it is the one thing the table above cannot show.
+Moved **998 → 1017** since the previous run.
 
 **1 case(s) reported a `skip`.** A skip is counted in the total and never in `passed`, and at
 the release gate it is NOT EVALUATED rather than passed (`automated-tests-§3`).
@@ -82,24 +82,24 @@ to whoever thinks to open `.luacheckrc`.
 ## Perf
 
 **7 scenarios** from `tests/perf.lua`; the measurements are in
-[`20261101-141517/perf.json`](20261101-141517/perf.json).
+[`20261101-201807/perf.json`](20261101-201807/perf.json).
 
 | `scenario` | `iters` | `ms/iter` | `api/iter` | `bytes/iter` |
 |---|---|---|---|---|
 | `absorbEvent` | 1000 | 0.00036 | 0.0 | 0.0 |
-| `paintBars` | 1000 | 0.01339 | 12.0 | 48.0 |
-| `repaintPass` | 1000 | 0.01414 | 12.0 | 0.0 |
-| `appearancePass` | 200 | 0.19452 | 87.0 | 136.1 |
-| `settingsRead` | 10000 | 0.00028 | 0.0 | 0.0 |
-| `probeOverheadOff` | 1000 | 0.01496 | 12.0 | 0.0 |
-| `probeOverheadOn` | 1000 | 0.01546 | 12.0 | 0.5 |
+| `paintBars` | 1000 | 0.01224 | 12.0 | 48.0 |
+| `repaintPass` | 1000 | 0.01423 | 12.0 | 0.0 |
+| `appearancePass` | 200 | 0.23381 | 87.0 | 136.7 |
+| `settingsRead` | 10000 | 0.00032 | 0.0 | 0.0 |
+| `probeOverheadOff` | 1000 | 0.01880 | 12.0 | 0.0 |
+| `probeOverheadOn` | 1000 | 0.02293 | 12.0 | 0.5 |
 
 `perf` never fails a run and never blocks a commit — it is recorded, read and compared, not
 thresholded (`performance-§9`). It does gate the **tag** (`automated-tests-§3`).
 
 ## Complexity watch list
 
-Current as of [`20261101-141517`](20261101-141517/) — **this run's measurement, not its diff.** Max CCN **14** across 2669
+Current as of [`20261101-201807`](20261101-201807/) — **this run's measurement, not its diff.** Max CCN **14** across 2698
 functions, **0** of them warned on; 1 file(s) in the 1000–1500 band and 0 over the 1500 cap
 (`layout-§1`).
 
@@ -119,7 +119,7 @@ None.
 
 | Band | File | LOC | Disposition |
 |---|---|---|---|
-| 1000–1500 (on notice) | `tests/test_schema.lua` | 1084 | **Accepted — watch (first run in the band).** Newly crossed at [`20261031-202021`](20261031-202021/): the skin seam's cases and the layout partition pins took it over 1000. It measures 83 functions, avg CCN 2.3, max 12, and it is one subject, schema integrity, so the length is case count, not tangle. Re-check at 1300. |
+| 1000–1500 (on notice) | `tests/test_schema.lua` | 1087 | **Accepted — watch (first run in the band).** Newly crossed at [`20261031-202021`](20261031-202021/): the skin seam's cases and the layout partition pins took it over 1000. It measures 83 functions, avg CCN 2.3, max 12, and it is one subject, schema integrity, so the length is case count, not tangle. Re-check at 1300. |
 
 `lizard` counts every `and`/`or` short-circuit as a decision, so in Lua a run of
 `t.k = rec.k or D.k` defaulting lines scores high with no visible branching at all: a large CCN
