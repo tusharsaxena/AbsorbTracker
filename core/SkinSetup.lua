@@ -297,6 +297,8 @@ if not Skin then
         -- so the stored color draws; HudShadow's nil is "the stored fontShadow stands". BarGloss
         -- (the re-cut's) draws nothing: no skin, no gloss.
         "HudTextColor", "HudLabelColor", "BarFillColor", "HudShadow", "BarGloss",
+        -- The last cut's hover art: this addon draws none, and no skin means no tint.
+        "HoverArt",
     }) do S[name] = noop end
 
     -- No skin to read: every token answers nil ("leave the host's"), so a value resolved against
@@ -325,13 +327,20 @@ if not Skin then
         return ("|T%s:%d:%d|t"):format(path, size, size)
     end
     -- The re-cut v1.85.0 (SkinPaintExtras minor 14): the one member that must draw, or the value
-    -- text has no face. Both shadow arms are written, so turning the row off clears it.
+    -- text has no face. Both shadow arms are written, so turning the row off clears it. Size and
+    -- flags go through the two sizers above, so "@skin" never reaches SetFont.
     S.HudFont = function(fs, opts)
-        fs:SetFont(opts.face, opts.size, opts.flags)
+        opts = type(opts) == "table" and opts or {}
+        local face = opts.face
+        if type(face) ~= "string" or face == "" then face = STANDARD_TEXT_FONT end
+        if type(face) ~= "string" then return nil end
+        fs:SetFont(face, S.HudFontSize(opts.size), S.FontFlags(opts.flags))
         local on = opts.shadow and true or false
         fs:SetShadowColor(0, 0, 0, on and 1 or 0)
         fs:SetShadowOffset(on and 1 or 0, on and -1 or 0)
     end
+    -- SkinPaintExtras minor 16: no skin to state a border, so the stored three stand.
+    S.BarBorder = function(style, show, size) return style, show, size end
     S.OnLooksChanged = function(fn) return fn end   -- the skin never changes without the library
     S.IsEnabled = function() return false end
     S.GetStyle = function() return "ka0s:" .. DEFAULT end

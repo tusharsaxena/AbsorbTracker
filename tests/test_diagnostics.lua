@@ -238,13 +238,14 @@ test("diagnostics: the media rung is read off LSM, never off the path the getter
   NS.GetLSM = function() return fake end
   -- The player's own picks (AT-03): every companion off, so the rows name the stored keys.
   local cfg = NS.Units.Config("player")
-  local bg = cfg.bgTexture
+  local bg, border = cfg.bgTexture, cfg.border
   cfg.bgTexture = "An Uninstalled Pack Texture"
+  cfg.border = "Blizzard Tooltip"
   for _, k in ipairs(NS.Units.FROM_SKIN_KEYS) do cfg[k] = false end
   local ok, lines = pcall(report)
   local second = ok and report() or nil
   for _, k in ipairs(NS.Units.FROM_SKIN_KEYS) do cfg[k] = true end
-  cfg.bgTexture = bg
+  cfg.bgTexture, cfg.border = bg, border
   NS.GetLSM = realGetLSM
   assertTrue(ok, tostring(lines))
   assertTrue(find(second, "[Media] player: font=Ka0s Prototype -> " .. C.FALLBACK_FONT
@@ -256,9 +257,9 @@ test("diagnostics: the media rung is read off LSM, never off the path the getter
   assertTrue(find(lines, "[Media] player: bgTexture=An Uninstalled Pack Texture -> "
     .. "Interface\\LSM\\Default rung=lsm default") ~= nil, joined(lines))
   lines = report()
-  assertTrue(find(lines, "[Media] player: border=" .. tostring(NS.Skin.Token("bar.borderStyle"))
-    .. " -> " .. C.FALLBACK_BORDER .. " rung=fallback skin=yes") ~= nil,
-    "no LSM headlessly, and the companion on draws the skin's name: " .. joined(lines))
+  -- A skin's None is no border of its own: the stored style draws, so the report says stored.
+  assertTrue(find(lines, "[Media] player: border=None -> none rung=fallback skin=no") ~= nil,
+    "no LSM headlessly, and None draws no edge: " .. joined(lines))
 end)
 
 test("diagnostics: the session's rejected events are folded into the report", function()

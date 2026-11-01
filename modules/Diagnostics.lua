@@ -201,7 +201,7 @@ local function mediaSection(out)
     for _, unit in ipairs(NS.Units.LIST) do
         mediaRow(out, unit, "barTexture", "statusbar", NS.GetBarTexture(unit))
         mediaRow(out, unit, "bgTexture", "statusbar", NS.GetBgTexture(unit))
-        mediaRow(out, unit, "border", "border", NS.GetBorder(unit))
+        mediaRow(out, unit, "border", "border", NS.GetBorder(unit) or "none")
         mediaRow(out, unit, "font", "font", NS.GetFont(unit))
     end
 end

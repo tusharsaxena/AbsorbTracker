@@ -125,7 +125,7 @@ Total.
 - v3 migration does not share nested tables between units
 - the schema version lands on 8
 - real AceDB init: a legacy flat profile is lifted onto the player unit, not overwritten by fresh defaults
-- real AceDB init: a fresh install (no saved data) converges on factory defaults at v8
+- real AceDB init: a fresh install (no saved data) converges on factory defaults at v9
 - InitDB lifts EVERY saved profile, not only the active one
 - a profile that appears AFTER the upgrade is lifted when it becomes active
 - the InitDB sweep and the profile-change lift compose without double-applying
@@ -912,7 +912,7 @@ Total.
 - the skin's face draws at the skin's HUD size; the stored size never moves
 - a mirrored bar follows the player's Use the skin's font for its size
 
-### test_skin_flip.lua (23)
+### test_skin_flip.lua (28)
 
 - every unit's color and shadow companions are bool rows defaulting on, in both places
 - no swatch carries disabledIf, and a class color has no companion
@@ -928,6 +928,7 @@ Total.
 - a glossy skin glosses the fill; Ka0s Default and the player's own texture do not
 - the gloss layer is built on the fill, in the one white look
 - with no library the facade draws no gloss, and HudFont still gives the text its face
+- with no library the stored border stands, and the shipped None draws no edge
 - the step: every listed key follows, every stored pick and color is byte-identical
 - the step names no size, class toggle, Scope key or color
 - a second run writes nothing, and a companion turned off afterwards stays off
@@ -937,6 +938,10 @@ Total.
 - the step creates the record's table on a raw profile with none
 - the step is the same write with the library absent
 - the ladder walks every stored profile, and a profile change runs the step
+- an untouched bar draws no edge and keeps its inset under Ka0s Default
+- a skin's None defers to the player's stored style and size, companion on
+- a real style in a skin wins over the player's, and the companion off gives it back
+- v9 moves a stored old default to None, once, and leaves a pick and a companion off
 
 ### test_skin_picker.lua (19)
 
@@ -1156,6 +1161,26 @@ Total.
 - lizard sighted: parity names every file whose counts differ, and only those
 - lizard sighted: lizard lists every function of a hazard fixture once it is sanitized
 
+### test_skin_values.lua (3)
+
+- skin values: every host row carries its file, substring, why and cause id
+- skin values: no typed value outside the kit's categories and the host's rows
+- skin values: the check is falsifiable, a planted value of each shape is reported
+
+### test_skin_switch.lua (11)
+
+- skin switch: the check is falsifiable, a surface that redraws a literal is reported
+- skin switch: a bar's fill changes
+- skin switch: a bar's background changes
+- skin switch: a bar's border changes
+- skin switch: a bar's value text changes
+- skin switch: a bar's drag strip changes
+- skin switch: a bar's drag strip changes with the Scope ignored
+- skin switch: the debug console changes
+- skin switch: the debug console changes with the Scope ignored
+- skin switch: the perf panel changes
+- skin switch: the perf panel changes with the Scope ignored
+
 ## Totals
 
 | Suite | Cases |
@@ -1192,7 +1217,7 @@ Total.
 | test_realpages.lua | 13 |
 | test_skinsetup.lua | 17 |
 | test_skin_hud.lua | 19 |
-| test_skin_flip.lua | 23 |
+| test_skin_flip.lua | 28 |
 | test_skin_picker.lua | 19 |
 | test_skin_tools.lua | 6 |
 | test_glyphs.lua | 1 |
@@ -1210,5 +1235,7 @@ Total.
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
+| test_skin_values.lua | 3 |
+| test_skin_switch.lua | 11 |
 | Skipped | 1 |
-| **Total** | **997** |
+| **Total** | **1016** |

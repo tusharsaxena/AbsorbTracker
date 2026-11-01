@@ -135,8 +135,8 @@ end
 local FOLLOWS = {
     barTexture = { "bar.texture", "barTextureFromSkin" },
     bgTexture  = { "bar.texture", "barTextureFromSkin" },
-    border     = { "bar.borderStyle", "borderFromSkin" },
-    borderSize = { "bar.borderSize", "borderFromSkin" },
+    border     = { "bar.borderStyle", "borderFromSkin", edge = true },
+    borderSize = { "bar.borderSize", "borderFromSkin", edge = true },
     font       = { "hud.font", "fontFromSkin" },
 }
 
@@ -146,14 +146,19 @@ local FOLLOWS = {
 --- pick draws, over the skin's `hud.font` and over a font override. The library enforces it
 --- (LibKa0s v1.81.0, Skin minor 8): while the owner ignores fonts, Resolve answers the stored value
 --- for `hud.font` and Token answers nil, so the face is the stored pick and is reported as not the
---- skin's. SetIgnore fires OnLooksChanged, which repaints the bars.
+--- skin's. SetIgnore fires OnLooksChanged, which repaints the bars. A skin's None is no border of
+--- its own, so S.Resolve hands the stored style and thickness back under it (`edge`), and those are
+--- the player's whatever the companion says; a real style in a skin wins.
 function NS.MediaKey(unit, key)
     local stored = unitSetting(unit, key)
     local f, S = FOLLOWS[key], NS.Skin
     if f and S and type(S.Resolve) == "function" then
         local on = unitSetting(unit, f[2]) == true
         local v = S.Resolve(f[1], stored, on)
-        if v ~= nil then return v, on and S.Token(f[1]) ~= nil end
+        if v ~= nil then
+            local deferred = f.edge and S.Token("bar.borderStyle") == "None"
+            return v, on and not deferred and S.Token(f[1]) ~= nil
+        end
     end
     return stored, false
 end
@@ -181,16 +186,25 @@ function NS.GetBgTexture(unit)
     return fetch("statusbar", resolved(unit, "bgTexture"), C.FALLBACK_TEXTURE)
 end
 
+--- nil for None with no LibSharedMedia to answer it: no edge file draws no edge, where the
+--- fallback would put the tooltip's edge on a bar that asked for none.
 function NS.GetBorder(unit)
-    return fetch("border", resolved(unit, "border"), C.FALLBACK_BORDER)
+    local key = resolved(unit, "border")
+    if key == "None" and not NS.GetLSM() then return nil end
+    return fetch("border", key, C.FALLBACK_BORDER)
 end
 
 --- The border's thickness: the skin's `bar.borderSize` while borderFromSkin is on (DECISIONS
---- D4), so a skin's thin or absent edge is never drawn at the stored 12 px; the stored size
---- otherwise. Also the backdrop inset's source (modules/Display.lua).
+--- D4), so a skin's thin edge is never drawn at the stored 12 px; the stored size otherwise, a
+--- skin's None handing it back. A following bar with no edge at all is not read at the stored 12,
+--- which would move the background's inset: it takes the skin's size too. Also the backdrop inset's
+--- source (modules/Display.lua).
 function NS.GetBorderSize(unit)
-    local size = tonumber(resolved(unit, "borderSize"))
-    return size or unitSetting(unit, "borderSize")
+    local size = resolved(unit, "borderSize")
+    if unitSetting(unit, "borderFromSkin") == true and resolved(unit, "border") == "None" then
+        size = NS.Skin.Token("bar.borderSize") or size
+    end
+    return tonumber(size) or unitSetting(unit, "borderSize")
 end
 
 --- The face only; the size and the flags are the two getters below.

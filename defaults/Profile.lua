@@ -17,7 +17,12 @@ local function appearance()
         -- Ka0s Default's texture and face and not on a client one. A stored pick is never rewritten.
         barTexture = "Ka0s Default",
         bgTexture = "Ka0s Default",
-        border = "Blizzard Tooltip",
+        -- None, so an untouched bar draws no edge: under a skin's None the stored style is the
+        -- player's and draws (LibKa0s v1.85.0, the owner's ruling), and the library cannot tell a
+        -- shipped default from a pick. It was Blizzard Tooltip until the v9 step. The thickness
+        -- stays 12, the size a real pick has always drawn at; with no edge it is not read while the
+        -- border follows the skin (NS.GetBorderSize).
+        border = "None",
         borderSize = 12,
         -- The three "Use the skin's ..." companions (the composers' `fromSkin`, LibKa0s
         -- OptionsCompose minor 12), default ON so a new or reset profile follows the skin the way
@@ -150,7 +155,8 @@ NS.defaults.global = {
     -- its target is NS.SCHEMA_VERSION, derived from the ladder's last step. v2 retired the
     -- poll-interval key, v3 introduced profile.units, v4 dropped the dead `hidden` global, v5
     -- mapped `showOnlyInCombat` onto `visibility`, v6 put every bar's media back on the skin, v7
-    -- moved the old default flags to From skin and v8 put every bar's colors and shadow on the skin.
+    -- moved the old default flags to From skin, v8 put every bar's colors and shadow on the skin and
+    -- v9 moved a stored old default border style to None.
     --
     -- The default is 0, the pre-migration floor, and never the current version (savedvariables-§1).
     -- AceDB's removeDefaults strips every stored value equal to its default at logout, so a stamp

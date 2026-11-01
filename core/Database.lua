@@ -321,6 +321,29 @@ local SCHEMA_STEPS = {
             NS.Debug("Migrate", "put the bars' colors on the skin on %s profile(s)", moved)
         end
     end },
+    { to = 9, apply = function()
+        -- v9: the shipped border style is None. Under a skin's None the stored style is the
+        -- player's and draws, so the old default would have put a tooltip edge on every Ka0s Default
+        -- bar. AceDB strips a stored value equal to its default at logout, so an untouched profile
+        -- stores nothing and the default moves it; this takes what a backfill or an old lift stored.
+        -- Once, by the account-wide stamp: from here a stored Blizzard Tooltip is a pick. A real pick
+        -- stays, and so does the old default on a bar whose companion is off, which draws it.
+        local moved = forEachProfile(function(p)
+            if type(p) ~= "table" or type(p.units) ~= "table" then return false end
+            local any = false
+            for _, unit in ipairs(NS.Units.LIST) do
+                local u = p.units[unit]
+                if type(u) == "table" and u.border == "Blizzard Tooltip" and u.borderFromSkin ~= false then
+                    u.border = "None"
+                    any = true
+                end
+            end
+            return any
+        end)
+        if moved > 0 then
+            NS.Debug("Migrate", "moved the old default border to None on %s profile(s)", moved)
+        end
+    end },
 }
 
 -- The runner's target, derived from the ladder and never a second literal (savedvariables-§1).

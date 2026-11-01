@@ -295,10 +295,10 @@ local function addUnitRows(unit)
         extra      = { colorFromSkin(p .. "borderColorFromSkin", unit, "Use the skin's color", "Border color") },
         keys       = { borderStyle = "border" },
         tooltips   = {
-            borderSize = "Border edge width, in pixels. Not read while Use the skin's border is on: "
-                .. "the skin's thickness is drawn.",
-            borderStyleFromSkin = "Draw this border in the skin's border style and thickness. The "
-                .. "border style and thickness pickers are not read while this is on.",
+            borderSize = "Border edge width, in pixels. While Use the skin's border is on, a skin "
+                .. "with a border of its own draws its thickness in place of this.",
+            borderStyleFromSkin = "Draw the skin's border style and thickness where the skin has "
+                .. "a border of its own. Under a skin with none, your style and thickness draw.",
         },
         defaults   = {
             borderStyle         = unitDefaults.border,

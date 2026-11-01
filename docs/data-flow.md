@@ -25,7 +25,8 @@ OnInitialize (ADDON_LOADED)
     │                                    --   every bar's media back on the skin,
     │                                    --   v7 moves a stored OUTLINE flag to
     │                                    --   From skin, v8 puts colors and shadow
-    │                                    --   on the skin, per profile
+    │                                    --   on the skin, per profile, v9 moves a
+    │                                    --   stored old default border to None
     │
     ├─▶ NS.ApplySkinChoice()            -- core/SkinSetup.lua: the profile's skin
     │                                    --   (Skin:SetChoice), before anything paints
@@ -47,6 +48,8 @@ The flat→profile migration lives in `NS:RunMigrations` (`core/Database.lua`), 
    - **v7**: Font flags From skin (LibKa0s v1.82.0, ruling D-07). On every profile in the store, a stored `units.<unit>.fontFlags` equal to the old default, `OUTLINE`, becomes `"@skin"` (From skin, the new default, resolved through the Skin tab's Font outline); any other stored flag is the player's and stays, and an absent one already reads the new default. The account-wide stamp makes it once. It logs `[Migrate] moved the bars' Font flags to From skin on N profile(s)` only when a flag moved.
 
    - **v8**: the bars' colors and shadow onto the skin (FS-AT-FLIP, the owner's rulings of 2026-11-01). `NS.ResetProfileToSkin` over every profile in the store: the eight `SKIN_COMPANION_KEYS` set on and `fontFlags` to `"@skin"`, every stored color and pick kept. Gated per profile on `skin.fullSkinReset`, so it also runs safely at every init and from `adoptProfile`, and a companion turned off afterwards stays off.
+
+   - **v9**: the shipped border style is `None` (FS-AT-GATE, LibKa0s v1.85.0). A skin's `None` hands the stored style back, so an old default would draw on every bar. On every profile a stored `Blizzard Tooltip` becomes `None`, unless that bar's `borderFromSkin` is off, which draws it. Any other pick stays. Account-wide, once: from here a stored Blizzard Tooltip is a pick.
 
 **Adding a schema version is one new row appended to `SCHEMA_STEPS`**, not another `if g.schemaVersion < N` arm — the loop already owns the ordering, the logging and the stamp.
 

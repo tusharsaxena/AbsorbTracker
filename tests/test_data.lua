@@ -163,7 +163,10 @@ end)
 test("media fetchers return the hardcoded fallbacks when LSM is absent", function()
   assertEqual(NS.GetBarTexture(), C.FALLBACK_TEXTURE)
   assertEqual(NS.GetBgTexture(),  C.FALLBACK_TEXTURE)
-  assertEqual(NS.GetBorder(),     C.FALLBACK_BORDER)
+  assertEqual(NS.GetBorder(),     nil, "the shipped None draws no edge, not the fallback's")
+  withSetting("units.player.border", "Blizzard Tooltip", function()
+    assertEqual(NS.GetBorder(), C.FALLBACK_BORDER)
+  end)
   assertEqual(NS.GetFont(),       C.FALLBACK_FONT)
 end)
 
@@ -432,7 +435,7 @@ test("media getters read through the unit's mirror resolution", function()
   -- With no LSM headless, every fetcher falls back to the constant. The point of this test is
   -- that passing a unit does not raise and does not read the player's key by accident.
   assertEqual(NS.GetBarTexture("target"), NS.Constants.FALLBACK_TEXTURE)
-  assertEqual(NS.GetBorder("focus"), NS.Constants.FALLBACK_BORDER)
+  assertEqual(NS.GetBorder("focus"), nil, "None, with no LSM to fetch it")
   assertEqual(NS.GetFont("target"), NS.Constants.FALLBACK_FONT)
 end)
 

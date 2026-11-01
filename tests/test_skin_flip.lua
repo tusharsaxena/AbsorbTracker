@@ -102,8 +102,8 @@ end)
 
 test("the border family puts the thickness on the skin through the composer", function()
   local size = NS.FindSchemaRow("units.player.borderSize")
-  assertEqual(size.disabledIf, "units.player.borderFromSkin")
-  assertEqual(size.skinValue(size), S.Token("bar.borderSize"))
+  assertEqual(size.disabledIf(size), false, "a skin's None leaves the thickness live")
+  assertEqual(size.skinValue(size), nil, "and shows the stored size")
 end)
 
 -- ── what the bars draw ───────────────────────────────────────────────────────────────────────
@@ -352,6 +352,20 @@ test("with no library the facade draws no gloss, and HudFont still gives the tex
   S2.HudFont(fs, { face = "Fonts\\Host.ttf", size = 14, flags = "OUTLINE", shadow = false })
   assertEqual(calls.SetShadowColor, rgba(0, 0, 0, 0), "the off arm writes")
   assertEqual(calls.SetShadowOffset, rgba(0, 0))
+  S2.HudFont(fs, { face = "Fonts\\Host.ttf", size = 0, flags = "@skin" })
+  assertEqual(calls.SetFont, rgba("Fonts\\Host.ttf", 12, "OUTLINE"), "the sentinel never reaches SetFont")
+end)
+
+test("with no library the stored border stands, and the shipped None draws no edge", function()
+  -- red under: a no-op BarBorder, or a None that fetches the tooltip fallback.
+  local NS2 = dofile("tests/degraded_env.lua")()
+  local style, show, size = NS2.Skin.BarBorder("Blizzard Dialog", false, 7, true)
+  assertEqual(style, "Blizzard Dialog")
+  assertEqual(show, false)
+  assertEqual(size, 7)
+  assertEqual(NS2.Skin.HoverArt({}), nil, "nothing to tint, and nothing raised")
+  assertEqual(NS2.Widgets.ContextMenu(), nil, "no menu, and nothing raised")
+  assertEqual(NS2.GetBorder("player"), nil)
 end)
 
 -- ── the one step ─────────────────────────────────────────────────────────────────────────────
@@ -509,7 +523,7 @@ end)
 
 test("the ladder walks every stored profile, and a profile change runs the step", function()
   local steps = NS.__migrationSteps
-  local step = steps[#steps]
+  local step = steps[#steps - 1]
   assertEqual(step.to, 8)
   local a, b = partial(), partial()
   local saved = NS.db
@@ -528,4 +542,65 @@ test("the ladder walks every stored profile, and a profile change runs the step"
   assertEqual(p.skin.fullSkinReset, true, "adoptProfile ran the step")
   assertEqual(p.units.player.fontColorFromSkin, true)
   p.skin.fullSkinReset, p.units.player.fontColorFromSkin = keptRecord, keptFlag
+end)
+
+-- ── the bar border under a skin's None and a real style (FS-AT-GATE) ─────────────────────────
+
+test("an untouched bar draws no edge and keeps its inset under Ka0s Default", function()
+  -- red under: a shipped real style, which a skin's None hands back and draws on every profile.
+  assertEqual(NS.defaults.profile.units.player.border, "None")
+  NS.UpdateBarAppearance("player")
+  assertEqual(NS.MediaKey("player", "border"), "None")
+  assertEqual(NS.GetBorderSize("player"), S.Token("bar.borderSize"), "not the stored 12")
+  assertEqual(NS.bars.player.backdropInfo.insets.left, 1, "the background's inset did not move")
+end)
+
+test("a skin's None defers to the player's stored style and size, companion on", function()
+  -- red under: S.Resolve read as the skin's whatever it answered, or a report saying the skin's.
+  withUnit("player", "border", "Blizzard Dialog", function()
+    withUnit("player", "borderSize", 7, function()
+      local style, fromSkin = NS.MediaKey("player", "border")
+      assertEqual(style, "Blizzard Dialog")
+      assertEqual(fromSkin, false, "the player's, and the report says so")
+      assertEqual(NS.GetBorderSize("player"), 7)
+    end)
+  end)
+end)
+
+test("a real style in a skin wins over the player's, and the companion off gives it back", onSkin("azeroth", function()
+  -- red under: a host that reads the stored style while the companion is on.
+  assertTrue(S.Token("bar.borderStyle") ~= "None", "this skin states a real style")
+  withUnit("player", "border", "Blizzard Dialog", function()
+    local style, fromSkin = NS.MediaKey("player", "border")
+    assertEqual(style, S.Token("bar.borderStyle"))
+    assertEqual(fromSkin, true)
+    assertEqual(NS.GetBorderSize("player"), S.Token("bar.borderSize"))
+    withUnit("player", "borderFromSkin", false, function()
+      assertEqual(NS.MediaKey("player", "border"), "Blizzard Dialog")
+    end)
+  end)
+end))
+
+test("v9 moves a stored old default to None, once, and leaves a pick and a companion off", function()
+  -- red under: a step that sweeps every style, or one that runs past the account-wide stamp.
+  local steps = NS.__migrationSteps
+  local step = steps[#steps]
+  assertEqual(step.to, 9)
+  local a = { units = {
+    player = { border = "Blizzard Tooltip" },
+    target = { border = "Blizzard Dialog" },
+    focus  = { border = "Blizzard Tooltip", borderFromSkin = false },
+  } }
+  local b = { units = { player = { border = "Blizzard Tooltip", borderSize = 6 } } }
+  local saved = NS.db
+  NS.db = { profile = a, global = {}, sv = { profiles = { Default = a, Raid = b } } }
+  local ok, err = pcall(step.apply, a)
+  NS.db = saved
+  if not ok then error(err, 0) end
+  assertEqual(a.units.player.border, "None", "the old default")
+  assertEqual(b.units.player.border, "None", "on an inactive profile too")
+  assertEqual(b.units.player.borderSize, 6, "a stored thickness stays")
+  assertEqual(a.units.target.border, "Blizzard Dialog", "a real pick stays")
+  assertEqual(a.units.focus.border, "Blizzard Tooltip", "a companion off keeps what it drew")
+  assertEqual(b.units.target, nil, "no table on the way")
 end)

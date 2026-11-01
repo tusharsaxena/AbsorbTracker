@@ -344,7 +344,10 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
   background-texture token), `borderFromSkin` the border style and its thickness (`bar.borderStyle`,
   `bar.borderSize`, so a skin's thin edge is never drawn at the stored 12 px) and `fontFromSkin` the
   face only (`hud.font`). While a companion is on, the picker it governs is disabled and shows the
-  skin's value; the stored pick is kept for when the player turns it off. `NS.MediaKey`
+  skin's value; the stored pick is kept for when the player turns it off. The border is the
+  exception (LibKa0s v1.85.0): a skin's `None` is no border of its own, so the stored style and
+  thickness draw under it and the rows stay live, and a real style in a skin wins. `border` ships
+  `None` for that reason, and a following bar with no edge reads the skin's size, not the stored 12. `NS.MediaKey`
   (`core/Data.lua`) resolves through `NS.Skin.Resolve`, which honors the Skin tab's Font and texture
   overrides, and never through `S.BarTexture`, which would replay the skin's texture over an unticked
   pick at the next switch. It runs in the appearance pass only, never on the absorb hot path. Since

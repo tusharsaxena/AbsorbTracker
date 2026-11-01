@@ -33,6 +33,7 @@ return function()
   --
   -- Three entries, not thirteen: the suite needs the player's class (MAGE, the shared base's
   -- capture-context default) plus two others, to tell "the tracked unit's class" from "the player's".
+  M.STANDARD_TEXT_FONT = "Fonts\\FRIZQT__.TTF"
   M.RAID_CLASS_COLORS = {
     MAGE    = { r = 0.25, g = 0.78, b = 0.92 },
     PRIEST  = { r = 1.00, g = 1.00, b = 1.00 },
