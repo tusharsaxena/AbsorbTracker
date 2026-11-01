@@ -365,8 +365,9 @@ Skin:RegisterOwner(addonName, {
 
 -- The HUD follows a skin switch, an override and an exception change: the library fires
 -- OnLooksChanged after each, and the bars repaint through the one appearance path every other
--- restyle takes (modules/Display.lua resolves the media again, core/Data.lua). The bars are not
--- recorded frames, so nothing else would repaint them. A stood-down addon's bus reaches nobody.
+-- restyle takes (modules/Display.lua resolves the media again, core/Data.lua). Only the gloss on a
+-- bar's fill is a recorded paint, so nothing else would repaint them. A stood-down addon's bus
+-- reaches nobody.
 NS.Skin.OnLooksChanged(function()
     if NS.bus and NS.MSG then NS.bus:SendMessage(NS.MSG.APPEARANCE) end
 end)

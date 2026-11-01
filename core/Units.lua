@@ -52,6 +52,14 @@ Units.SKIN_COMPANION_KEYS = {
 Units.SKIN_RESET_KEYS = { "fontFlags" }
 for i, key in ipairs(Units.SKIN_COMPANION_KEYS) do Units.SKIN_RESET_KEYS[i + 1] = key end
 
+-- The same list as Skin.FollowOnce takes it, one call per profile: dotted from the profile's root.
+Units.SKIN_RESET_PATHS = {}
+for _, unit in ipairs(Units.LIST) do
+    for _, key in ipairs(Units.SKIN_RESET_KEYS) do
+        Units.SKIN_RESET_PATHS[#Units.SKIN_RESET_PATHS + 1] = "units." .. unit .. "." .. key
+    end
+end
+
 local function profile()
     return NS.db and NS.db.profile
 end

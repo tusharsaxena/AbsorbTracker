@@ -193,14 +193,6 @@ function NS.GetBorderSize(unit)
     return size or unitSetting(unit, "borderSize")
 end
 
---- True when `unit`'s fill wears the skin's gloss (`bar.gloss`, cause A3). It belongs to the skin's
---- texture, so it follows that companion: a player's own texture stays plain.
-function NS.GetBarGloss(unit)
-    local S = NS.Skin
-    if unitSetting(unit, "barTextureFromSkin") ~= true then return false end
-    return S ~= nil and type(S.Token) == "function" and S.Token("bar.gloss") == true
-end
-
 --- The face only; the size and the flags are the two getters below.
 function NS.GetFont(unit)
     return fetch("font", resolved(unit, "font"), C.FALLBACK_FONT)
@@ -354,21 +346,6 @@ function NS.GetFontColor(unit)
     if r then return r, g, b, a end
     return NS.ResolveColor(unitSetting(unit, "fontColor"),
         unitSetting(unit, "useClassColorText"), unit)
-end
-
---- The value text's shadow: `x, y, r, g, b, a`, or false for none. With fontShadowFromSkin on the
---- skin's (`hud.shadow`): its `false` draws none, and its nil, the owner ignoring fonts, leaves the
---- stored fontShadow standing, as does the companion off. The stored row draws the font block's own
---- black at 1, -1 (options-ui-§16).
-function NS.GetFontShadow(unit)
-    local S = NS.Skin
-    if unitSetting(unit, "fontShadowFromSkin") == true and S and type(S.HudShadow) == "function" then
-        local x, y, r, g, b, a = S.HudShadow()
-        if x == false then return false end
-        if x ~= nil then return x, y, r, g, b, a end
-    end
-    if unitSetting(unit, "fontShadow") then return 1, -1, 0, 0, 0, 1 end
-    return false
 end
 
 -- ── the master multipliers ─────────────────────────────────────────────────────────────────

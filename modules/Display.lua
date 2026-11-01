@@ -27,42 +27,16 @@ local STACK_GAP = 8
 local DRAG = NS.Widgets.DRAG_HANDLE
 local HANDLE_ROOM = DRAG.HEIGHT + DRAG.GAP
 
--- The value text's font object, one per unit, or nil where the client has no CreateFont. A 12.0.7
--- client draws only a font object's shadow, so that is where the face, the flags and the shadow go
--- (LibKa0s Skin doc, FS-T1, and SkinPaint.lua's rule); the FontString calls remain for a client
--- without one.
-local valueFonts = {}
-
-local function valueFont(unit)
-    if type(CreateFont) ~= "function" then return nil end
-    local obj = valueFonts[unit]
-    if not obj then
-        obj = CreateFont("AbsorbTrackerValueFont_" .. unit)
-        valueFonts[unit] = obj
-    end
-    return obj
-end
-
---- Forget the font objects. Suite seam only: a live client keeps its named fonts for the session.
-function NS.__ResetValueFonts() valueFonts = {} end
-
---- The value text's face, flags and shadow (NS.GetFontShadow, core/Data.lua). BOTH shadow arms are
---- written: an OFF arm that merely skipped the call would leave whatever the last pass set.
+--- The value text's face, size, flags and shadow, through the library's one call (S.HudFont, Skin
+--- doc): a 12.0.7 client draws only a font object's shadow, so it gives the string one of its own.
+--- The stored row and its companion go in as they are; the library applies S.HudShadow's answers.
+--- Unrecorded, so a skin change reaches it through the appearance pass, with no gate in front.
 local function applyValueFont(unit, valueText)
-    local path, size, flags = NS.GetFont(unit), NS.GetFontSize(unit), NS.GetFontFlags(unit)
-    local x, y, r, g, b, a = NS.GetFontShadow(unit)
-    if x == false then x, y, r, g, b, a = 0, 0, 0, 0, 0, 0 end
-    local obj = valueFont(unit)
-    if obj then
-        obj:SetFont(path, size, flags)
-        obj:SetShadowColor(r, g, b, a)
-        obj:SetShadowOffset(x, y)
-        valueText:SetFontObject(obj)
-    else
-        valueText:SetFont(path, size, flags)
-        valueText:SetShadowColor(r, g, b, a)
-        valueText:SetShadowOffset(x, y)
-    end
+    NS.Skin.HudFont(valueText, {
+        face = NS.GetFont(unit), size = NS.GetFontSize(unit), flags = NS.GetFontFlags(unit),
+        shadow = NS.Units.Get(unit, "fontShadow"),
+        shadowFromSkin = NS.Units.Get(unit, "fontShadowFromSkin") == true,
+    })
 end
 
 -- ── preview mode (preview-mode) ─────────────────────────────────────────────────────────────
@@ -223,7 +197,8 @@ function NS.UpdateBarAppearance(unit)
     bar:SetSize(NS.Units.Get(unit, "barWidth"), NS.Units.Get(unit, "barHeight"))
     statusBar:SetStatusBarTexture(NS.GetBarTexture(unit))
     statusBar:SetStatusBarColor(NS.GetBarColor(unit))
-    if NS.GetBarGloss(unit) then bar.gloss:Show() else bar.gloss:Hide() end
+    -- The skin's gloss (cause A3). It belongs to the skin's texture, so a player's own stays plain.
+    NS.Skin.BarGloss(statusBar, NS.Units.Get(unit, "barTextureFromSkin") == true)
 
     -- The skin's thickness while the border follows the skin, the stored one otherwise
     -- (core/Data.lua); the inset below follows whichever is drawn.

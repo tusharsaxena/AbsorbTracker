@@ -164,25 +164,24 @@ end
 --- every profile event (core/AbsorbTracker.lua), so a companion a player turns off afterwards stays
 --- off. A reset profile runs it again against defaults, which changes nothing a player sees.
 ---
---- It names companions and the From skin flags (NS.Units.SKIN_RESET_KEYS), never a stored color or
+--- It names companions and the From skin flags (NS.Units.SKIN_RESET_PATHS), never a stored color or
 --- pick, so turning a companion off brings the player's own back; a class color and its toggle are
---- not named. Without the library the same write by hand. A path through a missing table is skipped,
---- and the record's own table is the one table it may create. Answers true when it ran.
+--- not named. The record's gate is the library's, Skin.FollowOnce, and without the library the same
+--- write by hand. A path through a missing table is skipped, and the record's own table is the one
+--- table it may create. Answers true when it ran.
 function NS.ResetProfileToSkin(p)
     if type(p) ~= "table" then return false end
+    local Skin = LibStub and LibStub("LibKa0s-Skin-1.0", true)
+    if Skin and type(Skin.FollowOnce) == "function" then
+        return Skin.FollowOnce(p, NS.Units.SKIN_RESET_PATHS)
+    end
     if type(p.skin) == "table" and p.skin.fullSkinReset == true then return false end
     local units = type(p.units) == "table" and p.units or {}
-    local Skin = LibStub and LibStub("LibKa0s-Skin-1.0", true)
-    local reset = Skin and type(Skin.ResetToSkin) == "function" and Skin.ResetToSkin
     for _, unit in ipairs(NS.Units.LIST) do
         local c = units[unit]
         if type(c) == "table" then
-            if reset then
-                reset(c, NS.Units.SKIN_RESET_KEYS)
-            else
-                for _, key in ipairs(NS.Units.SKIN_COMPANION_KEYS) do c[key] = true end
-                c.fontFlags = "@skin"
-            end
+            for _, key in ipairs(NS.Units.SKIN_COMPANION_KEYS) do c[key] = true end
+            c.fontFlags = "@skin"
         end
     end
     if type(p.skin) ~= "table" then p.skin = {} end

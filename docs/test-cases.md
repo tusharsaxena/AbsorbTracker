@@ -912,7 +912,7 @@ Total.
 - the skin's face draws at the skin's HUD size; the stored size never moves
 - a mirrored bar follows the player's Use the skin's font for its size
 
-### test_skin_flip.lua (17)
+### test_skin_flip.lua (23)
 
 - every unit's color and shadow companions are bool rows defaulting on, in both places
 - no swatch carries disabledIf, and a class color has no companion
@@ -920,15 +920,21 @@ Total.
 - the border family puts the thickness on the skin through the composer
 - Ka0s Default keeps this addon's pixels: fill, background, border, text, no shadow
 - a skin switch changes every flipped surface
+- a skin that says no shadow draws none, whatever the stored row says
 - a companion off draws the stored color and shadow
 - a class color comes first, whatever the companion says
 - Ignore fonts: the stored fontShadow stands
 - the shadow lands on a font object where the client has CreateFont
 - a glossy skin glosses the fill; Ka0s Default and the player's own texture do not
-- the gloss layer is built on the fill, white, and the facade's degraded answer is no gloss
+- the gloss layer is built on the fill, in the one white look
+- with no library the facade draws no gloss, and HudFont still gives the text its face
 - the step: every listed key follows, every stored pick and color is byte-identical
 - the step names no size, class toggle, Scope key or color
 - a second run writes nothing, and a companion turned off afterwards stays off
+- General's Defaults keeps the record, so the next migration leaves a turned-off companion off
+- past the stamp the runner still moves an active profile with no record
+- a failed ladder step stops the run before the step onto the skin
+- the step creates the record's table on a raw profile with none
 - the step is the same write with the library absent
 - the ladder walks every stored profile, and a profile change runs the step
 
@@ -1186,7 +1192,7 @@ Total.
 | test_realpages.lua | 13 |
 | test_skinsetup.lua | 17 |
 | test_skin_hud.lua | 19 |
-| test_skin_flip.lua | 17 |
+| test_skin_flip.lua | 23 |
 | test_skin_picker.lua | 19 |
 | test_skin_tools.lua | 6 |
 | test_glyphs.lua | 1 |
@@ -1205,4 +1211,4 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | Skipped | 1 |
-| **Total** | **991** |
+| **Total** | **997** |

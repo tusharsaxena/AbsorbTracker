@@ -367,15 +367,15 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
   the owner ignores fonts, `Resolve` answers the stored value for `hud.font` and `Token` answers
   nil, so `NS.MediaKey` keeps no check of its own, and it reports the face as the skin's only while
   the companion is on **and** the skin answers the token (the `skin=` column of `/at diagnostics`).
-  `NS.GetFontShadow` answers the shadow; the value text wears one font object per unit
+  `S.HudFont` draws the face, size, flags and shadow on one font object per string
   (`modules/Display.lua`), because a 12.0.7 client draws only a font object's shadow. The stored
   *Font shadow* row draws black at 1, -1.
-- **Gloss** (cause A3). `NS.GetBarGloss` shows `bar.gloss`, a white shine over the fill's top half
-  (`modules/Bar.lua`), while the skin sets `bar.gloss` and the bar follows the skin's texture. Glass
+- **Gloss** (cause A3). `S.BarGloss` draws a white shine over the fill's top half
+  (`modules/Display.lua`), while the skin sets `bar.gloss` and the bar follows the skin's texture. Glass
   is the one shipped skin that does; Ka0s Default draws none.
 - **The v8 step** (`NS.ResetProfileToSkin`, `core/Database.lua`). Existing profiles follow the skin,
-  once per profile, recorded in `skin.fullSkinReset`, from the ladder, every init and every profile
-  event. It sets the eight companions and writes `"@skin"` to `fontFlags`; every stored color and
+  once per profile through `Skin.FollowOnce`, recorded in `skin.fullSkinReset`, from the ladder,
+  every init and every profile event. It sets the eight companions and writes `"@skin"` to `fontFlags`; every stored color and
   pick is kept, and a companion turned off afterwards stays off. It never names a class toggle, a
   size or a `skin.ignore*` key.
 - **The one-time reset** (the owner's O2). Schema v6 (`core/Database.lua`) sets every stored companion

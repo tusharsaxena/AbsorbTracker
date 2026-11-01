@@ -108,6 +108,21 @@ end)
 
 -- ── what the bars draw ───────────────────────────────────────────────────────────────────────
 
+--- The shadow the player's value text draws, read off the appearance pass: `x, y, r, g, b, a`, or
+--- false for none. The mock client has no CreateFont, so S.HudFont writes on the string.
+local function drawnShadow()
+  local fs = NS.bars.player.valueText
+  local color, offset
+  local savedColor, savedOffset = rawget(fs, "SetShadowColor"), rawget(fs, "SetShadowOffset")
+  fs.SetShadowColor = function(_, ...) color = { ... } end
+  fs.SetShadowOffset = function(_, ...) offset = { ... } end
+  local ok, err = pcall(NS.UpdateBarAppearance, "player")
+  fs.SetShadowColor, fs.SetShadowOffset = savedColor, savedOffset
+  if not ok then error(err, 0) end
+  if offset[1] == 0 and offset[2] == 0 and color[4] == 0 then return false end
+  return offset[1], offset[2], color[1], color[2], color[3], color[4]
+end
+
 test("Ka0s Default keeps this addon's pixels: fill, background, border, text, no shadow", function()
   local d = NS.unitDefaults
   assertEqual(rgba(NS.GetBarColor("player")), rgba(d.barColor.r, d.barColor.g, d.barColor.b, d.barColor.a))
@@ -115,7 +130,7 @@ test("Ka0s Default keeps this addon's pixels: fill, background, border, text, no
   assertEqual(rgba(NS.GetBorderColor("player")),
     rgba(d.borderColor.r, d.borderColor.g, d.borderColor.b, d.borderColor.a))
   assertEqual(rgba(NS.GetFontColor("player")), rgba(1, 1, 1, 1))
-  assertEqual(NS.GetFontShadow("player"), false, "Ka0s Default draws no HUD shadow")
+  assertEqual(drawnShadow(), false, "Ka0s Default draws no HUD shadow")
 end)
 
 test("a skin switch changes every flipped surface", function()
@@ -140,7 +155,7 @@ test("a skin switch changes every flipped surface", function()
     assertTrue(rgba(NS.GetBorderColor("player")) ~= before[3], "the border moved")
     assertTrue(rgba(NS.GetFontColor("player")) ~= before[4], "the text moved")
     local x, y, r, g, b, a = S.HudShadow()
-    assertEqual(rgba(NS.GetFontShadow("player")), rgba(x, y, r, g, b, a), "shadow: hud.shadow")
+    assertEqual(rgba(drawnShadow()), rgba(x, y, r, g, b, a), "shadow: hud.shadow")
     -- The bar itself, not only its getters: red under a surface that keeps its old value.
     NS.UpdateBarAppearance("player")
     assertEqual(drawn.SetStatusBarColor, rgba(S.BarFillColor()), "the fill as drawn")
@@ -157,7 +172,7 @@ test("a skin that says no shadow draws none, whatever the stored row says", func
   withUnit("player", "fontShadowFromSkin", true, function()
     withUnit("player", "fontShadow", true, function()
       assertEqual(S.HudShadow(), false, "Ka0s Default's hud.shadow")
-      assertEqual(NS.GetFontShadow("player"), false, "no shadow drawn")
+      assertEqual(drawnShadow(), false, "no shadow drawn")
     end)
   end)
 end)
@@ -174,10 +189,10 @@ test("a companion off draws the stored color and shadow", onSkin("obsidian", fun
   end
   withUnit("player", "fontShadowFromSkin", false, function()
     withUnit("player", "fontShadow", false, function()
-      assertEqual(NS.GetFontShadow("player"), false, "stored off")
+      assertEqual(drawnShadow(), false, "stored off")
     end)
     withUnit("player", "fontShadow", true, function()
-      assertEqual(rgba(NS.GetFontShadow("player")), rgba(1, -1, 0, 0, 0, 1), "stored on")
+      assertEqual(rgba(drawnShadow()), rgba(1, -1, 0, 0, 0, 1), "stored on")
     end)
   end)
 end))
@@ -211,10 +226,10 @@ test("Ignore fonts: the stored fontShadow stands", function()
   local ok, err = pcall(function()
     assertEqual(S.HudShadow(), nil, "the library answers nil")
     withUnit("player", "fontShadow", true, function()
-      assertEqual(rgba(NS.GetFontShadow("player")), rgba(1, -1, 0, 0, 0, 1))
+      assertEqual(rgba(drawnShadow()), rgba(1, -1, 0, 0, 0, 1))
     end)
     withUnit("player", "fontShadow", false, function()
-      assertEqual(NS.GetFontShadow("player"), false)
+      assertEqual(drawnShadow(), false)
     end)
   end)
   Skin:SetIgnore(OWNER, nil, false)
@@ -248,64 +263,95 @@ test("the shadow lands on a font object where the client has CreateFont", onSkin
   end)
   rawset(_G, "CreateFont", saved)
   fs.SetFontObject = savedSet
-  NS.__ResetValueFonts()
+  Skin.__hudFonts[fs] = nil
   if not ok then error(err, 0) end
 end))
 
 -- ── gloss (FS-AT-FIX, cause A3) ──────────────────────────────────────────────────────────────
 
-test("a glossy skin glosses the fill; Ka0s Default and the player's own texture do not", function()
-  -- red under: a bar that never reads bar.gloss, or a gloss left on after the skin moved on.
-  local bar = NS.bars.player
-  local shown, real = nil, bar.gloss
-  bar.gloss = { Show = function() shown = true end, Hide = function() shown = false end }
-  local ok, err = pcall(function()
-    NS.UpdateBarAppearance("player")
-    assertEqual(NS.GetBarGloss("player"), false, "Ka0s Default has none")
-    assertEqual(shown, false, "no change under Ka0s Default")
-    Skin:SetChoice(OWNER, "ka0s", "glass")
-    assertEqual(NS.GetBarGloss("player"), true, "Glass has it")
-    NS.UpdateBarAppearance("player")
-    assertEqual(shown, true, "the layer shows")
-    withUnit("player", "barTextureFromSkin", false, function()
-      assertEqual(NS.GetBarGloss("player"), false, "the player's own texture stays plain")
-    end)
-    Skin:SetChoice(OWNER, "ka0s", "ka0s")
-    NS.UpdateBarAppearance("player")
-    assertEqual(shown, false, "a switch away takes it off")
-  end)
-  bar.gloss = real
-  Skin:SetChoice(OWNER, "ka0s", "ka0s")
-  if not ok then error(err, 0) end
-end)
-
-test("the gloss layer is built on the fill, white, and the facade's degraded answer is no gloss", function()
-  assertTrue(NS.bars.player.gloss ~= nil, "every bar builds the layer")
-  -- A bar fresh from the build: red under an anchor on the bar's corner (a shine past the fill's end,
-  -- SKIN-40's fail case), a tinted layer, or a layer that starts shown.
-  -- On the kit's paint recorder, for a texture of its own: the base mock hands back the frame.
+--- `body(bar, gloss)` with the player's bar swapped for a fresh one on the kit's paint recorder: the
+--- base mock's bars are no StatusBar, and the library leaves those alone. `gloss()` is the layer.
+local function withGlossBar(body)
   local restorePaint = dofile("tests/_kit/mock_paint.lua")(mocks)
   local savedCreate = rawget(_G, "CreateFrame")
   rawset(_G, "CreateFrame", mocks.CreateFrame)
   local made, built = pcall(NS.CreateBar, "player", "AbsorbTrackerGlossProbe")
   rawset(_G, "CreateFrame", savedCreate)
+  if not made then restorePaint() error(built, 0) end
+  local real = NS.bars.player
+  NS.bars.player = built
+  local ok, err = pcall(body, built, function()
+    local rec = Skin.painted[built.statusBar]
+    return rec and rec.regions.gloss
+  end)
+  Skin:SetChoice(OWNER, "ka0s", "ka0s")
+  NS.bars.player = real
+  Skin:Untrack(built.statusBar)
   restorePaint()
-  if not made then error(built, 0) end
-  local gloss, fill = built.gloss, built.statusBar:GetStatusBarTexture()
-  assertEqual(gloss:GetNumPoints(), 2, "two anchors")
-  local topPoint, topRegion, topRelative = gloss:GetPoint(1)
-  local bottomPoint, bottomRegion, bottomRelative = gloss:GetPoint(2)
-  assertEqual(topPoint .. ">" .. topRelative, "TOPLEFT>TOPLEFT", "its top")
-  assertEqual(bottomPoint .. ">" .. bottomRelative, "BOTTOMRIGHT>RIGHT", "its half-way line")
-  assertTrue(topRegion == fill, "the top anchors to the fill")
-  assertTrue(bottomRegion == fill, "the bottom anchors to the fill")
-  assertEqual(rgba(unpack(gloss.__color)), rgba(1, 1, 1, 1), "white")
-  assertEqual(gloss:IsShown(), false, "hidden until the appearance pass says otherwise")
-  local real = NS.Skin
-  NS.Skin = { Token = function() return nil end }
-  local ok, err = pcall(function() assertEqual(NS.GetBarGloss("player"), false) end)
-  NS.Skin = real
   if not ok then error(err, 0) end
+end
+
+test("a glossy skin glosses the fill; Ka0s Default and the player's own texture do not", function()
+  -- red under: a bar that never reads bar.gloss, or a gloss left on after the skin moved on.
+  withGlossBar(function(_, gloss)
+    NS.UpdateBarAppearance("player")
+    assertEqual(gloss(), nil, "Ka0s Default has none")
+    Skin:SetChoice(OWNER, "ka0s", "glass")
+    NS.UpdateBarAppearance("player")
+    assertTrue(gloss() ~= nil, "Glass has it")
+    assertEqual(gloss():IsShown(), true, "the layer shows")
+    withUnit("player", "barTextureFromSkin", false, function()
+      NS.UpdateBarAppearance("player")
+      assertEqual(gloss():IsShown(), false, "the player's own texture stays plain")
+      -- red under: a call that omits the companion, which a replay would shine again.
+      Skin:SetChoice(OWNER, "ka0s", "obsidian")
+      Skin:SetChoice(OWNER, "ka0s", "glass")
+      assertEqual(gloss():IsShown(), false, "and through a skin switch's replay")
+    end)
+    NS.UpdateBarAppearance("player")
+    assertEqual(gloss():IsShown(), true, "the companion back on")
+    Skin:SetChoice(OWNER, "ka0s", "ka0s")
+    assertEqual(gloss():IsShown(), false, "a switch away takes it off")
+  end)
+end)
+
+test("the gloss layer is built on the fill, in the one white look", function()
+  -- red under: an anchor on the bar's corner, a shine past the fill's end (SKIN-40's fail case).
+  withGlossBar(function(bar, gloss)
+    Skin:SetChoice(OWNER, "ka0s", "glass")
+    NS.UpdateBarAppearance("player")
+    local layer, fill = gloss(), bar.statusBar:GetStatusBarTexture()
+    assertEqual(layer:GetNumPoints(), 2, "two anchors")
+    local topPoint, topRegion, topRelative = layer:GetPoint(1)
+    local bottomPoint, bottomRegion, bottomRelative = layer:GetPoint(2)
+    assertEqual(topPoint .. ">" .. topRelative, "TOPLEFT>TOPLEFT", "its top")
+    assertEqual(bottomPoint .. ">" .. bottomRelative, "BOTTOMRIGHT>RIGHT", "its half-way line")
+    assertTrue(topRegion == fill, "the top anchors to the fill")
+    assertTrue(bottomRegion == fill, "the bottom anchors to the fill")
+    local g = mocks.__paint(layer).gradient
+    assertEqual(g.orientation, "VERTICAL")
+    assertEqual(rgba(g.min.r, g.min.g, g.min.b, g.min.a), rgba(1, 1, 1, 0), "clear at the middle")
+    assertEqual(rgba(g.max.r, g.max.g, g.max.b, g.max.a), rgba(1, 1, 1, 0.25), "the strength it had")
+  end)
+end)
+
+test("with no library the facade draws no gloss, and HudFont still gives the text its face", function()
+  -- red under: a no-op HudFont, which leaves the value text with no face, or one shadow arm dropped.
+  local NS2 = dofile("tests/degraded_env.lua")()
+  local S2 = NS2.Skin
+  assertEqual(S2.BarGloss({}, true), nil, "nothing to draw, and nothing raised")
+  local calls = {}
+  local fs = {}
+  for _, m in ipairs({ "SetFont", "SetShadowColor", "SetShadowOffset" }) do
+    fs[m] = function(_, ...) calls[m] = rgba(...) end
+  end
+  S2.HudFont(fs, { face = "Fonts\\Host.ttf", size = 14, flags = "OUTLINE", shadow = true, shadowFromSkin = true })
+  assertEqual(calls.SetFont, rgba("Fonts\\Host.ttf", 14, "OUTLINE"))
+  assertEqual(calls.SetShadowColor, rgba(0, 0, 0, 1))
+  assertEqual(calls.SetShadowOffset, rgba(1, -1))
+  S2.HudFont(fs, { face = "Fonts\\Host.ttf", size = 14, flags = "OUTLINE", shadow = false })
+  assertEqual(calls.SetShadowColor, rgba(0, 0, 0, 0), "the off arm writes")
+  assertEqual(calls.SetShadowOffset, rgba(0, 0))
 end)
 
 -- ── the one step ─────────────────────────────────────────────────────────────────────────────
@@ -365,6 +411,9 @@ test("the step: every listed key follows, every stored pick and color is byte-id
   assertEqual(p.skin.ignorePanel, false, "skin.ignorePanel stays")
   assertEqual(p.skin.ignoreFonts, true, "skin.ignoreFonts stays")
   assertEqual(p.skin.fullSkinReset, true, "recorded per profile")
+  -- red under: FollowOnce called once per unit, which writes the record on the entry.
+  assertEqual(p.units.player.skin, nil, "no stray skin table on an entry")
+  assertEqual(p.units.target.skin, nil, "no stray skin table on an entry")
 end)
 
 test("the step names no size, class toggle, Scope key or color", function()
