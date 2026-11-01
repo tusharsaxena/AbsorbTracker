@@ -123,7 +123,9 @@ if not core or (core.MINOR or 0) < NEEDS_CORE then return end   -- no NewLibrary
 -- Minor 13 (FS-T1 of the same bundle, causes D2, D3 and D6): VOCAB gains HudTextColor, HudLabelColor,
 -- BarFillColor and HudShadow, SkinPaintExtras minor 12's, and Ignore fonts reaches `hud.shadow`,
 -- `hud.shadowX` and `hud.shadowY` as it reaches `hud.outline`. The HUD's colors are not fonts.
-local MAJOR, MINOR = "LibKa0s-Skin-1.0", 13
+-- Minor 14 (FS-FIX of the same bundle, the AbsorbTracker pilot's gaps): VOCAB gains BarGloss and
+-- HudFont, SkinPaintExtras minor 14's, and FollowOnce, the record gate every host's step wrote.
+local MAJOR, MINOR = "LibKa0s-Skin-1.0", 14
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
 
@@ -150,7 +152,7 @@ lib.VOCAB = {
   "TitleBar", "Divider", "Footer", "Card", "Slider", "NavItem", "Drawer", "ListRow", "MenuFrame",
   "Tooltip", "Strip", "Cover", "Text", "ChartStyle", "BarStyle", "IconBorder", "GlowColor",
   "BarTexture", "FontFlags", "HudFontSize", "Mark", "MarkText",
-  "HudTextColor", "HudLabelColor", "BarFillColor", "HudShadow",
+  "HudTextColor", "HudLabelColor", "BarFillColor", "HudShadow", "BarGloss", "HudFont",
 }
 
 local WEAK_KEYS = { __mode = "k" }
@@ -917,6 +919,22 @@ function lib.ResetToSkin(profile, keys, opts, extra)
     end
   end
   return n
+end
+
+--- The one step onto the skin, per profile (minor 14). The stamp is per account and following the
+--- skin leaves no shape to read, so the profile carries its own record, `skin.fullSkinReset`. Already
+--- true: nothing moves, so a companion turned off since stays off, and it answers false. Otherwise
+--- `ResetToSkin(profile, keys, opts)`, the record written (the `skin` table is the one table this may
+--- create), and true. A bad profile or no `keys` answers false and writes no record. Called as
+--- `Skin.FollowOnce(p, keys[, opts])`.
+function lib.FollowOnce(profile, keys, opts, extra)
+  if profile == lib then profile, keys, opts = keys, opts, extra end
+  if type(profile) ~= "table" or type(keys) ~= "table" then return false end
+  if type(profile.skin) == "table" and profile.skin.fullSkinReset == true then return false end
+  lib.ResetToSkin(profile, keys, opts)
+  if type(profile.skin) ~= "table" then profile.skin = {} end
+  profile.skin.fullSkinReset = true
+  return true
 end
 
 -- ── the frame registry and the repaint ───────────────────────────────────────────────────────
