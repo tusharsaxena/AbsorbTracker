@@ -31,12 +31,15 @@ local HANDLE_ROOM = DRAG.HEIGHT + DRAG.GAP
 --- doc): a 12.0.7 client draws only a font object's shadow, so it gives the string one of its own.
 --- The stored row and its companion go in as they are; the library applies S.HudShadow's answers.
 --- Unrecorded, so a skin change reaches it through the appearance pass, with no gate in front.
+--- One table, refilled: a fresh one per bar is what tests/perf.lua's byte ceiling caught, and the
+--- library reads it and keeps nothing.
+local fontOpts = {}
+
 local function applyValueFont(unit, valueText)
-    NS.Skin.HudFont(valueText, {
-        face = NS.GetFont(unit), size = NS.GetFontSize(unit), flags = NS.GetFontFlags(unit),
-        shadow = NS.Units.Get(unit, "fontShadow"),
-        shadowFromSkin = NS.Units.Get(unit, "fontShadowFromSkin") == true,
-    })
+    fontOpts.face, fontOpts.size, fontOpts.flags = NS.GetFont(unit), NS.GetFontSize(unit), NS.GetFontFlags(unit)
+    fontOpts.shadow = NS.Units.Get(unit, "fontShadow")
+    fontOpts.shadowFromSkin = NS.Units.Get(unit, "fontShadowFromSkin") == true
+    NS.Skin.HudFont(valueText, fontOpts)
 end
 
 -- ── preview mode (preview-mode) ─────────────────────────────────────────────────────────────
