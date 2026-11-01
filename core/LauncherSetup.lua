@@ -141,6 +141,7 @@ NS.Launcher = lib:New({
     --
     -- Enabled: the store, not the latch, as the dispatcher's gate reads it. `setEnabled` is handed
     -- the state to move TO, which picks the verb.
+    openSkinPicker = function() if NS.RunSkinVerb then NS.RunSkinVerb() end end,
     isEnabled  = function() return NS.GetSetting("enabled") ~= false end,
     setEnabled = function(on) runVerb(on and "enable" or "disable") end,
 

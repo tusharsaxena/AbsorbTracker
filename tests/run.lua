@@ -183,6 +183,7 @@ Kit.run{
     -- straight after it, so the Appearance page those cases reach is the one it already opened.
     "test_panelmirror",
     "test_launcher",
+    "test_launcher_skin_entry",
     "test_optionssetup",
     "test_slashcmds",
     -- /at enable, /at disable and the disabled gate, peeled out of test_slashcmds in the layout-§1
