@@ -223,6 +223,7 @@ function NS.UpdateBarAppearance(unit)
     bar:SetSize(NS.Units.Get(unit, "barWidth"), NS.Units.Get(unit, "barHeight"))
     statusBar:SetStatusBarTexture(NS.GetBarTexture(unit))
     statusBar:SetStatusBarColor(NS.GetBarColor(unit))
+    if NS.GetBarGloss(unit) then bar.gloss:Show() else bar.gloss:Hide() end
 
     -- The skin's thickness while the border follows the skin, the stored one otherwise
     -- (core/Data.lua); the inset below follows whichever is drawn.

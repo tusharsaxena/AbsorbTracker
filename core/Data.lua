@@ -193,6 +193,14 @@ function NS.GetBorderSize(unit)
     return size or unitSetting(unit, "borderSize")
 end
 
+--- True when `unit`'s fill wears the skin's gloss (`bar.gloss`, cause A3). It belongs to the skin's
+--- texture, so it follows that companion: a player's own texture stays plain.
+function NS.GetBarGloss(unit)
+    local S = NS.Skin
+    if unitSetting(unit, "barTextureFromSkin") ~= true then return false end
+    return S ~= nil and type(S.Token) == "function" and S.Token("bar.gloss") == true
+end
+
 --- The face only; the size and the flags are the two getters below.
 function NS.GetFont(unit)
     return fetch("font", resolved(unit, "font"), C.FALLBACK_FONT)

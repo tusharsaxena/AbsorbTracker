@@ -225,6 +225,9 @@ end
 
 --- Build one bar. Each frame owns its OWN backdropInfo and borderInfo tables: one shared table
 --- cannot hold three different border sizes, and WoW's SetBackdrop keys off table identity.
+-- How strong the gloss's top edge is: this addon's, the skin saying only whether it draws one.
+local GLOSS_ALPHA = 0.25
+
 function NS.CreateBar(unit, globalName)
     local bar = CreateFrame("Frame", globalName, UIParent, "BackdropTemplate")
     bar.unit = unit
@@ -271,6 +274,18 @@ function NS.CreateBar(unit, globalName)
     statusBar:SetValue(100)
     statusBar:SetStatusBarColor(NS.GetBarColor(unit))
     bar.statusBar = statusBar
+
+    -- The skin's gloss (`bar.gloss`, cause A3): a white shine over the fill's top half, anchored to
+    -- the fill so it ends where the fill ends. Shown by the appearance pass (modules/Display.lua)
+    -- under a skin that sets it, so it is hidden under Ka0s Default.
+    local gloss = statusBar:CreateTexture(nil, "OVERLAY")
+    local fill = statusBar:GetStatusBarTexture()
+    gloss:SetPoint("TOPLEFT", fill, "TOPLEFT")
+    gloss:SetPoint("BOTTOMRIGHT", fill, "RIGHT")
+    gloss:SetColorTexture(1, 1, 1, 1)
+    gloss:SetGradient("VERTICAL", CreateColor(1, 1, 1, 0), CreateColor(1, 1, 1, GLOSS_ALPHA))
+    gloss:Hide()
+    bar.gloss = gloss
 
     -- The border: the backdrop EDGE alone, on its own frame over the whole bar, above the fill.
     -- Mouse-off, so a drag on the bar's body still reaches the bar.

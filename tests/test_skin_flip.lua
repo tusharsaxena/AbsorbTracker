@@ -224,6 +224,42 @@ test("the shadow lands on a font object where the client has CreateFont", onSkin
   if not ok then error(err, 0) end
 end))
 
+-- ── gloss (FS-AT-FIX, cause A3) ──────────────────────────────────────────────────────────────
+
+test("a glossy skin glosses the fill; Ka0s Default and the player's own texture do not", function()
+  -- red under: a bar that never reads bar.gloss, or a gloss left on after the skin moved on.
+  local bar = NS.bars.player
+  local shown, real = nil, bar.gloss
+  bar.gloss = { Show = function() shown = true end, Hide = function() shown = false end }
+  local ok, err = pcall(function()
+    NS.UpdateBarAppearance("player")
+    assertEqual(NS.GetBarGloss("player"), false, "Ka0s Default has none")
+    assertEqual(shown, false, "no change under Ka0s Default")
+    Skin:SetChoice(OWNER, "ka0s", "glass")
+    assertEqual(NS.GetBarGloss("player"), true, "Glass has it")
+    NS.UpdateBarAppearance("player")
+    assertEqual(shown, true, "the layer shows")
+    withUnit("player", "barTextureFromSkin", false, function()
+      assertEqual(NS.GetBarGloss("player"), false, "the player's own texture stays plain")
+    end)
+    Skin:SetChoice(OWNER, "ka0s", "ka0s")
+    NS.UpdateBarAppearance("player")
+    assertEqual(shown, false, "a switch away takes it off")
+  end)
+  bar.gloss = real
+  Skin:SetChoice(OWNER, "ka0s", "ka0s")
+  if not ok then error(err, 0) end
+end)
+
+test("the gloss layer is built on the fill, white, and the facade's degraded answer is no gloss", function()
+  assertTrue(NS.bars.player.gloss ~= nil, "every bar builds the layer")
+  local real = NS.Skin
+  NS.Skin = { Token = function() return nil end }
+  local ok, err = pcall(function() assertEqual(NS.GetBarGloss("player"), false) end)
+  NS.Skin = real
+  if not ok then error(err, 0) end
+end)
+
 -- ── the one step ─────────────────────────────────────────────────────────────────────────────
 
 local function partial()
