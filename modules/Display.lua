@@ -109,6 +109,7 @@ end
 function NS.ClearPreview()
     local held = (NS.testHoldUntil or 0) > GetTime()
     NS.testHoldUntil = nil
+    if NS.SimStop then NS.SimStop() end   -- a sim runs under the hold (settings/Slash.lua)
     if previewTimer then
         if NS.addon and NS.addon.CancelTimer then NS.addon:CancelTimer(previewTimer) end
         previewTimer = nil

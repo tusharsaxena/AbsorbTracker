@@ -380,17 +380,28 @@ local SIM_STEPS = {
 }
 local SIM_TAIL = 1.5
 local simTimer
+local simActive = false   -- from the start to the hold's end, the 1.5 s tail included
 
+-- Cancel the script. NS.ClearPreview calls this too (NS.SimStop), so a lock toggle, a stand-down or
+-- a second hold ends the sim with the hold it ran under.
 local function simStop()
-    local had = simTimer ~= nil
+    local had = simActive
     if simTimer then
         if NS.addon and NS.addon.CancelTimer then NS.addon:CancelTimer(simTimer) end
         simTimer = nil
     end
+    simActive = false
     return had
 end
+NS.SimStop = simStop
 
 local function simStep(i)
+    -- The hold this step paints under is gone (cleared, replaced or expired): end the script.
+    if (NS.testHoldUntil or 0) <= GetTime() then
+        simTimer, simActive = nil, false
+        if NS.bus then NS.bus:SendMessage(NS.MSG.REPAINT) end
+        return
+    end
     local step = SIM_STEPS[i]
     paintHold(step[2])
     local nextStep = SIM_STEPS[i + 1]
@@ -412,6 +423,9 @@ function runSim(rest)
     if word == "stop" then
         if simStop() then
             NS.ClearPreview()
+            -- REPAINT alone cannot clear the fake value while the bars are unlocked (the repaint stands
+            -- down there); hand them the placeholder first, as the hold's expiry does.
+            if NS.InPreview() then NS.ForEachUnit(NS.PaintPlaceholder) end
             if NS.bus then NS.bus:SendMessage(NS.MSG.REPAINT) end
             return print("Sim stopped")
         end
@@ -433,6 +447,7 @@ function runSim(rest)
     local total = SIM_STEPS[#SIM_STEPS][1] + SIM_TAIL
     print(("Playing a made-up absorb fight on the bars for %s s; /at sim stop ends it"):format(("%g"):format(total)))
     NS.HoldPreview(total)
+    simActive = true
     simStep(1)
 end
 

@@ -74,3 +74,53 @@ test("sim: a disabled addon refuses on the collection's line", function()
   assertEqual(NS.testHoldUntil, nil, "no hold")
   assertFalse(out == "", "it said something")
 end)
+
+-- ── the sim's end states (SF-FIX) ───────────────────────────────────────────────────────────────
+
+test("sim: clearing the preview mid-sim (a lock toggle, a stand-down) cancels the script", function()
+  slash("sim")
+  NS.ClearPreview()
+  local painted = 0
+  local real = NS.ForEachUnit
+  NS.ForEachUnit = function(...) painted = painted + 1 return real(...) end
+  drain()
+  NS.ForEachUnit = real
+  assertEqual(painted, 0, "no step paints after the hold was cleared")
+  assertTrue(slash("sim stop"):find("No sim is running", 1, true) ~= nil, "and no sim is left")
+end)
+
+test("sim: a debug hold mid-sim replaces the sim", function()
+  slash("sim")
+  slash("debug hold 5000 3")
+  assertTrue(slash("sim stop"):find("No sim is running", 1, true) ~= nil, "the hold ended the script")
+  NS.ClearPreview()
+end)
+
+test("sim: stop during the tail still stops, and unlocked bars get their placeholder back", function()
+  NS.ClearPreview()
+  slash("sim")
+  local placeholders = 0
+  local real = NS.PaintPlaceholder
+  NS.PaintPlaceholder = function(...) placeholders = placeholders + 1 return real(...) end
+  local inPreview = NS.InPreview
+  NS.InPreview = function() return true end
+  local out = slash("sim stop")
+  NS.InPreview, NS.PaintPlaceholder = inPreview, real
+  assertTrue(out:find("Sim stopped", 1, true) ~= nil, out)
+  assertTrue(placeholders > 0, "the placeholder is painted before the repaint")
+end)
+
+test("sim: a late step with no live hold ends the script and publishes a repaint", function()
+  NS.ClearPreview()
+  slash("sim")
+  NS.testHoldUntil = nil
+  local repaints = 0
+  local bus = NS.bus
+  local real = bus.SendMessage
+  bus.SendMessage = function(self, msg, ...) if msg == NS.MSG.REPAINT then repaints = repaints + 1 end return real(self, msg, ...) end
+  drain()
+  bus.SendMessage = real
+  assertTrue(repaints >= 1, "the last fake value is repainted away")
+  assertTrue(slash("sim stop"):find("No sim is running", 1, true) ~= nil, "and the script is over")
+  NS.ClearPreview()
+end)
