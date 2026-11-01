@@ -300,7 +300,13 @@ function NS.CreateBar(unit, globalName)
     local S = NS.Skin
     valueText:SetFont(NS.GetFont(unit), S.HudFontSize(unitDefaults.fontSize, unitDefaults.fontFromSkin),
         S.FontFlags(unitDefaults.fontFlags))
-    valueText:SetPoint("CENTER", bar, "CENTER", 0, 0)
+    -- Spans the bar rather than keeping the width of its own text: an unsized FontString holds the
+    -- width it measured under the previous face, so a wider skin face (High Contrast) clipped
+    -- "Absorb" to "Absor" (SF-AT-1). Centered inside the span, never wrapped.
+    valueText:SetPoint("LEFT", bar, "LEFT", 0, 0)
+    valueText:SetPoint("RIGHT", bar, "RIGHT", 0, 0)
+    valueText:SetJustifyH("CENTER")
+    valueText:SetWordWrap(false)
     bar.valueText = valueText
 
     -- The unlocked drag handle above the bar, naming its unit. Nil on a build without

@@ -216,6 +216,7 @@ Setup for the verb checks: run PROFILE-9 first, so a `SmokeTest` profile exists 
 - **SKIN-40. Gloss (A3).** Pick Glass → the fill shows a soft shine on its top half that ends where the fill ends, at any fill level. Any other skin, and Glass with **Use the skin's texture** unticked → none. Fail: a shine past the fill, or one that stays after a switch. Result: not run.
 - **SKIN-41. A skin's None defers to your border (the owner's ruling).** Under Ka0s Default, with **Use the skin's border** ticked, pick a **Border style** and thickness → the style and thickness stay live and draw. Pick Azeroth → its 1 px Solid edge replaces yours and both rows gray. Pick Obsidian → your border is back. Fail: a grayed picker over a border that draws, or your style drawing under Azeroth. Result: not run.
 - **SKIN-42. An untouched bar has no border (v9).** On a profile that never picked a border, under Ka0s Default → no edge, and the background sits as it did. A profile that picked a style other than Blizzard Tooltip keeps it and draws it. Fail: a tooltip edge on an untouched bar, or a lost pick. Result: not run.
+- **SKIN-43. The number is whole under every face (SF-AT-1).** `/at unlock` with all three bars on, then pick **High Contrast** and the other skins in turn → the placeholder reads "Absorb" in full on Player, Target and Focus under every skin, centered in the bar, with no letter cut off. Fail: "Absor" or any clipped number under High Contrast. Result: not run.
 
 ## Upgrades
 

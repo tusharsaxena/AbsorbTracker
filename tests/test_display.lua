@@ -662,6 +662,18 @@ test("UpdateBarAppearance re-applies the font from the profile", function()
   assertEqual(calls[1][3], "THICKOUTLINE")
 end)
 
+test("the value text spans the bar, so a wider face is never clipped (SF-AT-1)", function()
+  -- The mock hands back the bar frame for CreateFontString (mock_base.lua), so the anchors cannot be
+  -- read off the string; read the creation site instead.
+  local f = assert(io.open("modules/Bar.lua", "rb"))
+  local src = f:read("*a")
+  f:close()
+  assertTrue(src:find("valueText:SetPoint(\"LEFT\"", 1, true), "anchored left")
+  assertTrue(src:find("valueText:SetPoint(\"RIGHT\"", 1, true), "anchored right: an unsized FontString keeps the width measured under the previous face")
+  assertTrue(src:find("valueText:SetWordWrap(false)", 1, true), "never wrapped")
+  assertTrue(src:find("valueText:SetJustifyH(\"CENTER\")", 1, true), "centered in the span")
+end)
+
 test("UpdateBarAppearance reads a nil fontFlags as From skin, never handing SetFont nil", function()
   local savedDB = NS.db.profile.units.player.fontFlags
   local savedDefault = NS.unitDefaults.fontFlags
