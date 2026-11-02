@@ -246,6 +246,8 @@ test("the shadow lands on a font object where the client has CreateFont", onSkin
     for _, m in ipairs({ "SetFont", "SetShadowColor", "SetShadowOffset" }) do
       o[m] = function(_, ...) o.calls[m] = { ... } end
     end
+    -- A real font object answers its face (LibKa0s R3-DR-1L reads it back to hold the face).
+    o.GetFont = function() return unpack(o.calls.SetFont or {}) end
     return o
   end
   local saved, fs = rawget(_G, "CreateFont"), NS.bars.player.valueText
