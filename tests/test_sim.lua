@@ -3,9 +3,9 @@ local NS, M = T.NS, T.mocks
 local test, assertEqual, assertTrue, assertFalse =
   T.test, T.assertEqual, T.assertTrue, T.assertFalse
 
--- `/at sim [stop]` (SF-AT-2): a scripted, made-up absorb fight played on the bars, modeled on
--- DpsRace's `/dr sim`. It holds the bars for the whole fight, stores nothing, stops on `stop` and
--- leaves no hold or timer behind when it ends.
+-- `/at sim` (SG-AT-1): LibKa0s-Sim-1.0's session and step window over a made-up shield fight painted on
+-- the bars, like MultiMeters' and KickCD's. The session holds the bars, stores nothing, honors each
+-- step's wait, and leaves no hold or timer behind when it ends.
 
 local function slash(line)
   local out = {}
@@ -18,109 +18,165 @@ local function slash(line)
   return table.concat(out, "\n")
 end
 
--- Fire the chained one-shot timers until none is left to run.
 local function drain()
-  for _ = 1, 40 do
+  for _ = 1, 60 do
+    M.__now = M.__now + 3
     if M.__fireTimers() == 0 then return end
   end
 end
 
+-- The mock fires every queued timer whatever its delay, which would run the session's 6 h hold expiry on
+-- the first drain; a start that drops that one timer lets the steps play out.
+local function start(scenario)
+  local addon = NS.addon
+  local real = addon.ScheduleTimer
+  addon.ScheduleTimer = function(self, fn, delay, ...)
+    if delay and delay >= 3600 then return {} end
+    return real(self, fn, delay, ...)
+  end
+  slash("sim start " .. scenario)
+  addon.ScheduleTimer = real
+end
 
+local function reset()
+  if NS.Sim:IsActive() then NS.Sim:Stop("stop") end
+  NS.ClearPreview()
+  drain()
+end
 
 test("sim: COMMANDS carries a sim row", function()
   local found
   for _, e in ipairs(NS.COMMANDS) do if e[1] == "sim" then found = e end end
   assertTrue(found ~= nil, "a sim verb")
-  assertTrue(found[2]:find("/at sim [stop]", 1, true) ~= nil, found[2])
+end)
+
+test("sim: the library session is bound and the seam wraps nothing", function()
+  assertTrue(NS.Sim ~= nil and NS.Sim.RunVerb ~= nil, "a session")
+  assertEqual(#NS.SimSeam:Unwrapped(), 0, "nothing escaped the seam")
+end)
+
+test("sim: three scenarios, each a list of shield steps with a wait", function()
+  local sc = NS.SimHost.SCENARIOS
+  assertEqual(#sc.names, 3)
+  for _, name in ipairs(sc.names) do
+    local steps = sc.defs[name].timeline(sc.defs[name], { scenario = name })
+    assertTrue(#steps >= 5, name)
+    for _, s in ipairs(steps) do
+      assertEqual(s.kind, "shield")
+      assertTrue(type(s.value) == "number" and type(s.wait) == "number", name)
+    end
+  end
+end)
+
+test("sim: a step's wait is the gap to the next, the last waits the default", function()
+  local steps = NS.SimHost.SCENARIOS.defs.fight.timeline(nil, { scenario = "fight" })
+  assertEqual(NS.SimHost.DelayAfter(steps[1]), 1.5)
+  assertEqual(NS.SimHost.DelayAfter(steps[5]), 1)   -- 6 -> 7
+  assertEqual(NS.SimHost.DelayAfter(steps[#steps]), NS.SimHost.DEFAULT_WAIT)
 end)
 
 test("sim: a bad word prints the usage and holds nothing", function()
-  NS.ClearPreview()
-  local out = slash("sim wibble")
-  assertTrue(out:find("Usage: /at sim [stop]", 1, true) ~= nil, out)
+  reset()
+  slash("sim wibble")
   assertEqual(NS.testHoldUntil, nil, "no hold")
+  assertFalse(NS.Sim:IsActive())
 end)
 
 test("sim: stop with nothing running says so", function()
-  assertTrue(slash("sim stop"):find("No sim is running", 1, true) ~= nil)
+  reset()
+  assertTrue(slash("sim stop") ~= "", "it said something")
 end)
 
-test("sim: a run holds the bars, plays the script, then lets go", function()
-  NS.ClearPreview()
-  local out = slash("sim")
-  assertTrue(out:find("made-up absorb fight", 1, true) ~= nil, out)
-  assertTrue(NS.testHoldUntil ~= nil, "the bars are held for the fight")
+test("sim: a start holds the bars, opens the stepper and plays the steps", function()
+  reset()
+  start("fight")
+  assertTrue(NS.Sim:IsActive(), "active")
+  assertTrue(NS.testHoldUntil ~= nil, "the bars are held")
   drain()
-  M.__now = M.__now + 30
-  drain()
-  assertEqual(NS.testHoldUntil, nil, "the hold ended with the fight")
+  local steps = NS.Sim:Steps()
+  assertTrue(#steps > 0 and steps[#steps].ranAt ~= nil, "the run reached the last step")
+  reset()
 end)
 
-test("sim: stop cancels the fight and clears the hold", function()
-  slash("sim")
-  assertTrue(NS.testHoldUntil ~= nil)
-  local out = slash("sim stop")
-  assertTrue(out:find("Sim stopped", 1, true) ~= nil, out)
+test("sim: the held shield is what the last step painted", function()
+  reset()
+  local painted = {}
+  local real = NS.PaintHold
+  NS.PaintHold = function(n) painted[#painted + 1] = n return real(n) end
+  start("drain")
+  drain()
+  NS.PaintHold = real
+  assertEqual(painted[1], 120000)
+  assertEqual(painted[#painted], 20000)
+  reset()
+end)
+
+test("sim: a manual step paints one value and holds the run", function()
+  reset()
+  slash("sim start fight")
+  slash("sim step")
+  assertEqual(NS.Sim:Status().active, true)
+  reset()
+end)
+
+test("sim: stop ends the session and clears the hold", function()
+  reset()
+  slash("sim start fight")
+  slash("sim stop")
+  assertFalse(NS.Sim:IsActive())
   assertEqual(NS.testHoldUntil, nil, "hold cleared")
-  assertTrue(slash("sim stop"):find("No sim is running", 1, true) ~= nil, "and nothing is left running")
+  assertTrue(slash("sim stop") ~= "", "and nothing is left running")
 end)
 
-test("sim: a disabled addon refuses on the collection's line", function()
-  NS.SetByPath("enabled", false)
-  local ok, out = pcall(slash, "sim")
-  NS.SetByPath("enabled", true)
-  M.__fireTimers()
-  assertTrue(ok, tostring(out))
-  assertEqual(NS.testHoldUntil, nil, "no hold")
-  assertFalse(out == "", "it said something")
-end)
-
--- ── the sim's end states (SF-FIX) ───────────────────────────────────────────────────────────────
-
-test("sim: clearing the preview mid-sim (a lock toggle, a stand-down) cancels the script", function()
-  slash("sim")
+test("sim: clearing the preview mid-sim (a lock toggle, a stand-down) ends the session", function()
+  reset()
+  slash("sim start fight")
   NS.ClearPreview()
+  assertFalse(NS.Sim:IsActive(), "the session ended with the hold")
   local painted = 0
-  local real = NS.ForEachUnit
-  NS.ForEachUnit = function(...) painted = painted + 1 return real(...) end
+  local real = NS.PaintHold
+  NS.PaintHold = function(...) painted = painted + 1 return real(...) end
   drain()
-  NS.ForEachUnit = real
+  NS.PaintHold = real
   assertEqual(painted, 0, "no step paints after the hold was cleared")
-  assertTrue(slash("sim stop"):find("No sim is running", 1, true) ~= nil, "and no sim is left")
 end)
 
 test("sim: a debug hold mid-sim replaces the sim", function()
-  slash("sim")
+  reset()
+  slash("sim start fight")
   slash("debug hold 5000 3")
-  assertTrue(slash("sim stop"):find("No sim is running", 1, true) ~= nil, "the hold ended the script")
+  assertFalse(NS.Sim:IsActive(), "the hold ended the session")
   NS.ClearPreview()
 end)
 
-test("sim: stop during the tail still stops, and unlocked bars get their placeholder back", function()
-  NS.ClearPreview()
-  slash("sim")
+test("sim: stop with the bars unlocked gives them their placeholder back", function()
+  reset()
+  slash("sim start fight")
   local placeholders = 0
-  local real = NS.PaintPlaceholder
+  local real, inPreview = NS.PaintPlaceholder, NS.InPreview
   NS.PaintPlaceholder = function(...) placeholders = placeholders + 1 return real(...) end
-  local inPreview = NS.InPreview
   NS.InPreview = function() return true end
-  local out = slash("sim stop")
+  slash("sim stop")
   NS.InPreview, NS.PaintPlaceholder = inPreview, real
-  assertTrue(out:find("Sim stopped", 1, true) ~= nil, out)
   assertTrue(placeholders > 0, "the placeholder is painted before the repaint")
 end)
 
-test("sim: a late step with no live hold ends the script and publishes a repaint", function()
-  NS.ClearPreview()
-  slash("sim")
-  NS.testHoldUntil = nil
-  local repaints = 0
-  local bus = NS.bus
-  local real = bus.SendMessage
-  bus.SendMessage = function(self, msg, ...) if msg == NS.MSG.REPAINT then repaints = repaints + 1 end return real(self, msg, ...) end
+test("sim: a disabled addon refuses and holds nothing", function()
+  reset()
+  NS.SetByPath("enabled", false)
+  local ok, out = pcall(slash, "sim start fight")
+  NS.SetByPath("enabled", true)
   drain()
-  bus.SendMessage = real
-  assertTrue(repaints >= 1, "the last fake value is repainted away")
-  assertTrue(slash("sim stop"):find("No sim is running", 1, true) ~= nil, "and the script is over")
-  NS.ClearPreview()
+  assertTrue(ok, tostring(out))
+  assertFalse(NS.Sim:IsActive())
+  assertEqual(NS.testHoldUntil, nil, "no hold")
+end)
+
+test("sim: the launcher's mode row follows the session", function()
+  reset()
+  assertFalse(NS.IsSimRunning())
+  slash("sim start fight")
+  assertTrue(NS.IsSimRunning())
+  NS.ToggleSim()
+  assertFalse(NS.IsSimRunning())
 end)

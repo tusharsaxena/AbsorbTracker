@@ -123,7 +123,7 @@ NS.COMMANDS = {
     -- `debug diagnostics` word; there is no `diag`, `dump` or `dx` alias anywhere (STD-04).
     {"diagnostics",   NS.L["Write a diagnostics report to the debug console"],
         function() runDiagnostics() end},
-    {"sim",           NS.L["Play a made-up absorb fight on the bars \226\128\148 `/at sim [stop]`"],
+    {"sim",           NS.L["Play a made-up absorb fight on the bars with a step window \226\128\148 try `/at sim`"],
         function(rest) runSim(rest) end},
     {"perf",          "Measure performance \226\128\148 try `/at perf` for the workflow",
         function(rest) runPerf(rest) end},
@@ -368,91 +368,13 @@ end
 
 -- ── /at sim ──────────────────────────────────────────────────────────────────────────────────
 --
--- Modeled on DpsRace's `/dr sim`: a scripted, made-up fight played through the addon's own bars, so
--- the player sees how a shield lands, drains, refreshes and breaks without a group. Nothing is stored
--- and no real absorb is read. The script is SIM_STEPS, [seconds after the start] = shield value; each
--- step is its own one-shot timer, chained, so a cancel is one CancelTimer. The bars are held
--- (NS.HoldPreview) for the whole fight, which is what keeps live repaints off them, and the hold's
--- own expiry repaints live data, so a finished sim leaves no state behind.
-local SIM_STEPS = {
-    { 0, 120000 }, { 1.5, 96000 }, { 3, 71000 }, { 4.5, 44000 }, { 6, 20000 },
-    { 7, 200000 }, { 9, 158000 }, { 11, 90000 }, { 13, 31000 }, { 14.5, 0 },
-}
-local SIM_TAIL = 1.5
-local simTimer
-local simActive = false   -- from the start to the hold's end, the 1.5 s tail included
-
--- Cancel the script. NS.ClearPreview calls this too (NS.SimStop), so a lock toggle, a stand-down or
--- a second hold ends the sim with the hold it ran under.
-local function simStop()
-    local had = simActive
-    if simTimer then
-        if NS.addon and NS.addon.CancelTimer then NS.addon:CancelTimer(simTimer) end
-        simTimer = nil
-    end
-    simActive = false
-    return had
-end
-NS.SimStop = simStop
-
--- The launcher's Sim mode row (Launcher minor 7): whether the script runs, and the act of `/at sim`.
-function NS.IsSimRunning() return simActive end
-function NS.ToggleSim() runSim(simActive and "stop" or "") end
-
-local function simStep(i)
-    -- The hold this step paints under is gone (cleared, replaced or expired): end the script.
-    if (NS.testHoldUntil or 0) <= GetTime() then
-        simTimer, simActive = nil, false
-        if NS.bus then NS.bus:SendMessage(NS.MSG.REPAINT) end
-        return
-    end
-    local step = SIM_STEPS[i]
-    paintHold(step[2])
-    local nextStep = SIM_STEPS[i + 1]
-    if not nextStep then simTimer = nil return end
-    simTimer = NS.addon:ScheduleTimer(function() simStep(i + 1) end, nextStep[1] - step[1])
-end
+-- The made-up absorb fight is LibKa0s-Sim-1.0's session with its step window, hosted by
+-- modules/Sim.lua (SG-AT-1); the verb hands the line to the library's grammar (`start`, `stop`, `step`,
+-- `run`, ...). The step script paints the bars through NS.PaintHold.
+NS.PaintHold = paintHold
 
 function runSim(rest)
-    if NS.GetSetting("enabled") == false then
-        NS.Debug("Cmd", "sim refused: addon disabled")
-        return print(Sl:DisabledLine())
-    end
-    if NS.IsStoodDown() then
-        NS.Debug("Cmd", "sim refused: stood down")
-        return print("Bars are suspended for a perf capture; run /at perf finish "
-            .. "(or /at perf measure a) first")
-    end
-    local word = (rest or ""):match("^%s*(%S*)"):lower()
-    if word == "stop" then
-        if simStop() then
-            NS.ClearPreview()
-            -- REPAINT alone cannot clear the fake value while the bars are unlocked (the repaint stands
-            -- down there); hand them the placeholder first, as the hold's expiry does.
-            if NS.InPreview() then NS.ForEachUnit(NS.PaintPlaceholder) end
-            if NS.bus then NS.bus:SendMessage(NS.MSG.REPAINT) end
-            return print("Sim stopped")
-        end
-        return print("No sim is running")
-    end
-    if word ~= "" then
-        NS.Debug("Cmd", "sim refused: bad arguments '%s'", rest or "")
-        return print("Usage: /at sim [stop]")
-    end
-    local anyEnabled = false
-    for _, unit in ipairs(NS.Units.LIST) do
-        if NS.Units.IsEnabled(unit) then anyEnabled = true break end
-    end
-    if not anyEnabled then
-        NS.Debug("Cmd", "sim refused: every bar disabled")
-        return print("Every bar is disabled; run /at toggle to turn them on before the sim")
-    end
-    simStop()
-    local total = SIM_STEPS[#SIM_STEPS][1] + SIM_TAIL
-    print(("Playing a made-up absorb fight on the bars for %s s; /at sim stop ends it"):format(("%g"):format(total)))
-    NS.HoldPreview(total)
-    simActive = true
-    simStep(1)
+    NS.Sim:RunVerb(rest or "")
 end
 
 -- The sub-verbs `/at debug` takes; anything else (including nothing) toggles the console window.
