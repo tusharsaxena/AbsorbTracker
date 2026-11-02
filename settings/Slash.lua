@@ -395,6 +395,10 @@ local function simStop()
 end
 NS.SimStop = simStop
 
+-- The launcher's Sim mode row (Launcher minor 7): whether the script runs, and the act of `/at sim`.
+function NS.IsSimRunning() return simActive end
+function NS.ToggleSim() runSim(simActive and "stop" or "") end
+
 local function simStep(i)
     -- The hold this step paints under is gone (cleared, replaced or expired): end the script.
     if (NS.testHoldUntil or 0) <= GetTime() then

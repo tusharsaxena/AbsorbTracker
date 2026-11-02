@@ -155,6 +155,8 @@ NS.Launcher = lib:New({
     -- of `isEnabled` and `isLocked` above and `version` here. No `onTooltipShow`: nothing of ours to
     -- append. `version` is the TOC's `## Version` and nothing else: nil (headless, or an unreadable
     -- manifest) draws the label alone rather than NS.Version()'s "?" or the fallback constant.
+    isSimMode = function() return NS.IsSimRunning ~= nil and NS.IsSimRunning() == true end,
+    toggleSim = function() if NS.ToggleSim then NS.ToggleSim() end end,
     version = function() return NS.Meta("Version") end,
 
     print = function(line) print(line) end,

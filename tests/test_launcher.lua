@@ -255,7 +255,7 @@ test("launcher: RIGHT-click opens the options menu: the brand title, Enabled, Lo
 
     assertEqual(opened, 0, "right-click opens the menu, not the panel")
     assertEqual(menu.titles[1], "Ka0s Absorb Tracker", "the menu is titled with the brand label")
-    assertEqual(table.concat(menu:Texts(), " / "), "Enabled / Locked")
+    assertEqual(table.concat(menu:Texts(), " / "), "Enabled / Locked / Sim mode")
   end)
 end)
 
@@ -323,7 +323,7 @@ test("launcher menu: while disabled, Locked is grayed with the note and Enabled 
   NS.SetByPath("enabled", false)
   local ok, err = pcall(withMenu, function()
     local menu = openMenu()
-    assertEqual(table.concat(menu:Texts(), " / "), "Enabled / Locked (enable the addon first)")
+    assertEqual(table.concat(menu:Texts(), " / "), "Enabled / Locked (enable the addon first) / Sim mode (enable the addon first)")
     assertFalse(menu:Find("Locked").enabled, "Locked is grayed")
     assertTrue(menu:Find("Enabled").enabled, "Enabled is live")
     local calls = verbCalls({ lock = true, unlock = true }, function() menu:Click("Locked") end)
