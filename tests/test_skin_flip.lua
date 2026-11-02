@@ -525,7 +525,7 @@ end)
 
 test("the ladder walks every stored profile, and a profile change runs the step", function()
   local steps = NS.__migrationSteps
-  local step = steps[#steps - 1]
+  local step = steps[7]   -- the v8 step (index 1 is v2)
   assertEqual(step.to, 8)
   local a, b = partial(), partial()
   local saved = NS.db
@@ -586,7 +586,7 @@ end))
 test("v9 moves a stored old default to None, once, and leaves a pick and a companion off", function()
   -- red under: a step that sweeps every style, or one that runs past the account-wide stamp.
   local steps = NS.__migrationSteps
-  local step = steps[#steps]
+  local step = steps[8]   -- the v9 step (index 1 is v2)
   assertEqual(step.to, 9)
   local a = { units = {
     player = { border = "Blizzard Tooltip" },

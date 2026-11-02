@@ -189,6 +189,22 @@ function NS.ResetProfileToSkin(p)
     return true
 end
 
+-- The shipped faces LibKa0s retired, each to its successor (R3-FRIZ; LibKa0s R3-L7).
+local RETIRED_FONTS = { ["Ka0s Friz Quadrata TT"] = "Ka0s Ubuntu" }
+
+--- Moves every string naming a retired face, at any depth of `t`, to its successor. Returns how many moved.
+function NS.RetireFonts(t)
+    local n = 0
+    for k, v in pairs(t) do
+        if type(v) == "table" then
+            n = n + NS.RetireFonts(v)
+        elseif RETIRED_FONTS[v] then
+            t[k], n = RETIRED_FONTS[v], n + 1
+        end
+    end
+    return n
+end
+
 -- The account-wide schema ladder, in order. `apply` runs BEFORE the version line is logged, so a
 -- step's own [Migrate] output still precedes its "vX -> vY" stamp. Built once at file load — the
 -- ladder has grown three times now, and a new version should be one row here, not another arm.
@@ -342,6 +358,18 @@ local SCHEMA_STEPS = {
         end)
         if moved > 0 then
             NS.Debug("Migrate", "moved the old default border to None on %s profile(s)", moved)
+        end
+    end },
+    { to = 10, apply = function()
+        -- v10 (R3-FRIZ): LibKa0s v1.85.0 deleted Ka0s Friz Quadrata TT (R3-L7) and WoW Default draws
+        -- Ka0s Ubuntu in its place (R3-L6). A stored font pick naming the deleted face, a bar's font
+        -- or any other at any depth, moves to its successor on every profile. Blizzard's own
+        -- "Friz Quadrata TT" is another key and stays.
+        local moved = forEachProfile(function(p)
+            return type(p) == "table" and NS.RetireFonts(p) > 0
+        end)
+        if moved > 0 then
+            NS.Debug("Migrate", "moved Ka0s Friz Quadrata TT to Ka0s Ubuntu on %s profile(s)", moved)
         end
     end },
 }

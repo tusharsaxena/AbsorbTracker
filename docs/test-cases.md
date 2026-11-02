@@ -95,7 +95,7 @@ Total.
 
 - layout guard: every stored path keeps its type, page, default and range
 
-### test_database.lua (38)
+### test_database.lua (39)
 
 - RunMigrations migrates a fresh DB to the current version (7)
 - a freshly-materialized global runs the ladder, because its default is pre-ladder
@@ -125,7 +125,7 @@ Total.
 - v3 migration does not share nested tables between units
 - the schema version lands on 8
 - real AceDB init: a legacy flat profile is lifted onto the player unit, not overwritten by fresh defaults
-- real AceDB init: a fresh install (no saved data) converges on factory defaults at v9
+- real AceDB init: a fresh install (no saved data) converges on factory defaults at v10
 - InitDB lifts EVERY saved profile, not only the active one
 - a profile that appears AFTER the upgrade is lifted when it becomes active
 - the InitDB sweep and the profile-change lift compose without double-applying
@@ -135,6 +135,7 @@ Total.
 - profile adopt: a same-state switch publishes APPEARANCE once
 - profile adopt: an off-to-on switch publishes APPEARANCE once, not twice
 - profile adopt: an on-to-off switch stands down and delivers nothing
+- v10 moves a stored Ka0s Friz Quadrata TT to Ka0s Ubuntu on every profile, Blizzard's Friz kept
 
 ### test_units.lua (17)
 
@@ -363,7 +364,7 @@ Total.
 - three bar frames exist and the retired player aliases stay off the namespace
 - each bar carries its own unit tag and its own backdrop table
 
-### test_display.lua (60)
+### test_display.lua (61)
 
 - RestoreBarPosition centers the bar when no position is saved
 - RestoreBarPosition restores the saved anchor verbatim
@@ -402,6 +403,7 @@ Total.
 - unlocking will not happen in combat, and says why
 - re-locking in combat is always allowed
 - UpdateBarAppearance re-applies the font from the profile
+- the value text spans the bar, so a wider face is never clipped (SF-AT-1)
 - UpdateBarAppearance reads a nil fontFlags as From skin, never handing SetFont nil
 - UpdateBarAppearance ends by applying visibility
 - ApplyVisibility shows the bar when the gate passes and hides it when it does not
@@ -606,6 +608,10 @@ Total.
 - launcher: with LibDataBroker but no LibDBIcon, the plugin exists and the button does not
 - launcher: with LibKa0s absent the seam still answers, and still remembers the choice
 
+### test_launcher_skin_entry.lua (1)
+
+- launcher descriptor passes openSkinPicker, which runs the skin verb
+
 ### test_optionssetup.lua (22)
 
 - the live and degraded builds veto exactly the same rows from Reset All
@@ -804,6 +810,25 @@ Total.
 - re-locking the bars clears a live /at debug hold preview
 - /at debug hold refuses while the addon is disabled: one line, no paint, no hold
 - /at debug hold refuses while stood down for a perf capture, arms no timer
+
+### test_sim.lua (16)
+
+- sim: COMMANDS carries a sim row
+- sim: the library session is bound and the seam wraps nothing
+- sim: three scenarios, each a list of shield steps with a wait
+- sim: the step delay setting paces every step (SG-AT-1)
+- sim: with no valid setting a step's wait is the gap to the next, the last waits the default
+- sim: a bad word prints the usage and holds nothing
+- sim: stop with nothing running says so
+- sim: a start holds the bars, opens the stepper and plays the steps
+- sim: the held shield is what the last step painted
+- sim: a manual step paints one value and holds the run
+- sim: stop ends the session and clears the hold
+- sim: clearing the preview mid-sim (a lock toggle, a stand-down) ends the session
+- sim: a debug hold mid-sim replaces the sim
+- sim: stop with the bars unlocked gives them their placeholder back
+- sim: a disabled addon refuses and holds nothing
+- sim: the launcher's mode row follows the session
 
 ### test_widgets.lua (46)
 
@@ -1188,7 +1213,7 @@ Total.
 | test_loadorder.lua | 15 |
 | test_schema.lua | 62 |
 | test_layoutguard.lua | 1 |
-| test_database.lua | 38 |
+| test_database.lua | 39 |
 | test_units.lua | 17 |
 | test_envsetup.lua | 7 |
 | test_coresetup.lua | 8 |
@@ -1200,19 +1225,21 @@ Total.
 | test_visibility.lua | 26 |
 | test_bus.lua | 12 |
 | test_data.lua | 32 |
-| test_display.lua | 60 |
+| test_display.lua | 61 |
 | test_draghandle.lua | 39 |
 | test_layers.lua | 12 |
 | test_helpers.lua | 40 |
 | test_panelpages.lua | 27 |
 | test_panelmirror.lua | 10 |
 | test_launcher.lua | 34 |
+| test_launcher_skin_entry.lua | 1 |
 | test_optionssetup.lua | 22 |
 | test_slashcmds.lua | 57 |
 | test_slashgate.lua | 10 |
 | test_slashprofile.lua | 34 |
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 16 |
+| test_sim.lua | 16 |
 | test_widgets.lua | 46 |
 | test_realpages.lua | 13 |
 | test_skinsetup.lua | 17 |
@@ -1238,4 +1265,4 @@ Total.
 | test_skin_values.lua | 3 |
 | test_skin_switch.lua | 11 |
 | Skipped | 1 |
-| **Total** | **1016** |
+| **Total** | **1035** |

@@ -26,7 +26,8 @@ OnInitialize (ADDON_LOADED)
     │                                    --   v7 moves a stored OUTLINE flag to
     │                                    --   From skin, v8 puts colors and shadow
     │                                    --   on the skin, per profile, v9 moves a
-    │                                    --   stored old default border to None
+    │                                    --   stored old default border to None,
+    │                                    --   v10 a stored Ka0s Friz pick to Ubuntu
     │
     ├─▶ NS.ApplySkinChoice()            -- core/SkinSetup.lua: the profile's skin
     │                                    --   (Skin:SetChoice), before anything paints
@@ -50,6 +51,7 @@ The flat→profile migration lives in `NS:RunMigrations` (`core/Database.lua`), 
    - **v8**: the bars' colors and shadow onto the skin (FS-AT-FLIP, the owner's rulings of 2026-11-01). `NS.ResetProfileToSkin` over every profile in the store: the eight `SKIN_COMPANION_KEYS` set on and `fontFlags` to `"@skin"`, every stored color and pick kept. Gated per profile on `skin.fullSkinReset`, so it also runs safely at every init and from `adoptProfile`, and a companion turned off afterwards stays off.
 
    - **v9**: the shipped border style is `None` (FS-AT-GATE, LibKa0s v1.85.0). A skin's `None` hands the stored style back, so an old default would draw on every bar. On every profile a stored `Blizzard Tooltip` becomes `None`, unless that bar's `borderFromSkin` is off, which draws it. Any other pick stays. Account-wide, once: from here a stored Blizzard Tooltip is a pick.
+   - **v10**: LibKa0s v1.85.0 deleted `Ka0s Friz Quadrata TT` (R3-FRIZ; LibKa0s R3-L7) and WoW Default draws `Ka0s Ubuntu`. `NS.RetireFonts` moves every stored string naming the deleted face, at any depth, to `Ka0s Ubuntu` on every profile. Blizzard's own `Friz Quadrata TT` stays.
 
 **Adding a schema version is one new row appended to `SCHEMA_STEPS`**, not another `if g.schemaVersion < N` arm — the loop already owns the ordering, the logging and the stamp.
 
