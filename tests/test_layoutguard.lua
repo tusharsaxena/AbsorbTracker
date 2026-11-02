@@ -32,6 +32,7 @@ local PINNED = {
   -- The Font outline (LibKa0s v1.82.0, the 2026-10-30 skin fonts run's AT-01).
   ["skin.outline"] = { type = "string", page = "general", default = "hud" },
   ["skin.pickerSeen"] = { type = "bool", page = "general", default = false },
+  ["sim.stepDelay"] = { type = "number", page = "general", default = 1, min = 0.5, max = 10, step = 0.5 },
   ["skin.skin"] = { type = "string", page = "general", default = "ka0s" },
   ["skin.source"] = { type = "string", page = "general", default = "ka0s" },
   ["skin.texture"] = { type = "string", page = "general", default = "" },
@@ -167,5 +168,5 @@ test("layout guard: every stored path keeps its type, page, default and range", 
   end
   -- 70 from the layout pass, plus the Skin tab's eight (AT-01, skin.outline with LibKa0s v1.82.0)
   -- and the nine skin companions (AT-03).
-  assertEqual(n, 103, "the schema row count")
+  assertEqual(n, 104, "the schema row count")
 end)

@@ -68,11 +68,26 @@ test("sim: three scenarios, each a list of shield steps with a wait", function()
   end
 end)
 
-test("sim: a step's wait is the gap to the next, the last waits the default", function()
+test("sim: the step delay setting paces every step (SG-AT-1)", function()
+  -- red under: DelayAfter answered the scripted wait whatever the slider said.
   local steps = NS.SimHost.SCENARIOS.defs.fight.timeline(nil, { scenario = "fight" })
+  assertEqual(NS.GetSetting("sim.stepDelay"), 1, "the default")
+  assertEqual(NS.SimHost.DelayAfter(steps[1]), 1)
+  assertTrue(NS.SetByPath("sim.stepDelay", 4))
+  assertEqual(NS.SimHost.DelayAfter(steps[1]), 4)
+  assertEqual(NS.SimHost.DelayAfter(steps[#steps]), 4)
+  assertFalse(NS.SetByPath("sim.stepDelay", 0.3), "a pace the slider cannot make is refused")
+  NS.SetByPath("sim.stepDelay", 1)
+end)
+
+test("sim: with no valid setting a step's wait is the gap to the next, the last waits the default", function()
+  local steps = NS.SimHost.SCENARIOS.defs.fight.timeline(nil, { scenario = "fight" })
+  local was = NS.db.profile.sim.stepDelay
+  NS.db.profile.sim.stepDelay = 0.3
   assertEqual(NS.SimHost.DelayAfter(steps[1]), 1.5)
   assertEqual(NS.SimHost.DelayAfter(steps[5]), 1)   -- 6 -> 7
   assertEqual(NS.SimHost.DelayAfter(steps[#steps]), NS.SimHost.DEFAULT_WAIT)
+  NS.db.profile.sim.stepDelay = was
 end)
 
 test("sim: a bad word prints the usage and holds nothing", function()

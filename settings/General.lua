@@ -350,6 +350,24 @@ NS.RegisterSchemaRows({
         -- window after it uses the new one, which is what a throttle change should do.
         onChange = function() end,
     },
+    {
+        -- The simulator's pace (SG-AT-1): the Behavior tab's second heading. The validator is
+        -- modules/Sim.lua's, which loads before this file; the stepper reads the stored value at
+        -- each step, so a change lands on the next.
+        path     = "sim.stepDelay",
+        page     = "general",
+        group    = "Behavior",
+        subgroup = "Simulator",
+        order    = 50,
+        type     = "number",
+        label    = "Simulation step delay (seconds)",
+        desc     = "Paces /at sim: how many seconds the simulator waits between steps as it plays. "
+            .. "A change takes effect from the next step.",
+        default  = NS.defaults.profile.sim.stepDelay,
+        min = NS.SimHost.STEP_DELAY_MIN, max = NS.SimHost.STEP_DELAY_MAX, step = NS.SimHost.STEP_DELAY_STEP,
+        validate = function(v) return NS.SimHost.ValidStepDelay(v) end,
+        onChange = function() end,
+    },
 })
 
 -- ── General > Skin ──────────────────────────────────────────────────────────────────────────

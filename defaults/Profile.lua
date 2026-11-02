@@ -119,6 +119,10 @@ NS.defaults.profile = {
     locked = false,
     throttleWindow = 0.1,
 
+    -- The simulator's pace (SG-AT-1; General > Behavior > Simulator): the seconds `/at sim` waits
+    -- between two steps while the stepper plays. 0.5 to 10 in halves, as every Ka0s simulator's.
+    sim = { stepDelay = 1 },
+
     -- The skin this addon wears (skinning-§2: per addon, per profile), applied through
     -- core/SkinSetup.lua and drawn by the library's Skin tab on General. `source` is "ka0s" (a Ka0s
     -- skin) or "eui" (EllesmereUI's look), `skin` the Ka0s skin's key; "ka0s"/"ka0s" is Ka0s

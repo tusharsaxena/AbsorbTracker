@@ -85,7 +85,7 @@ test("the page -> tab -> row-count partition is the designed one", function()
     -- Appearance is the Skin tab's group (AT-01): seven skip-render rows the library's
     -- O.AppearanceTab draws as its own controls, the host tab keyed by this group's name.
     { page = "general", unit = nil,
-      tabs = { { "Master controls", 7 }, { "Behavior", 4 }, { "Appearance", 9 } } },
+      tabs = { { "Master controls", 7 }, { "Behavior", 5 }, { "Appearance", 9 } } },
     -- Bar is Size 2 + Fill 5 + Background 3 + Border 5 (item 020), and Text the font block's six
     -- plus one: Fill, Border and Text each end on their "Use the skin's ..." companion (AT-03).
     { page = "appearance", unit = "player", tabs = { { "Bar", 18 }, { "Text", 9 } } },
@@ -309,6 +309,12 @@ test("every persisted profile default is reachable from a schema row", function(
           local path = "units." .. unitName .. "." .. field
           assertTrue(paths[path], "profile default '" .. path .. "' has no schema row")
         end
+      end
+    elseif key == "sim" then
+      -- The simulator's pace (SG-AT-1), one level deep: profile.sim.<field>.
+      for field in pairs(val) do
+        local path = "sim." .. field
+        assertTrue(paths[path], "profile default '" .. path .. "' has no schema row")
       end
     elseif key == "skin" then
       -- The skin choice (AT-01), one level deep: profile.skin.<field>.
@@ -814,6 +820,7 @@ test("the Behavior tab draws the throttle alone, the enables riding along undraw
     { "units.target.enabled", true },
     { "units.focus.enabled",  true },
     { "throttleWindow",       nil  },
+    { "sim.stepDelay",        nil  },   -- the Simulator heading (SG-AT-1), the one subgroup
   }
   local got = {}
   for _, r in ipairs(NS.SchemaForPage("general")) do
@@ -823,7 +830,7 @@ test("the Behavior tab draws the throttle alone, the enables riding along undraw
   for i, spec in ipairs(want) do
     assertEqual(got[i].path, spec[1], "Behavior row " .. i)
     assertEqual(got[i].skipRender, spec[2], "Behavior row " .. i .. " skipRender")
-    assertEqual(got[i].subgroup, nil, "Behavior row " .. i .. " subgroup")
+    assertEqual(got[i].subgroup, spec[1] == "sim.stepDelay" and "Simulator" or nil, "Behavior row " .. i .. " subgroup")
   end
   local throttle = NS.FindSchemaRow("throttleWindow")
   assertEqual(throttle.label, "Update throttle (seconds)")   -- options-ui-§21 units, XC-08

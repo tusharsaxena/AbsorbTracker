@@ -60,8 +60,23 @@ for key, s in pairs(Host.SCENARIO_STEPS) do
     Host.SCENARIOS.defs[key] = { key = key, label = s.label, timeline = timeline }
 end
 
---- The descriptor's stepDelay: the pause after `step`.
+-- The pace of a playing stepper (SG-AT-1): the seconds between two steps, the `sim.stepDelay`
+-- setting, read at each step. The scripted `wait` of a step is only the fallback when the stored
+-- value is not one the slider can make.
+Host.STEP_DELAY = NS.defaults.profile.sim.stepDelay
+Host.STEP_DELAY_MIN, Host.STEP_DELAY_MAX, Host.STEP_DELAY_STEP = 0.5, 10, 0.5
+
+--- Whether `v` is a pace the setting takes.
+function Host.ValidStepDelay(v)
+    if type(v) ~= "number" or v ~= v or v < Host.STEP_DELAY_MIN or v > Host.STEP_DELAY_MAX then return false end
+    local n = v / Host.STEP_DELAY_STEP
+    return n == math.floor(n)
+end
+
+--- The descriptor's stepDelay: the pause after `step`, the stored setting, else the step's own wait.
 function Host.DelayAfter(step)
+    local v = NS.GetSetting and NS.GetSetting("sim.stepDelay")
+    if Host.ValidStepDelay(v) then return v end
     return step and step.wait or Host.DEFAULT_WAIT
 end
 
