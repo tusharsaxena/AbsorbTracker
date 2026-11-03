@@ -1,4 +1,4 @@
-# Ka0s Absorb Tracker
+# Absorb Tracker
 
 ![WoW](https://img.shields.io/badge/WoW-Midnight_12.1.5-purple)
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
@@ -6,7 +6,7 @@
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
 ![Tests](https://img.shields.io/badge/Tests-974%2F974_passing-green)
 
-Ka0s Absorb Tracker shows your absorb shields as a movable bar. It adds every shield on the unit
+Absorb Tracker shows your absorb shields as a movable bar. It adds every shield on the unit
 into one number, so a glance tells you how much damage you can eat before your health starts
 moving.
 
