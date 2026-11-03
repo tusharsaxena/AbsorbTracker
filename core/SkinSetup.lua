@@ -344,6 +344,9 @@ if not Skin then
         "HudTextColor", "HudLabelColor", "BarFillColor", "HudShadow", "BarGloss",
         -- The last cut's hover art: this addon draws none, and no skin means no tint.
         "HoverArt",
+        -- Round 5's header placement (Skin minor 16): Band answers nil (no skin, no band frame to
+        -- anchor to) and Header places nothing. This addon draws no header of its own.
+        "Band", "Header",
     }) do S[name] = noop end
 
     -- No skin to read: every token answers nil ("leave the host's"), so a value resolved against
