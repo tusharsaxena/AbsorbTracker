@@ -337,8 +337,8 @@ The headless suite cannot see this: `tests/wow_mock.lua` answers enUS for every 
 
 **What this addon reads in the player's language.** Two seams, and they are the whole list:
 
-- **`AbbreviateNumbers`**: the bar's value text (`modules/Display.lua:475`), the `/at debug hold` line (`settings/Slash.lua:317`, `:360`) and three debug lines (`core/AbsorbTracker.lua:267`, `:269`, `:370`). Blizzard localizes both the suffix and the grouping.
-- **`UnitClass`**: `core/Data.lua:276` and `core/CoreSetup.lua:65` both `pcall` it and take the third return, the English class token (`PRIEST`), never the first, the localized class name. `bgClassColors` is keyed on the token, so class colors should be locale-independent. LOC-2 checks that rather than assuming it.
+- **`AbbreviateNumbers`**: the bar's value text (`modules/Display.lua:476`), the `/at debug hold` line (`settings/Slash.lua:319`, `:362`) and three debug lines (`core/AbsorbTracker.lua:267`, `:269`, `:370`). Blizzard localizes both the suffix and the grouping.
+- **`UnitClass`**: `core/Data.lua:292` and `core/CoreSetup.lua:65` both `pcall` it and take the third return, the English class token (`PRIEST`), never the first, the localized class name. `bgClassColors` is keyed on the token, so class colors should be locale-independent. LOC-2 checks that rather than assuming it.
 
 **What it does not read.** No chat or tooltip `_G` constant, no parsed tooltip line, no `subType` where a `classID` exists, and nothing another tool parses. `grep -rn '_G\[' core modules settings defaults` finds only `core/Constants.lua`'s texture paths; rerun it rather than trusting this line. Every label, tooltip and chat line is an English literal and stays English on a German client. That is the addon's scope, not a failure.
 

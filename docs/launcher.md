@@ -37,13 +37,24 @@ disabled; that toggle is the menu's *Locked* entry now.
 ## The options menu
 
 The client's own context menu, titled `Ka0s Absorb Tracker`, with one checkbox per state this addon
-has — the row the standard's `ADDONS.md` records:
+has — the row the standard's `ADDONS.md` records — and then the library's two action rows:
 
 ```
 Ka0s Absorb Tracker
 [x] Enabled         isEnabled + setEnabled   -> the /at enable | /at disable handler
 [x] Locked          isLocked  + toggleLock   -> the /at lock | /at unlock handler
+[ ] Sim mode        isSimMode + toggleSim    -> NS.IsSimMode / NS.ToggleSimMode, the /at sim act
+    Open settings                            -> openSettings, the left click's act
+    Open skin selector                       -> openSkinPicker -> NS.RunSkinVerb, the /at skin act
 ```
+
+**Sim mode** (Launcher minor 7, R6-SIM) takes `NS.IsSimMode` / `NS.ToggleSimMode`, which this file
+publishes on both arms and resolves against `modules/Sim.lua`'s `NS.IsSimRunning` / `NS.ToggleSim`
+at call time. The Master controls **Sim mode** box takes the **same** two functions, so the menu, the
+box and `/at sim` are one act: from idle a click is the bare `/at sim` (the step window opens and
+nothing plays until a scenario starts), and while a sim runs it is `/at sim stop`. **Open skin
+selector** (Launcher minor 6) is offered because the descriptor passes `openSkinPicker` and
+`AbsorbTracker` is a registered skin owner; `tests/test_launcher_skin_entry.lua` pins the field.
 
 **Each entry runs the slash verb's own handler**, looked up in `NS.COMMANDS` at click time
 (`core/LauncherSetup.lua`'s `runVerb`), not a second implementation. So the write goes through
@@ -57,10 +68,10 @@ There is **no Test mode entry**: options-ui-§15 exempts an addon whose unlocked
 preview, and this one took that exemption, so the lock is the preview switch. There is **no Show
 window entry**: nothing here is a primary window.
 
-**While the addon is disabled** (slash-commands-§7) the library grays *Locked* and labels it
-`Locked (enable the addon first)`; a grayed entry runs no handler and writes nothing, which keeps
+**While the addon is disabled** (slash-commands-§7) the library grays *Locked*, *Sim mode* and *Open
+skin selector* and labels each `<entry> (enable the addon first)`; a grayed entry runs no handler and writes nothing, which keeps
 the audit finding fixed — an ungated launcher once wrote the stored tree of an addon the player had
-switched off. *Enabled* stays live, so the way back is one click. The button itself stays on the
+switched off. *Enabled* and *Open settings* stay live, so the way back is one click. The button itself stays on the
 minimap either way, because `minimap.hide` is a per-installation display preference that says
 nothing about whether the addon is running. `tests/test_launcher.lua` pins the entries, the routing
 to each verb's handler and the per-open state reads; `tests/test_disabled.lua` step 8 pins the

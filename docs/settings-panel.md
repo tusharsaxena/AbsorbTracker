@@ -239,12 +239,12 @@ bar — so those four are here. **Test mode is the one legitimate omission:** op
 addon whose unlocked view already IS its preview, which this one is, and a Test mode box beside Lock
 frame would be two switches for one state (anti-pattern #80).
 
-**Minimap button is the newest row** (launcher-§3, `OptionsCompose` minor 7), and it is the reason
-the fourth line has one control on it rather than two. The composer's fourth line is
+**Minimap button came in at** launcher-§3, `OptionsCompose` minor 7. The composer's fourth line is
 `[Minimap button] [Test mode]`, and which of the two opens the line is not a preference: EVERY addon
 has a minimap button and only some have a test mode, so the always-present row takes column one and
 the optional one pairs beside it. This addon names no `testModePath`, so without the Sim mode box
-below the row would draw alone.
+below the row would draw alone; with it, Debug console opens the fourth line and Minimap button
+pairs beside it, as the diagram above shows.
 
 **Sim mode sits beside Lock frame** (R6-SIM, `OptionsCompose` minor 19, options-ui-§15). An addon
 with a simulation shows a session-only **Sim mode** checkbox beside Test mode; with no Test mode row
@@ -277,9 +277,10 @@ button appears or vanishes immediately rather than at the next reload. The row i
 `sessionOnly`: a reload must not bring back a button the player dismissed. The button's hover
 tooltip reports the **Enabled** and **Lock frame** rows of this same block (`Enabled:`, `Locked:`)
 and has no `Test mode:` line, because the block has no Test mode row. The button's left click opens
-this panel; its right-click options menu offers the same two rows as checkboxes, **Enabled** and
-**Locked**, each running its slash verb's handler (`/at enable|disable`, `/at lock|unlock`), with
-*Locked* grayed while the addon is disabled (launcher-§2). See [launcher.md](./launcher.md) for the
+this panel; its right-click options menu offers three rows of this block as checkboxes, **Enabled**,
+**Locked** and **Sim mode**, the first two running their slash verb's handler (`/at enable|disable`,
+`/at lock|unlock`) and the third the Sim mode box's own pair, with *Locked* and *Sim mode* grayed
+while the addon is disabled (launcher-§2). See [launcher.md](./launcher.md) for the
 object, the menu and the tooltip.
 
 **This one row survives every reset, and that is a property of the setting — not of where it is
