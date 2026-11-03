@@ -990,7 +990,7 @@ Total.
 - Skin verb: refused while the addon is disabled, and no picker shows
 - Skin verb: without the library's picker the verb prints the library-absent line
 
-### test_skin_picker_preview.lua (15)
+### test_skin_picker_preview.lua (16)
 
 - Skin preview: the spec hands the picker spec.preview in unlock mode, and no onPreview
 - Skin preview: isActive and isShown read the stored lock, as the launcher's isLocked does
@@ -1007,6 +1007,7 @@ Total.
 - Skin preview: a mode that was on and the eye turned off is on again after the close
 - Skin preview: bars already unlocked are left alone, open and close
 - Skin preview: in combat the eye's unlock is refused and the close undoes nothing
+- Skin preview: this addon's own close in combat parks no lock move for after combat
 
 ### test_skin_tools.lua (7)
 
@@ -1265,7 +1266,7 @@ Total.
 | test_skin_hud.lua | 19 |
 | test_skin_flip.lua | 28 |
 | test_skin_picker.lua | 19 |
-| test_skin_picker_preview.lua | 15 |
+| test_skin_picker_preview.lua | 16 |
 | test_skin_tools.lua | 7 |
 | test_glyphs.lua | 1 |
 | test_docs.lua | 6 |
@@ -1285,4 +1286,4 @@ Total.
 | test_skin_values.lua | 3 |
 | test_skin_switch.lua | 11 |
 | Skipped | 1 |
-| **Total** | **1051** |
+| **Total** | **1052** |

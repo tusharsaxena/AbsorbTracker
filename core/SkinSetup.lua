@@ -176,16 +176,17 @@ end
 -- stand-down, a profile event) is not the player's and writes nothing.
 --
 -- THE EYE: UNLOCK MODE (R6-PV; LibKa0s OptionsSkinPicker minor 11's spec.preview, the lead's call 2
--- of Ka0sAddonsCommonTasks docs/2026-11-03-SMOKE_ROUND6). This addon has no window and no test mode,
--- so its preview is the unlocked bars: every enabled bar shown with its drag strip and placeholder
--- fill, whatever the visibility setting and whether a target or focus exists. The surface is the
--- unlocked view, so "hidden" is locked and isShown reads the same lock isActive does. A fresh show
--- on locked bars unlocks them; the eye toggles the lock; every close (Apply, Apply to all, the gear,
--- the close control, Escape, HideSkinPicker) puts back the lock the picker opened on. Every enter
--- and exit runs the `/at unlock` / `/at lock` verb's own handler, the call the launcher's Lock entry
+-- of Ka0sAddonsCommonTasks docs/2026-11-03-SMOKE_ROUND6). This addon has no window and no test
+-- mode, so its preview is the unlocked bars: every enabled bar shown with its drag strip and
+-- placeholder fill, whatever the visibility setting and whether a target or focus exists. The
+-- surface is the unlocked view, so "hidden" is locked and isShown reads the same lock isActive
+-- does. A fresh show on locked bars unlocks them; the eye toggles the lock; every player close
+-- (Apply, Apply to all, the gear, the close control, Escape, the library's bare HideSkinPicker)
+-- puts back the lock the picker opened on (but see THIS ADDON'S OWN CLOSE, below). Every enter and
+-- exit runs the `/at unlock` / `/at lock` verb's own handler, the call the launcher's Lock entry
 -- makes, so the settings checkbox, the launcher and the chat echo stay in step, and the `locked`
--- row's onChange still refuses an unlock in combat (the library then has nothing to undo). The
--- old rollout decision (X6 / D6: no eye, because unlocking is a stored write) is replaced by the
+-- row's onChange still refuses an unlock in combat (the library then has nothing to undo). The old
+-- rollout decision (X6 / D6: no eye, because unlocking is a stored write) is replaced by the
 -- owner's rule: unlock IS stored, so a /reload while the picker is up leaves the bars unlocked
 -- until `/at lock`; no new persistence is added.
 --
@@ -198,7 +199,8 @@ end
 -- - The STAND-DOWN (`/at disable`, a perf capture) and a profile RESET or COPY move no lock: the
 --   bars are gone, a perf capture writes nothing to SavedVariables (test_disabled, disabled 10),
 --   and a reset or copy replaced what the picker moved with what the player asked for. The lock is
---   left as the picker left it, as a /reload leaves it.
+--   left as the picker left it, as a /reload leaves it, and stays so: a skipped restore the library
+--   parks for the end of combat (an `/at disable` mid-fight) moves no lock either.
 --
 -- PREVIEW. A pick only previews: the Skin major moves and the strips repaint, but `set`
 -- (NS.WriteSkinChoice) runs only on Apply, the gear or Apply to all. The close control and Escape
@@ -252,10 +254,14 @@ local function previewFor(home)
         if p then return not p.locked end
         return not (NS.GetSetting and NS.GetSetting("locked"))
     end
+    -- Set by this addon's own close: the restore it skipped stays skipped, so one the library parks
+    -- for the end of combat (an `/at disable` mid-fight) moves no lock either.
+    local dropped = false
     local function move(lock)
         local p = away()
         if p then p.locked = lock; return end
-        if quietClose then return end
+        if quietClose then dropped = true end
+        if dropped then return end
         runLockVerb(lock and "lock" or "unlock")
     end
     return {

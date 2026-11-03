@@ -214,3 +214,23 @@ test("Skin preview: in combat the eye's unlock is refused and the close undoes n
   mocks.InCombatLockdown = real
   if not ok then error(err, 0) end
 end))
+
+test("Skin preview: this addon's own close in combat parks no lock move for after combat", opened(false, function(f)
+  -- red under: a quiet close (an `/at disable` mid-fight, a reset) whose skipped restore the
+  -- library parks for the end of combat, which then runs the `/at unlock` verb on a stood-down
+  -- addon, or during a perf capture's no-write window.
+  f.preview:__fire("OnClick")
+  assertTrue(locked(), "the eye locked the bars")
+  local real = mocks.InCombatLockdown
+  mocks.InCombatLockdown = function() return true end
+  local ok, err = pcall(function()
+    NS.HideSkinPicker()
+    assertTrue(not f:IsShown(), "NS.HideSkinPicker takes the window down")
+    assertTrue(locked(), "and leaves the lock as the picker left it")
+  end)
+  mocks.InCombatLockdown = real
+  if not ok then error(err, 0) end
+  -- The end of combat, as the library's park frame hears it (OptionsRegistry.lua).
+  mocks.LibStub("LibKa0s-Options-1.0").__OnParkEvent("PLAYER_REGEN_ENABLED")
+  assertTrue(locked(), "combat's end moves no lock either")
+end))
