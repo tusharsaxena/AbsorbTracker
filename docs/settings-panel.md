@@ -93,7 +93,7 @@ them — a row's `page` is where it is *edited*, never where it is *stored*.
 
 The parent and every sub-page register as **canvas-layout categories**: a custom Blizzard `Frame` is registered with `Settings.RegisterCanvasLayoutCategory` (parent) / `Settings.RegisterCanvasLayoutSubcategory` (each sub-page) and Blizzard renders it in its own settings panel slot. The schema-driven sub-pages (General / Appearance) lay out their schema rows as **AceGUI widgets** (`CheckBox` / `Slider` / `Dropdown` / `ColorPicker`) inside an AceGUI `ScrollFrame` parented to the page's `body` frame, under a pinned **chrome band** holding the page's tab strip and, on Appearance, the chrome block above it.
 
-**Appearance is per-unit; General and About are not.** Appearance renders through `Helpers.RenderUnitPanel(ctx, pageKey)` (`settings/UnitPanel.lua`), which draws the **Unit** picker (Player/Target/Focus) in its chrome block and filters the rows to the selected unit. General has no Unit picker — its eight drawn unit-agnostic rows (`enabled`, `visibility`, `scale`, `alpha`, `locked`, `state.debugConsole`, `global.minimap.shown`, `throttleWindow`) and the seven `skin.*` rows its Skin tab draws apply to the addon as a whole, and its three `units.<unit>.enabled` rows are stamped to it but carry `skipRender`, because the Appearance band draws the picked unit's (below) — and About has no settings at all.
+**Appearance is per-unit; General and About are not.** Appearance renders through `Helpers.RenderUnitPanel(ctx, pageKey)` (`settings/UnitPanel.lua`), which draws the **Unit** picker (Player/Target/Focus) in its chrome block and filters the rows to the selected unit. General has no Unit picker — its nine drawn unit-agnostic rows (`enabled`, `visibility`, `scale`, `alpha`, `locked`, `state.sim`, `state.debugConsole`, `global.minimap.shown`, `throttleWindow`) and the seven `skin.*` rows its Skin tab draws apply to the addon as a whole, and its three `units.<unit>.enabled` rows are stamped to it but carry `skipRender`, because the Appearance band draws the picked unit's (below) — and About has no settings at all.
 
 Profiles is the only page that still uses AceConfig — it routes `AceConfigDialog:Open("AbsorbTracker-Profiles", container)` into an AceGUI `SimpleGroup` parented to the canvas body, so the AceDBOptions UI lands inside our shell with the same header.
 
@@ -214,8 +214,8 @@ The General page is **three tabs**: the schema array's own order is the strip, a
 
 Master controls  [Enable Absorb Tracker]  [General visibility]
                  [Master scale]           [Master opacity]
-                 [Lock frame]             [Debug console]
-                 [Minimap button]                               <- alone: this addon has no Test mode
+                 [Lock frame]             [Sim mode]            <- no Test mode: Sim pairs with the lock
+                 [Debug console]          [Minimap button]
                  [Reset position]         [Reset all settings]  <- afterGroup, the composer's tail
 Behavior         [Update throttle (seconds)]
                  (+ the three per-unit enables, skipRender: drawn in the Appearance band)
@@ -243,7 +243,25 @@ frame would be two switches for one state (anti-pattern #80).
 the fourth line has one control on it rather than two. The composer's fourth line is
 `[Minimap button] [Test mode]`, and which of the two opens the line is not a preference: EVERY addon
 has a minimap button and only some have a test mode, so the always-present row takes column one and
-the optional one pairs beside it. This addon names no `testModePath`, so the row draws alone.
+the optional one pairs beside it. This addon names no `testModePath`, so without the Sim mode box
+below the row would draw alone.
+
+**Sim mode sits beside Lock frame** (R6-SIM, `OptionsCompose` minor 19, options-ui-§15). An addon
+with a simulation shows a session-only **Sim mode** checkbox beside Test mode; with no Test mode row
+the composer pairs it with Lock frame, the switch nearest a test mode here, and Debug console then
+opens the next line with Minimap button beside it. `settings/General.lua` hands the composer
+`isSimMode = NS.IsSimMode` and `toggleSim = NS.ToggleSimMode`, the SAME pair the launcher descriptor
+carries (`core/LauncherSetup.lua`), so the box, the launcher's Sim mode entry and `/at sim` are one
+act. The row is `state.sim`, `sessionOnly`, default false, and its `get` / `set` are the composer's
+over those hooks: nothing is stored, and `/at get state.sim` and `/at set state.sim` reach it.
+Ticking from idle is the bare `/at sim`: it opens the *Absorb Tracker - Simulation* step window, and
+nothing plays until a scenario is started there, so the box re-reads unticked until then. While a
+sim runs the box reads ticked, and unticking it is `/at sim stop`. A start the library refuses (in
+combat) leaves it unticked. Reset all settings writes its default, false, so it stops a running sim
+and never starts one. `modules/Sim.lua` calls `NS.Helpers.RefreshScalars()` from the session's
+listener, so a sim started or stopped by any route (the verb, the launcher, the step window, or one
+that ends itself) shows on an open page at once. The row's `onChange` is a declared no-op: the
+session paints the bars itself, and the schema's `announce` would otherwise restyle all three.
 
 **The row says SHOWN and what it stores says HIDDEN.** It is emitted by naming `minimapPath` on the
 `H.MasterControls` call, and the path is taken **verbatim and unprefixed** because the table it

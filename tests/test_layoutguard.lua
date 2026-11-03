@@ -37,6 +37,8 @@ local PINNED = {
   ["skin.source"] = { type = "string", page = "general", default = "ka0s" },
   ["skin.texture"] = { type = "string", page = "general", default = "" },
   ["state.debugConsole"] = { type = "bool", page = "general", default = nil },
+  -- The Master controls Sim mode box (R6-SIM, OptionsCompose minor 19): session-only, stores nothing.
+  ["state.sim"] = { type = "bool", page = "general", default = false },
   ["throttleWindow"] = { type = "number", page = "general", default = 0.1, min = 0.05, max = 1, step = 0.05 },
   -- The three "Use the skin's ..." companions per unit (the skinning rollout's AT-03), default on.
   ["units.focus.barTextureFromSkin"] = { type = "bool", page = "appearance", default = true },
@@ -167,6 +169,6 @@ test("layout guard: every stored path keeps its type, page, default and range", 
     assertTrue(seen[path], "a setting the layout pass lost: " .. path)
   end
   -- 70 from the layout pass, plus the Skin tab's eight (AT-01, skin.outline with LibKa0s v1.82.0)
-  -- and the nine skin companions (AT-03).
-  assertEqual(n, 104, "the schema row count")
+  -- and the nine skin companions (AT-03), and the Sim mode box (R6-SIM).
+  assertEqual(n, 105, "the schema row count")
 end)

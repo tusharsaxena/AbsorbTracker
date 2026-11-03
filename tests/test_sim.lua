@@ -195,3 +195,111 @@ test("sim: the launcher's mode row follows the session", function()
   NS.ToggleSim()
   assertFalse(NS.IsSimRunning())
 end)
+
+-- R6-SIM (Ka0sAddonsCommonTasks docs/2026-11-03-SMOKE_ROUND6, the owner's "a sim checkbox in settings
+-- (next to test)"): Master controls carries the library's Sim mode box (OptionsCompose minor 19), fed
+-- the SAME isSimMode / toggleSim pair the launcher descriptor carries, so the box, the launcher's Sim
+-- mode entry and `/at sim` are one act. This addon has no Test mode row (the lock is its preview), so
+-- the box sits beside Lock frame.
+
+local function slashSource(path)
+  local f = assert(io.open(path, "r"))
+  local src = f:read("*a")
+  f:close()
+  return src
+end
+
+-- red under: no sim hooks on the MasterControls spec (the library then draws no row).
+test("sim box: Master controls draws a session-only Sim mode row beside Lock frame", function()
+  local row = NS.FindSchemaRow("state.sim")
+  assertTrue(row ~= nil, "a state.sim row")
+  assertEqual(row.label, "Sim mode")
+  assertEqual(row.group, "Master controls")
+  assertEqual(row.sessionOnly, true, "nothing is stored")
+  assertEqual(row.default, false)
+  local master = {}
+  for _, r in ipairs(NS.SchemaForPage("general")) do
+    if r.group == "Master controls" then master[#master + 1] = r.path end
+  end
+  local lockAt
+  for i, path in ipairs(master) do if path == "locked" then lockAt = i end end
+  assertEqual(master[lockAt + 1], "state.sim", "straight after Lock frame, in its second column")
+end)
+
+-- red under: the launcher and the box built their own pairs (launcher-§1's one act).
+test("sim box: the box and the launcher take the one NS pair", function()
+  for _, path in ipairs({ "core/LauncherSetup.lua", "settings/General.lua" }) do
+    local src = slashSource(path)
+    assertTrue(src:find("isSimMode%s*=%s*NS%.IsSimMode[%s,]") ~= nil, path .. " passes NS.IsSimMode")
+    assertTrue(src:find("toggleSim%s*=%s*NS%.ToggleSimMode[%s,]") ~= nil, path .. " passes NS.ToggleSimMode")
+  end
+  assertEqual(type(NS.IsSimMode), "function")
+  assertEqual(type(NS.ToggleSimMode), "function")
+end)
+
+-- What the tick does is what `/at sim` does, because it IS NS.ToggleSim: from idle the bare verb
+-- (status, usage, and the step window opened idle, SIM-1: nothing plays until a scenario starts), and
+-- while a sim runs `/at sim stop`. So a tick from idle opens the window and the box re-reads unticked
+-- until the player starts a scenario there; it then reads ticked, and the untick stops the session.
+-- red under: a row with no hooks, a row that stores its value, or a second implementation of the act.
+test("sim box: ticking does what /at sim does, unticking stops the sim", function()
+  reset()
+  NS.Sim:HidePanel()
+  assertEqual(NS.GetSetting("state.sim"), false, "unticked while idle")
+  NS.SetByPath("state.sim", true)
+  assertTrue(NS.Sim:IsPanelShown(), "the tick opened the step window, as the bare verb does")
+  assertFalse(NS.Sim:IsActive(), "and, like the verb, started nothing by itself")
+  assertEqual(NS.GetSetting("state.sim"), false, "so the box re-reads unticked")
+  slash("sim start fight")
+  assertEqual(NS.GetSetting("state.sim"), true, "ticked while a sim runs")
+  NS.SetByPath("state.sim", true)
+  assertTrue(NS.Sim:IsActive(), "a tick while it runs does not toggle it off")
+  NS.SetByPath("state.sim", false)
+  assertFalse(NS.Sim:IsActive(), "the untick stopped it")
+  assertEqual(NS.testHoldUntil, nil, "and cleared the hold")
+  assertEqual(NS.GetSetting("state.sim"), false)
+  NS.SetByPath("state.sim", false)
+  assertFalse(NS.Sim:IsActive(), "an untick while idle starts nothing")
+  assertEqual(NS.db.profile.state, nil, "never reaches db.profile")
+  NS.Sim:HidePanel()
+  reset()
+end)
+
+-- red under: the row's write falling through to the schema's announce (a three-bar restyle).
+test("sim box: the row's write publishes no appearance pass", function()
+  assertEqual(type(NS.MasterReactions["state.sim"]), "function", "a declared reaction")
+  reset()
+  local sent = {}
+  local real = NS.bus.SendMessage
+  NS.bus.SendMessage = function(self, msg, ...) sent[msg] = true return real(self, msg, ...) end
+  NS.MasterReactions["state.sim"](true)
+  NS.bus.SendMessage = real
+  assertEqual(sent[NS.MSG.APPEARANCE], nil)
+end)
+
+-- red under: no listener on the session, so a sim started elsewhere leaves an open box stale.
+test("sim box: a sim started or stopped elsewhere refreshes the open page", function()
+  reset()
+  local calls = 0
+  local real = NS.Helpers.RefreshScalars
+  NS.Helpers.RefreshScalars = function(...) calls = calls + 1 return real(...) end
+  slash("sim start fight")
+  local onStart = calls
+  slash("sim stop")
+  NS.Helpers.RefreshScalars = real
+  assertTrue(onStart > 0, "the start refreshed the page")
+  assertTrue(calls > onStart, "the stop refreshed it again")
+  reset()
+end)
+
+-- red under: Reset all settings leaving the row out of its session walk.
+test("sim box: Reset all settings stops a running sim and never starts one", function()
+  reset()
+  NS.Helpers.RestoreAllDefaults()
+  T.mocks.__fireTimers()
+  assertFalse(NS.Sim:IsActive(), "a reset from idle starts nothing")
+  slash("sim start fight")
+  NS.Helpers.RestoreAllDefaults()
+  assertFalse(NS.Sim:IsActive(), "the reset stopped the sim")
+  reset()
+end)

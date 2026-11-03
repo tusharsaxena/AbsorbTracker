@@ -72,20 +72,22 @@ end)
 -- to no tab, and is drawn bespoke in the header.
 test("the page -> tab -> row-count partition is the designed one", function()
   local want = {
-    -- Master controls is FIRST and holds exactly the seven schema rows options-ui-§15 entitles this
-    -- addon to: enable, general visibility, master scale, master alpha, lock frame, debug console,
-    -- minimap button. NOT test mode: §15 exempts an addon whose unlocked view already is its
+    -- Master controls is FIRST and holds exactly the eight schema rows options-ui-§15 entitles this
+    -- addon to: enable, general visibility, master scale, master alpha, lock frame, sim mode,
+    -- debug console, minimap button. NOT test mode: §15 exempts an addon whose unlocked view already is its
     -- preview, which this one is, and that row here would be the duplicate switch anti-pattern #80
     -- names. The minimap row is the one that ARRIVED (launcher-§3, compose minor 7) -- it is
     -- unconditional for every addon, which is why it takes the column Test mode would have paired
     -- beside. The two resets are the tab's closing BUTTON PAIR rather than rows, so they are not
-    -- counted here -- tests/test_realpages.lua is what pins them onto this tab.
+    -- counted here -- tests/test_realpages.lua is what pins them onto this tab. The eighth is Sim
+    -- mode (R6-SIM, OptionsCompose minor 19), a session row beside Lock frame, where Test mode
+    -- would have sat.
     -- Behavior counts the three per-unit enables, which stay stamped here (skipRender, drawn in the
     -- Appearance band, ABS-L01) beside the one throttle row it draws.
     -- Appearance is the Skin tab's group (AT-01): seven skip-render rows the library's
     -- O.AppearanceTab draws as its own controls, the host tab keyed by this group's name.
     { page = "general", unit = nil,
-      tabs = { { "Master controls", 7 }, { "Behavior", 5 }, { "Appearance", 9 } } },
+      tabs = { { "Master controls", 8 }, { "Behavior", 5 }, { "Appearance", 9 } } },
     -- Bar is Size 2 + Fill 5 + Background 3 + Border 5 (item 020), and Text the font block's six
     -- plus one: Fill, Border and Text each end on their "Use the skin's ..." companion (AT-03).
     { page = "appearance", unit = "player", tabs = { { "Bar", 18 }, { "Text", 9 } } },
@@ -744,16 +746,17 @@ end)
 -- frameless, and this one is not -- modules/Bar.lua calls SetMovable(true) on every bar -- so those
 -- four are here. The Test mode row is the one legitimate omission: options-ui-§15 exempts an addon
 -- whose unlocked view already IS its preview, and unlocking here both paints the placeholder and
--- short-circuits the visibility and unit-exists rungs of NS.ShouldShowBar. Seven rows, not eight --
--- the seventh is the Minimap button (launcher-§3), which is unconditional for every addon in the
--- collection and so sits in the column Test mode would otherwise have paired beside.
+-- short-circuits the visibility and unit-exists rungs of NS.ShouldShowBar. Eight rows, none of them
+-- Test mode: the Minimap button (launcher-§3), unconditional for every addon in the collection, and
+-- Sim mode (R6-SIM, OptionsCompose minor 19), the session row the composer pairs with Lock frame
+-- when there is no Test mode row.
 -- The two resets are the tab's closing BUTTON PAIR rather than rows; tests/test_realpages.lua pins
 -- those onto this group's afterGroup hook.
 -- red under: a reordered composer, a `frameless = true` this addon is not entitled to, a row moved
 -- back to the tab it came from, or a Test mode row creeping back in beside the lock.
 test("the Master controls tab is the canonical set, in order, and leads the General page", function()
   local want = {
-    "enabled", "visibility", "scale", "alpha", "locked", "state.debugConsole",
+    "enabled", "visibility", "scale", "alpha", "locked", "state.sim", "state.debugConsole",
     NS.Constants.MINIMAP_PATH,
   }
   local got, firstGroup = {}, nil

@@ -506,11 +506,12 @@ test("perf: the schema with LibKa0s absent is the full one minus the composed ro
   -- The nine Skin rows (settings/General.lua, AT-01; skin.outline with LibKa0s v1.82.0;
   -- skin.fullSkinReset with FS-AT-FLIP) are
   -- hand-written, so they move both counts.
-  local FULL, DEGRADED = 104, 25
+  -- The Sim mode box (R6-SIM) is a composed Master controls row: FULL and that GAP entry move.
+  local FULL, DEGRADED = 105, 25
   -- Bar: BarGroup 18 + ColorPair 9 + BorderGroup 18, the Fill, Background and Border subsections;
   -- each composer's fromSkin companion (AT-03) and each color's or shadow's extra (FS-AT-FLIP) is
   -- one composed row per unit.
-  local GAP = { ["Master controls"] = 7, Bar = 45, Text = 27 }
+  local GAP = { ["Master controls"] = 8, Bar = 45, Text = 27 }
   assertEqual(#NS.Schema, FULL, "the full schema's row count")
   assertEqual(#NS2.Schema, DEGRADED,
     "the degraded schema's row count: a page file that aborts at load takes its rows with it")

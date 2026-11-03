@@ -152,6 +152,13 @@ if Lib then
             anchorTo = function() return Host.PanelAnchor() end,
         },
     })
+    -- The Master controls Sim mode box (R6-SIM) re-reads on RefreshScalars, so every start, step and
+    -- stop, from any route, refreshes an open page. Looked up at call time: settings/OptionsSetup.lua
+    -- publishes NS.Helpers after this file loads, and its library-less stub has no RefreshScalars.
+    NS.Sim:AddListener(function()
+        local H = NS.Helpers
+        if H and H.RefreshScalars then H.RefreshScalars() end
+    end)
     -- The stop: the hold goes with the session, unlocked bars get their placeholder, live data returns.
     NS.Sim:OnStop(function()
         if NS.ClearPreview then NS.ClearPreview() end

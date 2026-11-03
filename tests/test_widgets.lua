@@ -559,8 +559,14 @@ test("General draws the canonical pairs and no per-unit enable toggle", function
 
   local lockRow = rowContaining("Lock frame")
   assertTrue(lockRow ~= nil, "no row rendered for Lock frame")
-  assertEqual(lockRow.children[2].labelText, "Debug console",
-    "lock pairs with the debug console, which is a schema row now rather than a pairWith partner")
+  -- Sim mode beside Lock frame (R6-SIM, OptionsCompose minor 19): with no Test mode row the sim box
+  -- pairs with the lock, and Debug console opens the next line with Minimap button beside it.
+  assertEqual(lockRow.children[2].labelText, "Sim mode",
+    "lock pairs with Sim mode, the switch nearest a test mode on an addon whose lock is its preview")
+  local consoleRow = rowContaining("Debug console")
+  assertTrue(consoleRow ~= nil, "no row rendered for Debug console")
+  assertEqual(consoleRow.children[1].labelText, "Debug console", "the console opens its own line")
+  assertEqual(consoleRow.children[2].labelText, "Minimap button", "with Minimap button beside it")
 end)
 
 test("every tracked unit keeps an enable row stamped to General, drawn nowhere on it", function()

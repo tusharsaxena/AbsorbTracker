@@ -122,16 +122,16 @@ Rules the code depends on that reading one file will not reveal. The visual/tain
 
 ## Settings Schema
 
-`NS.Schema` is a flat array of **103 rows**; each `settings/<page>.lua` calls
+`NS.Schema` is a flat array of **105 rows**; each `settings/<page>.lua` calls
 `NS.RegisterSchemaRows({...})` at file load, and the same array drives the panel widgets
 (`LibKa0s-Options-1.0`) and the `/at list|get|set|reset|resetall` CLI, so adding an option is one
-schema row. **Seventeen** rows carry an absolute path, all on General: the six flat globals
-(`enabled`, `visibility`, `scale`, `alpha`, `locked`, `throttleWindow`), the session-only
-`state.debugConsole`, the global-store `global.minimap.shown` and the nine `skin.*` rows the Skin
-tab draws. The other **86** are unit-relative (`units.<unit>.<key>`): the three
+schema row. **Nineteen** rows carry an absolute path, all on General: the six flat globals
+(`enabled`, `visibility`, `scale`, `alpha`, `locked`, `throttleWindow`), the simulator's
+`sim.stepDelay`, the session-only `state.debugConsole` and `state.sim` (the Sim mode box, R6-SIM),
+the global-store `global.minimap.shown` and the nine `skin.*` rows the Skin tab draws. The other **86** are unit-relative (`units.<unit>.<key>`): the three
 `units.<unit>.enabled` toggles on General, plus the Appearance page's 83 (twenty-seven keys × three
 units, and a `mirror` row for target and focus). A row's `group` is its **tab** (options-ui-§13), in
-declaration order, and 79 of the rows are emitted by `LibKa0s-Options-1.0`'s composers rather than
+declaration order, and 80 of the rows are emitted by `LibKa0s-Options-1.0`'s composers rather than
 typed out.
 
 The runtime is **`LibKa0s-Schema-1.0`**, instanced in `settings/Schema.lua` as `NS.SchemaRuntime`.
