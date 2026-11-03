@@ -57,8 +57,9 @@ off (the same as `/at enable` and `/at disable`) and lock or unlock the bars. Yo
 **Minimap button** on General → Master controls.
 
 Everything else is on the addon's page under Settings → AddOns, and `/at` (or `/absorbtracker`) on
-its own opens it. `/at skin` opens the skin picker again whenever you want another look, and General →
-**Skin** → **Font outline** sets whether the skin outlines all text, only the bars' numbers (the default), or none.
+its own opens it. `/at skin` opens the skin picker again whenever you want another look. If the bars are
+locked, the picker unlocks them so you can see the skin on them; its eye button locks and unlocks them, and
+closing the picker puts the lock back as it was. General → **Skin** → **Font outline** sets whether the skin outlines all text, only the bars' numbers (the default), or none.
 `/at help` prints the full command list.
 
 ## How the bar works
@@ -144,5 +145,5 @@ Please file new reports there rather than in comments, so nothing gets lost.
 ## Credits
 
 - [Open Iconic](https://github.com/iconic/open-iconic) by Waybury (MIT): the **?** and **X** on the bar's drag
-  handle, the close, copy and clear marks on the debug console, the skin picker's settings gear, and the
+  handle, the close, copy and clear marks on the debug console, the skin picker's settings gear and eye, and the
   small marks LibKa0s draws beside skinned controls.

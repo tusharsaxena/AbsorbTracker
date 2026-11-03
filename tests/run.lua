@@ -215,6 +215,9 @@ Kit.run{
     -- The first-run skin picker (AT-04): when it shows, its spec, the real window. After
     -- test_skin_hud; it leaves the skin on Ka0s Default and the picker down, unseen.
     "test_skin_picker",
+    -- The picker's eye (R6-PV): spec.preview in unlock mode, driving the real lock. After
+    -- test_skin_picker; it leaves the picker down, unseen, and the bars unlocked.
+    "test_skin_picker_preview",
     -- The AceGUI rows this addon acquires and the tool surfaces on the skin (AT-04). After
     -- test_skin_picker; it leaves the Scope on its defaults.
     "test_skin_tools",

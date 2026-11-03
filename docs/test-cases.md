@@ -970,14 +970,14 @@ Total.
 
 ### test_skin_picker.lua (19)
 
-- Skin picker: the spec names this owner, its seams, General's Skin tab, and no eye
+- Skin picker: the spec names this owner, its seams, General's Skin tab, and the unlock eye
 - Skin picker: an unseen profile shows it; a seen one does not
 - Skin picker: it shows at login, from addon:OnEnable
 - Skin picker: in combat a start waits for PLAYER_REGEN_ENABLED, once
 - Skin picker: a held start is dropped by HideSkinPicker
 - Skin picker: never while the addon is switched off
 - Skin picker: a new profile and a reset profile show it again
-- Skin picker: the title is Choose a skin, the name line names this addon, and the eye is hidden
+- Skin picker: the title is Choose a skin, the name line names this addon, and the eye shows
 - Skin picker: the player's close marks it seen; this addon's own hide does not
 - Skin picker: a profile that has seen it takes a shown picker down, unmarked
 - Skin picker: the stand-down takes the picker down, unseen
@@ -990,13 +990,32 @@ Total.
 - Skin verb: refused while the addon is disabled, and no picker shows
 - Skin verb: without the library's picker the verb prints the library-absent line
 
-### test_skin_tools.lua (6)
+### test_skin_picker_preview.lua (15)
+
+- Skin preview: the spec hands the picker spec.preview in unlock mode, and no onPreview
+- Skin preview: isActive and isShown read the stored lock, as the launcher's isLocked does
+- Skin preview: enter and exit run the /at unlock and /at lock verbs' own handlers
+- Skin preview: opened with the bars locked, the picker unlocks them and shows a lit eye
+- Skin preview: the eye toggles the lock, off and on
+- Skin preview: the close control locks the bars it unlocked
+- Skin preview: Apply locks the bars it unlocked
+- Skin preview: Escape locks the bars it unlocked
+- Skin preview: the library's HideSkinPicker locks the bars it unlocked
+- Skin preview: the gear locks the bars it unlocked
+- Skin preview: this addon's own close (stand-down, reset) moves no lock
+- Skin preview: a profile switch puts back the lock of the profile the picker opened on
+- Skin preview: a mode that was on and the eye turned off is on again after the close
+- Skin preview: bars already unlocked are left alone, open and close
+- Skin preview: in combat the eye's unlock is refused and the close undoes nothing
+
+### test_skin_tools.lua (7)
 
 - the chrome block's four widgets are painted for this owner, even off the raw AceGUI
 - under the default Scope (Ignore settings panel) the chrome block stays stock
 - NS.SkinPaintAceTree paints every widget under a container
 - the Profiles page paints AceConfigDialog's tree after each Open
 - the debug console and its copy window are painted for this owner
+- no window this addon opens draws a line under its title (R4-SEP)
 - the perf panel is painted for this owner
 
 ### test_glyphs.lua (1)
@@ -1246,7 +1265,8 @@ Total.
 | test_skin_hud.lua | 19 |
 | test_skin_flip.lua | 28 |
 | test_skin_picker.lua | 19 |
-| test_skin_tools.lua | 6 |
+| test_skin_picker_preview.lua | 15 |
+| test_skin_tools.lua | 7 |
 | test_glyphs.lua | 1 |
 | test_docs.lua | 6 |
 | test_prose.lua | 15 |
@@ -1265,4 +1285,4 @@ Total.
 | test_skin_values.lua | 3 |
 | test_skin_switch.lua | 11 |
 | Skipped | 1 |
-| **Total** | **1035** |
+| **Total** | **1051** |

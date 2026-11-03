@@ -175,10 +175,30 @@ end
 -- `skin.pickerSeen`, through NS.SetByPath. A close this addon makes itself (NS.HideSkinPicker: the
 -- stand-down, a profile event) is not the player's and writes nothing.
 --
--- NO EYE (the rollout's X6 / D6). This addon has no window and no test mode to preview a skin in:
--- its preview is unlocking the bars, which is a stored write (`locked`), and the player bar is
--- normally on screen already. So `onPreview` is absent and the library hides the button; a pick
--- still previews live on the drag strips, the console and the settings chrome.
+-- THE EYE: UNLOCK MODE (R6-PV; LibKa0s OptionsSkinPicker minor 11's spec.preview, the lead's call 2
+-- of Ka0sAddonsCommonTasks docs/2026-11-03-SMOKE_ROUND6). This addon has no window and no test mode,
+-- so its preview is the unlocked bars: every enabled bar shown with its drag strip and placeholder
+-- fill, whatever the visibility setting and whether a target or focus exists. The surface is the
+-- unlocked view, so "hidden" is locked and isShown reads the same lock isActive does. A fresh show
+-- on locked bars unlocks them; the eye toggles the lock; every close (Apply, Apply to all, the gear,
+-- the close control, Escape, HideSkinPicker) puts back the lock the picker opened on. Every enter
+-- and exit runs the `/at unlock` / `/at lock` verb's own handler, the call the launcher's Lock entry
+-- makes, so the settings checkbox, the launcher and the chat echo stay in step, and the `locked`
+-- row's onChange still refuses an unlock in combat (the library then has nothing to undo). The
+-- old rollout decision (X6 / D6: no eye, because unlocking is a stored write) is replaced by the
+-- owner's rule: unlock IS stored, so a /reload while the picker is up leaves the bars unlocked
+-- until `/at lock`; no new persistence is added.
+--
+-- THIS ADDON'S OWN CLOSE (NS.HideSkinPicker) is not the player's, as it writes no pickerSeen.
+-- - A profile SWITCH takes the picker down after AceDB has switched (adoptProfile), so the
+--   library's restore lands while another profile is active. Each spec remembers the profile it was
+--   built on, and while another one is active its preview reads and writes that profile's own
+--   stored `locked`, raw: the restore puts back the lock of the profile the picker opened on and
+--   never moves the new profile's.
+-- - The STAND-DOWN (`/at disable`, a perf capture) and a profile RESET or COPY move no lock: the
+--   bars are gone, a perf capture writes nothing to SavedVariables (test_disabled, disabled 10),
+--   and a reset or copy replaced what the picker moved with what the player asked for. The lock is
+--   left as the picker left it, as a /reload leaves it.
 --
 -- PREVIEW. A pick only previews: the Skin major moves and the strips repaint, but `set`
 -- (NS.WriteSkinChoice) runs only on Apply, the gear or Apply to all. The close control and Escape
@@ -202,12 +222,58 @@ local function pickerClosed()
     NS.SetByPath(PICKER_PATH, true)
 end
 
+local function currentProfile()
+    local db = NS.db
+    return db and type(db.GetCurrentProfile) == "function" and db:GetCurrentProfile() or nil
+end
+
+--- The `/at lock` or `/at unlock` row's own handler (settings/Slash.lua), run as the launcher's
+--- toggleLock runs it (core/LauncherSetup.lua): NS.SetByPath("locked", ...), the panel refresh and
+--- the stored value's echo. Without the row, the write seam alone.
+local function runLockVerb(name)
+    for _, command in ipairs(NS.COMMANDS or {}) do
+        if command[1] == name then return command[3]("") end
+    end
+    if NS.SetByPath then NS.SetByPath("locked", name == "lock") end
+end
+
+--- spec.preview for a picker opened on profile `home` (THE EYE, above). The mode is on while the
+--- bars are unlocked.
+local function previewFor(home)
+    --- The stored profile table of `home` while another profile is active, else nil.
+    local function away()
+        local now = currentProfile()
+        if home == nil or now == nil or now == home then return nil end
+        local sv = NS.db and NS.db.sv
+        return sv and sv.profiles and sv.profiles[home] or nil
+    end
+    local function unlocked()
+        local p = away()
+        if p then return not p.locked end
+        return not (NS.GetSetting and NS.GetSetting("locked"))
+    end
+    local function move(lock)
+        local p = away()
+        if p then p.locked = lock; return end
+        if quietClose then return end
+        runLockVerb(lock and "lock" or "unlock")
+    end
+    return {
+        mode = "unlock",
+        isActive = unlocked,
+        isShown = unlocked,
+        enter = function() move(false) end,
+        exit = function() move(true) end,
+    }
+end
+
 function NS.SkinPickerSpec()
     return {
         owner = addonName, get = NS.SkinChoice, set = NS.WriteSkinChoice,
         -- The gear's default: O.OpenOptionsPanel("general"), the key settings/General.lua gave
         -- RegisterOptionsPage, then O.SelectTab("general", "Appearance"), the Skin tab's key.
         page = "general", tab = "Appearance",
+        preview = previewFor(currentProfile()),
         onClose = pickerClosed,
     }
 end

@@ -413,9 +413,18 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
   skin list: Font and Texture (media pickers with a reset icon), Font outline and the Scope. A
   change only previews; **Apply** and the gear save it through
   `NS.WriteSkinChoice`, the gear opening General on its Skin tab, and the close control and Escape
-  put the stored skin back. Every close the player makes sets `pickerSeen`. It has no eye (rollout
-  X6): this addon has no window or test mode to preview a skin in. `NS.HideSkinPicker` (the
-  stand-down, and first on every profile event) takes it down without marking it seen.
+  put the stored skin back. Every close the player makes sets `pickerSeen`. **The eye is unlock
+  mode** (R6-PV, LibKa0s OptionsSkinPicker minor 11's `spec.preview`, `mode = "unlock"`): this addon
+  has no window or test mode, so its surface is the unlocked bars and "hidden" means locked. A fresh
+  show on locked bars unlocks them, the eye locks and unlocks them (lit while unlocked), and every
+  close the player makes (Apply, Apply to all, the gear, the close control, Escape) puts back the
+  lock it opened on. Each enter and exit is the `/at unlock` / `/at lock` row's own handler, the call
+  the launcher's Lock entry makes, so the Lock frame checkbox, the launcher and the echo stay in
+  step and the `locked` row still refuses an unlock in combat. Unlock is a stored setting: a /reload
+  while the picker is up leaves the bars unlocked until `/at lock`. `NS.HideSkinPicker` (the
+  stand-down, and first on every profile event) takes it down without marking it seen and moves no
+  lock, except that a profile switch puts the lock back on the profile the picker opened on (raw,
+  in `db.sv.profiles`, since that profile is no longer active).
 - **EllesmereUI** (skinning-§5). The provider is the library's (`SkinEUI.lua`), and the TOC lists EllesmereUI under
   `## OptionalDeps`. With source `eui` and its gate holding, EllesmereUI's facade answers the tokens,
   the HUD's included; otherwise the addon wears its Ka0s skin and the Skin tab names the failing

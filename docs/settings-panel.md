@@ -368,8 +368,10 @@ skin list: *Font* and *Texture* (`Ka0sMedia_*` pickers, each with a reset icon),
 the Scope, and choosing another skin clears the override in the preview. A change previews; **Apply**
 and the gear save it through `NS.WriteSkinChoice`, the
 gear opening this page on its Skin tab (`page = "general"`, `tab = "Appearance"`); the close control
-and Escape put the stored skin back. It has **no eye**: the spec passes no `onPreview`, because this
-addon has no window or test mode to preview in (rollout X6). One picker is up at a time across Ka0s
+and Escape put the stored skin back. Its **eye** is unlock mode (`spec.preview`, `mode = "unlock"`,
+R6-PV): opened on locked bars the picker unlocks them, the eye locks and unlocks them through the
+`/at lock` / `/at unlock` handlers (so the **Lock frame** box on Master controls follows it), and
+every close the player makes puts the lock back. One picker is up at a time across Ka0s
 addons; a queued one answers `nil, "queued"`.
 
 ## Widget makers and refresher closures

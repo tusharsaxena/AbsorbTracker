@@ -44,4 +44,4 @@ auto-stage/commit/push and never bump the version without an explicit instructio
 `docs/testing.md`.
 
 Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.85.0 (MIT).
-LibKa0s icons: chevron-down, chevron-up, clear, close, confirm, copy, help, info, move, reset, settings, volume-high.
+LibKa0s icons: chevron-down, chevron-up, clear, close, confirm, copy, eye, help, info, move, reset, settings, volume-high.
