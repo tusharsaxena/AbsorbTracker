@@ -17,8 +17,8 @@ local H = NS.Helpers
 --
 --     Master controls  [Enable Absorb Tracker]  [General visibility]
 --                      [Master scale]           [Master opacity]
---                      [Lock frame]             [Debug console]
---                      [Minimap button]                                <- alone: no Test mode row
+--                      [Lock frame]             [Sim mode]             <- no Test mode row: Sim
+--                      [Debug console]          [Minimap button]          pairs with the lock
 --                      [Reset position]         [Reset all settings]   <- button pair, afterGroup
 --     Behavior         [Update throttle (seconds)]
 --
@@ -41,10 +41,10 @@ local H = NS.Helpers
 -- MASTER CONTROLS LEADS, AND IS NOT OPTIONAL (options-ui-§15). The one thing every player looks for
 -- first -- how do I turn this off, how do I make it smaller, how do I put it back -- is in the same
 -- place, under the same words, in every Ka0s addon. The set is canonical rather than a menu: it may
--- not be reordered, renamed or split, and this addon draws seven rows plus the button pair. It HAS
+-- not be reordered, renamed or split, and this addon draws eight rows plus the button pair. It HAS
 -- a movable frame (modules/Bar.lua calls SetMovable(true) on every bar), so none of the frame rows
 -- is omitted. What it does not draw is Test mode: it declares no `testModePath`, because unlocking
--- is its preview (see the `locked` onChange below), so [Minimap button] stands alone on its line.
+-- is its preview (see the `locked` onChange below), so Sim mode pairs with Lock frame (R6-SIM).
 --
 -- IT IS COMPOSED, NEVER TYPED OUT. H.MasterControls emits the block from one declaration, so the
 -- collection's addons cannot drift into as many orders; hand-writing the block is anti-pattern #73.
@@ -84,6 +84,10 @@ local unlockGuard = false
 -- registration below has to spell the same string.
 local DEBUG_CONSOLE_PATH = "state.debugConsole"
 
+-- The Sim mode box's path, the composer's default `state.sim` (OptionsCompose minor 19), named so
+-- the declared no-op reaction below spells the same string.
+local SIM_PATH = "state.sim"
+
 -- The console row is bound to the console WINDOW's own show/hide state rather than to the profile
 -- (options-ui-§15: the row is session-only, and a console left open is not a setting the next
 -- character inherits). `ConsoleCheckbox` is the `{ label, tooltip, get, set }` pair
@@ -112,7 +116,7 @@ local masterRows, masterTail = H.MasterControls({
     --
     -- The row is unconditional and carries `default = true`, its own SHOWN sense; the composer
     -- emits it wherever this key is present. This addon declares no `testModePath` (the lock is its
-    -- preview), so the fourth line of the canonical set renders as [Minimap button] alone.
+    -- preview), so Sim mode pairs with Lock frame and [Minimap button] sits beside Debug console.
     minimapPath      = NS.Constants.MINIMAP_PATH,
     -- Unlocking IS this addon's preview (no Test mode row), so Lock frame takes the composer's one
     -- sentence for that (compose minor 9, options-ui-§15, ABS-L-new3) rather than host words. The
@@ -120,6 +124,14 @@ local masterRows, masterTail = H.MasterControls({
     -- onChange below refuses an unlock in combat, and core/AbsorbTracker.lua's RelockForCombat
     -- re-locks on PLAYER_REGEN_DISABLED. `notes.locked` is the composer's only way to add it.
     lockIsPreview    = true,
+    -- THE SIM MODE BOX (R6-SIM, OptionsCompose minor 19): the launcher descriptor's own pair
+    -- (core/LauncherSetup.lua), so ticking is `/at sim` and unticking is `/at sim stop`. A session
+    -- row at the composer's default `state.sim`; nothing is stored. With no Test mode row it sits
+    -- beside Lock frame, and Debug console opens the next line with Minimap button beside it.
+    -- modules/Sim.lua refreshes the open page from the session's listener, so a sim started from the
+    -- verb, the launcher or the step window ticks the box at once.
+    isSimMode        = NS.IsSimMode,
+    toggleSim        = NS.ToggleSimMode,
     notes            = {
         locked = "Unlocking is refused in combat, and entering combat locks the bars again.",
     },
@@ -240,6 +252,10 @@ local masterOnChange = {
     -- a handler that was forgotten, it is one that would have nothing left to do.
     [NS.Constants.MINIMAP_PATH] = function() end,
 
+    -- EXPLICITLY NOTHING, the same again: the Sim mode box's own `set` (the composer's, over
+    -- NS.ToggleSimMode) starts or stops the session, and the session paints the bars itself.
+    [SIM_PATH] = function() end,
+
 }
 
 -- Published for the write-through path (settings/Schema.lua's WRITE_THROUGH and its announce). On
@@ -350,6 +366,24 @@ NS.RegisterSchemaRows({
         -- window after it uses the new one, which is what a throttle change should do.
         onChange = function() end,
     },
+    {
+        -- The simulator's pace (SG-AT-1): the Behavior tab's second heading. The validator is
+        -- modules/Sim.lua's, which loads before this file; the stepper reads the stored value at
+        -- each step, so a change lands on the next.
+        path     = "sim.stepDelay",
+        page     = "general",
+        group    = "Behavior",
+        subgroup = "Simulator",
+        order    = 50,
+        type     = "number",
+        label    = "Simulation step delay (seconds)",
+        desc     = "Paces /at sim: how many seconds the simulator waits between steps as it plays. "
+            .. "A change takes effect from the next step.",
+        default  = NS.defaults.profile.sim.stepDelay,
+        min = NS.SimHost.STEP_DELAY_MIN, max = NS.SimHost.STEP_DELAY_MAX, step = NS.SimHost.STEP_DELAY_STEP,
+        validate = function(v) return NS.SimHost.ValidStepDelay(v) end,
+        onChange = function() end,
+    },
 })
 
 -- ── General > Skin ──────────────────────────────────────────────────────────────────────────
@@ -417,6 +451,13 @@ NS.RegisterSchemaRows({
     { path = "skin.pickerSeen", page = "general", group = SKIN_GROUP, order = 70, skipRender = true,
       type = "bool", default = skinDefaults.pickerSeen, label = "Skin picker seen",
       desc = "Whether the first-run skin picker was closed on this profile.",
+      onChange = function() end },
+    -- The one step onto the skin's record (core/Database.lua): set by the step, per profile. Drawn
+    -- by nothing, and a declared no-op for the same reason as the row above. A General Defaults
+    -- press leaves it alone (`resetExempt`, settings/Schema.lua), or the step would run again.
+    { path = "skin.fullSkinReset", page = "general", group = SKIN_GROUP, order = 75, skipRender = true,
+      type = "bool", default = skinDefaults.fullSkinReset, label = "Moved onto the skin",
+      desc = "Whether this profile's bars have been moved onto the skin once.",
       onChange = function() end },
 })
 

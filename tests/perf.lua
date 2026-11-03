@@ -262,8 +262,13 @@ assert_(repaintPass.apiPerIter == 12,
 --   ceiling    442 = 418.0 + 24.
 --   margin     Derived, not guessed: one empty table per pass adds 64 bytes here too, and 24 < 64.
 --
+-- RE-DERIVED 2026-11-01 (FS-AT-FIX). The call count went 81 -> 87 on the move onto S.BarGloss and
+-- S.HudFont: each asks its target's GetObjectType before it touches it (LibKa0s P.kind), 2 x 3 bars,
+-- and the payload is not ours to edit. Nearly all of the move's 1166 bytes were a fresh opts table per bar, which
+-- modules/Display.lua now refills; the byte ceiling did not move.
+--
 -- Raise it only by filling in those lines again -- a rise IS the finding.
-local APPEARANCE_API_CALLS, APPEARANCE_BYTES_CEILING = 81, 442
+local APPEARANCE_API_CALLS, APPEARANCE_BYTES_CEILING = 87, 442
 local appearancePass = measure("appearancePass", 200, function()
   NS.ForEachUnit(function(unit) NS.UpdateBarAppearance(unit) end)
 end)

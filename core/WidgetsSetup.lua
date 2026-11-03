@@ -8,8 +8,8 @@ local _, NS = ...
 -- TOC line says so). Until AT-02 each of those two modules called LibStub for the major itself and
 -- carried its own nil-guard; the guards now reduce to the stub's contract below.
 --
--- THE STUB CARRIES EXACTLY THE MEMBERS THE ADDON REACHES, and no more (tests/test_surface_parity.lua
--- derives that set from the source and pins it on both arms):
+-- THE STUB CARRIES THE MEMBERS THE ADDON REACHES (tests/test_surface_parity.lua derives that set
+-- from the source and pins it on both arms), and ContextMenu, which the release owes:
 --
 --   * DragHandle — a function answering nil. NS.CreateBar keeps `bar.handle` nil, so a build with
 --     no LibKa0s draws no strip, and the bar body's own drag is the one grab point left. That is the
@@ -30,5 +30,8 @@ end
 
 NS.Widgets = {
     DragHandle  = function() return nil end,
+    -- Owed by every stub at LibKa0s v1.85.0 (docs/releasing.md, Step 8), though nothing here calls
+    -- it: no menu on a build with no LibKa0s.
+    ContextMenu = function() return nil end,
     DRAG_HANDLE = { HEIGHT = 0, GAP = 0 },
 }

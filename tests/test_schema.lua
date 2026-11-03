@@ -72,23 +72,25 @@ end)
 -- to no tab, and is drawn bespoke in the header.
 test("the page -> tab -> row-count partition is the designed one", function()
   local want = {
-    -- Master controls is FIRST and holds exactly the seven schema rows options-ui-§15 entitles this
-    -- addon to: enable, general visibility, master scale, master alpha, lock frame, debug console,
-    -- minimap button. NOT test mode: §15 exempts an addon whose unlocked view already is its
+    -- Master controls is FIRST and holds exactly the eight schema rows options-ui-§15 entitles this
+    -- addon to: enable, general visibility, master scale, master alpha, lock frame, sim mode,
+    -- debug console, minimap button. NOT test mode: §15 exempts an addon whose unlocked view already is its
     -- preview, which this one is, and that row here would be the duplicate switch anti-pattern #80
     -- names. The minimap row is the one that ARRIVED (launcher-§3, compose minor 7) -- it is
     -- unconditional for every addon, which is why it takes the column Test mode would have paired
     -- beside. The two resets are the tab's closing BUTTON PAIR rather than rows, so they are not
-    -- counted here -- tests/test_realpages.lua is what pins them onto this tab.
+    -- counted here -- tests/test_realpages.lua is what pins them onto this tab. The eighth is Sim
+    -- mode (R6-SIM, OptionsCompose minor 19), a session row beside Lock frame, where Test mode
+    -- would have sat.
     -- Behavior counts the three per-unit enables, which stay stamped here (skipRender, drawn in the
     -- Appearance band, ABS-L01) beside the one throttle row it draws.
     -- Appearance is the Skin tab's group (AT-01): seven skip-render rows the library's
     -- O.AppearanceTab draws as its own controls, the host tab keyed by this group's name.
     { page = "general", unit = nil,
-      tabs = { { "Master controls", 7 }, { "Behavior", 4 }, { "Appearance", 8 } } },
+      tabs = { { "Master controls", 8 }, { "Behavior", 5 }, { "Appearance", 9 } } },
     -- Bar is Size 2 + Fill 5 + Background 3 + Border 5 (item 020), and Text the font block's six
     -- plus one: Fill, Border and Text each end on their "Use the skin's ..." companion (AT-03).
-    { page = "appearance", unit = "player", tabs = { { "Bar", 15 }, { "Text", 7 } } },
+    { page = "appearance", unit = "player", tabs = { { "Bar", 18 }, { "Text", 9 } } },
   }
   for _, page in ipairs(want) do
     local counts, order, seen = {}, {}, {}
@@ -310,6 +312,12 @@ test("every persisted profile default is reachable from a schema row", function(
           assertTrue(paths[path], "profile default '" .. path .. "' has no schema row")
         end
       end
+    elseif key == "sim" then
+      -- The simulator's pace (SG-AT-1), one level deep: profile.sim.<field>.
+      for field in pairs(val) do
+        local path = "sim." .. field
+        assertTrue(paths[path], "profile default '" .. path .. "' has no schema row")
+      end
     elseif key == "skin" then
       -- The skin choice (AT-01), one level deep: profile.skin.<field>.
       for field in pairs(val) do
@@ -463,9 +471,12 @@ end)
 
 test("`disabledIf` names a real sibling setting", function()
   -- A typo'd disabledIf reads nil, which is falsey, so the widget would simply never gray out —
-  -- a silent failure with no error to notice.
+  -- a silent failure with no error to notice. The bar family's is a predicate of the row, as the
+  -- engine takes it (OptionsCompose minor 18), and has no path to resolve.
   for _, row in ipairs(NS.Schema) do
-    if row.disabledIf then
+    if type(row.disabledIf) == "function" then
+      assertEqual(type(row.disabledIf(row)), "boolean", row.path)
+    elseif row.disabledIf then
       assertTrue(NS.ResolvePath(NS.defaults.profile, row.disabledIf) ~= nil,
         row.path .. " disabledIf='" .. row.disabledIf .. "' does not resolve")
     end
@@ -735,16 +746,17 @@ end)
 -- frameless, and this one is not -- modules/Bar.lua calls SetMovable(true) on every bar -- so those
 -- four are here. The Test mode row is the one legitimate omission: options-ui-§15 exempts an addon
 -- whose unlocked view already IS its preview, and unlocking here both paints the placeholder and
--- short-circuits the visibility and unit-exists rungs of NS.ShouldShowBar. Seven rows, not eight --
--- the seventh is the Minimap button (launcher-§3), which is unconditional for every addon in the
--- collection and so sits in the column Test mode would otherwise have paired beside.
+-- short-circuits the visibility and unit-exists rungs of NS.ShouldShowBar. Eight rows, none of them
+-- Test mode: the Minimap button (launcher-§3), unconditional for every addon in the collection, and
+-- Sim mode (R6-SIM, OptionsCompose minor 19), the session row the composer pairs with Lock frame
+-- when there is no Test mode row.
 -- The two resets are the tab's closing BUTTON PAIR rather than rows; tests/test_realpages.lua pins
 -- those onto this group's afterGroup hook.
 -- red under: a reordered composer, a `frameless = true` this addon is not entitled to, a row moved
 -- back to the tab it came from, or a Test mode row creeping back in beside the lock.
 test("the Master controls tab is the canonical set, in order, and leads the General page", function()
   local want = {
-    "enabled", "visibility", "scale", "alpha", "locked", "state.debugConsole",
+    "enabled", "visibility", "scale", "alpha", "locked", "state.sim", "state.debugConsole",
     NS.Constants.MINIMAP_PATH,
   }
   local got, firstGroup = {}, nil
@@ -811,6 +823,7 @@ test("the Behavior tab draws the throttle alone, the enables riding along undraw
     { "units.target.enabled", true },
     { "units.focus.enabled",  true },
     { "throttleWindow",       nil  },
+    { "sim.stepDelay",        nil  },   -- the Simulator heading (SG-AT-1), the one subgroup
   }
   local got = {}
   for _, r in ipairs(NS.SchemaForPage("general")) do
@@ -820,7 +833,7 @@ test("the Behavior tab draws the throttle alone, the enables riding along undraw
   for i, spec in ipairs(want) do
     assertEqual(got[i].path, spec[1], "Behavior row " .. i)
     assertEqual(got[i].skipRender, spec[2], "Behavior row " .. i .. " skipRender")
-    assertEqual(got[i].subgroup, nil, "Behavior row " .. i .. " subgroup")
+    assertEqual(got[i].subgroup, spec[1] == "sim.stepDelay" and "Simulator" or nil, "Behavior row " .. i .. " subgroup")
   end
   local throttle = NS.FindSchemaRow("throttleWindow")
   assertEqual(throttle.label, "Update throttle (seconds)")   -- options-ui-§21 units, XC-08

@@ -66,7 +66,7 @@ end
 local printHelp, listSettings, getSetting, setSetting
 local runReset, runResetAll, runResetPosition
 local runDebug, runDiagnostics, runUpdate, runProfile, runToggle, runPerf
-local setEnabled, echoStored, runHold
+local setEnabled, echoStored, runHold, runSim
 
 NS.COMMANDS = {
     {"help",          "List available commands",
@@ -123,6 +123,8 @@ NS.COMMANDS = {
     -- `debug diagnostics` word; there is no `diag`, `dump` or `dx` alias anywhere (STD-04).
     {"diagnostics",   NS.L["Write a diagnostics report to the debug console"],
         function() runDiagnostics() end},
+    {"sim",           NS.L["Play a made-up absorb fight on the bars with a step window \226\128\148 try `/at sim`"],
+        function(rest) runSim(rest) end},
     {"perf",          "Measure performance \226\128\148 try `/at perf` for the workflow",
         function(rest) runPerf(rest) end},
     {"update",        "Force a bar refresh",
@@ -362,6 +364,17 @@ function runHold(rest)
     -- Honors the duration just announced: NS.HoldPreview arms a one-shot that clears the hold and
     -- republishes REPAINT at expiry (modules/Display.lua).
     NS.HoldPreview(secs)
+end
+
+-- ── /at sim ──────────────────────────────────────────────────────────────────────────────────
+--
+-- The made-up absorb fight is LibKa0s-Sim-1.0's session with its step window, hosted by
+-- modules/Sim.lua (SG-AT-1); the verb hands the line to the library's grammar (`start`, `stop`, `step`,
+-- `run`, ...). The step script paints the bars through NS.PaintHold.
+NS.PaintHold = paintHold
+
+function runSim(rest)
+    NS.Sim:RunVerb(rest or "")
 end
 
 -- The sub-verbs `/at debug` takes; anything else (including nothing) toggles the console window.

@@ -82,6 +82,9 @@ defaults\Profile.lua
 modules\Bar.lua
 modules\Display.lua
 modules\Timer.lua
+# The absorb fight simulator (SG-AT-1), on LibKa0s-Sim-1.0. Publishes NS.Sim, NS.SimStop and NS.IsSimRunning, read at call time by
+# modules/Display.lua, core/LauncherSetup.lua and settings/Slash.lua; NS.PaintHold is read at call time too.
+modules\Sim.lua
 # The diagnostics report's sections (debug-logging-§14). After every module whose state it reads;
 # nothing reads it at file load, since the DebugLog descriptor asks for the list when a report runs.
 modules\Diagnostics.lua

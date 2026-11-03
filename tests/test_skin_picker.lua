@@ -2,12 +2,13 @@
 -- core/SkinSetup.lua, LibKa0s OptionsSkinPicker 1, the rollout's O3 / X6).
 --
 -- What this addon owes the picker, and nothing the library pins itself: the spec it hands the
--- Options instance's SkinPicker (its owner, its two seams, General's Skin tab, no eye, the close);
+-- Options instance's SkinPicker (its owner, its two seams, General's Skin tab, the eye, the close);
 -- WHEN it shows (a profile whose `skin.pickerSeen` is false, at login and after every profile
 -- event, never while the addon stands down, held through combat); and that only the player's close
 -- marks it seen. The trigger cases spy on SkinPicker; the last cases drive the library's real
 -- window: Apply saving through NS.WriteSkinChoice, the close control saving nothing, the gear
--- opening General on its Skin tab, the eye absent, and the stand-down taking the window down unseen.
+-- opening General on its Skin tab, the eye shown, and the stand-down taking the window down unseen.
+-- What the eye does (spec.preview, unlock mode, R6-PV) is test_skin_picker_preview's.
 --
 -- Modeled on LootHistory's tests/test_skin_picker.lua, the reference adopter. After
 -- test_skin_hud; leaves the skin on Ka0s Default, the picker down and marked unseen.
@@ -86,16 +87,18 @@ end
 
 -- ── the spec ─────────────────────────────────────────────────────────────────────────────────
 
-test("Skin picker: the spec names this owner, its seams, General's Skin tab, and no eye", function()
+test("Skin picker: the spec names this owner, its seams, General's Skin tab, and the unlock eye", function()
   -- red under: a set that is not the write seam (Apply would never reach the profile), a page key
-  -- RegisterOptionsPage was not given (the gear would open nothing), or an eye (X6: no test mode).
+  -- RegisterOptionsPage was not given (the gear would open nothing), or the one-shot eye back
+  -- (R6-PV: the eye is spec.preview in unlock mode, pinned in test_skin_picker_preview).
   local spec = NS.SkinPickerSpec()
   assertEqual(spec.owner, OWNER)
   assertTrue(rawequal(spec.get, NS.SkinChoice), "get is the read seam")
   assertTrue(rawequal(spec.set, NS.WriteSkinChoice), "set is the write seam")
   assertEqual(spec.page, "general", "the key settings/General.lua gave RegisterOptionsPage")
   assertEqual(spec.tab, "Appearance", "the Skin tab's key")
-  assertEqual(spec.onPreview, nil, "no eye: this addon has no window or test mode to preview in")
+  assertEqual(spec.onPreview, nil, "no one-shot eye")
+  assertEqual(type(spec.preview), "table", "the eye is spec.preview")
   assertEqual(type(spec.onClose), "function")
 end)
 
@@ -211,7 +214,7 @@ local function pickRow(f, key)
   error("no row for " .. key, 0)
 end
 
-test("Skin picker: the title is Choose a skin, the name line names this addon, and the eye is hidden", onWindow(function(f)
+test("Skin picker: the title is Choose a skin, the name line names this addon, and the eye shows", onWindow(function(f)
   -- Since LibKa0s v1.81.0 (OptionsSkinPicker minor 2, R-11) the title no longer names the addon,
   -- which the client cut off; the name has its own line, frame.ownerLabel, above the dropdown, and
   -- the window widens to the name's unbounded width so it is never cut off. The shared mock's
@@ -235,7 +238,7 @@ test("Skin picker: the title is Choose a skin, the name line names this addon, a
   assertEqual(texts[1], "Choose a skin")
   assertEqual(texts[2], NS.Constants.BRAND)
   assertTrue((width or 0) >= 600, "the window widens to the whole name, so it is never cut off")
-  assertTrue(f.preview == nil or not f.preview:IsShown(), "no onPreview: the eye is hidden")
+  assertTrue(f.preview ~= nil and f.preview:IsShown(), "spec.preview: the eye shows (R6-PV)")
 end))
 
 test("Skin picker: the player's close marks it seen; this addon's own hide does not", clean(function()

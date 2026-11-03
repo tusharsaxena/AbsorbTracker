@@ -58,8 +58,13 @@ local PARENT_TITLE = NS.Constants.BRAND
 -- runtime's own ApplyDefault calls its own Set, so a wrapper here would be bypassed by a reset
 -- driven through the instance. `/at reset global.minimap.shown` is deliberately NOT covered: a
 -- single named reset opens no bracket, and a player who names this row is asking for exactly it.
+--
+-- `skin.fullSkinReset` sits beside it for the same button: it is on the General page, and a Defaults
+-- press putting it back to false would run the v8 step again over companions the player turned off
+-- (core/Database.lua). A profile reset does clear it, which is harmless: the step then runs against
+-- defaults.
 local function survivesEveryReset(row)
-    return row.path == NS.Constants.MINIMAP_PATH
+    return row.path == NS.Constants.MINIMAP_PATH or row.path == "skin.fullSkinReset"
 end
 
 local function vetoedFromResetAll(row)
@@ -92,7 +97,7 @@ local descriptor = {
     -- carries a gate (a refusal would belong in the row's `validate`, which a reset also reaches).
     get          = function(path) return NS.GetSetting(path) end,
     set          = function(path, value) return NS.SetByPath(path, value) end,
-    -- The minimap exemption above is the runtime's `resetExempt`, honored inside every sweep this
+    -- The exemptions above are the runtime's `resetExempt`, honored inside every sweep this
     -- library drives (RestoreDefaults and RestoreAllDefaults both open a bracket around their walk).
     applyDefault = function(row) return NS.ApplyDefault(row) end,
     allRows      = NS.SchemaRuntime.AllRows,
@@ -350,9 +355,13 @@ if not lib then
     -- The reserved `/at skin` verb's act (LibKa0s v1.82.0, OptionsSkinPicker minor 3): no picker
     -- without the library, so it answers nil and "absent", which NS.RunSkinVerb words for the player.
     Helpers.SkinVerb           = function() return nil, "absent" end
+    Helpers.SkinNotice = function() return nil, "unavailable" end
     -- The Position block (LibKa0s v1.84.0, OptionsCompose minor 15), owed by every Options stub. No
     -- library, no rows. The hook is inert for any spec; the live one answers nil without onReset.
     Helpers.PositionBlock      = function() return {}, function() end end
+    -- A label's font (LibKa0s v1.85.0, OptionsWidgets minor 43), owed by every Options stub. No
+    -- library, no widget to set it on.
+    Helpers.LabelFont          = function() end
     Helpers.__panels   = function() return {} end
     Helpers.__panelFor = function() return nil end
 

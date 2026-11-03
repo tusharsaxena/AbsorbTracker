@@ -157,6 +157,54 @@ local function backfillUnitKeys(profile, defaults)
     end
 end
 
+--- The one step onto the skin (FS-AT-FLIP; the owner's rulings of 2026-11-01): existing profiles
+--- follow the skin, colors and shadow included. Per profile, recorded per profile in
+--- `skin.fullSkinReset`, because the account-wide stamp cannot say which profiles have been through
+--- it and following the skin leaves no shape to read: run from the ladder's v8, at every init and on
+--- every profile event (core/AbsorbTracker.lua), so a companion a player turns off afterwards stays
+--- off. A reset profile runs it again against defaults, which changes nothing a player sees.
+---
+--- It names companions and the From skin flags (NS.Units.SKIN_RESET_PATHS), never a stored color or
+--- pick, so turning a companion off brings the player's own back; a class color and its toggle are
+--- not named. The record's gate is the library's, Skin.FollowOnce, and without the library the same
+--- write by hand. A path through a missing table is skipped, and the record's own table is the one
+--- table it may create. Answers true when it ran.
+function NS.ResetProfileToSkin(p)
+    if type(p) ~= "table" then return false end
+    local Skin = LibStub and LibStub("LibKa0s-Skin-1.0", true)
+    if Skin and type(Skin.FollowOnce) == "function" then
+        return Skin.FollowOnce(p, NS.Units.SKIN_RESET_PATHS)
+    end
+    if type(p.skin) == "table" and p.skin.fullSkinReset == true then return false end
+    local units = type(p.units) == "table" and p.units or {}
+    for _, unit in ipairs(NS.Units.LIST) do
+        local c = units[unit]
+        if type(c) == "table" then
+            for _, key in ipairs(NS.Units.SKIN_COMPANION_KEYS) do c[key] = true end
+            c.fontFlags = "@skin"
+        end
+    end
+    if type(p.skin) ~= "table" then p.skin = {} end
+    p.skin.fullSkinReset = true
+    return true
+end
+
+-- The shipped faces LibKa0s retired, each to its successor (R3-FRIZ; LibKa0s R3-L7).
+local RETIRED_FONTS = { ["Ka0s Friz Quadrata TT"] = "Ka0s Ubuntu" }
+
+--- Moves every string naming a retired face, at any depth of `t`, to its successor. Returns how many moved.
+function NS.RetireFonts(t)
+    local n = 0
+    for k, v in pairs(t) do
+        if type(v) == "table" then
+            n = n + NS.RetireFonts(v)
+        elseif RETIRED_FONTS[v] then
+            t[k], n = RETIRED_FONTS[v], n + 1
+        end
+    end
+    return n
+end
+
 -- The account-wide schema ladder, in order. `apply` runs BEFORE the version line is logged, so a
 -- step's own [Migrate] output still precedes its "vX -> vY" stamp. Built once at file load — the
 -- ladder has grown three times now, and a new version should be one row here, not another arm.
@@ -282,6 +330,48 @@ local SCHEMA_STEPS = {
             NS.Debug("Migrate", "moved the bars' Font flags to From skin on %s profile(s)", moved)
         end
     end },
+    { to = 8, apply = function()
+        -- v8: the bars' colors and shadow follow the skin, on every stored profile.
+        local moved = forEachProfile(NS.ResetProfileToSkin)
+        if moved > 0 then
+            NS.Debug("Migrate", "put the bars' colors on the skin on %s profile(s)", moved)
+        end
+    end },
+    { to = 9, apply = function()
+        -- v9: the shipped border style is None. Under a skin's None the stored style is the
+        -- player's and draws, so the old default would have put a tooltip edge on every Ka0s Default
+        -- bar. AceDB strips a stored value equal to its default at logout, so an untouched profile
+        -- stores nothing and the default moves it; this takes what a backfill or an old lift stored.
+        -- Once, by the account-wide stamp: from here a stored Blizzard Tooltip is a pick. A real pick
+        -- stays, and so does the old default on a bar whose companion is off, which draws it.
+        local moved = forEachProfile(function(p)
+            if type(p) ~= "table" or type(p.units) ~= "table" then return false end
+            local any = false
+            for _, unit in ipairs(NS.Units.LIST) do
+                local u = p.units[unit]
+                if type(u) == "table" and u.border == "Blizzard Tooltip" and u.borderFromSkin ~= false then
+                    u.border = "None"
+                    any = true
+                end
+            end
+            return any
+        end)
+        if moved > 0 then
+            NS.Debug("Migrate", "moved the old default border to None on %s profile(s)", moved)
+        end
+    end },
+    { to = 10, apply = function()
+        -- v10 (R3-FRIZ): LibKa0s v1.85.0 deleted Ka0s Friz Quadrata TT (R3-L7) and WoW Default draws
+        -- Ka0s Ubuntu in its place (R3-L6). A stored font pick naming the deleted face, a bar's font
+        -- or any other at any depth, moves to its successor on every profile. Blizzard's own
+        -- "Friz Quadrata TT" is another key and stays.
+        local moved = forEachProfile(function(p)
+            return type(p) == "table" and NS.RetireFonts(p) > 0
+        end)
+        if moved > 0 then
+            NS.Debug("Migrate", "moved Ka0s Friz Quadrata TT to Ka0s Ubuntu on %s profile(s)", moved)
+        end
+    end },
 }
 
 -- The runner's target, derived from the ladder and never a second literal (savedvariables-§1).
@@ -302,12 +392,13 @@ local function runLadder(g, profile)
                 NS.Debug("Migrate", "v%s \226\134\146 v%s failed: %s", from, step.to, tostring(err))
                 NS.Format("Settings upgrade stopped at v%s -> v%s; saved settings were left as they were",
                     from, step.to)
-                break
+                return false
             end
             NS.Debug("Migrate", "v%s \226\134\146 v%s", from, step.to)
             g.schemaVersion = step.to
         end
     end
+    return true
 end
 
 function NS:RunMigrations()
@@ -334,5 +425,7 @@ function NS:RunMigrations()
         backfillUnitKeys(profile, defaults)
     end
 
-    runLadder(g, profile)
+    -- Past the ladder the v8 step's own gate still answers for the active profile, one that arrived
+    -- with no record: restored from a backup, or new since the stamp moved.
+    if runLadder(g, profile) then NS.ResetProfileToSkin(profile) end
 end

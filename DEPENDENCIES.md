@@ -171,12 +171,12 @@ The vendor-sync gate shells out to `git` to prove the vendored `libs/LibKa0s/` a
 checks, at `tests/_kit/vendor_sync.lua`:
 
 ```
-tests/_kit/vendor_sync.lua:409   io.popen(('git -C "%s" %s 2>/dev/null'):format(SIBLING, args), "r")
+tests/_kit/vendor_sync.lua:441   io.popen(('git -C "%s" %s 2>/dev/null'):format(SIBLING, args), "r")
 ```
 
 It runs `git show` and `git ls-tree` against a **sibling checkout at `../LibKa0s`**
-(`tests/_kit/vendor_sync.lua:89`, resolved at `:361`), and `git ls-files -s` against this repo
-(`:617`, `:644`) to read the runner's recorded mode.
+(`tests/_kit/vendor_sync.lua:89`, resolved at `:393`), and `git ls-files -s` against this repo
+(`:655`, `:682`) to read the runner's recorded mode.
 
 ```sh
 sudo apt install -y git
@@ -188,7 +188,7 @@ sudo apt install -y git
 
 The two payload-comparison cases compare against `../LibKa0s`. When that directory is not there,
 they report a **skip carrying its reason** — deliberately, and named in the run rather than hidden
-(`tests/_kit/vendor_sync.lua:510`, `T.skip("… the vendored payload was NOT compared")`). The third
+(`tests/_kit/vendor_sync.lua:542`, `T.skip("… the vendored payload was NOT compared")`). The third
 vendor-sync case, *the automated-test runner is recorded executable (100755)* (kit revision 16),
 reads this repo's own git index and needs no sibling, so it runs either way. An
 earlier copy returned early instead, which registered as PASS for a comparison that never ran.

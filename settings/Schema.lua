@@ -395,7 +395,9 @@ local S = SchemaLib:New({
     -- The same renderer `/at get` echoes with (LibKa0s-Slash-1.0), so the two never disagree.
     format = function(row, v) return NS.FormatSchemaValue(row, v) end,
     print = chatPrint,
-    resetExempt = { [MINIMAP_PATH] = true },
+    -- The minimap row, and the v8 step's record: General's Defaults walks every row on its page, and
+    -- a record put back to false would run the step again over companions the player turned off.
+    resetExempt = { [MINIMAP_PATH] = true, ["skin.fullSkinReset"] = true },
 })
 NS.SchemaRuntime = S
 
@@ -437,9 +439,10 @@ NS.Bulk = { Begin = S.BulkBegin, End = S.BulkEnd, Run = S.BulkRun }
 -- leaves the number pending for the handler to take once (NS.ConsumeResetCount); the count is
 -- cleared when the reset returns or raises. The minimap row is not counted, for the same reason a
 -- sessionOnly row is not: a profile reset cannot reach it (its value is in the GLOBAL store). Nor is
--- a profiles-page row, which AceDBOptions owns.
+-- a profiles-page row, which AceDBOptions owns. Nor is skin.fullSkinReset: the step puts it back
+-- during the reset itself (core/Database.lua), so it is no row the reset changed.
 local function reachedByProfileReset(row)
-    return row.path ~= MINIMAP_PATH and row.page ~= "profiles"
+    return row.path ~= MINIMAP_PATH and row.path ~= "skin.fullSkinReset" and row.page ~= "profiles"
 end
 
 function NS.ResetProfileCounted(db)

@@ -555,24 +555,11 @@ test("and the Options descriptor takes that name from the first vararg, not a li
     "the folder name must come from the vararg, never a literal")
 end)
 
-test("the id-list help mark is latent: info is neither declared nor shipped", function()
-  -- The descriptor's addonName above is latent here: this addon builds no Options id list (the
-  -- Helpers.IdList stub is inert and `grep -rn IdList settings modules core` finds no caller), so
-  -- the library never draws its `info` help mark on our behalf. Since LibKa0s v1.75.0 the vendored
-  -- media/icons/ ships only what CLAUDE.md's `LibKa0s icons:` line declares, and `info` is not on
-  -- it. The day an id list without `helpIcon` lands, `info` joins the CLAUDE.md line, the re-vendor
-  -- prune keeps its art, and this case flips to asserting the file is there.
-  -- red under: `info` declared or its art shipped while nothing here draws it.
-  local f = io.open("CLAUDE.md", "rb")
-  assertTrue(f ~= nil, "cannot open CLAUDE.md (tests run from the repo root)")
-  local doc = f:read("*a")
-  f:close()
-  local decl, err = dofile("tests/_kit/vendor_sync.lua").iconDeclaration(doc)
-  assertTrue(err == nil and decl ~= nil, "CLAUDE.md's `LibKa0s icons:` line: " .. tostring(err))
-  for _, name in ipairs(decl.names or {}) do
-    assertTrue(name ~= "info", "info is declared, but this addon builds no id list that draws it")
-  end
+test("the id-list help mark ships: v1.85.0 owes info on every consumer's line", function()
+  -- This addon builds no Options id list, but LibKa0s v1.85.0's kit revision 49 gate asks every
+  -- consumer to declare `info` (docs/releasing.md, Step 8 for v1.85.0). The kit gate holds declared
+  -- == shipped, so this case keeps only the one fact it can add: the art opens.
   local art = io.open("libs/LibKa0s/media/icons/info.tga", "rb")
-  if art then art:close() end
-  assertTrue(art == nil, "libs/LibKa0s/media/icons/info.tga ships, but info is not declared")
+  assertTrue(art ~= nil, "libs/LibKa0s/media/icons/info.tga is missing")
+  art:close()
 end)

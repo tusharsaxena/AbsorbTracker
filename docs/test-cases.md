@@ -95,7 +95,7 @@ Total.
 
 - layout guard: every stored path keeps its type, page, default and range
 
-### test_database.lua (38)
+### test_database.lua (39)
 
 - RunMigrations migrates a fresh DB to the current version (7)
 - a freshly-materialized global runs the ladder, because its default is pre-ladder
@@ -112,7 +112,7 @@ Total.
 - RunMigrations does not overwrite an existing user value
 - RunMigrations is a safe no-op when the DB is absent
 - RunMigrations logs [Migrate] only when a version bump happens
-- RunMigrations emits the [Migrate] lines for a v1->v7 upgrade in order
+- RunMigrations emits the [Migrate] lines for a v1->v8 upgrade in order
 - InitDB produced a profile carrying every default key
 - v3 migration lifts flat appearance keys onto the player unit
 - v3 migration seeds target and focus disabled and mirrored
@@ -123,9 +123,9 @@ Total.
 - v4 does not resurrect `hidden` via the defaults backfill
 - v3 migration is idempotent
 - v3 migration does not share nested tables between units
-- the schema version lands on 7
+- the schema version lands on 8
 - real AceDB init: a legacy flat profile is lifted onto the player unit, not overwritten by fresh defaults
-- real AceDB init: a fresh install (no saved data) converges on factory defaults at v7
+- real AceDB init: a fresh install (no saved data) converges on factory defaults at v10
 - InitDB lifts EVERY saved profile, not only the active one
 - a profile that appears AFTER the upgrade is lifted when it becomes active
 - the InitDB sweep and the profile-change lift compose without double-applying
@@ -135,6 +135,7 @@ Total.
 - profile adopt: a same-state switch publishes APPEARANCE once
 - profile adopt: an off-to-on switch publishes APPEARANCE once, not twice
 - profile adopt: an on-to-off switch stands down and delivers nothing
+- v10 moves a stored Ka0s Friz Quadrata TT to Ka0s Ubuntu on every profile, Blizzard's Friz kept
 
 ### test_units.lua (17)
 
@@ -363,7 +364,7 @@ Total.
 - three bar frames exist and the retired player aliases stay off the namespace
 - each bar carries its own unit tag and its own backdrop table
 
-### test_display.lua (60)
+### test_display.lua (61)
 
 - RestoreBarPosition centers the bar when no position is saved
 - RestoreBarPosition restores the saved anchor verbatim
@@ -402,6 +403,7 @@ Total.
 - unlocking will not happen in combat, and says why
 - re-locking in combat is always allowed
 - UpdateBarAppearance re-applies the font from the profile
+- the value text spans the bar, so a wider face is never clipped (SF-AT-1)
 - UpdateBarAppearance reads a nil fontFlags as From skin, never handing SetFont nil
 - UpdateBarAppearance ends by applying visibility
 - ApplyVisibility shows the bar when the gate passes and hides it when it does not
@@ -606,6 +608,10 @@ Total.
 - launcher: with LibDataBroker but no LibDBIcon, the plugin exists and the button does not
 - launcher: with LibKa0s absent the seam still answers, and still remembers the choice
 
+### test_launcher_skin_entry.lua (1)
+
+- launcher descriptor passes openSkinPicker, which runs the skin verb
+
 ### test_optionssetup.lua (22)
 
 - the live and degraded builds veto exactly the same rows from Reset All
@@ -629,7 +635,7 @@ Total.
 - both Defaults tooltips say which page resets which bars are shown
 - the Options descriptor tells the library the FOLDER name
 - and the Options descriptor takes that name from the first vararg, not a literal
-- the id-list help mark is latent: info is neither declared nor shipped
+- the id-list help mark ships: v1.85.0 owes info on every consumer's line
 
 ### test_slashcmds.lua (57)
 
@@ -805,6 +811,31 @@ Total.
 - /at debug hold refuses while the addon is disabled: one line, no paint, no hold
 - /at debug hold refuses while stood down for a perf capture, arms no timer
 
+### test_sim.lua (22)
+
+- sim: COMMANDS carries a sim row
+- sim: the library session is bound and the seam wraps nothing
+- sim: three scenarios, each a list of shield steps with a wait
+- sim: the step delay setting paces every step (SG-AT-1)
+- sim: with no valid setting a step's wait is the gap to the next, the last waits the default
+- sim: a bad word prints the usage and holds nothing
+- sim: stop with nothing running says so
+- sim: a start holds the bars, opens the stepper and plays the steps
+- sim: the held shield is what the last step painted
+- sim: a manual step paints one value and holds the run
+- sim: stop ends the session and clears the hold
+- sim: clearing the preview mid-sim (a lock toggle, a stand-down) ends the session
+- sim: a debug hold mid-sim replaces the sim
+- sim: stop with the bars unlocked gives them their placeholder back
+- sim: a disabled addon refuses and holds nothing
+- sim: the launcher's mode row follows the session
+- sim box: Master controls draws a session-only Sim mode row beside Lock frame
+- sim box: the box and the launcher take the one NS pair
+- sim box: ticking does what /at sim does, unticking stops the sim
+- sim box: the row's write publishes no appearance pass
+- sim box: a sim started or stopped elsewhere refreshes the open page
+- sim box: Reset all settings stops a running sim and never starts one
+
 ### test_widgets.lua (46)
 
 - NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
@@ -874,7 +905,7 @@ Total.
 
 - Skin seam: the owner is the folder name, and NS.Skin is its facade
 - Skin seam: the read answers Ka0s Default before the profile store exists
-- Skin seam: the eight skin keys default to Ka0s Default, as skip-render rows on General
+- Skin seam: the nine skin keys default to Ka0s Default, as skip-render rows on General
 - Skin seam: the skin row's values are every registered skin, in the library's order
 - Skin seam: /at set refuses a skin that is not registered and applies one that is
 - Skin seam: the Skin tab is General's last, and opens
@@ -901,7 +932,7 @@ Total.
 - a mirrored bar follows the player's companion, an unlinked one its own
 - Copy from Player copies the companions
 - the appearance pass draws the skin's border thickness and inset
-- a skin switch repaints every bar, and leaves the player's colors alone
+- a skin switch repaints every bar
 - v6 puts every stored companion back on, keeps the picks and the colors
 - v6 runs once: a pick made after it is kept
 - every bar's Font flags default to From skin, offered first
@@ -912,16 +943,47 @@ Total.
 - the skin's face draws at the skin's HUD size; the stored size never moves
 - a mirrored bar follows the player's Use the skin's font for its size
 
+### test_skin_flip.lua (28)
+
+- every unit's color and shadow companions are bool rows defaulting on, in both places
+- no swatch carries disabledIf, and a class color has no companion
+- the picks' defaults moved to the Ka0s picks, in both places
+- the border family puts the thickness on the skin through the composer
+- Ka0s Default keeps this addon's pixels: fill, background, border, text, no shadow
+- a skin switch changes every flipped surface
+- a skin that says no shadow draws none, whatever the stored row says
+- a companion off draws the stored color and shadow
+- a class color comes first, whatever the companion says
+- Ignore fonts: the stored fontShadow stands
+- the shadow lands on a font object where the client has CreateFont
+- a glossy skin glosses the fill; Ka0s Default and the player's own texture do not
+- the gloss layer is built on the fill, in the one white look
+- with no library the facade draws no gloss, and HudFont still gives the text its face
+- with no library the stored border stands, and the shipped None draws no edge
+- the step: every listed key follows, every stored pick and color is byte-identical
+- the step names no size, class toggle, Scope key or color
+- a second run writes nothing, and a companion turned off afterwards stays off
+- General's Defaults keeps the record, so the next migration leaves a turned-off companion off
+- past the stamp the runner still moves an active profile with no record
+- a failed ladder step stops the run before the step onto the skin
+- the step creates the record's table on a raw profile with none
+- the step is the same write with the library absent
+- the ladder walks every stored profile, and a profile change runs the step
+- an untouched bar draws no edge and keeps its inset under Ka0s Default
+- a skin's None defers to the player's stored style and size, companion on
+- a real style in a skin wins over the player's, and the companion off gives it back
+- v9 moves a stored old default to None, once, and leaves a pick and a companion off
+
 ### test_skin_picker.lua (19)
 
-- Skin picker: the spec names this owner, its seams, General's Skin tab, and no eye
+- Skin picker: the spec names this owner, its seams, General's Skin tab, and the unlock eye
 - Skin picker: an unseen profile shows it; a seen one does not
 - Skin picker: it shows at login, from addon:OnEnable
 - Skin picker: in combat a start waits for PLAYER_REGEN_ENABLED, once
 - Skin picker: a held start is dropped by HideSkinPicker
 - Skin picker: never while the addon is switched off
 - Skin picker: a new profile and a reset profile show it again
-- Skin picker: the title is Choose a skin, the name line names this addon, and the eye is hidden
+- Skin picker: the title is Choose a skin, the name line names this addon, and the eye shows
 - Skin picker: the player's close marks it seen; this addon's own hide does not
 - Skin picker: a profile that has seen it takes a shown picker down, unmarked
 - Skin picker: the stand-down takes the picker down, unseen
@@ -934,13 +996,33 @@ Total.
 - Skin verb: refused while the addon is disabled, and no picker shows
 - Skin verb: without the library's picker the verb prints the library-absent line
 
-### test_skin_tools.lua (6)
+### test_skin_picker_preview.lua (16)
+
+- Skin preview: the spec hands the picker spec.preview in unlock mode, and no onPreview
+- Skin preview: isActive and isShown read the stored lock, as the launcher's isLocked does
+- Skin preview: enter and exit run the /at unlock and /at lock verbs' own handlers
+- Skin preview: opened with the bars locked, the picker unlocks them and shows a lit eye
+- Skin preview: the eye toggles the lock, off and on
+- Skin preview: the close control locks the bars it unlocked
+- Skin preview: Apply locks the bars it unlocked
+- Skin preview: Escape locks the bars it unlocked
+- Skin preview: the library's HideSkinPicker locks the bars it unlocked
+- Skin preview: the gear locks the bars it unlocked
+- Skin preview: this addon's own close (stand-down, reset) moves no lock
+- Skin preview: a profile switch puts back the lock of the profile the picker opened on
+- Skin preview: a mode that was on and the eye turned off is on again after the close
+- Skin preview: bars already unlocked are left alone, open and close
+- Skin preview: in combat the eye's unlock is refused and the close undoes nothing
+- Skin preview: this addon's own close in combat parks no lock move for after combat
+
+### test_skin_tools.lua (7)
 
 - the chrome block's four widgets are painted for this owner, even off the raw AceGUI
 - under the default Scope (Ignore settings panel) the chrome block stays stock
 - NS.SkinPaintAceTree paints every widget under a container
 - the Profiles page paints AceConfigDialog's tree after each Open
 - the debug console and its copy window are painted for this owner
+- no window this addon opens draws a line under its title (R4-SEP)
 - the perf panel is painted for this owner
 
 ### test_glyphs.lua (1)
@@ -1130,6 +1212,26 @@ Total.
 - lizard sighted: parity names every file whose counts differ, and only those
 - lizard sighted: lizard lists every function of a hazard fixture once it is sanitized
 
+### test_skin_values.lua (3)
+
+- skin values: every host row carries its file, substring, why and cause id
+- skin values: no typed value outside the kit's categories and the host's rows
+- skin values: the check is falsifiable, a planted value of each shape is reported
+
+### test_skin_switch.lua (11)
+
+- skin switch: the check is falsifiable, a surface that redraws a literal is reported
+- skin switch: a bar's fill changes
+- skin switch: a bar's background changes
+- skin switch: a bar's border changes
+- skin switch: a bar's value text changes
+- skin switch: a bar's drag strip changes
+- skin switch: a bar's drag strip changes with the Scope ignored
+- skin switch: the debug console changes
+- skin switch: the debug console changes with the Scope ignored
+- skin switch: the perf panel changes
+- skin switch: the perf panel changes with the Scope ignored
+
 ## Totals
 
 | Suite | Cases |
@@ -1137,7 +1239,7 @@ Total.
 | test_loadorder.lua | 15 |
 | test_schema.lua | 62 |
 | test_layoutguard.lua | 1 |
-| test_database.lua | 38 |
+| test_database.lua | 39 |
 | test_units.lua | 17 |
 | test_envsetup.lua | 7 |
 | test_coresetup.lua | 8 |
@@ -1149,25 +1251,29 @@ Total.
 | test_visibility.lua | 26 |
 | test_bus.lua | 12 |
 | test_data.lua | 32 |
-| test_display.lua | 60 |
+| test_display.lua | 61 |
 | test_draghandle.lua | 39 |
 | test_layers.lua | 12 |
 | test_helpers.lua | 40 |
 | test_panelpages.lua | 27 |
 | test_panelmirror.lua | 10 |
 | test_launcher.lua | 34 |
+| test_launcher_skin_entry.lua | 1 |
 | test_optionssetup.lua | 22 |
 | test_slashcmds.lua | 57 |
 | test_slashgate.lua | 10 |
 | test_slashprofile.lua | 34 |
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 16 |
+| test_sim.lua | 22 |
 | test_widgets.lua | 46 |
 | test_realpages.lua | 13 |
 | test_skinsetup.lua | 17 |
 | test_skin_hud.lua | 19 |
+| test_skin_flip.lua | 28 |
 | test_skin_picker.lua | 19 |
-| test_skin_tools.lua | 6 |
+| test_skin_picker_preview.lua | 16 |
+| test_skin_tools.lua | 7 |
 | test_glyphs.lua | 1 |
 | test_docs.lua | 6 |
 | test_prose.lua | 15 |
@@ -1183,5 +1289,7 @@ Total.
 | test_eol.lua | 2 |
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
+| test_skin_values.lua | 3 |
+| test_skin_switch.lua | 11 |
 | Skipped | 1 |
-| **Total** | **974** |
+| **Total** | **1058** |

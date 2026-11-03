@@ -141,9 +141,9 @@ what it did (`debug-logging-§8`): the flows, the state edges it reacts to, work
 each refusal with the guard that made it, the dependencies, and each error it caught.
 
 **Which lines are the library's.** LibKa0s writes some of these lines itself, through the gated sink
-this addon passes as each descriptor's `debug` (Slash, Options, Lifecycle, Launcher): `[Lifecycle]`
+this addon passes as each descriptor's `debug` (Slash, Options, Lifecycle, Launcher, Sim): `[Lifecycle]`
 whole, the dispatcher's `[Cmd] refused ...` lines, the Options major's `[Cfg]` lines and the
-launcher's `[Launcher]` state lines, plus `[Init]`, `[Debug]`, `[Set]` and `[Perf]` as before. The
+launcher's `[Launcher]` state lines, the sim session's `[Sim]` lines, plus `[Init]`, `[Debug]`, `[Set]` and `[Perf]` as before. The
 **Written by** column names them. This addon writes no copy of a library line: its own lines say
 only what the library cannot know (`[Life]`'s teardown and rebuild, its own verbs' `[Cmd]`
 refusals). Its "once" and "on change" lines use the console's change gates (`DebugOnce`,
@@ -172,6 +172,7 @@ replay, so that pair rests on the library's own suite (LibKa0s `tests/test_optio
 | `[Migrate]` | `core/Database.lua` | A schema migration step ran or failed |
 | `[Cfg]` | `LibKa0s-Options-1.0` (the library's lines), `settings/UnitPanel.lua` | The library's: the settings panel opened, a register parked in combat and its `register flushed (combat ended)`, an open refused in combat, and each act the combat lock refused, once per combat, as `<what> refused (in combat)` (`write <path>`, `defaults <page>`, `button <text>`, `toggle <label>`, `tab <key>`, `show <page>`, …). This addon's: a unit panel render that raised, once per distinct error through the console's change gate (`DebugChanged`), so a Clear re-arms it |
 | `[Launcher]` | `LibKa0s-Launcher-1.0` (the library's lines), `core/LauncherSetup.lua` | The library's: `Register`'s state lines (`LibDataBroker-1.1 absent; no launcher`, `LibDBIcon-1.0 absent; broker plugin only`, `registered`), held by the console's at-enable queue and written the first time logging is turned on, after `[Init]`, once; and its event notes. This addon's: a launcher click that found no `/at` handler to run |
+| `[Sim]` | `LibKa0s-Sim-1.0` (the library's lines, through `modules/Sim.lua`'s descriptor `debug`) | The `/at sim` session: `started <scenario> (size, seed)`, `ready: <scenario>`, `stopped (<reason>): N events`, and each failure the library catches (a prepare, a step, a listener, a stop step, the step window) |
 | `[Perf]` | `LibKa0s-Perf-1.0` | The perf run's lines, written ungated ([performance.md](performance.md)) |
 
 **Quiet steady state** (`debug-logging-§9`). The addon's repeating paths log nothing while nothing

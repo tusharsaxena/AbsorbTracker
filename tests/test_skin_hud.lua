@@ -3,8 +3,8 @@
 -- What this addon owes: each bar's texture (fill and background), border (style and thickness)
 -- and font face are drawn from the owner's skin tokens while the unit's "Use the skin's ..."
 -- companion is on, and from the stored pick while it is off; the companions default on, are
--- composed schema rows, mirror and copy like every appearance key; the colors never follow the
--- skin (X4); a skin switch repaints the bars; and the one-time v6 reset (O2) puts every stored
+-- composed schema rows, mirror and copy like every appearance key; a skin switch repaints the bars
+-- (the colors and shadow are tests/test_skin_flip.lua's); and the one-time v6 reset (O2) puts every stored
 -- companion back on once, and never again over a later pick.
 --
 -- After test_skinsetup, which leaves the skin on Ka0s Default; every case here puts it back there.
@@ -81,7 +81,9 @@ test("the companions are composed schema rows, bools defaulting on, on the tab o
   end
   -- The composer governs its own picker with it.
   assertEqual(NS.FindSchemaRow("units.player.barTexture").disabledIf, "units.player.barTextureFromSkin")
-  assertEqual(NS.FindSchemaRow("units.player.border").disabledIf, "units.player.borderFromSkin")
+  -- The bar family's is a predicate (OptionsCompose minor 18): a skin's None leaves the row live.
+  local border = NS.FindSchemaRow("units.player.border")
+  assertEqual(border.disabledIf(border), false, "live under Ka0s Default's None")
   assertEqual(NS.FindSchemaRow("units.player.font").disabledIf, "units.player.fontFromSkin")
 end)
 
@@ -89,16 +91,20 @@ test("the background texture and the border thickness follow the companions too 
   local bg = NS.FindSchemaRow("units.target.bgTexture")
   local size = NS.FindSchemaRow("units.target.borderSize")
   assertEqual(bg.disabledIf, "units.target.barTextureFromSkin")
-  assertEqual(size.disabledIf, "units.target.borderFromSkin")
+  assertEqual(size.disabledIf(size), false, "the thickness stays live under a skin's None")
   assertEqual(bg.skinValue(bg), S.Token("bar.texture"), "the background shows the skin's texture")
-  assertEqual(size.skinValue(size), S.Token("bar.borderSize"), "the slider shows the skin's size")
+  assertEqual(size.skinValue(size), nil, "a skin's None: the stored size shows")
+  Skin:SetChoice("AbsorbTracker", "ka0s", "azeroth")
+  local shown = size.skinValue(size)
+  Skin:SetChoice("AbsorbTracker", "ka0s", "ka0s")
+  assertEqual(shown, 1, "a real style: the slider shows the skin's size")
   withUnit("target", "barTextureFromSkin", false, function()
     assertEqual(bg.skinValue(bg), nil, "off: the stored pick shows")
   end)
   withUnit("target", "borderFromSkin", false, function()
     assertEqual(size.skinValue(size), nil, "off: the stored size shows")
   end)
-  -- The colors never follow the skin (X4): no color row is governed.
+  -- A swatch is never governed (options-ui-§17): its companion is a row beside it.
   for _, key in ipairs({ "barColor", "bgColor", "borderColor", "fontColor" }) do
     assertEqual(NS.FindSchemaRow("units.player." .. key).disabledIf, nil, key)
   end
@@ -118,8 +124,14 @@ test("a companion on draws the skin's token; off, the stored pick", function()
     local key, token, companion = c[1], c[2], c[3]
     local name, fromSkin = NS.MediaKey("player", key)
     assertTrue(S.Token(token) ~= nil, token .. " is set in Ka0s Default")
-    assertEqual(name, S.Token(token), key .. " follows " .. token)
-    assertEqual(fromSkin, true, key)
+    if companion == "borderFromSkin" then
+      -- Ka0s Default's None hands the stored style and thickness back: they are the player's.
+      assertEqual(name, NS.db.profile.units.player[key], key .. " defers to the stored value")
+      assertEqual(fromSkin, false, key)
+    else
+      assertEqual(name, S.Token(token), key .. " follows " .. token)
+      assertEqual(fromSkin, true, key)
+    end
     withUnit("player", companion, false, function()
       local own, skinned = NS.MediaKey("player", key)
       assertEqual(own, NS.db.profile.units.player[key], key .. " is the stored pick")
@@ -142,7 +154,9 @@ test("Ignore fonts keeps the value text on the stored face, over the skin and a 
   -- (the companion alone, not the skin's Token answer).
   local panel, fonts = Skin:GetIgnore(OWNER)
   local savedFont, savedTexture = Skin:GetOverride(OWNER)
-  local own = NS.db.profile.units.player.font
+  local stored = NS.db.profile.units.player.font
+  local own = "Stored Face"
+  NS.db.profile.units.player.font = own
   local ok, err = pcall(function()
     assertEqual(NS.db.profile.units.player.fontFromSkin, true, "the companion is on")
     assertTrue(S.Token("hud.font") ~= own, "the skin's face differs from the stored one")
@@ -162,6 +176,7 @@ test("Ignore fonts keeps the value text on the stored face, over the skin and a 
     Skin:SetIgnore(OWNER, nil, false)
     assertEqual((NS.MediaKey("player", "font")), S.Token("hud.font"), "unticked, the skin's face again")
   end)
+  NS.db.profile.units.player.font = stored
   Skin:SetOverride(OWNER, savedFont or false, savedTexture or false)
   Skin:SetIgnore(OWNER, panel, fonts)
   if not ok then error(err, 0) end
@@ -227,8 +242,7 @@ test("the appearance pass draws the skin's border thickness and inset", function
   NS.UpdateBarAppearance("player")
 end)
 
-test("a skin switch repaints every bar, and leaves the player's colors alone", onDefault(function()
-  local r, g, b, a = NS.GetBarColor("player")
+test("a skin switch repaints every bar", onDefault(function()
   local painted, real = {}, NS.UpdateBarAppearance
   NS.UpdateBarAppearance = function(unit) painted[#painted + 1] = unit end
   local ok, err = pcall(Skin.SetChoice, Skin, OWNER, "ka0s", "obsidian")
@@ -236,8 +250,6 @@ test("a skin switch repaints every bar, and leaves the player's colors alone", o
   assertTrue(ok, tostring(err))
   assertTrue(#painted >= #NS.Units.LIST, "every bar repainted: " .. #painted)
   assertEqual((NS.MediaKey("player", "font")), S.Token("hud.font"), "the new skin's face")
-  local r2, g2, b2, a2 = NS.GetBarColor("player")
-  assertTrue(r == r2 and g == g2 and b == b2 and a == a2, "the fill color is the player's (X4)")
 end))
 
 -- ── the one-time reset (O2) ──────────────────────────────────────────────────────────────────
@@ -255,23 +267,23 @@ end
 
 test("v6 puts every stored companion back on, keeps the picks and the colors", function()
   local color = { r = 0.9, g = 0.1, b = 0.1, a = 1 }
-  local default = { schemaVersion = 3, units = {
+  -- The record keeps the v8 step off these two: this case is v6's.
+  local default = { schemaVersion = 3, skin = { fullSkinReset = true }, units = {
     player = { font = "My Font", fontFromSkin = false, borderFromSkin = false, barColor = color },
   } }
-  local raid = { schemaVersion = 3, units = {
+  local raid = { schemaVersion = 3, skin = { fullSkinReset = true }, units = {
     target = { barTexture = "My Texture", barTextureFromSkin = false },
     focus  = { border = "My Border" },
   } }
   local stamp = migrate({ Default = default, Raid = raid }, "Default", 5)
-  assertEqual(stamp, 7)
-  assertEqual(NS.SCHEMA_VERSION, 7)
+  assertEqual(stamp, 10)
+  assertEqual(NS.SCHEMA_VERSION, 10)
   local p = default.units.player
   assertEqual(p.fontFromSkin, true, "the active profile's font follows the skin")
   assertEqual(p.borderFromSkin, true, "and its border")
   assertEqual(p.font, "My Font", "the stored pick is kept")
   assertEqual(p.barColor, color, "the color is untouched (X4)")
   assertEqual(p.barColor.r, 0.9)
-  assertEqual(p.barColorFromSkin, nil, "no companion invented for a color")
   assertEqual(raid.units.target.barTextureFromSkin, true, "an inactive profile is reset too")
   assertEqual(raid.units.target.barTexture, "My Texture")
   assertEqual(raid.units.focus.borderFromSkin, nil, "an absent companion stays absent: it reads on")
@@ -280,12 +292,12 @@ test("v6 puts every stored companion back on, keeps the picks and the colors", f
 end)
 
 test("v6 runs once: a pick made after it is kept", function()
-  local p = { schemaVersion = 3, units = { player = { fontFromSkin = false } } }
+  local p = { schemaVersion = 3, skin = { fullSkinReset = true }, units = { player = { fontFromSkin = false } } }
   migrate({ Default = p }, "Default", 5)
   assertEqual(p.units.player.fontFromSkin, true, "the reset ran")
   p.units.player.fontFromSkin = false   -- the player unticks "Use the skin's font" afterwards
-  local stamp = migrate({ Default = p }, "Default", 7)
-  assertEqual(stamp, 7)
+  local stamp = migrate({ Default = p }, "Default", 8)
+  assertEqual(stamp, 10)
   assertEqual(p.units.player.fontFromSkin, false, "a later pick survives the next login")
 end)
 
@@ -367,13 +379,14 @@ test("the Font outline's change repaints the bars' flags live", onDefaultOutline
 end))
 
 test("v7 moves a stored OUTLINE onto From skin and keeps a flag the player changed", function()
-  local default = { schemaVersion = 3, units = {
+  local default = { schemaVersion = 3, skin = { fullSkinReset = true }, units = {
     player = { fontFlags = "OUTLINE" }, target = { fontFlags = "THICKOUTLINE" }, focus = { fontFlags = "" },
   } }
-  local raid = { schemaVersion = 3, units = { player = { fontFlags = "OUTLINE" }, target = {} } }
+  local raid = { schemaVersion = 3, skin = { fullSkinReset = true },
+    units = { player = { fontFlags = "OUTLINE" }, target = {} } }
   local stamp = migrate({ Default = default, Raid = raid }, "Default", 6)
-  assertEqual(stamp, 7)
-  assertEqual(NS.SCHEMA_VERSION, 7)
+  assertEqual(stamp, 10)
+  assertEqual(NS.SCHEMA_VERSION, 10)
   assertEqual(default.units.player.fontFlags, "@skin", "the old default moves to From skin")
   assertEqual(default.units.target.fontFlags, "THICKOUTLINE", "a changed flag stays")
   assertEqual(default.units.focus.fontFlags, "", "a picked None stays")
@@ -383,11 +396,11 @@ test("v7 moves a stored OUTLINE onto From skin and keeps a flag the player chang
 end)
 
 test("v7 runs once: an OUTLINE picked after it is kept", function()
-  local p = { schemaVersion = 3, units = { player = { fontFlags = "OUTLINE" } } }
+  local p = { schemaVersion = 3, skin = { fullSkinReset = true }, units = { player = { fontFlags = "OUTLINE" } } }
   migrate({ Default = p }, "Default", 6)
   assertEqual(p.units.player.fontFlags, "@skin", "the move ran")
   p.units.player.fontFlags = "OUTLINE"   -- the player picks Outline afterwards
-  assertEqual(migrate({ Default = p }, "Default", 7), 7)
+  assertEqual(migrate({ Default = p }, "Default", 8), 10)
   assertEqual(p.units.player.fontFlags, "OUTLINE", "a later pick survives the next login")
 end)
 

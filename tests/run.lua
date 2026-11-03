@@ -100,6 +100,53 @@ Kit.diagnostics = {
   setDisabled = function(off) NS.SetByPath("enabled", not off) end,
 }
 
+-- The typed-value gate (kit revision 50, tests/_kit/test_skin_values.lua).
+Kit.skinValues = {}
+
+-- The skin-switch test (kit revision 50, tests/_kit/test_skin_switch.lua): what this addon paints.
+-- The bars are NS.bars, and every look on them comes from the one appearance pass, so `paint` runs
+-- it. The strip, the console and the perf panel are the library's, painted for this owner. The
+-- settings rows are not listed: the mock's AceGUI frames draw nothing, so a surface there reports
+-- no setter at all; tests/test_skin_tools.lua pins their owner, and they carry no paint of ours.
+local function setCompanions(on, ...)
+  for _, unit in ipairs(NS.Units.LIST) do
+    local cfg = NS.db.profile.units[unit]
+    for _, key in ipairs({ ... }) do cfg[key] = on end
+  end
+end
+
+local function barSurface(name, pick, ...)
+  local keys = { ... }
+  return {
+    name      = name,
+    build     = function() NS.UpdateBarAppearance("player"); return pick(NS.bars.player) end,
+    paint     = function() NS.UpdateBarAppearance("player") end,
+    companion = function(on) setCompanions(on, unpack(keys)) end,
+  }
+end
+
+Kit.skinSwitch = {
+  owner = "AbsorbTracker",
+  skin  = function() return mocks.LibStub("LibKa0s-Skin-1.0") end,
+  surfaces = {
+    barSurface("a bar's fill", function(b) return b.statusBar end, "barColorFromSkin", "barTextureFromSkin"),
+    barSurface("a bar's background", function(b) return b end, "bgColorFromSkin", "barTextureFromSkin"),
+    barSurface("a bar's border", function(b) return b.border end, "borderColorFromSkin", "borderFromSkin"),
+    barSurface("a bar's value text", function(b) return b.valueText end,
+      "fontColorFromSkin", "fontShadowFromSkin", "fontFromSkin"),
+    { name = "a bar's drag strip", build = function() return NS.bars.player.handle end },
+    -- Library windows, opened by the host's own seams and painted for this owner.
+    { name = "the debug console", build = function()
+      NS.DebugLog:Show()
+      return NS.DebugLog._frameForTest
+    end, reset = function() NS.DebugLog:Hide() end },
+    { name = "the perf panel", build = function()
+      NS.Perf.ShowPanel()
+      return NS.Perf.__panel()
+    end, reset = function() NS.Perf.HidePanel() end },
+  },
+}
+
 -- --- load test suites (order is load-order-sensitive; keep it) ---
 --
 -- `dir` is given explicitly, so Kit.run calls Kit.assertSuiteInventory before it loads anything:
@@ -136,6 +183,7 @@ Kit.run{
     -- straight after it, so the Appearance page those cases reach is the one it already opened.
     "test_panelmirror",
     "test_launcher",
+    "test_launcher_skin_entry",
     "test_optionssetup",
     "test_slashcmds",
     -- /at enable, /at disable and the disabled gate, peeled out of test_slashcmds in the layout-§1
@@ -150,6 +198,8 @@ Kit.run{
     -- The value hold, `/at debug hold`, moved out of test_slashcmds with the verb it drives (it
     -- was the `test` verb). Straight after the other two halves of the slash surface.
     "test_debughold",
+    -- `/at sim` (SF-AT-2), beside the other slash halves.
+    "test_sim",
     "test_widgets",
     -- The real pages' OnShow cases, peeled out of test_widgets in the layout-§1 band. Straight after
     -- it, so its cases keep their place in the run.
@@ -160,9 +210,14 @@ Kit.run{
     -- The HUD bars follow the skin (AT-03): companions, getters, repaint, the v6 reset. After
     -- test_skinsetup, on the Ka0s Default it leaves applied.
     "test_skin_hud",
+    -- The colors and shadow, and the one per-profile step (FS-AT-FLIP).
+    "test_skin_flip",
     -- The first-run skin picker (AT-04): when it shows, its spec, the real window. After
     -- test_skin_hud; it leaves the skin on Ka0s Default and the picker down, unseen.
     "test_skin_picker",
+    -- The picker's eye (R6-PV): spec.preview in unlock mode, driving the real lock. After
+    -- test_skin_picker; it leaves the picker down, unseen, and the bars unlocked.
+    "test_skin_picker_preview",
     -- The AceGUI rows this addon acquires and the tool surfaces on the skin (AT-04). After
     -- test_skin_picker; it leaves the Scope on its defaults.
     "test_skin_tools",
@@ -200,5 +255,8 @@ Kit.run{
     -- automated-tests-§3: the sighted complexity gate (kit revision 35). Pins the sanitizer the
     -- runner's complexity suite measures through, and the parity reader that fails a blind run.
     { name = "test_lizard_sighted", dir = "tests/_kit/" },
+    -- skinning-§1: the typed-value gate and the skin-switch test (kit revision 50, FS-AT-GATE).
+    { name = "test_skin_values", dir = "tests/_kit/" },
+    { name = "test_skin_switch", dir = "tests/_kit/" },
   },
 }

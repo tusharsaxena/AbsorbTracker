@@ -16,7 +16,7 @@ NS.Units = Units
 Units.LIST  = { "player", "target", "focus" }
 Units.LABEL = { player = "Player", target = "Target", focus = "Focus" }
 
--- The twenty-two appearance keys, in profile order. Mirror resolution and CopyFromPlayer both walk
+-- The twenty-seven appearance keys, in profile order. Mirror resolution and CopyFromPlayer both walk
 -- this list, so adding a per-unit setting means adding its key here as well as to the defaults.
 --
 -- The v3 migration (core/Database.lua) walks it too, to lift the pre-v3 FLAT keys onto the player
@@ -29,6 +29,8 @@ Units.APPEARANCE_KEYS = {
     "barColor", "bgColor",
     "useClassColorBar", "useClassColorBg", "useClassColorBorder", "useClassColorText",
     "barTextureFromSkin", "borderFromSkin", "fontFromSkin",
+    "barColorFromSkin", "bgColorFromSkin", "borderColorFromSkin", "fontColorFromSkin",
+    "fontShadowFromSkin",
 }
 
 -- The three "Use the skin's ..." companions among them (LibKa0s OptionsCompose `fromSkin`), each
@@ -36,6 +38,27 @@ Units.APPEARANCE_KEYS = {
 -- `border` gives `borderFromSkin`. core/Data.lua resolves the media through them and the v6 step
 -- (core/Database.lua) puts them back on the skin.
 Units.FROM_SKIN_KEYS = { "barTextureFromSkin", "borderFromSkin", "fontFromSkin" }
+
+-- Every companion the v8 step sets (core/Database.lua), by name: those three and the four colors'
+-- and the shadow's. The suite reads this list.
+Units.SKIN_COMPANION_KEYS = {
+    "barTextureFromSkin", "borderFromSkin", "fontFromSkin",
+    "barColorFromSkin", "bgColorFromSkin", "borderColorFromSkin", "fontColorFromSkin",
+    "fontShadowFromSkin",
+}
+
+-- What the v8 step hands ResetToSkin per unit: the companions, then the one pick it may write,
+-- `fontFlags`, whose reader is on S.FontFlags. Never a color, a pick, a size or a class toggle.
+Units.SKIN_RESET_KEYS = { "fontFlags" }
+for i, key in ipairs(Units.SKIN_COMPANION_KEYS) do Units.SKIN_RESET_KEYS[i + 1] = key end
+
+-- The same list as Skin.FollowOnce takes it, one call per profile: dotted from the profile's root.
+Units.SKIN_RESET_PATHS = {}
+for _, unit in ipairs(Units.LIST) do
+    for _, key in ipairs(Units.SKIN_RESET_KEYS) do
+        Units.SKIN_RESET_PATHS[#Units.SKIN_RESET_PATHS + 1] = "units." .. unit .. "." .. key
+    end
+end
 
 local function profile()
     return NS.db and NS.db.profile
@@ -78,7 +101,7 @@ function Units.SourceUnit(unit)
     return Units.IsMirrored(unit) and "player" or unit
 end
 
---- Mirror-resolved appearance read. THE read path for all twenty-two appearance keys.
+--- Mirror-resolved appearance read. THE read path for all twenty-seven appearance keys.
 function Units.Get(unit, key)
     local src = Units.SourceUnit(unit)
     local c = Units.Config(src)
@@ -98,13 +121,13 @@ function Units.SetPosition(unit, pos)
     if c then c.position = pos end
 end
 
---- One-shot snapshot: deep-copy the player's twenty-two appearance keys onto `unit`, then clear
+--- One-shot snapshot: deep-copy the player's twenty-seven appearance keys onto `unit`, then clear
 --- the mirror so the unit becomes independently editable. `position` and `enabled` are
 --- deliberately NOT copied — both stay per-unit by design.
 ---
 --- Through NS.SetByPath, one call per key, rather than `dst[key] = …` onto the config table, so
 --- each row's onChange fires. It is a BULK COPY, so debug-logging-§10 logs it as one line, not
---- twenty-three: the writes run inside NS.Bulk.Run (settings/Schema.lua), which mutes the per-row line
+--- twenty-eight: the writes run inside NS.Bulk.Run (settings/Schema.lua), which mutes the per-row line
 --- and emits `[Set] copy player→<unit>: N rows`, N being the keys whose stored value changed.
 ---
 --- `deepcopy` has NOT become optional. SetByPath stores the value it is handed, so passing
@@ -113,7 +136,7 @@ end
 ---
 --- The mirror clear goes LAST, deliberately. Every write fires its row's onChange, and the
 --- appearance rows declare none, so each falls through to the schema's default APPEARANCE
---- broadcast. Clearing the flag first would publish twenty-two restyles of an already-unlinked unit
+--- broadcast. Clearing the flag first would publish twenty-seven restyles of an already-unlinked unit
 --- reading a half-copied config; clearing it last makes the final broadcast the one that shows the
 --- finished snapshot. Nothing flickers either way — the values being written are the player's,
 --- which is what a mirrored unit was already drawing.

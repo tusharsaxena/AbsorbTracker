@@ -20,27 +20,33 @@
 --            -- Fill --
 --            [Bar texture]            [Bar opacity]
 --            [Bar color]              [Use class color]
---            [Use the skin's texture]
+--            [Use the skin's texture] [Use the skin's color]
 --            -- Background --
 --            [Background texture]
 --            [Background color]       [Use class color]
+--            [Use the skin's color]
 --            -- Border --
 --            [Border style]           [Border thickness (px)]
 --            [Border color]           [Use class color]
---            [Use the skin's border]
+--            [Use the skin's border]  [Use the skin's color]
 --     Text   [Font]                   [Font size]
 --            [Font color]             [Use class color]
 --            [Font flags]             [Font shadow]
---            [Use the skin's font]
+--            [Use the skin's font]    [Use the skin's color]
+--            [Use the skin's shadow]
 --
 -- FOLLOWING THE SKIN (skinning-§6). Each composer takes `fromSkin = true` and appends its
 -- "Use the skin's ..." companion on a line of its own, default ON (defaults/Profile.lua). While a
 -- companion is on, the picker it governs is disabled and shows the skin's value; the stored pick
 -- waits for the player to turn it off. Two rows the composers do not govern follow it too, by the
 -- composer's own two fields (`disabledIf`, `skinValue`): the background texture under the bar
--- texture's companion (the skin has no background-texture token, DECISIONS D3) and the border
--- thickness under the border's (a skin's "None" or flat 1 px edge at the stored 12 px would leave
--- an empty inset, D4). The colors never follow the skin (X4): they stay the player's.
+-- texture's companion (the skin has no background-texture token, DECISIONS D3). `fromSkin = "bar"`
+-- on the border puts the thickness under the border's companion the same way.
+--
+-- THE COLORS AND THE SHADOW FOLLOW IT TOO, by a bool row of their own in each block's `extra`
+-- (colorFromSkin below; the owner's ruling of 2026-11-01). Those swatches keep no `disabledIf`
+-- (options-ui-§17): each stays live and keeps its stored value for when the companion goes off. A
+-- class color comes first and has no companion.
 --
 -- THE BLOCKS ARE COMPOSED, NOT TYPED OUT (options-ui-§16). H.BarGroup, H.BorderGroup and
 -- H.FontGroup emit the canonical block from one declaration each, and H.ColorPair emits the
@@ -148,11 +154,12 @@ local function followsSkin(row, companion, token)
     return row
 end
 
---- The row at `path` in a composed block.
-local function rowAt(block, path)
-    for _, row in ipairs(block) do
-        if row.path == path then return row end
-    end
+--- The companion of the swatch or the shadow row named `governs`, for a block's `extra`.
+local function colorFromSkin(path, unitName, label, governs)
+    return {
+        path = path, unit = unitName, type = "bool", label = label, default = true,
+        desc = "Draw this in the skin's look. " .. governs .. " is not read while this is on.",
+    }
 end
 
 local function addUnitRows(unit)
@@ -213,6 +220,7 @@ local function addUnitRows(unit)
         order      = 100,
         classColor = classColor,
         fromSkin   = true,
+        extra      = { colorFromSkin(p .. "barColorFromSkin", unit, "Use the skin's color", "Bar color") },
         tooltips   = {
             barAlpha = "Opacity of this whole bar (fill, background, border, text). "
                 .. "Multiplied by Master opacity on General > Master controls.",
@@ -220,7 +228,6 @@ local function addUnitRows(unit)
                 .. "The two texture pickers are not read while this is on.",
         },
         defaults   = {
-            barTexture         = unitDefaults.barTexture,
             barAlpha           = unitDefaults.barAlpha,
             barColor           = unitDefaults.barColor,
             useClassColorBar   = unitDefaults.useClassColorBar,
@@ -259,6 +266,7 @@ local function addUnitRows(unit)
         companionKey = "useClassColorBg",
         label        = "Background color",
         classColor   = classColor,
+        extra        = { colorFromSkin(p .. "bgColorFromSkin", unit, "Use the skin's color", "Background color") },
         defaults     = {
             bgColor         = unitDefaults.bgColor,
             useClassColorBg = unitDefaults.useClassColorBg,
@@ -274,22 +282,23 @@ local function addUnitRows(unit)
     -- `keys` keeps the stored path `units.<unit>.border`, which is what every profile on disk holds
     -- and what `/at set units.player.border` names.
     --
-    -- `fromSkin = true`: the companion is stored beside the picker, `units.<unit>.borderFromSkin`,
-    -- and defaulted through its canonical leaf, `borderStyleFromSkin`.
-    local border = H.BorderGroup({
+    -- `fromSkin = "bar"`: the companion is stored beside the picker, `units.<unit>.borderFromSkin`,
+    -- defaulted through its canonical leaf, `borderStyleFromSkin`, and governs the thickness too.
+    appendBlock(rows, unit, H.BorderGroup({
         prefix     = p,
         page       = PAGE,
         group      = "Bar",
         subgroup   = "Border",
         order      = 300,
         classColor = classColor,
-        fromSkin   = true,
+        fromSkin   = "bar",
+        extra      = { colorFromSkin(p .. "borderColorFromSkin", unit, "Use the skin's color", "Border color") },
         keys       = { borderStyle = "border" },
         tooltips   = {
-            borderSize = "Border edge width, in pixels. Not read while Use the skin's border is on: "
-                .. "the skin's thickness is drawn.",
-            borderStyleFromSkin = "Draw this border in the skin's border style and thickness. The "
-                .. "border style and thickness pickers are not read while this is on.",
+            borderSize = "Border edge width, in pixels. While Use the skin's border is on, a skin "
+                .. "with a border of its own draws its thickness in place of this.",
+            borderStyleFromSkin = "Draw the skin's border style and thickness where the skin has "
+                .. "a border of its own. Under a skin with none, your style and thickness draw.",
         },
         defaults   = {
             borderStyle         = unitDefaults.border,
@@ -298,10 +307,7 @@ local function addUnitRows(unit)
             useClassColorBorder = unitDefaults.useClassColorBorder,
             borderStyleFromSkin = unitDefaults.borderFromSkin,
         },
-    })
-    local size = rowAt(border, p .. "borderSize")
-    if size then followsSkin(size, p .. "borderFromSkin", "bar.borderSize") end
-    appendBlock(rows, unit, border)
+    }))
 
     -- ── Text ──────────────────────────────────────────────────────────────────
     --
@@ -318,13 +324,15 @@ local function addUnitRows(unit)
         -- "From skin" leads Font flags and is its default (OptionsCompose minor 14, ruling D-07):
         -- with fromSkin, the minimum font setting every element carries.
         flagsFromSkin = true,
+        extra      = {
+            colorFromSkin(p .. "fontColorFromSkin", unit, "Use the skin's color", "Font color"),
+            colorFromSkin(p .. "fontShadowFromSkin", unit, "Use the skin's shadow", "Font shadow"),
+        },
         keys       = { useClassColorFont = "useClassColorText" },
         defaults   = {
-            font              = unitDefaults.font,
             fontSize          = unitDefaults.fontSize,
             fontColor         = unitDefaults.fontColor,
             useClassColorFont = unitDefaults.useClassColorText,
-            fontFlags         = unitDefaults.fontFlags,
             fontShadow        = unitDefaults.fontShadow,
             fontFromSkin      = unitDefaults.fontFromSkin,
         },

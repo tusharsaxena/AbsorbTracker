@@ -136,6 +136,31 @@ test("the debug console and its copy window are painted for this owner", functio
   NS.DebugLog._copyWindowForTest, NS.DebugLog._copyFrameForTest = nil, nil
 end)
 
+test("no window this addon opens draws a line under its title (R4-SEP)", function()
+  -- Ka0sAddonsCommonTasks docs/2026-11-03-SMOKE_ROUND4, R4_SIGNOFF.md: no window has a separator
+  -- under its header, the Skin Tester showroom the reference. AbsorbTracker draws no titled window
+  -- of its own; the console, its copy window and the perf panel are the library's, so a divider
+  -- that exists must at least be hidden.
+  NS.DebugLog:Show()
+  NS.DebugLog:ShowCopy()
+  NS.Perf.ShowPanel()
+  local frames = {
+    { NS.DebugLog._frameForTest, "the debug console" },
+    { NS.DebugLog._copyFrameForTest, "the console's copy window" },
+    { NS.Perf.__panel and NS.Perf.__panel(), "the perf panel" },
+  }
+  for _, pair in ipairs(frames) do
+    local f, what = pair[1], pair[2]
+    assertTrue(f ~= nil, what .. " is built")
+    local d = f and rawget(f, "divider")
+    assertTrue(d == nil or not d:IsShown(), what .. " shows no divider under its title")
+  end
+  NS.Perf.HidePanel()
+  NS.DebugLog._copyFrameForTest:Hide()
+  NS.DebugLog:Hide()
+  NS.DebugLog._copyWindowForTest, NS.DebugLog._copyFrameForTest = nil, nil
+end)
+
 test("the perf panel is painted for this owner", function()
   local src = readFile("core/PerfSetup.lua")
   assertTrue(src:find("addonName%s*=%s*addonName") ~= nil, "the Perf descriptor's addonName")

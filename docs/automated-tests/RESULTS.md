@@ -32,6 +32,16 @@ archaeology, for the same reason a skip is never a pass (`automated-tests-§4`).
 
 | Run | Commit | Tree | Version | Lint w/e | Files | Tests | Perf | NLOC | Funcs | Avg NLOC | Avg CCN | Max CCN | CCN warn | Verdict |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| [`20261104-042117`](20261104-042117/) | `6529089` | clean | 1.12.0 | 0/0 | 85 | 1058/1/1059 | pass | 18425 | 2832 | 6.4 | 1.8 | 14 | 0 | **green** |
+| [`20261102-115815`](20261102-115815/) | `a58d9fb` | clean | 1.12.0 | 0/0 | 84 | 1033/1/1034 | pass | 17996 | 2763 | 6.4 | 1.8 | 14 | 0 | **green** |
+| [`20261102-023612`](20261102-023612/) | `2a1f66e` | clean | 1.12.0 | 0/0 | 82 | 1023/1/1024 | pass | 17795 | 2713 | 6.4 | 1.8 | 14 | 0 | **green** |
+| [`20261102-004215`](20261102-004215/) | `ef652f7` | clean | 1.12.0 | 0/0 | 81 | 1017/1/1018 | pass | 17673 | 2699 | 6.4 | 1.8 | 14 | 0 | **green** |
+| [`20261101-201807`](20261101-201807/) | `9e7cf8c` | clean | 1.12.0 | 0/0 | 81 | 1016/1/1017 | pass | 17661 | 2698 | 6.4 | 1.8 | 14 | 0 | **green** |
+| [`20261101-141517`](20261101-141517/) | `ab4def2` | clean | 1.12.0 | 0/0 | 81 | 997/1/998 | pass | 17511 | 2669 | 6.4 | 1.8 | 14 | 0 | **green** |
+| [`20261101-141345`](20261101-141345/) | `3460805` | clean | 1.12.0 | 0/0 | 81 | 996/1/998 | pass | 17511 | 2669 | 6.4 | 1.8 | 14 | 0 | **red** |
+| [`20261101-135534`](20261101-135534/) | `88c47ea` | clean | 1.12.0 | 0/0 | 81 | 997/1/998 | pass | 17511 | 2669 | 6.4 | 1.8 | 14 | 0 | **green** |
+| [`20261101-135329`](20261101-135329/) | `e1cae29` | clean | 1.12.0 | 0/0 | 81 | 997/1/998 | fail | 17511 | 2669 | 6.4 | 1.8 | 14 | 0 | **amber** |
+| [`20261101-122832`](20261101-122832/) | `d3c434a` | clean | 1.12.0 | 0/0 | 81 | 991/1/992 | pass | 17411 | 2654 | 6.4 | 1.8 | 14 | 0 | **green** |
 | [`20261101-025833`](20261101-025833/) | `30b31c0` | clean | 1.12.0 | 0/0 | 80 | 974/1/975 | pass | 16942 | 2589 | 6.4 | 1.8 | 14 | 0 | **green** |
 | [`20261101-001603`](20261101-001603/) | `6d934ed` | clean | 1.12.0 | 0/0 | 80 | 973/1/974 | pass | 16942 | 2589 | 6.4 | 1.8 | 14 | 0 | **green** |
 | [`20261031-212003`](20261031-212003/) | `e8ba948` | clean | 1.12.0 | 0/0 | 80 | 972/1/973 | pass | 16935 | 2586 | 6.4 | 1.8 | 14 | 0 | **green** |
@@ -55,18 +65,18 @@ archaeology, for the same reason a skip is never a pass (`automated-tests-§4`).
 
 ## Test suite
 
-**975 cases** — 974 passed, 0 failed, 1 skipped. The generated inventory
-[`20261101-025833/test-cases.md`](20261101-025833/test-cases.md) is the authority on which cases existed at this run;
+**1059 cases** — 1058 passed, 0 failed, 1 skipped. The generated inventory
+[`20261104-042117/test-cases.md`](20261104-042117/test-cases.md) is the authority on which cases existed at this run;
 `docs/test-cases.md` is that same list at HEAD.
 
-Moved **974 → 975** since the previous run.
+Moved **1034 → 1059** since the previous run.
 
 **1 case(s) reported a `skip`.** A skip is counted in the total and never in `passed`, and at
 the release gate it is NOT EVALUATED rather than passed (`automated-tests-§3`).
 
 ## Lint
 
-**0 warnings / 0 errors over 80 files** (`luacheck .`).
+**0 warnings / 0 errors over 85 files** (`luacheck .`).
 
 Read that figure with its scope attached: `.luacheckrc` excludes 5 path(s) from it — `libs/`, `docs/audits/`, `docs/reviews/`, `_dev/`, `tests/_kit/` —
 so nothing under them is in the count above. A `0/0` that never moves is partly a statement about
@@ -76,24 +86,24 @@ to whoever thinks to open `.luacheckrc`.
 ## Perf
 
 **7 scenarios** from `tests/perf.lua`; the measurements are in
-[`20261101-025833/perf.json`](20261101-025833/perf.json).
+[`20261104-042117/perf.json`](20261104-042117/perf.json).
 
 | `scenario` | `iters` | `ms/iter` | `api/iter` | `bytes/iter` |
 |---|---|---|---|---|
-| `absorbEvent` | 1000 | 0.00057 | 0.0 | 0.0 |
-| `paintBars` | 1000 | 0.01583 | 12.0 | 48.0 |
-| `repaintPass` | 1000 | 0.01506 | 12.0 | 0.0 |
-| `appearancePass` | 200 | 0.17752 | 81.0 | 141.0 |
-| `settingsRead` | 10000 | 0.00035 | 0.0 | 0.0 |
-| `probeOverheadOff` | 1000 | 0.01668 | 12.0 | 0.0 |
-| `probeOverheadOn` | 1000 | 0.01845 | 12.0 | 0.5 |
+| `absorbEvent` | 1000 | 0.00036 | 0.0 | 0.0 |
+| `paintBars` | 1000 | 0.01302 | 12.0 | 48.0 |
+| `repaintPass` | 1000 | 0.01602 | 12.0 | 0.0 |
+| `appearancePass` | 200 | 0.29055 | 87.0 | 146.3 |
+| `settingsRead` | 10000 | 0.00024 | 0.0 | 0.0 |
+| `probeOverheadOff` | 1000 | 0.01263 | 12.0 | 0.0 |
+| `probeOverheadOn` | 1000 | 0.01455 | 12.0 | 0.5 |
 
 `perf` never fails a run and never blocks a commit — it is recorded, read and compared, not
 thresholded (`performance-§9`). It does gate the **tag** (`automated-tests-§3`).
 
 ## Complexity watch list
 
-Current as of [`20261101-025833`](20261101-025833/) — **this run's measurement, not its diff.** Max CCN **14** across 2589
+Current as of [`20261104-042117`](20261104-042117/) — **this run's measurement, not its diff.** Max CCN **14** across 2832
 functions, **0** of them warned on; 1 file(s) in the 1000–1500 band and 0 over the 1500 cap
 (`layout-§1`).
 
@@ -113,7 +123,7 @@ None.
 
 | Band | File | LOC | Disposition |
 |---|---|---|---|
-| 1000–1500 (on notice) | `tests/test_schema.lua` | 1084 | **Accepted — watch (first run in the band).** Newly crossed at [`20261031-202021`](20261031-202021/): the skin seam's cases and the layout partition pins took it over 1000. It measures 83 functions, avg CCN 2.3, max 12, and it is one subject, schema integrity, so the length is case count, not tangle. Re-check at 1300. |
+| 1000–1500 (on notice) | `tests/test_schema.lua` | 1097 | **Accepted — watch (first run in the band).** Newly crossed at [`20261031-202021`](20261031-202021/): the skin seam's cases and the layout partition pins took it over 1000. It measures 83 functions, avg CCN 2.3, max 12, and it is one subject, schema integrity, so the length is case count, not tangle. Re-check at 1300. |
 
 `lizard` counts every `and`/`or` short-circuit as a decision, so in Lua a run of
 `t.k = rec.k or D.k` defaulting lines scores high with no visible branching at all: a large CCN

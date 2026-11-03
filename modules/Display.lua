@@ -27,11 +27,20 @@ local STACK_GAP = 8
 local DRAG = NS.Widgets.DRAG_HANDLE
 local HANDLE_ROOM = DRAG.HEIGHT + DRAG.GAP
 
--- The value text's drop shadow while the Text tab's Font shadow row is on: the font block's own
--- rendering (options-ui-§16), a legibility constant and not a skin color, so no skin moves it
--- (skinning rollout DECISIONS, AbsorbTracker D7; recorded under docs/ARCHITECTURE.md's Skins).
-local SHADOW_R, SHADOW_G, SHADOW_B, SHADOW_A = 0, 0, 0, 1
-local SHADOW_X, SHADOW_Y = 1, -1
+--- The value text's face, size, flags and shadow, through the library's one call (S.HudFont, Skin
+--- doc): a 12.0.7 client draws only a font object's shadow, so it gives the string one of its own.
+--- The stored row and its companion go in as they are; the library applies S.HudShadow's answers.
+--- Unrecorded, so a skin change reaches it through the appearance pass, with no gate in front.
+--- One table, refilled: a fresh one per bar is what tests/perf.lua's byte ceiling caught, and the
+--- library reads it and keeps nothing.
+local fontOpts = {}
+
+local function applyValueFont(unit, valueText)
+    fontOpts.face, fontOpts.size, fontOpts.flags = NS.GetFont(unit), NS.GetFontSize(unit), NS.GetFontFlags(unit)
+    fontOpts.shadow = NS.Units.Get(unit, "fontShadow")
+    fontOpts.shadowFromSkin = NS.Units.Get(unit, "fontShadowFromSkin") == true
+    NS.Skin.HudFont(valueText, fontOpts)
+end
 
 -- ── preview mode (preview-mode) ─────────────────────────────────────────────────────────────
 --
@@ -100,6 +109,7 @@ end
 function NS.ClearPreview()
     local held = (NS.testHoldUntil or 0) > GetTime()
     NS.testHoldUntil = nil
+    if NS.SimStop then NS.SimStop() end   -- a sim runs under the hold (settings/Slash.lua)
     if previewTimer then
         if NS.addon and NS.addon.CancelTimer then NS.addon:CancelTimer(previewTimer) end
         previewTimer = nil
@@ -191,6 +201,8 @@ function NS.UpdateBarAppearance(unit)
     bar:SetSize(NS.Units.Get(unit, "barWidth"), NS.Units.Get(unit, "barHeight"))
     statusBar:SetStatusBarTexture(NS.GetBarTexture(unit))
     statusBar:SetStatusBarColor(NS.GetBarColor(unit))
+    -- The skin's gloss (cause A3). It belongs to the skin's texture, so a player's own stays plain.
+    NS.Skin.BarGloss(statusBar, NS.Units.Get(unit, "barTextureFromSkin") == true)
 
     -- The skin's thickness while the border follows the skin, the stored one otherwise
     -- (core/Data.lua); the inset below follows whichever is drawn.
@@ -217,26 +229,15 @@ function NS.UpdateBarAppearance(unit)
     border:SetBackdrop(borderInfo)
     border:SetBackdropBorderColor(NS.GetBorderColor(unit))
 
-    -- The size scales with the skin while the bar uses the skin's face, and From skin flags follow
-    -- the Skin tab's Font outline (core/Data.lua, LibKa0s v1.82.0).
-    valueText:SetFont(NS.GetFont(unit), NS.GetFontSize(unit), NS.GetFontFlags(unit))
+    -- The size scales with the skin while the bar uses the skin's face, From skin flags follow the
+    -- Skin tab's Font outline (core/Data.lua, LibKa0s v1.82.0), and the shadow is the sixth row of
+    -- the canonical font block (options-ui-§16), which follows the skin since FS-AT-FLIP.
+    applyValueFont(unit, valueText)
     -- The absorb amount had no color of its own until the Text tab gained one; it drew at a bare
     -- FontString's default, opaque white, which is exactly what NS.GetFontColor answers for an
     -- untouched profile. Set on every appearance pass, like every other styled property here, so a
     -- profile switch and a `/at set` land the same way.
     valueText:SetTextColor(NS.GetFontColor(unit))
-
-    -- Font shadow, the sixth row of the canonical font block (options-ui-§16). BOTH arms are
-    -- written: a setting that is declared and not honored is worse than one that is absent, and an
-    -- OFF arm that merely skipped the call would leave whatever the last pass set, so turning the
-    -- shadow back off would do nothing until a /reload.
-    if NS.Units.Get(unit, "fontShadow") then
-        valueText:SetShadowColor(SHADOW_R, SHADOW_G, SHADOW_B, SHADOW_A)
-        valueText:SetShadowOffset(SHADOW_X, SHADOW_Y)
-    else
-        valueText:SetShadowColor(0, 0, 0, 0)
-        valueText:SetShadowOffset(0, 0)
-    end
 
     -- The frame's overall opacity -- the unit's own value times the addon-wide Master alpha
     -- (options-ui-§15), both resolved by NS.GetBarAlpha. Applied in the appearance pass as well as

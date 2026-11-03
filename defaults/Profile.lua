@@ -13,9 +13,16 @@ NS.defaults = NS.defaults or {}
 -- one literal across three units would make a color picker on the target bar repaint the player's.
 local function appearance()
     return {
-        barTexture = "Blizzard Raid Bar",
-        bgTexture = "Blizzard Raid Bar",
-        border = "Blizzard Tooltip",
+        -- The Ka0s picks (LibKa0s v1.85.0, FS-D1), so a player who turns a companion off lands on
+        -- Ka0s Default's texture and face and not on a client one. A stored pick is never rewritten.
+        barTexture = "Ka0s Default",
+        bgTexture = "Ka0s Default",
+        -- None, so an untouched bar draws no edge: under a skin's None the stored style is the
+        -- player's and draws (LibKa0s v1.85.0, the owner's ruling), and the library cannot tell a
+        -- shipped default from a pick. It was Blizzard Tooltip until the v9 step. The thickness
+        -- stays 12, the size a real pick has always drawn at; with no edge it is not read while the
+        -- border follows the skin (NS.GetBorderSize).
+        border = "None",
         borderSize = 12,
         -- The three "Use the skin's ..." companions (the composers' `fromSkin`, LibKa0s
         -- OptionsCompose minor 12), default ON so a new or reset profile follows the skin the way
@@ -23,12 +30,21 @@ local function appearance()
         -- barTextureFromSkin the fill AND the background texture (`bar.texture`),
         -- borderFromSkin the border style AND its thickness (`bar.borderStyle`,
         -- `bar.borderSize`), fontFromSkin the face only (`hud.font`). The stored picks above are
-        -- kept for when the player turns a companion off. The colors never follow the skin.
+        -- kept for when the player turns a companion off.
         barTextureFromSkin = true,
         borderFromSkin = true,
         fontFromSkin = true,
+        -- The colors and the shadow follow the skin too (FS-AT-FLIP, the owner's ruling of
+        -- 2026-11-01, causes D2, D3, D4 and D6), each with a companion of its own: fill `at.barFill`,
+        -- background `at.barBg`, border `at.barBorder`, text `hud.text`, shadow `hud.shadow`. The
+        -- swatches below are kept the same way. A class color comes first and has no companion.
+        barColorFromSkin = true,
+        bgColorFromSkin = true,
+        borderColorFromSkin = true,
+        fontColorFromSkin = true,
+        fontShadowFromSkin = true,
         borderColor = { r = 0.5, g = 0.5, b = 0.5, a = 1.0 },
-        font = "Friz Quadrata TT",
+        font = "Ka0s Prototype",
         fontSize = 12,
         -- "From skin" (LibKa0s v1.82.0, ruling D-07): the Skin tab's Font outline decides, OUTLINE
         -- under its default HUD text only, the bars being HUD text. It was "OUTLINE"; the v7 step
@@ -103,6 +119,10 @@ NS.defaults.profile = {
     locked = false,
     throttleWindow = 0.1,
 
+    -- The simulator's pace (SG-AT-1; General > Behavior > Simulator): the seconds `/at sim` waits
+    -- between two steps while the stepper plays. 0.5 to 10 in halves, as every Ka0s simulator's.
+    sim = { stepDelay = 1 },
+
     -- The skin this addon wears (skinning-§2: per addon, per profile), applied through
     -- core/SkinSetup.lua and drawn by the library's Skin tab on General. `source` is "ka0s" (a Ka0s
     -- skin) or "eui" (EllesmereUI's look), `skin` the Ka0s skin's key; "ka0s"/"ka0s" is Ka0s
@@ -118,6 +138,9 @@ NS.defaults.profile = {
     skin = {
         source = "ka0s", skin = "ka0s", ignorePanel = true, ignoreFonts = false,
         font = "", texture = "", outline = "hud", pickerSeen = false,
+        -- This profile has been through the one step onto the skin (core/Database.lua,
+        -- NS.ResetProfileToSkin). False on every profile until it has; the step sets it.
+        fullSkinReset = false,
     },
 
     -- Per-unit. Player has no `mirror` key — it is the mirror SOURCE, so a player mirror row
@@ -135,7 +158,9 @@ NS.defaults.global = {
     -- is the only writer: it advances the stamp to a step's `to` only after that step returned, and
     -- its target is NS.SCHEMA_VERSION, derived from the ladder's last step. v2 retired the
     -- poll-interval key, v3 introduced profile.units, v4 dropped the dead `hidden` global, v5
-    -- mapped `showOnlyInCombat` onto `visibility` and v6 put every bar's media back on the skin.
+    -- mapped `showOnlyInCombat` onto `visibility`, v6 put every bar's media back on the skin, v7
+    -- moved the old default flags to From skin, v8 put every bar's colors and shadow on the skin and
+    -- v9 moved a stored old default border style to None.
     --
     -- The default is 0, the pre-migration floor, and never the current version (savedvariables-§1).
     -- AceDB's removeDefaults strips every stored value equal to its default at logout, so a stamp
@@ -145,7 +170,7 @@ NS.defaults.global = {
     -- stamp, so a default above 0 makes such an account read as already past those steps. 0 has
     -- neither problem: a stamp the runner advanced differs from it and persists, and an account
     -- with no stamp reads 0 and runs every step. Every step is idempotent, so a genuinely new
-    -- install costs six no-ops and is stamped 6.
+    -- install costs its no-ops and is stamped at the ladder's top.
     schemaVersion = 0,
 
     -- LibDBIcon's OWN table, handed to it whole by core/LauncherSetup.lua (launcher-§3). Declaring

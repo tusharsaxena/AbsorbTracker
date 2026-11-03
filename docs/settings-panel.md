@@ -93,7 +93,7 @@ them — a row's `page` is where it is *edited*, never where it is *stored*.
 
 The parent and every sub-page register as **canvas-layout categories**: a custom Blizzard `Frame` is registered with `Settings.RegisterCanvasLayoutCategory` (parent) / `Settings.RegisterCanvasLayoutSubcategory` (each sub-page) and Blizzard renders it in its own settings panel slot. The schema-driven sub-pages (General / Appearance) lay out their schema rows as **AceGUI widgets** (`CheckBox` / `Slider` / `Dropdown` / `ColorPicker`) inside an AceGUI `ScrollFrame` parented to the page's `body` frame, under a pinned **chrome band** holding the page's tab strip and, on Appearance, the chrome block above it.
 
-**Appearance is per-unit; General and About are not.** Appearance renders through `Helpers.RenderUnitPanel(ctx, pageKey)` (`settings/UnitPanel.lua`), which draws the **Unit** picker (Player/Target/Focus) in its chrome block and filters the rows to the selected unit. General has no Unit picker — its eight drawn unit-agnostic rows (`enabled`, `visibility`, `scale`, `alpha`, `locked`, `state.debugConsole`, `global.minimap.shown`, `throttleWindow`) and the seven `skin.*` rows its Skin tab draws apply to the addon as a whole, and its three `units.<unit>.enabled` rows are stamped to it but carry `skipRender`, because the Appearance band draws the picked unit's (below) — and About has no settings at all.
+**Appearance is per-unit; General and About are not.** Appearance renders through `Helpers.RenderUnitPanel(ctx, pageKey)` (`settings/UnitPanel.lua`), which draws the **Unit** picker (Player/Target/Focus) in its chrome block and filters the rows to the selected unit. General has no Unit picker — its nine drawn unit-agnostic rows (`enabled`, `visibility`, `scale`, `alpha`, `locked`, `state.sim`, `state.debugConsole`, `global.minimap.shown`, `throttleWindow`) and the seven `skin.*` rows its Skin tab draws apply to the addon as a whole, and its three `units.<unit>.enabled` rows are stamped to it but carry `skipRender`, because the Appearance band draws the picked unit's (below) — and About has no settings at all.
 
 Profiles is the only page that still uses AceConfig — it routes `AceConfigDialog:Open("AbsorbTracker-Profiles", container)` into an AceGUI `SimpleGroup` parented to the canvas body, so the AceDBOptions UI lands inside our shell with the same header.
 
@@ -214,12 +214,12 @@ The General page is **three tabs**: the schema array's own order is the strip, a
 
 Master controls  [Enable Absorb Tracker]  [General visibility]
                  [Master scale]           [Master opacity]
-                 [Lock frame]             [Debug console]
-                 [Minimap button]                               <- alone: this addon has no Test mode
+                 [Lock frame]             [Sim mode]            <- no Test mode: Sim pairs with the lock
+                 [Debug console]          [Minimap button]
                  [Reset position]         [Reset all settings]  <- afterGroup, the composer's tail
 Behavior         [Update throttle (seconds)]
                  (+ the three per-unit enables, skipRender: drawn in the Appearance band)
-Skin             the library's tab (O.AppearanceTab), drawing the eight skin.* rows itself
+Skin             the library's tab (O.AppearanceTab), drawing the nine skin.* rows itself
 ```
 
 **Lock frame's tooltip is the composer's `lockIsPreview` sentence** (compose minor 9) — unlocking shows
@@ -239,11 +239,29 @@ bar — so those four are here. **Test mode is the one legitimate omission:** op
 addon whose unlocked view already IS its preview, which this one is, and a Test mode box beside Lock
 frame would be two switches for one state (anti-pattern #80).
 
-**Minimap button is the newest row** (launcher-§3, `OptionsCompose` minor 7), and it is the reason
-the fourth line has one control on it rather than two. The composer's fourth line is
+**Minimap button came in at** launcher-§3, `OptionsCompose` minor 7. The composer's fourth line is
 `[Minimap button] [Test mode]`, and which of the two opens the line is not a preference: EVERY addon
 has a minimap button and only some have a test mode, so the always-present row takes column one and
-the optional one pairs beside it. This addon names no `testModePath`, so the row draws alone.
+the optional one pairs beside it. This addon names no `testModePath`, so without the Sim mode box
+below the row would draw alone; with it, Debug console opens the fourth line and Minimap button
+pairs beside it, as the diagram above shows.
+
+**Sim mode sits beside Lock frame** (R6-SIM, `OptionsCompose` minor 19, options-ui-§15). An addon
+with a simulation shows a session-only **Sim mode** checkbox beside Test mode; with no Test mode row
+the composer pairs it with Lock frame, the switch nearest a test mode here, and Debug console then
+opens the next line with Minimap button beside it. `settings/General.lua` hands the composer
+`isSimMode = NS.IsSimMode` and `toggleSim = NS.ToggleSimMode`, the SAME pair the launcher descriptor
+carries (`core/LauncherSetup.lua`), so the box, the launcher's Sim mode entry and `/at sim` are one
+act. The row is `state.sim`, `sessionOnly`, default false, and its `get` / `set` are the composer's
+over those hooks: nothing is stored, and `/at get state.sim` and `/at set state.sim` reach it.
+Ticking from idle is the bare `/at sim`: it opens the *Absorb Tracker - Simulation* step window, and
+nothing plays until a scenario is started there, so the box re-reads unticked until then. While a
+sim runs the box reads ticked, and unticking it is `/at sim stop`. A start the library refuses (in
+combat) leaves it unticked. Reset all settings writes its default, false, so it stops a running sim
+and never starts one. `modules/Sim.lua` calls `NS.Helpers.RefreshScalars()` from the session's
+listener, so a sim started or stopped by any route (the verb, the launcher, the step window, or one
+that ends itself) shows on an open page at once. The row's `onChange` is a declared no-op: the
+session paints the bars itself, and the schema's `announce` would otherwise restyle all three.
 
 **The row says SHOWN and what it stores says HIDDEN.** It is emitted by naming `minimapPath` on the
 `H.MasterControls` call, and the path is taken **verbatim and unprefixed** because the table it
@@ -259,9 +277,10 @@ button appears or vanishes immediately rather than at the next reload. The row i
 `sessionOnly`: a reload must not bring back a button the player dismissed. The button's hover
 tooltip reports the **Enabled** and **Lock frame** rows of this same block (`Enabled:`, `Locked:`)
 and has no `Test mode:` line, because the block has no Test mode row. The button's left click opens
-this panel; its right-click options menu offers the same two rows as checkboxes, **Enabled** and
-**Locked**, each running its slash verb's handler (`/at enable|disable`, `/at lock|unlock`), with
-*Locked* grayed while the addon is disabled (launcher-§2). See [launcher.md](./launcher.md) for the
+this panel; its right-click options menu offers three rows of this block as checkboxes, **Enabled**,
+**Locked** and **Sim mode**, the first two running their slash verb's handler (`/at enable|disable`,
+`/at lock|unlock`) and the third the Sim mode box's own pair, with *Locked* and *Sim mode* grayed
+while the addon is disabled (launcher-§2). See [launcher.md](./launcher.md) for the
 object, the menu and the tooltip.
 
 **This one row survives every reset, and that is a property of the setting — not of where it is
@@ -344,7 +363,7 @@ new profile, whose leading row previews the face or bar it stands for), **Font o
 only* in a new profile), the Scope
 (**Ignore settings panel**, on in a new profile, and **Ignore fonts**, off) and **Copy to every Ka0s
 addon…**. A pick calls `Skin:SetChoice` first and writes through `NS.WriteSkinChoice` after, so the
-row's `onChange` finds nothing left to apply and the pick is one repaint. The eight rows behind it
+row's `onChange` finds nothing left to apply and the pick is one repaint. The nine rows behind it
 are ordinary `skipRender` schema rows ([schema.md](./schema.md)), so the defaults, both resets and
 `/at get|set skin.*` reach them. **Ignore settings panel** is on for a new profile (the owner's
 2026-10-27 call, as in LootHistory), so under any skin these pages keep the client's look until the
@@ -368,8 +387,10 @@ skin list: *Font* and *Texture* (`Ka0sMedia_*` pickers, each with a reset icon),
 the Scope, and choosing another skin clears the override in the preview. A change previews; **Apply**
 and the gear save it through `NS.WriteSkinChoice`, the
 gear opening this page on its Skin tab (`page = "general"`, `tab = "Appearance"`); the close control
-and Escape put the stored skin back. It has **no eye**: the spec passes no `onPreview`, because this
-addon has no window or test mode to preview in (rollout X6). One picker is up at a time across Ka0s
+and Escape put the stored skin back. Its **eye** is unlock mode (`spec.preview`, `mode = "unlock"`,
+R6-PV): opened on locked bars the picker unlocks them, the eye locks and unlocks them through the
+`/at lock` / `/at unlock` handlers (so the **Lock frame** box on Master controls follows it), and
+every close the player makes puts the lock back. One picker is up at a time across Ka0s
 addons; a queued one answers `nil, "queued"`.
 
 ## Widget makers and refresher closures
@@ -447,7 +468,7 @@ The `Ka0sMedia_*` pickers are the library's (`libs/LibKa0s/OptionsMedia.lua`) an
 
 The dropdown's `values` table is supplied by `Helpers.LSMValues(mediaType)`, which returns a deferred closure that pulls the live `NS.GetLSM():HashTable(mediaType)` at dropdown-render time. Schema rows in `settings/Appearance.lua` set `values = NS.Helpers.LSMValues("statusbar")` (etc.) at file-load — the closure is then invoked by `makeDropdown`'s `valuesHash()` every time the dropdown re-renders, so newly-registered LSM media show up without an addon reload.
 
-While a unit's *Use the skin's ...* companion is on, the pickers it governs (*Bar texture* and *Background texture* under the texture's, *Border style* and *Border thickness (px)* under the border's, *Font* under the font's) are disabled and show the skin's value; the stored pick stays in the profile and comes back when the box is unticked ([schema.md](./schema.md)).
+While a unit's *Use the skin's ...* companion is on, the pickers it governs (*Bar texture* and *Background texture* under the texture's, *Border style* and *Border thickness (px)* under the border's, *Font* under the font's) are disabled and show the skin's value; the stored pick stays in the profile and comes back when the box is unticked ([schema.md](./schema.md)). The color and shadow companions (*Use the skin's color*, *Use the skin's shadow*) gray nothing: a swatch stays live under options-ui-§17, and its tooltip says it is not read.
 
 ## About page (top-level "Ka0s Absorb Tracker")
 

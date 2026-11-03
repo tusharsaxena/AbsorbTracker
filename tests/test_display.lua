@@ -239,10 +239,12 @@ end)
 
 test("the Text tab's color reaches the absorb amount, alpha included", function()
   local colors
-  withUnitSetting("player", "fontColor", { r = 0.2, g = 0.4, b = 0.6, a = 0.5 }, function()
-    withoutVisibility(function()
-      colors = record(NS.bars.player.valueText, "SetTextColor", function()
-        NS.UpdateBarAppearance("player")
+  withUnitSetting("player", "fontColorFromSkin", false, function()
+    withUnitSetting("player", "fontColor", { r = 0.2, g = 0.4, b = 0.6, a = 0.5 }, function()
+      withoutVisibility(function()
+        colors = record(NS.bars.player.valueText, "SetTextColor", function()
+          NS.UpdateBarAppearance("player")
+        end)
       end)
     end)
   end)
@@ -282,7 +284,10 @@ test("fontShadow reaches the absorb amount, and turning it off CLEARS the shadow
   -- The sixth row of the canonical font block (options-ui-§16), new to this addon. Both arms
   -- matter: an OFF arm that merely skipped the call would leave whatever the last pass set, so
   -- turning the shadow back off would do nothing until a /reload.
-  -- red under: dropping either arm, or writing only SetShadowColor and not the offset.
+  -- red under: dropping either arm, or writing only SetShadowColor and not the offset. The stored
+  -- row is read with its skin companion off; the mock client has no CreateFont, so the FontString
+  -- arm is what runs (tests/test_skin_flip.lua pins the font object).
+  withUnitSetting("player", "fontShadowFromSkin", false, function()
   withUnitSetting("player", "fontShadow", true, function()
     local color = record(NS.bars.player.valueText, "SetShadowColor", NS.UpdateBarAppearance)
     assertEqual(#color, 1, "the shadow color is set on every appearance pass")
@@ -298,6 +303,7 @@ test("fontShadow reaches the absorb amount, and turning it off CLEARS the shadow
     local offset = record(NS.bars.player.valueText, "SetShadowOffset", NS.UpdateBarAppearance)
     assertEqual(offset[1][1], 0)
     assertEqual(offset[1][2], 0)
+  end)
   end)
 end)
 
@@ -654,6 +660,18 @@ test("UpdateBarAppearance re-applies the font from the profile", function()
   assertEqual(calls[1][1], NS.GetFont())
   assertEqual(calls[1][2], 17)
   assertEqual(calls[1][3], "THICKOUTLINE")
+end)
+
+test("the value text spans the bar, so a wider face is never clipped (SF-AT-1)", function()
+  -- The mock hands back the bar frame for CreateFontString (mock_base.lua), so the anchors cannot be
+  -- read off the string; read the creation site instead.
+  local f = assert(io.open("modules/Bar.lua", "rb"))
+  local src = f:read("*a")
+  f:close()
+  assertTrue(src:find("valueText:SetPoint(\"LEFT\"", 1, true), "anchored left")
+  assertTrue(src:find("valueText:SetPoint(\"RIGHT\"", 1, true), "anchored right: an unsized FontString keeps the width measured under the previous face")
+  assertTrue(src:find("valueText:SetWordWrap(false)", 1, true), "never wrapped")
+  assertTrue(src:find("valueText:SetJustifyH(\"CENTER\")", 1, true), "centered in the span")
 end)
 
 test("UpdateBarAppearance reads a nil fontFlags as From skin, never handing SetFont nil", function()

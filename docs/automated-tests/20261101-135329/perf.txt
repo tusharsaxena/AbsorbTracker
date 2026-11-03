@@ -1,0 +1,18 @@
+Ka0s Absorb Tracker — offline perf  (v1.12.0, label 'offline')
+1000 absorb events coalesced into 1 repaint
+
+scenario                iters      ms/iter     api/iter   bytes/iter
+absorbEvent              1000      0.00037          0.0          0.0
+paintBars                1000      0.01404         12.0         48.0
+repaintPass              1000      0.01359         12.0          0.0
+appearancePass            200      0.18849         87.0       1296.8
+settingsRead            10000      0.00026          0.0          0.0
+probeOverheadOff         1000      0.01306         12.0          0.0
+probeOverheadOn          1000      0.01446         12.0          0.5
+
+timings are for orientation only — compare scenarios within a run, never across machines
+
+2 assertions FAILED:
+  - appearancePass makes 87.0 API calls/pass, expected 81
+  - appearancePass allocated 1296.8 bytes/pass, over the 442-byte ceiling
+wrote docs/automated-tests/20261101-135329/perf.json

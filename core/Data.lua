@@ -127,14 +127,16 @@ end
 -- switch reaches the bars through OnLooksChanged instead (core/SkinSetup.lua), which republishes
 -- APPEARANCE, and the appearance pass reads these getters again. Never on the absorb hot path.
 --
+-- The colors and the shadow have their own companions and getters, further down.
+--
 -- Each stored media key, the skin token it follows and the companion that says so. The fill and
 -- the background share `bar.texture` and one companion (DECISIONS D3): the skin has no
 -- background-texture token, and the player's background color still tints it.
 local FOLLOWS = {
     barTexture = { "bar.texture", "barTextureFromSkin" },
     bgTexture  = { "bar.texture", "barTextureFromSkin" },
-    border     = { "bar.borderStyle", "borderFromSkin" },
-    borderSize = { "bar.borderSize", "borderFromSkin" },
+    border     = { "bar.borderStyle", "borderFromSkin", edge = true },
+    borderSize = { "bar.borderSize", "borderFromSkin", edge = true },
     font       = { "hud.font", "fontFromSkin" },
 }
 
@@ -144,14 +146,19 @@ local FOLLOWS = {
 --- pick draws, over the skin's `hud.font` and over a font override. The library enforces it
 --- (LibKa0s v1.81.0, Skin minor 8): while the owner ignores fonts, Resolve answers the stored value
 --- for `hud.font` and Token answers nil, so the face is the stored pick and is reported as not the
---- skin's. SetIgnore fires OnLooksChanged, which repaints the bars.
+--- skin's. SetIgnore fires OnLooksChanged, which repaints the bars. A skin's None is no border of
+--- its own, so S.Resolve hands the stored style and thickness back under it (`edge`), and those are
+--- the player's whatever the companion says; a real style in a skin wins.
 function NS.MediaKey(unit, key)
     local stored = unitSetting(unit, key)
     local f, S = FOLLOWS[key], NS.Skin
     if f and S and type(S.Resolve) == "function" then
         local on = unitSetting(unit, f[2]) == true
         local v = S.Resolve(f[1], stored, on)
-        if v ~= nil then return v, on and S.Token(f[1]) ~= nil end
+        if v ~= nil then
+            local deferred = f.edge and S.Token("bar.borderStyle") == "None"
+            return v, on and not deferred and S.Token(f[1]) ~= nil
+        end
     end
     return stored, false
 end
@@ -179,16 +186,25 @@ function NS.GetBgTexture(unit)
     return fetch("statusbar", resolved(unit, "bgTexture"), C.FALLBACK_TEXTURE)
 end
 
+--- nil for None with no LibSharedMedia to answer it: no edge file draws no edge, where the
+--- fallback would put the tooltip's edge on a bar that asked for none.
 function NS.GetBorder(unit)
-    return fetch("border", resolved(unit, "border"), C.FALLBACK_BORDER)
+    local key = resolved(unit, "border")
+    if key == "None" and not NS.GetLSM() then return nil end
+    return fetch("border", key, C.FALLBACK_BORDER)
 end
 
 --- The border's thickness: the skin's `bar.borderSize` while borderFromSkin is on (DECISIONS
---- D4), so a skin's thin or absent edge is never drawn at the stored 12 px; the stored size
---- otherwise. Also the backdrop inset's source (modules/Display.lua).
+--- D4), so a skin's thin edge is never drawn at the stored 12 px; the stored size otherwise, a
+--- skin's None handing it back. A following bar with no edge at all is not read at the stored 12,
+--- which would move the background's inset: it takes the skin's size too. Also the backdrop inset's
+--- source (modules/Display.lua).
 function NS.GetBorderSize(unit)
-    local size = tonumber(resolved(unit, "borderSize"))
-    return size or unitSetting(unit, "borderSize")
+    local size = resolved(unit, "borderSize")
+    if unitSetting(unit, "borderFromSkin") == true and resolved(unit, "border") == "None" then
+        size = NS.Skin.Token("bar.borderSize") or size
+    end
+    return tonumber(size) or unitSetting(unit, "borderSize")
 end
 
 --- The face only; the size and the flags are the two getters below.
@@ -302,20 +318,37 @@ local function resolveBgColor(c, on, unit)
     return c.r or 1, c.g or 1, c.b or 1, a
 end
 
+--- The skin's color for one surface, or nil when the stored swatch decides. A class color comes
+--- first and is left alone: its toggle set means the resolver below answers, whatever the companion
+--- says. `read` is a facade member, `token` its argument where it takes one; a degraded facade
+--- answers nothing, so the stored color is the fallback (LibKa0s Options doc, Moving to this version).
+local function skinColor(unit, companion, classToggle, read, token)
+    if unitSetting(unit, companion) ~= true or unitSetting(unit, classToggle) == true then return nil end
+    local S = NS.Skin
+    if not (S and type(S[read]) == "function") then return nil end
+    return S[read](token)
+end
+
 function NS.GetBarColor(unit)
     unit = unit or "player"
+    local r, g, b, a = skinColor(unit, "barColorFromSkin", "useClassColorBar", "Color", "at.barFill")
+    if r then return r, g, b, a end
     return NS.ResolveColor(unitSetting(unit, "barColor"),
         unitSetting(unit, "useClassColorBar"), unit)
 end
 
 function NS.GetBgColor(unit)
     unit = unit or "player"
+    local r, g, b, a = skinColor(unit, "bgColorFromSkin", "useClassColorBg", "Color", "at.barBg")
+    if r then return r, g, b, a end
     return resolveBgColor(unitSetting(unit, "bgColor"),
         unitSetting(unit, "useClassColorBg"), unit)
 end
 
 function NS.GetBorderColor(unit)
     unit = unit or "player"
+    local r, g, b, a = skinColor(unit, "borderColorFromSkin", "useClassColorBorder", "Color", "at.barBorder")
+    if r then return r, g, b, a end
     return NS.ResolveColor(unitSetting(unit, "borderColor"),
         unitSetting(unit, "useClassColorBorder"), unit)
 end
@@ -323,6 +356,8 @@ end
 --- The absorb amount's color. Same resolver, same scope, as the two above it.
 function NS.GetFontColor(unit)
     unit = unit or "player"
+    local r, g, b, a = skinColor(unit, "fontColorFromSkin", "useClassColorText", "HudTextColor")
+    if r then return r, g, b, a end
     return NS.ResolveColor(unitSetting(unit, "fontColor"),
         unitSetting(unit, "useClassColorText"), unit)
 end

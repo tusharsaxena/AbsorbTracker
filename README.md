@@ -1,12 +1,12 @@
-# Ka0s Absorb Tracker
+# Absorb Tracker
 
 ![WoW](https://img.shields.io/badge/WoW-Midnight_12.1.5-purple)
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-974%2F974_passing-green)
+![Tests](https://img.shields.io/badge/Tests-1058%2F1058_passing-green)
 
-Ka0s Absorb Tracker shows your absorb shields as a movable bar. It adds every shield on the unit
+Absorb Tracker shows your absorb shields as a movable bar. It adds every shield on the unit
 into one number, so a glance tells you how much damage you can eat before your health starts
 moving.
 
@@ -51,14 +51,24 @@ Setting up takes four steps.
   so 50% under a master opacity of 50% draws at 25%.
 
 To see how a real number looks, `/at debug hold 50000` puts a 50K absorb on every visible bar for
-five seconds (add a second number for anywhere from half a second to a minute). The minimap button
-opens the settings on a left-click, and a right-click gives you a small menu to turn the addon on or
-off (the same as `/at enable` and `/at disable`) and lock or unlock the bars. You can hide it with
+five seconds (add a second number for anywhere from half a second to a minute).
+
+To watch a whole fight instead, type `/at sim`. A step window opens beside the bar. Pick a scenario
+(a full fight, one shield draining, or a bigger shield landing and breaking) and start it, and the
+bars play a made-up shield going up and down. Click a step to jump to it. `/at sim stop`, or Stop
+in the window, gives the bars back to your real shields, and nothing is saved. The **Sim mode** box
+next to **Lock frame** on General → Master controls does the same thing as the command. It won't
+start in combat.
+
+The minimap button opens the settings on a left-click. A right-click gives you a small menu: turn
+the addon on or off (the same as `/at enable` and `/at disable`), lock or unlock the bars, start or
+stop the sim, open the settings, or open the skin picker. You can hide the button with
 **Minimap button** on General → Master controls.
 
 Everything else is on the addon's page under Settings → AddOns, and `/at` (or `/absorbtracker`) on
-its own opens it. `/at skin` opens the skin picker again whenever you want another look, and General →
-**Skin** → **Font outline** sets whether the skin outlines all text, only the bars' numbers (the default), or none.
+its own opens it. `/at skin` opens the skin picker again whenever you want another look. If the bars are
+locked, the picker unlocks them so you can see the skin on them; its eye button locks and unlocks them, and
+closing the picker puts the lock back as it was. General → **Skin** → **Font outline** sets whether the skin outlines all text, only the bars' numbers (the default), or none.
 `/at help` prints the full command list.
 
 ## How the bar works
@@ -85,7 +95,7 @@ At any moment, then, the bar shows how much a unit can take before its health st
 | Does this replace the shield display on my unit frames? | No. These are separate movable bars. The addon leaves Blizzard's shield overlay on the player, target, and focus frames alone. Hide it in *Edit Mode* if you don't want to see both. |
 | How do I turn on the Target or Focus bar? | Appearance page → pick **Target** or **Focus** in the **Unit** picker → tick **Enable this unit** beside it (or type `/at toggle target`). It only appears while you actually have that unit. The General page's **Defaults** button turns them back off. |
 | Can the Target/Focus bar match my Player bar automatically? | Yes, tick **Link to Player**. It's a live link, so anything you change on the Player bar carries over at once. Untick it when you want to style that bar on its own, or use **Copy from Player** for a one-time copy you can then take in your own direction. |
-| Why do my bars look different after updating? | Absorb Tracker now wears a skin, like the other Ka0s addons. The update puts every bar's texture, border and font back on the skin once, so on the default skin, Ka0s Default, the bars draw its own bar texture with no border and the number in the Prototype font, outlined by default (General → **Skin** → **Font outline**). Your colors and sizes stay as you set them; on a skin whose face runs narrower or wider, the number is drawn a little larger or smaller so it is as wide as on Ka0s Default, while *Use the skin's font* is ticked. To get your own pick back, untick **Use the skin's texture**, **Use the skin's border** or **Use the skin's font** on the Appearance page. To try another skin, use General → **Skin**, or the small picker that opens the first time you log in. |
+| Why do my bars look different after updating? | Absorb Tracker now wears a skin, like the other Ka0s addons. The update puts every bar's texture, border, font, colors and shadow on the skin once, so on the default skin, Ka0s Default, the bars draw its own bar texture with no border and the number in the Prototype font, outlined by default (General → **Skin** → **Font outline**). Your sizes and class colors stay as you set them, and your own colors are kept for when you want them back; on a skin whose face runs narrower or wider, the number is drawn a little larger or smaller so it is as wide as on Ka0s Default, while *Use the skin's font* is ticked. To get your own pick back, untick the matching **Use the skin's ...** box on the Appearance page. To try another skin, use General → **Skin**, or the small picker that opens the first time you log in. |
 | How do I move a bar? | Type `/at unlock`, drag the bar you want where you want it, then `/at lock`. Each bar remembers its own position, and `/at resetposition` snaps all of them back to their default spots. Unlocking also brings up the Target and Focus bars with nothing targeted, so you can place those too. |
 | Can I show the bars only while I'm fighting? | Yes. Set **General visibility** to *Only in combat* on **General → Master controls**. Every enabled bar then hides out of combat and comes back the moment you enter combat. |
 | Can I have different setups? | Yes. Use the Profiles page in the settings panel to save and switch between setups, or type `/at profile Name` to switch to one you have saved (`/at profile` lists them). New characters start on the shared **Default** profile, so your changes carry over until you choose a separate setup. |
@@ -144,4 +154,5 @@ Please file new reports there rather than in comments, so nothing gets lost.
 ## Credits
 
 - [Open Iconic](https://github.com/iconic/open-iconic) by Waybury (MIT): the **?** and **X** on the bar's drag
-  handle, the close, copy and clear marks on the debug console, and the skin picker's settings gear.
+  handle, the close, copy and clear marks on the debug console, the skin picker's settings gear and eye, and the
+  small marks LibKa0s draws beside skinned controls.

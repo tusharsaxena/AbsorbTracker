@@ -107,7 +107,8 @@ they exist is not obvious from the code.
     monospace face is required for column-aligned debug output (debug-logging-§2). The console's backdrop is
     Blizzard-stock too, but it is no longer the tooltip frame: `WHITE8x8` for both the fill and
     the edge, the edge tinted flat black at `edgeSize = 1`, with a 1px gray highlight synthesized
-    just inside it, a gold title and a gray divider. That edge is the **shared Ka0s window edge**,
+    just inside it and a gold title, with no line under the title since the LibKa0s v1.85.0 round 4
+    re-cut (R4-SEP; it was a gray divider until then). That edge is the **shared Ka0s window edge**,
     not this addon's — it is `LibKa0s-Core-1.0`'s `SKIN` + `ApplySkin` (`libs/LibKa0s/Core.lua`),
     and `core/DebugLogSetup.lua` takes it as-is (it passes neither `skin` nor `applySkin`), so the
     console and the perf panel wear whatever every other Ka0s window wears. The Ka0s WoW Addon

@@ -67,6 +67,14 @@ local function runVerb(name)
     NS.Debug("Launcher", "no /at %s handler to run", name)
 end
 
+-- THE SIM PAIR, ONE FOR TWO READERS (R6-SIM, OptionsCompose minor 19). The launcher's Sim mode entry
+-- below and the Master controls Sim mode box (settings/General.lua) take these SAME two functions, so
+-- the menu, the box and `/at sim` are one act. Resolved at call time: modules/Sim.lua publishes
+-- NS.IsSimRunning and NS.ToggleSim after this file loads. Published on both arms, because General's
+-- spec reads them on a library-less load too (where its stub composer ignores them).
+function NS.IsSimMode() return NS.IsSimRunning ~= nil and NS.IsSimRunning() == true end
+function NS.ToggleSimMode() if NS.ToggleSim then NS.ToggleSim() end end
+
 local lib = LibStub and LibStub("LibKa0s-Launcher-1.0", true)
 
 -- The store, and only the store. Both arms below answer `IsShown` / `SetShown` out of
@@ -141,6 +149,7 @@ NS.Launcher = lib:New({
     --
     -- Enabled: the store, not the latch, as the dispatcher's gate reads it. `setEnabled` is handed
     -- the state to move TO, which picks the verb.
+    openSkinPicker = function() if NS.RunSkinVerb then NS.RunSkinVerb() end end,
     isEnabled  = function() return NS.GetSetting("enabled") ~= false end,
     setEnabled = function(on) runVerb(on and "enable" or "disable") end,
 
@@ -154,6 +163,8 @@ NS.Launcher = lib:New({
     -- of `isEnabled` and `isLocked` above and `version` here. No `onTooltipShow`: nothing of ours to
     -- append. `version` is the TOC's `## Version` and nothing else: nil (headless, or an unreadable
     -- manifest) draws the label alone rather than NS.Version()'s "?" or the fallback constant.
+    isSimMode = NS.IsSimMode,
+    toggleSim = NS.ToggleSimMode,
     version = function() return NS.Meta("Version") end,
 
     print = function(line) print(line) end,
