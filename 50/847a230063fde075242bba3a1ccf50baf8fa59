@@ -1,0 +1,1 @@
+R6-RV2 review (independent, 2026-11-04): PASS. libs/LibKa0s and tests/_kit compared with git archive of LibKa0s v1.85.0 (550ef68): identical apart from media/icons, which is pruned to the CLAUDE.md declaration (13 icons + LICENSE-open-iconic.txt). Provenance line names v1.85.0. Gate fresh at the branch head: 1058 passed / 0 failed / 1 skipped; luacheck 0/0 in 85 files.
