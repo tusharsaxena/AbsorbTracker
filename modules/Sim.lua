@@ -123,9 +123,39 @@ function NS.SimStop()
     return false
 end
 
---- The launcher's Sim mode row.
+--- The launcher's Sim mode row and the Master controls box (R7-SIM, the owner's rule): on while the
+--- step window is shown OR a session runs. From off the act is the bare `/at sim` (the window opens
+--- idle, so the box stays ticked); from on it stops a running session and closes the window.
 function NS.IsSimRunning() return NS.Sim ~= nil and NS.Sim:IsActive() == true end
-function NS.ToggleSim() NS.Sim:RunVerb(NS.IsSimRunning() and "stop" or "") end
+function NS.IsSimWindowShown() return NS.Sim ~= nil and NS.Sim:IsPanelShown() == true end
+function NS.IsSimOn() return NS.IsSimRunning() or NS.IsSimWindowShown() end
+function NS.ToggleSim()
+    if not NS.IsSimOn() then return NS.Sim:RunVerb("") end
+    if NS.IsSimRunning() then NS.Sim:RunVerb("stop") end
+    NS.Sim:HidePanel()
+end
+
+-- The step window's frame, which the library names `<addon>SimPanel` and builds on its first show.
+Host.PANEL_NAME = addonName .. "SimPanel"
+
+--- Refresh an open settings page, so the Sim mode box re-reads. Looked up at call time:
+--- settings/OptionsSetup.lua publishes NS.Helpers after this file loads, and its library-less stub
+--- has no RefreshScalars.
+function Host.RefreshPage()
+    local H = NS.Helpers
+    if H and H.RefreshScalars then H.RefreshScalars() end
+end
+
+--- Hook the step window's OnShow and OnHide once it exists (R7-SIM): its close button and Escape hide
+--- the frame directly, and the session's listener does not fire for a window alone.
+function Host.HookPanel()
+    if Host.panelHooked then return end
+    local frame = _G[Host.PANEL_NAME]
+    if type(frame) ~= "table" or type(frame.HookScript) ~= "function" then return end
+    Host.panelHooked = true
+    frame:HookScript("OnShow", Host.RefreshPage)
+    frame:HookScript("OnHide", Host.RefreshPage)
+end
 
 local Lib = LibStub and LibStub("LibKa0s-Sim-1.0", true)
 if Lib then
@@ -153,12 +183,20 @@ if Lib then
         },
     })
     -- The Master controls Sim mode box (R6-SIM) re-reads on RefreshScalars, so every start, step and
-    -- stop, from any route, refreshes an open page. Looked up at call time: settings/OptionsSetup.lua
-    -- publishes NS.Helpers after this file loads, and its library-less stub has no RefreshScalars.
-    NS.Sim:AddListener(function()
-        local H = NS.Helpers
-        if H and H.RefreshScalars then H.RefreshScalars() end
-    end)
+    -- stop, from any route, refreshes an open page.
+    NS.Sim:AddListener(function() Host.RefreshPage() end)
+    -- Every show of the step window (bare /at sim, /at sim panel, a start's prepare, the box, the
+    -- launcher) goes through this member, so the first one hooks the frame it builds (R7-SIM). The
+    -- frame's OnShow fired before the hook existed, so that first show refreshes the page itself.
+    local showPanel = NS.Sim.ShowPanel
+    NS.Sim.ShowPanel = function(...)
+        local shown = showPanel(...)
+        if not Host.panelHooked then
+            Host.HookPanel()
+            Host.RefreshPage()
+        end
+        return shown
+    end
     -- The stop: the hold goes with the session, unlocked bars get their placeholder, live data returns.
     NS.Sim:OnStop(function()
         if NS.ClearPreview then NS.ClearPreview() end
@@ -172,6 +210,8 @@ else
         IsActive = function() return false end,
         Stop = function() return false end,
         ShowPanel = function() return false end,
+        HidePanel = function() end,
+        IsPanelShown = function() return false end,
         RunVerb = function() NS.Print(line); return false, "absent" end,
     }
 end

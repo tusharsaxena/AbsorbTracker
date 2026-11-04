@@ -210,7 +210,9 @@ set is argued verb by verb in [slash-dispatch.md](./slash-dispatch.md).
 `/at lock` are the switch, and the one-shot value hold is `/at debug hold <value> [secs]`. `/at sim`
 is a separate thing, a scripted shield fight played on the bars from a step window
 (`modules/Sim.lua`), and the Master controls **Sim mode** box and the launcher's Sim mode entry are
-the same act.
+the same act. Both read on while the step window is shown or a sim runs (R7-SIM): a tick from off
+opens the window idle, as bare `/at sim` does, and an untick stops a running sim and closes the
+window. The window's own `OnShow` and `OnHide` refresh an open page.
 
 The verb table, the sub-verb trees, the mirror note, the help convention and the degraded arm are in
 [slash-dispatch.md](./slash-dispatch.md).

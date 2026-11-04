@@ -811,7 +811,7 @@ Total.
 - /at debug hold refuses while the addon is disabled: one line, no paint, no hold
 - /at debug hold refuses while stood down for a perf capture, arms no timer
 
-### test_sim.lua (22)
+### test_sim.lua (26)
 
 - sim: COMMANDS carries a sim row
 - sim: the library session is bound and the seam wraps nothing
@@ -831,7 +831,11 @@ Total.
 - sim: the launcher's mode row follows the session
 - sim box: Master controls draws a session-only Sim mode row beside Lock frame
 - sim box: the box and the launcher take the one NS pair
-- sim box: ticking does what /at sim does, unticking stops the sim
+- sim box: ticking does what /at sim does and stays ticked, unticking stops and closes
+- sim box: the window open and idle reads ticked, closing it reads unticked
+- sim box: a sim running with its window hidden reads ticked
+- sim box: the untick with the window open and idle closes it
+- sim box: the step window's show and hide refresh the open page
 - sim box: the row's write publishes no appearance pass
 - sim box: a sim started or stopped elsewhere refreshes the open page
 - sim box: Reset all settings stops a running sim and never starts one
@@ -1265,7 +1269,7 @@ Total.
 | test_slashprofile.lua | 34 |
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 16 |
-| test_sim.lua | 22 |
+| test_sim.lua | 26 |
 | test_widgets.lua | 46 |
 | test_realpages.lua | 13 |
 | test_skinsetup.lua | 17 |
@@ -1292,4 +1296,4 @@ Total.
 | test_skin_values.lua | 3 |
 | test_skin_switch.lua | 11 |
 | Skipped | 1 |
-| **Total** | **1058** |
+| **Total** | **1062** |

@@ -49,10 +49,12 @@ Ka0s Absorb Tracker
 ```
 
 **Sim mode** (Launcher minor 7, R6-SIM) takes `NS.IsSimMode` / `NS.ToggleSimMode`, which this file
-publishes on both arms and resolves against `modules/Sim.lua`'s `NS.IsSimRunning` / `NS.ToggleSim`
+publishes on both arms and resolves against `modules/Sim.lua`'s `NS.IsSimOn` / `NS.ToggleSim`
 at call time. The Master controls **Sim mode** box takes the **same** two functions, so the menu, the
-box and `/at sim` are one act: from idle a click is the bare `/at sim` (the step window opens and
-nothing plays until a scenario starts), and while a sim runs it is `/at sim stop`. **Open skin
+box and `/at sim` are one act. The entry is ticked while the step window is shown or a sim runs
+(R7-SIM). From off a click is the bare `/at sim` (the step window opens and nothing plays until a
+scenario starts), so the entry stays ticked; from on it stops a running sim (`/at sim stop`) and
+closes the window. The menu asks again every time it opens, so it needs no refresh of its own. **Open skin
 selector** (Launcher minor 6) is offered because the descriptor passes `openSkinPicker` and
 `AbsorbTracker` is a registered skin owner; `tests/test_launcher_skin_entry.lua` pins the field.
 

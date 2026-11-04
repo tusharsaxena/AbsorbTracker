@@ -237,31 +237,110 @@ test("sim box: the box and the launcher take the one NS pair", function()
   assertEqual(type(NS.ToggleSimMode), "function")
 end)
 
--- What the tick does is what `/at sim` does, because it IS NS.ToggleSim: from idle the bare verb
--- (status, usage, and the step window opened idle, SIM-1: nothing plays until a scenario starts), and
--- while a sim runs `/at sim stop`. So a tick from idle opens the window and the box re-reads unticked
--- until the player starts a scenario there; it then reads ticked, and the untick stops the session.
--- red under: a row with no hooks, a row that stores its value, or a second implementation of the act.
-test("sim box: ticking does what /at sim does, unticking stops the sim", function()
+-- What the tick does is what `/at sim` does, because it IS NS.ToggleSim: from off (no window, no
+-- session) the bare verb, which opens the step window idle (SIM-1: nothing plays until a scenario
+-- starts). R7-SIM (Ka0sAddonsCommonTasks docs/2026-11-04-SMOKE_ROUND7, call 2, the owner's "checked
+-- while the sim window is open and/or a sim is running"): the box reads NS.IsSimMode, which is the
+-- window shown OR a session running, so the tick stays ticked; the untick, from either, stops a
+-- running sim and closes the window.
+-- red under: a row with no hooks, a row that stores its value, a second implementation of the act,
+-- or an isSimMode that asks the session alone.
+test("sim box: ticking does what /at sim does and stays ticked, unticking stops and closes", function()
   reset()
   NS.Sim:HidePanel()
-  assertEqual(NS.GetSetting("state.sim"), false, "unticked while idle")
+  assertEqual(NS.GetSetting("state.sim"), false, "unticked with no window and no sim")
   NS.SetByPath("state.sim", true)
   assertTrue(NS.Sim:IsPanelShown(), "the tick opened the step window, as the bare verb does")
   assertFalse(NS.Sim:IsActive(), "and, like the verb, started nothing by itself")
-  assertEqual(NS.GetSetting("state.sim"), false, "so the box re-reads unticked")
+  assertEqual(NS.GetSetting("state.sim"), true, "so the box stays ticked while the window is open")
   slash("sim start fight")
   assertEqual(NS.GetSetting("state.sim"), true, "ticked while a sim runs")
   NS.SetByPath("state.sim", true)
   assertTrue(NS.Sim:IsActive(), "a tick while it runs does not toggle it off")
   NS.SetByPath("state.sim", false)
   assertFalse(NS.Sim:IsActive(), "the untick stopped it")
+  assertFalse(NS.Sim:IsPanelShown(), "and closed the window")
   assertEqual(NS.testHoldUntil, nil, "and cleared the hold")
   assertEqual(NS.GetSetting("state.sim"), false)
   NS.SetByPath("state.sim", false)
-  assertFalse(NS.Sim:IsActive(), "an untick while idle starts nothing")
+  assertFalse(NS.Sim:IsActive(), "an untick while off starts nothing")
+  assertFalse(NS.Sim:IsPanelShown(), "and opens nothing")
   assertEqual(NS.db.profile.state, nil, "never reaches db.profile")
+  reset()
+end)
+
+-- R7-SIM: the four states of the owner's rule, read through the box's own row and the launcher's pair.
+-- red under: NS.IsSimMode asking only whether a session runs.
+test("sim box: the window open and idle reads ticked, closing it reads unticked", function()
+  reset()
   NS.Sim:HidePanel()
+  slash("sim")
+  assertTrue(NS.Sim:IsPanelShown(), "bare /at sim opened the window")
+  assertFalse(NS.Sim:IsActive(), "idle")
+  assertEqual(NS.GetSetting("state.sim"), true, "the box is ticked with the window open")
+  assertTrue(NS.IsSimMode(), "and so is the launcher's entry")
+  NS.Sim:HidePanel()
+  assertEqual(NS.GetSetting("state.sim"), false, "closing the window unticks it")
+  assertFalse(NS.IsSimMode())
+  reset()
+end)
+
+-- red under: NS.IsSimMode asking only whether the window is shown.
+test("sim box: a sim running with its window hidden reads ticked", function()
+  reset()
+  slash("sim start fight")
+  NS.Sim:HidePanel()
+  assertTrue(NS.Sim:IsActive(), "the run outlives its window")
+  assertEqual(NS.GetSetting("state.sim"), true, "the box stays ticked")
+  assertTrue(NS.IsSimMode())
+  NS.ToggleSimMode()
+  assertFalse(NS.Sim:IsActive(), "one click stops it")
+  assertFalse(NS.Sim:IsPanelShown(), "and leaves the window closed")
+  assertFalse(NS.IsSimMode())
+  reset()
+end)
+
+-- red under: unticking a window-open, idle box doing nothing (the verb's stop has no session to end).
+test("sim box: the untick with the window open and idle closes it", function()
+  reset()
+  slash("sim")
+  NS.SetByPath("state.sim", false)
+  assertFalse(NS.Sim:IsPanelShown(), "the window closed")
+  assertFalse(NS.Sim:IsActive(), "nothing started")
+  assertEqual(NS.GetSetting("state.sim"), false)
+  reset()
+end)
+
+-- The step window's own show and hide refresh an open page (its close button and Escape hide the frame
+-- directly, never through HidePanel, and the session's listener does not fire for a window alone).
+-- The mock's Show and Hide fire no scripts, so the case fires them as the client would.
+-- red under: no OnShow / OnHide hook on the step window.
+test("sim box: the step window's show and hide refresh the open page", function()
+  reset()
+  NS.Sim:HidePanel()
+  local name = NS.SimHost.PANEL_NAME
+  assertEqual(name, "AbsorbTrackerSimPanel", "the frame the library names")
+  local calls = 0
+  local real = NS.Helpers.RefreshScalars
+  NS.Helpers.RefreshScalars = function(...) calls = calls + 1 return real(...) end
+  slash("sim")
+  local frame
+  for _, f in ipairs(T.mocks.__shownFrames()) do if f.__name == name then frame = f end end
+  assertTrue(frame ~= nil, "the step window is a shown frame")
+  local hadGlobal = rawget(_G, name)
+  rawset(_G, name, frame)
+  slash("sim panel")
+  slash("sim panel")
+  local before = calls
+  frame:__fire("OnShow")
+  assertTrue(calls > before, "the window's OnShow refreshed the page")
+  before = calls
+  frame:Hide()
+  frame:__fire("OnHide")
+  assertTrue(calls > before, "the window's OnHide refreshed the page")
+  assertEqual(NS.GetSetting("state.sim"), false, "and the box reads unticked")
+  NS.Helpers.RefreshScalars = real
+  rawset(_G, name, hadGlobal)
   reset()
 end)
 

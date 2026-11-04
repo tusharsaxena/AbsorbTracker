@@ -70,9 +70,10 @@ end
 -- THE SIM PAIR, ONE FOR TWO READERS (R6-SIM, OptionsCompose minor 19). The launcher's Sim mode entry
 -- below and the Master controls Sim mode box (settings/General.lua) take these SAME two functions, so
 -- the menu, the box and `/at sim` are one act. Resolved at call time: modules/Sim.lua publishes
--- NS.IsSimRunning and NS.ToggleSim after this file loads. Published on both arms, because General's
--- spec reads them on a library-less load too (where its stub composer ignores them).
-function NS.IsSimMode() return NS.IsSimRunning ~= nil and NS.IsSimRunning() == true end
+-- NS.IsSimOn and NS.ToggleSim after this file loads. Published on both arms, because General's
+-- spec reads them on a library-less load too (where its stub composer ignores them). On means the
+-- step window is shown or a sim runs (R7-SIM); the menu asks again on every open.
+function NS.IsSimMode() return NS.IsSimOn ~= nil and NS.IsSimOn() == true end
 function NS.ToggleSimMode() if NS.ToggleSim then NS.ToggleSim() end end
 
 local lib = LibStub and LibStub("LibKa0s-Launcher-1.0", true)
