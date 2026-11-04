@@ -1,0 +1,9 @@
+ka0s-review: R7-SIM (smoke round 7, call 2), independent review. Verdict: APPROVE, no defects.
+Reviewer gate (fresh): ka0s-bounded lua tests/run.lua 1062 passed / 0 failed / 1 skipped (1063); ka0s-bounded luacheck . 0 warnings / 0 errors in 85 files; no authored file over the 1500-line cap.
+Red first: in a scratch git-archive copy with master's modules/Sim.lua and core/LauncherSetup.lua, the four new sim-box cases fail (tick stays ticked, window-open idle reads ticked, idle untick closes, OnShow/OnHide refresh); the hidden-window running case passes before and after (running already read ticked). Other failures in that copy are git-dependent suites with no .git.
+Checked against 00_PLAN call 2 and LibKa0s releasing.md R7-L1 hosts-owe list:
+- isSimMode = NS.IsSimOn (running or IsPanelShown), one function for the MasterControls row and the Launcher descriptor.
+- ToggleSim: off -> RunVerb('') (bare verb: status, usage, sim:ShowPanel); on -> stop if running, then HidePanel.
+- Refresh on every path: sim start/step/stop/natural end via AddListener; window X and Escape (UISpecialFrames) via frame OnShow/OnHide HookScript; first show refreshed by the ShowPanel wrapper. Library calls sim:ShowPanel()/TogglePanel by field lookup on the same table (SimTimeline.lua runVerb, SimPanel.lua TogglePanel, host Prepare), so the wrapper sees every show; frame global name tostring(d.name)..'SimPanel' with d.name = addonName matches Host.PANEL_NAME.
+- Combat: the settings page is locked under InCombatLockdown (OptionsCombat), so SIM-2's 'in combat, tick it -> stays unticked' still holds. No Test mode here, so no exclusivity.
+- Nothing persisted; smoke SIM-2 updated, SIM-3 added with blank Result.
