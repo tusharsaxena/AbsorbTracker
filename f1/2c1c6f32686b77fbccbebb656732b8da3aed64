@@ -1,0 +1,2 @@
+ka0s-review: R7-RD (smoke round 7, call 3), independent review. Verdict: APPROVE, no defects.
+README Usage names /at skin and now says hover or select previews and Apply keeps it; the mode sentence (previews on the unlocked bars, eye locks/unlocks, close restores the lock) matches core/SkinSetup.lua preview mode = 'unlock'. Same voice, no command table, display name 'Absorb Tracker' kept (R6-NAME). Gate as for R7-SIM: 1062/0/1, luacheck 0/0.
