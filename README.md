@@ -67,9 +67,10 @@ stop the sim, open the settings, or open the skin picker. You can hide the butto
 **Minimap button** on General → Master controls.
 
 Everything else is on the addon's page under Settings → AddOns, and `/at` (or `/absorbtracker`) on
-its own opens it. `/at skin` opens the skin picker again whenever you want another look. If the bars are
-locked, the picker unlocks them so you can see the skin on them; its eye button locks and unlocks them, and
-closing the picker puts the lock back as it was. General → **Skin** → **Font outline** sets whether the skin outlines all text, only the bars' numbers (the default), or none.
+its own opens it. `/at skin` opens the skin picker again whenever you want another look. Hover over a
+skin or select it and the bars show it at once; **Apply** keeps it. The picker previews on the unlocked
+bars: if they're locked, it unlocks them so you can see the skin on them, its eye button locks and
+unlocks them, and closing the picker puts the lock back as it was. General → **Skin** → **Font outline** sets whether the skin outlines all text, only the bars' numbers (the default), or none.
 `/at help` prints the full command list.
 
 ## How the bar works
