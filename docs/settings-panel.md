@@ -255,12 +255,13 @@ carries (`core/LauncherSetup.lua`), so the box, the launcher's Sim mode entry an
 act. The row is `state.sim`, `sessionOnly`, default false, and its `get` / `set` are the composer's
 over those hooks: nothing is stored, and `/at get state.sim` and `/at set state.sim` reach it.
 Ticking from idle is the bare `/at sim`: it opens the *Absorb Tracker - Simulation* step window, and
-nothing plays until a scenario is started there, so the box re-reads unticked until then. While a
-sim runs the box reads ticked, and unticking it is `/at sim stop`. A start the library refuses (in
+nothing plays until a scenario is started there, and the box reads ticked while the window is shown
+or a sim runs (`NS.IsSimOn`, R7-SIM). Unticking it is `/at sim stop` and also closes the window. A start the library refuses (in
 combat) leaves it unticked. Reset all settings writes its default, false, so it stops a running sim
 and never starts one. `modules/Sim.lua` calls `NS.Helpers.RefreshScalars()` from the session's
-listener, so a sim started or stopped by any route (the verb, the launcher, the step window, or one
-that ends itself) shows on an open page at once. The row's `onChange` is a declared no-op: the
+listener and from the step window's `OnShow` / `OnHide` hooks, so a sim started or stopped by any
+route (the verb, the launcher, the step window, or one that ends itself) and the window closed by its
+close button or Escape show on an open page at once. The row's `onChange` is a declared no-op: the
 session paints the bars itself, and the schema's `announce` would otherwise restyle all three.
 
 **The row says SHOWN and what it stores says HIDDEN.** It is emitted by naming `minimapPath` on the
