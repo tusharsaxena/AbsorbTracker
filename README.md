@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-1058%2F1058_passing-green)
+![Tests](https://img.shields.io/badge/Tests-1062%2F1062_passing-green)
 
 Absorb Tracker shows your absorb shields as a movable bar. It adds every shield on the unit
 into one number, so a glance tells you how much damage you can eat before your health starts
@@ -57,8 +57,9 @@ To watch a whole fight instead, type `/at sim`. A step window opens beside the b
 (a full fight, one shield draining, or a bigger shield landing and breaking) and start it, and the
 bars play a made-up shield going up and down. Click a step to jump to it. `/at sim stop`, or Stop
 in the window, gives the bars back to your real shields, and nothing is saved. The **Sim mode** box
-next to **Lock frame** on General → Master controls does the same thing as the command. It won't
-start in combat.
+next to **Lock frame** on General → Master controls does the same thing as the command. It stays
+ticked while the step window is open or a sim is running, and unticking it stops the sim and closes
+the window. It won't start in combat.
 
 The minimap button opens the settings on a left-click. A right-click gives you a small menu: turn
 the addon on or off (the same as `/at enable` and `/at disable`), lock or unlock the bars, start or
@@ -66,9 +67,10 @@ stop the sim, open the settings, or open the skin picker. You can hide the butto
 **Minimap button** on General → Master controls.
 
 Everything else is on the addon's page under Settings → AddOns, and `/at` (or `/absorbtracker`) on
-its own opens it. `/at skin` opens the skin picker again whenever you want another look. If the bars are
-locked, the picker unlocks them so you can see the skin on them; its eye button locks and unlocks them, and
-closing the picker puts the lock back as it was. General → **Skin** → **Font outline** sets whether the skin outlines all text, only the bars' numbers (the default), or none.
+its own opens it. `/at skin` opens the skin picker again whenever you want another look. Hover over a
+skin or select it and the bars show it at once; **Apply** keeps it. The picker previews on the unlocked
+bars: if they're locked, it unlocks them so you can see the skin on them, its eye button locks and
+unlocks them, and closing the picker puts the lock back as it was. General → **Skin** → **Font outline** sets whether the skin outlines all text, only the bars' numbers (the default), or none.
 `/at help` prints the full command list.
 
 ## How the bar works
