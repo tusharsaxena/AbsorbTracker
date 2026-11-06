@@ -49,8 +49,8 @@ TOC manifest is keyed by folder, and a vendored copy cannot know which folder it
 `core/SkinSetup.lua` is the tenth: `LibKa0s-Skin-1.0` takes an **owner** registration (the folder
 name, a label and this addon's read and write seams) rather than a descriptor, and hands back the
 owner's facade, `NS.Skin` (see [Skins](#skins)).
-**Fourteen majors bound by name** of the twenty `libs/LibKa0s/` vendors (the files `libs/LibKa0s/LibKa0s.xml` lists); Compat,
-Pool, Item, Glow, Toast and Charts are registered and unread. `LibKa0s-Sim-1.0` is bound by `modules/Sim.lua`
+**Fourteen majors bound by name** of the twenty-one `libs/LibKa0s/` vendors (the files `libs/LibKa0s/LibKa0s.xml` lists); Compat,
+Pool, Item, Glow, Toast, Charts and IconBrowser are registered and unread. `LibKa0s-Sim-1.0` is bound by `modules/Sim.lua`
 (`NS.Sim`, the `/at sim` session). `LibKa0s-Widgets-1.0` has its own seam,
 `core/WidgetsSetup.lua`, which resolves the major once and publishes `NS.Widgets`: the live major, or a
 stub carrying exactly the two members the addon reaches (`DragHandle` answering nil, so no strip is
