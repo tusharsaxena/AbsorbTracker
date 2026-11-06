@@ -407,7 +407,7 @@ The instrumentation harness was the first thing to leave this addon for a shared
 one of five. `LibKa0s` is a Ka0s-owned library, vendored into `libs/LibKa0s/` the same way Ace3 is —
 copied in, not depended on at runtime. The payload now ships **twenty-one majors**, across the files
 load-ordered by `libs/LibKa0s/LibKa0s.xml`; the five that take a descriptor are carried by
-`Core.lua`, `DebugLog.lua`, `Slash.lua`, `Options.lua` (+ nineteen attach files, `OptionsRegistry.lua`
+`Core.lua` (+ `CorePixel.lua`), `DebugLog.lua`, `Slash.lua`, `Options.lua` (+ nineteen attach files, `OptionsRegistry.lua`
 through `OptionsMedia.lua`) and `Perf.lua` (+ `PerfSampler.lua`, `PerfCommands.lua` and `PerfPanel.lua`); `Lifecycle.lua`
 and `Launcher.lua` take a descriptor too, and arrived after the five extractions this section is named for.
 `LibKa0s-Core-1.0` is the root; every other major declares a `NEEDS_CORE` guard and, if Core is absent or too old, `return`
