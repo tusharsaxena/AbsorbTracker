@@ -122,7 +122,7 @@ they exist is not obvious from the code.
   `MakeCloseButton` exactly once" rule binds the close controls an addon builds on its own windows,
   and this addon builds none: it has no host window, and every window it shows is a library's. The
   debug console and its copy window are `LibKa0s-DebugLog-1.0`'s and `LibKa0s-Widgets-1.0`'s, and
-  the perf panel's close control is `LibKa0s-Perf-1.0`'s own arm — `core/PerfSetup.lua:113-126`
+  the perf panel's close control is `LibKa0s-Perf-1.0`'s own arm — the comment on the descriptor in `core/PerfSetup.lua`
   records why the descriptor carries no `decorate` hook. The old `NS.MakeCloseButton` seam came out
   at `f445da8`; the only surviving name is the degraded stub's field in `core/DebugLogSetup.lua`.
   Re-check if the addon ever grows a window of its own.
