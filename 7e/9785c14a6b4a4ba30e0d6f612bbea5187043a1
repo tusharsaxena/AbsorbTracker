@@ -1,0 +1,1 @@
+V89 verify: PASS - payloads match v1.89.0 (kit empty diff, lib only undeclared icons; 13 declared icons present), provenance v1.89.0 + icons line, Kit 51, bundle 01/02/03/05 per plan, no issue; luacheck 0 warnings / 0 errors in 85 files; tests 1062 passed, 0 failed, 1 skipped, 1063 total
