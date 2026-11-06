@@ -14,8 +14,8 @@ duration. The trigger fires on either half.
 
 ## Registration
 
-`Sl:Register` (`settings/Slash.lua:846`) registers both names through AceConsole-3.0, called once
-from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua:57`, guarded so a load where
+`Sl:Register` (`settings/Slash.lua`) registers both names through AceConsole-3.0, called once
+from the AceAddon `OnInitialize` (`core/AbsorbTracker.lua`, `addon:OnInitialize`, guarded so a load where
 `settings/Slash.lua` never ran degrades rather than errors):
 
 ```lua
@@ -30,7 +30,7 @@ to `DEFAULT_CHAT_FRAME`.
 
 ## The `COMMANDS` table
 
-`NS.COMMANDS` (`settings/Slash.lua:71`) is an ordered list of positional triples
+`NS.COMMANDS` (`settings/Slash.lua`) is an ordered list of positional triples
 `{name, description, fn(rest)}` — the shape the library reads as `entry[1]` / `[2]` / `[3]`. A table
 of named fields is silently invisible to it. The handler takes `rest` **alone**, never `self` plus
 `rest`.
@@ -142,7 +142,7 @@ The library lowercases only the verb; the remainder is passed through untouched.
 here, because every schema path in this addon is camelCase and per-unit —
 `/at set units.target.barWidth 250` is the shipped form, and folding the whole line would address a
 row that does not exist. `/at profile` repeats the rule one level down: `runProfile`
-(`settings/Slash.lua:617`) splits through the library's `SlashLib.SplitVerb` (Slash minor 19), which
+(`settings/Slash.lua`, `runProfile`) splits through the library's `SlashLib.SplitVerb` (Slash minor 19), which
 lowercases the sub-verb and leaves its argument alone, because AceDB profile names are
 case-sensitive and a folded name deletes or switches to the wrong profile. `/at debug` and
 `/at toggle` split through the same function. With the library absent the stub carries the file's
@@ -189,14 +189,14 @@ Five verbs parse a remainder of their own. `profile` and `debug` dispatch throug
 own (`PROFILE_VERBS`, `DEBUG_VERBS`), `perf` and `sim` hand their remainder on, and `toggle` parses one word;
 `profile` is the one this page is really about.
 
-**`profile`** — `runProfile` (`settings/Slash.lua:617`) reads the first word of the remainder,
+**`profile`** — `runProfile` (`settings/Slash.lua`) reads the first word of the remainder,
 lowercased, and picks one of three routes (spec S3 of the 2026-09-29 profile-verb run):
 
 1. **Nothing**: `cli:CliProfile("")` prints the library's list (header `Profiles`, one row per
    profile sorted case-insensitively, the current one marked `(current)`, then the hint row
    `/at profile <name> switches profile`), and then this tree's own sub-help.
-2. **A sub-verb**, matched case-insensitively: `PROFILE_VERBS` (`:548`), a table keyed by the
-   lowercased sub-verb, built once at load and dispatched at `:634`.
+2. **A sub-verb**, matched case-insensitively: `PROFILE_VERBS`, a table keyed by the
+   lowercased sub-verb, built once at load and dispatched in `runProfile`.
 3. **Anything else**: `cli:CliProfile(rest)` with the whole remainder, case, inner spaces and one
    pair of surrounding quotes as the library parses them. An existing profile is switched to, the
    current one answers `Already on profile '<name>'.`, a switch in combat is refused, and a name
@@ -213,9 +213,9 @@ lowercased, and picks one of three routes (spec S3 of the 2026-09-29 profile-ver
 | `delete <name>` | yes | Refuses the current profile; otherwise `db:DeleteProfile(name, true)` and prints its own line. |
 | `reset` | no | `db:ResetProfile()`. |
 
-The sub-help is built from `PROFILE_HELP` (`:504`), whose row order is the contract — the table is
+The sub-help is built from `PROFILE_HELP`, whose row order is the contract — the table is
 what the help iterates, so the two cannot drift. Its first row is the bare-name form. The four
-name-taking verbs share one guard, `needsName(verb, fn)` (`:524`), which wraps at file load rather
+name-taking verbs share one guard, `needsName(verb, fn)`, which wraps at file load rather
 than at dispatch: a missing name prints `Usage: /at profile <verb> <name>` and the handler never
 runs, and a dispatch allocates nothing. Adding a sub-verb is one `PROFILE_VERBS` entry plus one
 `PROFILE_HELP` row. The descriptor's `profiles` field hands the library `NS.db`, asked at call time.
@@ -249,8 +249,8 @@ anybody. So bare `toggle` turns everything off if anything is on, and everything
 
 ## The mirror note
 
-`MirrorNote` (`settings/Slash.lua:58`) is handed to the library through `cli:SetRowAnnotator`
-(`:819`). It appends `(mirrored — the bar shows Player's appearance)` in gray to a row whose unit is
+`MirrorNote` (`settings/Slash.lua`) is handed to the library through `cli:SetRowAnnotator`
+(`cli:SetRowAnnotator(MirrorNote)`, at file scope). It appends `(mirrored — the bar shows Player's appearance)` in gray to a row whose unit is
 currently mirroring, and it exists because `/at get` and `/at set` resolve through `NS.GetSetting`,
 which walks the raw profile path and never consults `NS.Units.Get`. They therefore read and write the
 unit's **stored** value, not the mirror-resolved one. That is deliberate and self-consistent — it is
@@ -285,7 +285,7 @@ generic dispatcher knows nothing about.
 ## When the library is absent
 
 `/at` is registered unconditionally, so something has to answer it. With `LibKa0s-Slash-1.0` missing,
-`settings/Slash.lua:656` installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
+`settings/Slash.lua`'s `if not SlashLib then` block installs a stand-in in the shape slash-commands-§1 prescribes: dispatch and
 a plain help index still render, a bare `/at` still runs the `config` verb exactly as the library
 does, the host verbs — which never went to the library — keep working untouched, and each schema verb
 (`list`, `get`, `set`, `reset`, `resetall`) prints the collection's library-absent line through the
@@ -311,7 +311,7 @@ beside it: the value is published as `Sl.__STUB_DISABLED_LINE_FORMAT` and `tests
 compares it with the live library's constant through `Kit.assertLibraryConstant`, so a re-worded
 library line turns the suite red rather than leaving a stale sentence in the stub.
 
-The stub and the real instance are both file-scope locals, which is why `Sl.__cli` (`:826`) is
+The stub and the real instance are both file-scope locals, which is why `Sl.__cli` is
 published under the same `__` convention the options helpers use —
 `tests/test_surface_parity.lua` is its only reader, and a stub surface that cannot be reached cannot
 be compared against the one it stands in for.

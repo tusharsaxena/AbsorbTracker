@@ -21,12 +21,12 @@ Three groups, and most readers need exactly one:
 ## Runtime (in-game)
 
 **World of Warcraft (Retail)** at the interface the TOC declares — `## Interface: 120105`
-(`AbsorbTracker.toc:1`). That is the whole runtime requirement.
+(`AbsorbTracker.toc`, its `## Interface:` line). That is the whole runtime requirement.
 
-The addon declares **no** `## Dependencies` line. Its `## OptionalDeps` (`AbsorbTracker.toc:8`) reads
+The addon declares **no** `## Dependencies` line. Its `## OptionalDeps` (`AbsorbTracker.toc`) reads
 `Ace3, LibStub, CallbackHandler-1.0, LibSharedMedia-3.0, LibDataBroker-1.1, LibDBIcon-1.0`, and
 **every one of those is vendored** under `libs/` and listed in the TOC's `# Libraries` block
-(`AbsorbTracker.toc:15-32`), alongside `LibKa0s` (`libs\LibKa0s\LibKa0s.xml`). `OptionalDeps` exists
+(`AbsorbTracker.toc`), alongside `LibKa0s` (`libs\LibKa0s\LibKa0s.xml`). `OptionalDeps` exists
 so the client loads a *standalone* copy first when the user happens to have one; it is not an
 install instruction. **A player installs the addon and nothing else** (`library-stack`).
 
@@ -40,9 +40,9 @@ The headless harness loads every source file into a sandboxed environment with *
 was **removed in Lua 5.2**:
 
 ```
-tests/_kit/loader.lua:72    setfenv(chunk, makeEnv(mocks))
-tests/_kit/loader.lua:89    local chunk, err = loadstring(src, chunkname)
-tests/_kit/loader.lua:91    setfenv(chunk, makeEnv(mocks))
+tests/_kit/loader.lua  Loader.load        setfenv(chunk, makeEnv(mocks))
+tests/_kit/loader.lua  Loader.loadSource  local chunk, err = loadstring(src, chunkname)
+tests/_kit/loader.lua  Loader.loadSource  setfenv(chunk, makeEnv(mocks))
 ```
 
 `loadstring` went the same way in 5.2. So "5.2 will probably work" is **false**: `lua tests/run.lua`
@@ -115,7 +115,7 @@ some keywords, WowAddonStandards#6), so it is not the suite: use it only to conf
 installed. The command, the tool version, and the date are stamped in the report's own generated header.
 
 The headless suite reaches for it too, without needing it: the vendored
-`tests/_kit/test_lizard_sighted.lua:187` runs lizard end-to-end over a sanitized fixture when
+`tests/_kit/test_lizard_sighted.lua` runs lizard end-to-end over a sanitized fixture when
 `command -v lizard` finds it, and skips that one case, with its reason, when it does not.
 
 **Install it with `pipx`, not `pip`.** Ubuntu 24.04 marks its system Python `EXTERNALLY-MANAGED`
@@ -157,10 +157,10 @@ Four gates read the tracked file set through `git`, and each one **fails**, rath
 when it cannot run it:
 
 ```
-tests/test_lintconfig.lua:211     io.popen("git ls-files -z '*.lua'")
-tests/_kit/test_eol.lua:130       io.popen('git ls-files -z | git check-attr text eol --stdin -z 2>/dev/null')
-tests/_kit/test_layout_cap.lua:171  io.popen("git ls-files -z")
-tests/_kit/test_prose.lua:379     io.popen("git ls-files -z")
+tests/test_lintconfig.lua       trackedLua     io.popen("git ls-files -z '*.lua'")
+tests/_kit/test_eol.lua         trackedAttrs   io.popen('git ls-files -z | git check-attr text eol --stdin -z 2>/dev/null')
+tests/_kit/test_layout_cap.lua  trackedFiles   io.popen("git ls-files -z")
+tests/_kit/test_prose.lua       trackedPaths   io.popen("git ls-files -z")
 ```
 
 So `lua tests/run.lua` is not green outside a git checkout, or on a machine without `git`.
@@ -171,12 +171,12 @@ The vendor-sync gate shells out to `git` to prove the vendored `libs/LibKa0s/` a
 checks, at `tests/_kit/vendor_sync.lua`:
 
 ```
-tests/_kit/vendor_sync.lua:441   io.popen(('git -C "%s" %s 2>/dev/null'):format(SIBLING, args), "r")
+tests/_kit/vendor_sync.lua  gitOut   io.popen(('git -C "%s" %s 2>/dev/null'):format(SIBLING, args), "r")
 ```
 
 It runs `git show` and `git ls-tree` against a **sibling checkout at `../LibKa0s`**
-(`tests/_kit/vendor_sync.lua:89`, resolved at `:393`), and `git ls-files -s` against this repo
-(`:655`, `:682`) to read the runner's recorded mode.
+(`tests/_kit/vendor_sync.lua`, `DEFAULT_SIBLING`, resolved in `resolveOpts`), and `git ls-files -s` against this repo
+(its `rootGit`) to read the runner's recorded mode.
 
 ```sh
 sudo apt install -y git
@@ -188,7 +188,7 @@ sudo apt install -y git
 
 The two payload-comparison cases compare against `../LibKa0s`. When that directory is not there,
 they report a **skip carrying its reason** — deliberately, and named in the run rather than hidden
-(`tests/_kit/vendor_sync.lua:542`, `T.skip("… the vendored payload was NOT compared")`). The third
+(`tests/_kit/vendor_sync.lua`, `siblingTag`'s `T.skip("… the vendored payload was NOT compared")`). The third
 vendor-sync case, *the automated-test runner is recorded executable (100755)* (kit revision 16),
 reads this repo's own git index and needs no sibling, so it runs either way. An
 earlier copy returned early instead, which registered as PASS for a comparison that never ran.
@@ -210,22 +210,22 @@ Lua 5.1 has no directory API and this repo deliberately does not depend on LuaFi
 places list directories by shelling out:
 
 ```
-tests/test_docs.lua:42           io.popen("ls -1 " .. pattern .. " 2>/dev/null")
-tests/_kit/vendor_sync.lua:145   collect(('cd "%s" 2>/dev/null && find . -type f 2>/dev/null'):format(dir))
-tests/_kit/inventory.lua:190     collect(('ls -A "%s" 2>/dev/null'):format(dir))
+tests/test_docs.lua         glob        io.popen("ls -1 " .. pattern .. " 2>/dev/null")
+tests/_kit/vendor_sync.lua  localNames  collect(('cd "%s" 2>/dev/null && find . -type f 2>/dev/null'):format(dir))
+tests/_kit/inventory.lua    listDir     collect(('ls -A "%s" 2>/dev/null'):format(dir))
 ```
 
 The comparator recurses, so it lists with `find`, not `ls` — a vendored payload has subdirectories
 (`libs/LibKa0s/media/fonts/`, `media/icons/`) and a flat listing would report every file in them as
-missing. `tests/_kit/vendor_sync.lua:151` falls back to `dir /b /s /a-d` for `cmd.exe`, so that suite
-survives a Windows shell, and the kit's suite inventory (`tests/_kit/inventory.lua:191`) likewise falls
+missing. `tests/_kit/vendor_sync.lua`'s `localNames` falls back to `dir /b /s /a-d` for `cmd.exe`, so that suite
+survives a Windows shell, and the kit's suite inventory (`tests/_kit/inventory.lua`'s `listDir`) likewise falls
 back to `dir /b` for `cmd.exe`; `tests/test_docs.lua` does not, and needs a POSIX shell. Under WSL2 you
 already have both and there is nothing to install.
 
-The kit's runner also bounds every run through that shell: `tests/_kit/framework.lua:131` sets
-`ulimit -v`, `:123-124` prefixes `timeout --foreground` when `command -v timeout` finds it, and
-`:126-129` wraps the outermost run in `systemd-run --user --scope` when a user systemd answers. It
-sizes `--jobs auto` with `nproc` (or `sysctl -n hw.ncpu`) at `:483`. Every one of these is optional:
+The kit's runner also bounds every run through that shell: `tests/_kit/framework.lua`'s `guardedCommand` sets
+`ulimit -v`, prefixes `timeout --foreground` when `command -v timeout` finds it, and
+wraps the outermost run in `systemd-run --user --scope` when a user systemd answers. It
+sizes `--jobs auto` with `nproc` (or `sysctl -n hw.ncpu`) in `cpuCount`. Every one of these is optional:
 a missing tool drops only its own bound, and Ubuntu under WSL2 already has all but possibly
 `systemd-run`.
 
@@ -247,7 +247,7 @@ you are likely to be missing it. The second command uses process substitution, s
 
 Recorded so nobody installs them by mistake:
 
-- **LuaFileSystem** — *not* used. `tests/_kit/vendor_sync.lua:126-127` says so explicitly and shells out
+- **LuaFileSystem** — *not* used. `tests/_kit/vendor_sync.lua` says so explicitly (the comment above `localNames`) and shells out
   instead. `luacheck` pulls LFS in as its own dependency; that is LuaRocks' business, not this
   addon's.
 - **A CI runner** — there is none. No GitHub Action, no dynamic badge; every gate is local and

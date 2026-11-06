@@ -346,7 +346,7 @@ Two consequences worth remembering:
 ## No structural registry
 
 **This addon holds no structural registry** in architecture-§5's sense: the tracked units
-are the fixed `Units.LIST` (`player`, `target`, `focus`, `core/Units.lua:16`), which the player
+are the fixed `Units.LIST` (`player`, `target`, `focus`, `core/Units.lua`), which the player
 cannot add to or remove from, and `units.<unit>.*` is a fixed-key map the schema rows address
 directly. So there is no registry writer and no registry load pass to name here. The seeding of
 `units[unit]` in `core/Database.lua` (`MigrateProfileToV3`, `backfillUnitKeys`) is savedvariables-§1

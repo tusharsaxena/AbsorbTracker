@@ -498,15 +498,15 @@ each composed media row at `H.LSMValues(kind)`, and **not** in `libs/` — a dow
 vendored file is overwritten by the next re-vendor and takes the fix with it, so a defect there is
 reported upstream and fixed there. That is what happened: minor 3 reads `O.LSMValues(kind)` once at
 row-declaration time and assigns the deferred reader straight into `values`
-(`libs/LibKa0s/OptionsCompose.lua:712`, `:760`, `:790`), so `enumList`'s single unwrap now lands on a
+(`libs/LibKa0s/OptionsCompose.lua`: `O.FontGroup`, `O.BorderGroup`, `O.BarGroup`), so `enumList`'s single unwrap now lands on a
 table. The workaround and its three call sites were deleted in the v1.26.0 re-vendor.
 
 The **contract** that replaced it is worth knowing, because breaking it fails silently rather than
 loudly: a host supplying its own `O.LSMValues` must return **a function**
-(`libs/LibKa0s/OptionsCompose.lua:382-389`). Hand back a table instead and nothing errors — the row
+(the `O.LSMValues` CONTRACT comment in `libs/LibKa0s/OptionsCompose.lua`). Hand back a table instead and nothing errors — the row
 simply freezes its media list at whatever was registered when the file loaded, so media registered
 later never appears. This addon's `Helpers.LSMValues` returns a deferred closure and
-`tests/test_data.lua:208` pins that. `tests/test_schema.lua` still asserts that every row carrying a
+`tests/test_data.lua` pins that ("LSMValues yields a self-keyed map of the live LSM hash table"). `tests/test_schema.lua` still asserts that every row carrying a
 `dialogControl` answers a **populated** list; it is now the acceptance test for the upstream fix
 rather than the guard on a local patch.
 
