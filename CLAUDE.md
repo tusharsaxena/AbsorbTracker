@@ -44,5 +44,5 @@ addon serves Retail and WoW Forever, so the suite runs under both kit profiles, 
 auto-stage/commit/push and never bump the version without an explicit instruction — see
 `docs/testing.md`.
 
-Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.93.0 (MIT).
+Bundles [LibKa0s](https://github.com/tusharsaxena/LibKa0s) v1.94.0 (MIT).
 LibKa0s icons: chevron-down, chevron-up, clear, close, confirm, copy, eye, help, info, move, reset, settings, volume-high.

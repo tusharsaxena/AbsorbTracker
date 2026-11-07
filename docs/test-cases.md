@@ -908,8 +908,8 @@ Total.
 ### test_skinsetup.lua (17)
 
 - Skin seam: the owner is the folder name, and NS.Skin is its facade
-- Skin seam: the read answers Ka0s Default before the profile store exists
-- Skin seam: the nine skin keys default to Ka0s Default, as skip-render rows on General
+- Skin seam: the read answers the client's default skin before the profile store exists
+- Skin seam: the nine skin keys default to the client's default skin, as skip-render rows on General
 - Skin seam: the skin row's values are every registered skin, in the library's order
 - Skin seam: /at set refuses a skin that is not registered and applies one that is
 - Skin seam: the Skin tab is General's last, and opens

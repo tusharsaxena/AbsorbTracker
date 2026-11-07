@@ -1,5 +1,8 @@
 local T = _G.AT_TEST
 local NS = T.NS
+-- The client's default skin under the active kit profile (LibKa0s v1.94.0, skinning-§2): WoW Forever
+-- on forever, Ka0s Default on retail. Pinned from the profile, never read back from the addon.
+local CLIENT_SKIN = dofile("tests/_kit/mock_client.lua").current() == "forever" and "forever" or "ka0s"
 local test, assertEqual, assertTrue = T.test, T.assertEqual, T.assertTrue
 
 -- THE SETTINGS-LAYOUT GUARD (item 020, AT-LY). The layout pass moves, regroups and relabels rows;
@@ -33,7 +36,7 @@ local PINNED = {
   ["skin.outline"] = { type = "string", page = "general", default = "hud" },
   ["skin.pickerSeen"] = { type = "bool", page = "general", default = false },
   ["sim.stepDelay"] = { type = "number", page = "general", default = 1, min = 0.5, max = 10, step = 0.5 },
-  ["skin.skin"] = { type = "string", page = "general", default = "ka0s" },
+  ["skin.skin"] = { type = "string", page = "general", default = CLIENT_SKIN },
   ["skin.source"] = { type = "string", page = "general", default = "ka0s" },
   ["skin.texture"] = { type = "string", page = "general", default = "" },
   ["state.debugConsole"] = { type = "bool", page = "general", default = nil },

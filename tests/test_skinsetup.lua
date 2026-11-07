@@ -17,6 +17,9 @@ local test, assertEqual, assertTrue = T.test, T.assertEqual, T.assertTrue
 
 local Skin = mocks.LibStub("LibKa0s-Skin-1.0")
 local OWNER = "AbsorbTracker"
+-- The client's default skin under the active kit profile (LibKa0s v1.94.0, skinning-§2): WoW Forever
+-- on forever, Ka0s Default on retail. Pinned from the profile, never read back from the addon.
+local CLIENT_SKIN = dofile("tests/_kit/mock_client.lua").current() == "forever" and "forever" or "ka0s"
 
 -- ONE listener for the whole file: the library keeps a listener for the session, so each case
 -- resets the counter instead of registering again.
@@ -103,7 +106,7 @@ test("Skin seam: the owner is the folder name, and NS.Skin is its facade", funct
   assertEqual(Skin:OwnerLabel(OWNER), NS.Constants.BRAND, "the copy confirmation names the brand")
 end)
 
-test("Skin seam: the read answers Ka0s Default before the profile store exists", function()
+test("Skin seam: the read answers the client's default skin before the profile store exists", function()
   -- RegisterOwner calls `get` at FILE LOAD, before NS:InitDB; a getter that raised there would be a
   -- visible Lua error on every login.
   local db = NS.db
@@ -113,7 +116,7 @@ test("Skin seam: the read answers Ka0s Default before the profile store exists",
   NS.db = db
   assertTrue(ok, "NS.SkinChoice raised without a store: " .. tostring(source))
   assertEqual(source, "ka0s")
-  assertEqual(skin, "ka0s")
+  assertEqual(skin, CLIENT_SKIN)
   assertTrue(ok2, "NS.SkinOverride raised without a store: " .. tostring(font))
   assertEqual(font, false)
   assertEqual(texture, false)
@@ -121,12 +124,12 @@ end)
 
 -- ── the keys and the rows ────────────────────────────────────────────────────────────────────
 
-test("Skin seam: the nine skin keys default to Ka0s Default, as skip-render rows on General", function()
+test("Skin seam: the nine skin keys default to the client's default skin, as skip-render rows on General", function()
   -- red under: a default other than today's look, or a row that renders itself on top of the
   -- library's tab. pickerSeen false on every profile is the rollout's O3.
   local d = NS.defaults.profile.skin
   assertEqual(d.source, "ka0s")
-  assertEqual(d.skin, "ka0s")
+  assertEqual(d.skin, CLIENT_SKIN, "WoW Forever on Forever, Ka0s Default on Retail")
   assertEqual(d.ignorePanel, true, "the settings panel stays the client's on a new profile")
   assertEqual(d.ignoreFonts, false)
   assertEqual(d.font, "")

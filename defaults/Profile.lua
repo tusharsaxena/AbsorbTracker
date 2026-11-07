@@ -136,7 +136,8 @@ NS.defaults.profile = {
     -- false on every profile, old and new, so every player sees it once (the rollout's O3). New keys with defaults, so AceDB merges them
     -- into every existing profile and no migration is owed.
     skin = {
-        source = "ka0s", skin = "ka0s", ignorePanel = true, ignoreFonts = false,
+        -- The client's default skin: WoW Forever on the Forever client, Ka0s Default on Retail (skinning-§2).
+        source = "ka0s", skin = NS.DEFAULT_SKIN or "ka0s", ignorePanel = true, ignoreFonts = false,
         font = "", texture = "", outline = "hud", pickerSeen = false,
         -- This profile has been through the one step onto the skin (core/Database.lua,
         -- NS.ResetProfileToSkin). False on every profile until it has; the step sets it.

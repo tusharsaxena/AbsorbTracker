@@ -13,6 +13,19 @@
 
 local T = _G.AT_TEST
 local NS = T.NS
+
+-- Ka0s Default by name, for a case that pins its values: under the forever kit profile the client's
+-- default skin is WoW Forever (LibKa0s v1.94.0, Skin minor 18), so the boot wears that.
+local function testOnKa0s(name, fn)
+  T.test(name, function()
+    local Skin = T.mocks.LibStub("LibKa0s-Skin-1.0")
+    local source, skin = Skin:GetChoice("AbsorbTracker")
+    Skin:SetChoice("AbsorbTracker", "ka0s", "ka0s")
+    local ok, err = pcall(fn)
+    Skin:SetChoice("AbsorbTracker", source, skin)
+    if not ok then error(err, 0) end
+  end)
+end
 local test, assertEqual, assertTrue, assertFalse, assertNil =
   T.test, T.assertEqual, T.assertTrue, T.assertFalse, T.assertNil
 
@@ -443,7 +456,7 @@ test("launcher tooltip: the version is the TOC's, and absent it the title is the
   end)
 end)
 
-test("launcher tooltip: Locked follows the lock on every show, green Yes and red No", function()
+testOnKa0s("launcher tooltip: Locked follows the lock on every show, green Yes and red No", function()
   -- `isLocked` reads the same `locked` value the Lock frame checkbox and the menu's Locked entry
   -- write, asked on each show, so a click and the next hover cannot disagree.
   --
@@ -475,7 +488,7 @@ test("launcher tooltip: no Test mode line, because this addon has no Test mode",
   end
 end)
 
-test("launcher tooltip: disabled, it still draws, says No, and the hints do not change", function()
+testOnKa0s("launcher tooltip: disabled, it still draws, says No, and the hints do not change", function()
   -- The owner's ruling (M5): the tooltip shows WHILE DISABLED, when a player most needs to ask.
   -- Since Launcher minor 4 neither button is gated, so the hints read the same in either state.
   --

@@ -1,5 +1,18 @@
 local T = _G.AT_TEST
 local NS = T.NS
+
+-- Ka0s Default by name, for a case that pins its values: under the forever kit profile the client's
+-- default skin is WoW Forever (LibKa0s v1.94.0, Skin minor 18), so the boot wears that.
+local function testOnKa0s(name, fn)
+  T.test(name, function()
+    local Skin = T.mocks.LibStub("LibKa0s-Skin-1.0")
+    local source, skin = Skin:GetChoice("AbsorbTracker")
+    Skin:SetChoice("AbsorbTracker", "ka0s", "ka0s")
+    local ok, err = pcall(fn)
+    Skin:SetChoice("AbsorbTracker", source, skin)
+    if not ok then error(err, 0) end
+  end)
+end
 local test, assertEqual, assertTrue, assertFalse =
   T.test, T.assertEqual, T.assertTrue, T.assertFalse
 
@@ -649,7 +662,7 @@ test("re-locking in combat is always allowed", function()
     "the combat refusal is one-directional; locking mid-fight must never be blocked")
 end)
 
-test("UpdateBarAppearance re-applies the font from the profile", function()
+testOnKa0s("UpdateBarAppearance re-applies the font from the profile", function()
   local calls
   withUnitSetting("player", "fontSize", 17, function()
     withUnitSetting("player", "fontFlags", "THICKOUTLINE", function()
