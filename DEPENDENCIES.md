@@ -12,7 +12,7 @@ Three groups, and most readers need exactly one:
 
 | Group | Who needs it | Short answer |
 |---|---|---|
-| [Runtime (in-game)](#runtime-in-game) | Players | World of Warcraft (Retail). Nothing else. |
+| [Runtime (in-game)](#runtime-in-game) | Players | World of Warcraft, Retail or WoW Forever. Nothing else. |
 | [Development](#development) | Contributors | Lua **5.1**, `luacheck`, `lizard`, `ka0s-bounded`, `git`, a POSIX shell. |
 | [Release / assets](#release--assets) | Nobody, locally | No local packaging or asset toolchain exists in this repo. |
 
@@ -20,8 +20,9 @@ Three groups, and most readers need exactly one:
 
 ## Runtime (in-game)
 
-**World of Warcraft (Retail)** at the interface the TOC declares — `## Interface: 120105`
-(`AbsorbTracker.toc`, its `## Interface:` line). That is the whole runtime requirement.
+**World of Warcraft, Retail or WoW Forever,** at the interface the TOC declares for that client:
+`## Interface: 120105, 16001`, Retail's number first and Forever's second (`AbsorbTracker.toc`, its
+`## Interface:` line; toc-file-§3). One codebase serves both clients. That is the whole runtime requirement.
 
 The addon declares **no** `## Dependencies` line. Its `## OptionalDeps` (`AbsorbTracker.toc`) reads
 `Ace3, LibStub, CallbackHandler-1.0, LibSharedMedia-3.0, LibDataBroker-1.1, LibDBIcon-1.0`, and

@@ -313,15 +313,15 @@ The gate lives **inside** `OpenOptionsPanel` (not just the `/at config` slash di
 
 `libs/LibKa0s/Options.lua` captures `mainCategory:GetID()` at parent registration into `mainCategoryID`; `OpenOptionsPanel` calls `Settings.OpenToCategory(mainCategoryID)` so `/at config` always lands on the parent (about page) and then calls `expandMainCategory()` to expand the sub-page tree so every sub-page is visible at once. `expandMainCategory` reaches into `SettingsPanel:GetCategoryList()` private API; the whole call is wrapped in `pcall` so a future Blizzard refactor that renames or removes those internals degrades gracefully (the panel still opens, the tree just doesn't auto-expand).
 
-## Interface line — track the current retail build
+## Interface line — track both clients' builds
 
-`AbsorbTracker.toc` declares a single retail build number:
+`AbsorbTracker.toc` declares two build numbers, Retail's first and WoW Forever's second (toc-file-§3):
 
 ```
-## Interface: 120105
+## Interface: 120105, 16001
 ```
 
-The value is `(major * 10000) + (minor * 100) + patch` for the current Live Servers (Retail) patch. AbsorbTracker targets the current Midnight build. **When a new patch ships, replace the number with the new build** so the addon reads as up-to-date in the AddOn list. The `## Interface:` line accepts a comma-separated list on retail clients 10.0+ if you ever need to declare compatibility with several builds at once, but the addon tracks a single current build.
+Each value is `(major * 10000) + (minor * 100) + patch` for that client's Live patch: Retail Midnight 12.1.5 and Forever 1.60.1. Each client picks the number that matches it. **When either client ships a patch, replace that client's number** (`/dev-copilot:wow-bump-interface` bumps them per client) so the addon reads as up to date in that client's AddOn list, and move the README `[wow]` badge in the same change.
 
 If a patch breaks the addon, note the regression in the README's troubleshooting section.
 

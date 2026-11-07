@@ -13,7 +13,7 @@ What's in scope, what's out, and the resolved decisions that shaped the contract
 - **Blizzard Settings panel** — the About parent page and three sub-pages (General, Appearance, Profiles) — plus a matching `/at` slash CLI for every panel-shaped operation via `/at list / get / set / reset / resetall`.
 - **A made-up absorb fight on the bars** (`/at sim`, the Master controls **Sim mode** box, the launcher's Sim mode entry): `LibKa0s-Sim-1.0`'s step window over three scripted scenarios, painted through the hold preview, with nothing stored.
 - **Cyan `[AT]` chat prefix** on all addon output.
-- **Retail Midnight only** (Interface 120105). English only.
+- **Retail Midnight and WoW Forever** (Interface 120105, 16001), from one codebase. English only.
 
 ## Out of scope
 

@@ -10,6 +10,7 @@ section.
 | Check | Command | Expected |
 |-------|---------|----------|
 | Unit tests | `lua tests/run.lua` | all suites green (exits non-zero on any failure) |
+| Unit tests, as WoW Forever | `KA0S_KIT_CLIENT=forever lua tests/run.lua` | the same, under the kit's `forever` profile; the addon serves both clients, so both runs gate (clients-§6, testing) |
 | Lint | `~/.claude/dev-copilot/bin/ka0s-bounded luacheck .` | `0 warnings / 0 errors` |
 | Syntax-check one file | `luac -p <path/to/file.lua>` | no output (clean parse) |
 | In-game smoke tests | manual | see [smoke-tests.md](./smoke-tests.md) |
@@ -86,15 +87,19 @@ All four out-of-game suites go through one vendored runner, and every run is rec
 ```sh
 tests/_kit/run-automated-tests.sh                            # all four, writes a bundle
 tests/_kit/run-automated-tests.sh --suite complexity          # a subset
-tests/_kit/run-automated-tests.sh --suite lint --suite tests --no-bundle   # the green gate; writes nothing
+tests/_kit/run-automated-tests.sh --suite lint --suite tests --no-bundle   # the green gate, Retail; writes nothing
+KA0S_KIT_CLIENT=forever tests/_kit/run-automated-tests.sh --suite tests --no-bundle   # and as WoW Forever
 ```
+
+The runner passes the environment through, so `KA0S_KIT_CLIENT` picks the kit profile for its `tests` suite.
+The addon serves Retail and WoW Forever, so the `tests` suite gates under **both** profiles (clients-§6).
 
 There are **two checkpoints**, and a suite's answer differs between them, so both are named:
 
 | Suite | Command | Run + commit | Release tag |
 |---|---|---|---|
 | `lint` | `~/.claude/dev-copilot/bin/ka0s-bounded luacheck .` | **gates** | **gates** |
-| `tests` | `lua tests/run.lua` | **gates** | **gates** |
+| `tests` | `lua tests/run.lua`, then `KA0S_KIT_CLIENT=forever lua tests/run.lua` | **gates**, both profiles | **gates**, both profiles |
 | `perf` | `lua tests/perf.lua` | no — recorded | **gates** — `pass` required |
 | `complexity` | `bash tests/_kit/run-automated-tests.sh --suite complexity` (lizard over the kit's sighted shadow, with function-count parity; kit revision 35) | no — recorded | **gates** — `pass`, zero functions above CCN 15 |
 

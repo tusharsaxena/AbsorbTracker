@@ -21,8 +21,8 @@ the bar's **own** unit (options-ui-§17); position and the per-unit `enabled` fl
 mirrored, whatever the mirror flag says. The two ways of bringing a unit in line with the player are
 distinct: **mirror** is a live link (`units.<unit>.mirror = true` — the unit re-reads the player's
 settings on every paint), **copy** is a one-shot snapshot (`NS.Units.CopyFromPlayer(unit)` —
-deep-copies once, then the unit diverges). Position is saved per-profile via AceDB. Retail Midnight
-only (Interface 120105), English only.
+deep-copies once, then the unit diverges). Position is saved per-profile via AceDB. Retail Midnight and
+WoW Forever from one codebase (Interface 120105, 16001), English only.
 
 The addon is an **AceAddon** (`core/AbsorbTracker.lua`) mixing in AceEvent / AceTimer / AceConsole.
 `NS`, the second of the two varargs the client hands every TOC-loaded file, is the shared private
@@ -95,6 +95,15 @@ time, guarded with `if NS.X then … end` where the load-order coupling is soft.
 | `settings/UnitPanel.lua` | The two pieces of the old toolkit that did not generalize. **Decorates** `NS.Helpers` — which *is* the library instance — rather than sitting beside it, so page files call `H.RenderUnitPanel` and `H.RenderSchema` interchangeably. `Helpers.RenderUnitPanel(ctx, pageKey)` draws the page's ONE **chrome block** (`PageHeader`, in the chrome band: the Unit picker — the panel's one and only — with the picked unit's "Enable this unit" box beside it, a `units.<unit>.enabled` row stamped to General and written through `NS.SetByPath` (item 020); plus, for target and focus, the "Link to Player" checkbox and the "Copy from Player" button; one row of four quarter cells for every unit, the player's last two empty, so the band height never depends on the unit, ABS-L11) and then the **tab strip** (one tab per `group`, drawn for every unit including a mirrored one, whose rows are replaced by a one-line hint), as a full rebuild via the library's `ClearScroll` + `RenderTabbedSchema` with OptionsTabs minor 8's `untabbedSkipRender`, `disabledReplaces` and `rerender` (LibKa0s v1.66.0, issue #32). The two link controls govern every tab, so options-ui-§14 puts them in the band above the strip and not in the scroll below it, and a page draws at most one block — so the picker goes inside `PageHeader`'s frame and `PageBanner` is never called. `PageHeader` pcalls the builder, so a raise inside the block costs the block rather than the strip and the rows under it; the block's AceGUI widgets are recorded on `ctx.__chromeWidgets` and released back to the pool after the following render. There is a re-entrancy guard and a two-tier refresher: always re-sync the link and enable boxes in place, re-render only when mirror state actually changed (an unconditional re-render would `ClearScroll` the very widget whose `OnValueChanged` is still on the stack). `Helpers.ResetAllPositions()` is the single reset-position implementation, shared by `/at resetposition` and the General page's Reset Position button (Reset All Settings is a profile reset now, and the saved positions come back with the profile, so it is no longer on that path). Loads after `settings/OptionsSetup.lua` (it takes `local Helpers = NS.Helpers` at load). |
 | `settings/About.lua` | The parent page (logo + Notes + slash-command list), declared as a spec and drawn by the library's `BuildLandingPage`. |
 | `settings/{General,Appearance,Profiles}.lua` | The three sub-pages; each registers schema rows + a deferred page builder — except Profiles, which registers no rows and renders AceDBOptions directly. Appearance generates its rows once per unit in `NS.Units.LIST` (path prefixed `units.<unit>.`, tagged `unit = unit`) and defers its page render to `Helpers.RenderUnitPanel` instead of `Helpers.RenderTabbedSchema` — the two reach the same `NS.Helpers` table from opposite sides, one addon code (`settings/UnitPanel.lua`), the other library code (`libs/LibKa0s/OptionsWidgets.lua`); General has no Unit picker, but does carry the three `units.<unit>.enabled` toggles — the one place a per-unit path is edited outside that picker. Both pages draw their groups as a **tab strip** (options-ui-§13), so a `group` is a tab and no section headings are drawn. General's strip ends with the library's **Skin** tab (`H.AppearanceTab`, keyed `Appearance`), which draws the eight `skin.*` rows as its own controls. |
+
+### Per-client features
+
+The addon serves Retail and WoW Forever (clients-§1; the roster's Clients value is `Retail · Forever`).
+**All features serve both clients.** No module, settings page or tab, slash verb, launcher entry, key
+binding or event registration carries a `clients` declaration, and the addon never asks which client it
+is on. Nothing it reads is client-specific: `UnitGetTotalAbsorbs` and `UnitHealthMax` exist on both, and
+it ships no seed list (clients-§5). The headless suite runs under both kit profiles (clients-§6), and
+the kit's missing-globals suite checks the tracked source against both clients' API sets.
 
 ## Invariants
 
@@ -450,7 +459,8 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
 
 ## Known Limitations
 
-- **Retail Midnight only** (Interface 120105); no game-flavor branching.
+- **Retail and WoW Forever** (Interface 120105, 16001), one codebase and no client branching: every
+  feature serves both clients ([Per-client features](#per-client-features)). No Classic flavor.
 - **English only** — a ratified decision, not an unfinished job. The `NS.L` seam is exported and
   routes only the drag handle's strings; the row, and why it is compliant, is `localization-§1` in
   [Documented deviations](#documented-deviations) below, its single home.
