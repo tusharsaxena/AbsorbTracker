@@ -358,7 +358,7 @@ Forever's SavedVariables are `_forever_/WTF/Account/<ACCOUNT>/SavedVariables/Abs
 - **FOREVER-12. The debug console.** `/at debug` → the console opens with the shared Ka0s edge, as DIAG-1; `/at debug on`, gain and lose a shield → `shield up:` and `shield gone:` lines print. Result: passed (owner, 2026-11-08)
 - **FOREVER-13. The diagnostics report.** `/at diagnostics`, out of combat and again in combat with a shield up → no Lua error; the report's `client:` line reads `version=1.60.1` and `interface=16001`. Result: passed (owner, 2026-11-08)
 - **FOREVER-14. Enable and disable.** `/at disable` → the bars go away and the launcher's **Locked** grays; `/at enable` → they return, as on Retail (STATE). Result: passed (owner, 2026-11-08)
-- **FOREVER-15. The default skin is WoW Forever.** Move `AbsorbTracker.lua` out of Forever's SavedVariables and log in → the bars, the first-run skin picker and the panel wear **WoW Forever**, and the Skin tab selects it; *Reset all settings* lands on it again. On **Retail**, the same with Retail's SavedVariables → **Ka0s Default** (LibKa0s v1.94.0, skinning-§2). Result: owed
+- **FOREVER-15. The default skin is WoW Forever.** Move `AbsorbTracker.lua` out of Forever's SavedVariables and log in → the bars, the first-run skin picker and the panel wear **WoW Forever**, and the Skin tab selects it; *Reset all settings* lands on it again. On **Retail**, the same with Retail's SavedVariables → **Ka0s Default** (LibKa0s v1.94.0, skinning-§2). Result: passed (owner, 2026-11-08)
 
 ## Non-English client
 
