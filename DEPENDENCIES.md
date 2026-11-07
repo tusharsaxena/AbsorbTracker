@@ -255,6 +255,7 @@ Recorded so nobody installs them by mistake:
 - **Ace3, LibStub, LibSharedMedia-3.0, LibDataBroker-1.1, LibDBIcon-1.0, LibKa0s** — vendored and
   committed under `libs/`. Listing them here does **not** license fetching them at build time
   (`library-stack`, `packaging`).
+  Ace3: WoWUIDev/Ace3@ac3d1225 (untagged master; LibKa0s#76).
 
 ---
 
