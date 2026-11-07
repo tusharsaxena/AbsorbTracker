@@ -908,8 +908,8 @@ Total.
 ### test_skinsetup.lua (17)
 
 - Skin seam: the owner is the folder name, and NS.Skin is its facade
-- Skin seam: the read answers Ka0s Default before the profile store exists
-- Skin seam: the nine skin keys default to Ka0s Default, as skip-render rows on General
+- Skin seam: the read answers the client's default skin before the profile store exists
+- Skin seam: the nine skin keys default to the client's default skin, as skip-render rows on General
 - Skin seam: the skin row's values are every registered skin, in the library's order
 - Skin seam: /at set refuses a skin that is not registered and applies one that is
 - Skin seam: the Skin tab is General's last, and opens
@@ -1236,6 +1236,12 @@ Total.
 - skin switch: the perf panel changes
 - skin switch: the perf panel changes with the Scope ignored
 
+### test_client_globals.lua (3)
+
+- client globals: no call of a global a client lacks
+- client globals: every allowlist row has a reason and a finding to excuse
+- client globals: the check is falsifiable, a planted bare call is flagged for both clients
+
 ## Totals
 
 | Suite | Cases |
@@ -1295,5 +1301,6 @@ Total.
 | test_lizard_sighted.lua | 8 |
 | test_skin_values.lua | 3 |
 | test_skin_switch.lua | 11 |
+| test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **1062** |
+| **Total** | **1065** |

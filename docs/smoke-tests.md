@@ -19,11 +19,13 @@ These are the checks only a live client can make: real frames, the live absorb e
 | LAUNCH-1–10 | Launcher | Minimap button, options menu, broker display |
 | DIAG-1–55 | Diagnostics | Debug console and its Diagnostics link, value hold, bulk log lines, the library's refusal and stand-down lines, diagnostics report (which turns logging on), perf run (and the hold's refusal during one), resizing the console, its Copy window and the perf panel, no line under any window title, the round 5 header band |
 | DEGRADED-1–5 | Degraded | LibKa0s absent, and the partial breaks that show a failure's signature |
+| FOREVER-1–14 | WoW Forever | The checks re-run on a live WoW Forever client: the AddOns list, a clean load, an absorb on the bar, the panel and its widgets, profiles across a full restart, skins, the launcher, the sim and diagnostics |
 | LOC-1–3 | Non-English client | What a deDE or frFR client renders |
 
 ## Before you start
 
 - A live Retail client in English. The Non-English client section is the one exception.
+- **Clients (clients-§6).** The addon serves Retail and WoW Forever. Every check outside the WoW Forever section runs on **Retail**, where its recorded result was taken. The **WoW Forever** section names the checks to re-run on a live **Forever** client; nothing in this addon is absent on either client, so there is no absence check.
 - Lua errors visible: `/console scriptErrors 1`, or BugSack with BugGrabber.
 - Every line the addon prints starts with the cyan `[AT]` prefix. A check fails on any Lua error, any addon line without the prefix, or a taint warning when the panel opens out of combat.
 - Props: an absorb you can cast (Power Word: Shield or similar), a training dummy, a second player of a different class to target, and for DIAG-24 and DIAG-29 a dungeon or raid.
@@ -331,6 +333,32 @@ Setup for the verb checks: run PROFILE-9 first, so a `SmokeTest` profile exists 
 - **DEGRADED-3. No folder name, and the controls fall back to words.** With the library in place, remove `addonName = addonName` from `core/DebugLogSetup.lua`'s descriptor, `/reload`, `/at debug` → the title bar shows the words **Copy** and **Clear** and an **×**, spaced as before the art existed, not gaps. Restore the line and `/reload`. Result: pass (owner-marked 2026-10-10)
 - **DEGRADED-4. Missing art is blank space, silently.** Rename `libs/LibKa0s/media/icons/` aside, `/reload`, `/at debug` → three blank gaps at the right end of the title bar and no error. That is the failure signature DIAG-2 hunts for (`Media.Icon` builds a path without checking the file; `tests/test_mediasetup.lua` is what stops it shipping). Rename the folder back and `/reload`. Result: pass (owner-marked 2026-10-10)
 - **DEGRADED-5. Host sub-verbs still split without the library.** Rename `libs/LibKa0s/` aside, `/reload`. `/at profile list` → `Available profiles` and every profile, the current one marked `(current)` (order not checked). `/at profile CURRENT` → `Current profile: <name>`. `/at debug EVENTS` → the `Rejected events:` line. `/at toggle TARGET` → only the Target bar flips; run it again to flip it back. No Lua error anywhere. Rename the folder back and `/reload`. Result: pass (owner-marked 2026-10-10)
+
+## WoW Forever
+
+**Client: WoW Forever** (1.60.1, interface 16001), every check here. The rest of this file is Retail's; these checks re-run its core on Forever, where the client draws its own frames and keeps its own `WTF`. Every Retail rule above holds: zero Lua errors, the cyan `[AT]` prefix, no taint warning.
+
+**Code:** `AbsorbTracker.toc` (the two-number `## Interface:` line), `core/AbsorbTracker.lua`, `modules/Display.lua`; the vendored Ace3 widgets (CheckBox v27, ColorPicker v29) and AceDB 40 under `libs/`.
+
+**Setup.** Link the checkout into the Forever client once, from an elevated Windows prompt, then fully restart the client:
+`mklink /d "G:\Games\Blizzard\World of Warcraft\_forever_\Interface\AddOns\AbsorbTracker" "D:\Profile\Users\Tushar\Documents\GIT\AbsorbTracker"`.
+Forever's SavedVariables are `_forever_/WTF/Account/<ACCOUNT>/SavedVariables/AbsorbTracker.lua`. Props: a Priest (Power Word: Shield) or any class with an absorb, and a second player to target.
+
+- **FOREVER-1. The AddOns list.** At character select → **Ka0s Absorb Tracker** is listed with its logo and is **not** marked *Out of date*, and "Load out of date AddOns" does not need to be ticked for it to load. Result: passed (owner, 2026-11-08)
+- **FOREVER-2. A fresh install loads clean.** With no `AbsorbTracker.lua` in Forever's SavedVariables, log in → zero Lua errors; the player bar sits at screen center showing `0` (the skin a fresh profile wears is FOREVER-15's); Target and Focus are off. Result: passed (owner, 2026-11-08)
+- **FOREVER-3. An absorb on the bar.** Cast Power Word: Shield (or your class's absorb) on yourself out of combat → the bar shows the shield's value, falls as damage eats it, and reads `0` when it ends. Again in combat → the same, with no error; where the client makes the value secret the bar draws it without a Lua error (COMBAT-1's rule). Result: passed (owner, 2026-11-08)
+- **FOREVER-4. Target and Focus.** Enable the Target and Focus bars, put a shield on another player and target and focus them → both bars show that player's absorb, and **Use class color** paints each in its own unit's class color. Result: passed (owner, 2026-11-08)
+- **FOREVER-5. The panel opens.** Out of combat, bare `/at` and the minimap button's left-click → the settings panel opens on the **Ka0s Absorb Tracker** landing page, as SLASH-1 on Retail. In combat → COMBAT-2's refusal line, and no panel. Result: passed (owner, 2026-11-08)
+- **FOREVER-6. Checkboxes and the color picker.** On General and Appearance, tick and untick several boxes, *Use the skin's ...* among them → each box draws its check and its grayed state, and no `SetDesaturation` error appears (the Ace3 CheckBox fix). Open a color swatch, drag the opacity slider to about 25% and accept → the bar is faint, not nearly opaque (the ColorPicker alpha fix). Result: passed (owner, 2026-11-08)
+- **FOREVER-7. Settings take effect.** Change bar width, scale and the font on Appearance → the bar redraws at once; `/at get units.player.<key>` reads the new values back. Result: passed (owner, 2026-11-08)
+- **FOREVER-8. Profiles across a full restart.** Create profile `SmokeTest` on the Profiles page, drag the bar off center, lock it, then **exit the client completely** and start it again → the same profile is active and the bar is where you left it. The Profiles page names this character's profile key with no error. Delete `SmokeTest` afterwards. Result: passed (owner, 2026-11-08)
+- **FOREVER-9. Skins.** On the Skin tab pick Obsidian, then WoW Forever, then Ka0s Default → the bars and the panel repaint each time, with no error. Result: passed (owner, 2026-11-08)
+- **FOREVER-10. The launcher.** The minimap button shows the logo; right-click → the menu titled `Ka0s Absorb Tracker` with **Enabled**, **Locked** and **Sim mode**, and each toggle works as LAUNCH-3 describes. Result: passed (owner, 2026-11-08)
+- **FOREVER-11. The sim.** `/at sim`, start `fight` → the bar plays the scripted shield and the cyan **SIM** strip shows, as SIM-1 on Retail; close it → the bar returns to the live value. Result: passed (owner, 2026-11-08)
+- **FOREVER-12. The debug console.** `/at debug` → the console opens with the shared Ka0s edge, as DIAG-1; `/at debug on`, gain and lose a shield → `shield up:` and `shield gone:` lines print. Result: passed (owner, 2026-11-08)
+- **FOREVER-13. The diagnostics report.** `/at diagnostics`, out of combat and again in combat with a shield up → no Lua error; the report's `client:` line reads `version=1.60.1` and `interface=16001`. Result: passed (owner, 2026-11-08)
+- **FOREVER-14. Enable and disable.** `/at disable` → the bars go away and the launcher's **Locked** grays; `/at enable` → they return, as on Retail (STATE). Result: passed (owner, 2026-11-08)
+- **FOREVER-15. The default skin is WoW Forever.** Move `AbsorbTracker.lua` out of Forever's SavedVariables and log in → the bars, the first-run skin picker and the panel wear **WoW Forever**, and the Skin tab selects it; *Reset all settings* lands on it again. On **Retail**, the same with Retail's SavedVariables → **Ka0s Default** (LibKa0s v1.94.0, skinning-§2). Result: passed (owner, 2026-11-08)
 
 ## Non-English client
 
