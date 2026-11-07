@@ -258,5 +258,6 @@ Kit.run{
     -- skinning-§1: the typed-value gate and the skin-switch test (kit revision 50, FS-AT-GATE).
     { name = "test_skin_values", dir = "tests/_kit/" },
     { name = "test_skin_switch", dir = "tests/_kit/" },
+    { name = "test_client_globals", dir = "tests/_kit/" },
   },
 }

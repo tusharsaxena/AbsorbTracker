@@ -178,7 +178,7 @@ if Lib then
         print = function(line) NS.Print(line) end,
         debug = function(_, fmt, ...) if NS.Debug then NS.Debug("Sim", fmt, ...) end end,
         panel = {
-            title = function() return "Absorb Tracker - Simulation" end,
+            title = function() return "Absorb Tracker - SIM" end,
             anchorTo = function() return Host.PanelAnchor() end,
         },
     })

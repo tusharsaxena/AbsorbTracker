@@ -6,7 +6,7 @@
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
 ![Tests](https://img.shields.io/badge/Tests-1062%2F1062_passing-green)
 
-Absorb Tracker shows your absorb shields as a movable bar. It adds every shield on the unit
+Retail only for now; WoW Forever support is planned. Absorb Tracker shows your absorb shields as a movable bar. It adds every shield on the unit
 into one number, so a glance tells you how much damage you can eat before your health starts
 moving.
 
