@@ -50,8 +50,8 @@ end
 -- Every strip passes this as LibKa0s-Widgets' `tooltipPlace` (WidgetsDragHandle minor 4), the
 -- placement every Ka0s strip uses (KickCD's NS.Util.PlaceTooltipBeside, TP-KC-01). The widget owns
 -- GameTooltip by UIParent at ANCHOR_NONE, draws and shows it, then calls this under pcall; only a
--- literal `true` means placed, and anything else falls back to the cursor tooltip with the same
--- lines.
+-- literal `true` means placed, and anything else falls back to the widget's own placement, attached
+-- below the strip (never the cursor, since LibKa0s v1.105.0's WidgetsDragHandleTip minor 1).
 
 -- The gap between the strip's edge and the tooltip, in the tooltip's own units (SetPoint's).
 local TIP_GAP = 4
@@ -80,7 +80,7 @@ end
 --- right edge plus the tooltip's width would pass the screen's right edge. `frame` is the frame
 --- hovered: the strip itself (it carries the widget's `help` field) or its `?` or X mark, whose
 --- parent is the strip, so all three show their tooltips in one place.
---- @return true|nil  true only once the tooltip is anchored; nil (the widget's cursor fallback)
+--- @return true|nil  true only once the tooltip is anchored; nil (the widget's attached fallback)
 ---                   when any read is missing, nil or secret, with nothing anchored.
 function NS.Util.PlaceTooltipBeside(tip, frame)
     if not (tip and frame) then return nil end
@@ -128,7 +128,7 @@ end
 --- strip's right, or its left when that would leave the screen -- the owner's rule for every Ka0s
 --- strip. Until then each was owned by the hovered frame (ANCHOR_TOP off the strip, ANCHOR_TOPRIGHT
 --- off a mark), which opened the strip's over the bar stacked above it and gave the marks a second
---- position. A read the placement cannot trust falls back to the cursor, the widget's own fallback.
+--- position. A read the placement cannot trust falls back to the widget's own: attached below the strip.
 local function buildHandle(bar, unit, globalName)
     local label = L[NS.Units.LABEL[unit] or unit]
     local wayBack = format(L["Re-enable it on the Appearance page or with /at toggle %s."], unit)

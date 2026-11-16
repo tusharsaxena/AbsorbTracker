@@ -575,15 +575,25 @@ test("a strip near the screen's right edge opens its tooltip on its left", funct
   assertEqual(relPoint, "TOPLEFT", "900 + 200 leaves a 1000 px screen, so the left side")
 end)
 
-test("a strip whose geometry cannot be read falls back to the cursor tooltip", function()
-  -- The widget's own fallback: re-owned at the cursor, with the same lines redrawn.
+test("a strip whose geometry cannot be read falls back to the widget's attached tooltip, never the cursor", function()
+  -- The widget's own fallback since LibKa0s v1.105.0 (WidgetsDragHandleTip minor 1, LibKa0s#92,
+  -- anti-pattern #119): owned once by UIParent at ANCHOR_NONE, then attached below the strip.
+  -- With the strip's edges unreadable the Tooltip major places nothing, so the widget writes its
+  -- relative point, TOP on the strip's BOTTOM 2 px down. Until v1.104.0 it re-owned at the cursor.
   local strip = NS.bars.target.handle
   local g = { screen = 1000, right = nil, width = 200 }
   withScreen(strip, g, function() strip:__fire("OnEnter") end)
   strip:__fire("OnLeave")
-  assertEqual(#g.owners, 2)
-  assertEqual(g.owners[2][2], "ANCHOR_CURSOR")
-  assertEqual(#g.points, 0, "nothing anchored beside the strip")
+  assertEqual(#g.owners, 1, "owned once: no second owner at the cursor")
+  assertTrue(rawequal(g.owners[1][1], T.mocks.UIParent), "owned by UIParent")
+  assertEqual(g.owners[1][2], "ANCHOR_NONE")
+  assertEqual(#g.points, 1, "one point, the widget's attached fallback")
+  local point, rel, relPoint, x, y = unpack(g.points[1])
+  assertEqual(point, "TOP")
+  assertTrue(rawequal(rel, strip), "attached to the strip, not beside it")
+  assertEqual(relPoint, "BOTTOM")
+  assertEqual(x, 0)
+  assertEqual(y, -2)
 end)
 
 -- ── degraded: no widget, no strip, nothing raises ────────────────────────────────────────────

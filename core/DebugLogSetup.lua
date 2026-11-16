@@ -79,6 +79,22 @@ if not lib then
         BuildDiagnostics = function()
             return { lines = {}, dropped = 0, capped = false, capsHit = false }
         end,
+        -- Report and Serialize, new at LibKa0s v1.105.0 (DebugLog minor 23), the library's
+        -- suggested stub: with no console the report streams to chat with no pointer, and a
+        -- serialize answers one line. Nothing here calls either yet (adoption is LibKa0s#79).
+        Report = function(_, _, _, fn)
+            local n = 0
+            if type(fn) == "function" then
+                fn(function(line)
+                    n = n + 1
+                    if NS.Print then NS.Print(NS.SafeToString(line)) end
+                end)
+            end
+            return n
+        end,
+        Serialize = function(_, v)
+            return { NS.SafeToString(type(v) == "table" and "<table>" or v) }
+        end,
         -- The live routing: `diagnostics`, `on` and `off` answer true; anything else is the host's.
         DebugVerb = function(self, rest)
             local word = type(rest) == "string" and rest:lower():match("^%s*(%S+)") or nil

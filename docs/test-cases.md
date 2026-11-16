@@ -464,7 +464,7 @@ Total.
 - PlaceTooltipBeside answers non-true and anchors nothing when a read is nil
 - hovering a strip, its ? or its X puts the tooltip beside the strip, owned once
 - a strip near the screen's right edge opens its tooltip on its left
-- a strip whose geometry cannot be read falls back to the cursor tooltip
+- a strip whose geometry cannot be read falls back to the widget's attached tooltip, never the cursor
 - degraded: with LibKa0s absent the bars load with no handle and keep their own drag
 - degraded: with no widget the default stack reserves no strip room
 - degraded: NS.Widgets is the stub, whose DragHandle draws nothing and whose strip takes no room
