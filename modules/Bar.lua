@@ -51,7 +51,8 @@ end
 -- placement every Ka0s strip uses (KickCD's NS.Util.PlaceTooltipBeside, TP-KC-01). The widget owns
 -- GameTooltip by UIParent at ANCHOR_NONE, draws and shows it, then calls this under pcall; only a
 -- literal `true` means placed, and anything else falls back to the widget's own placement, attached
--- below the strip (never the cursor, since LibKa0s v1.105.0's WidgetsDragHandleTip minor 1).
+-- above the strip, flipped below only without room (never the cursor, since LibKa0s v1.105.0's
+-- WidgetsDragHandleTip minor 1; above since its smoke round 1, SR-L1).
 
 -- The gap between the strip's edge and the tooltip, in the tooltip's own units (SetPoint's).
 local TIP_GAP = 4
@@ -128,7 +129,7 @@ end
 --- strip's right, or its left when that would leave the screen -- the owner's rule for every Ka0s
 --- strip. Until then each was owned by the hovered frame (ANCHOR_TOP off the strip, ANCHOR_TOPRIGHT
 --- off a mark), which opened the strip's over the bar stacked above it and gave the marks a second
---- position. A read the placement cannot trust falls back to the widget's own: attached below the strip.
+--- position. A read the placement cannot trust falls back to the widget's own: attached above the strip.
 local function buildHandle(bar, unit, globalName)
     local label = L[NS.Units.LABEL[unit] or unit]
     local wayBack = format(L["Re-enable it on the Appearance page or with /at toggle %s."], unit)
