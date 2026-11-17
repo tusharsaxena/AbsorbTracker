@@ -54,6 +54,8 @@ L["Lock the bars to hide this handle \226\128\148 /at lock."] =
 -- The close mark's tooltip and the chat line its click prints. `%s` in the way back is the unit
 -- token `/at toggle` takes (player, target, focus), not its label.
 L["Hide the %s bar"] = "Hide the %s bar"
+-- The settings mark's tooltip (AD-86-AT): its title is the strip's own, L["Absorb Tracker"].
+L["Click to open the settings."] = "Click to open the settings."
 L["Click to hide this bar."] = "Click to hide this bar."
 L["Re-enable it on the Appearance page or with /at toggle %s."] =
     "Re-enable it on the Appearance page or with /at toggle %s."

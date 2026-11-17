@@ -126,6 +126,11 @@ end
 --- EVERY STRIP CARRIES A CLOSE MARK, the player bar's included (the owner's ruling, DR-OW-03): an
 --- X left of the help mark that turns off THIS bar and nothing wider. See closeBar.
 ---
+--- AND A SETTINGS MARK LEFT OF THE X (AD-86-AT, LibKa0s#86, WidgetsDragHandle minor 14): the X's
+--- twin in frame, art, tint and drag scripts. `settings = true` sends its click through LibKa0s-Core's
+--- OpenSettings(owner), the opener core/LauncherSetup.lua registered under this folder name, so the
+--- strip and the minimap button open the same panel. Strip order, right to left: ? · X · settings.
+---
 --- ITS TOOLTIPS SIT BESIDE THE STRIP (TP-AT-02, LibKa0s v1.68.0): `tooltipPlace` is
 --- NS.Util.PlaceTooltipBeside, which anchors the strip's, the `?`'s and the X's tooltips to the
 --- strip's right, or its left when that would leave the screen -- the owner's rule for every Ka0s
@@ -187,6 +192,15 @@ local function buildHandle(bar, unit, globalName)
         closeTooltip = {
             title  = format(L["Hide the %s bar"], label),
             body   = { L["Click to hide this bar."], wayBack },
+        },
+        -- The settings mark (minor 14, opt-in). True, not a function: the owner's registered opener
+        -- (the launcher's openSettings) is the one way in, so nothing here can drift from it. Its
+        -- own tooltip, because without one it would repeat the strip's "Drag to move".
+        settings        = true,
+        settingsIcon    = NS.Icon and NS.Icon("settings") or nil,
+        settingsTooltip = {
+            title = L["Absorb Tracker"],
+            body  = { L["Click to open the settings."] },
         },
         -- Edit chrome sits at the top of its display (frame-layering-§2): an offset over the bar,
         -- applied by the widget before it builds the marks, so the `?` and X are born at

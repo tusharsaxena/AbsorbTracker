@@ -308,7 +308,9 @@ local function withScreen(strip, g, body)
     { tip, "SetPoint", function(_, ...) g.points[#g.points + 1] = { ... } end },
     { tip, "ClearAllPoints", function() g.points = {} end },
   }
-  for _, mark in ipairs({ strip.help, strip.close }) do list[#list + 1] = { mark, "GetParent", answer(strip) } end
+  for _, mark in ipairs({ strip.help, strip.close, strip.settings }) do
+    list[#list + 1] = { mark, "GetParent", answer(strip) }
+  end
   withRaw(list, body)
 end
 
@@ -394,11 +396,14 @@ test("the close mark's art comes from the Media seam", function()
   assertTrue(spec.closeIcon ~= nil, "the vendored catalog ships a close mark")
 end)
 
-test("a strip with a close mark reserves room for it on both sides", function()
+test("a strip with a close mark and a settings mark reserves room for both on both sides", function()
+  -- Re-pinned by AD-86-AT (LibKa0s#86, WidgetsDragHandle minor 14): the settings mark is the X's
+  -- twin, so each side of the label keeps one more mark frame and gap clear. Until then the reserve
+  -- was RESERVE + one mark (the X's).
   local D = Widgets.DRAG_HANDLE
   for _, unit in ipairs(NS.Units.LIST) do
-    assertEqual(NS.bars[unit].handle:Reserve(), D.RESERVE + D.HELP_HIT + D.CLOSE_GAP,
-      unit .. " strip does not reserve the close mark's room")
+    assertEqual(NS.bars[unit].handle:Reserve(), D.RESERVE + 2 * (D.HELP_HIT + D.CLOSE_GAP),
+      unit .. " strip does not reserve the close and settings marks' room")
   end
 end)
 
@@ -435,6 +440,61 @@ test("the close mark's tooltip says what X does and names the same way back", fu
   assertEqual(title, "Hide the Focus bar")
   assertEqual(lines[1], "Click to hide this bar.")
   assertEqual(lines[#lines], "Re-enable it on the Appearance page or with /at toggle focus.")
+end)
+
+-- ── the settings mark (AD-86-AT, LibKa0s#86): every bar, left of the X ─────────────────────
+
+test("every bar's strip carries a settings mark beside its close mark", function()
+  -- red under: a spec without `settings`, which builds no settings mark (WidgetsDragHandle minor 14).
+  for _, unit in ipairs(NS.Units.LIST) do
+    local handle = NS.bars[unit].handle
+    assertTrue(handle.settings ~= nil, unit .. " strip has no settings mark")
+    assertTrue(handle.settings.icon ~= nil, unit .. " settings mark has no art")
+  end
+end)
+
+test("the settings mark is opted into, with its art from the Media seam and the launcher's opener", function()
+  local spec = specFor("focus")
+  assertEqual(spec.settings, true, "settings = true: the click goes through the owner's registered opener")
+  assertNil(spec.onSettings, "no second opener beside the launcher's")
+  assertEqual(spec.settingsIcon, NS.Icon("settings"))
+  assertTrue(spec.settingsIcon ~= nil, "the vendored catalog ships a settings mark")
+end)
+
+test("clicking a strip's settings mark opens this addon's settings panel", function()
+  -- red under: no settings mark, or one whose click reaches no opener (Core's OpenSettings with no
+  -- launcher registered under this addon's folder name).
+  for _, unit in ipairs(NS.Units.LIST) do
+    local realOpen, opened = NS.OpenOptionsPanel, 0
+    NS.OpenOptionsPanel = function() opened = opened + 1 end
+    local ok, err = pcall(function()
+      withLocked(false, function() NS.bars[unit].handle.settings:__fire("OnClick", "LeftButton") end)
+    end)
+    NS.OpenOptionsPanel = realOpen
+    if not ok then error(err) end
+    assertEqual(opened, 1, unit .. ": one click, one open of the settings panel")
+  end
+end)
+
+test("the settings mark's click touches no bar setting", function()
+  local c = NS.db.profile.units.target
+  local enabled, writes = c.enabled, 0
+  local realSet, realOpen = NS.SetByPath, NS.OpenOptionsPanel
+  NS.SetByPath = function(...) writes = writes + 1 return realSet(...) end
+  NS.OpenOptionsPanel = function() end
+  local ok, err = pcall(function()
+    withLocked(false, function() NS.bars.target.handle.settings:__fire("OnClick", "LeftButton") end)
+  end)
+  NS.SetByPath, NS.OpenOptionsPanel = realSet, realOpen
+  if not ok then error(err) end
+  assertEqual(writes, 0, "opening the settings writes nothing")
+  assertEqual(c.enabled, enabled)
+end)
+
+test("the settings mark's tooltip says what it opens, not how to drag the strip", function()
+  local title, lines = hover(NS.bars.player.handle.settings, NS.bars.player.handle)
+  assertEqual(title, "Absorb Tracker")
+  assertEqual(lines[1], "Click to open the settings.")
 end)
 
 -- ── where the tooltips sit: beside the strip (TP-AT-02) ─────────────────────────────────────
@@ -543,12 +603,12 @@ test("PlaceTooltipBeside answers non-true and anchors nothing when a read is nil
   assertEqual(#points, 0)
 end)
 
-test("hovering a strip, its ? or its X puts the tooltip beside the strip, owned once", function()
+test("hovering a strip, its ?, its X or its settings mark puts the tooltip beside the strip, owned once", function()
   -- red under: a spec without the hook, which owns the tooltip by the hovered frame (ANCHOR_TOP
   -- off the strip, ANCHOR_TOPRIGHT off a mark) and anchors nothing beside the strip.
   for _, unit in ipairs(NS.Units.LIST) do
     local strip = NS.bars[unit].handle
-    for _, frame in ipairs({ strip, strip.help, strip.close }) do
+    for _, frame in ipairs({ strip, strip.help, strip.close, strip.settings }) do
       local g = { screen = 1000, right = 500, width = 200 }
       withScreen(strip, g, function() frame:__fire("OnEnter") end)
       frame:__fire("OnLeave")
