@@ -25,6 +25,8 @@ local Widgets = NS.Widgets
 local function savePosition(bar)
     local point, _, relPoint, x, y = bar:GetPoint()
     NS.Units.SetPosition(bar.unit, { point = point, relPoint = relPoint, x = x, y = y })
+    -- A drop is a move, which fires no script: the sim strip decides its side again (AD-88-AT).
+    NS.PlaceSimStrip(bar)
 end
 
 --- The close mark's click: turn off this ONE bar. It writes the existing per-unit enable row --
@@ -202,6 +204,56 @@ local function buildHandle(bar, unit, globalName)
     return handle
 end
 
+-- ---------------------------------------------------------------------------
+-- The simulation's strip (AD-88-AT)
+-- ---------------------------------------------------------------------------
+--
+-- Each bar is a HUD display the player positions on its own, so each carries its own cyan strip
+-- while `/at sim` paints its made-up shield (WowAddonStandards preview-mode, *Where the strip sits*:
+-- on a HUD display's top edge, outside it). LibKa0s-Widgets-1.0's TestStrip with `dock = "hud"`
+-- (Widgets minor 27) places it, never this file: on the bar's top edge spanning its width, stacked
+-- beyond the drag handle while an unlocked bar shows one (`clear`), and flipped under the bar while
+-- the top would leave the screen. The library turns its mouse off and lifts it into the bar's chrome
+-- band (bar level + 5), so it never takes a click and never covers the handle, which stays.
+--
+-- The host's whole share: build it hidden here, show and hide it with the session (NS.ShowSimStrips,
+-- from modules/Sim.lua's prepare and stop) and call strip:Place() after it moves a bar
+-- (NS.PlaceSimStrip), because a move fires no script. The step panel stays on screen as well. This
+-- addon has no test mode (the unlocked view is its preview), so there is no amber strip; the bars
+-- carry no header, so there is no mode word to drop. Nil on a build without the Widgets major.
+local function buildSimStrip(bar)
+    if not bar.handle then return nil end
+    return Widgets.TestStrip(bar, {
+        text   = L["SIM: a simulated shield, not live data."],
+        icon   = NS.Icon and NS.Icon("info") or nil,
+        kind   = "sim",
+        owner  = addonName,
+        dock   = "hud",
+        target = bar,
+        clear  = bar.handle,
+    })
+end
+
+--- Show (`on`) or hide every bar's sim strip. A strip shows only while its bar does: it is the
+--- bar's child, so a bar the ladder hides takes its strip with it.
+function NS.ShowSimStrips(on)
+    for _, unit in ipairs(NS.Units.LIST) do
+        local bar = NS.bars and NS.bars[unit]
+        local strip = bar and bar.simStrip
+        if strip then
+            strip:SetShown(on == true)
+            if on then strip:Place() end
+        end
+    end
+end
+
+--- After the host moves `bar`: place its strip again while it shows (a hidden one places itself on
+--- its next show).
+function NS.PlaceSimStrip(bar)
+    local strip = bar and bar.simStrip
+    if strip and strip:IsShown() and strip.Place then strip:Place() end
+end
+
 --- A frame level read as a plain number. The bars are our own plain frames and a real client
 --- always answers a number here; anything else (a headless stand-in) reads 0 rather than being
 --- computed on, so a layering pass can never raise inside the appearance pass.
@@ -313,6 +365,8 @@ function NS.CreateBar(unit, globalName)
     -- The unlocked drag handle above the bar, naming its unit. Nil on a build without
     -- LibKa0s-Widgets-1.0; see buildHandle.
     bar.handle = buildHandle(bar, unit, globalName)
+    -- The sim's cyan strip on the bar's top edge, beyond the handle. Nil without the widget.
+    bar.simStrip = buildSimStrip(bar)
 
     -- Every child at its LAYERS offset; the appearance pass re-asserts it.
     NS.ApplyBarLayers(bar)

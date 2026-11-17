@@ -105,6 +105,8 @@ function Host.Prepare(_, _, _, ready)
     Host.arming = true
     NS.HoldPreview(Host.HOLD_SECONDS)
     Host.arming = false
+    -- Every bar drawing the made-up shield says so: the cyan strip on its top edge (AD-88-AT).
+    NS.ShowSimStrips(true)
     if NS.Sim and NS.Sim.ShowPanel then NS.Sim:ShowPanel() end
     ready()
 end
@@ -199,6 +201,7 @@ if Lib then
     end
     -- The stop: the hold goes with the session, unlocked bars get their placeholder, live data returns.
     NS.Sim:OnStop(function()
+        NS.ShowSimStrips(false)
         if NS.ClearPreview then NS.ClearPreview() end
         if NS.InPreview and NS.InPreview() then NS.ForEachUnit(NS.PaintPlaceholder) end
         if NS.bus then NS.bus:SendMessage(NS.MSG.REPAINT) end

@@ -15,6 +15,9 @@ local _, NS = ...
 --     no LibKa0s draws no strip, and the bar body's own drag is the one grab point left. That is the
 --     widget's documented degradation (LibKa0s Widgets docs, "Degraded"); a hand-built strip here
 --     would be the second copy the widget exists to delete.
+--   * TestStrip — a function answering nil, so a build with no LibKa0s draws no sim strip on the
+--     bars (modules/Bar.lua, AD-88-AT). modules/Bar.lua only asks for one over a built handle, so
+--     the stub's answer is never reached today; it is carried because the host names the member.
 --   * DRAG_HANDLE — a table whose HEIGHT and GAP are both 0, rather than nil. modules/Display.lua
 --     adds the two into HANDLE_ROOM, so zero sizes give HANDLE_ROOM = 0 (no strip, no room kept for
 --     one in the default stack) with no nil-guard at the consumer. The live table's other members
@@ -30,6 +33,9 @@ end
 
 NS.Widgets = {
     DragHandle  = function() return nil end,
+    -- TestStrip answers nil too, so modules/Bar.lua builds no sim strip (AD-88-AT); it is only ever
+    -- reached with a handle, which the stub never builds either.
+    TestStrip   = function() return nil end,
     -- Owed by every stub at LibKa0s v1.85.0 (docs/releasing.md, Step 8), though nothing here calls
     -- it: no menu on a build with no LibKa0s.
     ContextMenu = function() return nil end,

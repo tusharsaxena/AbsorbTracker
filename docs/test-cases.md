@@ -840,6 +840,16 @@ Total.
 - sim box: a sim started or stopped elsewhere refreshes the open page
 - sim box: Reset all settings stops a running sim and never starts one
 
+### test_sim_strip.lua (7)
+
+- sim strip: every bar carries its own cyan strip, docked by the library, born hidden
+- sim strip: it sits on the bar's top edge, outside it, spanning its width
+- sim strip: while the drag handle shows, the strip stacks beyond it
+- sim strip: near the screen's top it flips under the bar
+- sim strip: a sim shows it on every bar and every stop hides it
+- sim strip: moving a bar places its strip again
+- sim strip: a build with no LibKa0s draws no strip and the sim still answers
+
 ### test_widgets.lua (46)
 
 - NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
@@ -1276,6 +1286,7 @@ Total.
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 16 |
 | test_sim.lua | 26 |
+| test_sim_strip.lua | 7 |
 | test_widgets.lua | 46 |
 | test_realpages.lua | 13 |
 | test_skinsetup.lua | 17 |
@@ -1303,4 +1314,4 @@ Total.
 | test_skin_switch.lua | 11 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **1065** |
+| **Total** | **1072** |

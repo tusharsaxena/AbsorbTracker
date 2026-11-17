@@ -60,6 +60,9 @@ L["Re-enable it on the Appearance page or with /at toggle %s."] =
 L["%s bar hidden. Re-enable it on the Appearance page or with /at toggle %s."] =
     "%s bar hidden. Re-enable it on the Appearance page or with /at toggle %s."
 
+-- The simulation's strip on each bar's top edge while `/at sim` runs (modules/Bar.lua, AD-88-AT).
+L["SIM: a simulated shield, not live data."] = "SIM: a simulated shield, not live data."
+
 -- The diagnostics report (debug-logging-§14): the `diagnostics` row in `/at help` and on the About
 -- page (settings/Slash.lua), and the one chat line the report prints, handed to LibKa0s-DebugLog
 -- as its DIAG_WRITTEN string (core/DebugLogSetup.lua). The report body itself is English

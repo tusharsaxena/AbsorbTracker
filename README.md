@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-1065%2F1065_passing-green)
+![Tests](https://img.shields.io/badge/Tests-1072%2F1072_passing-green)
 
 Supports Retail and WoW Forever. Absorb Tracker shows your absorb shields as a movable bar. It adds every shield on the unit
 into one number, so a glance tells you how much damage you can eat before your health starts
@@ -55,7 +55,8 @@ five seconds (add a second number for anywhere from half a second to a minute).
 
 To watch a whole fight instead, type `/at sim`. A step window opens beside the bar. Pick a scenario
 (a full fight, one shield draining, or a bigger shield landing and breaking) and start it, and the
-bars play a made-up shield going up and down. Click a step to jump to it. `/at sim stop`, or Stop
+bars play a made-up shield going up and down, each with a cyan **SIM** strip along its top edge
+(under the bar instead when it sits at the very top of the screen). Click a step to jump to it. `/at sim stop`, or Stop
 in the window, gives the bars back to your real shields, and nothing is saved. The **Sim mode** box
 next to **Lock frame** on General → Master controls does the same thing as the command. It stays
 ticked while the step window is open or a sim is running, and unticking it stops the sim and closes

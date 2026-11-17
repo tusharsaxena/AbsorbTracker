@@ -298,12 +298,13 @@ test("parity: the Widgets stub carries every Widgets member the addon reaches", 
   -- members of it, so an ignore set covering the rest would be most of the major. core/WidgetsSetup.lua
   -- publishes the live major as NS.Widgets, or a stub carrying exactly what the host reaches:
   --   grep -rohE '\bWidgets[.:][A-Za-z_]+' core modules settings | sort -u
-  -- answers DragHandle and DRAG_HANDLE (modules/Bar.lua draws the strip with the first and anchors
-  -- it at DRAG_HANDLE.GAP; modules/Display.lua sizes the default stack from DRAG_HANDLE.HEIGHT and
-  -- GAP). The derivation below re-runs that grep over the TOC's own file list with comments
+  -- answers DragHandle, DRAG_HANDLE and TestStrip (modules/Bar.lua draws the strip with the first
+  -- and anchors it at DRAG_HANDLE.GAP; modules/Display.lua sizes the default stack from
+  -- DRAG_HANDLE.HEIGHT and GAP; modules/Bar.lua builds each bar's docked sim strip with TestStrip,
+  -- AD-88-AT). The derivation below re-runs that grep over the TOC's own file list with comments
   -- stripped, so a member the host starts reaching joins this case or turns it red.
   -- red under: NS.Widgets unpublished (both arms nil), or a stub missing DRAG_HANDLE.
-  local reached = { "DragHandle", "DRAG_HANDLE" }
+  local reached = { "DragHandle", "DRAG_HANDLE", "TestStrip" }
   local Loader = dofile("tests/_kit/loader.lua")
   local seen, derived = {}, {}
   for _, path in ipairs(Loader.tocFiles("AbsorbTracker.toc")) do
@@ -315,8 +316,8 @@ test("parity: the Widgets stub carries every Widgets member the addon reaches", 
     end
   end
   table.sort(derived)
-  assertTrue(table.concat(derived, ",") == "DRAG_HANDLE,DragHandle",
-    "the host reaches exactly DragHandle and DRAG_HANDLE of the Widgets major, derived: "
+  assertTrue(table.concat(derived, ",") == "DRAG_HANDLE,DragHandle,TestStrip",
+    "the host reaches exactly DragHandle, DRAG_HANDLE and TestStrip of the Widgets major, derived: "
     .. table.concat(derived, ","))
 
   local live = T.mocks.LibStub("LibKa0s-Widgets-1.0", true)
