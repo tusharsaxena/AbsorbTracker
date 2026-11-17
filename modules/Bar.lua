@@ -132,8 +132,8 @@ end
 --- strip and the minimap button open the same panel. Strip order, right to left: ? · X · settings.
 ---
 --- ITS TOOLTIPS SIT BESIDE THE STRIP (TP-AT-02, LibKa0s v1.68.0): `tooltipPlace` is
---- NS.Util.PlaceTooltipBeside, which anchors the strip's, the `?`'s and the X's tooltips to the
---- strip's right, or its left when that would leave the screen -- the owner's rule for every Ka0s
+--- NS.Util.PlaceTooltipBeside, which anchors the strip's, the `?`'s, the X's and the settings
+--- mark's tooltips to the strip's right, or its left when that would leave the screen -- the owner's rule for every Ka0s
 --- strip. Until then each was owned by the hovered frame (ANCHOR_TOP off the strip, ANCHOR_TOPRIGHT
 --- off a mark), which opened the strip's over the bar stacked above it and gave the marks a second
 --- position. A read the placement cannot trust falls back to the widget's own: attached above the strip.
@@ -154,7 +154,7 @@ local function buildHandle(bar, unit, globalName)
         -- StartMoving on a frame that is not movable raises, so the strip asks before it starts.
         canDrag    = function() return not NS.GetSetting("locked") end,
         onDragStop = function() savePosition(bar) end,
-        -- All three tooltips, the strip's and both marks', beside the strip. While a hook is in
+        -- All four tooltips, the strip's and its three marks', beside the strip. While a hook is in
         -- force the widget reads no owner or anchor, so the descriptors below carry neither.
         tooltipPlace = NS.Util.PlaceTooltipBeside,
         -- The strip's own tooltip. The body line is a FUNCTION because it is read on every hover
