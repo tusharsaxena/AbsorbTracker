@@ -325,6 +325,9 @@ if not lib then
     -- NavRail, new at LibKa0s v1.61.0 (OptionsNav minor 1): drawn only by a page render, and no
     -- page here draws a rail, so the same inert no-op answers.
     Helpers.NavRail = function() end
+    -- SideTabs, new at LibKa0s v1.100.0 (OptionsNav minor 7): drawn only inside a page render, and
+    -- no page here draws side tabs, so the same inert no-op answers.
+    Helpers.SideTabs = function() end
     -- LibKa0s v1.77.0's four instance members (OptionsKeybinds minor 2's KeybindingsTab, KeybindRows
     -- and KEYBINDS_UNCHANGED; OptionsCompose minor 8's StrataTooltip). The library's "What a
     -- consumer owes" puts all four on every Options stub, windowed or not. This addon ships no key
