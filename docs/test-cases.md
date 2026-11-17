@@ -461,14 +461,14 @@ Total.
 - clicking a strip's settings mark opens this addon's settings panel
 - the settings mark's click touches no bar setting
 - the settings mark's tooltip says what it opens, not how to drag the strip
-- PlaceTooltipBeside puts the tooltip to the strip's right when it fits
-- PlaceTooltipBeside flips to the strip's left when the right side would leave the screen
-- PlaceTooltipBeside anchors to the STRIP when the hovered frame is its ? mark or its X
-- PlaceTooltipBeside compares in screen pixels, so a scaled strip flips when it should
-- PlaceTooltipBeside answers non-true and anchors nothing when a read is secret
-- PlaceTooltipBeside answers non-true and anchors nothing when a read is nil
-- hovering a strip, its ?, its X or its settings mark puts the tooltip beside the strip, owned once
-- a strip near the screen's right edge opens its tooltip on its left
+- no strip hands the widget a tooltipPlace hook: the library places every strip tooltip
+- the addon's own beside-the-strip placer is retired
+- hovering a strip, its ?, its X or its settings mark attaches the tooltip centered above the strip
+- a mark's tooltip is centered on its STRIP, not on the mark
+- a strip at the screen's top opens its tooltip below it
+- a strip near the screen's right edge keeps its tooltip on screen, slid only as far as it must
+- a scaled strip is measured in screen units
+- a strip whose top is a secret value falls back to the widget's attached point, never the cursor
 - a strip whose geometry cannot be read falls back to the widget's attached tooltip, never the cursor
 - degraded: with LibKa0s absent the bars load with no handle and keep their own drag
 - degraded: with no widget the default stack reserves no strip room
