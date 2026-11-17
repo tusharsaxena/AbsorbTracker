@@ -293,25 +293,26 @@ end
 
 local function answer(v) return function() return v end end
 
--- A screen `g.sw` x `g.sh` (UIParent, scale 1), `strip` at `g.left`, `g.bottom`, `g.width` x
+-- A screen `g.sw` x `g.sh` (UIParent, scale 1: the kit's fake screen, tests/_kit/mock_screen.lua,
+-- kit revision 57), `strip` at `g.left`, `g.bottom`, `g.width` x
 -- `g.height` in its own units at an effective scale of `g.scale` (1 by default), GameTooltip
 -- `g.tipW` x `g.tipH` at scale 1, and the strip's marks parented to it (the kit's GetParent answers
 -- the frame itself). Every figure LibKa0s-Tooltip-1.0's PlaceAttached reads is answered, so the
 -- library placer the widget calls actually places. `g.top`, when given, overrides the strip's
 -- GetTop (a secret or nil read). SetOwner and SetPoint on GameTooltip are recorded into `g.owners`
--- and `g.points` rather than no-opped.
+-- and `g.points` rather than no-opped. The strip and GameTooltip are the addon's real frame and
+-- the kit's global tooltip, not frames the screen built, so their figures are rawset here; the
+-- screen supplies UIParent's whole geometry and puts it back afterwards.
 local function withScreen(strip, g, body)
-  local tip, ui = T.mocks.GameTooltip, T.mocks.UIParent
+  local tip = T.mocks.GameTooltip
   g.sw, g.sh = g.sw or 1000, g.sh or 800
   g.tipW, g.tipH = g.tipW or 200, g.tipH or 80
   g.owners, g.points = {}, {}
   local top = g.top
   if top == nil and g.bottom ~= nil then top = g.bottom + g.height end
   local function edge(v) return function() return v end end
+  local scr = dofile("tests/_kit/mock_screen.lua")(T.mocks, { width = g.sw, height = g.sh })
   local list = {
-    { ui, "GetWidth", answer(g.sw) }, { ui, "GetHeight", answer(g.sh) },
-    { ui, "GetRight", answer(g.sw) }, { ui, "GetTop", answer(g.sh) },
-    { ui, "GetEffectiveScale", answer(1) },
     { strip, "GetLeft", edge(g.left) }, { strip, "GetBottom", edge(g.bottom) },
     { strip, "GetRight", edge(g.left and g.left + g.width) }, { strip, "GetTop", edge(top) },
     { strip, "GetEffectiveScale", answer(g.scale or 1) },
@@ -324,7 +325,9 @@ local function withScreen(strip, g, body)
   for _, mark in ipairs({ strip.help, strip.close, strip.settings }) do
     list[#list + 1] = { mark, "GetParent", answer(strip) }
   end
-  withRaw(list, body)
+  local ok, err = pcall(withRaw, list, body)
+  scr.restore()
+  if not ok then error(err, 0) end
 end
 
 -- A strip mid-screen: 400..600 x 500..516 on a 1000 x 800 screen, with room above it.
