@@ -74,6 +74,12 @@ L["Write a diagnostics report to the debug console"] =
 L["Diagnostic report written to the debug console: %d lines. Use Copy to share it."] =
     "Diagnostic report written to the debug console: %d lines. Use Copy to share it."
 
+-- The one chat pointer every other report prints (debug-logging-§15, LibKa0s#79): LibKa0s-DebugLog's
+-- REPORT_WRITTEN string, handed over by core/DebugLogSetup.lua. `/at profile list` is the report
+-- verb today; `%s` is the report's title and `%d` its line count, header included.
+L["%s: %d lines written to the debug console. Use Copy to share it."] =
+    "%s: %d lines written to the debug console. Use Copy to share it."
+
 -- The `profile` row in `/at help` and on the About page (settings/Slash.lua): the collection's
 -- one description for the verb (LibKa0s-Slash minor 17).
 L["List profiles, or switch to one: profile <name>"] =

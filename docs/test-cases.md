@@ -715,11 +715,16 @@ Total.
 - a refused `update` publishes nothing on the bus
 - /at profile <name> switches while the addon is disabled
 
-### test_slashprofile.lua (34)
+### test_slashprofile.lua (39)
 
 - /at profile with no subcommand lists the profiles, then prints the sub-help
 - /at profile current names the active profile
-- /at profile list marks the current profile
+- /at profile list writes the profiles to the console, the current one marked
+- /at profile list lands with logging off, leaves it off, and reveals the console
+- /at profile list prints exactly one chat line, the pointer with the line count
+- /at profile list routes its pointer through this addon's locale
+- /at profile list without AceDB refuses in chat and writes nothing to the console
+- degraded: /at profile list streams the profiles to chat with no pointer
 - /at profile use switches the active profile
 - /at profile use of an unknown name refuses it and creates nothing
 - /at profile use reaches a profile named like a sub-verb
@@ -1287,7 +1292,7 @@ Total.
 | test_optionssetup.lua | 22 |
 | test_slashcmds.lua | 57 |
 | test_slashgate.lua | 10 |
-| test_slashprofile.lua | 34 |
+| test_slashprofile.lua | 39 |
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 16 |
 | test_sim.lua | 26 |
@@ -1319,4 +1324,4 @@ Total.
 | test_skin_switch.lua | 11 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **1077** |
+| **Total** | **1082** |

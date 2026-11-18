@@ -86,15 +86,103 @@ test("/at profile current names the active profile", function()
   assertTrue(contains(slash("profile current"), "Current profile: Default"))
 end)
 
-test("/at profile list marks the current profile", function()
+-- ── /at profile list is a report (debug-logging-§15, LibKa0s#79) ───────────────────
+--
+-- The owner's ruling of 2026-11-08: a verb's own `… list` is a report, so it goes to the debug
+-- console through NS.DebugLog:Report, ungated, revealing the console, with exactly one chat
+-- pointer. The reserved `/at list` stays in chat (tests/test_slashcmds.lua), and so does a refusal.
+
+-- The console lines appended since buffer index `before`.
+local function consoleSince(before)
+  local out = {}
+  for i = before + 1, #NS.DebugLog.buffer do out[#out + 1] = NS.DebugLog.buffer[i] end
+  return out
+end
+
+local POINTER = "profile list: %d lines written to the debug console. Use Copy to share it."
+
+test("/at profile list writes the profiles to the console, the current one marked", function()
+  -- Re-pinned at AD-79-AT: the list used to print to chat under an `Available profiles` line.
+  -- red under: the old chat list (nothing lands in the console), or a body that lost the marker.
   NS.db:SetProfile("Alt")
   T.mocks.__fireTimers()
-  local out = slash("profile list")
+  local before = #NS.DebugLog.buffer
+  slash("profile list")
+  local lines = consoleSince(before)
   backToDefault()
-  assertTrue(contains(out, "Available profiles"), joined(out))
-  assertTrue(contains(out, "Alt (current)"), joined(out))
-  assertTrue(contains(out, "Default"), joined(out))
-  assertTrue(joined(out):find("Default %(current%)") == nil, "only one profile is marked current")
+  NS.DebugLog:Hide()
+  local text = table.concat(lines, "\n")
+  assertTrue(lines[1] ~= nil and lines[1]:find("[Profile] /at profile list", 1, true) ~= nil,
+    "the report's header: " .. text)
+  assertTrue(text:find("[Profile]   Alt (current)", 1, true) ~= nil, text)
+  assertTrue(text:find("[Profile]   Default", 1, true) ~= nil, text)
+  assertTrue(text:find("Default (current)", 1, true) == nil, "only one profile is marked current")
+end)
+
+test("/at profile list lands with logging off, leaves it off, and reveals the console", function()
+  -- red under: writing the list through the gated NS.Debug (falsified: with the flag off nothing
+  -- lands), a report verb that turned logging on, or one that left a hidden console hidden.
+  NS.State.debug = false
+  NS.DebugLog:Hide()
+  local before = #NS.DebugLog.buffer
+  slash("profile list")
+  local shown = NS.DebugLog:IsShown()
+  NS.DebugLog:Hide()
+  assertTrue(#consoleSince(before) >= 2, "the header and at least one profile land ungated")
+  assertFalse(NS.State.debug, "the report leaves the logging flag off")
+  assertTrue(shown, "the hidden console is shown")
+end)
+
+test("/at profile list prints exactly one chat line, the pointer with the line count", function()
+  -- red under: the body still echoed to chat line by line (falsified: more than one chat line), or
+  -- a pointer whose count left out the header.
+  local before = #NS.DebugLog.buffer
+  local out = slash("profile list")
+  NS.DebugLog:Hide()
+  local n = #consoleSince(before)
+  assertEqual(#out, 1, "one chat line: " .. joined(out))
+  assertTrue(contains(out, POINTER:format(n)), joined(out))
+end)
+
+test("/at profile list routes its pointer through this addon's locale", function()
+  -- localization-§2, as the diagnostics line is: the descriptor hands the library's REPORT_WRITTEN
+  -- key a string from NS.L. red under: dropping the descriptor's `L` entry or the locale key.
+  local key = "%s: %d lines written to the debug console. Use Copy to share it."
+  assertEqual(rawget(NS.L, key), key, "locales/enUS.lua sets the key")
+  assertEqual(NS.DebugLog:Text("REPORT_WRITTEN"), key, "the descriptor routes it to the library")
+end)
+
+test("/at profile list without AceDB refuses in chat and writes nothing to the console", function()
+  -- A refusal inside a report verb stays in chat and writes no report (debug-logging-§15).
+  local saved = NS.db
+  NS.db = { profile = {}, global = {} }
+  local before = #NS.DebugLog.buffer
+  local out = slash("profile list")
+  NS.db = saved
+  assertEqual(#consoleSince(before), 0, "no report is written")
+  assertTrue(contains(out, "Profile system requires AceDB-3.0"), joined(out))
+end)
+
+test("degraded: /at profile list streams the profiles to chat with no pointer", function()
+  -- The stub's Report (core/DebugLogSetup.lua): with no console the report the player asked for
+  -- is printed in chat, and no line points at a console that does not exist.
+  -- red under: a stub Report that writes nothing, or one that prints the pointer.
+  local NS2, M2 = dofile("tests/degraded_env.lua")()
+  NS2.db = {
+    SetProfile        = function() end,
+    GetProfiles       = function() return { "Alt", "Default" } end,
+    GetCurrentProfile = function() return "Default" end,
+  }
+  local out = {}
+  local cf  = M2.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function(_, msg) out[#out + 1] = stripColor(tostring(msg)) end
+  local ok, err = pcall(function() NS2.Slash:OnSlash("profile list") end)
+  cf.AddMessage = old
+  assertTrue(ok, tostring(err))
+  assertTrue(contains(out, "Default (current)"), joined(out))
+  assertTrue(contains(out, "Alt"), joined(out))
+  assertFalse(contains(out, "written to the debug console"), "no pointer: " .. joined(out))
 end)
 
 test("/at profile use switches the active profile", function()

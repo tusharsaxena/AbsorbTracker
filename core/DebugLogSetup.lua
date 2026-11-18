@@ -81,7 +81,8 @@ if not lib then
         end,
         -- Report and Serialize, new at LibKa0s v1.105.0 (DebugLog minor 23), the library's
         -- suggested stub: with no console the report streams to chat with no pointer, and a
-        -- serialize answers one line. Nothing here calls either yet (adoption is LibKa0s#79).
+        -- serialize answers one line. `/at profile list` calls Report (debug-logging-§15,
+        -- LibKa0s#79, AD-79-AT); nothing here calls Serialize.
         Report = function(_, _, _, fn)
             local n = 0
             if type(fn) == "function" then
@@ -191,12 +192,15 @@ NS.DebugLog = lib:New({
         return NS.Diagnostics and NS.Diagnostics.Sections and NS.Diagnostics.Sections() or {}
     end,
 
-    -- The one console string this addon routes through its locale: the report's chat line
-    -- (STD-09, STD-13). A PLAIN table holding that one key, never the locale table itself, whose
-    -- key-returning fallback would answer every other key with its own name (the `L` trap,
-    -- tests/test_ltrap.lua). The key is the library's English, set in locales/enUS.lua.
+    -- The two console strings this addon routes through its locale: the diagnostics report's chat
+    -- line (STD-09, STD-13) and, from DebugLog minor 23, D:Report's one pointer line
+    -- (debug-logging-§15; `/at profile list` is this addon's report verb). A PLAIN table holding
+    -- those keys, never the locale table itself, whose key-returning fallback would answer every
+    -- other key with its own name (the `L` trap, tests/test_ltrap.lua). Each key is the library's
+    -- English, set in locales/enUS.lua.
     L = {
-        DIAG_WRITTEN = NS.L["Diagnostic report written to the debug console: %d lines. Use Copy to share it."],
+        DIAG_WRITTEN   = NS.L["Diagnostic report written to the debug console: %d lines. Use Copy to share it."],
+        REPORT_WRITTEN = NS.L["%s: %d lines written to the debug console. Use Copy to share it."],
     },
 })
 
