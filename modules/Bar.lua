@@ -46,7 +46,8 @@ local function closeBar(unit, label)
 end
 
 --- The unlocked drag handle over one bar: LibKa0s-Widgets-1.0's DragHandle, a dark strip with a
---- gold edge, the unit's name centered in gold and a help mark at its right end. The three bars
+--- gold edge, the unit's name centered in gold and three marks at its right end
+--- (`?`, settings gear, X, the X in the corner). The three bars
 --- stack and look alike, so the strip is what tells the user which one they are about to drag,
 --- and it gives them a grab point that is not the bar's own fill.
 ---

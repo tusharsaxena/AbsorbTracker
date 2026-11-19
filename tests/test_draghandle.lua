@@ -461,7 +461,7 @@ test("the close mark's tooltip says what X does and names the same way back", fu
   assertEqual(lines[#lines], "Re-enable it on the Appearance page or with /at toggle focus.")
 end)
 
--- ── the settings mark (AD-86-AT, LibKa0s#86; AF-STRIP-AT): every bar, left of the X ──────────────────
+-- ── the settings mark (AD-86-AT, LibKa0s#86; AF-STRIP-AT): every bar, between the ? and the X ──────────────────
 
 -- Opening a bar's settings: the call NS.OpenOptionsPanel is handed, and the unit the Appearance
 -- page holds afterwards. The page's ctx is the one tests/run.lua's CreateOptionsPanel built.
