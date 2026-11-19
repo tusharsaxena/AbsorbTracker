@@ -181,6 +181,8 @@ function NS.RestoreBarPosition(unit)
         local point, relPoint, x, y = NS.DefaultPosition(unit)
         bar:SetPoint(point, UIParent, relPoint, x, y)
     end
+    -- A move fires no script: the sim strip decides its side again (modules/Bar.lua, AD-88-AT).
+    NS.PlaceSimStrip(bar)
 end
 
 -- Apply appearance: size, texture, colors, border/background, font, lock, visibility.
@@ -253,6 +255,9 @@ function NS.UpdateBarAppearance(unit)
     -- Re-assert every child's level over the bar's current one: the bar is toplevel, so a click
     -- raises it and moves its level (frame-layering-§3, re-assert what moves).
     NS.ApplyBarLayers(bar)
+    -- The scale and the size move the bar's edges on screen, so the sim strip, while it shows,
+    -- decides its side again and takes the bar's new level (modules/Bar.lua, AD-88-AT).
+    NS.PlaceSimStrip(bar)
 
     -- `locked` is global: all three bars lock together.
     local locked = NS.GetSetting("locked")

@@ -205,7 +205,7 @@ lowercased, and picks one of three routes (spec S3 of the 2026-09-29 profile-ver
 
 | Sub-verb | Takes a name | What it does |
 |---|---|---|
-| `list` | no | `Available profiles`, then every profile, the current one marked ` (current)`. The names are `SlashLib.ProfileNames(db)` (Slash minor 17), so `list` and the bare form print the same names in the same order; with the library absent, the store's own `GetProfiles()` list. |
+| `list` | no | A **report** (debug-logging-§15, LibKa0s#79, AD-79-AT): written to the debug console through `NS.DebugLog:Report("Profile", "profile list", ...)`, ungated, under a `[Profile] /at profile list` header, one `[Profile]` row per profile, the current one marked ` (current)`; the console is shown if hidden and chat gets one pointer, `profile list: N lines written to the debug console. Use Copy to share it.` The names are `SlashLib.ProfileNames(db)` (Slash minor 17), so `list` and the bare form print the same names in the same order; with the library absent, the store's own `GetProfiles()` list, which the DebugLog stub's `Report` prints in chat with no pointer. Bare `/at profile` stays in chat. |
 | `current` | no | The current profile's name. |
 | `use <name>` | yes | `cli:ProfileSwitch(name)`, the library's switch with the same refusals as route 3. It is how a profile named like a sub-verb (`list`) is reached. It used to hand any name to `db:SetProfile`, which creates a missing profile, so a typo became one. |
 | `new <name>` | yes | `SetProfile` **then** `ResetProfile` — the reset has to land on the new profile, not the one being left behind. |

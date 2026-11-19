@@ -331,12 +331,15 @@ test("slash verbs: degraded /at debug events and /at profile current still answe
 end)
 
 test("slash verbs: degraded /at profile list lists from the store, plainly", function()
-  -- With the library absent there is no shared name list, so `list` prints the store's own.
-  -- red under: a `list` that needs the library, or one that drops the header or the marker.
+  -- With the library absent there is no shared name list, so `list` prints the store's own, and
+  -- the DebugLog stub's Report streams it to chat with no pointer (debug-logging-§15).
+  -- Re-pinned at AD-79-AT: the `Available profiles` header is gone; the live report's header is
+  -- the console's `/at profile list` line, and the stub prints the body alone.
+  -- red under: a `list` that needs the library, or one that drops the marker.
   local NS2 = degraded()
   local out
   withFakeStore(NS2, function() out = degradedSlash("profile list") end)
-  assertTrue(hasLine(out, "Available profiles"), joinedLines(out))
+  assertTrue(not hasLine(out, "written to the debug console"), "no pointer: " .. joinedLines(out))
   assertTrue(hasLine(out, "Default (current)"), joinedLines(out))
   assertTrue(hasLine(out, "  Alt"), joinedLines(out))
 end)
@@ -376,6 +379,21 @@ local function listedUnder(lines, header)
   return names
 end
 
+-- The names `/at profile list` wrote to the debug console, in order (debug-logging-§15: the list
+-- is a report, so its rows land there under `[Profile]`, not in chat). AD-79-AT.
+local function reportedNames(fn)
+  local before = #NS.DebugLog.buffer
+  local ok, err = pcall(fn)
+  NS.DebugLog:Hide()
+  if not ok then error(err, 0) end
+  local names = {}
+  for i = before + 1, #NS.DebugLog.buffer do
+    local name = NS.DebugLog.buffer[i]:match("%[Profile%]   (%S.-)$")
+    if name then names[#names + 1] = (name:gsub(" %(current%)$", "")) end
+  end
+  return names
+end
+
 test("slash verbs: /at profile list and bare /at profile list the same names in the same order", function()
   -- AbsorbTracker#33: `list` used to walk db:GetProfiles() unsorted while bare `/at profile` printed
   -- the library's sorted list, so the two routes could disagree. Both now read Slash.ProfileNames.
@@ -383,11 +401,17 @@ test("slash verbs: /at profile list and bare /at profile list the same names in 
   for _, name in ipairs({ "zeta", "Alpha", "beta" }) do NS.db:SetProfile(name) end
   NS.db:SetProfile("Default")
   T.mocks.__fireTimers()
-  local list, bare = plainSlash("profile list"), plainSlash("profile")
+  -- Re-pinned at AD-79-AT: `list` is read from the console it now writes to.
+  local before = #NS.DebugLog.buffer
+  local fromList = reportedNames(function() plainSlash("profile list") end)
+  local listText = {}
+  for i = before + 1, #NS.DebugLog.buffer do listText[#listText + 1] = NS.DebugLog.buffer[i] end
+  local bare = plainSlash("profile")
   local want = T.mocks.LibStub("LibKa0s-Slash-1.0").ProfileNames(NS.db)
   for _, name in ipairs({ "zeta", "Alpha", "beta" }) do NS.db:DeleteProfile(name, true) end
 
-  local fromList, fromBare = listedUnder(list, "Available profiles"), listedUnder(bare, "Profiles")
+  local fromBare = listedUnder(bare, "Profiles")
+  local list = listText
   assertEqual(table.concat(fromList, ","), table.concat(want, ","), joinedLines(list))
   assertEqual(table.concat(fromBare, ","), table.concat(fromList, ","), joinedLines(bare))
   local at = {}
@@ -402,10 +426,13 @@ test("slash verbs: /at profile list names the current profile even when the stor
   -- red under: `list` walking the store directly again.
   local real = NS.db.GetProfiles
   NS.db.GetProfiles = function() return { "Other" }, 1 end
-  local ok, out = pcall(plainSlash, "profile list")
+  -- Re-pinned at AD-79-AT: the names are read from the console the report writes to.
+  local before = #NS.DebugLog.buffer
+  local ok, names = pcall(reportedNames, function() plainSlash("profile list") end)
   NS.db.GetProfiles = real
-  assertTrue(ok, tostring(out))
-  assertEqual(table.concat(listedUnder(out, "Available profiles"), ","), "Default,Other",
-    joinedLines(out))
+  assertTrue(ok, tostring(names))
+  local out = {}
+  for i = before + 1, #NS.DebugLog.buffer do out[#out + 1] = NS.DebugLog.buffer[i] end
+  assertEqual(table.concat(names, ","), "Default,Other", joinedLines(out))
   assertTrue(hasLine(out, "Default (current)"), joinedLines(out))
 end)

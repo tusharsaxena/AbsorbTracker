@@ -133,6 +133,36 @@ down`. Stored configuration (settings, units, media, colors) prints as normal.
 Nothing is redacted: the report goes to the maintainer privately with a bug report. Report lines
 are English diagnostic text and do not go through `NS.L`; the one chat line does.
 
+## Reports
+
+A **report** is a multi-line read-out the player asks for by name (debug-logging-§15, the owner's
+ruling of 2026-11-08, LibKa0s#79). It goes to the debug console, not chat, through the library's
+`NS.DebugLog:Report(tag, title, fn)`:
+
+| Verb | Title | Console tag | What it writes |
+|---|---|---|---|
+| `/at profile list` | `profile list` | `[Profile]` | The header `/at profile list`, then one row per profile, indented two spaces, the current one ending ` (current)`, in `Slash.ProfileNames` order (sorted ignoring case) |
+| `/at diagnostics` | (its own helper) | `[Diag]` and per section | The diagnostics report above; it keeps debug-logging-§14's own helper and chat line |
+| `/at perf report`, `/at perf dump` | (LibKa0s-Perf's) | `[Perf]` | The capture's report and dump, written and revealed by the Perf library through `core/PerfSetup.lua`'s `log` and `showLog` hooks |
+
+What a report verb does:
+
+- **It lands whatever the logging flag reads**, through the ungated append, and it never turns
+  logging on or off. It is not a trace.
+- **The console opens if it is hidden.**
+- **Chat gets exactly one line**, the pointer, routed through `NS.L` like the diagnostics line:
+  *profile list: N lines written to the debug console. Use Copy to share it.* N counts the header.
+- **A refusal stays in chat and writes nothing**: `/at profile list` without AceDB prints
+  `Profile system requires AceDB-3.0` and no report.
+- **Without the library** the DebugLog stub's `Report` prints the rows in chat with no pointer,
+  because there is no console to point at.
+
+What stays in chat: acknowledgments and one- or two-line answers (`/at profile current`, `/at
+version`, `/at debug events`, the `get`/`set` echo), refusals, usage and errors, the help index
+(`/at help`, the `Profile commands` block), the reserved `/at list`, and bare `/at profile`, which
+is the library's `CliProfile` list followed by this tree's sub-help. The in-game walk is PROFILE-17
+of [smoke-tests.md](smoke-tests.md).
+
 ## Coverage
 
 With `/at debug on`, the gated sink `NS.Debug` writes these tags. They are what the report's trace

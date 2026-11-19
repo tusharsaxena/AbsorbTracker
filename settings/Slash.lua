@@ -549,18 +549,25 @@ local PROFILE_VERBS = {
     -- The library's name list (Slash minor 17): sorted ignoring case, the current profile always
     -- in it, the same order bare `/at profile` prints. With the library absent there is no shared
     -- list to borrow and none is copied, so the store's own list prints as it comes.
+    --
+    -- A REPORT (debug-logging-§15, the owner's ruling of 2026-11-08, LibKa0s#79): a verb's own
+    -- `… list` goes to the debug console through the library's D:Report, ungated, under a
+    -- `/at profile list` header, with the console revealed and one chat pointer. The reserved
+    -- `/at list` and bare `/at profile` (the library's CliProfile list beside this tree's sub-help)
+    -- stay in chat. Without the library the stub's Report streams the lines to chat, no pointer.
     list = function(db)
-        print("Available profiles")
         local names, current
         if SlashLib.ProfileNames then
             names, current = SlashLib.ProfileNames(db)
         else
             names, current = db:GetProfiles(), db:GetCurrentProfile()
         end
-        for _, name in ipairs(names) do
-            local marker = (name == current) and " (current)" or ""
-            print("  " .. name .. marker)
-        end
+        NS.DebugLog:Report("Profile", "profile list", function(out)
+            for _, name in ipairs(names) do
+                local marker = (name == current) and " (current)" or ""
+                out("  " .. name .. marker)
+            end
+        end)
     end,
 
     current = function(db)

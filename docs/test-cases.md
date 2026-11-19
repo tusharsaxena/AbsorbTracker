@@ -428,7 +428,7 @@ Total.
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_draghandle.lua (39)
+### test_draghandle.lua (44)
 
 - every bar body is registered for a left-button drag
 - dropping a bar body saves the position to that bar's own unit
@@ -451,19 +451,24 @@ Total.
 - the help mark has its own tooltip, with a footer saying how to put the strip away
 - every bar's strip carries a close mark, the player bar included
 - the close mark's art comes from the Media seam
-- a strip with a close mark reserves room for it on both sides
+- a strip with a close mark and a settings mark reserves room for both on both sides
 - clicking X turns off exactly that unit's bar, through the schema seam
 - clicking X leaves the bar's position, the other bars and the addon-wide enable alone
 - clicking X prints one line naming the way back
 - the close mark's tooltip says what X does and names the same way back
-- PlaceTooltipBeside puts the tooltip to the strip's right when it fits
-- PlaceTooltipBeside flips to the strip's left when the right side would leave the screen
-- PlaceTooltipBeside anchors to the STRIP when the hovered frame is its ? mark or its X
-- PlaceTooltipBeside compares in screen pixels, so a scaled strip flips when it should
-- PlaceTooltipBeside answers non-true and anchors nothing when a read is secret
-- PlaceTooltipBeside answers non-true and anchors nothing when a read is nil
-- hovering a strip, its ? or its X puts the tooltip beside the strip, owned once
-- a strip near the screen's right edge opens its tooltip on its left
+- every bar's strip carries a settings mark beside its close mark
+- the settings mark is opted into, with its art from the Media seam and the launcher's opener
+- clicking a strip's settings mark opens this addon's settings panel
+- the settings mark's click touches no bar setting
+- the settings mark's tooltip says what it opens, not how to drag the strip
+- no strip hands the widget a tooltipPlace hook: the library places every strip tooltip
+- the addon's own beside-the-strip placer is retired
+- hovering a strip, its ?, its X or its settings mark attaches the tooltip centered above the strip
+- a mark's tooltip is centered on its STRIP, not on the mark
+- a strip at the screen's top opens its tooltip below it
+- a strip near the screen's right edge keeps its tooltip on screen, slid only as far as it must
+- a scaled strip is measured in screen units
+- a strip whose top is a secret value falls back to the widget's attached point, never the cursor
 - a strip whose geometry cannot be read falls back to the widget's attached tooltip, never the cursor
 - degraded: with LibKa0s absent the bars load with no handle and keep their own drag
 - degraded: with no widget the default stack reserves no strip room
@@ -710,11 +715,16 @@ Total.
 - a refused `update` publishes nothing on the bus
 - /at profile <name> switches while the addon is disabled
 
-### test_slashprofile.lua (34)
+### test_slashprofile.lua (39)
 
 - /at profile with no subcommand lists the profiles, then prints the sub-help
 - /at profile current names the active profile
-- /at profile list marks the current profile
+- /at profile list writes the profiles to the console, the current one marked
+- /at profile list lands with logging off, leaves it off, and reveals the console
+- /at profile list prints exactly one chat line, the pointer with the line count
+- /at profile list routes its pointer through this addon's locale
+- /at profile list without AceDB refuses in chat and writes nothing to the console
+- degraded: /at profile list streams the profiles to chat with no pointer
 - /at profile use switches the active profile
 - /at profile use of an unknown name refuses it and creates nothing
 - /at profile use reaches a profile named like a sub-verb
@@ -839,6 +849,16 @@ Total.
 - sim box: the row's write publishes no appearance pass
 - sim box: a sim started or stopped elsewhere refreshes the open page
 - sim box: Reset all settings stops a running sim and never starts one
+
+### test_sim_strip.lua (7)
+
+- sim strip: every bar carries its own cyan strip, docked by the library, born hidden
+- sim strip: it sits on the bar's top edge, outside it, spanning its width
+- sim strip: while the drag handle shows, the strip stacks beyond it
+- sim strip: near the screen's top it flips under the bar
+- sim strip: a sim shows it on every bar and every stop hides it
+- sim strip: moving a bar places its strip again
+- sim strip: a build with no LibKa0s draws no strip and the sim still answers
 
 ### test_widgets.lua (46)
 
@@ -1262,7 +1282,7 @@ Total.
 | test_bus.lua | 12 |
 | test_data.lua | 32 |
 | test_display.lua | 61 |
-| test_draghandle.lua | 39 |
+| test_draghandle.lua | 44 |
 | test_layers.lua | 12 |
 | test_helpers.lua | 40 |
 | test_panelpages.lua | 27 |
@@ -1272,10 +1292,11 @@ Total.
 | test_optionssetup.lua | 22 |
 | test_slashcmds.lua | 57 |
 | test_slashgate.lua | 10 |
-| test_slashprofile.lua | 34 |
+| test_slashprofile.lua | 39 |
 | test_perfcmds.lua | 42 |
 | test_debughold.lua | 16 |
 | test_sim.lua | 26 |
+| test_sim_strip.lua | 7 |
 | test_widgets.lua | 46 |
 | test_realpages.lua | 13 |
 | test_skinsetup.lua | 17 |
@@ -1303,4 +1324,4 @@ Total.
 | test_skin_switch.lua | 11 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **1065** |
+| **Total** | **1082** |

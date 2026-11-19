@@ -200,6 +200,8 @@ Kit.run{
     "test_debughold",
     -- `/at sim` (SF-AT-2), beside the other slash halves.
     "test_sim",
+    -- AD-88-AT: the sim's cyan strip docked on each bar's top edge, straight after the sim.
+    "test_sim_strip",
     "test_widgets",
     -- The real pages' OnShow cases, peeled out of test_widgets in the layout-§1 band. Straight after
     -- it, so its cases keep their place in the run.

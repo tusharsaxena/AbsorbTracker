@@ -107,7 +107,7 @@ end)
 test("the strip's marks sit above the strip", function()
   withLayers(function()
     local handle = probeBar("target").handle
-    for _, key in ipairs({ "help", "close" }) do
+    for _, key in ipairs({ "help", "close", "settings" }) do
       local mark = handle[key]
       assertTrue(mark ~= nil, key .. " mark is built")
       assertTrue(mark:GetFrameLevel() > handle:GetFrameLevel(), key .. " mark is under the strip")
@@ -152,6 +152,9 @@ test("NS.ApplyBarLayers re-bases every child over the bar's current level", func
     assertEqual(bar.overlay:GetFrameLevel(), base + LAYERS.LEVEL.OVERLAY)
     assertEqual(bar.handle:GetFrameLevel(), base + LAYERS.LEVEL.HANDLE)
     assertEqual(bar.handle.help:GetFrameLevel(), base + LAYERS.LEVEL.HANDLE + 1)
+    assertEqual(bar.handle.close:GetFrameLevel(), base + LAYERS.LEVEL.HANDLE + 1)
+    -- AD-86-AT: the settings mark rides with its twins, or a raised strip covers it.
+    assertEqual(bar.handle.settings:GetFrameLevel(), base + LAYERS.LEVEL.HANDLE + 1)
   end)
 end)
 

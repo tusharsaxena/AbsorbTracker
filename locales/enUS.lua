@@ -54,11 +54,16 @@ L["Lock the bars to hide this handle \226\128\148 /at lock."] =
 -- The close mark's tooltip and the chat line its click prints. `%s` in the way back is the unit
 -- token `/at toggle` takes (player, target, focus), not its label.
 L["Hide the %s bar"] = "Hide the %s bar"
+-- The settings mark's tooltip (AD-86-AT): its title is the strip's own, L["Absorb Tracker"].
+L["Click to open the settings."] = "Click to open the settings."
 L["Click to hide this bar."] = "Click to hide this bar."
 L["Re-enable it on the Appearance page or with /at toggle %s."] =
     "Re-enable it on the Appearance page or with /at toggle %s."
 L["%s bar hidden. Re-enable it on the Appearance page or with /at toggle %s."] =
     "%s bar hidden. Re-enable it on the Appearance page or with /at toggle %s."
+
+-- The simulation's strip on each bar's top edge while `/at sim` runs (modules/Bar.lua, AD-88-AT).
+L["SIM: a simulated shield, not live data."] = "SIM: a simulated shield, not live data."
 
 -- The diagnostics report (debug-logging-§14): the `diagnostics` row in `/at help` and on the About
 -- page (settings/Slash.lua), and the one chat line the report prints, handed to LibKa0s-DebugLog
@@ -68,6 +73,12 @@ L["Write a diagnostics report to the debug console"] =
     "Write a diagnostics report to the debug console"
 L["Diagnostic report written to the debug console: %d lines. Use Copy to share it."] =
     "Diagnostic report written to the debug console: %d lines. Use Copy to share it."
+
+-- The one chat pointer every other report prints (debug-logging-§15, LibKa0s#79): LibKa0s-DebugLog's
+-- REPORT_WRITTEN string, handed over by core/DebugLogSetup.lua. `/at profile list` is the report
+-- verb today; `%s` is the report's title and `%d` its line count, header included.
+L["%s: %d lines written to the debug console. Use Copy to share it."] =
+    "%s: %d lines written to the debug console. Use Copy to share it."
 
 -- The `profile` row in `/at help` and on the About page (settings/Slash.lua): the collection's
 -- one description for the verb (LibKa0s-Slash minor 17).
