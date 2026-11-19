@@ -390,7 +390,10 @@ local Helpers = NS.Helpers
 
 NS.RegisterOptionsPage = function(key, name, builder) Helpers.RegisterOptionsPage(key, name, builder) end
 NS.CreateOptionsPanel  = function() Helpers.CreateOptionsPanel() end
-NS.OpenOptionsPanel    = function() Helpers.OpenOptionsPanel() end
+-- `pageKey` is optional: none opens the landing page (the launcher, `/at config`); a key opens that
+-- page (NS.OpenUnitSettings, settings/Appearance.lua). The answer is the library's: false when
+-- refused in combat, true when opened, nil with nothing to open.
+NS.OpenOptionsPanel    = function(pageKey) return Helpers.OpenOptionsPanel(pageKey) end
 
 -- AceDB profile changes (NS.OnProfileChanged) call this so any open page re-reads its values, and
 -- so do `/at set`, `/at reset` and `/at resetall`.
