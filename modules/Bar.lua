@@ -46,7 +46,8 @@ local function closeBar(unit, label)
 end
 
 --- The unlocked drag handle over one bar: LibKa0s-Widgets-1.0's DragHandle, a dark strip with a
---- gold edge, the unit's name centered in gold and a help mark at its right end. The three bars
+--- gold edge, the unit's name centered in gold and three marks at its right end
+--- (`?`, settings gear, X, the X in the corner). The three bars
 --- stack and look alike, so the strip is what tells the user which one they are about to drag,
 --- and it gives them a grab point that is not the bar's own fill.
 ---
@@ -65,21 +66,27 @@ end
 --- (settings/General.lua's `locked` row) and re-locks when combat starts (core/AbsorbTracker.lua),
 --- so a strip is never shown, and never dragged, mid-fight.
 ---
---- EVERY STRIP CARRIES A CLOSE MARK, the player bar's included (the owner's ruling, DR-OW-03): an
---- X left of the help mark that turns off THIS bar and nothing wider. See closeBar.
+--- EVERY STRIP CARRIES ALL THREE MARKS, read left to right `?` · settings · X (the owner's ruling
+--- of 2026-11-19, AF-STRIP-AT; WidgetsDragHandle minor 15 owns the order, the spacing and the
+--- header tints). The player bar's strip is no exception.
 ---
---- AND A SETTINGS MARK LEFT OF THE X (AD-86-AT, LibKa0s#86, WidgetsDragHandle minor 14): the X's
---- twin in frame, art, tint and drag scripts. `settings = true` sends its click through LibKa0s-Core's
---- OpenSettings(owner), the opener core/LauncherSetup.lua registered under this folder name, so the
---- strip and the minimap button open the same panel. Strip order, right to left: ? · X · settings.
+--- THE X turns off THIS bar and nothing wider, keeping every setting (DR-OW-03). See closeBar. The
+--- way back is the Appearance page's "Enable this unit" box or `/at toggle <unit>`, and the X's
+--- tooltip and its chat line both say so.
+---
+--- THE SETTINGS MARK opens THIS bar's settings: NS.OpenUnitSettings (settings/Appearance.lua) opens
+--- the Appearance page with its Unit picker on this bar's unit. It replaced AD-86-AT's
+--- `settings = true`, which went through the launcher's opener to the landing page. The mark is
+--- the library's default from minor 15, so the spec only hands it the opener, the art and words.
 ---
 --- ITS TOOLTIPS ARE ATTACHED ABOVE THE STRIP (AD-92-AT, LibKa0s#92): the strip is the bar's title
 --- bar, a chrome element (WowAddonStandards standalone-windows, *Tooltip placement*), so the
 --- strip's, the `?`'s, the X's and the settings mark's tooltips are centered on the strip, 2 px
 --- above it, flipped below only without room above, never at the cursor. The widget places them
---- through LibKa0s-Tooltip-1.0's PlaceAttached (WidgetsDragHandleTip minor 1), so this spec hands
---- it no `tooltipPlace` hook. From TP-AT-02 (LibKa0s v1.68.0) until then the hook was this file's
---- NS.Util.PlaceTooltipBeside, which opened them beside the strip, right or left; it is retired.
+--- (WidgetsDragHandleTip minor 2 places every strip tooltip itself and ignores `tooltipPlace`), so
+--- this spec hands it no hook. From TP-AT-02 (LibKa0s v1.68.0) until AD-92-AT the hook was this
+--- file's NS.Util.PlaceTooltipBeside, which opened them beside the strip; it is retired. Each mark
+--- carries its own descriptor, so none falls back to the strip's "Drag to move".
 local function buildHandle(bar, unit, globalName)
     local label = L[NS.Units.LABEL[unit] or unit]
     local wayBack = format(L["Re-enable it on the Appearance page or with /at toggle %s."], unit)
@@ -135,14 +142,17 @@ local function buildHandle(bar, unit, globalName)
             title  = format(L["Hide the %s bar"], label),
             body   = { L["Click to hide this bar."], wayBack },
         },
-        -- The settings mark (minor 14, opt-in). True, not a function: the owner's registered opener
-        -- (the launcher's openSettings) is the one way in, so nothing here can drift from it. Its
-        -- own tooltip, because without one it would repeat the strip's "Drag to move".
-        settings        = true,
+        -- The settings mark (standard from minor 15): this bar's own settings, the Appearance page
+        -- on this unit. Read at click time, so settings/Appearance.lua, which loads after this
+        -- file, publishes the opener before any strip can be clicked. Its own tooltip, because
+        -- without one it would repeat the strip's "Drag to move".
+        onSettings      = function()
+            if NS.OpenUnitSettings then NS.OpenUnitSettings(unit) else NS.OpenOptionsPanel() end
+        end,
         settingsIcon    = NS.Icon and NS.Icon("settings") or nil,
         settingsTooltip = {
-            title = L["Absorb Tracker"],
-            body  = { L["Click to open the settings."] },
+            title = format(L["%s bar settings"], label),
+            body  = { L["Click to open this bar's settings on the Appearance page."] },
         },
         -- Edit chrome sits at the top of its display (frame-layering-§2): an offset over the bar,
         -- applied by the widget before it builds the marks, so the `?` and X are born at

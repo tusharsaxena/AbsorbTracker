@@ -428,7 +428,7 @@ Total.
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_draghandle.lua (44)
+### test_draghandle.lua (47)
 
 - every bar body is registered for a left-button drag
 - dropping a bar body saves the position to that bar's own unit
@@ -456,11 +456,14 @@ Total.
 - clicking X leaves the bar's position, the other bars and the addon-wide enable alone
 - clicking X prints one line naming the way back
 - the close mark's tooltip says what X does and names the same way back
-- every bar's strip carries a settings mark beside its close mark
-- the settings mark is opted into, with its art from the Media seam and the launcher's opener
-- clicking a strip's settings mark opens this addon's settings panel
+- every bar's strip carries all three marks: ?, settings and close
+- the settings mark opens this bar's own settings, with its art from the Media seam
+- clicking a strip's settings mark opens the Appearance page on that strip's unit
+- a refused open (combat) leaves the Appearance page's unit alone
+- NS.OpenUnitSettings hands the page key through to the library's opener
 - the settings mark's click touches no bar setting
-- the settings mark's tooltip says what it opens, not how to drag the strip
+- the settings mark's tooltip names its bar and its page, not how to drag the strip
+- the close mark's tooltip says the bar can be turned back on, and where
 - no strip hands the widget a tooltipPlace hook: the library places every strip tooltip
 - the addon's own beside-the-strip placer is retired
 - hovering a strip, its ?, its X or its settings mark attaches the tooltip centered above the strip
@@ -1282,7 +1285,7 @@ Total.
 | test_bus.lua | 12 |
 | test_data.lua | 32 |
 | test_display.lua | 61 |
-| test_draghandle.lua | 44 |
+| test_draghandle.lua | 47 |
 | test_layers.lua | 12 |
 | test_helpers.lua | 40 |
 | test_panelpages.lua | 27 |
@@ -1324,4 +1327,4 @@ Total.
 | test_skin_switch.lua | 11 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **1082** |
+| **Total** | **1085** |

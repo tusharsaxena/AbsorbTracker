@@ -105,6 +105,26 @@ local H = NS.Helpers
 
 local PAGE = "appearance"
 
+-- The page's ctx, kept by `build` below, so NS.OpenUnitSettings can pick the unit it shows. Nil on
+-- a build with no Settings API or no Options library, where `build` never runs.
+local pageCtx
+
+--- Open the Appearance page on one bar's unit (AF-STRIP-AT): what a drag strip's settings mark
+--- opens, so the gear over the Target bar lands on Target's settings, not on the landing page.
+--- The open goes first, through NS.OpenOptionsPanel and so through the library's combat refusal;
+--- only an open that was not refused moves the page's Unit picker. The move is the picker's own:
+--- `ctx.unit`, then a structural refresh, which re-renders a page on screen now and marks a hidden
+--- one dirty for its next show. Nothing is written to the profile.
+function NS.OpenUnitSettings(unit)
+    local opened = NS.OpenOptionsPanel(PAGE)
+    if opened == false then return false end
+    if pageCtx and unit and pageCtx.unit ~= unit then
+        pageCtx.unit = unit
+        if H.RefreshPanel then H.RefreshPanel(pageCtx, true) end
+    end
+    return opened
+end
+
 -- NO `disabledIf` ON ANY COLOR ROW, and that is a reversal worth stating.
 --
 -- Each of these four swatches used to gray itself out while its "Use class color" partner was on,
@@ -405,6 +425,7 @@ local function build(mainCategory)
     H.SetRenderer(ctx, function(c)
         H.RenderUnitPanel(c, PAGE)
     end)
+    pageCtx = ctx
 
     return Settings.RegisterCanvasLayoutSubcategory(
         mainCategory, ctx.panel, "Appearance")

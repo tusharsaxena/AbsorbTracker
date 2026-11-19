@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-1082%2F1082_passing-green)
+![Tests](https://img.shields.io/badge/Tests-1085%2F1085_passing-green)
 
 Supports Retail and WoW Forever. Absorb Tracker shows your absorb shields as a movable bar. It adds every shield on the unit
 into one number, so a glance tells you how much damage you can eat before your health starts
@@ -33,9 +33,10 @@ Setting up takes four steps.
 
 - Place the Player bar. Drag the bar or its handle strip where you want it, then type `/at lock`.
   If a bar ever ends up somewhere you can't reach, `/at resetposition` puts every bar back in the
-  middle. The small gear on the strip opens the settings panel. The small X beside it turns that bar
-  off; pick the unit on the Appearance page and tick **Enable this unit**, or type
-  `/at toggle player`, to bring it back.
+  middle. The strip's right end carries three small marks: `?` for help, a gear that opens that
+  bar's settings on the Appearance page, and an X that turns that bar off. Your settings stay put;
+  to bring a bar back, pick its unit on the Appearance page and tick **Enable this unit**, or type
+  `/at toggle player`.
 - Turn on Target and Focus. Both ship switched off. On the Appearance page pick Target or Focus in
   the **Unit** picker and tick **Enable this unit** beside it. A Target or Focus bar only draws while
   you have that unit, but it shows while unlocked even with nothing targeted, so you can drag it

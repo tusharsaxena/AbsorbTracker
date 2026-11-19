@@ -461,59 +461,98 @@ test("the close mark's tooltip says what X does and names the same way back", fu
   assertEqual(lines[#lines], "Re-enable it on the Appearance page or with /at toggle focus.")
 end)
 
--- ── the settings mark (AD-86-AT, LibKa0s#86): every bar, left of the X ─────────────────────
+-- ── the settings mark (AD-86-AT, LibKa0s#86; AF-STRIP-AT): every bar, between the ? and the X ──────────────────
 
-test("every bar's strip carries a settings mark beside its close mark", function()
-  -- red under: a spec without `settings`, which builds no settings mark (WidgetsDragHandle minor 14).
+-- Opening a bar's settings: the call NS.OpenOptionsPanel is handed, and the unit the Appearance
+-- page holds afterwards. The page's ctx is the one tests/run.lua's CreateOptionsPanel built.
+local function clickSettings(unit, openAnswer)
+  local ctx = NS.Helpers.__panelFor("appearance")
+  local savedUnit = ctx and ctx.unit
+  local realOpen, opened = NS.OpenOptionsPanel, {}
+  NS.OpenOptionsPanel = function(page) opened[#opened + 1] = page or "landing" return openAnswer end
+  local ok, err = pcall(function()
+    withLocked(false, function() NS.bars[unit].handle.settings:__fire("OnClick", "LeftButton") end)
+  end)
+  NS.OpenOptionsPanel = realOpen
+  local held = ctx and ctx.unit
+  if ctx then ctx.unit = savedUnit end
+  if not ok then error(err) end
+  return opened, held
+end
+
+test("every bar's strip carries all three marks: ?, settings and close", function()
+  -- red under: `settings = false` (the gear is the default from WidgetsDragHandle minor 15), a spec
+  -- with no onClose (no X), or no help mark.
   for _, unit in ipairs(NS.Units.LIST) do
     local handle = NS.bars[unit].handle
+    assertTrue(handle.help ~= nil, unit .. " strip has no help mark")
     assertTrue(handle.settings ~= nil, unit .. " strip has no settings mark")
     assertTrue(handle.settings.icon ~= nil, unit .. " settings mark has no art")
+    assertTrue(handle.close ~= nil, unit .. " strip has no close mark")
   end
 end)
 
-test("the settings mark is opted into, with its art from the Media seam and the launcher's opener", function()
+test("the settings mark opens this bar's own settings, with its art from the Media seam", function()
+  -- red under: AD-86-AT's `settings = true`, which sent every gear to the landing page.
   local spec = specFor("focus")
-  assertEqual(spec.settings, true, "settings = true: the click goes through the owner's registered opener")
-  assertNil(spec.onSettings, "no second opener beside the launcher's")
+  assertTrue(spec.settings ~= false, "never opted out of the standard settings mark")
+  assertTrue(type(spec.onSettings) == "function", "the gear opens this bar's page, not the landing page")
   assertEqual(spec.settingsIcon, NS.Icon("settings"))
   assertTrue(spec.settingsIcon ~= nil, "the vendored catalog ships a settings mark")
 end)
 
-test("clicking a strip's settings mark opens this addon's settings panel", function()
-  -- red under: no settings mark, or one whose click reaches no opener (Core's OpenSettings with no
-  -- launcher registered under this addon's folder name).
+test("clicking a strip's settings mark opens the Appearance page on that strip's unit", function()
   for _, unit in ipairs(NS.Units.LIST) do
-    local realOpen, opened = NS.OpenOptionsPanel, 0
-    NS.OpenOptionsPanel = function() opened = opened + 1 end
-    local ok, err = pcall(function()
-      withLocked(false, function() NS.bars[unit].handle.settings:__fire("OnClick", "LeftButton") end)
-    end)
-    NS.OpenOptionsPanel = realOpen
-    if not ok then error(err) end
-    assertEqual(opened, 1, unit .. ": one click, one open of the settings panel")
+    local opened, held = clickSettings(unit, true)
+    assertEqual(#opened, 1, unit .. ": one click, one open")
+    assertEqual(opened[1], "appearance", unit .. ": the gear opens the Appearance page")
+    assertEqual(held, unit, unit .. ": the Appearance page shows the clicked bar's unit")
   end
+end)
+
+test("a refused open (combat) leaves the Appearance page's unit alone", function()
+  local ctx = NS.Helpers.__panelFor("appearance")
+  local before = ctx.unit
+  local opened, held = clickSettings(before == "focus" and "target" or "focus", false)
+  assertEqual(#opened, 1)
+  assertEqual(held, before, "a refused open must not move the page to another unit")
+end)
+
+test("NS.OpenUnitSettings hands the page key through to the library's opener", function()
+  local real, seen = NS.Helpers.OpenOptionsPanel, {}
+  NS.Helpers.OpenOptionsPanel = function(page) seen[#seen + 1] = page return false end
+  local ok, err = pcall(NS.OpenUnitSettings, "target")
+  NS.Helpers.OpenOptionsPanel = real
+  if not ok then error(err) end
+  assertEqual(seen[1], "appearance", "NS.OpenOptionsPanel must not drop its page key")
 end)
 
 test("the settings mark's click touches no bar setting", function()
   local c = NS.db.profile.units.target
   local enabled, writes = c.enabled, 0
-  local realSet, realOpen = NS.SetByPath, NS.OpenOptionsPanel
+  local realSet = NS.SetByPath
   NS.SetByPath = function(...) writes = writes + 1 return realSet(...) end
-  NS.OpenOptionsPanel = function() end
-  local ok, err = pcall(function()
-    withLocked(false, function() NS.bars.target.handle.settings:__fire("OnClick", "LeftButton") end)
-  end)
-  NS.SetByPath, NS.OpenOptionsPanel = realSet, realOpen
+  local ok, err = pcall(clickSettings, "target", true)
+  NS.SetByPath = realSet
   if not ok then error(err) end
   assertEqual(writes, 0, "opening the settings writes nothing")
   assertEqual(c.enabled, enabled)
 end)
 
-test("the settings mark's tooltip says what it opens, not how to drag the strip", function()
+test("the settings mark's tooltip names its bar and its page, not how to drag the strip", function()
   local title, lines = hover(NS.bars.player.handle.settings, NS.bars.player.handle)
-  assertEqual(title, "Absorb Tracker")
-  assertEqual(lines[1], "Click to open the settings.")
+  assertEqual(title, "Player bar settings")
+  assertEqual(lines[1], "Click to open this bar's settings on the Appearance page.")
+  local focusTitle = hover(NS.bars.focus.handle.settings, NS.bars.focus.handle)
+  assertEqual(focusTitle, "Focus bar settings")
+end)
+
+test("the close mark's tooltip says the bar can be turned back on, and where", function()
+  -- The owner's ruling (AF-STRIP): close is restorable, and the X's tooltip says how.
+  for _, unit in ipairs(NS.Units.LIST) do
+    local _, lines = hover(NS.bars[unit].handle.close, NS.bars[unit].handle)
+    assertEqual(lines[#lines], "Re-enable it on the Appearance page or with /at toggle " .. unit .. ".")
+  end
 end)
 
 -- ── where the tooltips sit: attached above the strip (AD-92-AT, LibKa0s#92) ─────────────────
