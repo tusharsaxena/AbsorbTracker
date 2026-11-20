@@ -108,6 +108,74 @@ Kit.skinValues = {}
 -- it. The strip, the console and the perf panel are the library's, painted for this owner. The
 -- settings rows are not listed: the mock's AceGUI frames draw nothing, so a surface there reports
 -- no setter at all; tests/test_skin_tools.lua pins their owner, and they carry no paint of ours.
+--
+-- A BAR ON THE PAINT RECORDER, WITH MEDIA THAT MOVE (kit revision 58, SD-SK-AT). The family check
+-- asks every StatusBar to draw its fill and move it on a switch, and `expect = "texture"` asks a
+-- surface to move its texture on its own, not pass on its tint (the audit's U-5). Two things in
+-- the base harness hide that: mock_base.lua answers CreateTexture and CreateFontString with the
+-- frame itself and has no StatusBar fill, and with no LibSharedMedia every key fetches
+-- C.FALLBACK_TEXTURE, so the fill draws one path under every skin. So each bar surface builds a
+-- fresh player bar on the kit's paint recorder (tests/_kit/mock_paint.lua, as test_skin_flip.lua's
+-- gloss cases do), swapped in as NS.bars.player so the one appearance pass and the looks listener
+-- paint it, with a LibSharedMedia fake answering every key with a path of its own. `reset` puts
+-- the real bar, the base CreateFrame and the LibStub back after every surface.
+local fixture
+
+local function fakeLSM()
+  local function path(mtype, key) return "Fake\\" .. tostring(mtype) .. "\\" .. tostring(key) end
+  return {
+    Fetch     = function(_, mtype, key) return key ~= nil and path(mtype, key) or nil end,
+    HashTable = function() return {} end,
+    List      = function() return {} end,
+    Register  = function() return true end,
+  }
+end
+
+local function undoFixture()
+  local f = fixture
+  if not f then return end
+  fixture = nil
+  NS.bars.player = f.real
+  local Skin = mocks.LibStub("LibKa0s-Skin-1.0", true)
+  if Skin and f.bar then
+    for _, region in ipairs({ f.bar, f.bar.statusBar, f.bar.border, f.bar.valueText, f.bar.handle,
+      f.bar.simStrip }) do
+      if region then Skin:Untrack(region) end
+    end
+  end
+  if f.bar then f.bar:Hide() end
+  mocks.LibStub = f.libStub
+  NS.ClearLSMCache()
+  rawset(_G, "CreateFrame", f.createFrame)
+  f.restorePaint()
+end
+
+local probeBars = 0
+
+--- A fresh player bar on the paint recorder, the live NS.bars.player until `reset`.
+local function paintedBar()
+  undoFixture()
+  local f = { real = NS.bars.player, libStub = mocks.LibStub, createFrame = rawget(_G, "CreateFrame") }
+  f.restorePaint = dofile("tests/_kit/mock_paint.lua")(mocks)
+  fixture = f
+  local lsm, savedLibStub = fakeLSM(), mocks.LibStub
+  mocks.LibStub = setmetatable({}, {
+    __index = savedLibStub,
+    __call = function(_, name, silent)
+      if name == "LibSharedMedia-3.0" then return lsm end
+      return savedLibStub(name, silent)
+    end,
+  })
+  NS.ClearLSMCache()
+  rawset(_G, "CreateFrame", mocks.CreateFrame)
+  probeBars = probeBars + 1
+  f.bar = NS.CreateBar("player", "AbsorbTrackerSkinSwitchProbe" .. probeBars)
+  rawset(_G, "CreateFrame", f.createFrame)
+  f.bar:Show()
+  NS.bars.player = f.bar
+  NS.UpdateBarAppearance("player")
+  return f.bar
+end
 local function setCompanions(on, ...)
   for _, unit in ipairs(NS.Units.LIST) do
     local cfg = NS.db.profile.units[unit]
@@ -115,11 +183,12 @@ local function setCompanions(on, ...)
   end
 end
 
-local function barSurface(name, pick, ...)
+local function barSurface(name, pick, expect, ...)
   local keys = { ... }
   return {
     name      = name,
-    build     = function() NS.UpdateBarAppearance("player"); return pick(NS.bars.player) end,
+    expect    = expect,
+    build     = function() return pick(paintedBar()) end,
     paint     = function() NS.UpdateBarAppearance("player") end,
     companion = function(on) setCompanions(on, unpack(keys)) end,
   }
@@ -128,13 +197,36 @@ end
 Kit.skinSwitch = {
   owner = "AbsorbTracker",
   skin  = function() return mocks.LibStub("LibKa0s-Skin-1.0") end,
+  -- After every surface: the real bar and the base mock back, and a shown picker taken down.
+  reset = function()
+    undoFixture()
+    NS.HideSkinPicker()
+  end,
   surfaces = {
-    barSurface("a bar's fill", function(b) return b.statusBar end, "barColorFromSkin", "barTextureFromSkin"),
-    barSurface("a bar's background", function(b) return b end, "bgColorFromSkin", "barTextureFromSkin"),
-    barSurface("a bar's border", function(b) return b.border end, "borderColorFromSkin", "borderFromSkin"),
-    barSurface("a bar's value text", function(b) return b.valueText end,
+    -- The fill is a data fill in the skin's `bar.texture`, the background's backdrop `bgFile` the
+    -- same texture and the border's backdrop `edgeFile` the skin's `bar.borderStyle`, all three
+    -- `expect = "texture"`. The kit's family check proves the fill's own texture moves, but not
+    -- the two backdrop files: it walks the background surface's children, so the fill moving passes
+    -- it, and it reads the border's SetBackdrop whole, so the skin's `bar.borderSize` moving edgeSize
+    -- passes it. tests/test_skin_hud.lua pins bgFile and edgeFile on their own ("the background's
+    -- bgFile and the border's edgeFile follow the skin on their own").
+    barSurface("a bar's fill", function(b) return b.statusBar end, "texture",
+      "barColorFromSkin", "barTextureFromSkin"),
+    barSurface("a bar's background", function(b) return b end, "texture",
+      "bgColorFromSkin", "barTextureFromSkin"),
+    barSurface("a bar's border", function(b) return b.border end, "texture",
+      "borderColorFromSkin", "borderFromSkin"),
+    barSurface("a bar's value text", function(b) return b.valueText end, nil,
       "fontColorFromSkin", "fontShadowFromSkin", "fontFromSkin"),
-    { name = "a bar's drag strip", build = function() return NS.bars.player.handle end },
+    { name = "a bar's drag strip", build = function() return paintedBar().handle end },
+    -- The bar's docked cyan SIM strip (modules/Bar.lua buildSimStrip), the library's TestStrip built
+    -- for this owner: its wash is `strip.sim`, the library's meaning color whose legibility a skin
+    -- moves (skinning-§7), and its line `text.accent`.
+    { name = "a bar's sim strip", build = function()
+      local strip = paintedBar().simStrip
+      strip:Show()
+      return strip
+    end },
     -- Library windows, opened by the host's own seams and painted for this owner.
     { name = "the debug console", build = function()
       NS.DebugLog:Show()
@@ -144,6 +236,22 @@ Kit.skinSwitch = {
       NS.Perf.ShowPanel()
       return NS.Perf.__panel()
     end, reset = function() NS.Perf.HidePanel() end },
+    -- The sim step panel (modules/Sim.lua), LibKa0s-Sim-1.0's window built for this owner.
+    { name = "the sim step panel", build = function()
+      NS.Sim.ShowPanel()
+      for _, f in ipairs(mocks.__shownFrames()) do
+        if f.__name == NS.SimHost.PANEL_NAME then return f end
+      end
+    end, reset = function() NS.Sim.HidePanel() end },
+    -- The first-run skin picker (core/SkinSetup.lua), the library's window for this owner; the
+    -- profile's `skin.pickerSeen` is put back so the run does not mark the picker seen.
+    { name = "the skin picker", build = function()
+      local seen = NS.GetSetting("skin.pickerSeen")
+      NS.db.profile.skin.pickerSeen = false
+      local frame = NS.MaybeShowSkinPicker()
+      NS.db.profile.skin.pickerSeen = seen
+      return frame
+    end },
   },
 }
 

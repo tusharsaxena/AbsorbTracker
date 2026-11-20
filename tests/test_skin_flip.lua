@@ -78,11 +78,15 @@ test("every unit's color and shadow companions are bool rows defaulting on, in b
   end
 end)
 
-test("no swatch carries disabledIf, and a class color has no companion", function()
+test("no swatch carries disabledIf, Font shadow is governed by its companion, and a class color has no companion", function()
   -- red under: a composed swatch grayed by its companion (options-ui-§17).
-  for _, key in ipairs({ "barColor", "bgColor", "borderColor", "fontColor", "fontShadow" }) do
+  for _, key in ipairs({ "barColor", "bgColor", "borderColor", "fontColor" }) do
     assertEqual(NS.FindSchemaRow("units.player." .. key).disabledIf, nil, key)
   end
+  -- Font shadow is a checkbox, not a swatch: from OptionsCompose minor 20 (LibKa0s v1.108.0, R-2)
+  -- the composer disables it while Use the skin's shadow is on, as core/Data.lua already ignores it
+  -- then (re-pinned by SD-RV-AT).
+  assertEqual(NS.FindSchemaRow("units.player.fontShadow").disabledIf, "units.player.fontShadowFromSkin")
   for _, key in ipairs({ "useClassColorBar", "useClassColorBg", "useClassColorBorder", "useClassColorText" }) do
     assertEqual(NS.FindSchemaRow("units.player." .. key .. "FromSkin"), nil, key)
   end

@@ -242,6 +242,45 @@ test("the appearance pass draws the skin's border thickness and inset", function
   NS.UpdateBarAppearance("player")
 end)
 
+-- The backdrops on their own (review of SD-SK-AT): the skin-switch guard's "a bar's background"
+-- surface walks the bar root, whose StatusBar child moves the texture family whatever bgFile does,
+-- and its "a bar's border" surface reads SetBackdrop whole, so edgeSize alone moves it. These pin the
+-- two files apart, on a skin whose `bar.texture` and `bar.borderStyle` differ from the stored picks.
+-- red under: NS.GetBgTexture fetching the stored bgTexture over the skin's texture, or NS.GetBorder
+-- fetching the stored border over the skin's `bar.borderStyle`.
+test("the background's bgFile and the border's edgeFile follow the skin on their own", onDefault(function()
+  Skin:SetChoice(OWNER, "ka0s", "azeroth")
+  local tex, style = S.Token("bar.texture"), S.Token("bar.borderStyle")
+  local c = NS.db.profile.units.player
+  local savedBg, savedEdge = c.bgTexture, c.border
+  c.bgTexture, c.border = "Stored Background", "Stored Edge"
+  local ok, err = pcall(function()
+    assertTrue(tex ~= nil and tex ~= c.bgTexture, "the skin's texture differs from the stored one")
+    assertTrue(style ~= nil and style ~= "None" and style ~= c.border,
+      "the skin draws a border of its own, not the stored one")
+    withLSM({
+      statusbar = { [tex] = "path/skin/bar", ["Stored Background"] = "path/own/bg",
+        [c.barTexture] = "path/own/bar" },
+      border    = { [style] = "path/skin/edge", ["Stored Edge"] = "path/own/edge" },
+    }, function()
+      local bar = NS.bars.player
+      NS.UpdateBarAppearance("player")
+      assertEqual(bar.backdropInfo.bgFile, "path/skin/bar", "the companion on: the skin's texture")
+      assertEqual(bar.borderInfo.edgeFile, "path/skin/edge", "the companion on: the skin's border")
+      withUnit("player", "barTextureFromSkin", false, function()
+        withUnit("player", "borderFromSkin", false, function()
+          NS.UpdateBarAppearance("player")
+          assertEqual(bar.backdropInfo.bgFile, "path/own/bg", "off: the stored background")
+          assertEqual(bar.borderInfo.edgeFile, "path/own/edge", "off: the stored border")
+        end)
+      end)
+    end)
+  end)
+  c.bgTexture, c.border = savedBg, savedEdge
+  NS.UpdateBarAppearance("player")
+  if not ok then error(err, 0) end
+end))
+
 test("a skin switch repaints every bar", onDefault(function()
   local painted, real = {}, NS.UpdateBarAppearance
   NS.UpdateBarAppearance = function(unit) painted[#painted + 1] = unit end

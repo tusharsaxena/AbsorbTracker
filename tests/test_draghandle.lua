@@ -571,7 +571,9 @@ end)
 -- (right when it fits, left near the right edge, a mark resolving to its strip, screen pixels, a
 -- secret read, a nil read) and the two hover cases became the cases below, one for one: above
 -- mid-screen, below at the top, clamped at the right edge, every mark placed by its strip, screen
--- units on a scaled strip, a secret read and a nil read falling back to the widget's attached point.
+-- units on a scaled strip, a secret read and a nil read falling back to the widget's attached point
+-- (re-pinned by SD-RV-AT, WidgetsDragHandleTip minor 3: above the nearest readable ancestor, else
+-- no tooltip).
 
 -- One hover of `frame` (the strip or one of its marks) on the screen `g` describes.
 local function hoverAt(strip, frame, g)
@@ -658,50 +660,60 @@ test("a scaled strip is measured in screen units", function()
   assertPinned(g, "BOTTOM", 500, 518, "the same place as the unscaled mid-screen strip")
 end)
 
-test("a strip whose top is a secret value falls back to the widget's attached point, never the cursor", function()
-  -- LibKa0s-Tooltip-1.0 asks issecretvalue (read bare at call time) before any arithmetic, and
-  -- places nothing on a secret read; the widget then writes its relative point above the strip.
+test("a strip whose top is a secret value opens its tooltip above its bar, never the cursor", function()
+  -- RE-PINNED by SD-RV-AT (LibKa0s v1.108.0, WidgetsDragHandleTip minor 3, LibKa0s#99, the owner's
+  -- ruling R-3). Through minor 2 the widget wrote a relative point into the strip, which a
+  -- restricted tree refuses. Now the placement climbs to the strip's nearest ancestor whose rect
+  -- reads, here the bar the strip sits on (400..600 x 480..520), and pins the tooltip above it by
+  -- an absolute point on UIParent: centered at 500, its BOTTOM 2 px over the bar's top.
   local SECRET_TOP = 516.25
   local saved = rawget(_G, "issecretvalue")
   rawset(_G, "issecretvalue", function(v) return v == SECRET_TOP end)
   local strip = NS.bars.player.handle
+  local bar = NS.bars.player
   local g = midScreen()
   g.top = SECRET_TOP
-  local ok, err = pcall(hoverAt, strip, strip, g)
+  local ok, err = pcall(withRaw, {
+    { strip, "GetParent", answer(bar) },
+    { bar, "GetLeft", answer(400) }, { bar, "GetRight", answer(600) },
+    { bar, "GetBottom", answer(480) }, { bar, "GetTop", answer(520) },
+    { bar, "GetEffectiveScale", answer(1) }, { bar, "GetParent", answer(T.mocks.UIParent) },
+  }, function() hoverAt(strip, strip, g) end)
   rawset(_G, "issecretvalue", saved)
   if not ok then error(err) end
   assertEqual(#g.owners, 1, "owned once: no second owner at the cursor")
   assertEqual(g.owners[1][2], "ANCHOR_NONE")
-  assertEqual(#g.points, 1, "one point, the widget's attached fallback")
-  local point, rel, relPoint, x, y = unpack(g.points[1])
-  assertEqual(point, "BOTTOM")
-  assertTrue(rawequal(rel, strip), "attached to the strip")
-  assertEqual(relPoint, "TOP")
-  assertEqual(x, 0)
-  assertEqual(y, 2)
+  assertPinned(g, "BOTTOM", 500, 522, "above the nearest readable ancestor, the bar")
 end)
 
-test("a strip whose geometry cannot be read falls back to the widget's attached tooltip, never the cursor", function()
-  -- The widget's own fallback since LibKa0s v1.105.0 (WidgetsDragHandleTip minor 1, LibKa0s#92,
-  -- anti-pattern #119): owned once by UIParent at ANCHOR_NONE, then attached above the strip
-  -- (smoke round 1's SR-L1: above, since the pointer hangs down and never covers that side).
-  -- With the strip's edges unreadable (nil: not yet laid out) the Tooltip major places nothing,
-  -- so the widget writes its relative point, BOTTOM on the strip's TOP 2 px up. Until v1.104.0 it
-  -- re-owned at the cursor.
+test("a strip with no readable rect up its tree shows no tooltip, never a point into the strip or the cursor", function()
+  -- RE-PINNED by SD-RV-AT (WidgetsDragHandleTip minor 3, LibKa0s#99). With the strip's edges
+  -- unreadable (nil: not yet laid out) and its bar's too, the Tooltip major places nothing at any
+  -- level, so the widget clears the tooltip's points and hides it. Through minor 2 it wrote BOTTOM
+  -- on the strip's TOP 2 px up; until v1.104.0 it re-owned at the cursor.
   local strip = NS.bars.target.handle
+  local bar = NS.bars.target
+  local tip = T.mocks.GameTooltip
   local g = { width = 200, height = 16 }
-  withScreen(strip, g, function() strip:__fire("OnEnter") end)
+  local hides = 0
+  withRaw({
+    { strip, "GetParent", answer(bar) },
+    { bar, "GetLeft", answer(nil) }, { bar, "GetRight", answer(nil) },
+    { bar, "GetBottom", answer(nil) }, { bar, "GetTop", answer(nil) },
+    { bar, "GetParent", answer(T.mocks.UIParent) },
+  }, function()
+    withScreen(strip, g, function()
+      withRaw({ { tip, "Hide", function() hides = hides + 1 end } }, function()
+        strip:__fire("OnEnter")
+      end)
+    end)
+  end)
   strip:__fire("OnLeave")
   assertEqual(#g.owners, 1, "owned once: no second owner at the cursor")
   assertTrue(rawequal(g.owners[1][1], T.mocks.UIParent), "owned by UIParent")
   assertEqual(g.owners[1][2], "ANCHOR_NONE")
-  assertEqual(#g.points, 1, "one point, the widget's attached fallback")
-  local point, rel, relPoint, x, y = unpack(g.points[1])
-  assertEqual(point, "BOTTOM")
-  assertTrue(rawequal(rel, strip), "attached to the strip, not beside it")
-  assertEqual(relPoint, "TOP")
-  assertEqual(x, 0)
-  assertEqual(y, 2)
+  assertEqual(#g.points, 0, "no point at all, so nothing anchors into the strip")
+  assertTrue(hides >= 1, "the tooltip is hidden on the hover itself")
 end)
 
 -- ── degraded: no widget, no strip, nothing raises ────────────────────────────────────────────

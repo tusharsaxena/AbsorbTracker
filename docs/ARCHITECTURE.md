@@ -352,8 +352,9 @@ tooltip; the one HUD surface that does is the unlocked drag strip.
   centered on the strip, `TIP_GAP` (2 px) above it, below only without room above, never at the
   cursor. `modules/Bar.lua` hands the widget no `tooltipPlace` hook, so `LibKa0s-Widgets-1.0`'s
   DragHandle places them through `LibKa0s-Tooltip-1.0`'s `PlaceAttached` (WidgetsDragHandleTip
-  minor 1; from minor 2, LibKa0s v1.107.0, the widget ignores a `tooltipPlace` anyway); a mark places by its strip, and an unreadable or secret read gets the widget's relative
-  point above the strip. The addon's own `NS.Util.PlaceTooltipBeside` (TP-AT-02), which put them
+  minor 1; from minor 2, LibKa0s v1.107.0, the widget ignores a `tooltipPlace` anyway); a mark places by its strip. A strip whose rect reads secret or unplaced opens its tooltip above
+  its nearest readable ancestor, the bar, by the same absolute point, and shows none when nothing up
+  the tree reads (WidgetsDragHandleTip minor 3, LibKa0s v1.108.0, LibKa0s#99). The addon's own `NS.Util.PlaceTooltipBeside` (TP-AT-02), which put them
   beside the single strip, is retired. `tests/test_draghandle.lua` pins it on a fake screen.
 
 **Left where they are, and why.** Each is outside what this addon places:
