@@ -478,7 +478,7 @@ Appearance counts are **per unit** (the page renders one unit at a time behind t
 | `bgColorFromSkin` | bool | `true` | — | The same for the background, `at.barBg` (`bar.bg`). An `extra` row of `H.ColorPair`. |
 | `borderColorFromSkin` | bool | `true` | — | The same for the border, `at.barBorder` (`bar.border`). An `extra` row of `H.BorderGroup`. |
 | `fontColorFromSkin` | bool | `true` | — | The same for the absorb amount, `hud.text` (`S.HudTextColor`). An `extra` row of `H.FontGroup`. |
-| `fontShadowFromSkin` | bool | `true` | — | Draw the absorb amount's shadow from `S.HudShadow`: none under Ka0s Default. `fontShadow` is not read while this is on, unless **Ignore fonts** is on. Label "Use the skin's shadow". An `extra` row of `H.FontGroup`. |
+| `fontShadowFromSkin` | bool | `true` | — | Draw the absorb amount's shadow from `S.HudShadow`: none under Ka0s Default. `fontShadow` is not read while this is on, unless **Ignore fonts** is on, and the composer grays its row meanwhile (OptionsCompose minor 20, LibKa0s v1.108.0). Label "Use the skin's shadow". An `extra` row of `H.FontGroup`. |
 | `position` | table | `nil` | — | Saved bar position `{ point, relPoint, x, y }`, per unit. **Not** a schema row — read/written via `NS.Units.Position` / `NS.Units.SetPosition`, never mirrored even when the rest of the unit's appearance is. It is architecture-§5 **named non-setting state** (geometry only a drag determines): its owner, `core/Units.lua`, and every writer (the bar's drag-stop, and `Helpers.ResetAllPositions` behind `/at resetposition` and the Reset Position button) are named under [Named non-setting state](#named-non-setting-state), so it needs no register row. Listed here for completeness. |
 
 ## See also

@@ -471,8 +471,8 @@ Total.
 - a strip at the screen's top opens its tooltip below it
 - a strip near the screen's right edge keeps its tooltip on screen, slid only as far as it must
 - a scaled strip is measured in screen units
-- a strip whose top is a secret value falls back to the widget's attached point, never the cursor
-- a strip whose geometry cannot be read falls back to the widget's attached tooltip, never the cursor
+- a strip whose top is a secret value opens its tooltip above its bar, never the cursor
+- a strip with no readable rect up its tree shows no tooltip, never a point into the strip or the cursor
 - degraded: with LibKa0s absent the bars load with no handle and keep their own drag
 - degraded: with no widget the default stack reserves no strip room
 - degraded: NS.Widgets is the stub, whose DragHandle draws nothing and whose strip takes no room
@@ -973,7 +973,7 @@ Total.
 ### test_skin_flip.lua (28)
 
 - every unit's color and shadow companions are bool rows defaulting on, in both places
-- no swatch carries disabledIf, and a class color has no companion
+- no swatch carries disabledIf, Font shadow is governed by its companion, and a class color has no companion
 - the picks' defaults moved to the Ka0s picks, in both places
 - the border family puts the thickness on the skin through the composer
 - Ka0s Default keeps this addon's pixels: fill, background, border, text, no shadow
@@ -1241,13 +1241,14 @@ Total.
 
 ### test_skin_values.lua (3)
 
-- skin values: every host row carries its file, substring, why and cause id
+- skin values: every host row carries its file, substring, why and a cause id or kit row category
 - skin values: no typed value outside the kit's categories and the host's rows
 - skin values: the check is falsifiable, a planted value of each shape is reported
 
-### test_skin_switch.lua (11)
+### test_skin_switch.lua (12)
 
 - skin switch: the check is falsifiable, a surface that redraws a literal is reported
+- skin switch: the check is falsifiable, a bar whose texture never moves is reported
 - skin switch: a bar's fill changes
 - skin switch: a bar's background changes
 - skin switch: a bar's border changes
@@ -1324,7 +1325,7 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | test_skin_values.lua | 3 |
-| test_skin_switch.lua | 11 |
+| test_skin_switch.lua | 12 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **1085** |
+| **Total** | **1086** |
