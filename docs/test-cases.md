@@ -948,7 +948,7 @@ Total.
 - Skin seam: a profile switch applies the new profile's Font outline, and back
 - Skin seam: every bar's drag strip is built with this owner, so a switch repaints it
 
-### test_skin_hud.lua (19)
+### test_skin_hud.lua (20)
 
 - every unit's three skin companions default on (X3)
 - the companions are composed schema rows, bools defaulting on, on the tab of the pick
@@ -959,6 +959,7 @@ Total.
 - a mirrored bar follows the player's companion, an unlinked one its own
 - Copy from Player copies the companions
 - the appearance pass draws the skin's border thickness and inset
+- the background's bgFile and the border's edgeFile follow the skin on their own
 - a skin switch repaints every bar
 - v6 puts every stored companion back on, keeps the picks and the colors
 - v6 runs once: a pick made after it is kept
@@ -1310,7 +1311,7 @@ Total.
 | test_widgets.lua | 46 |
 | test_realpages.lua | 13 |
 | test_skinsetup.lua | 17 |
-| test_skin_hud.lua | 19 |
+| test_skin_hud.lua | 20 |
 | test_skin_flip.lua | 28 |
 | test_skin_picker.lua | 19 |
 | test_skin_picker_preview.lua | 16 |
@@ -1334,4 +1335,4 @@ Total.
 | test_skin_switch.lua | 18 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **1092** |
+| **Total** | **1093** |

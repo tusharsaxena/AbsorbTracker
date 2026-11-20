@@ -204,8 +204,12 @@ Kit.skinSwitch = {
   end,
   surfaces = {
     -- The fill is a data fill in the skin's `bar.texture`, the background's backdrop `bgFile` the
-    -- same texture and the border's backdrop `edgeFile` the skin's `bar.borderStyle`: each has to
-    -- draw its texture and move it (`expect = "texture"`). The pins in tests/test_skin_hud.lua stay.
+    -- same texture and the border's backdrop `edgeFile` the skin's `bar.borderStyle`, all three
+    -- `expect = "texture"`. The kit's family check proves the fill's own texture moves, but not
+    -- the two backdrop files: it walks the background surface's children, so the fill moving passes
+    -- it, and it reads the border's SetBackdrop whole, so the skin's `bar.borderSize` moving edgeSize
+    -- passes it. tests/test_skin_hud.lua pins bgFile and edgeFile on their own ("the background's
+    -- bgFile and the border's edgeFile follow the skin on their own").
     barSurface("a bar's fill", function(b) return b.statusBar end, "texture",
       "barColorFromSkin", "barTextureFromSkin"),
     barSurface("a bar's background", function(b) return b end, "texture",
