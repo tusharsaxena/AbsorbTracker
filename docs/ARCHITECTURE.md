@@ -546,7 +546,8 @@ Older bundles and plans under `docs/` that still name the file are frozen histor
 | Doc | Status | Trigger |
 |---|---|---|
 | `slash-dispatch.md` | Present | 21 verbs as measured on 2026-11-06, over the eight-or-more threshold, and `profile` carries a subcommand tree (`PROFILE_VERBS`) |
-| `midnight-quirks.md` | Present | Always (documentation-§3): the vendored `client-quirks` catalog block, then the addon’s own client-version workarounds |
+| `midnight-quirks.md` | Present | Clients includes Retail (documentation-§3, client-quirks-§1): the vendored `client-quirks` catalog block, then the addon’s own client-version workarounds |
+| `forever-quirks.md` | Present | Clients includes Forever (`Retail · Forever`; documentation-§3, forever-quirks-§1): the vendored `forever-quirks` catalog block, then the addon’s own WoW Forever section, which is empty |
 | `profiles.md` | Present | AceDB profiles are user-visible — the Profiles settings page |
 | `message-bus.md` | Present | Spill target of the hub's ~60-line rule (the more-than-ten-message trigger is not met: five messages); the catalog table stays in `## Message Bus` |
 | `compat-layer.md` | Not applicable | Not applicable — this addon calls no deprecated or version-variant client API outside LibKa0s's majors (compat, v2.65.0 applicability condition); the TOC metadata read is LibKa0s-Env-1.0's, reached through `core/EnvSetup.lua`, whose library-absent fallback is `C_AddOns` then nil |
