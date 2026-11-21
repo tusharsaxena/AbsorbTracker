@@ -355,4 +355,5 @@ this addon supplies sections only. Writing any of those here is anti-pattern #90
 - [schema.md](./schema.md) — schema row grammar.
 - [settings-panel.md](./settings-panel.md) — sub-page registration mechanics.
 - [midnight-quirks.md](./midnight-quirks.md) — patch-day breakage catalog.
+- [forever-quirks.md](./forever-quirks.md) — the WoW Forever catalog and the addon's own Forever quirks.
 - [debug.md](./debug.md) — the diagnostics report, the `debug` words and the trace tags.

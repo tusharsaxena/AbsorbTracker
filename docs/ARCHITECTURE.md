@@ -49,8 +49,8 @@ TOC manifest is keyed by folder, and a vendored copy cannot know which folder it
 `core/SkinSetup.lua` is the tenth: `LibKa0s-Skin-1.0` takes an **owner** registration (the folder
 name, a label and this addon's read and write seams) rather than a descriptor, and hands back the
 owner's facade, `NS.Skin` (see [Skins](#skins)).
-**Fourteen majors bound by name** of the twenty-one `libs/LibKa0s/` vendors (the files `libs/LibKa0s/LibKa0s.xml` lists); Compat,
-Pool, Item, Glow, Toast, Charts and IconBrowser are registered and unread. `LibKa0s-Sim-1.0` is bound by `modules/Sim.lua`
+**Fourteen majors bound by name** of the twenty-five `libs/LibKa0s/` vendors (the files `libs/LibKa0s/LibKa0s.xml` lists); Compat,
+Pool, Item, Glow, Toast, Charts, IconBrowser, Tooltip, Role, Callout and WaypointArrow are registered and unread. `LibKa0s-Sim-1.0` is bound by `modules/Sim.lua`
 (`NS.Sim`, the `/at sim` session). `LibKa0s-Widgets-1.0` has its own seam,
 `core/WidgetsSetup.lua`, which resolves the major once and publishes `NS.Widgets`: the live major, or a
 stub carrying exactly the three members the addon reaches (`DragHandle` answering nil, so no strip is
@@ -546,7 +546,8 @@ Older bundles and plans under `docs/` that still name the file are frozen histor
 | Doc | Status | Trigger |
 |---|---|---|
 | `slash-dispatch.md` | Present | 21 verbs as measured on 2026-11-06, over the eight-or-more threshold, and `profile` carries a subcommand tree (`PROFILE_VERBS`) |
-| `midnight-quirks.md` | Present | Always (documentation-§3): the vendored `client-quirks` catalog block, then the addon’s own client-version workarounds |
+| `midnight-quirks.md` | Present | Clients includes Retail (documentation-§3, client-quirks-§1): the vendored `client-quirks` catalog block, then the addon’s own client-version workarounds |
+| `forever-quirks.md` | Present | Clients includes Forever (`Retail · Forever`; documentation-§3, forever-quirks-§1): the vendored `forever-quirks` catalog block, then the addon’s own WoW Forever section, which is empty |
 | `profiles.md` | Present | AceDB profiles are user-visible — the Profiles settings page |
 | `message-bus.md` | Present | Spill target of the hub's ~60-line rule (the more-than-ten-message trigger is not met: five messages); the catalog table stays in `## Message Bus` |
 | `compat-layer.md` | Not applicable | Not applicable — this addon calls no deprecated or version-variant client API outside LibKa0s's majors (compat, v2.65.0 applicability condition); the TOC metadata read is LibKa0s-Env-1.0's, reached through `core/EnvSetup.lua`, whose library-absent fallback is `C_AddOns` then nil |
