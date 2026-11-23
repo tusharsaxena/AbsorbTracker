@@ -111,7 +111,12 @@ login. The owner asked for new profiles only.
   pre-v3 profile. It seeded them from the defaults, which would now turn the bars on for a profile
   from before target and focus existed. It seeds target and focus off and linked explicitly.
 - **D10. Reset and copy.** A reset profile is a fresh profile and gets the new defaults. A copy
-  carries the source's stored values, so a migrated source copies its look.
+  carries the source's stored values, so a migrated source copies its look. The pages' Defaults
+  restore the new defaults too: on an existing profile, General's turns Target and Focus on and
+  Appearance's unlinks them, which is what *restore defaults* means (PANEL-6 and LOOK-17 amended).
+  If an earlier ladder step raises, v11 does not run that session and the profile shows the new
+  defaults until the next load retries it; nothing merged is stored, so the retry still sees it as
+  storing nothing and keeps its look.
 - **D11. Positions.** No change: the default stays `position = nil`, and the stacked default
   already keeps the three bars one above another with no overlap at the default sizes (each bar 20
   px tall, each step at least 28 px). A test pins it.

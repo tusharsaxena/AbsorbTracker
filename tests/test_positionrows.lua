@@ -198,10 +198,14 @@ test("position rows: the page's Defaults puts every bar back in the stack", func
 end)
 
 -- The page's existing behavior: a linked unit's tabs show the hint instead of their rows.
+-- red under: Position rows that stay on screen over a linked unit. The unlinked half comes first,
+-- so the case cannot pass on a page that draws no Position rows at all.
 test("position rows: a linked unit's Bar tab shows the hint, Position rows included", function()
   guarded(function()
-    NS.db.profile.units.focus.mirror = true
     local ctx = open("focus")
+    assertTrue(slider(ctx, "X offset") ~= nil, "precondition: an unlinked focus draws them")
+    NS.db.profile.units.focus.mirror = true
+    ctx = open("focus")
     assertEqual(slider(ctx, "X offset"), nil, "no Position rows on a linked unit")
     assertEqual(button(ctx, "Reset position"), nil, "and no reset button")
   end)
