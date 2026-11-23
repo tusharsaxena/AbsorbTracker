@@ -27,6 +27,8 @@ local function savePosition(bar)
     NS.Units.SetPosition(bar.unit, { point = point, relPoint = relPoint, x = x, y = y })
     -- A drop is a move, which fires no script: the sim strip decides its side again (AD-88-AT).
     NS.PlaceSimStrip(bar)
+    -- The Appearance page's Position sliders read this position (ATF-03): an open page follows.
+    if NS.RefreshOptionsValues then NS.RefreshOptionsValues() end
 end
 
 --- The close mark's click: turn off this ONE bar. It writes the existing per-unit enable row --

@@ -37,6 +37,16 @@ function Helpers.ResetAllPositions()
         NS.Units.SetPosition(unit, nil)
     end
     NS.bus:SendMessage(NS.MSG.POSITION)
+    -- The Appearance page's Position sliders read the position (ATF-03): put them where the bars are.
+    if NS.RefreshOptionsValues then NS.RefreshOptionsValues() end
+end
+
+--- Clear ONE unit's saved position: the Appearance page's Reset position button (ATF-03), which
+--- resets the bar the page is editing and leaves the other two where they are.
+function Helpers.ResetUnitPosition(unit)
+    NS.Units.SetPosition(unit, nil)
+    NS.bus:SendMessage(NS.MSG.POSITION)
+    if NS.RefreshOptionsValues then NS.RefreshOptionsValues() end
 end
 
 -- ---------------------------------------------------------------------
@@ -319,6 +329,13 @@ end
 Helpers.__releaseStaleChromeWidgets = releaseStaleChromeWidgets
 
 
+--- The Position block's Reset position button, for the unit the page is editing: the hook
+--- settings/Appearance.lua composed for that unit (H.PositionBlock), or nothing.
+local function positionHook(ctx, group)
+    local hook = NS.PositionResetHooks and NS.PositionResetHooks[ctx.unit]
+    if hook then return hook(ctx, group) end
+end
+
 local function renderUnitPanelBody(ctx, pageKey)
     ctx.unit = ctx.unit or "player"
     Helpers.ClearScroll(ctx)
@@ -361,6 +378,8 @@ local function renderUnitPanelBody(ctx, pageKey)
         -- Says which control undoes it and where it is (ABS-L10, XC-15).
         disabledNotice     = "Linked to Player. Untick Link to Player above to give this unit its own look.",
         rerender           = function(c) Helpers.RenderUnitPanel(c, pageKey) end,
+        -- The picked unit's Reset position button, under its Position block (ATF-03).
+        afterSubgroup      = { Position = positionHook },
     })
 
     if scroll and scroll.DoLayout then scroll:DoLayout() end

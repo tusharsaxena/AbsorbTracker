@@ -217,7 +217,9 @@ test("every per-unit appearance row is in APPEARANCE_KEYS, and vice versa", func
   --
   -- Both directions, because the reverse is a bug too: a key listed here with no row behind it is a
   -- key CopyFromPlayer copies out of nothing.
-  local exempt = { enabled = true, mirror = true, position = true }
+  -- position.x / position.y are the Position block's rows (ATF-03): never mirrored, never copied.
+  local exempt = { enabled = true, mirror = true, position = true,
+                   ["position.x"] = true, ["position.y"] = true }
 
   local listed = {}
   for _, key in ipairs(NS.Units.APPEARANCE_KEYS) do

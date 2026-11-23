@@ -370,6 +370,7 @@ if not lib then
 
     NS.RegisterOptionsPage = function() end
     NS.RefreshOptionsPanel = function() end
+    NS.RefreshOptionsValues = function() end
     -- One honest line, exactly as this already did when AceGUI was the thing missing.
     NS.CreateOptionsPanel  = function() print(MISSING) end
     NS.OpenOptionsPanel    = function() print(MISSING) end
@@ -398,3 +399,7 @@ NS.OpenOptionsPanel    = function(pageKey) return Helpers.OpenOptionsPanel(pageK
 -- AceDB profile changes (NS.OnProfileChanged) call this so any open page re-reads its values, and
 -- so do `/at set`, `/at reset` and `/at resetall`.
 NS.RefreshOptionsPanel = function() Helpers.RefreshAllPanels() end
+
+-- The values only, in place (RefreshScalars): what a drag or a position reset calls, so an open
+-- Appearance page's Position sliders follow the bar without the page being rebuilt (ATF-03).
+NS.RefreshOptionsValues = function() Helpers.RefreshScalars() end

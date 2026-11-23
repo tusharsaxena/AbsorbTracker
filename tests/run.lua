@@ -295,6 +295,8 @@ Kit.run{
     -- ATF-01: the Unit picker across every profile event, under a pooled AceGUI. Straight after
     -- the two Appearance-page suites, on the page they already opened.
     "test_profilepanel",
+    -- ATF-03: Appearance > Bar > Position, on the same page.
+    "test_positionrows",
     "test_launcher",
     "test_launcher_skin_entry",
     "test_optionssetup",

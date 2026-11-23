@@ -145,9 +145,12 @@ from `GetPoint`); nil means the stacked default. `NS.RestoreBarPosition` anchors
   (`RefreshScalars`), and so does every reset of a position.
 - **D17. Reset.** **Reset position** clears the selected unit's position (back to its stacked
   default). The Appearance page's **Defaults** clears every unit's position too, and its tooltip
-  says so; `/at resetposition` and General's Reset Position are unchanged. The rows carry no
-  `default` (a nil position is not a number), so `/at reset` on one of them answers that it has
-  none.
+  says so; `/at resetposition` and General's Reset Position are unchanged. Each row's `default` is
+  its axis of the stacked default, read when asked (the step follows the player bar's height), and
+  a write that lands the bar exactly on its stacked default at the screen's center clears the
+  position instead of storing it, so a reset leaves the bar following the stack. (Amended during
+  ATF-03: the first draft gave the rows no default, which the schema's own rule, every stored row
+  declares one, refuses.)
 - **D18. Linked units.** A linked unit's tabs are replaced by the hint, rows included, and the
   Position rows go with them, as the brief asks: the page's existing behavior. A linked bar is still
   placed by dragging it or by `/at set`; position was never part of the link.
