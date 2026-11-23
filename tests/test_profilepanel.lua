@@ -46,12 +46,18 @@ local function pooled(fn)
 end
 
 --- Assert the page's chrome block holds one live, shown Unit picker showing `ctx.unit`.
-local function assertPicker(ctx, when)
+--- The chrome block's Dropdowns, and the types of its widgets already back in the pool.
+local function ledger(ctx)
   local pickers, released = {}, {}
   for _, w in ipairs(ctx.__chromeWidgets or {}) do
     if w.type == "Dropdown" then pickers[#pickers + 1] = w end
     if w.__released then released[#released + 1] = w.type end
   end
+  return pickers, released
+end
+
+local function assertPicker(ctx, when)
+  local pickers, released = ledger(ctx)
   assertEqual(#pickers, 1, when .. ": one Unit picker in the chrome block")
   assertEqual(#released, 0, when .. ": no chrome widget is back in the pool")
   local dd = pickers[1]
