@@ -32,21 +32,40 @@ local Helpers = NS.Helpers
 -- key that the v3 migration DELETES, so the assignment cleared an already-nil key and the POSITION
 -- publish re-anchored every bar from its untouched NS.Units.Position. The button was a silent
 -- no-op. Do not re-inline the loop at any call site.
-function Helpers.ResetAllPositions()
-    for _, unit in ipairs(NS.Units.LIST) do
-        NS.Units.SetPosition(unit, nil)
-    end
+--
+-- THROUGH THE SCHEMA SEAM since ATF-03 (architecture-§5, "a row wins"): the Appearance page's
+-- Position rows address the offsets, so a reset puts the anchor back on the screen's center and
+-- then applies both rows' defaults, the bar's stacked default, which their `set` turns into no
+-- stored position at all. Without the rows (no LibKa0s) the position is cleared outright.
+local function clearPosition(unit)
+    local base = "units." .. unit .. ".position."
+    local rx = NS.FindSchemaRow and NS.FindSchemaRow(base .. "x")
+    local ry = NS.FindSchemaRow and NS.FindSchemaRow(base .. "y")
+    if not (rx and ry) then return NS.Units.SetPosition(unit, nil) end
+    NS.Units.SetAnchor(unit, "CENTER", "CENTER")
+    NS.ApplyDefault(rx)
+    NS.ApplyDefault(ry)
+end
+
+--- Clear the saved position of `units` (every unit in NS.Units.LIST when nil), as one act, then
+--- re-anchor the bars and put an open Appearance page's Position sliders where the bars are.
+local function clearPositions(units)
+    NS.Bulk.Run("reset", "position", function()
+        for _, unit in ipairs(units or NS.Units.LIST) do clearPosition(unit) end
+    end)
     NS.bus:SendMessage(NS.MSG.POSITION)
-    -- The Appearance page's Position sliders read the position (ATF-03): put them where the bars are.
     if NS.RefreshOptionsValues then NS.RefreshOptionsValues() end
 end
 
+function Helpers.ResetAllPositions()
+    clearPositions(nil)
+end
+
 --- Clear ONE unit's saved position: the Appearance page's Reset position button (ATF-03), which
---- resets the bar the page is editing and leaves the other two where they are.
+--- resets the bar the page is editing and leaves the other two where they are. The same clear
+--- as ResetAllPositions, for one unit.
 function Helpers.ResetUnitPosition(unit)
-    NS.Units.SetPosition(unit, nil)
-    NS.bus:SendMessage(NS.MSG.POSITION)
-    if NS.RefreshOptionsValues then NS.RefreshOptionsValues() end
+    clearPositions({ unit })
 end
 
 -- ---------------------------------------------------------------------

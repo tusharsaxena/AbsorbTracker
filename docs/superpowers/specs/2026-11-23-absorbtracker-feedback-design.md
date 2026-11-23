@@ -154,6 +154,12 @@ from `GetPoint`); nil means the stacked default. `NS.RestoreBarPosition` anchors
 - **D18. Linked units.** A linked unit's tabs are replaced by the hint, rows included, and the
   Position rows go with them, as the brief asks: the page's existing behavior. A linked bar is still
   placed by dragging it or by `/at set`; position was never part of the link.
+- **D20. A drag and a reset go through the schema seam** (architecture-§5, "a row wins": a drag
+  that writes a field a row addresses is a schema-row write). Once the rows address the offsets,
+  the position is a preference, not named non-setting state. A drop sets the anchor in place
+  (`Units.SetAnchor`, the one part no row addresses) and writes both offsets with `NS.SetByPath`
+  inside one bracket; a reset sets the anchor to the center and applies both rows' defaults. Inside
+  a bracket the rows do not publish `POSITION`; the act's owner does once. (Added during ATF-03.)
 - **D19. Both clients.** Nothing here reads a client-specific API; the suite runs under both kit
   profiles.
 

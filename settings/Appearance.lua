@@ -261,7 +261,13 @@ local function positionBlock(unit, p)
             end
             NS.Units.SetPosition(unit, { point = point, relPoint = relPoint, x = x, y = y })
         end
-        row.onChange = function() NS.bus:SendMessage(NS.MSG.POSITION) end
+        -- One move per act: inside a bracket (a drop, a reset, the Defaults walk) the act's owner
+        -- re-anchors once at its end, or a drop that is already in place needs none.
+        row.onChange = function()
+            local S = NS.SchemaRuntime
+            if S and S.InBulk and S.InBulk() then return end
+            NS.bus:SendMessage(NS.MSG.POSITION)
+        end
     end
     return rows, hook
 end

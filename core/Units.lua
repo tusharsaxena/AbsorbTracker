@@ -121,6 +121,17 @@ function Units.SetPosition(unit, pos)
     if c then c.position = pos end
 end
 
+--- Set the anchor of `unit`'s position in place: the point and the relative point, the one part of
+--- a position no schema row addresses (ATF-03). The offsets are the Appearance page's Position
+--- rows', written through NS.SetByPath; a drop and a position reset set the anchor here first and
+--- the offsets there after. Creates the table when the bar has none.
+function Units.SetAnchor(unit, point, relPoint)
+    local c = Units.Config(unit)
+    if not c then return end
+    if type(c.position) ~= "table" then c.position = {} end
+    c.position.point, c.position.relPoint = point, relPoint
+end
+
 --- One-shot snapshot: deep-copy the player's twenty-seven appearance keys onto `unit`, then clear
 --- the mirror so the unit becomes independently editable. `position` and `enabled` are
 --- deliberately NOT copied — both stay per-unit by design.

@@ -229,3 +229,51 @@ test("position rows: a write back onto the stacked default clears the position",
       "the row's default is the stacked default's axis")
   end)
 end)
+
+-- architecture-§5's "A row wins": a drag that writes a field a row addresses is a schema-row write
+-- and goes through the helper. Since ATF-03 the Position rows address the offsets, so a drop
+-- writes them through NS.SetByPath; only the anchor point, which no row addresses, stays the
+-- drag's own geometry (core/Units.lua Units.SetAnchor).
+-- red under: a drag-stop that stores the offsets with Units.SetPosition, past the seam.
+test("position rows: a drag writes its offsets through the schema seam", function()
+  guarded(function()
+    local bar = NS.bars.focus
+    local seen = {}
+    local origSet = NS.SetByPath
+    NS.SetByPath = function(path, value, ...)
+      seen[#seen + 1] = path
+      return origSet(path, value, ...)
+    end
+    rawset(bar, "GetPoint", function() return "TOPLEFT", UIParent, "TOPLEFT", 300, -200 end)
+    rawset(bar, "StopMovingOrSizing", function() end)
+    local ok, err = pcall(bar.__fire, bar, "OnDragStop")
+    NS.SetByPath = origSet
+    rawset(bar, "GetPoint", nil)
+    rawset(bar, "StopMovingOrSizing", nil)
+    if not ok then error(err, 0) end
+    assertEqual(table.concat(seen, ","), "units.focus.position.x,units.focus.position.y",
+      "the two offsets, through the seam")
+    local pos = NS.Units.Position("focus")
+    assertEqual(pos.point, "TOPLEFT", "the drop's anchor")
+    assertEqual(pos.relPoint, "TOPLEFT")
+    assertEqual(pos.x, 300)
+    assertEqual(pos.y, -200)
+  end)
+end)
+
+test("position rows: Reset position writes through the schema seam too", function()
+  guarded(function()
+    NS.Units.SetPosition("focus", { point = "TOPLEFT", relPoint = "TOPLEFT", x = 300, y = -200 })
+    local seen = 0
+    local origApply = NS.ApplyDefault
+    NS.ApplyDefault = function(row, ...)
+      if row.path:find("^units%.focus%.position%.") then seen = seen + 1 end
+      return origApply(row, ...)
+    end
+    local ok, err = pcall(NS.Helpers.ResetUnitPosition, "focus")
+    NS.ApplyDefault = origApply
+    if not ok then error(err, 0) end
+    assertEqual(seen, 2, "both offsets reset to their default through the seam")
+    assertEqual(NS.Units.Position("focus"), nil, "and the bar is back on the stack")
+  end)
+end)
