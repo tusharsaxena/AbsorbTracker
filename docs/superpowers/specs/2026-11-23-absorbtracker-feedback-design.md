@@ -53,6 +53,31 @@ both depend on client draw state the harness does not model (texture alpha, fram
 strata, lazily loaded font faces). Neither could be reproduced headlessly, and no fix is shipped
 without a failing case that a fix turns green.
 
+### The skin re-apply hypothesis (the lead, after ATF-REV)
+
+A new, reset or copied profile carries the skin block's defaults, so a profile event re-applies the
+skin (`adoptProfile`: `NS.ResetProfileToSkin`, `NS.HideSkinPicker`, `NS.ApplySkinChoice`, then
+`NS.MaybeShowSkinPicker`, which shows the first-run picker because `pickerSeen` is false). The idea:
+that re-apply strips an already-painted Unit dropdown, leaving its stock art at alpha 0 with no skin
+box, which draws as the label alone. Traced, it does not hold in the code:
+
+- `Skin:Repaint` (what `SetChoice` and `SetIgnore` run) replays only frames recorded in
+  `Skin.painted`. SkinAce never records an AceGUI widget there; a probe confirmed none of the
+  picker's frames is in it. A skin apply never revisits the dropdown.
+- The dropdown is painted at acquire (proxy `Create`, then `NS.SkinPaintAce`) and restored only on
+  release (the chained `OnRelease`) or when `PaintAce` is asked again under an ignored panel. Its
+  one other repaint is the `SetDisabled` post-hook, which paints the whole widget, box included.
+- Every profile event re-renders a shown page after `ApplySkinChoice` (or marks a hidden one dirty),
+  so the picker on screen is always one painted under the new state; the old one is restored on
+  release.
+
+What the probe did find is a gap of the opposite kind: a picker painted while the panel was skinned
+stays painted after Ignore settings panel is turned on without a re-render. That draws the box, not
+an empty cell. The headless kit has no texture regions (`stockRegions` finds none, so the fade
+count reads 0 even on a painted widget), so a fade-without-box state cannot be observed here at all.
+The hypothesis is recorded, not ruled out in the client: LOOK-21 asks for the scope, the skin, and
+whether the first-run picker was up when it happened.
+
 ### Design calls
 
 - **D1. No speculative runtime change.** A next-frame redraw, a repaint after placement or a
