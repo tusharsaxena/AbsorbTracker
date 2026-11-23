@@ -4,8 +4,8 @@ What's in scope, what's out, and the resolved decisions that shaped the contract
 
 ## In scope
 
-- **Three movable absorb status bars — player, target, and focus — each displaying the total of all active absorb shields on that unit as one combined value. Target and focus ship disabled.**
-- **Per-unit appearance and position, selected through a Unit picker pinned above the Appearance page's tab strip, with a live "mirror the Player bar" link and a one-shot "copy from Player" snapshot.**
+- **Three movable absorb status bars — player, target, and focus — each displaying the total of all active absorb shields on that unit as one combined value. A new profile shows all three, unlinked and stacked; an existing profile keeps its target and focus as they were (ladder step v11).**
+- **Per-unit appearance and position (drag, or Appearance > Bar > Position's X and Y offset), selected through a Unit picker pinned above the Appearance page's tab strip, with a live "mirror the Player bar" link and a one-shot "copy from Player" snapshot.**
 - **LibSharedMedia-backed media** for fill texture, background texture, border style, and font. Each is independently configurable per unit.
 - **Independent class-color overrides** on bar fill, background, border and the absorb number via four separate `useClassColor*` toggles.
 - **AceDB-3.0 profile management** with a Profiles sub-page exposed under Blizzard Settings.

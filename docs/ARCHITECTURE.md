@@ -7,8 +7,9 @@ alongside this file in `docs/`.
 ## Overview
 
 Three movable absorb status bars — player, target, and focus — each displaying the total of all
-active absorb shields on that unit as one combined value. Target and focus ship disabled; when
-enabled, either can "mirror" the player's appearance live, or take a one-shot "copy from player"
+active absorb shields on that unit as one combined value. A new profile shows all three, unlinked
+and stacked at the screen's center (a profile from before ATF-02 keeps target and focus off and
+linked, ladder step v11); either can "mirror" the player's appearance live, or take a one-shot "copy from player"
 snapshot and then diverge. Every bar reads `UnitGetTotalAbsorbs(unit)` against `UnitHealthMax(unit)`
 on every event-driven, throttled repaint, paints a `BackdropTemplate` + `StatusBar` + `FontString`
 stack (`AbsorbTrackerFrame` / `AbsorbTrackerTargetFrame` / `AbsorbTrackerFocusFrame`), and exposes
@@ -155,9 +156,12 @@ through the `NS.Bulk` bracket.
 This addon holds **no structural registry** (architecture-§5): the tracked units are the fixed
 `Units.LIST`. It holds two pieces of **named non-setting state**:
 
-- **`units.<unit>.position`**: owner `core/Units.lua` (`Units.SetPosition`). Writers: the bar's
-  drag-stop (`modules/Bar.lua`) and `Helpers.ResetAllPositions` (`settings/UnitPanel.lua`, behind
-  `/at resetposition` and the Reset Position button).
+- **The anchor of `units.<unit>.position`** (`point`, `relPoint`): owner `core/Units.lua`
+  (`Units.SetAnchor`). Writers: the bar's drag-stop (`modules/Bar.lua`) and the position resets
+  (`settings/UnitPanel.lua`). Since ATF-03 the offsets are a preference: the Appearance page's
+  Position rows (`units.<unit>.position.x` / `.y`) address them, so the drag and the resets write
+  them through `NS.SetByPath` (architecture-§5, "a row wins"); [schema.md](./schema.md#unitsunitposition)
+  lists every writer.
 - **`AbsorbTrackerPerfDB`**: owner `core/PerfSetup.lua`. Its one writer is `LibKa0s-Perf-1.0`'s
   `P.Save`, reached only by `/at perf finish`.
 

@@ -4,7 +4,7 @@
 ![CurseForge Version](https://img.shields.io/curseforge/v/1450165)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-1093%2F1093_passing-green)
+![Tests](https://img.shields.io/badge/Tests-1121%2F1121_passing-green)
 
 Supports Retail and WoW Forever. Absorb Tracker shows your absorb shields as a movable bar. It adds every shield on the unit
 into one number, so a glance tells you how much damage you can eat before your health starts
@@ -23,7 +23,8 @@ _**Absorb Tracker in Action**_
 
 ## Usage
 
-The first time you log in, the Player bar shows up in the middle of the screen, unlocked. An
+The first time you log in, the Player, Target and Focus bars show up stacked in the middle of the
+screen, Player at the bottom, unlocked. An
 unlocked bar draws a partial fill and a small handle strip with the unit's name, so there's
 something to grab even with no shield up. That is the whole preview. There's no separate test
 mode. `/at lock` pins the bars and `/at unlock` frees them again. Entering combat locks them for
@@ -31,22 +32,24 @@ you, and you can't unlock in the middle of a fight.
 
 Setting up takes four steps.
 
-- Place the Player bar. Drag the bar or its handle strip where you want it, then type `/at lock`.
-  If a bar ever ends up somewhere you can't reach, `/at resetposition` puts every bar back in the
-  middle. The strip's right end carries three small marks: `?` for help, a gear that opens that
+- Place the bars. Drag a bar or its handle strip where you want it, then type `/at lock`. For
+  finer control, the Appearance page's Bar tab has **Position**: **X offset** and **Y offset** move
+  the picked bar a pixel at a time, and **Reset position** puts it back in the stack. If a bar ever
+  ends up somewhere you can't reach, `/at resetposition` puts every bar back in the middle. The strip's right end carries three small marks: `?` for help, a gear that opens that
   bar's settings on the Appearance page, and an X that turns that bar off. Your settings stay put;
   to bring a bar back, pick its unit on the Appearance page and tick **Enable this unit**, or type
   `/at toggle player`.
-- Turn on Target and Focus. Both ship switched off. On the Appearance page pick Target or Focus in
-  the **Unit** picker and tick **Enable this unit** beside it. A Target or Focus bar only draws while
-  you have that unit, but it shows while unlocked even with nothing targeted, so you can drag it
-  into place. Each bar keeps its own position.
+- Pick your bars. A new profile shows all three; a profile from before this version keeps Target
+  and Focus as they were (off, unless you turned them on). To turn one on or off, pick it in the
+  Appearance page's **Unit** picker and tick or untick **Enable this unit** beside it. A Target or
+  Focus bar only draws while you have that unit, but it shows while unlocked even with nothing
+  targeted, so you can drag it into place. Each bar keeps its own position.
 - Style the bars. The **Unit** picker at the top of the Appearance page picks the bar you're
   editing, and the Bar and Text tabs sit under it. The Bar tab holds the bar's size, fill,
   background and border, each under its own heading. The fill, background, border and text can
   each take a class color, and it's always the class of that bar's own unit, so the Target bar
-  wears your target's. Target and Focus start with **Link to Player** ticked and follow the Player
-  bar live. Untick it to style one yourself, or press **Copy from Player** for a one-time copy.
+  wears your target's. On a new profile each bar has its own look. Tick **Link to Player** on Target
+  or Focus to have it follow the Player bar live, or press **Copy from Player** for a one-time copy.
 - Decide when the bars show. General → Master controls covers all three at once. **General
   visibility** picks always, only in combat, only out of combat or never, and **Master scale** and
   **Master opacity** sit next to it. Master opacity multiplies with each bar's own **Bar opacity**,
