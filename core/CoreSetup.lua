@@ -56,17 +56,40 @@ if not lib then
     -- the stored swatch, and the swatch is read under BOTH modes. What is deliberately not copied
     -- is the memoization: a table index is not worth a second cache with its own invalidation
     -- story, and the one the library keeps is for the player alone.
-    function NS.ResolveColor(stored, on, unit)
-        if type(stored) ~= "table" then stored = {} end
-        local r, g, b, a = stored.r or 1, stored.g or 1, stored.b or 1, stored.a or 1
-        if not on then return r, g, b, a end
-        -- pcall'd for the reason the library pcalls it: the token is the CALLER's, and one the
-        -- client rejects raises rather than answering nil.
+    -- The class color of `unit` (or of `standIn` while `unit` does not exist), or nil. pcall'd for
+    -- the reason the library pcalls it: the token is the CALLER's, and one the client rejects
+    -- raises rather than answering nil.
+    local function stubClass(unit, standIn)
+        if standIn and unit ~= standIn and not UnitExists(unit) then unit = standIn end
         local ok, _, token = pcall(UnitClass, unit or "player")
         local c = (ok and type(token) == "string" and type(RAID_CLASS_COLORS) == "table")
             and RAID_CLASS_COLORS[token] or nil
-        if type(c) ~= "table" or type(c.r) ~= "number" then return r, g, b, a end
+        if type(c) ~= "table" or type(c.r) ~= "number" then return nil end
+        return c
+    end
+    local function stubStored(stored)
+        if type(stored) ~= "table" then stored = {} end
+        return stored.r or 1, stored.g or 1, stored.b or 1, stored.a or 1
+    end
+
+    function NS.ResolveColor(stored, on, unit, standIn)
+        local r, g, b, a = stubStored(stored)
+        local c = on and stubClass(unit, standIn)
+        if not c then return r, g, b, a end
         return c.r, c.g, c.b, a
+    end
+
+    -- The library's FollowColor (Core minor 20), kept short: a class color that resolves, else
+    -- the skin's while its companion is on, else the swatch (options-ui-§17).
+    function NS.FollowColor(stored, classOn, unit, fromSkin, skinReader, token, standIn)
+        local r, g, b, a = stubStored(stored)
+        local c = classOn and stubClass(unit, standIn)
+        if c then return c.r, c.g, c.b, a, "class" end
+        if fromSkin == true and type(skinReader) == "function" then
+            local sr, sg, sb, sa = skinReader(token)
+            if type(sr) == "number" then return sr, sg, sb, type(sa) == "number" and sa or a, "skin" end
+        end
+        return r, g, b, a, "stored"
     end
 
     -- The event registration helper (LibKa0s-Core minor 8, events-frames-taint-§1), with the
@@ -142,6 +165,9 @@ NS.SECRET = lib.SECRET
 -- core/Data.lua's four color getters come through here. Handed over by reference: it closes over
 -- nothing of ours, and the memoized player color is the library's to keep.
 NS.ResolveColor = lib.ResolveColor
+-- The one class -> skin -> swatch ladder (Core minor 20, options-ui-§17), which core/Data.lua's four
+-- color getters draw through, so an unresolved class follows the skin (FB-AT-01).
+NS.FollowColor = lib.FollowColor
 
 -- The collection's one pcalled event registration helper (Core minor 8, events-frames-taint-§1).
 -- Every registration in core/AbsorbTracker.lua goes through these, so a name a patch retires costs

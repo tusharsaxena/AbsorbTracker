@@ -305,7 +305,12 @@ end
 -- Target / focus swaps change both which bars should be visible (UnitExists gate) and what they
 -- should read, so re-evaluate visibility and repaint together — the same pair every other
 -- transition handler in this file sends.
-function addon:OnUnitSwap()
+-- The swapped unit's colors repaint too (FB-AT-01): a class color resolves to the new occupant.
+local SWAP_UNIT = { PLAYER_TARGET_CHANGED = "target", PLAYER_FOCUS_CHANGED = "focus" }
+
+function addon:OnUnitSwap(event)
+    local unit = SWAP_UNIT[event]
+    if unit and NS.ApplyBarColors then NS.ApplyBarColors(unit) end
     NS.bus:SendMessage(NS.MSG.VISIBILITY)
     NS.bus:SendMessage(NS.MSG.REPAINT)
 end

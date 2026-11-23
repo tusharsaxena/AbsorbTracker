@@ -1041,6 +1041,16 @@ Total.
 - a real style in a skin wins over the player's, and the companion off gives it back
 - v9 moves a stored old default to None, once, and leaves a pick and a companion off
 
+### test_color_ladder.lua (7)
+
+- an unresolved class falls to the skin while its companion is on (locked, no target)
+- an unresolved class with its companion off still draws the stored swatch
+- the unlocked preview shows the player's class on a target bar with no target
+- the sim is a preview too: it shows the player's class while the target is absent
+- a target that exists is never replaced by the stand-in
+- a class that resolves wins over the skin, alpha kept from the swatch
+- a target swap recolors the target bar
+
 ### test_skin_picker.lua (19)
 
 - Skin picker: the spec names this owner, its seams, General's Skin tab, and the unlock eye
@@ -1356,6 +1366,7 @@ Total.
 | test_skinsetup.lua | 17 |
 | test_skin_hud.lua | 20 |
 | test_skin_flip.lua | 28 |
+| test_color_ladder.lua | 7 |
 | test_skin_picker.lua | 19 |
 | test_skin_picker_preview.lua | 16 |
 | test_skin_tools.lua | 7 |
@@ -1378,4 +1389,4 @@ Total.
 | test_skin_switch.lua | 18 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **1124** |
+| **Total** | **1131** |

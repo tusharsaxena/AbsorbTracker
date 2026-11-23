@@ -329,6 +329,8 @@ Kit.run{
     "test_skin_hud",
     -- The colors and shadow, and the one per-profile step (FS-AT-FLIP).
     "test_skin_flip",
+    -- FB-AT-01: class -> skin -> swatch, and the preview's stand-in class. After test_skin_flip.
+    "test_color_ladder",
     -- The first-run skin picker (AT-04): when it shows, its spec, the real window. After
     -- test_skin_hud; it leaves the skin on Ka0s Default and the picker down, unseen.
     "test_skin_picker",

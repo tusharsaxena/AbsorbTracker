@@ -413,6 +413,12 @@ skin reaches the HUD bars, their drag strips and the library's own surfaces.
   `at.barBg` and `at.barBorder` (`core/SkinSetup.lua`) keep this addon's pixels under Ka0s Default
   and follow `bar.fill`, `bar.bg` and `bar.border` elsewhere; the text reads `hud.text`
   (`S.HudTextColor`) and the shadow `S.HudShadow`. A class color comes first and has no companion.
+  Since FB-AT-01 (LibKa0s v1.112.0, Core minor 20, options-ui-§17 v2.119.0) the order is the
+  library's `FollowColor`: a class color that **resolves**, else the skin's color while the companion
+  is on, else the swatch, so a target or focus bar whose class does not resolve (no unit, an NPC)
+  follows the skin rather than the swatch. While the bars are unlocked or the sim is on, an absent
+  target or focus resolves the player's class (the preview stand-in), and a target or focus swap
+  repaints that bar's four colors (`NS.ApplyBarColors`, `modules/Display.lua`).
   The stored swatch waits for the companion to go off and is what a degraded facade draws. Since
   LibKa0s v1.82.0 the size and the flags meet the skin too: while
   `fontFromSkin` is on, the value text draws `S.HudFontSize(stored)` (`NS.GetFontSize`, ruling

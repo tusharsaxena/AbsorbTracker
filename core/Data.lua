@@ -306,60 +306,76 @@ end
 --- not change inside one.
 function NS.__ResetBgClassColor() playerBgClassColor = nil end
 
---- The background's own resolve, over the palette above. The three rules are the shared
---- resolver's; only the source table differs.
-local function resolveBgColor(c, on, unit)
+--- The background's stored swatch, the ladder's last rung (NS.GetBgColor below).
+local function storedBgColor(c)
     if type(c) ~= "table" then c = {} end
-    local a = c.a or 1
-    if on then
-        local cc = GetBgClassColor(unit)
-        if cc then return cc.r, cc.g, cc.b, a end
-    end
-    return c.r or 1, c.g or 1, c.b or 1, a
+    return c.r or 1, c.g or 1, c.b or 1, c.a or 1
 end
 
---- The skin's color for one surface, or nil when the stored swatch decides. A class color comes
---- first and is left alone: its toggle set means the resolver below answers, whatever the companion
---- says. `read` is a facade member, `token` its argument where it takes one; a degraded facade
---- answers nothing, so the stored color is the fallback (LibKa0s Options doc, Moving to this version).
-local function skinColor(unit, companion, classToggle, read, token)
-    if unitSetting(unit, companion) ~= true or unitSetting(unit, classToggle) == true then return nil end
+--- The stand-in a preview resolves a class for (options-ui-§17, "A preview shows a class"): the
+--- player, while the bars are unlocked or the sim is on. The library uses it only while `unit` does
+--- not exist, so a real target keeps its own class.
+local function previewStandIn(unit)
+    -- Before OnInitialize there is no profile and no preview: the build-time paint asks too.
+    if unit == "player" or not (NS.db and NS.db.profile) then return nil end
+    if NS.GetSetting("locked") ~= true then return "player" end
+    if type(NS.IsSimOn) == "function" and NS.IsSimOn() then return "player" end
+    return nil
+end
+
+--- The unit whose class a surface takes: its own, or the preview's stand-in while it is absent.
+local function classUnit(unit)
+    local standIn = previewStandIn(unit)
+    if standIn and not UnitExists(unit) then return standIn end
+    return unit
+end
+
+--- The skin's reader for one surface: a facade member, or nil where a degraded facade has none.
+local function skinReader(read)
     local S = NS.Skin
     if not (S and type(S[read]) == "function") then return nil end
-    return S[read](token)
+    return S[read]
+end
+
+--- One color through the ladder (options-ui-§17, LibKa0s Core minor 20 FollowColor): a class color
+--- that resolves, else the skin's while the companion is on, else the stored swatch. An unresolved
+--- class (no target, an NPC) follows the skin; until FB-AT-01 it skipped it for the swatch.
+local function follow(unit, swatch, classToggle, companion, read, token)
+    local r, g, b, a = NS.FollowColor(unitSetting(unit, swatch), unitSetting(unit, classToggle) == true,
+        unit, unitSetting(unit, companion) == true, skinReader(read), token, previewStandIn(unit))
+    return r, g, b, a
 end
 
 function NS.GetBarColor(unit)
     unit = unit or "player"
-    local r, g, b, a = skinColor(unit, "barColorFromSkin", "useClassColorBar", "Color", "at.barFill")
-    if r then return r, g, b, a end
-    return NS.ResolveColor(unitSetting(unit, "barColor"),
-        unitSetting(unit, "useClassColorBar"), unit)
+    return follow(unit, "barColor", "useClassColorBar", "barColorFromSkin", "Color", "at.barFill")
 end
 
+--- The background's ladder: the same order, with this addon's own dimmed palette on the class rung.
 function NS.GetBgColor(unit)
     unit = unit or "player"
-    local r, g, b, a = skinColor(unit, "bgColorFromSkin", "useClassColorBg", "Color", "at.barBg")
-    if r then return r, g, b, a end
-    return resolveBgColor(unitSetting(unit, "bgColor"),
-        unitSetting(unit, "useClassColorBg"), unit)
+    local stored = unitSetting(unit, "bgColor")
+    if unitSetting(unit, "useClassColorBg") == true then
+        local cc = GetBgClassColor(classUnit(unit))
+        if cc then return cc.r, cc.g, cc.b, type(stored) == "table" and stored.a or 1 end
+    end
+    local read = unitSetting(unit, "bgColorFromSkin") == true and skinReader("Color")
+    if read then
+        local r, g, b, a = read("at.barBg")
+        if r then return r, g, b, a end
+    end
+    return storedBgColor(stored)
 end
 
 function NS.GetBorderColor(unit)
     unit = unit or "player"
-    local r, g, b, a = skinColor(unit, "borderColorFromSkin", "useClassColorBorder", "Color", "at.barBorder")
-    if r then return r, g, b, a end
-    return NS.ResolveColor(unitSetting(unit, "borderColor"),
-        unitSetting(unit, "useClassColorBorder"), unit)
+    return follow(unit, "borderColor", "useClassColorBorder", "borderColorFromSkin", "Color", "at.barBorder")
 end
 
---- The absorb amount's color. Same resolver, same scope, as the two above it.
+--- The absorb amount's color. Same ladder, same scope, as the two above it.
 function NS.GetFontColor(unit)
     unit = unit or "player"
-    local r, g, b, a = skinColor(unit, "fontColorFromSkin", "useClassColorText", "HudTextColor")
-    if r then return r, g, b, a end
-    return NS.ResolveColor(unitSetting(unit, "fontColor"),
-        unitSetting(unit, "useClassColorText"), unit)
+    return follow(unit, "fontColor", "useClassColorText", "fontColorFromSkin", "HudTextColor")
 end
 
 -- ── the master multipliers ─────────────────────────────────────────────────────────────────
