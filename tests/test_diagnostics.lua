@@ -262,6 +262,36 @@ test("diagnostics: the media rung is read off LSM, never off the path the getter
     "no LSM headlessly, and None draws no edge: " .. joined(lines))
 end)
 
+-- ATF-01 (2026-11-23): the Appearance page's Unit picker has been seen drawing its label and not
+-- its control right after a profile was made, and the harness cannot reproduce it (the spec,
+-- docs/superpowers/specs/2026-11-23-absorbtracker-feedback-design.md). So the report says what
+-- that widget is doing when the player runs it: drawn, still this page's (not released or handed
+-- to anyone else), shown and visible, the control's own visibility, its size and the alpha of its
+-- stock art, and the unit it shows.
+-- red under: the line dropped from the [UI] section, or `live` that does not follow a release.
+test("diagnostics: the [UI] section reports the Appearance page's Unit picker", function()
+  local panel = M.__subcategories["Appearance"]
+  panel:Show(); panel:__fire("OnShow")
+  local ctx = NS.Helpers.__lastUnitCtx
+  ctx.unit = "player"
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+  local line = find(report(), "[UI] unit picker: ")
+  assertTrue(line ~= nil, "a [UI] unit picker line")
+  assertTrue(line:find("drawn=yes live=yes shown=yes", 1, true) ~= nil, "a drawn, live picker: " .. tostring(line))
+  assertTrue(line:find("value=player", 1, true) ~= nil, "it names the unit it shows: " .. line)
+  assertTrue(line:find("control visible=", 1, true) ~= nil, "the control's own visibility: " .. line)
+  assertTrue(line:find("art alpha=", 1, true) ~= nil, "the stock art's alpha: " .. line)
+
+  -- A picker AceGUI took back while the page still shows it reads live=no. Release wipes a
+  -- widget's userdata, and that is all this models: the next render still releases it normally.
+  local dd = ctx.__bannerWidget
+  for k in pairs(dd.userdata) do dd.userdata[k] = nil end
+  line = find(report(), "[UI] unit picker: ")
+  assertTrue(line:find("live=no", 1, true) ~= nil, "a released picker reads live=no: " .. line)
+  NS.Helpers.RenderUnitPanel(ctx, "appearance")
+  panel:Hide()
+end)
+
 test("diagnostics: the session's rejected events are folded into the report", function()
   -- `/at debug events` stays as a topic (debug-logging-§4's MAY); the report carries the same list,
   -- so a pasted report does not need a second command.

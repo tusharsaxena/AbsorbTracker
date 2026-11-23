@@ -17,6 +17,9 @@
 --
 --     Bar    -- Size --
 --            [Bar width (px)]         [Bar height (px)]
+--            -- Position --
+--            [X offset]               [Y offset]
+--            [Reset position]
 --            -- Fill --
 --            [Bar texture]            [Bar opacity]
 --            [Bar color]              [Use class color]
@@ -83,9 +86,9 @@
 --
 -- TAB ORDER IS DECLARATION ORDER; SUBSECTION ORDER IS `order`. H.RenderTabbedSchema partitions a
 -- page's rows by `group` in the order the rows were registered, so the array below IS the strip.
--- Inside a group SchemaForPage sorts by `order`, so each subsection takes its own hundred (Size
--- 10-20, Fill 100+, Background 200+, Border 300+) and the runs cannot interleave -- an interleaved
--- subsection prints its heading twice. tests/test_schema.lua pins the four runs.
+-- Inside a group SchemaForPage sorts by `order`, so each subsection takes its own run (Size
+-- 10-20, Position 50+, Fill 100+, Background 200+, Border 300+) and the runs cannot interleave --
+-- an interleaved subsection prints its heading twice. tests/test_schema.lua pins the five runs.
 --
 -- Size leads because dimensions are what a player opens this page for; Fill, Background and Border
 -- follow front to back; Text is last because it is set once. The three colored surfaces plus Text
@@ -182,6 +185,97 @@ local function colorFromSkin(path, unitName, label, governs)
     }
 end
 
+-- ── Bar > Position (ATF-03) ─────────────────────────────────────────────────────
+--
+-- The owner's ask of 2026-11-23: "Add "psoition" settings in appearance > bar just below size sub
+-- section - allows faine control of every bar". H.PositionBlock (OptionsCompose minor 15) composes
+-- the canonical block: [X offset] [Y offset], then [Reset position] from its afterSubgroup hook.
+--
+-- THE ROWS ARE THE BAR'S POSITION TABLE, NOT TWO LEAVES OF IT. A drag stores
+-- `units.<unit>.position = { point, relPoint, x, y }` (modules/Bar.lua), and nil means the stacked
+-- default (modules/Display.lua NS.DefaultPosition). Two plain number leaves would read 0 for a bar
+-- that has never moved and store `{ x = 40 }` with no anchor on the first write. So each row keeps
+-- its path, for `/at get` and `/at set`, and carries its own get and set: get answers the stored
+-- offset or the stacked default's, set writes the whole table, keeping the anchor and the other
+-- axis where the bar is. The offsets are relative to the bar's own anchor, the screen's center
+-- until a drag stores another; there is no anchor row, which would move the bar on every pick.
+--
+-- THE DEFAULT IS THE STACK. Each row's `default` is its axis of the bar's stacked default, read
+-- when asked (the step follows the player bar's height), and a write that lands the bar exactly
+-- there, on the screen's center, clears the position instead of storing it: so a reset leaves the
+-- bar following the stack, as a bar never moved does. The page's Defaults and the block's Reset
+-- position clear the whole position themselves as well (settings/UnitPanel.lua). `alwaysPerUnit`,
+-- because a position is never part of the link to the player (core/Units.lua).
+
+--- Where `unit`'s bar is anchored now: the stored position, or the stacked default.
+local function currentPosition(unit)
+    local pos = NS.Units.Position(unit)
+    if type(pos) == "table" then
+        return pos.point or "CENTER", pos.relPoint or pos.point or "CENTER", pos.x or 0, pos.y or 0
+    end
+    return NS.DefaultPosition(unit)
+end
+
+--- The two rows of `unit`'s Position block, and the hook that draws its Reset position button.
+local function positionBlock(unit, p)
+    local rows, hook = H.PositionBlock({
+        prefix   = p,
+        page     = PAGE,
+        group    = "Bar",
+        order    = 50,
+        keys     = { x = "position.x", y = "position.y" },
+        tooltips = {
+            x = "How far this bar sits right of its anchor, in pixels (left is negative). The anchor "
+                .. "is the screen's center until the bar is dragged. Dragging the bar sets it too.",
+            y = "How far this bar sits above its anchor, in pixels (below is negative). The anchor "
+                .. "is the screen's center until the bar is dragged. Dragging the bar sets it too.",
+        },
+        onReset      = function() NS.Helpers.ResetUnitPosition(unit) end,
+        resetTooltip = "Put this bar back in the default stack: the player bar at the screen's "
+            .. "center, target above it, focus above that.",
+    })
+    local function stacked(axis)
+        local _, _, x, y = NS.DefaultPosition(unit)
+        if axis == "x" then return x end
+        return y
+    end
+    for _, row in ipairs(rows) do
+        local axis = row.path:match("%.position%.(%a)$")
+        row.unit, row.alwaysPerUnit, row.default = unit, true, nil
+        setmetatable(row, { __index = function(_, key)
+            if key == "default" then return stacked(axis) end
+        end })
+        -- Live while the slider drags (OptionsWidgets' throttled commit), so the bar follows it.
+        row.commitOn = "change"
+        row.get = function()
+            local _, _, x, y = currentPosition(unit)
+            if axis == "x" then return x end
+            return y
+        end
+        row.set = function(value)
+            local point, relPoint, x, y = currentPosition(unit)
+            if axis == "x" then x = value else y = value end
+            if point == "CENTER" and relPoint == "CENTER" and x == stacked("x") and y == stacked("y") then
+                NS.Units.SetPosition(unit, nil)
+                return
+            end
+            NS.Units.SetPosition(unit, { point = point, relPoint = relPoint, x = x, y = y })
+        end
+        -- One move per act: inside a bracket (a drop, a reset, the Defaults walk) the act's owner
+        -- re-anchors once at its end, or a drop that is already in place needs none.
+        row.onChange = function()
+            local S = NS.SchemaRuntime
+            if S and S.InBulk and S.InBulk() then return end
+            NS.bus:SendMessage(NS.MSG.POSITION)
+        end
+    end
+    return rows, hook
+end
+
+-- Each unit's Reset position hook, keyed by unit: settings/UnitPanel.lua hands the picked unit's
+-- to RenderTabbedSchema's `afterSubgroup`, so the button resets the bar the page is editing.
+NS.PositionResetHooks = {}
+
 local function addUnitRows(unit)
     local p = "units." .. unit .. "."
     local classColor = classColorFor(unit)
@@ -219,6 +313,10 @@ local function addUnitRows(unit)
             min = 10, max = 100, step = 1, fmt = "%d px",
         },
     }
+
+    local posRows, posHook = positionBlock(unit, p)
+    for _, row in ipairs(posRows) do rows[#rows + 1] = row end
+    NS.PositionResetHooks[unit] = posHook
 
     -- ── Bar > Fill ────────────────────────────────────────────────────────────
     --
@@ -382,7 +480,8 @@ local function addUnitRows(unit)
             type       = "bool",
             label      = "Link to Player",
             desc       = "Use the Player bar's look for this bar (all appearance settings). Position and enable stay this bar's own.",
-            default    = true,
+            -- Off the shipped defaults: unlinked for a new profile since ATF-02.
+            default    = NS.defaults.profile.units[unit].mirror,
         }
     end
 
@@ -402,12 +501,16 @@ local function build(mainCategory)
         -- The second sentence is options-ui-§14's disclosure for the per-unit enables this page's
         -- band draws but General's Defaults resets (ABS-L14).
         defaultsTooltip = "Restore every Appearance setting on this profile to its addon default, "
-            .. "on every unit. Which bars are shown is reset by the General page's Defaults.",
+            .. "on every unit, and put every bar back in the default stack. Which bars are shown "
+            .. "is reset by the General page's Defaults.",
     })
     -- Parked, not wired: the Defaults button does not exist yet — it is built
     -- on first OnShow (see Helpers.EnsureDefaultsButton).
+    -- The positions too (ATF-03): the Position rows carry no default for the walk to apply, since
+    -- a bar with no stored position is the stacked default, so the page clears them itself.
     ctx.panel.defaultsOnClick = function()
         H.RestoreDefaults(PAGE, ctx)
+        H.ResetAllPositions()
     end
 
     -- Declared THROUGH SetRenderer rather than a hand-wired OnShow (options-ui-§11). The library

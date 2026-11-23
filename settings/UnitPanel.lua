@@ -32,11 +32,40 @@ local Helpers = NS.Helpers
 -- key that the v3 migration DELETES, so the assignment cleared an already-nil key and the POSITION
 -- publish re-anchored every bar from its untouched NS.Units.Position. The button was a silent
 -- no-op. Do not re-inline the loop at any call site.
-function Helpers.ResetAllPositions()
-    for _, unit in ipairs(NS.Units.LIST) do
-        NS.Units.SetPosition(unit, nil)
-    end
+--
+-- THROUGH THE SCHEMA SEAM since ATF-03 (architecture-§5, "a row wins"): the Appearance page's
+-- Position rows address the offsets, so a reset puts the anchor back on the screen's center and
+-- then applies both rows' defaults, the bar's stacked default, which their `set` turns into no
+-- stored position at all. Without the rows (no LibKa0s) the position is cleared outright.
+local function clearPosition(unit)
+    local base = "units." .. unit .. ".position."
+    local rx = NS.FindSchemaRow and NS.FindSchemaRow(base .. "x")
+    local ry = NS.FindSchemaRow and NS.FindSchemaRow(base .. "y")
+    if not (rx and ry) then return NS.Units.SetPosition(unit, nil) end
+    NS.Units.SetAnchor(unit, "CENTER", "CENTER")
+    NS.ApplyDefault(rx)
+    NS.ApplyDefault(ry)
+end
+
+--- Clear the saved position of `units` (every unit in NS.Units.LIST when nil), as one act, then
+--- re-anchor the bars and put an open Appearance page's Position sliders where the bars are.
+local function clearPositions(units)
+    NS.Bulk.Run("reset", "position", function()
+        for _, unit in ipairs(units or NS.Units.LIST) do clearPosition(unit) end
+    end)
     NS.bus:SendMessage(NS.MSG.POSITION)
+    if NS.RefreshOptionsValues then NS.RefreshOptionsValues() end
+end
+
+function Helpers.ResetAllPositions()
+    clearPositions(nil)
+end
+
+--- Clear ONE unit's saved position: the Appearance page's Reset position button (ATF-03), which
+--- resets the bar the page is editing and leaves the other two where they are. The same clear
+--- as ResetAllPositions, for one unit.
+function Helpers.ResetUnitPosition(unit)
+    clearPositions({ unit })
 end
 
 -- ---------------------------------------------------------------------
@@ -129,6 +158,12 @@ end
 --                be applied to a frame anchored to its parent's TOP.
 local CONTROL_H = 24
 local PAIR_GAP  = 4
+
+-- The Unit picker's mark in its AceGUI `userdata` (NS.UnitPickerState).
+local PICKER_MARK = "absorbTrackerUnitPicker"
+
+-- The ctx the last render drew, for NS.UnitPickerState. Nil until the page is first rendered.
+local lastCtx
 
 --- How tall the page's one chrome block is, before the library widens it by the divider band.
 --- ONE ROW for every unit (options-ui-§14, ABS-L11): the band's height must not depend on which
@@ -234,6 +269,9 @@ local function buildChromeBlock(ctx, pageKey, frame, mirrored)
         "Which bar the settings on this page apply to. Each unit is styled independently unless it is linked to the Player.")
     place(dd, frame, halves, 1, 0, Helpers.BANNER_H)
     ctx.__bannerWidget = dd
+    -- The ownership mark NS.UnitPickerState reads: AceGUI's Release wipes `userdata`, so a picker
+    -- that lost the mark was taken back (and maybe handed out again) while this page still drew it.
+    if type(dd.userdata) == "table" then dd.userdata[PICKER_MARK] = true end
 
     -- The picked unit's enable box, cell 2, bottom-aligned with the dropdown (whose
     -- label sits above it). Every unit has one, the player included. Its words are the schema row's,
@@ -310,11 +348,19 @@ end
 Helpers.__releaseStaleChromeWidgets = releaseStaleChromeWidgets
 
 
+--- The Position block's Reset position button, for the unit the page is editing: the hook
+--- settings/Appearance.lua composed for that unit (H.PositionBlock), or nothing.
+local function positionHook(ctx, group)
+    local hook = NS.PositionResetHooks and NS.PositionResetHooks[ctx.unit]
+    if hook then return hook(ctx, group) end
+end
+
 local function renderUnitPanelBody(ctx, pageKey)
     ctx.unit = ctx.unit or "player"
     Helpers.ClearScroll(ctx)
     local scroll = Helpers.EnsureScroll(ctx)
     Helpers.__lastUnitCtx = ctx   -- test seam: the harness has no other handle on a live ctx
+    lastCtx = ctx
 
     local mirrored = NS.Units.IsMirrored(ctx.unit)
     local cb, en                               -- hoisted: the refresher at the bottom re-syncs them
@@ -351,6 +397,8 @@ local function renderUnitPanelBody(ctx, pageKey)
         -- Says which control undoes it and where it is (ABS-L10, XC-15).
         disabledNotice     = "Linked to Player. Untick Link to Player above to give this unit its own look.",
         rerender           = function(c) Helpers.RenderUnitPanel(c, pageKey) end,
+        -- The picked unit's Reset position button, under its Position block (ATF-03).
+        afterSubgroup      = { Position = positionHook },
     })
 
     if scroll and scroll.DoLayout then scroll:DoLayout() end
@@ -433,4 +481,51 @@ function Helpers.RenderUnitPanel(ctx, pageKey)
         NS.DebugLog.DebugChanged(RENDER_ERROR_KEY, "Cfg", "unit panel render failed (%s): %s",
             pageKey, err)
     end
+end
+
+-- ---------------------------------------------------------------------
+-- The Unit picker's state, for the diagnostics report
+-- ---------------------------------------------------------------------
+
+--- A client read that may be missing or raise: the value, or nil.
+local function read(obj, method)
+    local fn = type(obj) == "table" and obj[method]
+    if type(fn) ~= "function" then return nil end
+    local ok, v = pcall(fn, obj)
+    if ok then return v end
+    return nil
+end
+
+--- The control's stock art: the template's Middle texture, by its global name.
+local function stockArt(control)
+    local name = read(control, "GetName")
+    if type(name) ~= "string" then return nil end
+    return _G[name .. "Middle"]
+end
+
+--- What the Appearance page's Unit picker is doing now, for the [UI] line of the diagnostics
+--- report (ATF-01: a picker seen drawing its label and not its control, which the harness cannot
+--- reproduce). Nil before the page's first render. Reads only; every client call is pcall'd.
+---
+--- `live` is false when the picker lost the mark this file put in its userdata, which only
+--- AceGUI's Release does. `controlVisible` and `artAlpha` are the dropdown's control (AceGUI's
+--- `dropdown` frame) and its stock art; the label is the widget frame's own.
+function NS.UnitPickerState()
+    local ctx = lastCtx
+    if not ctx then return nil end
+    local dd = ctx.__bannerWidget
+    if type(dd) ~= "table" then return { drawn = false } end
+    local f, control = dd.frame, rawget(dd, "dropdown")
+    local art = stockArt(control)
+    return {
+        drawn          = true,
+        live           = type(dd.userdata) == "table" and dd.userdata[PICKER_MARK] == true,
+        shown          = read(f, "IsShown") and true or false,
+        visible        = read(f, "IsVisible") and true or false,
+        controlVisible = control and (read(control, "IsVisible") and true or false),
+        width          = read(f, "GetWidth"),
+        height         = read(f, "GetHeight"),
+        artAlpha       = read(art, "GetAlpha"),
+        value          = dd.value,
+    }
 end

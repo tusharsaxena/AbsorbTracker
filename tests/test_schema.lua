@@ -40,13 +40,13 @@ test("SchemaForPage keeps groups in registration order, which IS the Appearance 
   end
 end)
 
--- The Bar tab's four subsections, in reading order and each contiguous (options-ui-§7, §16; XC-19).
+-- The Bar tab's five subsections, in reading order and each contiguous (options-ui-§7, §16; XC-19).
 -- Contiguity is the half that matters: SchemaForPage sorts a group's rows by `order`, so a
 -- subsection whose orders overlap another's interleaves with it and the flow engine prints its
 -- heading twice. Size leads (ABS-L03), the composed bar block is Fill, then Background (L04) and
--- Border (L-new2).
+-- Border (L-new2). Position sits straight after Size (ATF-03, the owner's 2026-11-23 ask).
 -- red under: two subsections' `order` ranges overlapping, a subgroup renamed, or one moved off Bar.
-test("the Bar tab runs Size, Fill, Background, Border, each contiguous", function()
+test("the Bar tab runs Size, Position, Fill, Background, Border, each contiguous", function()
   for _, unit in ipairs(NS.Units.LIST) do
     local runs = {}
     for _, r in ipairs(NS.SchemaForPage("appearance", unit)) do
@@ -54,7 +54,7 @@ test("the Bar tab runs Size, Fill, Background, Border, each contiguous", functio
         if runs[#runs] ~= r.subgroup then runs[#runs + 1] = r.subgroup end
       end
     end
-    local want = { "Size", "Fill", "Background", "Border" }
+    local want = { "Size", "Position", "Fill", "Background", "Border" }
     assertEqual(#runs, #want, unit .. ": Bar tab subsection runs")
     for i, name in ipairs(want) do
       assertEqual(runs[i], name, unit .. ": Bar subsection " .. i)
@@ -88,9 +88,10 @@ test("the page -> tab -> row-count partition is the designed one", function()
     -- O.AppearanceTab draws as its own controls, the host tab keyed by this group's name.
     { page = "general", unit = nil,
       tabs = { { "Master controls", 8 }, { "Behavior", 5 }, { "Appearance", 9 } } },
-    -- Bar is Size 2 + Fill 5 + Background 3 + Border 5 (item 020), and Text the font block's six
-    -- plus one: Fill, Border and Text each end on their "Use the skin's ..." companion (AT-03).
-    { page = "appearance", unit = "player", tabs = { { "Bar", 18 }, { "Text", 9 } } },
+    -- Bar is Size 2 + Position 2 (ATF-03) + Fill 5 + Background 3 + Border 5 (item 020), and Text
+    -- the font block's six plus one: Fill, Border and Text each end on their "Use the skin's ..."
+    -- companion (AT-03).
+    { page = "appearance", unit = "player", tabs = { { "Bar", 20 }, { "Text", 9 } } },
   }
   for _, page in ipairs(want) do
     local counts, order, seen = {}, {}, {}
@@ -269,9 +270,14 @@ test("every row's default matches the value in defaults.profile", function()
   -- has nothing to say about it and defaults.global disagrees with the row on purpose (`hide =
   -- false` is `Minimap button = true`). tests/test_launcher.lua pins that pair head-on, which is
   -- where a reader should look for it.
+  --
+  -- The Position rows are skipped for a third reason (ATF-03): their default is the bar's stacked
+  -- default position, which follows the player bar's height, while defaults.profile's `position`
+  -- is nil, which IS that stacked default. tests/test_positionrows.lua pins the pair.
   local defaults = NS.defaults.profile
   for _, row in ipairs(NS.Schema) do
     local skip = row.sessionOnly or row.path == NS.Constants.MINIMAP_PATH
+      or row.path:match("%.position%.[xy]$") ~= nil
     local want = NS.ResolvePath(defaults, row.path)
     if type(row.default) == "table" and not skip then
       assertEqual(type(want), "table", row.path .. " default should be a table in both places")

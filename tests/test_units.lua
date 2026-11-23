@@ -192,15 +192,17 @@ test("IsEnabled reads the per-unit flag and ignores the global hidden toggle", f
   end)
 end)
 
-test("target and focus ship disabled so an upgrade changes nothing on screen", function()
+-- ATF-02 (the owner's call of 2026-11-23): a new profile shows all three bars, none linked. An
+-- existing profile keeps what it had through ladder step v11 (tests/test_profiledefaults.lua).
+test("all three bars ship enabled, so a new profile shows them all", function()
   assertEqual(NS.defaults.profile.units.player.enabled, true)
-  assertEqual(NS.defaults.profile.units.target.enabled, false)
-  assertEqual(NS.defaults.profile.units.focus.enabled, false)
+  assertEqual(NS.defaults.profile.units.target.enabled, true)
+  assertEqual(NS.defaults.profile.units.focus.enabled, true)
 end)
 
-test("target and focus ship mirrored so a first enable looks like the player bar", function()
-  assertEqual(NS.defaults.profile.units.target.mirror, true)
-  assertEqual(NS.defaults.profile.units.focus.mirror, true)
+test("target and focus ship unlinked, each with its own look", function()
+  assertEqual(NS.defaults.profile.units.target.mirror, false)
+  assertEqual(NS.defaults.profile.units.focus.mirror, false)
   assertEqual(NS.defaults.profile.units.player.mirror, nil, "player is the mirror source")
 end)
 
@@ -215,7 +217,9 @@ test("every per-unit appearance row is in APPEARANCE_KEYS, and vice versa", func
   --
   -- Both directions, because the reverse is a bug too: a key listed here with no row behind it is a
   -- key CopyFromPlayer copies out of nothing.
-  local exempt = { enabled = true, mirror = true, position = true }
+  -- position.x / position.y are the Position block's rows (ATF-03): never mirrored, never copied.
+  local exempt = { enabled = true, mirror = true, position = true,
+                   ["position.x"] = true, ["position.y"] = true }
 
   local listed = {}
   for _, key in ipairs(NS.Units.APPEARANCE_KEYS) do

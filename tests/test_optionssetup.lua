@@ -490,8 +490,9 @@ end)
 -- red under: either tooltip losing its sentence about which bars are shown.
 test("both Defaults tooltips say which page resets which bars are shown", function()
   assertEqual(Helpers.__panelFor("appearance").panel.defaultsTooltip,
-    "Restore every Appearance setting on this profile to its addon default, on every unit. "
-    .. "Which bars are shown is reset by the General page's Defaults.")
+    "Restore every Appearance setting on this profile to its addon default, on every unit, and "
+    .. "put every bar back in the default stack. Which bars are shown is reset by the General "
+    .. "page's Defaults.")
   assertEqual(Helpers.__panelFor("general").panel.defaultsTooltip,
     "Restore every General setting on this profile to its addon default, including which bars "
     .. "are shown.")

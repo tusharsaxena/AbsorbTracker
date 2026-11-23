@@ -268,6 +268,8 @@ Kit.run{
     -- Item 020's guard: every stored path, default and range as they stood before the layout pass.
     "test_layoutguard",
     "test_database",
+    -- ATF-02: what a new profile starts with and what an existing one keeps (ladder v11).
+    "test_profiledefaults",
     "test_units",
     "test_envsetup",
     "test_coresetup",
@@ -290,6 +292,11 @@ Kit.run{
     -- Its mirror half, peeled out when test_panelpages entered the layout-§1 1000-1500 band;
     -- straight after it, so the Appearance page those cases reach is the one it already opened.
     "test_panelmirror",
+    -- ATF-01: the Unit picker across every profile event, under a pooled AceGUI. Straight after
+    -- the two Appearance-page suites, on the page they already opened.
+    "test_profilepanel",
+    -- ATF-03: Appearance > Bar > Position, on the same page.
+    "test_positionrows",
     "test_launcher",
     "test_launcher_skin_entry",
     "test_optionssetup",

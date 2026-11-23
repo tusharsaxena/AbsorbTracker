@@ -321,7 +321,8 @@ for i, unit in ipairs(NS.Units.LIST) do
             label   = "Enable this unit",
             desc    = ENABLE_DESC[unit]
                 or ("Show the " .. NS.Units.LABEL[unit] .. " bar and track absorbs on it."),
-            default = (unit == "player"),
+            -- Off the shipped defaults (ATF-02: all three on for a new profile).
+            default = NS.defaults.profile.units[unit].enabled,
             onChange = function()
                 -- UNITS first: it re-syncs the event registrations, so a unit that was just
                 -- enabled is already listening by the time the repaint below lands.

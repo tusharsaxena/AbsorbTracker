@@ -22,11 +22,28 @@ local Widgets = NS.Widgets
 --- Save where a bar was dropped. THE one save for both grab points -- the bar body's own
 --- OnDragStop and its handle's onDragStop -- so the two cannot disagree about what a drop writes.
 --- Position is per-unit and never mirrored, so the write always targets this frame's own unit.
+---
+--- THROUGH THE SCHEMA SEAM since ATF-03 (architecture-§5, "a row wins"): the Appearance page's
+--- Position rows address the offsets, so a drop writes them with NS.SetByPath, bracketed as one
+--- act. The anchor point, which no row addresses, is the drag's own geometry and is set first,
+--- in place (Units.SetAnchor). Without the rows (no LibKa0s: the composer is hollow) the whole
+--- position is stored as before.
 local function savePosition(bar)
     local point, _, relPoint, x, y = bar:GetPoint()
-    NS.Units.SetPosition(bar.unit, { point = point, relPoint = relPoint, x = x, y = y })
+    local base = "units." .. bar.unit .. ".position."
+    if NS.FindSchemaRow and NS.FindSchemaRow(base .. "x") and NS.FindSchemaRow(base .. "y") then
+        NS.Units.SetAnchor(bar.unit, point, relPoint)
+        NS.Bulk.Run("drag", bar.unit, function()
+            NS.SetByPath(base .. "x", x)
+            NS.SetByPath(base .. "y", y)
+        end)
+    else
+        NS.Units.SetPosition(bar.unit, { point = point, relPoint = relPoint, x = x, y = y })
+    end
     -- A drop is a move, which fires no script: the sim strip decides its side again (AD-88-AT).
     NS.PlaceSimStrip(bar)
+    -- The Appearance page's Position sliders read this position (ATF-03): an open page follows.
+    if NS.RefreshOptionsValues then NS.RefreshOptionsValues() end
 end
 
 --- The close mark's click: turn off this ONE bar. It writes the existing per-unit enable row --

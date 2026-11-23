@@ -79,13 +79,15 @@ local PINNED = {
   ["units.focus.border"] = { type = "string", page = "appearance", default = "None" },
   ["units.focus.borderColor"] = { type = "color", page = "appearance", default = { a = 1, b = 0.5, g = 0.5, r = 0.5 } },
   ["units.focus.borderSize"] = { type = "number", page = "appearance", default = 12, min = 0, max = 16, step = 1 },
-  ["units.focus.enabled"] = { type = "bool", page = "general", default = false },
+  ["units.focus.enabled"] = { type = "bool", page = "general", default = true },
   ["units.focus.font"] = { type = "string", page = "appearance", default = "Ka0s Prototype" },
   ["units.focus.fontColor"] = { type = "color", page = "appearance", default = { a = 1, b = 1, g = 1, r = 1 } },
   ["units.focus.fontFlags"] = { type = "string", page = "appearance", default = "@skin" },
   ["units.focus.fontShadow"] = { type = "bool", page = "appearance", default = false },
   ["units.focus.fontSize"] = { type = "number", page = "appearance", default = 12, min = 6, max = 32, step = 1 },
-  ["units.focus.mirror"] = { type = "bool", page = "appearance", default = true },
+  ["units.focus.mirror"] = { type = "bool", page = "appearance", default = false },
+  ["units.focus.position.x"] = { type = "number", page = "appearance", default = 0, min = -2000, max = 2000, step = 1 },
+  ["units.focus.position.y"] = { type = "number", page = "appearance", default = 96, min = -2000, max = 2000, step = 1 },
   ["units.focus.useClassColorBar"] = { type = "bool", page = "appearance", default = false },
   ["units.focus.useClassColorBg"] = { type = "bool", page = "appearance", default = false },
   ["units.focus.useClassColorBorder"] = { type = "bool", page = "appearance", default = false },
@@ -106,6 +108,8 @@ local PINNED = {
   ["units.player.fontFlags"] = { type = "string", page = "appearance", default = "@skin" },
   ["units.player.fontShadow"] = { type = "bool", page = "appearance", default = false },
   ["units.player.fontSize"] = { type = "number", page = "appearance", default = 12, min = 6, max = 32, step = 1 },
+  ["units.player.position.x"] = { type = "number", page = "appearance", default = 0, min = -2000, max = 2000, step = 1 },
+  ["units.player.position.y"] = { type = "number", page = "appearance", default = 0, min = -2000, max = 2000, step = 1 },
   ["units.player.useClassColorBar"] = { type = "bool", page = "appearance", default = false },
   ["units.player.useClassColorBg"] = { type = "bool", page = "appearance", default = false },
   ["units.player.useClassColorBorder"] = { type = "bool", page = "appearance", default = false },
@@ -120,13 +124,15 @@ local PINNED = {
   ["units.target.border"] = { type = "string", page = "appearance", default = "None" },
   ["units.target.borderColor"] = { type = "color", page = "appearance", default = { a = 1, b = 0.5, g = 0.5, r = 0.5 } },
   ["units.target.borderSize"] = { type = "number", page = "appearance", default = 12, min = 0, max = 16, step = 1 },
-  ["units.target.enabled"] = { type = "bool", page = "general", default = false },
+  ["units.target.enabled"] = { type = "bool", page = "general", default = true },
   ["units.target.font"] = { type = "string", page = "appearance", default = "Ka0s Prototype" },
   ["units.target.fontColor"] = { type = "color", page = "appearance", default = { a = 1, b = 1, g = 1, r = 1 } },
   ["units.target.fontFlags"] = { type = "string", page = "appearance", default = "@skin" },
   ["units.target.fontShadow"] = { type = "bool", page = "appearance", default = false },
   ["units.target.fontSize"] = { type = "number", page = "appearance", default = 12, min = 6, max = 32, step = 1 },
-  ["units.target.mirror"] = { type = "bool", page = "appearance", default = true },
+  ["units.target.mirror"] = { type = "bool", page = "appearance", default = false },
+  ["units.target.position.x"] = { type = "number", page = "appearance", default = 0, min = -2000, max = 2000, step = 1 },
+  ["units.target.position.y"] = { type = "number", page = "appearance", default = 48, min = -2000, max = 2000, step = 1 },
   ["units.target.useClassColorBar"] = { type = "bool", page = "appearance", default = false },
   ["units.target.useClassColorBg"] = { type = "bool", page = "appearance", default = false },
   ["units.target.useClassColorBorder"] = { type = "bool", page = "appearance", default = false },
@@ -172,6 +178,8 @@ test("layout guard: every stored path keeps its type, page, default and range", 
     assertTrue(seen[path], "a setting the layout pass lost: " .. path)
   end
   -- 70 from the layout pass, plus the Skin tab's eight (AT-01, skin.outline with LibKa0s v1.82.0)
-  -- and the nine skin companions (AT-03), and the Sim mode box (R6-SIM).
-  assertEqual(n, 105, "the schema row count")
+  -- and the nine skin companions (AT-03), and the Sim mode box (R6-SIM), and the Position block's
+  -- six (ATF-03: X and Y offset per unit, each defaulting to its axis of the stacked default
+  -- position at the shipped 20 px player bar height).
+  assertEqual(n, 111, "the schema row count")
 end)

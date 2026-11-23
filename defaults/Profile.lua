@@ -145,12 +145,15 @@ NS.defaults.profile = {
     },
 
     -- Per-unit. Player has no `mirror` key — it is the mirror SOURCE, so a player mirror row
-    -- would be circular. Target and Focus ship disabled (an upgrade changes nothing on screen)
-    -- but mirrored (a first enable looks like the player bar, not raw factory defaults).
+    -- would be circular. A NEW profile shows all three bars, none linked, stacked one above
+    -- another by their default position (ATF-02, the owner's call of 2026-11-23). Every profile
+    -- that existed before that change kept its target and focus off and linked: ladder step v11
+    -- (core/Database.lua) wrote those two values into each one, because AceDB stores only what
+    -- differs from a default and the new default would otherwise have reached them all.
     units = {
         player = unit(true, nil),
-        target = unit(false, true),
-        focus  = unit(false, true),
+        target = unit(true, false),
+        focus  = unit(true, false),
     },
 }
 
@@ -161,7 +164,8 @@ NS.defaults.global = {
     -- poll-interval key, v3 introduced profile.units, v4 dropped the dead `hidden` global, v5
     -- mapped `showOnlyInCombat` onto `visibility`, v6 put every bar's media back on the skin, v7
     -- moved the old default flags to From skin, v8 put every bar's colors and shadow on the skin and
-    -- v9 moved a stored old default border style to None.
+    -- v9 moved a stored old default border style to None, v10 moved a stored Ka0s Friz pick to
+    -- Ka0s Ubuntu and v11 kept every existing profile's target and focus off and linked.
     --
     -- The default is 0, the pre-migration floor, and never the current version (savedvariables-§1).
     -- AceDB's removeDefaults strips every stored value equal to its default at logout, so a stamp

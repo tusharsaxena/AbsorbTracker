@@ -791,9 +791,18 @@ end)
 -- shipped as a silent no-op (it nil'd `db.profile.position`, the pre-v3 FLAT key the v3 migration
 -- DELETES, while every bar re-anchors from units.<unit>.position). The harness's AceGUI factory
 -- records every widget it hands out; that is the seam used here.
+--
+-- The General page's button, not the Appearance page's: since ATF-03 each bar's Position block
+-- carries its own "Reset position" too (the one bar the page edits). General's is the one in the
+-- button pair beside "Reset all settings", so the row holding both is what is looked for.
 local function aceGUIButton(text)
   for _, w in ipairs(NS.AceGUI.__created) do
-    if w.type == "Button" and w.text == text then return w end
+    local mine, paired
+    for _, child in ipairs(w.children or {}) do
+      if child.type == "Button" and child.text == text then mine = child end
+      if child.type == "Button" and child.text == "Reset all settings" then paired = true end
+    end
+    if mine and paired then return mine end
   end
 end
 

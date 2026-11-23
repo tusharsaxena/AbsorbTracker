@@ -30,7 +30,7 @@ Total.
 
 - FormatSchemaValue formats by type
 - SchemaForPage keeps groups in registration order, which IS the Appearance tab strip
-- the Bar tab runs Size, Fill, Background, Border, each contiguous
+- the Bar tab runs Size, Position, Fill, Background, Border, each contiguous
 - the page -> tab -> row-count partition is the designed one
 - no tab holds fewer than two visible controls
 - ValidateSchema resolves every real path against defaults (0 errors, 0 missing)
@@ -125,7 +125,7 @@ Total.
 - v3 migration does not share nested tables between units
 - the schema version lands on 8
 - real AceDB init: a legacy flat profile is lifted onto the player unit, not overwritten by fresh defaults
-- real AceDB init: a fresh install (no saved data) converges on factory defaults at v10
+- real AceDB init: a fresh install (no saved data) converges on factory defaults at v11
 - InitDB lifts EVERY saved profile, not only the active one
 - a profile that appears AFTER the upgrade is lifted when it becomes active
 - the InitDB sweep and the profile-change lift compose without double-applying
@@ -136,6 +136,18 @@ Total.
 - profile adopt: an off-to-on switch publishes APPEARANCE once, not twice
 - profile adopt: an on-to-off switch stands down and delivers nothing
 - v10 moves a stored Ka0s Friz Quadrata TT to Ka0s Ubuntu on every profile, Blizzard's Friz kept
+
+### test_profiledefaults.lua (9)
+
+- profile defaults: an existing profile keeps target and focus off and linked
+- profile defaults: every stored profile keeps its look, inactive ones included
+- profile defaults: a bar the player turned on or unlinked stays that way
+- profile defaults: the kept values survive AceDB's strip at the next switch
+- profile defaults: a fresh install gets three enabled, unlinked bars
+- profile defaults: a profile made after the upgrade gets three enabled, unlinked bars
+- profile defaults: a reset profile starts from the new defaults
+- profile defaults: a pre-v3 profile restored after the upgrade starts with target and focus off
+- profile defaults: a new profile's three bars stack one above another with no overlap
 
 ### test_units.lua (17)
 
@@ -153,8 +165,8 @@ Total.
 - CopyFromPlayer writes every key through the settings seam
 - CopyFromPlayer logs one [Set] copy line with its row count, and no per-row line
 - IsEnabled reads the per-unit flag and ignores the global hidden toggle
-- target and focus ship disabled so an upgrade changes nothing on screen
-- target and focus ship mirrored so a first enable looks like the player bar
+- all three bars ship enabled, so a new profile shows them all
+- target and focus ship unlinked, each with its own look
 - every per-unit appearance row is in APPEARANCE_KEYS, and vice versa
 
 ### test_envsetup.lua (7)
@@ -578,6 +590,30 @@ Total.
 - after a tab click the two-tier refresher is still registered
 - the Link group never becomes a tab, mirrored or not
 - a hidden Appearance page is not rebuilt by a mirror flip; its next OnShow rebuilds it
+
+### test_profilepanel.lua (5)
+
+- profile events: the Unit picker survives a new, copied and reset profile on player
+- profile events: the Unit picker survives a new, copied and reset profile on target
+- profile events: deleting another profile leaves the Unit picker as it was
+- profile events: the picked unit survives a profile switch
+- profile events: the page draws one render per event, never a nested one
+
+### test_positionrows.lua (13)
+
+- position rows: X and Y offset per unit, under Bar > Position, on a 1 px step
+- position rows: they read the stacked default while nothing is stored
+- position rows: a write stores the whole position and moves the bar live
+- position rows: a write keeps the anchor a drag stored
+- position rows: the Bar tab draws them, and a slider writes the bar's position
+- position rows: dragging the bar moves its sliders
+- position rows: Reset position puts this bar back in the stack, and only this one
+- position rows: the page's Defaults puts every bar back in the stack
+- position rows: a linked unit's Bar tab shows the hint, Position rows included
+- position rows: /at set moves a bar
+- position rows: a write back onto the stacked default clears the position
+- position rows: a drag writes its offsets through the schema seam
+- position rows: Reset position writes through the schema seam too
 
 ### test_launcher.lua (34)
 
@@ -1155,7 +1191,7 @@ Total.
 - bus: the stand-down and stand-up counts are the record's, and the latch drives both
 - lifecycle stub: PrintHolds names the addon and its holds as one space-joined line
 
-### test_diagnostics.lua (12)
+### test_diagnostics.lua (13)
 
 - diagnostics: the row sits straight after debug and its text is routed through NS.L
 - diagnostics: the report carries every DX-AT section, and none of them fails
@@ -1164,6 +1200,7 @@ Total.
 - diagnostics: stood down, the released runtime state says so rather than printing empty
 - diagnostics: the sections change nothing, and the run only turns logging on
 - diagnostics: the media rung is read off LSM, never off the path the getter answered
+- diagnostics: the [UI] section reports the Appearance page's Unit picker
 - diagnostics: the session's rejected events are folded into the report
 - diagnostics: a raising section costs exactly one line and the rest still print
 - diagnostics: an over-cap report ends in the truncated line, then the end marker
@@ -1281,6 +1318,7 @@ Total.
 | test_schema.lua | 62 |
 | test_layoutguard.lua | 1 |
 | test_database.lua | 39 |
+| test_profiledefaults.lua | 9 |
 | test_units.lua | 17 |
 | test_envsetup.lua | 7 |
 | test_coresetup.lua | 8 |
@@ -1298,6 +1336,8 @@ Total.
 | test_helpers.lua | 40 |
 | test_panelpages.lua | 27 |
 | test_panelmirror.lua | 10 |
+| test_profilepanel.lua | 5 |
+| test_positionrows.lua | 13 |
 | test_launcher.lua | 34 |
 | test_launcher_skin_entry.lua | 1 |
 | test_optionssetup.lua | 22 |
@@ -1325,7 +1365,7 @@ Total.
 | test_lintconfig.lua | 4 |
 | test_events.lua | 6 |
 | test_disabled.lua | 19 |
-| test_diagnostics.lua | 12 |
+| test_diagnostics.lua | 13 |
 | test_debugcoverage.lua | 23 |
 | test_diagnostics_contract.lua | 8 |
 | test_eol.lua | 2 |
@@ -1335,4 +1375,4 @@ Total.
 | test_skin_switch.lua | 18 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **1093** |
+| **Total** | **1121** |

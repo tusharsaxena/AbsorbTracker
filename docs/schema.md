@@ -356,21 +356,35 @@ default-shape repair over that fixed list, not registry membership.
 
 ### `units.<unit>.position`
 
-Named non-setting state in architecture-§5's sense. Each bar's saved anchor,
-`db.profile.units.<unit>.position = { point, relPoint, x, y }`, is geometry only a drag
-determines. No schema row addresses it and no control chooses it, so it is written outside
-`NS.SetByPath` and needs no register row. Its **one owner is `core/Units.lua`**:
-`Units.SetPosition(unit, pos)` is the only function that assigns the key (`Units.Position` reads
-it, never mirror-resolved). Every writer, with the act that reaches it:
+**A preference since ATF-03, with one piece of named non-setting state inside it.** Each bar's
+saved place is `db.profile.units.<unit>.position = { point, relPoint, x, y }`, nil for the stacked
+default (`NS.DefaultPosition`). The Appearance page's **Position** rows, `units.<unit>.position.x`
+and `.y` (H.PositionBlock, `settings/Appearance.lua`), address the two offsets, so every write of
+an offset goes through `NS.SetByPath` (architecture-§5, "a row wins"). The rows are closure-backed:
+`get` answers the stored offset or the stacked default's, `set` writes the whole table keeping the
+anchor and the other axis, and a write that lands the bar on its stacked default at the screen's
+center stores nil instead. Each row's `default` is its axis of the stacked default, read when asked.
 
-- **Drag-stop.** The bar's `OnDragStop` handler (`modules/Bar.lua`) saves the dragged frame's own
-  anchor through `Units.SetPosition(self.unit, …)`.
-- **Reset position.** `Helpers.ResetAllPositions` (`settings/UnitPanel.lua`) clears every unit's
-  position through `Units.SetPosition(unit, nil)`, then publishes `POSITION`. Two acts reach it:
-  `/at resetposition` (`settings/Slash.lua`) and the General page's **Reset Position** button
-  (`onResetPosition`, `settings/General.lua`). The button puts back the shipped default (no saved
-  anchor, so each bar re-stacks at `NS.DefaultPosition`) and chooses nothing, so it does not make
-  the position a preference.
+The **anchor** (`point`, `relPoint`) is geometry only a drag determines: no row addresses it and no
+control chooses it, so it is named non-setting state, set in place by `Units.SetAnchor` and needing
+no register row. The **one owner is `core/Units.lua`**: `Units.SetPosition(unit, pos)` assigns the
+key (from the rows' `set` only, at runtime), `Units.SetAnchor(unit, point, relPoint)` sets the
+anchor in place, and `Units.Position` reads it, never mirror-resolved. Every writer, with the act
+that reaches it:
+
+- **Drag-stop.** The bar's `OnDragStop` handler (`modules/Bar.lua` `savePosition`) sets the drop's
+  anchor through `Units.SetAnchor` and writes both offsets through `NS.SetByPath`, in one `drag`
+  bracket. With LibKa0s absent (the composer is hollow, so there are no rows) it stores the whole
+  table through `Units.SetPosition` as before.
+- **The Position rows.** A slider, its edit box, `/at set units.<unit>.position.x <n>` and
+  `/at reset` on one of them, each through `NS.SetByPath`; the row's `onChange` publishes
+  `POSITION` outside a bracket.
+- **Reset position.** `Helpers.ResetAllPositions` and `Helpers.ResetUnitPosition`
+  (`settings/UnitPanel.lua`) set the anchor to the center and apply both rows' defaults, in one
+  `reset` bracket, then publish `POSITION` once. Four acts reach them: `/at resetposition`
+  (`settings/Slash.lua`), the General page's **Reset Position** button (`settings/General.lua`), the
+  Appearance page's **Defaults** (all three units) and its Position block's **Reset position** (the
+  unit the page edits). With no rows they clear the table through `Units.SetPosition(unit, nil)`.
 
 Nothing else writes it at runtime. Reset All Settings (`/at resetall`, the descriptor's
 `resetProfile` and the degraded-path `Helpers.RestoreAllDefaults`) is the options-ui-§12 profile
@@ -378,7 +392,8 @@ reset: `db:ResetProfile()` replaces the profile whole, positions with it. The `a
 hook that once called `ResetAllPositions` is gone. AceDB's profile swap and copy replace it the same
 way. The v3 lift (`NS.MigrateProfileToV3`, `core/Database.lua`) moves a pre-v3 flat
 `profile.position` onto `units.player.position`; that is the load pass. `Units.CopyFromPlayer`
-deliberately does not copy it. The `[Set]` log does not trace it (debug-logging-§10).
+deliberately does not copy it. A drop and a reset each log one bracketed `[Set]` line
+(debug-logging-§10); the anchor's in-place set is not traced.
 
 ### `AbsorbTrackerPerfDB`
 

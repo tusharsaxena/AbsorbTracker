@@ -293,6 +293,18 @@ local function countersSection(out)
         .. "last absorb=%s", c.absorbEvents, c.repaints, secretSafe(c.lastAbsorb))
 end
 
+--- The Appearance page's Unit picker (ATF-01): drawn, still the page's, shown and visible, its
+--- control's own visibility, its size, its stock art's alpha and the unit it shows.
+local function pickerLine(out)
+    local st = NS.UnitPickerState and NS.UnitPickerState()
+    if not st then return out:add("UI", "unit picker: page not rendered") end
+    if not st.drawn then return out:add("UI", "unit picker: drawn=no") end
+    out:add("UI", "unit picker: drawn=yes live=%s shown=%s visible=%s control visible=%s "
+        .. "size=%sx%s art alpha=%s value=%s", yesno(st.live), yesno(st.shown), yesno(st.visible),
+        st.controlVisible == nil and "?" or yesno(st.controlVisible), num(out, st.width),
+        num(out, st.height), num(out, st.artAlpha), tostring(st.value))
+end
+
 --- The settings panel, the launcher, and any library missing from this install.
 local function uiSection(out)
     local panel = _G.SettingsPanel
@@ -300,6 +312,7 @@ local function uiSection(out)
     out:add("UI", "settings panel open=%s", open and true or false)
     local L = NS.Launcher
     out:add("UI", "launcher: registered=%s shown=%s", L and L:IsRegistered(), L and L:IsShown())
+    pickerLine(out)
     out:joined("UI", "libraries missing:", D.MissingLibraries())
 end
 

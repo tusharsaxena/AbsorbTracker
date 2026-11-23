@@ -70,23 +70,24 @@ test("a page refresh re-syncs the mirror checkbox and re-runs the row partition"
   local panel = barPanel()
   panel:__fire("OnShow")
   local ctx = NS.Helpers.__lastUnitCtx
-  NS.db.profile.units.focus.mirror = false
+  -- Linked first: since ATF-02 the shipped default is unlinked, so the reset is what unlinks it.
+  NS.db.profile.units.focus.mirror = true
   ctx.unit = "focus"
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
   local checked, hasRows = mirrorHeaderState(ctx)
-  assertFalse(checked, "an unlinked unit's block checkbox starts unticked")
-  assertTrue(hasRows, "and its appearance rows are on screen")
+  assertTrue(checked, "a linked unit's block checkbox starts ticked")
+  assertFalse(hasRows, "and its appearance rows are off screen")
 
   -- Exactly what the page Defaults button does: reset every row (which puts units.focus.mirror
-  -- back to its default `true`), then run the refreshers.
+  -- back to its default `false`), then run the refreshers.
   NS.Helpers.RestoreDefaults("appearance", ctx)
-  assertEqual(NS.db.profile.units.focus.mirror, true, "the reset really did re-mirror the unit")
+  assertEqual(NS.db.profile.units.focus.mirror, false, "the reset really did unlink the unit")
 
   checked, hasRows = mirrorHeaderState(ctx)
-  assertTrue(checked, "the block's checkbox must re-read the restored mirror flag")
-  assertFalse(hasRows,
-    "and the appearance rows must be partitioned back off a now-mirrored unit")
+  assertFalse(checked, "the block's checkbox must re-read the restored mirror flag")
+  assertTrue(hasRows,
+    "and the appearance rows must be partitioned back onto a now-unlinked unit")
 
   ctx.unit = "player"
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
@@ -290,26 +291,30 @@ test("after a tab click the two-tier refresher is still registered", function()
   -- cleared the scroll and redrew only the rows (RenderTabbedSchema's own click, without the
   -- minor-8 `rerender`) would reset ctx.refreshers and lose it: the checkbox and the row partition
   -- would stop following a mirror change made through the refreshers alone. RestoreDefaults is that
-  -- path -- it resets units.focus.mirror to `true` and runs only the refreshers.
+  -- path -- it resets units.focus.mirror to its default (`false` since ATF-02) and runs only the
+  -- refreshers, so the case starts linked and the reset is what unlinks it.
   -- red under: a tab click that does not re-run the whole page render.
   local panel = barPanel()
   panel:__fire("OnShow")
   local ctx = NS.Helpers.__lastUnitCtx
-  NS.db.profile.units.focus.mirror = false
+  NS.db.profile.units.focus.mirror = true
   ctx.unit, ctx.activeTab = "focus", nil
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
 
   tabButtons(ctx)[2]:__fire("OnClick")
   assertEqual(ctx.activeTab, "Text", "the click retargets the page to the second tab")
-  assertTrue((scrollContent(ctx))["Font size"], "precondition: the Text tab's rows are drawn")
+  local _, texts = scrollContent(ctx)
+  assertTrue(texts["Linked to Player. Untick Link to Player above to give this unit its own look."],
+    "precondition: the linked unit's Text tab shows the hint")
 
   NS.Helpers.RestoreDefaults("appearance", ctx)
-  assertEqual(NS.db.profile.units.focus.mirror, true, "the reset re-mirrored the unit")
-  local labels, texts = scrollContent(ctx)
-  assertTrue(chromeLabel(ctx, "Link to Player").value,
+  assertEqual(NS.db.profile.units.focus.mirror, false, "the reset unlinked the unit")
+  local labels
+  labels, texts = scrollContent(ctx)
+  assertFalse(chromeLabel(ctx, "Link to Player").value,
     "the block's checkbox follows the reset after a tab click")
-  assertFalse(labels["Font size"], "the now-mirrored unit's rows are gone")
-  assertTrue(texts["Linked to Player. Untick Link to Player above to give this unit its own look."], "and the hint replaces them")
+  assertTrue(labels["Font size"], "the now-unlinked unit's Text rows are drawn")
+  assertFalse(texts["Linked to Player. Untick Link to Player above to give this unit its own look."], "and the hint is gone")
 
   ctx.unit, ctx.activeTab = "player", nil
   NS.Helpers.RenderUnitPanel(ctx, "appearance")
