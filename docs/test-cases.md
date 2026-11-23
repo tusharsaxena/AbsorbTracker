@@ -440,7 +440,7 @@ Total.
 - target and focus default stacked above the player bar
 - ForEachUnit walks all three units in order
 
-### test_draghandle.lua (47)
+### test_draghandle.lua (50)
 
 - every bar body is registered for a left-button drag
 - dropping a bar body saves the position to that bar's own unit
@@ -474,6 +474,9 @@ Total.
 - a refused open (combat) leaves the Appearance page's unit alone
 - NS.OpenUnitSettings hands the page key through to the library's opener
 - the settings mark's click touches no bar setting
+- the strips pass no onRightClick, so the library routes a right-click to the gear's action
+- a right-click on a strip, its ?, its gear or its X opens the Appearance page on that unit
+- a right-click on the X opens the settings and hides nothing
 - the settings mark's tooltip names its bar and its page, not how to drag the strip
 - the close mark's tooltip says the bar can be turned back on, and where
 - no strip hands the widget a tooltipPlace hook: the library places every strip tooltip
@@ -1331,7 +1334,7 @@ Total.
 | test_bus.lua | 12 |
 | test_data.lua | 32 |
 | test_display.lua | 61 |
-| test_draghandle.lua | 47 |
+| test_draghandle.lua | 50 |
 | test_layers.lua | 12 |
 | test_helpers.lua | 40 |
 | test_panelpages.lua | 27 |
@@ -1375,4 +1378,4 @@ Total.
 | test_skin_switch.lua | 18 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **1121** |
+| **Total** | **1124** |

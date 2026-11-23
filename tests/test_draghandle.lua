@@ -465,13 +465,19 @@ end)
 
 -- Opening a bar's settings: the call NS.OpenOptionsPanel is handed, and the unit the Appearance
 -- page holds afterwards. The page's ctx is the one tests/run.lua's CreateOptionsPanel built.
-local function clickSettings(unit, openAnswer)
+-- `pick` names the frame to click (the gear by default; "strip" is the strip itself) and `button`
+-- the mouse button (LeftButton by default), so the right-click cases below run through the same helper.
+local function clickSettings(unit, openAnswer, pick, button)
   local ctx = NS.Helpers.__panelFor("appearance")
   local savedUnit = ctx and ctx.unit
   local realOpen, opened = NS.OpenOptionsPanel, {}
   NS.OpenOptionsPanel = function(page) opened[#opened + 1] = page or "landing" return openAnswer end
   local ok, err = pcall(function()
-    withLocked(false, function() NS.bars[unit].handle.settings:__fire("OnClick", "LeftButton") end)
+    withLocked(false, function()
+      local handle = NS.bars[unit].handle
+      local frame = (pick == "strip") and handle or handle[pick or "settings"]
+      frame:__fire("OnClick", button or "LeftButton")
+    end)
   end)
   NS.OpenOptionsPanel = realOpen
   local held = ctx and ctx.unit
@@ -537,6 +543,37 @@ test("the settings mark's click touches no bar setting", function()
   if not ok then error(err) end
   assertEqual(writes, 0, "opening the settings writes nothing")
   assertEqual(c.enabled, enabled)
+end)
+
+-- ── a right-click opens what the gear opens (SRC-AT-01; standalone-windows *The drag strip's marks*,
+-- standard v2.118.0; WidgetsDragHandle minor 17) ──────────────────────────────────────────────────
+
+test("the strips pass no onRightClick, so the library routes a right-click to the gear's action", function()
+  -- red under: a host onRightClick beside onSettings, a second copy of the opener that can drift
+  for _, unit in ipairs(NS.Units.LIST) do
+    local spec = specFor(unit)
+    assertEqual(spec.onRightClick, nil, unit .. ": no host right-click handler")
+    assertTrue(spec.settings ~= false, unit .. ": the strip keeps its gear, the right-click's action")
+  end
+end)
+
+test("a right-click on a strip, its ?, its gear or its X opens the Appearance page on that unit", function()
+  -- red under: LibKa0s v1.109.0's DragHandle, which registered no click without onRightClick (the
+  -- owner's report, 2026-11-23: the gear worked, a right-click on the strip did nothing)
+  for _, unit in ipairs(NS.Units.LIST) do
+    for _, pick in ipairs({ "strip", "help", "settings", "close" }) do
+      local opened, held = clickSettings(unit, true, pick, "RightButton")
+      assertEqual(#opened, 1, unit .. " " .. pick .. ": one right-click, one open")
+      assertEqual(opened[1], "appearance", unit .. " " .. pick .. ": the gear's page")
+      assertEqual(held, unit, unit .. " " .. pick .. ": on the clicked bar's unit")
+    end
+  end
+end)
+
+test("a right-click on the X opens the settings and hides nothing", function()
+  local enabled = NS.Units.IsEnabled("focus")
+  clickSettings("focus", true, "close", "RightButton")
+  assertEqual(NS.Units.IsEnabled("focus"), enabled, "only the X's left click hides the bar")
 end)
 
 test("the settings mark's tooltip names its bar and its page, not how to drag the strip", function()
