@@ -315,8 +315,8 @@ test("v6 puts every stored companion back on, keeps the picks and the colors", f
     focus  = { border = "My Border" },
   } }
   local stamp = migrate({ Default = default, Raid = raid }, "Default", 5)
-  assertEqual(stamp, 10)
-  assertEqual(NS.SCHEMA_VERSION, 10)
+  assertEqual(stamp, 11)
+  assertEqual(NS.SCHEMA_VERSION, 11)
   local p = default.units.player
   assertEqual(p.fontFromSkin, true, "the active profile's font follows the skin")
   assertEqual(p.borderFromSkin, true, "and its border")
@@ -336,7 +336,7 @@ test("v6 runs once: a pick made after it is kept", function()
   assertEqual(p.units.player.fontFromSkin, true, "the reset ran")
   p.units.player.fontFromSkin = false   -- the player unticks "Use the skin's font" afterwards
   local stamp = migrate({ Default = p }, "Default", 8)
-  assertEqual(stamp, 10)
+  assertEqual(stamp, 11)
   assertEqual(p.units.player.fontFromSkin, false, "a later pick survives the next login")
 end)
 
@@ -424,8 +424,8 @@ test("v7 moves a stored OUTLINE onto From skin and keeps a flag the player chang
   local raid = { schemaVersion = 3, skin = { fullSkinReset = true },
     units = { player = { fontFlags = "OUTLINE" }, target = {} } }
   local stamp = migrate({ Default = default, Raid = raid }, "Default", 6)
-  assertEqual(stamp, 10)
-  assertEqual(NS.SCHEMA_VERSION, 10)
+  assertEqual(stamp, 11)
+  assertEqual(NS.SCHEMA_VERSION, 11)
   assertEqual(default.units.player.fontFlags, "@skin", "the old default moves to From skin")
   assertEqual(default.units.target.fontFlags, "THICKOUTLINE", "a changed flag stays")
   assertEqual(default.units.focus.fontFlags, "", "a picked None stays")
@@ -439,7 +439,7 @@ test("v7 runs once: an OUTLINE picked after it is kept", function()
   migrate({ Default = p }, "Default", 6)
   assertEqual(p.units.player.fontFlags, "@skin", "the move ran")
   p.units.player.fontFlags = "OUTLINE"   -- the player picks Outline afterwards
-  assertEqual(migrate({ Default = p }, "Default", 8), 10)
+  assertEqual(migrate({ Default = p }, "Default", 8), 11)
   assertEqual(p.units.player.fontFlags, "OUTLINE", "a later pick survives the next login")
 end)
 

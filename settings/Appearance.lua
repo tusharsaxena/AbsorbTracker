@@ -382,7 +382,8 @@ local function addUnitRows(unit)
             type       = "bool",
             label      = "Link to Player",
             desc       = "Use the Player bar's look for this bar (all appearance settings). Position and enable stay this bar's own.",
-            default    = true,
+            -- Off the shipped defaults: unlinked for a new profile since ATF-02.
+            default    = NS.defaults.profile.units[unit].mirror,
         }
     end
 

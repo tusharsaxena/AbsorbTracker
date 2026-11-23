@@ -8,7 +8,7 @@ local test, assertEqual, assertTrue, assertFalse =
 test("RunMigrations migrates a fresh DB to the current version (7)", function()
   NS.db.global.schemaVersion = nil
   NS:RunMigrations()
-  assertEqual(NS.db.global.schemaVersion, 10)
+  assertEqual(NS.db.global.schemaVersion, 11)
 end)
 
 -- The account-wide DEFAULT is what decides whether the ladder is reachable at all. AceDB-3.0's
@@ -36,7 +36,7 @@ test("a freshly-materialized global runs the ladder, because its default is pre-
   NS.db = savedDB
   if not ok then error(err) end
 
-  assertEqual(fresh.schemaVersion, 10, "the ladder must run all the way to the current version")
+  assertEqual(fresh.schemaVersion, 11, "the ladder must run all the way to the current version")
   assertEqual(profile.updateInterval, nil, "v2 actually applied, not just the stamp")
   assertEqual(profile.hidden, nil, "v4 actually applied, not just the stamp")
   assertEqual(profile.showOnlyInCombat, nil, "v5 actually applied, not just the stamp")
@@ -46,13 +46,13 @@ end)
 test("RunMigrations leaves an already-current (v7) DB unchanged", function()
   NS.db.global.schemaVersion = 7
   NS:RunMigrations()
-  assertEqual(NS.db.global.schemaVersion, 10)
+  assertEqual(NS.db.global.schemaVersion, 11)
 end)
 
 test("RunMigrations is idempotent across repeated runs", function()
   NS.db.global.schemaVersion = nil
   NS:RunMigrations(); NS:RunMigrations(); NS:RunMigrations()
-  assertEqual(NS.db.global.schemaVersion, 10)
+  assertEqual(NS.db.global.schemaVersion, 11)
 end)
 
 test("RunMigrations v2 retires the legacy updateInterval profile key", function()
@@ -60,7 +60,7 @@ test("RunMigrations v2 retires the legacy updateInterval profile key", function(
   NS.db.profile.updateInterval = 1.0
   NS:RunMigrations()
   assertEqual(NS.db.profile.updateInterval, nil)
-  assertEqual(NS.db.global.schemaVersion, 10)
+  assertEqual(NS.db.global.schemaVersion, 11)
 end)
 
 -- savedvariables-§1 (v2.65.0): the account-wide default is 0, never a later floor. AceDB's
@@ -74,7 +74,7 @@ test("NS.SCHEMA_VERSION is the highest ladder step's `to`", function()
   local steps = NS.__migrationSteps
   assertTrue(type(steps) == "table", "NS.__migrationSteps is the suite seam onto the ladder")
   assertEqual(NS.SCHEMA_VERSION, steps[#steps].to)
-  assertEqual(NS.SCHEMA_VERSION, 10)
+  assertEqual(NS.SCHEMA_VERSION, 11)
 end)
 
 -- The v2 step is PROFILE-scoped (it clears a profile key), so the account-wide stamp alone cannot
@@ -210,9 +210,11 @@ test("RunMigrations emits the [Migrate] lines for a v1->v8 upgrade in order", fu
     "v7 \226\134\146 v8",
     "v8 \226\134\146 v9",
     "v9 \226\134\146 v10",
+    "kept target and focus off and linked on 1 profile(s)",
+    "v10 \226\134\146 v11",
   }
   local logged = table.concat(lines, "\n")
-  assertEqual(#lines, #expected, "exactly eleven [Migrate] lines: " .. logged)
+  assertEqual(#lines, #expected, "exactly fifteen [Migrate] lines: " .. logged)
   for i, want in ipairs(expected) do
     assertTrue(lines[i]:find(want, 1, true) ~= nil,
       ("line %d must be %q, got %q"):format(i, want, lines[i]))
@@ -281,7 +283,7 @@ test("v4 drops the dead `hidden` key from every profile, not just the active one
 
   assertEqual(active.hidden, nil, "the active profile's dead key is dropped")
   assertEqual(raid.hidden, nil, "and so is an inactive profile's -- it would return on a switch")
-  assertEqual(version, 10)
+  assertEqual(version, 11)
 end)
 
 -- v5 is the same shape as v4 and gets the same every-profile case, because it is the same failure:
@@ -308,7 +310,7 @@ test("v5 maps showOnlyInCombat onto visibility on every profile, not just the ac
   assertEqual(raid.visibility, "always", "an old FALSE reads back as always")
   assertEqual(active.showOnlyInCombat, nil, "the boolean is gone, not left beside its replacement")
   assertEqual(raid.showOnlyInCombat, nil)
-  assertEqual(version, 10)
+  assertEqual(version, 11)
 end)
 
 test("v5 leaves a profile that never had the boolean on the shipped default", function()
@@ -362,7 +364,7 @@ test("the schema version lands on 8", function()
   NS:RunMigrations()
   local v = NS.db.global.schemaVersion
   NS.db = savedDB
-  assertEqual(v, 10)
+  assertEqual(v, 11)
 end)
 
 -- ── Regression coverage: the v3 lift must fire under REAL AceDB, not just a bespoke table ──
@@ -395,21 +397,22 @@ test("real AceDB init: a legacy flat profile is lifted onto the player unit, not
   assertEqual(profile.units.player.position.x, 1)
   assertEqual(profile.barWidth, nil, "the flat original must be cleared, not duplicated")
   assertEqual(profile.position, nil)
-  assertEqual(NS.db.global.schemaVersion, 10)
+  assertEqual(NS.db.global.schemaVersion, 11)
   NS.db, _G.AbsorbTrackerDB = savedDB, savedSV
 end)
 
-test("real AceDB init: a fresh install (no saved data) converges on factory defaults at v10", function()
+test("real AceDB init: a fresh install (no saved data) converges on factory defaults at v11", function()
   local savedSV, savedDB = _G.AbsorbTrackerDB, NS.db
   _G.AbsorbTrackerDB = nil
   NS:InitDB()
   local profile = NS.db.profile
   assertEqual(profile.units.player.barWidth, NS.defaults.profile.units.player.barWidth)
   assertEqual(profile.units.player.enabled, true)
-  assertEqual(profile.units.target.enabled, false)
-  assertEqual(profile.units.target.mirror, true)
+  -- A new profile shows all three bars, unlinked (ATF-02).
+  assertEqual(profile.units.target.enabled, true)
+  assertEqual(profile.units.target.mirror, false)
   assertEqual(profile.barWidth, nil, "a fresh install has no flat key to lift in the first place")
-  assertEqual(NS.db.global.schemaVersion, 10)
+  assertEqual(NS.db.global.schemaVersion, 11)
   NS.db, _G.AbsorbTrackerDB = savedDB, savedSV
 end)
 
@@ -599,5 +602,5 @@ test("v10 moves a stored Ka0s Friz Quadrata TT to Ka0s Ubuntu on every profile, 
   assertEqual(active.units.player.font, "Ka0s Ubuntu", "the active profile's pick moves")
   assertEqual(raid.units.focus.font, "Ka0s Ubuntu", "and an inactive profile's")
   assertEqual(active.units.target.font, "Friz Quadrata TT", "Blizzard's own Friz stays")
-  assertEqual(version, 10)
+  assertEqual(version, 11)
 end)

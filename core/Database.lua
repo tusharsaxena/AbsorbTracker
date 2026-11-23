@@ -4,6 +4,9 @@ local _, NS = ...
 -- and available headlessly for the test harness.
 function NS:InitDB()
     local AceDB = LibStub and LibStub("AceDB-3.0", true)
+    -- BEFORE AceDB:New, which may merge the defaults into the active profile (the client does it on
+    -- the first read, the kit's fake at once): what each stored profile holds, for ladder step v11.
+    NS.__legacyUnitFlags = NS.SnapshotLegacyUnitFlags(_G.AbsorbTrackerDB, not AceDB)
     if AceDB then
         NS.db = AceDB:New("AbsorbTrackerDB", NS.defaults, true)
         -- Profile changes repaint the bar and refresh an open panel. Guard RegisterCallback so
@@ -30,6 +33,45 @@ end
 -- carry a byte-identical private copy; two copies of a recursive copier can drift, and the drift
 -- would surface only as two profiles silently sharing a nested table.
 local deepcopy = NS.Units.DeepCopy
+
+-- What target and focus shipped as until ATF-02 (2026-11-23): off, and linked to the player. A
+-- new profile shows all three bars unlinked now; every profile that existed before keeps these,
+-- by ladder step v11 below and by the v3 lift for a pre-v3 profile.
+NS.LEGACY_UNIT_FLAGS = {
+    target = { enabled = false, mirror = true },
+    focus  = { enabled = false, mirror = true },
+}
+
+--- Which of the legacy flags each stored profile STORES, keyed by the profile table: for each
+--- unit in NS.LEGACY_UNIT_FLAGS, `{ enabled = <stored?>, mirror = <stored?> }`. Read off the raw
+--- SavedVariables table, before AceDB merges the defaults into the active profile, after which a
+--- stored value and a merged default cannot be told apart. `flat` reads `sv` itself as the one
+--- profile (the no-AceDB fallback); otherwise `sv.profiles`. An empty table is no profile: a
+--- profile AceDB has kept always stores at least its stamp. Answers {} for anything else.
+function NS.SnapshotLegacyUnitFlags(sv, flat)
+    local snap = {}
+    if type(sv) ~= "table" then return snap end
+    local function take(p)
+        if type(p) ~= "table" or next(p) == nil then return end
+        local units = type(p.units) == "table" and p.units or {}
+        local stored = {}
+        for unit, flags in pairs(NS.LEGACY_UNIT_FLAGS) do
+            local u = type(units[unit]) == "table" and units[unit] or {}
+            stored[unit] = {}
+            for key in pairs(flags) do stored[unit][key] = u[key] ~= nil end
+        end
+        snap[p] = stored
+    end
+    if flat then
+        take(sv)
+    elseif type(sv.profiles) == "table" then
+        for _, p in pairs(sv.profiles) do take(p) end
+    end
+    return snap
+end
+
+-- The snapshot the v11 step reads, set by NS:RunMigrations for the length of one ladder run.
+local legacySnapshot
 
 -- v3 (toc-file-§2/savedvariables-§1): bar appearance moved from flat profile keys to profile.units.<unit>.
 --
@@ -84,6 +126,16 @@ function NS.MigrateProfileToV3(profile)
         profile.units.player.position = profile.position
         profile.position = nil
         lifted = true
+    end
+    -- A profile from before target and focus existed starts them as they always started: off and
+    -- linked. Written outright, not read off the defaults, which since v11 turn both on for a new
+    -- profile (ATF-02); a pre-v3 profile stores nothing per unit, so nothing of the player's is
+    -- overwritten. Only when something was lifted: a brand-new profile is unstamped too (its
+    -- per-profile default is 1), and it has nothing to lift and must keep the new defaults.
+    if lifted then
+        for unit, flags in pairs(NS.LEGACY_UNIT_FLAGS) do
+            for key, value in pairs(flags) do profile.units[unit][key] = value end
+        end
     end
 
     profile.schemaVersion = 3
@@ -372,6 +424,37 @@ local SCHEMA_STEPS = {
             NS.Debug("Migrate", "moved Ka0s Friz Quadrata TT to Ka0s Ubuntu on %s profile(s)", moved)
         end
     end },
+    { to = 11, apply = function()
+        -- v11 (ATF-02, the owner's call of 2026-11-23): a NEW profile shows all three bars,
+        -- unlinked. AceDB stores only what differs from a default, so every profile that existed
+        -- before this load and never touched target or focus stores no `enabled` and no `mirror`
+        -- for them, and would read the new defaults: both bars on, both unlinked. This writes the
+        -- old values into each such profile, and only where it stored none (a bar the player
+        -- turned on, or unlinked, keeps that). "Existed" is the snapshot NS:InitDB took before
+        -- AceDB touched the profiles; a profile created later is in no snapshot and the ladder
+        -- never runs again for it. Both values differ from the new defaults, so AceDB keeps them.
+        local snap = legacySnapshot or {}
+        local kept = forEachProfile(function(p)
+            local stored = type(p) == "table" and snap[p]
+            if not stored then return false end
+            if type(p.units) ~= "table" then p.units = {} end
+            local any = false
+            for unit, flags in pairs(NS.LEGACY_UNIT_FLAGS) do
+                if type(p.units[unit]) ~= "table" then p.units[unit] = {} end
+                local u = p.units[unit]
+                for key, value in pairs(flags) do
+                    if not stored[unit][key] and u[key] ~= value then
+                        u[key] = value
+                        any = true
+                    end
+                end
+            end
+            return any
+        end)
+        if kept > 0 then
+            NS.Debug("Migrate", "kept target and focus off and linked on %s profile(s)", kept)
+        end
+    end },
 }
 
 -- The runner's target, derived from the ladder and never a second literal (savedvariables-§1).
@@ -402,11 +485,20 @@ local function runLadder(g, profile)
 end
 
 function NS:RunMigrations()
+    -- The v11 step's record of what each profile stored, which only NS:InitDB can take: before
+    -- AceDB:New, while every profile is still the raw table the SavedVariables file holds. A
+    -- direct call (a suite re-running the ladder over a live db) has none, and v11 then writes
+    -- nothing: a merged profile cannot say what it stored. Taken up first, so no early return
+    -- leaves it for a later run.
+    local snapshot = NS.__legacyUnitFlags or {}
+    NS.__legacyUnitFlags = nil
     local g = NS.db and NS.db.global
     if not g then return end
     -- 0 is the pre-migration floor (the shipped default, defaults/Profile.lua); an absent stamp
     -- reads the same way, so every step runs.
     g.schemaVersion = g.schemaVersion or 0
+
+    legacySnapshot = snapshot
 
     local profile = NS.db.profile
     local defaults = NS.defaults.profile
@@ -427,5 +519,7 @@ function NS:RunMigrations()
 
     -- Past the ladder the v8 step's own gate still answers for the active profile, one that arrived
     -- with no record: restored from a backup, or new since the stamp moved.
-    if runLadder(g, profile) then NS.ResetProfileToSkin(profile) end
+    local done = runLadder(g, profile)
+    legacySnapshot = nil
+    if done then NS.ResetProfileToSkin(profile) end
 end

@@ -268,6 +268,8 @@ Kit.run{
     -- Item 020's guard: every stored path, default and range as they stood before the layout pass.
     "test_layoutguard",
     "test_database",
+    -- ATF-02: what a new profile starts with and what an existing one keeps (ladder v11).
+    "test_profiledefaults",
     "test_units",
     "test_envsetup",
     "test_coresetup",
