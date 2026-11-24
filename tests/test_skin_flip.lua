@@ -202,21 +202,29 @@ test("a companion off draws the stored color and shadow", onSkin("obsidian", fun
 end))
 
 test("a class color comes first, whatever the companion says", onSkin("obsidian", function()
-  local real = NS.ResolveColor
+  -- The ladder is the library's FollowColor (FB-AT-01); the player resolves, so the class answers
+  -- with the companion on. tests/test_color_ladder.lua has the unresolved half.
+  local real = NS.FollowColor
   local handed = 0
-  NS.ResolveColor = function(_, on) handed = handed + (on and 1 or 0); return 0.5, 0.25, 0.125, 1 end
+  NS.FollowColor = function(...)
+    local r, g, b, a, from = real(...)
+    if from == "class" then handed = handed + 1 end
+    return r, g, b, a, from
+  end
+  local mage = mocks.RAID_CLASS_COLORS.MAGE
+  local function rgb(r, g, b) return rgba(r, g, b) end
   local ok, err = pcall(function()
     withUnit("player", "useClassColorBar", true, function()
-      assertEqual(rgba(NS.GetBarColor("player")), rgba(0.5, 0.25, 0.125, 1), "the fill")
+      assertEqual(rgb(NS.GetBarColor("player")), rgb(mage.r, mage.g, mage.b), "the fill")
     end)
     withUnit("player", "useClassColorBorder", true, function()
-      assertEqual(rgba(NS.GetBorderColor("player")), rgba(0.5, 0.25, 0.125, 1), "the border")
+      assertEqual(rgb(NS.GetBorderColor("player")), rgb(mage.r, mage.g, mage.b), "the border")
     end)
     withUnit("player", "useClassColorText", true, function()
-      assertEqual(rgba(NS.GetFontColor("player")), rgba(0.5, 0.25, 0.125, 1), "the text")
+      assertEqual(rgb(NS.GetFontColor("player")), rgb(mage.r, mage.g, mage.b), "the text")
     end)
   end)
-  NS.ResolveColor = real
+  NS.FollowColor = real
   if not ok then error(err, 0) end
   assertEqual(handed, 3, "the class branch ran")
   withUnit("player", "useClassColorBg", true, function()

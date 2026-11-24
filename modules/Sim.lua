@@ -100,14 +100,14 @@ function Host.PanelAnchor()
     return nil
 end
 
---- The descriptor's prepare: hold the bars for the session, open the step window.
+--- The descriptor's prepare: hold the bars for the session. The step window is the library's to
+--- open: since LibKa0s v1.113.0 (Sim minor 5) every start shows it after prepare (FB2-AT-01, D2).
 function Host.Prepare(_, _, _, ready)
     Host.arming = true
     NS.HoldPreview(Host.HOLD_SECONDS)
     Host.arming = false
     -- Every bar drawing the made-up shield says so: the cyan strip on its top edge (AD-88-AT).
     NS.ShowSimStrips(true)
-    if NS.Sim and NS.Sim.ShowPanel then NS.Sim:ShowPanel() end
     ready()
 end
 
@@ -187,7 +187,7 @@ if Lib then
     -- The Master controls Sim mode box (R6-SIM) re-reads on RefreshScalars, so every start, step and
     -- stop, from any route, refreshes an open page.
     NS.Sim:AddListener(function() Host.RefreshPage() end)
-    -- Every show of the step window (bare /at sim, /at sim panel, a start's prepare, the box, the
+    -- Every show of the step window (bare /at sim, /at sim panel, every start, the box, the
     -- launcher) goes through this member, so the first one hooks the frame it builds (R7-SIM). The
     -- frame's OnShow fired before the hook existed, so that first show refreshes the page itself.
     local showPanel = NS.Sim.ShowPanel

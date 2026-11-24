@@ -492,6 +492,18 @@ function NS.UpdateAbsorbBar(unit, parentBucket)
     return true
 end
 
+--- Repaint one bar's four colors and nothing else (FB-AT-01). A target or focus swap changes whose
+--- class the bar takes (options-ui-§17: repaint when the unit changes), and the appearance pass
+--- above is the only other place they are set; a swap must not cost a full re-backdrop.
+function NS.ApplyBarColors(unit)
+    local bar = NS.bars and NS.bars[unit]
+    if not bar then return end
+    bar.statusBar:SetStatusBarColor(NS.GetBarColor(unit))
+    bar:SetBackdropColor(NS.GetBgColor(unit))
+    if bar.border then bar.border:SetBackdropBorderColor(NS.GetBorderColor(unit)) end
+    if bar.valueText then bar.valueText:SetTextColor(NS.GetFontColor(unit)) end
+end
+
 -- Bus subscriptions (architecture-§4). This module owns the SOLE subscription to each of the
 -- appearance / visibility / position notifications; the settings, event, and lifecycle layers
 -- publish them instead of calling these functions across the module boundary. All three register

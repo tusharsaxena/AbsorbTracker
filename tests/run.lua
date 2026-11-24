@@ -317,6 +317,10 @@ Kit.run{
     "test_sim",
     -- AD-88-AT: the sim's cyan strip docked on each bar's top edge, straight after the sim.
     "test_sim_strip",
+    -- FB2-AT-01: every start path shows the step window (LibKa0s v1.113.0, decision D2).
+    "test_sim_start_panel",
+    -- FB2-AT-01: no named sample person outside the library (decision D1, LibKa0s#104).
+    "test_sample_names",
     "test_widgets",
     -- The real pages' OnShow cases, peeled out of test_widgets in the layout-§1 band. Straight after
     -- it, so its cases keep their place in the run.
@@ -329,6 +333,8 @@ Kit.run{
     "test_skin_hud",
     -- The colors and shadow, and the one per-profile step (FS-AT-FLIP).
     "test_skin_flip",
+    -- FB-AT-01: class -> skin -> swatch, and the preview's stand-in class. After test_skin_flip.
+    "test_color_ladder",
     -- The first-run skin picker (AT-04): when it shows, its spec, the real window. After
     -- test_skin_hud; it leaves the skin on Ka0s Default and the picker down, unseen.
     "test_skin_picker",
