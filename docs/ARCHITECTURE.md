@@ -226,7 +226,9 @@ is a separate thing, a scripted shield fight played on the bars from a step wind
 (`modules/Sim.lua`), and the Master controls **Sim mode** box and the launcher's Sim mode entry are
 the same act. Both read on while the step window is shown or a sim runs (R7-SIM): a tick from off
 opens the window idle, as bare `/at sim` does, and an untick stops a running sim and closes the
-window. The window's own `OnShow` and `OnHide` refresh an open page. While a sim runs every bar
+window. Every start of a session opens the window (LibKa0s v1.113.0, Sim minor 5: the session's own
+Start shows it after `prepare`, so `Host.Prepare` opens none of its own; FB2-AT-01). The window's
+own `OnShow` and `OnHide` refresh an open page. While a sim runs every bar
 carries the cyan **SIM** strip on its top edge, outside it (preview-mode, *Where the strip sits*;
 `modules/Bar.lua`), and the step window stays on screen as well. There is no amber test strip,
 because there is no test mode, and no mode word, because the bars have no header.

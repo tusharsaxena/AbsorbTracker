@@ -902,6 +902,22 @@ Total.
 - sim strip: moving a bar places its strip again
 - sim strip: a build with no LibKa0s draws no strip and the sim still answers
 
+### test_sim_start_panel.lua (7)
+
+- sim start panel: the window comes from the library's start, not the addon's prepare
+- sim start panel: bare /at sim shows the window and starts nothing
+- sim start panel: /at sim start <scenario> shows the window
+- sim start panel: the window's picker Start and its Restart show the window
+- sim start panel: the Master controls box and the launcher row show the window
+- sim start panel: a host start through the session shows the window
+- sim start panel: the scenario picker's selected row stands off the plain rows
+
+### test_sample_names.lua (3)
+
+- sample names: the guard reads the addon's own source and docs
+- sample names: the guard flags a planted name and passes words and the prefixes alone
+- sample names: no sample-name literal outside tests/, libs/ and the frozen bundles
+
 ### test_widgets.lua (46)
 
 - NS.AceGUI is stashed once by CreateOptionsPanel, not re-fetched per builder
@@ -1361,6 +1377,8 @@ Total.
 | test_debughold.lua | 16 |
 | test_sim.lua | 26 |
 | test_sim_strip.lua | 7 |
+| test_sim_start_panel.lua | 7 |
+| test_sample_names.lua | 3 |
 | test_widgets.lua | 46 |
 | test_realpages.lua | 13 |
 | test_skinsetup.lua | 17 |
@@ -1389,4 +1407,4 @@ Total.
 | test_skin_switch.lua | 18 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **1131** |
+| **Total** | **1141** |
