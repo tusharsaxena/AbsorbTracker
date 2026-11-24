@@ -317,6 +317,8 @@ Kit.run{
     "test_sim",
     -- AD-88-AT: the sim's cyan strip docked on each bar's top edge, straight after the sim.
     "test_sim_strip",
+    -- FB2-AT-01: every start path shows the step window (LibKa0s v1.113.0, decision D2).
+    "test_sim_start_panel",
     "test_widgets",
     -- The real pages' OnShow cases, peeled out of test_widgets in the layout-§1 band. Straight after
     -- it, so its cases keep their place in the run.
