@@ -114,8 +114,10 @@ end)
 -- addon's own settings dropdowns are AceGUI's (the schema rows' and the Unit picker), which mark
 -- their pick with a check and whose colors the library's AceGUI skinning paints; Absorb Tracker
 -- builds and paints no menu row of its own. Since WidgetsDropdown minor 4 a selected row stands off
--- a plain row; this pins the picker to it under Ka0s Default and under Azeroth, whose accent sits
--- too near its menu text and so selects in the fallback gold.
+-- a plain row. FB2-AT-02 (the owner's ruling, 2026-11-24): a selected row is Ka0s Default's gold in
+-- every skin, the skin's own menu.textSel standing in only where the gold sits too near that skin's
+-- menu text. This pins the picker to it under Ka0s Default, Azeroth and WoW Forever (the default
+-- skin on Forever, whose tan accent a selected row wore before the ruling).
 local function rgb(r, g, b) return ("%.3f,%.3f,%.3f"):format(r, g, b) end
 
 --- Open `dd`'s menu and answer each row's painted label color, by row index.
@@ -146,7 +148,7 @@ end
 
 test("sim start panel: the scenario picker's selected row stands off the plain rows", function()
   -- red under: WidgetsDropdown minor 3, where Azeroth's selected row wore its accent, 16.3 dE00 off
-  -- its plain rows.
+  -- its plain rows; and under the first cut of v1.113.0, where WoW Forever's wore its tan accent.
   reset()
   local W = M.LibStub("LibKa0s-Widgets-1.0")
   assertTrue(type(W.SelectedColor) == "function", "WidgetsDropdown minor 4's SelectedColor")
@@ -155,7 +157,8 @@ test("sim start panel: the scenario picker's selected row stands off the plain r
   local dd = f and f.picker and f.picker.scenario
   assertTrue(dd ~= nil, "the step window's scenario picker")
   local before = NS.GetSetting("skin.skin")
-  for _, key in ipairs({ "ka0s", "azeroth" }) do
+  local gold = rgb(1, 0.82, 0)
+  for _, key in ipairs({ "ka0s", "azeroth", "forever" }) do
     assertTrue(NS.SetByPath("skin.skin", key), "skin " .. key)
     dd:SelectValue("drain")
     local colors = rowColors(dd)
@@ -163,6 +166,7 @@ test("sim start panel: the scenario picker's selected row stands off the plain r
     for i, name in ipairs(NS.SimHost.SCENARIOS.names) do if name == "drain" then selIndex = i end end
     assertTrue(colors[selIndex] ~= nil, key .. ": the selected row painted")
     assertEqual(colors[selIndex], rgb(W.SelectedColor("AbsorbTracker")), key .. ": the selected row wears SelectedColor")
+    assertEqual(colors[selIndex], gold, key .. ": the selected row is Ka0s Default's gold")
     for i, c in pairs(colors) do
       if i ~= selIndex then
         assertTrue(c ~= colors[selIndex], key .. ": plain row " .. i .. " differs from the selected one")
