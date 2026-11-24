@@ -319,6 +319,8 @@ Kit.run{
     "test_sim_strip",
     -- FB2-AT-01: every start path shows the step window (LibKa0s v1.113.0, decision D2).
     "test_sim_start_panel",
+    -- FB2-AT-01: no named sample person outside the library (decision D1, LibKa0s#104).
+    "test_sample_names",
     "test_widgets",
     -- The real pages' OnShow cases, peeled out of test_widgets in the layout-§1 band. Straight after
     -- it, so its cases keep their place in the run.
