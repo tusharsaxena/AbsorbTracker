@@ -108,3 +108,67 @@ test("sim start panel: a host start through the session shows the window", funct
   assertTrue(NS.Sim:IsPanelShown(), "sim:Start, the choke point every path goes through")
   reset()
 end)
+
+-- FB2-AT-01 (decision D3): the one menu here that marks a selected entry is the step window's
+-- scenario picker, LibKa0s-Widgets-1.0's Dropdown (SimPanel builds it with the addon as owner). The
+-- addon's own settings dropdowns are AceGUI's (the schema rows' and the Unit picker), which mark
+-- their pick with a check and whose colors the library's AceGUI skinning paints; Absorb Tracker
+-- builds and paints no menu row of its own. Since WidgetsDropdown minor 4 a selected row stands off
+-- a plain row; this pins the picker to it under Ka0s Default and under Azeroth, whose accent sits
+-- too near its menu text and so selects in the fallback gold.
+local function rgb(r, g, b) return ("%.3f,%.3f,%.3f"):format(r, g, b) end
+
+--- Open `dd`'s menu and answer each row's painted label color, by row index.
+local function rowColors(dd)
+  local seen = {}
+  local menu
+  dd:__fire("OnClick")
+  for _, f in ipairs(M.__shownFrames()) do
+    if rawget(f, "__dd") == dd and type(rawget(f, "buttons")) == "table" then menu = f end
+  end
+  assertTrue(menu ~= nil, "the picker's menu opened")
+  for i, row in ipairs(menu.buttons) do
+    local fs = row.fs
+    local real = fs.SetTextColor
+    fs.SetTextColor = function(self, r, g, b, ...)
+      seen[i] = rgb(r, g, b)
+      if real then return real(self, r, g, b, ...) end
+    end
+  end
+  menu:Populate(dd)
+  for _, row in ipairs(menu.buttons) do row.fs.SetTextColor = nil end
+  local W = M.LibStub("LibKa0s-Widgets-1.0")
+  W.CloseMenu()
+  -- The mock's Hide fires no script; the client's OnHide is what drops the outside-press watch.
+  menu:__fire("OnHide")
+  return seen
+end
+
+test("sim start panel: the scenario picker's selected row stands off the plain rows", function()
+  -- red under: WidgetsDropdown minor 3, where Azeroth's selected row wore its accent, 16.3 dE00 off
+  -- its plain rows.
+  reset()
+  local W = M.LibStub("LibKa0s-Widgets-1.0")
+  assertTrue(type(W.SelectedColor) == "function", "WidgetsDropdown minor 4's SelectedColor")
+  slash("sim")
+  local f = panelFrame()
+  local dd = f and f.picker and f.picker.scenario
+  assertTrue(dd ~= nil, "the step window's scenario picker")
+  local before = NS.GetSetting("skin.skin")
+  for _, key in ipairs({ "ka0s", "azeroth" }) do
+    assertTrue(NS.SetByPath("skin.skin", key), "skin " .. key)
+    dd:SelectValue("drain")
+    local colors = rowColors(dd)
+    local selIndex
+    for i, name in ipairs(NS.SimHost.SCENARIOS.names) do if name == "drain" then selIndex = i end end
+    assertTrue(colors[selIndex] ~= nil, key .. ": the selected row painted")
+    assertEqual(colors[selIndex], rgb(W.SelectedColor("AbsorbTracker")), key .. ": the selected row wears SelectedColor")
+    for i, c in pairs(colors) do
+      if i ~= selIndex then
+        assertTrue(c ~= colors[selIndex], key .. ": plain row " .. i .. " differs from the selected one")
+      end
+    end
+  end
+  NS.SetByPath("skin.skin", before)
+  reset()
+end)
