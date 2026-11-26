@@ -453,3 +453,11 @@ The feedback batch of 2026-11-24 (Ka0sAddonsCommonTasks `docs/2026-11-24-FEEDBAC
 The feedback batch's second round (Ka0sAddonsCommonTasks `docs/2026-11-24-FEEDBACK_BATCH/R2_SMOKE_FEEDBACK.md`, FB2-AT-01, LibKa0s v1.113.0, standard v2.120.0) adds SIM-5 (every start path opens the step window, now from the library's own start rather than the addon's prepare) and SIM-6 (the step window's scenario picker paints its picked row apart from the plain rows). Absorb Tracker draws no named sample person, so LibKa0s#104 has nothing to move here; a test holds it there. Owed: SIM-5, SIM-6.
 
 On 2026-11-24 the owner reported that every check owed from the skin-defaults run passed (Ka0sAddonsCommonTasks `docs/2026-11-20-LIBKA0S_94_97_99_100/`, LibKa0s v1.108.0; run SKIN 11-20 of the owner's smoke sheet, a copy of `Ka0sPendingSmoke-2026-11-23.csv`), recorded on the owner's word. Passed, recorded on its `Result:` line as `Passed (owner, 2026-11-24)`: SKIN-47.
+
+## Help glyph (2026-11-27)
+
+The owner picked the help and missing-icon glyphs (Ka0sAddonsCommonTasks round 6). Unrun.
+
+| ID | Check | Result |
+|---|---|---|
+| GLYPH-1 | Unlock the bars (`/at unlock` or the settings' Locked toggle off): each bar's drag handle shows the **?** help mark as a white filled circle with the question mark cut out (Phosphor `ph:question`), not the bare **?**; hovering it still shows the help tooltip. | |

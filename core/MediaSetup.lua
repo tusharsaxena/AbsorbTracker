@@ -83,7 +83,7 @@ local Media = LibStub and LibStub("LibKa0s-Media-1.0", true)
 
 --- The texture path for one shipped icon, or nil.
 ---
---- ONE CALL SITE: modules/Bar.lua's drag handle, which passes `NS.Icon("help")`
+--- ONE CALL SITE: modules/Bar.lua's drag handle, which passes `NS.Icon("ph:question")`
 --- and `NS.Icon("close")` to LibKa0s-Widgets-1.0's DragHandle as the help and
 --- close marks' art — the first controls this addon draws itself, which is what
 --- this seam was kept published for. A nil answer is fine there: the widget

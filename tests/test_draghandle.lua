@@ -136,7 +136,7 @@ test("the handle moves its own bar, with the help icon from the Media seam", fun
   local spec, bar = specFor("target")
   assertEqual(spec.moveFrame, bar)
   assertEqual(spec.name, "ATDragHandleTest_targetHandle")
-  assertEqual(spec.helpIcon, NS.Icon("help"))
+  assertEqual(spec.helpIcon, NS.Icon("ph:question"))
   assertTrue(spec.helpIcon ~= nil, "the vendored catalog ships a help mark")
   assertEqual(bar.handle.__parent, bar)
 end)
