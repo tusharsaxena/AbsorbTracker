@@ -108,7 +108,8 @@ end)
 test("MediaSetup: every mark this addon's windows draw is one the library ships", function()
   -- This addon draws almost no chrome of its own — the three bars have no title bars, and the
   -- settings panel is LibKa0s-Options-1.0's — so the marks that reach the screen are the drag
-  -- handle's help mark (modules/Bar.lua asks NS.Icon for "help") and the ones the DebugLog library
+  -- handle's help mark (modules/Bar.lua asks NS.Icon for "ph:question", Phosphor's filled question, the owner's
+  -- pick of 2026-11-27) and the ones the DebugLog library
   -- builds on our behalf once core/DebugLogSetup.lua hands it `addonName`: the console's close,
   -- copy and clear, the Copy window's close, and the perf panel's close, which the library builds
   -- from its own else arm, and the first-run skin picker's gear (`settings`, LibKa0s
@@ -121,7 +122,7 @@ test("MediaSetup: every mark this addon's windows draw is one the library ships"
   for _, name in ipairs(lib.ICONS) do known[name] = true end
 
   for _, name in ipairs({ "chevron-down", "chevron-up", "clear", "close", "confirm", "copy", "eye",
-    "help", "info", "move", "reset", "settings", "volume-high" }) do
+    "info", "move", "ph:question", "reset", "settings", "volume-high" }) do
     assertTrue(known[name] == true,
       "this addon's windows draw '" .. name .. "', which LibKa0s-Media does not ship")
     assertTrue(NS.Icon(name) ~= nil, "NS.Icon answered nil for " .. name)
@@ -136,7 +137,7 @@ test("MediaSetup: every mark this addon's windows draw is one the library ships"
   -- red under: a draw site added or dropped without the CLAUDE.md line moving with it.
   local decl = declaration()
   assertEqual(decl.mode, "list", "the declaration must be a list of names, not `none` or `all`")
-  assertEqual(table.concat(decl.names, ", "), "chevron-down, chevron-up, clear, close, confirm, copy, eye, help, info, move, reset, settings, volume-high",
+  assertEqual(table.concat(decl.names, ", "), "chevron-down, chevron-up, clear, close, confirm, copy, eye, info, move, ph:question, reset, settings, volume-high",
     "CLAUDE.md's `LibKa0s icons:` line must name exactly the marks this addon's windows draw")
 end)
 
@@ -150,7 +151,7 @@ test("MediaSetup: every icon CLAUDE.md declares has a file in the vendored copy"
   assertEqual(decl.mode, "list", "the declaration must be a list of names")
   local missing = {}
   for _, name in ipairs(decl.names) do
-    local fh = io.open("libs/LibKa0s/media/icons/" .. name .. ".tga", "rb")
+    local fh = io.open("libs/LibKa0s/media/icons/" .. name:gsub("^ph:", "phosphor/"):gsub("^gi:", "game-icons/") .. ".tga", "rb")
     local size = fh and fh:seek("end") or 0
     if fh then fh:close() end
     if size <= 0 then missing[#missing + 1] = name end

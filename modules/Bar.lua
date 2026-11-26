@@ -116,7 +116,7 @@ local function buildHandle(bar, unit, globalName)
         -- minor 6), and a skin switch repaints them. Ka0s Default draws the strip as before.
         owner     = addonName,
         -- nil falls back to the widget's own last rung, a Blizzard texture, not to nothing.
-        helpIcon  = NS.Icon and NS.Icon("help") or nil,
+        helpIcon  = NS.Icon and NS.Icon("ph:question") or nil,
         -- Dragging is the LOCK's business. A locked bar is not movable (UpdateBarAppearance), and
         -- StartMoving on a frame that is not movable raises, so the strip asks before it starts.
         canDrag    = function() return not NS.GetSetting("locked") end,

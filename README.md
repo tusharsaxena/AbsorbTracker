@@ -161,6 +161,7 @@ Please file new reports there rather than in comments, so nothing gets lost.
 
 ## Credits
 
-- [Open Iconic](https://github.com/iconic/open-iconic) by Waybury (MIT): the **?** and **X** on the bar's drag
+- [Phosphor](https://phosphoricons.com) by Phosphor Icons (MIT, the Fill weight): the **?** on the bar's drag handle.
+- [Open Iconic](https://github.com/iconic/open-iconic) by Waybury (MIT): the **X** on the bar's drag
   handle, the close, copy and clear marks on the debug console, the skin picker's settings gear and eye, and the
   small marks LibKa0s draws beside skinned controls.
