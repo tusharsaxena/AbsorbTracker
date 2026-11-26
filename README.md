@@ -10,7 +10,7 @@ Supports Retail and WoW Forever. Absorb Tracker shows your absorb shields as a m
 into one number, so a glance tells you how much damage you can eat before your health starts
 moving.
 
-There are three bars: Player, Target and Focus. Target and Focus ship switched off. You can put
+There are three bars: Player, Target and Focus, and you can switch each one off on its own. You can put
 each bar anywhere on screen and restyle it down to the texture, the border and the font, or link it
 to the Player bar and let it follow along. The fill, background, border and absorb number can each
 take a class color if you prefer, and the class is always that bar's own unit's.
